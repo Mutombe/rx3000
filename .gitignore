@@ -22,3 +22,5 @@ frontend/vite.config.ts.timestamp-*
 # Rust build output. Hundreds of megabytes of compiled crates that rebuild from
 # source; nothing here belongs in a repository.
 desktop/src-tauri/target/
+
+desktop/src-tauri/build.log

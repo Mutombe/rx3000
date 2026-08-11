@@ -38,8 +38,13 @@ fn resolve_server() -> String {
             // First non-empty, non-comment line. A config file people edit by
             // hand acquires comments, and a comment read as a URL is a support
             // call that starts "it says it cannot connect".
+            //
+            // The byte order mark has to go first. Notepad and PowerShell both
+            // write one, and it sits invisibly in front of the first character,
+            // so a leading '#' stops looking like a comment and the till adopts
+            // the comment as its server address. Found by running the thing.
             for line in contents.lines() {
-                let line = line.trim();
+                let line = line.trim().trim_start_matches('\u{feff}').trim();
                 if !line.is_empty() && !line.starts_with('#') {
                     return line.trim_end_matches('/').to_string();
                 }
