@@ -1,0 +1,197 @@
+/** The password prompt for actions that need one.
+ *
+ *  Two different things happen behind this one dialog, and conflating them is
+ *  the usual mistake:
+ *
+ *    re-authentication   "prove you are still you" — the till has been left
+ *                        unattended and the action is destructive
+ *    supervisor override "get someone senior to approve" — the cashier cannot
+ *                        discount, so the manager walks over and types their
+ *                        own password on the cashier's till
+ *
+ *  The second is what actually happens at a counter, so where the action
+ *  forbids self-approval the dialog asks *who* is approving before it asks for
+ *  a password. A dialog that only ever asked "your password" would force the
+ *  manager to log the cashier out — which in practice means the manager's
+ *  password ends up known to the whole shop.
+ *
+ *  The server is the authority on all of this. This component asks it what the
+ *  action requires rather than hard-coding it, so protecting a new action never
+ *  means editing the UI.
+ */
+import { useEffect, useState } from "react";
+import { api } from "../api";
+
+export interface StepUpAction {
+  key: string;
+  name: string;
+  why: string;
+  approvers: string[];
+  self_approval: boolean;
+  valid_seconds: number;
+}
+
+interface Props {
+  /** e.g. "sale.void" */
+  action: string;
+  /** What this is for — shown to the approver and kept in the audit log. */
+  context?: string;
+  /** Called with a single-use token once authority is granted. */
+  onGranted: (token: string) => void;
+  onCancel: () => void;
+}
+
+export default function StepUp({ action, context = "", onGranted, onCancel }: Props) {
+  const [spec, setSpec] = useState<StepUpAction | null>(null);
+  const [approver, setApprover] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .get<StepUpAction[]>("/api/step-up/actions")
+      .then((all) => setSpec(all.find((a) => a.key === action) || null))
+      .catch((e) => setError(e.message));
+  }, [action]);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const res = await api.post<{ token: string }>("/api/step-up", {
+        action,
+        password,
+        approver: approver.trim(),
+        context,
+      });
+      onGranted(res.token);
+    } catch (err: any) {
+      // The server's refusal is the useful message — "not permitted to approve",
+      // "needs a second person", "that password was not accepted" — so it is
+      // shown as written rather than replaced with something generic.
+      setError(err.message);
+      setPassword("");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const needsSecondPerson = spec && !spec.self_approval;
+
+  return (
+    <div className="modal-backdrop" onClick={onCancel}>
+      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h2>{spec ? spec.name : "Authorisation required"}</h2>
+
+        {spec && <p className="muted">{spec.why}</p>}
+
+        {needsSecondPerson ? (
+          <p className="alert warn">
+            This needs a second person. Ask a {spec!.approvers.join(" or ")} to enter
+            their own username and password — not yours.
+          </p>
+        ) : (
+          <p className="muted">Re-enter your password to confirm.</p>
+        )}
+
+        {error && <div className="alert error">{error}</div>}
+
+        {needsSecondPerson && (
+          <label>
+            Approver's username
+            <input
+              value={approver}
+              autoFocus
+              autoComplete="off"
+              onChange={(e) => setApprover(e.target.value)}
+              placeholder={spec!.approvers[0]}
+            />
+          </label>
+        )}
+
+        <label>
+          Password
+          <input
+            type="password"
+            value={password}
+            autoFocus={!needsSecondPerson}
+            autoComplete="off"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+
+        {spec && (
+          <p className="muted small">
+            Valid for {Math.round(spec.valid_seconds / 60)} minute
+            {spec.valid_seconds >= 120 ? "s" : ""}, for this one action. Every attempt
+            is recorded, including refusals.
+          </p>
+        )}
+
+        <div className="modal-actions">
+          <button type="button" className="btn ghost" onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn primary"
+            disabled={busy || !password || (!!needsSecondPerson && !approver.trim())}
+          >
+            {busy ? "Checking…" : "Authorise"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/** Run a request that needs authority, prompting for it only if the server asks.
+ *
+ *  Deliberately optimistic: it tries without a token first. Most protected
+ *  actions are attempted by someone who turns out to be allowed, and a dialog
+ *  shown before it is needed trains people to type passwords on reflex — which
+ *  is the habit the prompt exists to prevent.
+ */
+export function useStepUp() {
+  const [pending, setPending] = useState<{
+    action: string;
+    context: string;
+    run: (token: string) => void;
+  } | null>(null);
+
+  async function guarded<T>(
+    action: string,
+    attempt: (token?: string) => Promise<T>,
+    context = "",
+  ): Promise<T | undefined> {
+    try {
+      return await attempt();
+    } catch (err: any) {
+      // 428 is the server saying 'signed in, but this needs more authority'.
+      if (err?.status !== 428) throw err;
+      return new Promise<T | undefined>((resolve) => {
+        setPending({
+          action,
+          context,
+          run: async (token: string) => {
+            setPending(null);
+            resolve(await attempt(token));
+          },
+        });
+      });
+    }
+  }
+
+  const prompt = pending ? (
+    <StepUp
+      action={pending.action}
+      context={pending.context}
+      onGranted={pending.run}
+      onCancel={() => setPending(null)}
+    />
+  ) : null;
+
+  return { guarded, prompt };
+}

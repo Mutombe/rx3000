@@ -1,0 +1,212 @@
+import { FormEvent, useEffect, useState } from "react";
+import { useToast } from "../components/Toast";
+import { api, fmtDateTime } from "../api";
+import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import { Campaign, Message, Patient, Segment } from "../types";
+
+type Tab = "compose" | "history";
+
+export default function Marketing() {
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [channel, setChannel] = useState("sms");
+  const [segment, setSegment] = useState("all_patients");
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [goal, setGoal] = useState("");
+  const [preview, setPreview] = useState<Patient[]>([]);
+  const [sentMessages, setSentMessages] = useState<Message[] | null>(null);
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const TABS: TabDef<Tab>[] = [
+    { key: "compose", label: "New campaign" },
+    { key: "history", label: "Campaign history", count: campaigns.length },
+  ];
+  const [tab, setTab] = usePageTabs<Tab>(TABS, "compose");
+
+  function loadSegments() {
+    api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments).catch((e) => toast.error(e.message));
+  }
+  function loadCampaigns() {
+    api.get<Campaign[]>("/api/marketing/campaigns").then(setCampaigns);
+  }
+
+  useEffect(loadSegments, [channel]);
+  useEffect(loadCampaigns, []);
+  useEffect(() => {
+    api.get<Patient[]>(`/api/marketing/segments/${segment}/preview?channel=${channel}&limit=8`)
+      .then(setPreview).catch(() => setPreview([]));
+  }, [segment, channel]);
+
+  const chosen = segments.find((s) => s.key === segment);
+
+  async function draftCopy() {
+    setAiBusy(true); toast.error("");
+    try {
+      const res = await api.post<{ text: string }>("/api/ai/campaign-copy", {
+        name: name || "Pharmacy campaign", channel,
+        segment_label: chosen?.label ?? "patients",
+        goal: goal || "Encourage patients to visit the pharmacy",
+      });
+      setBody(res.text);
+    } catch (e: any) { toast.error(e.message); } finally { setAiBusy(false); }
+  }
+
+  async function createAndSend(e: FormEvent) {
+    e.preventDefault();
+    if (!window.confirm(`Send this ${channel.toUpperCase()} to ${chosen?.size ?? 0} recipient(s)?`)) return;
+    setBusy(true); toast.error(""); toast.ok("");
+    try {
+      const campaign = await api.post<Campaign>("/api/marketing/campaigns", {
+        name, channel, segment, subject, body,
+      });
+      const sent = await api.post<Campaign>(`/api/marketing/campaigns/${campaign.id}/send`);
+      toast.ok(`"${sent.name}" delivered to ${sent.sent_count} recipient(s)${sent.failed_count ? `, ${sent.failed_count} failed` : ""}.`);
+      setName(""); setSubject(""); setBody(""); setGoal("");
+      loadCampaigns(); loadSegments();
+    } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
+  }
+
+  async function viewMessages(c: Campaign) {
+    const msgs = await api.get<Message[]>(`/api/marketing/campaigns/${c.id}/messages`);
+    setSentMessages(msgs);
+  }
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h1>Campaigns</h1>
+          <div className="sub">Segment your patient base and run SMS or email campaigns — consent-aware</div>
+        </div>
+      </div>
+
+      <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
+
+      {tab === "compose" && (
+      <div className="grid cols-2">
+        <div className="card">
+          <h3>1 · Choose an audience</h3>
+          <div className="field">
+            <label>Channel</label>
+            <select value={channel} onChange={(e) => setChannel(e.target.value)}>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+            </select>
+          </div>
+          {segments.map((s) => (
+            <div key={s.key} className="product-pick" onClick={() => setSegment(s.key)}
+              style={segment === s.key ? { background: "#fff", borderColor: "var(--accent)" } : undefined}>
+              <span>
+                <b>{s.label}</b>
+                <div className="muted" style={{ fontSize: 11.5 }}>{s.description}</div>
+              </span>
+              <span className={`badge ${s.size ? "" : "muted"}`}>{s.size}</span>
+            </div>
+          ))}
+          {preview.length > 0 && (
+            <div className="muted" style={{ marginTop: 12, fontSize: 12 }}>
+              Sample: {preview.map((p) => `${p.first_name} ${p.last_name}`).join(", ")}
+              {chosen && chosen.size > preview.length ? ` … +${chosen.size - preview.length} more` : ""}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3>2 · Compose &amp; send</h3>
+          <form onSubmit={createAndSend}>
+            <div className="field"><label>Campaign name</label>
+              <input required value={name} onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Flu season 2026" /></div>
+            {channel === "email" && (
+              <div className="field"><label>Subject line</label>
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>
+            )}
+            <div className="field">
+              <label>Goal (for the AI copywriter)</label>
+              <input value={goal} onChange={(e) => setGoal(e.target.value)}
+                placeholder="e.g. Drive walk-ins for flu vaccination" />
+            </div>
+            <div className="field">
+              <label>
+                Message — merge fields:{" "}
+                <span className="mono">{"{first_name} {points} {pharmacy}"}</span>
+              </label>
+              <textarea rows={5} required value={body} onChange={(e) => setBody(e.target.value)}
+                placeholder="Hi {first_name}, flu vaccines are now in stock at {pharmacy}…" />
+              {channel === "sms" && (
+                <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
+                  {body.length} characters {body.length > 160 && "· over one SMS segment"}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" className="secondary" onClick={draftCopy} disabled={aiBusy}>
+                {aiBusy ? "Writing…" : "✦ Draft with AI"}
+              </button>
+              <button type="submit" disabled={busy || !body.trim() || !(chosen?.size)}>
+                {busy ? "Sending…" : `Send to ${chosen?.size ?? 0}`}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      )}
+
+      {tab === "history" && (
+      <div className="card">
+        <table>
+          <thead>
+            <tr><th>Campaign</th><th>Channel</th><th>Segment</th><th className="num">Audience</th>
+              <th className="num">Sent</th><th className="num">Failed</th><th>Status</th><th>When</th><th></th></tr>
+          </thead>
+          <tbody>
+            {campaigns.map((c) => (
+              <tr key={c.id}>
+                <td><b>{c.name}</b><div className="muted" style={{ maxWidth: 340 }}>{c.body.slice(0, 90)}…</div></td>
+                <td>{c.channel.toUpperCase()}</td>
+                <td className="muted">{c.segment.replace(/_/g, " ")}</td>
+                <td className="num">{c.audience_size}</td>
+                <td className="num">{c.sent_count}</td>
+                <td className="num">{c.failed_count > 0 ? <span className="badge danger">{c.failed_count}</span> : 0}</td>
+                <td><span className={`badge ${c.status === "sent" ? "ok" : "muted"}`}>{c.status}</span></td>
+                <td className="muted">{c.sent_at ? fmtDateTime(c.sent_at) : fmtDateTime(c.created_at)}</td>
+                <td className="right">
+                  {c.status === "sent" && <button className="ghost small" onClick={() => viewMessages(c)}>View</button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {campaigns.length === 0 && <div className="empty">No campaigns yet</div>}
+      </div>
+      )}
+
+      {sentMessages && (
+        <div className="modal-backdrop" onClick={() => setSentMessages(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Delivered messages</h2>
+            <table>
+              <thead><tr><th>Patient</th><th>Message</th><th>Status</th></tr></thead>
+              <tbody>
+                {sentMessages.map((m) => (
+                  <tr key={m.id}>
+                    <td>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</td>
+                    <td style={{ maxWidth: 380 }}>{m.body}</td>
+                    <td><span className={`badge ${m.status === "sent" ? "ok" : "danger"}`}>{m.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="modal-actions">
+              <button className="secondary" onClick={() => setSentMessages(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

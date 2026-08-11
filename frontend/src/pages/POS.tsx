@@ -1,0 +1,534 @@
+import { useEffect, useRef, useState } from "react";
+import { useToast } from "../components/Toast";
+import { api, fmtDateTime, money } from "../api";
+import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import * as deviceAgent from "../deviceAgent";
+import { printReceipt } from "../print";
+import { CurrencyState, Patient, Product, Sale } from "../types";
+
+type Tab = "till" | "pending";
+
+const EMPTY_CARD = { auth: "", reference: "", last4: "", scheme: "", terminal: "" };
+
+interface TenderLine { method: string; currency_code: string; amount: string }
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+interface CartLine {
+  product: Product;
+  quantity: number;
+}
+
+export default function POS() {
+  const [scan, setScan] = useState("");
+  const [results, setResults] = useState<Product[]>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [patientQ, setPatientQ] = useState("");
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [payMethod, setPayMethod] = useState("cash");
+  const [tendered, setTendered] = useState("");
+  const [redeem, setRedeem] = useState("0");
+  const [receipt, setReceipt] = useState<Sale | null>(null);
+  const [pending, setPending] = useState<Sale[]>([]);
+
+  const TABS: TabDef<Tab>[] = [
+    { key: "till", label: "Till" },
+    { key: "pending", label: "Awaiting payment", count: pending.length,
+      hint: "Dispensary sales handed over for settlement" },
+  ];
+  const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [agent, setAgent] = useState<deviceAgent.AgentStatus | null>(null);
+  const [terminalState, setTerminalState] = useState("");
+  const [card, setCard] = useState(EMPTY_CARD);
+  const [currencyState, setCurrencyState] = useState<CurrencyState | null>(null);
+  const [splitMode, setSplitMode] = useState(false);
+  const [tenderLines, setTenderLines] = useState<TenderLine[]>([{ method: "cash", currency_code: "", amount: "" }]);
+  const [changeCurrency, setChangeCurrency] = useState("");
+  const [mobilePhone, setMobilePhone] = useState("");
+  const [mobileState, setMobileState] = useState("");
+  const scanRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { loadPending(); }, []);
+  // Optional hardware — absent agent simply means manual capture and browser printing
+  useEffect(() => { deviceAgent.probe().then(setAgent); }, []);
+  useEffect(() => {
+    api.get<CurrencyState>("/api/currency").then((c) => {
+      setCurrencyState(c);
+      setChangeCurrency(c.base);
+      setTenderLines([{ method: "cash", currency_code: c.base, amount: "" }]);
+    }).catch(() => {});
+  }, []);
+
+  function loadPending() {
+    api.get<Sale[]>("/api/pos/sales?status=pending&limit=20").then(setPending);
+  }
+
+  useEffect(() => {
+    if (scan.length < 2) { setResults([]); return; }
+    api.get<Product[]>(`/api/products?q=${encodeURIComponent(scan)}&limit=8`).then(setResults);
+  }, [scan]);
+
+  useEffect(() => {
+    if (patientQ.length < 2) { setPatients([]); return; }
+    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
+  }, [patientQ]);
+
+  async function onScanEnter(e: React.KeyboardEvent) {
+    if (e.key !== "Enter" || !scan) return;
+    e.preventDefault();
+    try {
+      const p = await api.get<Product>(`/api/products/barcode/${encodeURIComponent(scan)}`);
+      addToCart(p);
+    } catch {
+      if (results.length === 1) addToCart(results[0]);
+    }
+  }
+
+  function addToCart(p: Product) {
+    setCart((prev) => {
+      const existing = prev.find((l) => l.product.id === p.id);
+      if (existing) return prev.map((l) => (l.product.id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+      return [...prev, { product: p, quantity: 1 }];
+    });
+    setScan("");
+    setResults([]);
+    scanRef.current?.focus();
+  }
+
+  const total = cart.reduce((s, l) => s + l.product.unit_price * l.quantity, 0);
+  const redeemValue = Math.min(Number(redeem) || 0, patient?.loyalty_points ?? 0);
+  const payable = Math.max(0, total - redeemValue);
+
+  const rateFor = (code: string) =>
+    currencyState?.currencies.find((c) => c.code === code)?.rate ?? 0;
+
+  // Each line is converted to base at its own rate; a line whose currency has
+  // no rate on record contributes nothing rather than a wrong number.
+  const collectedInBase = round2(tenderLines.reduce((sum, line) => {
+    const rate = rateFor(line.currency_code);
+    const amount = Number(line.amount) || 0;
+    return rate > 0 ? sum + amount / rate : sum;
+  }, 0));
+  const shortfall = Math.max(0, round2(payable - collectedInBase));
+  const changeInBase = Math.max(0, round2(collectedInBase - payable));
+
+  const updateTender = (i: number, patch: Partial<TenderLine>) =>
+    setTenderLines((lines) => lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
+  const addTender = () =>
+    setTenderLines((lines) => [...lines, { method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
+  const removeTender = (i: number) =>
+    setTenderLines((lines) => (lines.length === 1 ? lines : lines.filter((_, idx) => idx !== i)));
+
+  /** Card tender: drive the terminal when one is connected, otherwise use the
+   *  slip detail the cashier keyed off a standalone machine. Either way the
+   *  same fields land on the sale so it can be reconciled. */
+  async function resolveCardTender(amount: number, reference: string) {
+    if (agent?.terminal.ready) {
+      setTerminalState("Waiting for the customer to tap or insert…");
+      try {
+        const res = await deviceAgent.takePayment(amount, reference);
+        if (!res.approved) throw new Error(res.message || "Card declined");
+        setTerminalState("");
+        return {
+          card_auth_code: res.auth_code ?? "", card_reference: res.reference ?? "",
+          card_last4: res.last4 ?? "", card_scheme: res.scheme ?? "",
+          terminal_id: res.terminal_id ?? "", card_batch: res.batch ?? "",
+        };
+      } finally {
+        setTerminalState("");
+      }
+    }
+    return {
+      card_auth_code: card.auth.trim(), card_reference: card.reference.trim(),
+      card_last4: card.last4.trim(), card_scheme: card.scheme,
+      terminal_id: card.terminal.trim(), card_batch: "",
+    };
+  }
+
+  /** Mobile money is a push: send it, then wait for the customer to approve on
+   *  their handset. Nothing is settled until the provider confirms. */
+  async function resolveMobileTender(amount: number, reference: string) {
+    if (!agent?.mobile_money?.ready) {
+      throw new Error("No mobile money provider is configured on this till");
+    }
+    if (!mobilePhone.trim()) throw new Error("Enter the customer's mobile number");
+    setMobileState("Sending request to the customer's phone…");
+    const started = await deviceAgent.initiateMobile(amount, mobilePhone.trim(), "ecocash", reference);
+    if (!started.started || !started.poll_ref) {
+      throw new Error(started.message || "Could not start the mobile money request");
+    }
+    setMobileState(started.message ?? "Waiting for the customer to approve…");
+    const result = await deviceAgent.awaitMobilePayment(started.poll_ref, {
+      timeoutMs: (agent.mobile_money.timeout_seconds ?? 180) * 1000,
+      onTick: (secs) => setMobileState(`Waiting for the customer to approve… ${secs}s`),
+    });
+    setMobileState("");
+    if (result.state !== "paid") {
+      throw new Error(result.message || `Mobile money ${result.state}`);
+    }
+    return result.reference ?? "";
+  }
+
+  async function checkout() {
+    setBusy(true);
+    try {
+      const cardTender = !splitMode && payMethod === "card"
+        ? await resolveCardTender(payable, "POS")
+        : {};
+      // Mobile money settles as a tender so the provider reference is retained.
+      const mobileTenders = !splitMode && payMethod === "mobile_money"
+        ? [{ method: "mobile_money", currency_code: currencyState?.base ?? "",
+             amount: payable, reference: await resolveMobileTender(payable, "POS") }]
+        : null;
+      const sale = await api.post<Sale>("/api/pos/sales", {
+        patient_id: patient?.id ?? null,
+        items: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+        payment_method: payMethod,
+        amount_tendered: Number(tendered) || 0,
+        loyalty_points_redeemed: redeemValue,
+        ...(mobileTenders ? { tenders: mobileTenders } : {}),
+        ...(splitMode ? {
+          tenders: tenderLines
+            .filter((l) => Number(l.amount) > 0)
+            .map((l) => ({ method: l.method, currency_code: l.currency_code, amount: Number(l.amount) })),
+          change_currency: changeCurrency,
+        } : {}),
+        ...cardTender,
+      });
+      setReceipt(sale);
+      setCart([]);
+      setTendered("");
+      setRedeem("0");
+      setCard(EMPTY_CARD);
+      setMobilePhone("");
+      setTenderLines([{ method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
+      if (patient) api.get<Patient>(`/api/patients/${patient.id}`).then(setPatient);
+      if (agent?.printer.ready) {
+        deviceAgent.printReceiptOnAgent(sale, "RX3000 Pharmacy").catch(() => {});
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function settlePending(sale: Sale, method: string) {
+    try {
+      const cardTender = method === "card"
+        ? await resolveCardTender(sale.total, sale.sale_number)
+        : {};
+      const paid = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
+        payment_method: method,
+        amount_tendered: method === "cash" ? sale.total : 0,
+        ...cardTender,
+      });
+      setReceipt(paid);
+      loadPending();
+      if (agent?.printer.ready) {
+        deviceAgent.printReceiptOnAgent(paid, "RX3000 Pharmacy").catch(() => {});
+      }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  }
+
+  return (
+    <>
+      <div className="page-head">
+        <div>
+          <h1>Front Shop</h1>
+          <div className="sub">Barcode scanning, loyalty, airtime, medical aid claiming &amp; EFTPOS</div>
+        </div>
+      </div>
+
+      <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
+
+      {tab === "pending" ? (
+        <div className="card">
+          <table>
+            <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th></th></tr></thead>
+            <tbody>
+              {pending.map((s) => (
+                <tr key={s.id}>
+                  <td className="mono">{s.sale_number}</td>
+                  <td>{s.patient ? `${s.patient.first_name} ${s.patient.last_name}` : "Walk-in"}</td>
+                  <td className="muted">{fmtDateTime(s.created_at)}</td>
+                  <td className="num"><b>{money(s.total)}</b></td>
+                  <td className="right" style={{ whiteSpace: "nowrap" }}>
+                    <button className="small" onClick={() => settlePending(s, "medical_aid")} disabled={!s.patient_id}>Claim aid</button>{" "}
+                    <button className="small secondary" onClick={() => settlePending(s, "cash")}>Cash</button>{" "}
+                    <button className="small secondary" onClick={() => settlePending(s, "card")}>Card</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {pending.length === 0 && <div className="empty">Nothing awaiting payment</div>}
+        </div>
+      ) : (
+      <div className="pos-layout">
+        <div>
+          <div className="card">
+            <h3>Scan or search</h3>
+            <input
+              ref={scanRef}
+              type="search"
+              placeholder="Scan barcode or type product name, then Enter…"
+              value={scan}
+              onChange={(e) => setScan(e.target.value)}
+              onKeyDown={onScanEnter}
+              autoFocus
+            />
+            {results.map((p) => (
+              <div key={p.id} className="product-pick" onClick={() => addToCart(p)}>
+                <span>
+                  <b>{p.name}</b> {p.strength}
+                  {p.category === "airtime" && <span className="badge" style={{ marginLeft: 6 }}>airtime</span>}
+                  {p.schedule >= 5 && <span className="badge sched" style={{ marginLeft: 6 }}>S{p.schedule}</span>}
+                </span>
+                <span className="muted">{money(p.unit_price)} · {p.category === "airtime" ? "∞" : p.quantity_on_hand}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="card">
+            <h3>Basket</h3>
+            <table>
+              <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th><th></th></tr></thead>
+              <tbody>
+                {cart.map((l) => (
+                  <tr key={l.product.id}>
+                    <td>{l.product.name} {l.product.strength}</td>
+                    <td className="num" style={{ width: 90 }}>
+                      <input type="number" min={1} value={l.quantity} style={{ width: 70, padding: "4px 8px" }}
+                        onChange={(e) => setCart(cart.map((c) => c.product.id === l.product.id ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} />
+                    </td>
+                    <td className="num">{money(l.product.unit_price)}</td>
+                    <td className="num">{money(l.product.unit_price * l.quantity)}</td>
+                    <td className="right"><button className="ghost small" onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {cart.length === 0 && <div className="empty">Scan an item to begin</div>}
+          </div>
+        </div>
+
+        <div>
+          <div className="card">
+            <h3>Customer / loyalty</h3>
+            {patient ? (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <b>{patient.first_name} {patient.last_name}</b>
+                  <div className="muted">{patient.loyalty_points} loyalty points · {patient.medical_aid?.name ?? "Private"}</div>
+                </div>
+                <button className="ghost small" onClick={() => setPatient(null)}>Remove</button>
+              </div>
+            ) : (
+              <>
+                <input type="search" placeholder="Link a patient (optional)…" value={patientQ} onChange={(e) => setPatientQ(e.target.value)} />
+                {patients.map((p) => (
+                  <div key={p.id} className="product-pick" onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); }}>
+                    <span>{p.last_name}, {p.first_name}</span>
+                    <span className="muted">{p.loyalty_points} pts</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          <div className="card">
+            <h3>Payment</h3>
+            <div className="basket-total" style={{ marginBottom: 14 }}>{money(payable)}</div>
+            {redeemValue > 0 && <div className="muted" style={{ marginTop: -10, marginBottom: 12 }}>after {redeemValue} pts redeemed off {money(total)}</div>}
+            {/* A split tender is only worth the extra controls where more than
+                one currency actually trades, or when the cashier asks for it. */}
+            {currencyState?.multi_currency && (
+              <div className="seg" style={{ marginBottom: 12 }}>
+                <button className={!splitMode ? "on" : ""} onClick={() => setSplitMode(false)}>Single payment</button>
+                <button className={splitMode ? "on" : ""} onClick={() => setSplitMode(true)}>Split / multi-currency</button>
+              </div>
+            )}
+
+            {splitMode ? (
+              <>
+                <div className="tender-lines">
+                  {tenderLines.map((line, i) => (
+                    <div key={i} className="tender-line">
+                      <select value={line.method}
+                        onChange={(e) => updateTender(i, { method: e.target.value })}>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="mobile_money">Mobile money</option>
+                      </select>
+                      <select value={line.currency_code}
+                        onChange={(e) => updateTender(i, { currency_code: e.target.value })}>
+                        {currencyState?.currencies.map((c) => (
+                          <option key={c.code} value={c.code} disabled={!c.rate}>
+                            {c.code}{!c.rate ? " (no rate)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <input type="number" step="0.01" value={line.amount} placeholder="0.00"
+                        onChange={(e) => updateTender(i, { amount: e.target.value })} />
+                      <button className="ghost small" onClick={() => removeTender(i)}
+                        disabled={tenderLines.length === 1}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button className="secondary small" onClick={addTender}>+ Add payment</button>
+
+                <div className="tender-summary">
+                  <div><span>Collected</span><b>{money(collectedInBase)}</b></div>
+                  <div><span>Due</span><b>{money(payable)}</b></div>
+                  {shortfall > 0
+                    ? <div className="short"><span>Short by</span><b>{money(shortfall)}</b></div>
+                    : changeInBase > 0.004 && (
+                      <div className="change">
+                        <span>Change</span>
+                        <b>{money(changeInBase)}</b>
+                      </div>
+                    )}
+                </div>
+
+                {changeInBase > 0.004 && (
+                  <div className="field">
+                    <label>Give change in</label>
+                    <select value={changeCurrency} onChange={(e) => setChangeCurrency(e.target.value)}>
+                      {currencyState?.currencies.filter((c) => c.rate > 0).map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code} — {(changeInBase * c.rate).toFixed(c.decimals)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </>
+            ) : (
+            <div className="field">
+              <label>Method</label>
+              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                <option value="cash">Cash</option>
+                <option value="card">Card (EFTPOS)</option>
+                {agent?.mobile_money?.ready && <option value="mobile_money">Mobile money (EcoCash)</option>}
+                <option value="medical_aid" disabled={!patient}>Medical aid claim</option>
+              </select>
+            </div>
+            )}
+            {!splitMode && payMethod === "cash" && (
+              <div className="field">
+                <label>Amount tendered</label>
+                <input type="number" step="0.01" value={tendered} onChange={(e) => setTendered(e.target.value)} placeholder="0.00" />
+                {Number(tendered) >= payable && payable > 0 && (
+                  <div className="muted" style={{ marginTop: 6 }}>Change: <b>{money(Number(tendered) - payable)}</b></div>
+                )}
+              </div>
+            )}
+            {!splitMode && payMethod === "mobile_money" && (
+              <>
+                <div className="field">
+                  <label>Customer mobile number</label>
+                  <input value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)}
+                    placeholder="07…" inputMode="tel" />
+                </div>
+                {mobileState
+                  ? <div className="device-note">{mobileState}</div>
+                  : <div className="device-note ok">
+                      A prompt is sent to the customer's phone when you complete the sale.
+                      Nothing is charged until they approve it.
+                    </div>}
+              </>
+            )}
+            {!splitMode && payMethod === "card" && (
+              agent?.terminal.ready ? (
+                <div className="device-note ok">
+                  <b>Terminal connected</b> — {agent.terminal.terminal_id ?? agent.terminal.driver}.
+                  The amount is sent to the machine when you complete the sale.
+                  {terminalState && <div className="muted">{terminalState}</div>}
+                </div>
+              ) : (
+                <>
+                  <div className="device-note">
+                    No terminal connected to this till — key the amount into the card machine,
+                    then capture the slip so the sale can be reconciled.
+                  </div>
+                  <div className="form-row">
+                    <div className="field"><label>Auth code</label>
+                      <input value={card.auth} onChange={(e) => setCard({ ...card, auth: e.target.value })}
+                        placeholder="from the slip" /></div>
+                    <div className="field" style={{ maxWidth: 120 }}><label>Last 4</label>
+                      <input value={card.last4} maxLength={4}
+                        onChange={(e) => setCard({ ...card, last4: e.target.value.replace(/\D/g, "") })} /></div>
+                  </div>
+                  <div className="form-row">
+                    <div className="field"><label>Reference (optional)</label>
+                      <input value={card.reference}
+                        onChange={(e) => setCard({ ...card, reference: e.target.value })} /></div>
+                    <div className="field" style={{ maxWidth: 140 }}><label>Scheme</label>
+                      <select value={card.scheme} onChange={(e) => setCard({ ...card, scheme: e.target.value })}>
+                        <option value="">—</option>
+                        <option value="visa">Visa</option>
+                        <option value="mastercard">Mastercard</option>
+                        <option value="amex">Amex</option>
+                      </select></div>
+                    <div className="field" style={{ maxWidth: 140 }}><label>Terminal</label>
+                      <input value={card.terminal}
+                        onChange={(e) => setCard({ ...card, terminal: e.target.value })} /></div>
+                  </div>
+                </>
+              )
+            )}
+            {patient && (patient.loyalty_points ?? 0) > 0 && (
+              <div className="field">
+                <label>Redeem loyalty points (1 pt = R1) — available: {patient.loyalty_points}</label>
+                <input type="number" min={0} max={patient.loyalty_points} value={redeem} onChange={(e) => setRedeem(e.target.value)} />
+              </div>
+            )}
+            <button style={{ width: "100%" }}
+              disabled={busy || cart.length === 0 || (splitMode && shortfall > 0)}
+              onClick={checkout}>
+              {mobileState ? "Waiting for customer…" : terminalState ? "Waiting for card…" : busy ? "Processing…"
+                : payMethod === "medical_aid" ? "Submit claim & complete" : "Complete sale"}
+            </button>
+          </div>
+
+          {receipt && (
+            <div className="card">
+              <h3>Receipt — {receipt.sale_number}</h3>
+              <table>
+                <tbody>
+                  {receipt.items.map((i) => (
+                    <tr key={i.id}><td>{i.description} ×{i.quantity}</td><td className="num">{money(i.line_total)}</td></tr>
+                  ))}
+                  <tr><td><b>Total (incl. VAT {money(receipt.vat_amount)})</b></td><td className="num"><b>{money(receipt.total)}</b></td></tr>
+                  {receipt.payment_method === "cash" && receipt.change_due > 0 && (
+                    <tr><td>Change</td><td className="num">{money(receipt.change_due)}</td></tr>
+                  )}
+                  {receipt.loyalty_points_earned > 0 && (
+                    <tr><td>Loyalty earned</td><td className="num">{receipt.loyalty_points_earned} pts</td></tr>
+                  )}
+                </tbody>
+              </table>
+              {receipt.claim && (
+                <div className={receipt.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 12 }}>
+                  Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b> — {receipt.claim.response_message}
+                  {receipt.claim.patient_liable > 0 && <> Patient pays <b>{money(receipt.claim.patient_liable)}</b>.</>}
+                </div>
+              )}
+              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+                <button className="small" onClick={() => printReceipt(receipt)}>🖨 Print receipt</button>
+                <button className="secondary small" onClick={() => setReceipt(null)}>Dismiss</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      )}
+    </>
+  );
+}

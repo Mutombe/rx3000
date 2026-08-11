@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+backend/.env
+backend/rx3000.db
+backend/backups/
+frontend/node_modules/
+frontend/dist/
+
+# The database and everything that travels with it. `rx3000.db` alone is not
+# enough: SQLite in WAL mode keeps recent transactions in the -wal file, so
+# committing that ships real patient records into git history — where deleting
+# them later does not remove them.
+backend/rx3000.db*
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
+*.before-repair
+
+# Vite writes these while resolving its config; they are build scratch.
+frontend/vite.config.ts.timestamp-*

@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en-ZW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RX3000 — Pharmacy management built for Zimbabwe</title>
+<meta name="description" content="Dispensing, claiming, stock and accounting for Zimbabwean pharmacies. MCAZ categories, AHFoZ claiming, ZIMRA fiscalisation, USD and ZiG.">
+
+<!--
+  One file, no build, no framework, no external requests.
+
+  This is a deliberate choice rather than laziness. The people who need to read
+  it are on Zimbabwean mobile data, often on a phone, often at the counter
+  between customers. A marketing site that takes eight seconds and 2MB to say
+  "we understand pharmacies" has already disproved itself. Everything here —
+  styles, fonts, layout — is inline and under 40KB, so it paints on first
+  packet on a bad connection.
+
+  System fonts for the same reason: a webfont is a render-blocking round trip
+  to say something the device can already draw.
+-->
+
+<style>
+  :root {
+    --ink: #16161d; --ink-mid: #55555f; --ink-soft: #8a8a94;
+    --line: #e4e4e9; --surface: #fff; --sunk: #fafafb;
+    --accent: #1f6f5c; --accent-soft: #eaf4f1;
+    --warn: #8a5a12; --warn-soft: #fbf0dd;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+    --s6: 24px; --s8: 32px; --s12: 48px; --s16: 64px;
+    --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #f2f2f5; --ink-mid: #a8a8b4; --ink-soft: #74747f;
+      --line: #2a2a33; --surface: #14141a; --sunk: #1b1b22;
+      --accent: #57b79c; --accent-soft: #16302a;
+      --warn: #d9a441; --warn-soft: #2c2312;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; color: var(--ink); background: var(--surface);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--s5); }
+  a { color: var(--accent); }
+  h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 var(--s3); }
+  h1 { font-size: clamp(2rem, 5vw, 3.1rem); }
+  h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin-top: 0; }
+  h3 { font-size: 1.05rem; }
+  p { margin: 0 0 var(--s4); }
+  .lede { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--ink-mid); max-width: 62ch; }
+  .muted { color: var(--ink-mid); }
+  .small { font-size: 0.875rem; }
+
+  header.top {
+    border-bottom: 1px solid var(--line); position: sticky; top: 0;
+    background: var(--surface); z-index: 10;
+  }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between;
+    gap: var(--s4); padding-top: var(--s3); padding-bottom: var(--s3); }
+  .brand { font-weight: 700; letter-spacing: -0.03em; font-size: 1.15rem; }
+  .brand span { color: var(--accent); }
+  nav a { margin-left: var(--s4); color: var(--ink-mid); text-decoration: none;
+    font-size: 0.925rem; }
+  nav a:hover { color: var(--ink); }
+
+  section { padding: var(--s16) 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: 0; }
+
+  .hero { padding-top: var(--s12); }
+  .badge {
+    display: inline-block; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: var(--s1) var(--s3);
+    font-size: 0.8rem; font-weight: 600; margin-bottom: var(--s4);
+  }
+  .cta { display: flex; flex-wrap: wrap; gap: var(--s3); margin-top: var(--s6); }
+  .btn {
+    display: inline-block; padding: var(--s3) var(--s5); border-radius: var(--r-md);
+    text-decoration: none; font-weight: 600; border: 1px solid var(--accent);
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-ghost { color: var(--accent); }
+
+  .grid { display: grid; gap: var(--s4);
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card {
+    border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: var(--s5); background: var(--sunk);
+  }
+  .card h3 { margin-bottom: var(--s2); }
+  .card p:last-child { margin-bottom: 0; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.925rem; }
+  th, td { text-align: left; padding: var(--s2) var(--s3);
+    border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-mid); font-weight: 600; }
+
+  ol.how { counter-reset: step; list-style: none; padding: 0; }
+  ol.how > li {
+    counter-increment: step; position: relative;
+    padding: 0 0 var(--s5) var(--s8); border-left: 2px solid var(--line);
+    margin-left: var(--s3);
+  }
+  ol.how > li::before {
+    content: counter(step); position: absolute; left: -15px; top: 0;
+    width: 28px; height: 28px; border-radius: 999px;
+    background: var(--accent); color: #fff;
+    display: grid; place-items: center; font-size: 0.8rem; font-weight: 700;
+  }
+  ol.how > li:last-child { border-left-color: transparent; }
+  ol.how h3 { margin-bottom: var(--s1); }
+
+  details {
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: var(--s3) var(--s4); margin-bottom: var(--s2); background: var(--sunk);
+  }
+  summary { cursor: pointer; font-weight: 600; }
+  details p { margin: var(--s3) 0 0; }
+
+  .note {
+    border-left: 3px solid var(--warn); background: var(--warn-soft);
+    color: var(--warn); padding: var(--s3) var(--s4);
+    border-radius: 0 var(--r-md) var(--r-md) 0; margin: var(--s5) 0;
+  }
+  footer { padding: var(--s8) 0 var(--s12); color: var(--ink-mid); font-size: 0.9rem; }
+
+  /* ======================================================================
+     Phones
+     ======================================================================
+     The page had no breakpoints at all — only a dark-mode query — so it was
+     relying on `auto-fit` to save it. That collapses the card grid and nothing
+     else: the nav still tried to sit on one row, the 64px section padding ate
+     a third of a phone screen before any content, the pricing table pushed the
+     page sideways, and the numbered steps carried a 32px indent on a 320px
+     viewport.
+
+     Zimbabwe is a mobile-first market. A pharmacy owner is far more likely to
+     first see this page on a phone than on a desktop, so these are not
+     defensive tweaks — this is the primary reading experience. */
+
+  @media (max-width: 760px) {
+    .wrap { padding: 0 var(--s4); }
+
+    /* Vertical rhythm compresses; the ratio between sections is what carries
+       structure, not the absolute size. */
+    section { padding: var(--s12) 0; }
+    .hero { padding-top: var(--s8); }
+
+    /* The header stacks instead of squeezing. A nav that shrinks to fit is a
+       nav with tap targets too small to hit. */
+    .top .wrap {
+      flex-direction: column; align-items: flex-start; gap: var(--s3);
+    }
+    .top nav { display: flex; flex-wrap: wrap; gap: var(--s4); }
+
+    /* One card per row, and the minmax floor is dropped so a 320px screen is
+       never forced into a horizontal scroll by a 260px minimum. */
+    .grid { grid-template-columns: 1fr; gap: var(--s3); }
+    .card { padding: var(--s4); }
+
+    /* Full-width calls to action: on a phone the thumb wants a target, and two
+       buttons side by side on one line are two buttons that are both too small. */
+    .cta { flex-direction: column; align-items: stretch; gap: var(--s2); }
+    .cta a { display: block; text-align: center; padding: var(--s4) var(--s5); }
+
+    /* The steps lose their deep indent but keep the rule that groups them. */
+    ol.how li { padding-left: var(--s5); }
+
+    /* Tables scroll inside themselves rather than widening the page. A body
+       that scrolls sideways is the single most common way a page feels broken
+       on a phone. */
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll table { min-width: 460px; }
+
+    h1 { line-height: 1.15; }
+    .lede { font-size: 1.05rem; }
+  }
+
+  /* Nothing may widen the page, whatever the viewport. */
+  html, body { overflow-x: hidden; max-width: 100%; }
+  img, table { max-width: 100%; }
+
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">RX<span>3000</span></div>
+    <nav>
+      <a href="#what">What it does</a>
+      <a href="#zimbabwe">Built for Zimbabwe</a>
+      <a href="#how">Getting started</a>
+      <a href="#faq">Questions</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="badge">For Zimbabwean pharmacies</span>
+    <h1>The dispensary runs the shop.<br>The software should keep up.</h1>
+    <p class="lede">
+      RX3000 handles dispensing, medical aid claiming, stock, deliveries and the
+      accounts — on one system, in USD and ZiG, against MCAZ categories and AHFoZ
+      tariffs. It is built around what a pharmacist actually does at eleven on a
+      Saturday morning, not around what is easy to write.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#how">See how a trial works</a>
+      <a class="btn btn-ghost" href="#zimbabwe">Why it is different here</a>
+    </div>
+  </div>
+</section>
+
+<section id="what">
+  <div class="wrap">
+    <h2>What it does</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Dispensing that keeps up with the counter</h3>
+        <p>Scripts, repeats, OTC and pharmacist-initiated supply. Function keys
+        match the ones your staff already use, so nobody relearns their job.</p>
+      </div>
+      <div class="card">
+        <h3>To follows that are not a note on the till</h3>
+        <p>Short of stock? Hand over what you have, owe the rest, and let the
+        system tell you the morning a delivery arrives which patients can now be
+        called.</p>
+      </div>
+      <div class="card">
+        <h3>Claiming, including when the switch is down</h3>
+        <p>Real-time claims where the funder supports it. When the line drops the
+        medicine still goes out and the claim waits in a queue you can see —
+        rather than being lost.</p>
+      </div>
+      <div class="card">
+        <h3>Stock that knows its batches</h3>
+        <p>First-expiry-first-out, batch and expiry tracked to the unit, expired
+        stock refused at the point of sale rather than found at stocktake.</p>
+      </div>
+      <div class="card">
+        <h3>Deliveries with a document</h3>
+        <p>A waybill for anything leaving the shop, and a controlled item cannot
+        be closed off without the recipient's identity recorded at the door.</p>
+      </div>
+      <div class="card">
+        <h3>Accounts that reconcile</h3>
+        <p>Double-entry underneath, posted automatically from sales and stock
+        receipts. Trial balance, ageing, VAT return and a balance sheet that
+        actually balances.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="zimbabwe">
+  <div class="wrap">
+    <h2>Built for here, not adapted to here</h2>
+    <p class="lede">
+      Most pharmacy software sold in this region was written for somewhere else
+      and had Zimbabwe bolted on. The differences are not cosmetic.
+    </p>
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr><th>What is different</th><th>How RX3000 handles it</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>MCAZ distribution categories</strong></td>
+          <td>Medicines are classified HR, P, PIM, PP, PP10, N and SR — the
+          letters on the label — not South African schedule numbers. PIM in
+          particular has no equivalent elsewhere.</td>
+        </tr>
+        <tr>
+          <td><strong>Two currencies, one till</strong></td>
+          <td>USD and ZiG side by side, each tender recorded at the rate in
+          force, change given in either, both drawers reconciled separately.</td>
+        </tr>
+        <tr>
+          <td><strong>ZIMRA fiscalisation</strong></td>
+          <td>All three routes are supported: an Approved Supplier device, a
+          hosted service, or a direct interface. A filed receipt is credit-noted,
+          never voided.</td>
+        </tr>
+        <tr>
+          <td><strong>AHFoZ claiming</strong></td>
+          <td>One claim format, routed to whichever switch the funder uses.
+          Tariff and diagnosis errors are caught before submission, not a
+          fortnight later when the money has not arrived.</td>
+        </tr>
+        <tr>
+          <td><strong>Poor connectivity</strong></td>
+          <td>The till does not stop when the line does. Claims queue,
+          fiscal receipts queue, and everything is re-filed when the connection
+          comes back.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note">
+      <strong>What we will not pretend.</strong> Some integrations need documents
+      or accounts from third parties before they can be finished — a switch's
+      specification, a merchant account, a licensed drug-interaction database.
+      RX3000 says exactly which of those are live, which are simulated and which
+      are waiting, on a screen inside the product. You will never find out from a
+      customer that something was not connected.
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="wrap">
+    <h2>Getting started</h2>
+    <ol class="how">
+      <li>
+        <h3>A conversation, not a demo script</h3>
+        <p>We look at how your dispensary actually runs, which schemes you claim
+        from, and how many tills you have. Half an hour, on site or on a call.</p>
+      </li>
+      <li>
+        <h3>Your catalogue and your schemes go in first</h3>
+        <p>Products, NAPPI codes, suppliers, scheme terms and outstanding
+        balances. You start with your shop, not with sample data.</p>
+      </li>
+      <li>
+        <h3>Run alongside what you have</h3>
+        <p>For the first weeks RX3000 runs beside your current system rather than
+        instead of it. Nobody bets a pharmacy on a switchover weekend.</p>
+      </li>
+      <li>
+        <h3>Claiming and fiscalisation connected</h3>
+        <p>We handle the switch and ZIMRA side with you. Until each one is
+        proven end to end it stays marked unproven in the product — no guessing.</p>
+      </li>
+      <li>
+        <h3>Cut over when your staff ask to</h3>
+        <p>The signal to switch is your assistants preferring the new till. If
+        they do not, we have not finished.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Questions people actually ask</h2>
+
+    <details>
+      <summary>What happens when the internet goes down?</summary>
+      <p>You keep dispensing. Claims that cannot be sent are held in a queue you
+      can see and count, and go out together when the line returns. Fiscal
+      receipts queue the same way with their sequence and hash chain intact.</p>
+    </details>
+
+    <details>
+      <summary>Will my staff have to relearn everything?</summary>
+      <p>The function keys are deliberately the same ones they use now — F1
+      mixture, F3 no-claim, F11 claim later, and so on. The one place we differ
+      is F12: it still finishes a script, but it asks first, because a fiscalised
+      receipt can only be reversed by credit note.</p>
+    </details>
+
+    <details>
+      <summary>Does it work with our printers and barcode scanner?</summary>
+      <p>Yes. A small program on the till talks to the receipt printer, the cash
+      drawer and the card terminal. Barcode scanners behave as keyboards and need
+      no setup.</p>
+    </details>
+
+    <details>
+      <summary>Who can void a sale or change a price?</summary>
+      <p>Not whoever happens to be logged in. Those actions ask for a password,
+      and for a void or a discount it must be a second person's — the manager
+      types their own password on the assistant's till. Every attempt is
+      recorded, including the refused ones.</p>
+    </details>
+
+    <details>
+      <summary>What about our backups?</summary>
+      <p>Taken from inside the product, and verified before they are kept: the
+      copy is opened, integrity-checked and its contents compared against the
+      live database. One that fails is deleted rather than left for you to
+      discover on the day you need it.</p>
+    </details>
+
+    <details>
+      <summary>Does it check drug interactions?</summary>
+      <p>It checks a set of well-established, high-severity pairs and flags
+      duplicate therapy. It states plainly that this is not a full clinical
+      database, and a clear result is worded "none of the pairs this system
+      holds" rather than "no interactions" — because the second sentence is not
+      true and a pharmacist should never be misled into relying on it. A licensed
+      interaction database can be connected.</p>
+    </details>
+
+    <details>
+      <summary>Can we get our data out?</summary>
+      <p>Every grid exports to a spreadsheet, and the database is a single file
+      you can copy. It is your pharmacy's data.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><strong>RX3000</strong> — pharmacy management for Zimbabwe.</p>
+    <p class="small">
+      Medicine classifications follow MCAZ distribution categories. Fiscalisation
+      follows ZIMRA requirements for VAT-registered operators. Claiming follows
+      AHFoZ standards. Confirm regulatory requirements applicable to your
+      practice with the relevant authority.
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
