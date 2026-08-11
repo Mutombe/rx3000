@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the till window is allowed to do. Deliberately small: this shell resolves a server address and shows a webview, and every capability it does not need is one that cannot be turned against a machine sitting on a pharmacy counter.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default"
+  ]
+}

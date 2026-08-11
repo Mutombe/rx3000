@@ -18,3 +18,7 @@ backend/*.db-wal
 
 # Vite writes these while resolving its config; they are build scratch.
 frontend/vite.config.ts.timestamp-*
+
+# Rust build output. Hundreds of megabytes of compiled crates that rebuild from
+# source; nothing here belongs in a repository.
+desktop/src-tauri/target/
