@@ -477,6 +477,8 @@ class Sale(Base):
     # Currency of the sale total. Line prices are held in the base currency;
     # tenders may arrive in any trading currency and are converted on the way in.
     currency_code = Column(String(5), default="")
+    # Which shop sold it. Drives the branch takings and the branch VAT return.
+    branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
     patient = relationship("Patient")
     cashier = relationship("User")
@@ -596,6 +598,7 @@ class StockMovement(Base):
     notes = Column(Text, default="")
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
     product = relationship("Product")
     user = relationship("User")
@@ -1062,6 +1065,8 @@ class StockBatch(Base):
     unit_cost = Column(Float, default=0.0)
     reference = Column(String(60), default="")
     received_at = Column(DateTime, default=datetime.utcnow)
+    # Stock is held per branch. A batch without one is stock nobody can locate.
+    branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
     product = relationship("Product")
 
@@ -1526,3 +1531,65 @@ class Setting(Base):
     key = Column(String(120), unique=True, nullable=False, index=True)
     value = Column(Text, default="")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Branch(Base):
+    """One trading location of the business.
+
+    A single-shop pharmacy has exactly one of these and never thinks about it.
+    A group has several, and then the thing that matters is that **stock is held
+    per branch**: the Avondale shop having twenty boxes tells you nothing about
+    what is on the shelf in Bulawayo. Anything that counts stock has to say which
+    branch it is counting, or the number is worse than no number.
+
+    `is_default` exists so that every row written before branches existed, and
+    every till that has not been told where it is, has somewhere to belong. A
+    nullable branch on a sale would mean "we do not know which shop sold this",
+    which is not a state worth allowing.
+    """
+    __tablename__ = "branches"
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(12), unique=True, nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    # Its own registration: a branch is licensed in its own right, and the
+    # number that prints on a receipt is the branch's, not the group's.
+    registration_no = Column(String(40), default="")
+    phone = Column(String(40), default="")
+    email = Column(String(120), default="")
+    address = Column(Text, default="")
+    city = Column(String(80), default="")
+    responsible_pharmacist = Column(String(120), default="")
+    is_default = Column(Boolean, default=False)
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BranchTransfer(Base):
+    """Stock moving from one branch to another.
+
+    Deliberately two-sided and not instant. Goods despatched from Avondale are
+    not yet on the shelf in Bulawayo, and a system that pretends otherwise will
+    show stock at the receiving branch that nobody can physically sell. A
+    transfer is raised, then received, and the difference between the two is
+    stock in transit, which is a real thing a group needs to see.
+    """
+    __tablename__ = "branch_transfers"
+
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(30), unique=True, nullable=False, index=True)
+    from_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
+    to_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    # despatched | received | cancelled
+    status = Column(String(12), default="despatched")
+    notes = Column(Text, default="")
+    despatched_by_id = Column(Integer, ForeignKey("users.id"))
+    received_by_id = Column(Integer, ForeignKey("users.id"))
+    despatched_at = Column(DateTime, default=datetime.utcnow)
+    received_at = Column(DateTime)
+
+    from_branch = relationship("Branch", foreign_keys=[from_branch_id])
+    to_branch = relationship("Branch", foreign_keys=[to_branch_id])
+    product = relationship("Product")

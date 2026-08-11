@@ -23,6 +23,7 @@ from .routers import (
     patients_router,
     periods_router, pos_router,
     prescriptions_router, register_router, reminders_router, reports_router,
+    branches_router,
     portal_router,
     profile_router,
     shifts_router, stock_router, system_router, to_follows_router,
@@ -40,6 +41,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    # Every pre-branch row gets a home. A batch belonging to no branch is stock
+    # that has vanished from the system while sitting on a shelf.
+    from .database import SessionLocal
+    from .services import branches as _branches
+    with SessionLocal() as _db:
+        moved = _branches.ensure_backfilled(_db)
+        if moved:
+            log.info("Backfilled %s row(s) to the default branch", moved)
     db = SessionLocal()
     try:
         seed(db)
@@ -86,6 +95,7 @@ for router_module in (
     compounding_router, gateway_router, claims_admin_router, periods_router,
     to_follows_router, deferred_router, messages_router, ledger_router,
     dispensing_extras_router, system_router, profile_router, portal_router,
+    branches_router,
 ):
     app.include_router(router_module.router)
 

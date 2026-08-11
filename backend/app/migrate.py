@@ -13,6 +13,12 @@ log = logging.getLogger("rx3000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    # Branches. Nullable on purpose: every row written before branches existed
+    # is backfilled to the default branch by the seed rather than guessed at
+    # here, and a column that arrives NOT NULL on a populated table cannot be
+    # added at all on SQLite.
+    "stock_batches": {"branch_id": "INTEGER"},
+    "stock_movements": {"branch_id": "INTEGER"},
     "doctors": {
         # Prescriber portal sign-in. Null and false on every existing row, so an
         # upgrade never silently grants a prescriber the ability to write in.
@@ -20,6 +26,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "portal_active": "BOOLEAN DEFAULT 0",
     },
     "sales": {
+        # Which branch sold it. Drives branch takings and the branch VAT return.
+        "branch_id": "INTEGER",
         "shift_id": "INTEGER",
         "card_auth_code": "VARCHAR(20) DEFAULT ''",
         "card_reference": "VARCHAR(40) DEFAULT ''",
