@@ -24,7 +24,15 @@
   :root {
     --ink: #16161d; --ink-mid: #55555f; --ink-soft: #8a8a94;
     --line: #e4e4e9; --surface: #fff; --sunk: #fafafb;
-    --accent: #1f6f5c; --accent-soft: #eaf4f1;
+    /* Taken from the mark: it runs blush rose into deep indigo, so the page
+     * does too. The old teal was a placeholder that belonged to nothing. */
+    --accent: #3b3e56;          /* the deep end of the logo gradient */
+    --accent-soft: #f2eff3;
+    --rose: #f0b4b6;
+    --blush: #fadcde;
+    --indigo: #3b3e56;
+    --mauve: #97829c;
+    --brand-grad: linear-gradient(135deg, #f0b4b6 0%, #97829c 52%, #3b3e56 100%);
     --warn: #8a5a12; --warn-soft: #fbf0dd;
     --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
     --s6: 24px; --s8: 32px; --s12: 48px; --s16: 64px;
@@ -34,22 +42,55 @@
     :root {
       --ink: #f2f2f5; --ink-mid: #a8a8b4; --ink-soft: #74747f;
       --line: #2a2a33; --surface: #14141a; --sunk: #1b1b22;
-      --accent: #57b79c; --accent-soft: #16302a;
+      --accent: #cbb8d0; --accent-soft: #221f2b;
       --warn: #d9a441; --warn-soft: #2c2312;
     }
   }
+  /* ---- Brand typefaces -------------------------------------------------
+   * Grift (geometric, heavy) sets the headings; Gravita carries the reading
+   * text. Both are served from this origin as woff2 — subset to the four
+   * weights the page actually uses, because every extra weight is a file
+   * someone on a Zimbabwean mobile connection waits for before they can read
+   * anything. Four files, ~137 KB total, against ~1.4 MB of raw .otf.
+   *
+   * `font-display: swap` deliberately: the fallback renders immediately and is
+   * replaced when the brand face arrives. Invisible text while a font loads is
+   * a blank page to anyone on a slow line.
+   */
+  @font-face {
+    font-family: "Gravita"; font-style: normal; font-weight: 400;
+    font-display: swap; src: url("assets/gravita-400.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Gravita"; font-style: normal; font-weight: 500;
+    font-display: swap; src: url("assets/gravita-500.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Grift"; font-style: normal; font-weight: 700;
+    font-display: swap; src: url("assets/grift-700.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "Grift"; font-style: normal; font-weight: 800;
+    font-display: swap; src: url("assets/grift-800.woff2") format("woff2");
+  }
+
   * { box-sizing: border-box; }
   body {
     margin: 0; color: var(--ink); background: var(--surface);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          "Helvetica Neue", Arial, sans-serif;
+    font: 16px/1.65 "Gravita", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          Roboto, "Helvetica Neue", Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 0 var(--s5); }
   a { color: var(--accent); }
   h1, h2, h3 { line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 var(--s3); }
-  h1 { font-size: clamp(2rem, 5vw, 3.1rem); }
-  h2 { font-size: clamp(1.4rem, 3vw, 1.9rem); margin-top: 0; }
+  h1, h2, h3, .brand, .btn {
+    font-family: "Grift", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  }
+  h1 { font-size: clamp(2.1rem, 5.2vw, 3.3rem); font-weight: 800;
+       letter-spacing: -0.03em; line-height: 1.08; }
+  h2 { font-size: clamp(1.45rem, 3vw, 2rem); margin-top: 0;
+       font-weight: 700; letter-spacing: -0.02em; }
   h3 { font-size: 1.05rem; }
   p { margin: 0 0 var(--s4); }
   .lede { font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--ink-mid); max-width: 62ch; }
@@ -62,8 +103,24 @@
   }
   .top .wrap { display: flex; align-items: center; justify-content: space-between;
     gap: var(--s4); padding-top: var(--s3); padding-bottom: var(--s3); }
-  .brand { font-weight: 700; letter-spacing: -0.03em; font-size: 1.15rem; }
-  .brand span { color: var(--accent); }
+  .brand {
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    font-weight: 800; letter-spacing: -0.03em; font-size: 1.2rem;
+    color: var(--ink); text-decoration: none;
+  }
+  .brand img { display: block; border-radius: 8px; }
+  /* The wordmark carries the gradient of the mark next to it, so the two read
+   * as one thing rather than a logo sitting beside some text. */
+  .brand em {
+    font-style: normal;
+    background: var(--brand-grad);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
+  /* A hairline of the brand gradient across the top of the page. */
+  body::before {
+    content: ""; display: block; height: 3px; background: var(--brand-grad);
+  }
   nav a { margin-left: var(--s4); color: var(--ink-mid); text-decoration: none;
     font-size: 0.925rem; }
   nav a:hover { color: var(--ink); }
@@ -82,7 +139,11 @@
     display: inline-block; padding: var(--s3) var(--s5); border-radius: var(--r-md);
     text-decoration: none; font-weight: 600; border: 1px solid var(--accent);
   }
-  .btn-primary { background: var(--accent); color: #fff; }
+  .btn { font-weight: 700; letter-spacing: -0.01em; }
+  /* The one element that carries the full mark gradient. Used once, on the
+   * page's single most important action — a gradient repeated across a page
+   * stops being brand and becomes wallpaper. */
+  .btn-primary { background: var(--brand-grad); color: #fff; border-color: transparent; }
   .btn-ghost { color: var(--accent); }
 
   .grid { display: grid; gap: var(--s4);
@@ -190,7 +251,10 @@
 
 <header class="top">
   <div class="wrap">
-    <div class="brand">RX<span>3000</span></div>
+    <a class="brand" href="./">
+      <img src="assets/logo.png" alt="" width="34" height="34" />
+      <span class="brand-word">RX<em>3000</em></span>
+    </a>
     <nav>
       <a href="#what">What it does</a>
       <a href="#zimbabwe">Built for Zimbabwe</a>
