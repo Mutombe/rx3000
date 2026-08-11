@@ -8,4 +8,7 @@ PyJWT>=2.8
 python-multipart>=0.0.9
 # Postgres driver for hosted deployments. SQLite stays the default for a
 # pharmacy running on its own till; a shared server needs a real database.
-psycopg[binary]==3.2.3
+# Not pinned to an exact version: the build host runs Python 3.14, and 3.2.3
+# has no wheel for it — pinning it meant pip had nothing to install and the
+# build died. A floor, not a pin.
+psycopg[binary]>=3.2.10
