@@ -1528,3 +1528,71 @@ input:disabled, select:disabled, textarea:disabled {
   border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface);
 }
 .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ==========================================================================
+   Phones and small tablets
+   ==========================================================================
+   The application was built for a counter: a fixed sidebar and wide tables. On
+   a phone that sidebar eats two thirds of the screen and every table pushes the
+   page sideways. This is not a second design — it is the same one, folded.
+
+   Below 860px the sidebar stops being a column and becomes a drawer over the
+   page. The collapse handle it already has becomes the opener, so there is one
+   control with one meaning rather than a separate hamburger that does something
+   subtly different. */
+
+@media (max-width: 860px) {
+  .shell { display: block; }
+
+  .shell > .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
+    width: min(80vw, var(--rail));
+    transform: translateX(0);
+    transition: transform 180ms ease;
+    box-shadow: 0 0 40px rgba(22, 22, 29, 0.18);
+  }
+  /* Collapsed means "closed" here, not "narrow". */
+  .shell.is-collapsed > .sidebar {
+    width: min(80vw, var(--rail));
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+  /* The rail's icon-only mode is a desktop idea; a hidden drawer has no use
+     for it, and leaving it on stripped the labels off the open drawer too. */
+  .shell.is-collapsed .brand-text,
+  .shell.is-collapsed .nav-label,
+  .shell.is-collapsed .nav-section,
+  .shell.is-collapsed .me-text { display: revert; }
+  .shell.is-collapsed .nav a,
+  .shell.is-collapsed .me,
+  .shell.is-collapsed .signout { justify-content: flex-start; padding: 0 var(--s3); }
+  .shell.is-collapsed .nav > div + div { border-top: none; margin-top: 0; padding-top: 0; }
+
+  /* The handle rides with the drawer, staying reachable when it is closed. */
+  .rail-toggle {
+    top: 12px; right: -16px;
+    width: 34px; height: 34px;      /* a thumb target, not a mouse target */
+  }
+  .rail-toggle svg { width: 16px; height: 16px; }
+
+  .main { padding: var(--s5) var(--s4) var(--s10); max-width: none; }
+
+  /* Wide tables scroll inside themselves. A body that scrolls sideways is the
+     single most common way a page feels broken on a phone. */
+  .dt { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dt thead th { white-space: nowrap; }
+
+  .page-head { flex-direction: column; align-items: flex-start; gap: var(--s3); }
+  .grid, .cols-4, .cols-3, .cols-2 { grid-template-columns: 1fr; }
+  .dt-filters, .toolbar { flex-wrap: wrap; gap: var(--s2); }
+  .field-row, .field-grid { grid-template-columns: 1fr; }
+
+  /* 16px minimum, or iOS zooms the whole page when a field takes focus. */
+  input, select, textarea { font-size: 16px; }
+
+  .toasts { left: var(--s3); right: var(--s3); bottom: var(--s3); }
+  .toast { width: auto; }
+}
+
+/* Nothing may widen the page, on any viewport. */
+html, body { max-width: 100%; overflow-x: hidden; }

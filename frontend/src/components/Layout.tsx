@@ -144,9 +144,15 @@ export default function Layout({ children }: { children: ReactNode }) {
       .catch(() => setReady((n) => n + 1));
   }, []);
 
-  const [collapsed, setCollapsed] = useState(
-    () => localStorage.getItem("rx3000_rail") === "1",
-  );
+  const [collapsed, setCollapsed] = useState(() => {
+    // On a phone the sidebar is a drawer, and a drawer that starts open covers
+    // the screen you came to look at. The saved preference is a desktop
+    // preference; it does not apply where the control means something else.
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches) {
+      return true;
+    }
+    return localStorage.getItem("rx3000_rail") === "1";
+  });
   useEffect(() => {
     localStorage.setItem("rx3000_rail", collapsed ? "1" : "0");
   }, [collapsed]);
@@ -185,6 +191,9 @@ export default function Layout({ children }: { children: ReactNode }) {
                   // Collapsed, the label is gone, so the title attribute is the
                   // only thing naming the destination. It is not optional.
                   title={collapsed ? l.label : undefined}
+                  onClick={() => {
+                    if (window.matchMedia("(max-width: 860px)").matches) setCollapsed(true);
+                  }}
                   className={({ isActive }) =>
                     [isActive ? "active" : "", l.tier === 1 ? "nav-primary" : ""]
                       .filter(Boolean).join(" ")}
