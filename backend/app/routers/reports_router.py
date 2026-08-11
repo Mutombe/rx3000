@@ -25,7 +25,11 @@ def _range(date_from: str, date_to: str) -> tuple[datetime, datetime]:
 
 @router.get("/dashboard")
 def dashboard(db: Session = Depends(get_db)):
-    today = date.today().isoformat()
+    # A date object, not a string. SQLite compares a DATE column to '2026-08-11'
+    # happily; Postgres refuses with `operator does not exist: date = character
+    # varying`, which surfaces in the browser as a CORS error because the 500
+    # never reaches the CORS middleware.
+    today = date.today()
     week_ago = datetime.utcnow() - timedelta(days=7)
 
     sales_today = db.query(func.count(Sale.id), func.coalesce(func.sum(Sale.total), 0.0)).filter(

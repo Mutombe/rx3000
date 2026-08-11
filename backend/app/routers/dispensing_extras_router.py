@@ -245,7 +245,7 @@ def export(dataset: str, db: Session = Depends(get_db)):
     """
     from ..models import Account, Claim, JournalEntry, OwedItem, StockBatch
 
-    stamp = date.today().isoformat()
+    stamp = date.today()
     if dataset == "products":
         rows = [{"code": p.nappi_code, "name": p.name, "strength": p.strength,
                  "schedule": p.schedule, "on_hand": p.quantity_on_hand,

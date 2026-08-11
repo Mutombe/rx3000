@@ -134,16 +134,16 @@ def totals(db: Session, period: TradingPeriod) -> Totals:
             func.count(Sale.id),
         )
         .filter(Sale.status == "paid",
-                func.date(Sale.created_at) >= period.start_date.isoformat(),
-                func.date(Sale.created_at) <= period.end_date.isoformat())
+                func.date(Sale.created_at) >= period.start_date,
+                func.date(Sale.created_at) <= period.end_date)
         .one()
     )
     cost = (
         db.query(func.coalesce(func.sum(SaleItem.quantity * SaleItem.unit_cost), 0.0))
         .join(Sale, SaleItem.sale_id == Sale.id)
         .filter(Sale.status == "paid",
-                func.date(Sale.created_at) >= period.start_date.isoformat(),
-                func.date(Sale.created_at) <= period.end_date.isoformat())
+                func.date(Sale.created_at) >= period.start_date,
+                func.date(Sale.created_at) <= period.end_date)
         .scalar()
     ) or 0.0
     return Totals(sales=round(row[0], 2), vat=round(row[1], 2),

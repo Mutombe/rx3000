@@ -2,8 +2,9 @@ import logging
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from . import schedule_policy
 from .audit import AuditMiddleware
@@ -90,6 +91,31 @@ for router_module in (
 
 app.include_router(portal_router.admin)  # staff-side link issuing
 app.include_router(leads_router.public)  # unauthenticated web-to-lead / web-to-case
+
+
+log = logging.getLogger("rx3000")
+
+
+@app.exception_handler(Exception)
+async def unhandled(request: Request, exc: Exception):
+    """Return a real response for an unhandled error, not a bare 500.
+
+    Starlette's default error handler sits *outside* the CORS middleware, so an
+    unhandled exception reaches the browser with no Access-Control-Allow-Origin
+    header. Chrome then reports it as a CORS failure — and you go looking for a
+    configuration problem that does not exist while the actual traceback sits in
+    the server log. Handling it here means the response passes back through the
+    middleware stack, keeps its CORS headers, and says what it is.
+
+    The message is deliberately generic: the log has the detail, and a stack
+    trace on a public endpoint tells an attacker about your dependencies.
+    """
+    log.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Something went wrong at our end. The pharmacy's "
+                           "support log has the detail."},
+    )
 
 
 @app.get("/api/health")
