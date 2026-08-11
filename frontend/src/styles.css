@@ -1432,15 +1432,37 @@ input:disabled, select:disabled, textarea:disabled {
   margin-top: var(--s3); padding-top: var(--s3);
 }
 
-.brand { display: flex; align-items: center; gap: var(--s3); position: relative; }
+.brand { display: flex; align-items: center; gap: var(--s3); }
+
+/* ---- the collapse handle ----
+ * It sat inside the brand row as a bare outlined box: easy to miss, easy to
+ * mistake for an empty field, and it moved when the wordmark disappeared on
+ * collapse. It now sits on the sidebar's own edge — the thing it moves — at a
+ * fixed height that does not shift between states, so the muscle memory holds.
+ *
+ * A circle straddling the border reads as a handle rather than a button, which
+ * is the convention every editor and IDE uses for exactly this control.
+ */
+.sidebar { position: relative; }
 .rail-toggle {
-  margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px; flex: 0 0 auto;
-  border: 1px solid var(--line); border-radius: var(--r-sm);
-  background: var(--surface); color: var(--ink-soft); cursor: pointer;
+  position: absolute;
+  top: 74px;                    /* level with the first nav group, not the logo */
+  right: -12px;                 /* straddling the sidebar's right border */
+  z-index: 5;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: var(--r-pill);
+  background: var(--surface); color: var(--ink-mid);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(22, 22, 29, 0.10);
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.rail-toggle:hover { background: var(--surface-sunk); color: var(--ink); border-color: var(--ink-faint); }
-.shell.is-collapsed .rail-toggle { margin-left: 0; }
+.rail-toggle:hover {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
+.rail-toggle:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+/* The icon is the whole content, so it must never inherit a zero size. */
+.rail-toggle svg { display: block; width: 13px; height: 13px; }
 
 /* ---- who is signed in ---- */
 .sidebar-footer { display: grid; gap: var(--s2); }

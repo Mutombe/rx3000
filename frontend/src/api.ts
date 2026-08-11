@@ -62,6 +62,19 @@ function readableDetail(detail: unknown): string | null {
   return null;
 }
 
+/** A sentence for a response that did not explain itself. */
+function statusWording(status: number): string {
+  if (status === 403) return "You do not have permission to do that.";
+  if (status === 404) return "That record no longer exists.";
+  if (status === 409) return "Someone else changed this first. Reload and try again.";
+  if (status === 413) return "That file is too large to upload.";
+  if (status === 429) return "Too many requests just now. Wait a moment and retry.";
+  if (status === 502 || status === 503 || status === 504)
+    return "The server is not responding. It may be starting up — try again shortly.";
+  if (status >= 500) return "Something went wrong at the server. Please try again.";
+  return `The request was refused (${status}).`;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -91,14 +104,18 @@ async function request<T>(
     throw new ApiError(401, "Session expired");
   }
   if (!res.ok) {
-    let detail = res.statusText;
+    let detail = "";
     try {
       const data = await res.json();
-      detail = readableDetail(data.detail) ?? res.statusText;
+      detail = readableDetail(data.detail) ?? "";
     } catch {
-      /* keep statusText */
+      /* body was not JSON — fall through to the status-based wording */
     }
-    throw new ApiError(res.status, detail);
+    // Never throw a blank message. HTTP/2 carries no status text, so
+    // `res.statusText` is an empty string on any modern host — which produced a
+    // toast with a count badge and no words at all. An error nobody can read is
+    // worse than no error: it says something is wrong and refuses to say what.
+    throw new ApiError(res.status, detail.trim() || statusWording(res.status));
   }
   return res.json();
 }

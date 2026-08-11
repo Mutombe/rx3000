@@ -60,6 +60,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback((tone: Tone, message: string) => {
     setToasts((all) => {
       // Collapse a repeat rather than stacking it.
+      // A blank toast is a red box that says nothing. Whatever went wrong
+      // upstream, the reader gets a sentence.
+      message = (message ?? "").toString().trim() ||
+        "Something went wrong, and the details did not come back.";
       const same = all.find((t) => t.tone === tone && t.message === message);
       if (same) {
         return all.map((t) => (t === same ? { ...t, count: t.count + 1 } : t));

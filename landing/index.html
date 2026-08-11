@@ -187,6 +187,65 @@
     color: var(--warn); padding: var(--s3) var(--s4);
     border-radius: 0 var(--r-md) var(--r-md) 0; margin: var(--s5) 0;
   }
+
+  /* ---- contact ---------------------------------------------------------
+   * The glow is a soft blurred field behind each card that lifts on hover. It
+   * is done with a blurred pseudo-element rather than a box-shadow so the
+   * colour can carry the brand gradient, and it is kept slow and low-contrast:
+   * this is a business tool, and a pulsing button on a page a pharmacist is
+   * evaluating reads as a advert rather than an invitation.
+   */
+  .contact { border-bottom: none; }
+  .contact-actions {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--s4); margin: var(--s6) 0;
+  }
+  .cbtn {
+    position: relative; isolation: isolate;
+    display: grid; gap: 2px;
+    padding: var(--s5); border-radius: var(--r-lg);
+    background: var(--surface); border: 1px solid var(--line);
+    text-decoration: none; color: var(--ink);
+    transition: transform 0.18s ease, border-color 0.18s ease;
+  }
+  .cbtn-glow {
+    position: absolute; inset: -2px; z-index: -1;
+    border-radius: inherit; opacity: 0; filter: blur(14px);
+    transition: opacity 0.28s ease;
+  }
+  .cbtn-wa .cbtn-glow { background: linear-gradient(135deg, #25d366, #128c7e); }
+  .cbtn-mail .cbtn-glow { background: var(--brand-grad); }
+  .cbtn:hover { transform: translateY(-2px); border-color: transparent; }
+  .cbtn:hover .cbtn-glow { opacity: 0.55; }
+  .cbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .cbtn-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-soft);
+  }
+  .cbtn-value {
+    font-family: "Grift", sans-serif; font-weight: 700; font-size: 1.15rem;
+    letter-spacing: -0.01em; word-break: break-word;
+  }
+  .contact-cta { margin-top: var(--s6); }
+  .contact-cta .small { margin-top: var(--s3); color: var(--ink-mid); }
+  .contact-cta code {
+    background: var(--sunk); padding: 1px 5px; border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  /* Sign in is the one nav item that is an action, so it looks like one. */
+  .nav-signin {
+    padding: 0.35rem 0.85rem; border-radius: 999px;
+    border: 1px solid var(--line); font-weight: 700;
+  }
+  .nav-signin:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Motion is a preference, not a decoration. */
+  @media (prefers-reduced-motion: reduce) {
+    .cbtn, .cbtn-glow { transition: none; }
+    .cbtn:hover { transform: none; }
+  }
+
   footer { padding: var(--s8) 0 var(--s12); color: var(--ink-mid); font-size: 0.9rem; }
 
   /* ======================================================================
@@ -260,6 +319,8 @@
       <a href="#zimbabwe">Built for Zimbabwe</a>
       <a href="#how">Getting started</a>
       <a href="#faq">Questions</a>
+      <a href="#contact">Contact</a>
+      <a class="nav-signin" href="https://rx3000-app.onrender.com/login">Sign in</a>
     </nav>
   </div>
 </header>
@@ -469,6 +530,43 @@
       <p>Every grid exports to a spreadsheet, and the database is a single file
       you can copy. It is your pharmacy's data.</p>
     </details>
+  </div>
+</section>
+
+<section id="contact" class="contact">
+  <div class="wrap">
+    <h2>Talk to us</h2>
+    <p class="lede">
+      A pharmacy is not software you buy from a page. Message us and we will walk
+      your counter through it — or set up a trial on your own stock file.
+    </p>
+
+    <div class="contact-actions">
+      <!-- WhatsApp first, deliberately: it is how business is actually done here,
+           and a phone number people can tap beats a form nobody fills in. -->
+      <a class="cbtn cbtn-wa" href="https://wa.me/263785948128"
+         target="_blank" rel="noopener">
+        <span class="cbtn-glow" aria-hidden="true"></span>
+        <span class="cbtn-label">WhatsApp</span>
+        <span class="cbtn-value">+263 78 594 8128</span>
+      </a>
+      <a class="cbtn cbtn-mail" href="mailto:hello@bitstudio.co.zw">
+        <span class="cbtn-glow" aria-hidden="true"></span>
+        <span class="cbtn-label">Email</span>
+        <span class="cbtn-value">hello@bitstudio.co.zw</span>
+      </a>
+    </div>
+
+    <div class="contact-cta">
+      <a class="btn btn-primary" href="https://rx3000-app.onrender.com/login">
+        Open the demonstration pharmacy
+      </a>
+      <p class="small">
+        Sign in with <code>admin</code> / <code>admin123</code>. It is a live
+        system with demonstration data — dispense something, void it, look at
+        what the ledger did.
+      </p>
+    </div>
   </div>
 </section>
 
