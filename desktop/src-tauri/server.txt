@@ -1,0 +1,4 @@
+# The backend this till talks to.
+# One line. The installer or IT writes this; RX3000_SERVER in the environment
+# overrides it for a single run.
+http://localhost:8177

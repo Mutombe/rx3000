@@ -2,6 +2,7 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .models import BatchAllocation, Product, RegisterEntry, StockBatch, StockMovement
@@ -50,10 +51,19 @@ def receive_stock_batch(
     reference: str = "",
     movement_type: str = "receive",
     notes: str = "",
+    branch_id: int | None = None,
 ) -> StockBatch:
-    """Receive stock as a tracked batch (airtime is exempt from batch tracking)."""
+    """Receive stock as a tracked batch (airtime is exempt from batch tracking).
+
+    Goods arrive *somewhere*. A batch with no branch is stock that exists in the
+    database and on a shelf but appears at neither, so incoming stock is stamped
+    with the receiving branch, defaulting to the default one.
+    """
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Receive quantity must be positive")
+    if branch_id is None:
+        from .services import branches as _branches
+        branch_id = _branches.default_branch(db).id
     batch = StockBatch(
         product_id=product.id,
         batch_number=batch_number or f"AUTO-{datetime.utcnow():%y%m%d%H%M%S}",
@@ -62,6 +72,7 @@ def receive_stock_batch(
         quantity_remaining=quantity,
         unit_cost=unit_cost if unit_cost is not None else product.cost_price,
         reference=reference,
+        branch_id=branch_id,
     )
     db.add(batch)
     product.quantity_on_hand = (product.quantity_on_hand or 0) + quantity
@@ -73,6 +84,7 @@ def receive_stock_batch(
         reference=reference,
         notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}").strip(" |"),
         user_id=user_id,
+        branch_id=branch_id,
     ))
     return batch
 
@@ -87,15 +99,32 @@ def consume_stock_fefo(
     notes: str = "",
     sale_item_id: int | None = None,
     allow_expired: bool = False,
+    branch_id: int | None = None,
 ) -> list[BatchAllocation]:
-    """Draw stock First-Expiry-First-Out. Expired batches are skipped for
-    dispensing/sales (allow_expired=False) but usable for write-offs."""
+    """Draw stock First-Expiry-First-Out, from one branch.
+
+    Expired batches are skipped for dispensing and sales (allow_expired=False)
+    but remain usable for write-offs.
+
+    `branch_id` is the till's branch. It defaults to the default branch, which
+    is what a single-shop pharmacy has and never thinks about. It matters the
+    moment there are two shops: without it a dispenser in Bulawayo would draw
+    against a batch sitting in Harare, decrementing stock that is four hundred
+    kilometres away and handing the patient something the shelf does not hold.
+    Every path that consumes stock comes through here, so scoping it here scopes
+    all of them.
+    """
+    if branch_id is None:
+        from .services import branches as _branches
+        branch_id = _branches.default_branch(db).id
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
 
     query = (
         db.query(StockBatch)
-        .filter(StockBatch.product_id == product.id, StockBatch.quantity_remaining > 0)
+        .filter(StockBatch.product_id == product.id,
+                StockBatch.quantity_remaining > 0,
+                StockBatch.branch_id == branch_id)
     )
     if not allow_expired:
         query = query.filter(StockBatch.expiry_date >= date.today())
@@ -105,17 +134,33 @@ def consume_stock_fefo(
     if available < quantity:
         total_any = (
             db.query(StockBatch)
-            .filter(StockBatch.product_id == product.id, StockBatch.quantity_remaining > 0)
+            .filter(StockBatch.product_id == product.id,
+                    StockBatch.quantity_remaining > 0,
+                    StockBatch.branch_id == branch_id)
             .count()
         )
+        # If another branch holds it, say so. "Insufficient stock" sends someone
+        # to reorder; "Bulawayo has 40" sends them to raise a transfer, which is
+        # the same afternoon rather than the next delivery.
+        elsewhere = (
+            db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+            .filter(StockBatch.product_id == product.id,
+                    StockBatch.quantity_remaining > 0,
+                    StockBatch.branch_id != branch_id)
+            .scalar() or 0
+        )
+        hint = (f" Another branch holds {int(elsewhere)} — raise a transfer."
+                if elsewhere else "")
         if not allow_expired and total_any and available < quantity:
             raise HTTPException(
                 status_code=400,
-                detail=f"{product.name}: only {available} unexpired unit(s) in stock — check batches for expired stock",
+                detail=f"{product.name}: only {available} unexpired unit(s) at this "
+                       f"branch. Check batches for expired stock.{hint}",
             )
         raise HTTPException(
             status_code=400,
-            detail=f"{product.name}: insufficient stock ({available} available)",
+            detail=f"{product.name}: not enough stock at this branch "
+                   f"({available} available).{hint}",
         )
 
     allocations: list[BatchAllocation] = []
@@ -135,6 +180,7 @@ def consume_stock_fefo(
             reference=reference,
             notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}").strip(" |"),
             user_id=user_id,
+            branch_id=branch_id,
         ))
         allocation = BatchAllocation(
             batch_id=batch.id, sale_item_id=sale_item_id, quantity=take, reference=reference,

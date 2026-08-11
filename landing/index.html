@@ -246,6 +246,14 @@
     .cbtn:hover { transform: none; }
   }
 
+
+  /* A button for something that is not a link yet. Greyed and unclickable
+     rather than hidden: the reader should know the installer exists and how to
+     get it, not wonder whether the product has one. */
+  .is-pending {
+    opacity: 0.5; pointer-events: none; border-style: dashed;
+  }
+
   footer { padding: var(--s8) 0 var(--s12); color: var(--ink-mid); font-size: 0.9rem; }
 
   /* ======================================================================
@@ -318,6 +326,7 @@
       <a href="#what">What it does</a>
       <a href="#zimbabwe">Built for Zimbabwe</a>
       <a href="#how">Getting started</a>
+      <a href="#desktop">Download</a>
       <a href="#faq">Questions</a>
       <a href="#contact">Contact</a>
       <a class="nav-signin" href="https://rx3000-app.onrender.com/login">Sign in</a>
@@ -530,6 +539,48 @@
       <p>Every grid exports to a spreadsheet, and the database is a single file
       you can copy. It is your pharmacy's data.</p>
     </details>
+  </div>
+</section>
+
+<section id="desktop">
+  <div class="wrap">
+    <h2>The till application</h2>
+    <p class="lede">
+      A pharmacy counter is not a web page. It talks to a receipt printer, a cash
+      drawer and a fiscal device, and it has to keep serving patients when the
+      line goes down. The desktop application runs against the pharmacy's own
+      server on the premises, so a ZOL outage is an inconvenience rather than a
+      closed shop.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Windows</h3>
+        <p class="small">Windows 10 and 11, 64-bit. Installs per machine.</p>
+        <a class="btn btn-ghost is-pending" aria-disabled="true"
+           title="Available at first installation">Installer</a>
+      </div>
+      <div class="card">
+        <h3>Linux</h3>
+        <p class="small">Debian, Ubuntu and derivatives. AppImage also provided.</p>
+        <a class="btn btn-ghost is-pending" aria-disabled="true"
+           title="Available at first installation">Package</a>
+      </div>
+      <div class="card">
+        <h3>Browser</h3>
+        <p class="small">
+          Nothing to install. The same application, without the printer and cash
+          drawer support.
+        </p>
+        <a class="btn btn-ghost" href="https://rx3000-app.onrender.com/login">Open in a browser</a>
+      </div>
+    </div>
+
+    <p class="small">
+      Installers are issued with your installation rather than downloaded blind,
+      because each one is configured with the address of your own server and
+      signed for your machines. Ask us and we will send yours.
+    </p>
   </div>
 </section>
 

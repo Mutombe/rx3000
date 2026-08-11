@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RX3000",
+  "version": "1.0.0",
+  "identifier": "zw.co.bitstudio.rx3000",
+  "build": {
+    "frontendDist": "../../frontend/dist",
+    "devUrl": "http://localhost:5180",
+    "beforeDevCommand": "npm --prefix ../../frontend run dev",
+    "beforeBuildCommand": "npm --prefix ../../frontend run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "RX3000 Pharmacy Suite",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost http://localhost:* http://127.0.0.1:*"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["msi", "nsis", "deb", "appimage"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "publisher": "BitStudio",
+    "shortDescription": "Pharmacy management for Zimbabwe",
+    "longDescription": "Dispensing, front shop, stock, claims and accounts. Runs against the pharmacy's own server so the till keeps working when the line is down.",
+    "windows": {
+      "wix": { "language": "en-GB" }
+    }
+  }
+}

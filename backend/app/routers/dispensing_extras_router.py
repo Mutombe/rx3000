@@ -12,11 +12,12 @@ from sqlalchemy.orm import Session
 
 from .. import helpers, schedule_policy
 from ..auth import get_current_user
+from ..config import settings
 from ..database import get_db
 from ..models import (
     MedicalAid, Patient, Prescription, Product, Sale, User, Waybill,
 )
-from ..services import pricing
+from ..services import pricing, branches
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -219,11 +220,30 @@ def fail(waybill_id: int, reason: str = Body(..., embed=True),
 # Export
 # ---------------------------------------------------------------------------
 
-def _csv(rows: list[dict], filename: str) -> Response:
-    if not rows:
-        return Response(content="", media_type="text/csv",
-                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+def _csv(rows: list[dict], filename: str, db: Session | None = None) -> Response:
+    """Write a dataset out, with a header saying what it is and where it is from.
+
+    An exported spreadsheet outlives the screen it came from. It gets emailed,
+    printed, and argued about a month later, by which time "which branch is this
+    and when was it run" is the first question and nobody can answer it. Three
+    lines at the top cost nothing and settle it.
+    """
     buffer = io.StringIO()
+    branch_name = ""
+    if db is not None:
+        try:
+            branch_name = branches.default_branch(db).name
+        except Exception:      # a provenance header must never break an export
+            branch_name = ""
+    buffer.write(f"# {settings.PHARMACY_NAME}\r\n")
+    if branch_name:
+        buffer.write(f"# Branch: {branch_name}\r\n")
+    buffer.write(f"# Exported: {datetime.now().strftime('%Y-%m-%d %H:%M')}\r\n")
+    buffer.write(f"# Dataset: {filename.rsplit(chr(46), 1)[0]}\r\n")
+    if not rows:
+        buffer.write("# No rows\r\n")
+        return Response(content=buffer.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": f'attachment; filename="{filename}"'})
     writer = csv.DictWriter(buffer, fieldnames=list(rows[0].keys()), extrasaction="ignore")
     writer.writeheader()
     writer.writerows(rows)
@@ -283,7 +303,7 @@ def export(dataset: str, db: Session = Depends(get_db)):
             status_code=404,
             detail="Nothing exports under that name. Available: products, batches, "
                    "claims, to-follows, journal, trial-balance, accounts.")
-    return _csv(rows, f"rx3000-{dataset}-{stamp}.csv")
+    return _csv(rows, f"rx3000-{dataset}-{stamp}.csv", db)
 
 
 # ---------------------------------------------------------------------------

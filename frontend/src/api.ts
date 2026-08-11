@@ -8,7 +8,22 @@
  *  Trailing slash stripped, because `${BASE}/api/x` with a trailing slash gives
  *  a double slash that some proxies redirect and others reject.
  */
-const BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+const BASE = resolveBase();
+
+function resolveBase(): string {
+  // The desktop shell injects the pharmacy's own server before any page script
+  // runs. It wins over the build-time value, because a till on the premises
+  // talks to the box in the back office, not to whatever host this bundle was
+  // built against.
+  const fromShell = (globalThis as any).__RX3000_SERVER__;
+  if (typeof fromShell === "string" && fromShell.trim()) {
+    return fromShell.trim().replace(/\/$/, "");
+  }
+  return (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+}
+
+/** True when running inside the desktop shell rather than a browser tab. */
+export const isDesktop = typeof (globalThis as any).__RX3000_SERVER__ === "string";
 
 /** The same base, for code that does not go through `request` — the portals
  *  deliberately use bare fetch so they carry none of the staff session logic. */

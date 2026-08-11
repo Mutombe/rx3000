@@ -54,7 +54,12 @@ const RECEIPT_CSS = `
   .logo { width: 13mm; height: 13mm; object-fit: contain; margin-bottom: 1mm; }
 `;
 
-export function printReceipt(sale: Sale, pharmacyName = "RX3000 Pharmacy", regNo = "") {
+export function printReceipt(
+  sale: Sale,
+  pharmacyName = "RX3000 Pharmacy",
+  regNo = "",
+  branchName = "",
+) {
   const when = new Date(sale.created_at).toLocaleString("en-ZA");
   const lines = sale.items
     .map(
@@ -85,10 +90,11 @@ export function printReceipt(sale: Sale, pharmacyName = "RX3000 Pharmacy", regNo
     RECEIPT_CSS,
     `<div class="c"><img class="logo" src="${window.location.origin}/logo.png" alt="">
        <h1>${pharmacyName}</h1>
-       <div class="sub">${regNo ? `Reg. ${regNo}<br>` : ""}Tax Invoice</div></div>
+       <div class="sub">${branchName ? `${branchName}<br>` : ""}${regNo ? `Reg. ${regNo}<br>` : ""}Tax Invoice</div></div>
      <table>
        <tr><td>Invoice</td><td class="r">${sale.sale_number}</td></tr>
        <tr><td>Date</td><td class="r">${when}</td></tr>
+       ${branchName ? `<tr><td>Branch</td><td class="r">${branchName}</td></tr>` : ""}
        ${sale.patient ? `<tr><td>Patient</td><td class="r">${sale.patient.first_name} ${sale.patient.last_name}</td></tr>` : ""}
      </table>
      <hr>
