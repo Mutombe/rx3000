@@ -5,8 +5,25 @@ from .config import settings
 
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
+
+def _normalise(url: str) -> str:
+    """Point a bare postgres URL at the driver that is actually installed.
+
+    Hosting platforms hand out `postgresql://...` (and Heroku-style `postgres://`).
+    SQLAlchemy maps both to psycopg2, which this project does not install — it
+    uses psycopg 3. The build then succeeds and the process dies on first import
+    with ModuleNotFoundError, which looks like a deployment fault rather than a
+    one-word URL problem. Naming the driver explicitly avoids that entirely.
+    """
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    if url.startswith("postgresql://"):
+        url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    return url
+
+
 engine = create_engine(
-    settings.DATABASE_URL,
+    _normalise(settings.DATABASE_URL),
     connect_args={"check_same_thread": False, "timeout": 30} if _is_sqlite else {},
     pool_pre_ping=True,
 )
