@@ -80,6 +80,16 @@ app.add_middleware(
     # CORS and the application looks broken with no error in the server log.
     allow_origins=[
         "http://localhost:5180", "http://127.0.0.1:5180",
+        # The desktop shell. Its webview is a real browser with a real origin,
+        # so the API has to allow it like any other: Tauri serves the bundled
+        # front end from tauri://localhost on macOS and Linux and from
+        # http://tauri.localhost on Windows. Without these the till renders,
+        # the user types a password, and fetch fails before a request ever
+        # leaves the machine — reported only as "Failed to fetch", with nothing
+        # in the server log because the server was never reached.
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
         *[o for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()],
     ],
     allow_credentials=True,

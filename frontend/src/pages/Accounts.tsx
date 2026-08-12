@@ -131,7 +131,7 @@ export default function Accounts() {
   useEffect(load, [q]);
 
   async function saveCompany(e: FormEvent) {
-    e.preventDefault(); toast.error("");
+    e.preventDefault();
     try {
       const body = { ...coForm, credit_terms_days: Number(coForm.credit_terms_days) || 30 };
       if (editingCo) await api.put(`/api/crm/companies/${editingCo.id}`, body);
@@ -142,7 +142,7 @@ export default function Accounts() {
   }
 
   async function saveContact(e: FormEvent) {
-    e.preventDefault(); toast.error("");
+    e.preventDefault();
     try {
       await api.post("/api/crm/contacts", {
         ...ctForm, company_id: ctForm.company_id === "" ? null : Number(ctForm.company_id),

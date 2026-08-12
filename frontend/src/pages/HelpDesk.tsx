@@ -134,7 +134,7 @@ export default function HelpDesk() {
   }
 
   async function createTicket(e: FormEvent) {
-    e.preventDefault(); toast.error("");
+    e.preventDefault();
     try {
       const t = await api.post<Ticket>("/api/helpdesk/tickets", form);
       setShowNew(false);

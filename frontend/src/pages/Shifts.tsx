@@ -30,7 +30,7 @@ export default function Shifts() {
 
   async function openShift(e: FormEvent) {
     e.preventDefault();
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       await api.post("/api/shifts/open", { opening_float: Number(openFloat) || 0 });
       toast.ok("Shift opened — sales you process are now tracked against it.");
@@ -40,7 +40,7 @@ export default function Shifts() {
 
   async function closeShift(e: FormEvent) {
     e.preventDefault();
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       const closed = await api.post<Shift>("/api/shifts/close", {
         counted_cash: Number(counted) || 0, notes,

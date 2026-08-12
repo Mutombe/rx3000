@@ -1611,3 +1611,80 @@ input:disabled, select:disabled, textarea:disabled {
 
 /* Nothing may widen the page, on any viewport. */
 html, body { max-width: 100%; overflow-x: hidden; }
+
+/* ==========================================================================
+   Scrolling belongs to the pane under the pointer
+   ==========================================================================
+   The shell was `min-height: 100vh`, so it grew with its content and the
+   document scrolled. Scrolling a table therefore moved the sidebar, the header
+   and the toasts with it — on a till, where the operator's eye is fixed on one
+   region, that is disorienting rather than merely untidy.
+
+   The shell is now exactly the viewport and never scrolls. Each pane scrolls
+   itself. `overscroll-behavior: contain` is the part that matters: without it,
+   reaching the end of a scrollable pane hands the remaining scroll to its
+   parent — the browser calls this scroll chaining, and it is why one flick of
+   the wheel inside a table drags the whole application.
+
+   Deliberately desktop-only. Below 860px the sidebar is a drawer and ordinary
+   page scrolling is what a phone should do; locking the viewport there would
+   break momentum scrolling and hide content behind mobile browser chrome. */
+
+@media (min-width: 861px) {
+  html, body { height: 100%; overflow: hidden; }
+
+  .shell { height: 100vh; min-height: 0; overflow: hidden; }
+
+  /* min-height: 0 lets a flex child shrink below its content and actually
+     scroll. Without it the child stays content-sized and the overflow escapes
+     to the page, which is the same bug wearing a different hat. */
+  .shell > .sidebar { height: 100vh; min-height: 0; overflow: hidden; }
+  .nav { overscroll-behavior: contain; }
+
+  .main {
+    height: 100vh;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* Any inner region that scrolls keeps its scroll to itself. These are the
+     containers that genuinely declare an overflow in this stylesheet — the
+     first list I wrote was invented, and a selector matching nothing is a fix
+     that silently does not apply. */
+  .modal, .ai-box, .kanban, .console-detail, .dt-scroll, .sel-list, .dx-list {
+    overscroll-behavior: contain;
+  }
+
+  /* A scrollbar that appears only when the pane overflows shifts the layout by
+     its own width. Reserving the gutter keeps columns still. */
+  .main { scrollbar-gutter: stable; }
+}
+
+/* ==========================================================================
+   Desktop application behaviour
+   ==========================================================================
+   In a browser these are conventions worth keeping. In a window that is meant
+   to feel like a till application they are wrong, and each one produces a small
+   wrongness an operator notices without being able to name it. */
+
+/* Dragging across a button or a nav item leaves it highlighted blue, which
+   looks like a selection the operator did not make. Text they might actually
+   want to copy — a patient name, a script number, a figure — stays selectable. */
+.sidebar, .nav, .page-head h1, .card-title, .pill-tabs, .btn, button,
+.nav-section, .brand, .dt thead th, .pager, .toast {
+  user-select: none;
+  -webkit-user-select: none;
+}
+input, textarea, td, .mono, .value, .who, p, li, code { user-select: text; -webkit-user-select: text; }
+
+/* A double-click on a total should not select the whole row of figures. */
+.dt td.num, .stat .value { -webkit-user-drag: none; }
+
+/* Images are not draggable objects here; dragging a logo out of the window is
+   a browser habit, not a till one. */
+img { -webkit-user-drag: none; user-select: none; }
+
+/* Focus rings stay for the keyboard, which is how a dispensary is actually
+   driven, but do not appear on a mouse click. */
+:focus:not(:focus-visible) { outline: none; }

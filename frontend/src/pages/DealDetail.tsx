@@ -52,7 +52,7 @@ export default function DealDetail() {
   }, [productQ]);
 
   async function addLine(e: FormEvent) {
-    e.preventDefault(); toast.error("");
+    e.preventDefault();
     try {
       const updated = await api.post<Deal>(`/api/crm/deals/${id}/items`, {
         product_id: line.product_id || null, description: line.description,

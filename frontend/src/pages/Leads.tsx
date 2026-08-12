@@ -109,7 +109,7 @@ export default function Leads() {
   }, [leads]);
 
   async function save(e: FormEvent) {
-    e.preventDefault(); toast.error("");
+    e.preventDefault();
     try {
       const lead = await api.post<Lead>("/api/crm/leads", {
         ...form, estimated_value: Number(form.estimated_value) || 0,

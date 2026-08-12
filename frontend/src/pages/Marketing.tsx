@@ -44,7 +44,7 @@ export default function Marketing() {
   const chosen = segments.find((s) => s.key === segment);
 
   async function draftCopy() {
-    setAiBusy(true); toast.error("");
+    setAiBusy(true);
     try {
       const res = await api.post<{ text: string }>("/api/ai/campaign-copy", {
         name: name || "Pharmacy campaign", channel,
@@ -58,7 +58,7 @@ export default function Marketing() {
   async function createAndSend(e: FormEvent) {
     e.preventDefault();
     if (!window.confirm(`Send this ${channel.toUpperCase()} to ${chosen?.size ?? 0} recipient(s)?`)) return;
-    setBusy(true); toast.error(""); toast.ok("");
+    setBusy(true);
     try {
       const campaign = await api.post<Campaign>("/api/marketing/campaigns", {
         name, channel, segment, subject, body,

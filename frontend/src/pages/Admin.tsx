@@ -191,7 +191,7 @@ export default function Admin() {
   }
 
   async function runImport(apply: boolean) {
-    setBusy(true); toast.error(""); toast.ok("");
+    setBusy(true);
     try {
       const res = await api.post<PriceImportResult>("/api/admin/price-import", {
         csv_text: csv, apply, update_cost: updateCost, update_selling: updateSelling,
@@ -202,7 +202,7 @@ export default function Admin() {
   }
 
   async function makeBackup() {
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       const b = await api.post<Backup>("/api/admin/backup");
       toast.ok(`Backup created: ${b.filename}`);

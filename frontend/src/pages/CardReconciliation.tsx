@@ -33,7 +33,7 @@ export default function CardReconciliation() {
   }
 
   async function run() {
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       setReport(await api.post<CardReconciliationReport>("/api/pos/reconciliation/card", {
         csv_text: csv, date_from: from || null, date_to: to || null,

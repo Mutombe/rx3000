@@ -39,11 +39,15 @@ def _ask_claude(system: str, user: str, max_tokens: int = 16000) -> str:
             "and restart the server to enable them."
         )
     client = _get_client()
-    response = client.beta.messages.create(
+    # Plain messages.create. The beta server-side fallback parameters this used
+    # to pass are not accepted by the installed SDK, so every AI call died with
+    # `TypeError: unexpected keyword argument 'fallbacks'` — a 500 that reached
+    # the pharmacist as "something went wrong at our end" and never named the
+    # cause. If fallbacks are wanted later, pin the SDK version that supports
+    # them rather than passing arguments hopefully.
+    response = client.messages.create(
         model=MODEL,
         max_tokens=max_tokens,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
         system=system,
         messages=[{"role": "user", "content": user}],
     )

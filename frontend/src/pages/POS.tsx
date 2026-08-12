@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
+import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDateTime, money } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import * as deviceAgent from "../deviceAgent";
@@ -171,6 +172,47 @@ export default function POS() {
     }
     return result.reference ?? "";
   }
+
+  /* Keys at the till.
+   *
+   * A cashier's hands are on the scanner and the keypad, not the mouse, and a
+   * queue forms in the seconds spent reaching for one. These deliberately do
+   * not reuse the dispensary's F-keys: F3 means "mark line as cash" on a
+   * script, and a cashier who learns it means something else here will
+   * eventually press it on the wrong screen.
+   */
+  const hotkeys: Hotkey[] = [
+    {
+      combo: "F2",
+      label: "Back to the scanner",
+      group: "Till",
+      run: () => scanRef.current?.focus(),
+    },
+    {
+      combo: "F12",
+      label: "Take payment",
+      group: "Till",
+      // Refused rather than silently ignored when there is nothing to sell:
+      // a disabled key that does nothing feels like a broken keyboard.
+      disabled: cart.length === 0 || busy,
+      run: () => { void checkout(); },
+    },
+    {
+      combo: "Escape",
+      label: "Clear the sale",
+      group: "Till",
+      disabled: cart.length === 0 || busy,
+      run: () => {
+        // No confirm: a cashier clears a mis-scanned basket constantly, and a
+        // dialog in that loop is worse than re-scanning three items.
+        setCart([]);
+        setScan("");
+        scanRef.current?.focus();
+        toast.ok("Sale cleared.");
+      },
+    },
+  ];
+  useHotkeys(hotkeys);
 
   async function checkout() {
     setBusy(true);

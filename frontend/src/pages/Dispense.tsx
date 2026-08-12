@@ -113,7 +113,7 @@ export default function Dispense() {
   }, [patientQ]);
 
   useEffect(() => {
-    setItems([]); setProductQ(""); setProductResults([]); setAiResult(""); toast.error("");
+    setItems([]); setProductQ(""); setProductResults([]); setAiResult("");
   }, [route]);
 
   useEffect(() => {
@@ -249,7 +249,7 @@ export default function Dispense() {
       toast.error("Select a patient, a doctor and at least one medication.");
       return;
     }
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       const rx = await api.post<Prescription>("/api/prescriptions", {
         patient_id: patient.id, doctor_id: doctorId,
@@ -286,7 +286,7 @@ export default function Dispense() {
 
   async function sellOtc() {
     if (!otcProduct) return;
-    setBusy(true); toast.error("");
+    setBusy(true);
     try {
       const record = await api.post<OTCSale>("/api/dispensing/otc", {
         product_id: otcProduct.id, quantity: otcQty, patient_id: patient?.id ?? null,
