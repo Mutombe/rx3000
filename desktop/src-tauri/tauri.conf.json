@@ -5,9 +5,7 @@
   "identifier": "zw.co.bitstudio.rx3000",
   "build": {
     "frontendDist": "../../frontend/dist",
-    "devUrl": "http://localhost:5180",
-    "beforeDevCommand": "npm --prefix ../../frontend run dev",
-    "beforeBuildCommand": "npm --prefix ../../frontend run build"
+    "devUrl": "http://localhost:5180"
   },
   "app": {
     "windows": [
@@ -27,13 +25,23 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["msi", "nsis", "deb", "appimage"],
-    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "targets": [
+      "msi",
+      "nsis",
+      "deb",
+      "appimage"
+    ],
+    "icon": [
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
     "publisher": "BitStudio",
     "shortDescription": "Pharmacy management for Zimbabwe",
     "longDescription": "Dispensing, front shop, stock, claims and accounts. Runs against the pharmacy's own server so the till keeps working when the line is down.",
     "windows": {
-      "wix": { "language": "en-GB" }
+      "wix": {
+        "language": "en-US"
+      }
     }
   }
 }

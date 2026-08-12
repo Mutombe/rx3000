@@ -24,3 +24,4 @@ frontend/vite.config.ts.timestamp-*
 desktop/src-tauri/target/
 
 desktop/src-tauri/build.log
+desktop/src-tauri/bundle.log
