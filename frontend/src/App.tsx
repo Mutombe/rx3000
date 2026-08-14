@@ -5,6 +5,7 @@ import { getToken } from "./api";
 import Login from "./pages/Login";
 import { PageSkeleton } from "./components/Skeleton";
 import { ToastProvider } from "./components/Toast";
+import { ConfirmProvider } from "./components/Confirm";
 
 /* Every page is split out of the initial bundle. A till on a mobile
  * connection pays for the whole application on first load otherwise, and
@@ -63,6 +64,7 @@ function Protected({ children }: { children: JSX.Element }) {
 export default function App() {
   return (
     <ToastProvider>
+    <ConfirmProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
       {/* Public, unauthenticated, and deliberately above the Protected route so
@@ -130,6 +132,7 @@ export default function App() {
         }
       />
     </Routes>
+    </ConfirmProvider>
     </ToastProvider>
   );
 }

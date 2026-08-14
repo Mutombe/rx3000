@@ -1789,3 +1789,30 @@ img { -webkit-user-drag: none; user-select: none; }
 /* The sidebar's own is quieter still: it sits against a border already. */
 .nav { scrollbar-color: var(--line) transparent; }
 .nav::-webkit-scrollbar { width: 6px; }
+
+/* ---- confirmation dialog ----
+ * Deliberately narrow: a confirmation that fills the screen reads as an error.
+ * The backdrop dims rather than blacks out, so the operator keeps the context
+ * they are being asked about. */
+.cf-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  display: grid; place-items: center; padding: var(--s5);
+  background: rgba(22, 22, 29, 0.38);
+  backdrop-filter: blur(2px);
+}
+.cf-box {
+  width: min(440px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  padding: var(--s5);
+  box-shadow: 0 18px 48px rgba(22, 22, 29, 0.22);
+}
+.cf-title { margin: 0 0 var(--s2); font-size: var(--t-lg); }
+.cf-body { color: var(--ink-mid); margin-bottom: var(--s5); }
+.cf-actions { display: flex; justify-content: flex-end; gap: var(--s2); }
+/* Cancel first in the DOM so it takes focus, but the confirming verb sits on
+ * the right where the eye finishes reading. */
+.cf-actions .btn { min-width: 96px; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger:hover { filter: brightness(0.94); }

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/Confirm";
 import { api, fmtDate, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
@@ -56,6 +57,7 @@ export default function Stock() {
   const [adjBatch, setAdjBatch] = useState("");
   const [adjExpiry, setAdjExpiry] = useState("");
   const toast = useToast();
+  const confirm = useConfirm();
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [moveFilters, setMoveFilters] = useState<FilterState>(emptyFilters);
 
@@ -187,7 +189,19 @@ export default function Stock() {
   }
 
   async function writeOff(b: StockBatch) {
-    if (!window.confirm(`Write off ${b.quantity_remaining} unit(s) of ${b.product?.name} (batch ${b.batch_number})?`)) return;
+    const ok = await confirm({
+      title: "Write off this batch?",
+      body: (
+        <>
+          <b>{b.quantity_remaining} unit(s)</b> of {b.product?.name} in batch{" "}
+          {b.batch_number} will be removed from stock. This cannot be undone, and
+          the movement is recorded against your name.
+        </>
+      ),
+      confirmLabel: "Write off",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api.post(`/api/stock/batches/${b.id}/write-off`);
       loadBatches();

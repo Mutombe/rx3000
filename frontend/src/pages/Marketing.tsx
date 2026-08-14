@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/Confirm";
 import { api, fmtDateTime } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Campaign, Message, Patient, Segment } from "../types";
@@ -18,6 +19,7 @@ export default function Marketing() {
   const [preview, setPreview] = useState<Patient[]>([]);
   const [sentMessages, setSentMessages] = useState<Message[] | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
 
@@ -57,7 +59,17 @@ export default function Marketing() {
 
   async function createAndSend(e: FormEvent) {
     e.preventDefault();
-    if (!window.confirm(`Send this ${channel.toUpperCase()} to ${chosen?.size ?? 0} recipient(s)?`)) return;
+    const ok = await confirm({
+      title: `Send this ${channel.toUpperCase()}?`,
+      body: (
+        <>
+          It will go to <b>{chosen?.size ?? 0} recipient(s)</b> immediately.
+          A message cannot be recalled once sent.
+        </>
+      ),
+      confirmLabel: "Send now",
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       const campaign = await api.post<Campaign>("/api/marketing/campaigns", {
