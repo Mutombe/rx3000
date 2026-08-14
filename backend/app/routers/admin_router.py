@@ -16,6 +16,7 @@ from ..auth import get_current_user, require_role
 from ..config import settings
 from ..database import get_db
 from ..services import paging
+from ..services import currency
 from ..models import AuditLog, Product, User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -34,7 +35,7 @@ HEADER_ALIASES = {
 
 
 def _to_float(raw: str) -> float | None:
-    cleaned = (raw or "").strip().replace(",", "").replace("R", "").replace(" ", "")
+    cleaned = currency.strip_symbols(raw)
     if not cleaned:
         return None
     try:

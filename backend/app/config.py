@@ -21,7 +21,7 @@ class Settings:
 
     # Which regulatory pack this installation runs under (see jurisdictions.py).
     # VAT and currency default to the pack; set them only to override it.
-    JURISDICTION: str = os.getenv("JURISDICTION", "ZA")
+    JURISDICTION: str = os.getenv("JURISDICTION", "ZW")
     _VAT_OVERRIDE: str = os.getenv("VAT_RATE", "")
     _CURRENCY_OVERRIDE: str = os.getenv("CURRENCY", "")
 

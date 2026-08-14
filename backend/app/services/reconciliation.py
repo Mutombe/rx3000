@@ -16,6 +16,7 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
+from . import currency
 from ..models import Sale
 
 # Header aliases — acquirers all name these columns differently
@@ -43,7 +44,7 @@ def _normalise_header(name: str) -> str:
 def _to_amount(raw: str) -> float | None:
     if raw is None:
         return None
-    cleaned = str(raw).strip().replace("R", "").replace(",", "").replace(" ", "")
+    cleaned = currency.strip_symbols(raw)
     if not cleaned:
         return None
     try:

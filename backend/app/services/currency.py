@@ -11,6 +11,7 @@ takes payment in several. Three rules keep the books honest:
    reconciled per currency — a customer paying USD and taking ZiG change moves
    both drawers, and only a per-tender record shows that.
 """
+import re
 from datetime import datetime
 
 from sqlalchemy import desc
@@ -132,3 +133,32 @@ def takings_by_currency(sales: list[Sale]) -> dict:
             bucket["total"] = round(bucket["total"] + tender.amount, 2)
             bucket["in_base"] = round(bucket["in_base"] + tender.amount_in_base, 2)
     return out
+
+
+def strip_symbols(raw) -> str:
+    """Reduce a money string from a file to digits, a sign and a decimal point.
+
+    Supplier price files and bank statements arrive with whatever the exporting
+    system felt like: "R 1 234,56", "$1,234.56", "ZiG 400", "(88.10)" for a
+    credit. This stripped only "R", which quietly produced wrong numbers the
+    moment the country changed — the parse did not fail, it just read "$12" as
+    nothing and moved on.
+
+    Parentheses are read as negative, which is how every accounting export in
+    the world writes a credit and how none of them label it.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+    negative = text.startswith("(") and text.endswith(")")
+    # Anything that is not a digit, a separator or a leading sign is a symbol.
+    cleaned = re.sub(r"[^0-9,.\-]", "", text)
+    # A comma used as the decimal point, as in "1 234,56": no dot present and
+    # exactly two digits after the last comma.
+    if "." not in cleaned and re.search(r",\d{2}$", cleaned):
+        cleaned = cleaned.replace(",", ".")
+    else:
+        cleaned = cleaned.replace(",", "")
+    if negative and not cleaned.startswith("-"):
+        cleaned = "-" + cleaned
+    return cleaned

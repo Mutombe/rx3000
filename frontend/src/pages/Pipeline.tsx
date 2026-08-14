@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
-import { api, fmtDate, money } from "../api";
+import { api, fmtDate, money, currentCurrency } from "../api";
 import { Avatar } from "../components/record";
 import { Company, Contact, CrmDashboard, Deal } from "../types";
 
@@ -212,7 +212,7 @@ export default function Pipeline() {
                 </div>
               </div>
               <div className="form-row">
-                <div className="field"><label>Value ({"R"})</label>
+                <div className="field"><label>Value ({currentCurrency().symbol})</label>
                   <input type="number" step="0.01" value={form.value} onChange={set("value")} /></div>
                 <div className="field">
                   <label>Stage</label>

@@ -283,7 +283,15 @@ REGISTRY: dict[str, Jurisdiction] = {j.code: j for j in (SOUTH_AFRICA, ZIMBABWE)
 
 
 def get(code: str) -> Jurisdiction:
-    return REGISTRY.get((code or "ZA").strip().upper(), SOUTH_AFRICA)
+    """Zimbabwe unless told otherwise.
+
+    This defaulted to South Africa, which put Rand on every price, receipt and
+    report in a product sold to Zimbabwean pharmacies — and did it silently,
+    because a default never announces itself. Zimbabwe trades in USD and ZWG;
+    the South African pack stays in the registry for a deployment that sets
+    JURISDICTION=ZA deliberately.
+    """
+    return REGISTRY.get((code or "ZW").strip().upper(), ZIMBABWE)
 
 
 def as_dict(j: Jurisdiction) -> dict:

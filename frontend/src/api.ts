@@ -149,8 +149,8 @@ export const api = {
 /** Currency and locale come from the jurisdiction pack, not from a hard-coded
  *  country. `configureLocale` is called once on sign-in; until it runs these
  *  defaults keep formatting sane rather than throwing. */
-let locale = "en-ZA";
-let currencySymbol = "R";
+let locale = "en-ZW";
+let currencySymbol = "$";
 let currencyDecimals = 2;
 
 export function configureLocale(opts: { locale?: string; symbol?: string; decimals?: number }) {

@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import CurrencyRates from "../components/CurrencyRates";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, getToken, money } from "../api";
 import { AuditEntry, AutomationRule, Backup, EmailTemplate, PriceImportResult, User } from "../types";
@@ -13,10 +14,11 @@ const RULE_TYPES = [
   ["deal_task", "Deal task creation"],
 ];
 
-type Tab = "prices" | "scripts" | "audit" | "switch" | "notices" | "backups" | "automation" | "templates";
+type Tab = "prices" | "currency" | "scripts" | "audit" | "switch" | "notices" | "backups" | "automation" | "templates";
 
 const TABS: [Tab, string][] = [
-  ["prices", "Price file import"], ["scripts", "Prescriber scripts"],
+  ["prices", "Price file import"], ["currency", "Currency & rates"],
+  ["scripts", "Prescriber scripts"],
   ["audit", "Audit log"],
   ["switch", "Switch log"], ["notices", "Counter notices"],
   ["backups", "Backups"], ["automation", "CRM automation"],
@@ -372,6 +374,8 @@ export default function Admin() {
           </div>
         </>
       )}
+
+      {tab === "currency" && <CurrencyRates />}
 
       {tab === "prices" && (
         <>

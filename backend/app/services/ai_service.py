@@ -133,13 +133,37 @@ def counseling_notes(product: Product) -> str:
     return _ask_claude(PHARMACIST_SYSTEM, prompt)
 
 
-CRM_SYSTEM = (
-    "You are a CRM assistant inside RX3000, a pharmacy management system. You help "
-    "pharmacy staff with customer relationships, sales opportunities, marketing copy and "
-    "customer-service replies. Be concise, practical and professional. South African "
-    "context: currency is Rand, marketing must respect POPIA consent, and health claims "
-    "must never be overstated."
-)
+def crm_system() -> str:
+    """The CRM assistant's brief, including where it is.
+
+    Built on call rather than at import. This was a module-level constant that
+    named South Africa, Rand and POPIA, so a Zimbabwean pharmacy got copy
+    quoting the wrong currency and citing a privacy act that does not apply to
+    it — and because it was frozen at import, setting JURISDICTION would not
+    have fixed it either.
+    """
+    return (
+        "You are a customer-relationship and marketing assistant for a pharmacy. You help "
+        "pharmacy staff with customer relationships, sales opportunities, marketing copy and "
+        "customer-service replies. Be concise, practical and professional. "
+        + _local_context()
+    )
+
+
+def _local_context() -> str:
+    """Tell the model where it is, from the jurisdiction pack.
+
+    This named South Africa, Rand and POPIA in a hard-coded string, so a
+    Zimbabwean pharmacy got marketing copy quoting the wrong currency and
+    citing a privacy act that does not apply to it. The pack already holds
+    every one of those facts.
+    """
+    j = settings.jurisdiction
+    names = " and ".join(c.code for c in j.currencies)
+    return (
+        f"{j.name} context: prices are quoted in {names}, marketing must respect "
+        f"{j.privacy_act} consent, and health claims must never be overstated."
+    )
 
 
 def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str:
@@ -151,7 +175,7 @@ def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str
         f"{limit} You may use the merge fields {{first_name}}, {{points}} and {{pharmacy}}. "
         "Do not make medical claims or guarantee outcomes. Give the copy only — no commentary."
     )
-    return _ask_claude(CRM_SYSTEM, prompt)
+    return _ask_claude(crm_system(), prompt)
 
 
 def ticket_reply(ticket, thread: list) -> str:
@@ -168,7 +192,7 @@ def ticket_reply(ticket, thread: list) -> str:
         "state what will happen next, and give a realistic timeframe. If clinical judgement "
         "is needed, say a pharmacist will follow up rather than giving clinical advice."
     )
-    return _ask_claude(CRM_SYSTEM, prompt)
+    return _ask_claude(crm_system(), prompt)
 
 
 def account_summary(db: Session, company, deals: list, tickets: list, contacts: list) -> str:
@@ -188,7 +212,7 @@ def account_summary(db: Session, company, deals: list, tickets: list, contacts: 
         "Write a short account review for the account owner: where the relationship stands, "
         "what the risks are, and the two or three highest-value next actions."
     )
-    return _ask_claude(CRM_SYSTEM, prompt)
+    return _ask_claude(crm_system(), prompt)
 
 
 def business_answer(db: Session, question: str) -> str:

@@ -1960,3 +1960,15 @@ img { -webkit-user-drag: none; user-select: none; }
   display: flex; align-items: baseline; justify-content: space-between;
   margin-bottom: var(--s2); font-weight: 600;
 }
+
+/* Currency rates. The number is the content, so it carries the weight. */
+.rate-grid {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.rate-card {
+  padding: var(--s3); border: 1px solid var(--line);
+  border-radius: var(--r-md); background: var(--surface-sunk);
+}
+.rate-code { font-size: .8rem; letter-spacing: .04em; color: var(--ink-soft); }
+.rate-value { font-size: 1.35rem; font-weight: 600; margin-top: var(--s1); }
