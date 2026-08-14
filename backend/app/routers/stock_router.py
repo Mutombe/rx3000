@@ -40,6 +40,38 @@ def list_products(q: str = "", category: str = "", low_stock: bool = False, limi
     return _product_search(db, q, category, low_stock).limit(limit).all()
 
 
+@router.delete("/products/{product_id}")
+def deactivate_product(product_id: int, db: Session = Depends(get_db),
+                       user: User = Depends(get_current_user)):
+    """Retire a product. Deactivates rather than deletes.
+
+    A product that has ever been sold or dispensed cannot be removed: the sale
+    line, the batch, the movement and the controlled-register entry all point at
+    it, and an auditor asking what was dispensed last March is entitled to a
+    name rather than a dangling id. Deactivating takes it out of every picker
+    and every reorder list while leaving the history readable, which is what
+    "delete this product" actually means in a pharmacy.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if not product.active:
+        raise HTTPException(status_code=400,
+                            detail=f"{product.name} is already retired.")
+    on_hand = product.quantity_on_hand or 0
+    product.active = False
+    db.commit()
+    return {
+        "id": product.id,
+        "name": product.name,
+        "active": False,
+        "message": f"{product.name} has been retired. Its history is kept.",
+        # Said out loud rather than discovered at the next stock count.
+        "warning": (f"{on_hand} unit(s) are still on hand. Write them off or "
+                    "transfer them before the next count.") if on_hand else "",
+    }
+
+
 @router.get("/products/paged")
 def list_products_paged(
     q: str = "", category: str = "", low_stock: bool = False,

@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ORM(BaseModel):
@@ -92,7 +92,11 @@ class PatientOut(ORM, PatientBase):
 
 # ---------- products / stock ----------
 class ProductBase(BaseModel):
-    name: str
+    # A blank name was accepted, which puts an unnameable line in the catalogue:
+    # it cannot be searched for, cannot be recognised on a shelf, and prints as
+    # an empty row on a receipt. Whitespace is stripped first so " " is caught
+    # too — the constraint has to reject what the user can actually type.
+    name: str = Field(min_length=1, max_length=200)
     nappi_code: str = ""
     barcode: str = ""
     category: str = "medicine"
