@@ -1816,3 +1816,117 @@ img { -webkit-user-drag: none; user-select: none; }
 .cf-actions .btn { min-width: 96px; }
 .btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
 .btn.danger:hover { filter: brightness(0.94); }
+
+/* ---------------------------------------------------------------- scanning
+   The scan field reads as an instrument rather than a text box: a fixed icon
+   on the left so the eye lands on it without reading the placeholder, and a
+   focus ring that is unmistakable across a counter at arm's length. */
+.scan-bar {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s1) var(--s2) var(--s1) var(--s3);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.scan-bar:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.scan-bar.is-busy { opacity: .72; }
+.scan-icon { display: flex; color: var(--ink-soft); flex: 0 0 auto; }
+.scan-bar:focus-within .scan-icon { color: var(--ink); }
+.scan-input {
+  flex: 1 1 auto; min-width: 0;
+  border: 0; outline: none; background: transparent;
+  padding: var(--s2) 0;
+  font-family: var(--font-mono);   /* it is a code; monospace makes a misread digit visible */
+  font-size: .9rem; letter-spacing: .01em; color: var(--ink);
+}
+.scan-input::placeholder { font-family: var(--font-body); letter-spacing: 0; color: var(--ink-faint); }
+.scan-cam-btn { flex: 0 0 auto; padding: var(--s2); line-height: 0; }
+
+/* The camera sheet covers everything: on a phone the viewfinder is the task,
+   and anything else on screen is a place to tap by accident. */
+.scan-sheet {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; flex-direction: column;
+  background: #0b0b0f; color: #f4f4f6;
+}
+.scan-sheet-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+  /* Clears the notch on a phone held in portrait. */
+  padding-top: max(var(--s3), env(safe-area-inset-top));
+}
+.scan-sheet-head .btn.ghost { color: #f4f4f6; border-color: rgba(255, 255, 255, 0.22); }
+.scan-stage { position: relative; flex: 1 1 auto; overflow: hidden; display: grid; place-items: center; }
+.scan-video { width: 100%; height: 100%; object-fit: cover; }
+/* Four corners, not a box. A full rectangle reads as a required alignment and
+   people waste time squaring the pack up inside it. */
+.scan-reticle {
+  position: absolute; width: min(78vw, 320px); aspect-ratio: 1.5;
+  border-radius: var(--r-lg);
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+  background:
+    linear-gradient(#fff, #fff) left top / 26px 2px no-repeat,
+    linear-gradient(#fff, #fff) left top / 2px 26px no-repeat,
+    linear-gradient(#fff, #fff) right top / 26px 2px no-repeat,
+    linear-gradient(#fff, #fff) right top / 2px 26px no-repeat,
+    linear-gradient(#fff, #fff) left bottom / 26px 2px no-repeat,
+    linear-gradient(#fff, #fff) left bottom / 2px 26px no-repeat,
+    linear-gradient(#fff, #fff) right bottom / 26px 2px no-repeat,
+    linear-gradient(#fff, #fff) right bottom / 2px 26px no-repeat;
+}
+.scan-hint {
+  margin: 0; padding: var(--s4);
+  padding-bottom: max(var(--s4), env(safe-area-inset-bottom));
+  text-align: center; font-size: .85rem; color: rgba(244, 244, 246, 0.72);
+}
+.scan-error { padding: var(--s6); text-align: center; max-width: 34ch; line-height: 1.55; }
+
+/* A scan that resolved, shown before it is committed. */
+.scan-hit {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  padding: var(--s2) var(--s3); margin-top: var(--s2);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-sunk); font-size: .85rem;
+}
+.scan-hit .mono { font-family: var(--font-mono); color: var(--ink-soft); }
+.scan-hit-name { font-weight: 600; }
+
+/* The scanned pack, held for confirmation. Sunk rather than raised: it is a
+   continuation of the scan field above it, not a separate thing to read. */
+.scan-catch {
+  margin-top: var(--s3); padding: var(--s3);
+  border: 1px solid var(--line-strong); border-left-width: 3px;
+  border-radius: var(--r-md); background: var(--surface-sunk);
+}
+.scan-catch-head {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+.scan-catch-grid {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.scan-catch-grid label { display: flex; flex-direction: column; gap: var(--s1); }
+.scan-catch-grid label > span {
+  font-size: .75rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-soft);
+}
+.scan-catch-grid input { width: 100%; }
+.scan-catch-actions {
+  display: flex; justify-content: flex-end; gap: var(--s2); margin-top: var(--s3);
+}
+
+.scan-teach-list { display: flex; flex-direction: column; gap: 1px; margin-top: var(--s2); }
+.scan-teach-row {
+  display: flex; justify-content: space-between; align-items: center; gap: var(--s3);
+  width: 100%; text-align: left; padding: var(--s2) var(--s3);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-sm); cursor: pointer; font: inherit; color: var(--ink);
+}
+.scan-teach-row:hover { border-color: var(--accent); background: var(--accent-soft); }

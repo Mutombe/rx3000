@@ -3,6 +3,7 @@ import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDateTime, money } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import { ScanBar, ScanResult } from "../components/Scanner";
 import * as deviceAgent from "../deviceAgent";
 import { printReceipt } from "../print";
 import { CurrencyState, Patient, Product, Sale } from "../types";
@@ -77,22 +78,28 @@ export default function POS() {
     api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
   }, [patientQ]);
 
-  async function onScanEnter(e: React.KeyboardEvent) {
-    if (e.key !== "Enter" || !scan) return;
-    e.preventDefault();
-    try {
-      const p = await api.get<Product>(`/api/products/barcode/${encodeURIComponent(scan)}`);
-      addToCart(p);
-    } catch {
-      if (results.length === 1) addToCart(results[0]);
+  /** A scan came back resolved. Warnings are already on screen as toasts. */
+  function onScanned(result: ScanResult) {
+    if (!result.found || !result.product) {
+      // Exactly one candidate is not a guess, it is the answer.
+      if (result.suggestions.length === 1) {
+        api.get<Product>(`/api/products/${result.suggestions[0].id}`).then(addToCart);
+      }
+      return;
     }
+    // The scan carries what the product page carries; the extra fields the cart
+    // never reads are left off rather than fetched again for nothing.
+    addToCart(result.product as unknown as Product, result.quantity_multiplier);
   }
 
-  function addToCart(p: Product) {
+  function addToCart(p: Product, units = 1) {
+    // An outer carton scans as one code and means a case. `quantity_multiplier`
+    // is where that pack size arrives.
+    const step = Math.max(1, units);
     setCart((prev) => {
       const existing = prev.find((l) => l.product.id === p.id);
-      if (existing) return prev.map((l) => (l.product.id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
-      return [...prev, { product: p, quantity: 1 }];
+      if (existing) return prev.map((l) => (l.product.id === p.id ? { ...l, quantity: l.quantity + step } : l));
+      return [...prev, { product: p, quantity: step }];
     });
     setScan("");
     setResults([]);
@@ -316,13 +323,13 @@ export default function POS() {
         <div>
           <div className="card">
             <h3>Scan or search</h3>
-            <input
-              ref={scanRef}
-              type="search"
-              placeholder="Scan barcode or type product name, then Enter…"
+            <ScanBar
+              context="pos"
+              inputRef={scanRef}
               value={scan}
-              onChange={(e) => setScan(e.target.value)}
-              onKeyDown={onScanEnter}
+              onValueChange={setScan}
+              onResolved={onScanned}
+              placeholder="Scan a barcode, or type a product name…"
               autoFocus
             />
             {results.map((p) => (

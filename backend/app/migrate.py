@@ -157,6 +157,32 @@ def _relax_not_null(conn, inspector, table: str, columns: tuple) -> int:
     return 1
 
 
+def _name_the_nameless(conn) -> int:
+    """Give a name to any product that has none.
+
+    `ProductBase.name` gained a `min_length=1` constraint after a blank name had
+    already been allowed through, and `ProductOut` inherits it. That combination
+    is worse than either half: writes are correctly rejected, but every existing
+    blank row now fails *response* validation, so one bad record from months ago
+    turns the whole product list into a 500 — which reaches the browser as a
+    wordless failure on a screen that has nothing to do with that product.
+
+    Naming them makes them readable again and, more to the point, makes them
+    visible: an operator can find "Unnamed product #544" in the catalogue and
+    correct or retire it, which is impossible while it is an empty string.
+    """
+    rows = conn.execute(text(
+        "SELECT id FROM products WHERE name IS NULL OR TRIM(name) = ''"
+    )).fetchall()
+    for (pid,) in rows:
+        conn.execute(
+            text("UPDATE products SET name = :name WHERE id = :id"),
+            {"name": f"Unnamed product #{pid}", "id": pid},
+        )
+        log.info("Named product %s, which had no name", pid)
+    return len(rows)
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -177,4 +203,7 @@ def run_migrations(engine: Engine) -> int:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
                 log.info("Added column %s.%s", table, column)
                 applied += 1
+
+        if "products" in existing_tables:
+            applied += _name_the_nameless(conn)
     return applied

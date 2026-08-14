@@ -2,6 +2,7 @@ from datetime import datetime, date
 
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, Float, ForeignKey, Integer, String, Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -337,6 +338,42 @@ class Product(Base):
     active = Column(Boolean, default=True)
 
     supplier = relationship("Supplier")
+    barcodes = relationship(
+        "ProductBarcode", back_populates="product", cascade="all, delete-orphan"
+    )
+
+
+class ProductBarcode(Base):
+    """The other codes a product answers to.
+
+    `Product.barcode` stays where it is and stays authoritative — it is what
+    prints on a shelf label and what an operator sees on the product page. This
+    table is for everything else the same article legitimately scans as: the
+    originator's pack alongside the generic, the outer carton's ITF-14 next to
+    the inner EAN-13, and the pharmacy's own label on a repack.
+
+    Learned codes matter as much as imported ones. When a scan misses and the
+    operator picks the product by hand, we can offer to remember the pairing, so
+    the second person to scan that pack does not have to search. `source` keeps
+    those distinguishable from codes that came off a supplier's price file.
+    """
+    __tablename__ = "product_barcodes"
+    __table_args__ = (UniqueConstraint("code", name="uq_product_barcode_code"),)
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    code = Column(String(64), nullable=False, index=True)
+    # How many dispensing units this pack contains. Scanning an outer carton at
+    # goods receipt should book in the case, not one tablet, and that number is
+    # the only thing standing between a delivery and a stock count that is wrong
+    # by a factor of twenty.
+    pack_size = Column(Integer, default=1)
+    label = Column(String(80), default="")       # "Outer carton", "Cipla pack"
+    source = Column(String(20), default="manual")  # manual | learned | import
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    product = relationship("Product", back_populates="barcodes")
 
 
 class Prescription(Base):

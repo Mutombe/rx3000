@@ -6,6 +6,7 @@ import { api, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
+import ReceiveByScan from "../components/ReceiveByScan";
 import { POItem, PurchaseOrder } from "../types";
 
 const PATH_STAGES = [
@@ -111,6 +112,14 @@ export default function OrderDetail() {
           )}
         </div>
       </div>
+
+      {order.status !== "received" && order.status !== "cancelled" && (
+        <ReceiveByScan
+          orderId={order.id}
+          orderNumber={order.order_number}
+          onReceived={load}
+        />
+      )}
 
       <DataTable
         columns={cols}

@@ -7,6 +7,7 @@ import { applyFilters, emptyFilters, FilterBar, FilterState } from "../component
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
 import { Paged } from "../components/Pagination";
+import { ScanBar, ScanResult } from "../components/Scanner";
 
 type Tab = "products" | "batches" | "movements";
 
@@ -51,6 +52,19 @@ export default function Stock() {
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY });
   const [adjusting, setAdjusting] = useState<Product | null>(null);
+
+  /** A scanned pack opens the adjustment it is almost certainly about to need,
+   *  with the batch and expiry already read off it where the code carried them.
+   *  Scanning to *find* a product and then hunting for its Adjust button would
+   *  be scanning in name only. */
+  function onScanned(r: ScanResult) {
+    if (!r.found || !r.product) return;
+    setAdjusting(r.product as unknown as Product);
+    setAdjQty(String(r.quantity_multiplier || 1));
+    setAdjBatch(r.batch_number || "");
+    setAdjExpiry(r.expiry_date || "");
+    setAdjNotes("");
+  }
   const [adjQty, setAdjQty] = useState("0");
   const [adjType, setAdjType] = useState("receive");
   const [adjNotes, setAdjNotes] = useState("");
@@ -287,6 +301,17 @@ export default function Stock() {
             </label>
           }
         />
+      )}
+
+      {tab === "products" && (
+        <div style={{ marginBottom: "var(--s3)" }}>
+          <ScanBar
+            context="stock"
+            onResolved={onScanned}
+            placeholder="Scan a pack to adjust it, or type a code…"
+            enabled={!adjusting}
+          />
+        </div>
       )}
 
       {tab === "products" && (
