@@ -141,138 +141,219 @@ export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
 
 /* --------------------------------------------------- the camera (phone) */
 
-/** Whether this device can decode from its camera without a download.
+/** Whether a camera scan is worth offering on this device.
  *
- *  Chrome on Android and Edge ship `BarcodeDetector`; Safari and Firefox do
- *  not. Rather than pull in a decoder that costs more than the rest of the
- *  bundle for the minority case, unsupported devices keep the typed field —
- *  which still works, and is what every pharmacy does today anyway.
+ *  This used to test for `BarcodeDetector`, and that was wrong in a way that
+ *  hid the feature from most of the people meant to use it. That API ships on
+ *  Android Chrome and essentially nowhere else: not on Windows, not in the
+ *  WebView2 control the desktop build runs inside, not on iPhone. So the camera
+ *  button appeared on an Android phone and silently vanished everywhere else.
+ *
+ *  A decoder is bundled now, so the only real question left is whether this
+ *  device has a camera we are allowed to open.
  */
 export function cameraSupported(): boolean {
-  return typeof window !== "undefined" && "BarcodeDetector" in window;
+  return typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
 const FORMATS = [
   "ean_13", "ean_8", "upc_a", "upc_e",
-  "code_128", "code_39", "itf",
-  "data_matrix", "qr_code",
+  "code_128", "code_39", "code_93", "codabar", "itf",
+  "data_matrix", "qr_code", "pdf417", "aztec",
 ];
 
+/** Native where it genuinely works, bundled decoder everywhere else.
+ *
+ *  The import is dynamic on purpose. The decoder carries a WebAssembly module,
+ *  and a till that never opens the camera should not pay for it on every page
+ *  load; it is fetched the first time somebody actually scans.
+ */
+let detectorPromise: Promise<any> | null = null;
+function getDetector(): Promise<any> {
+  if (!detectorPromise) {
+    detectorPromise = (async () => {
+      const Native = (globalThis as any).BarcodeDetector;
+      if (Native) {
+        try {
+          const supported = await Native.getSupportedFormats?.();
+          // Some builds expose the constructor but support nothing useful.
+          // Treat that as absent rather than trusting it and decoding nothing.
+          if (!supported || supported.includes("ean_13")) {
+            return new Native({ formats: FORMATS });
+          }
+        } catch {
+          // Fall through to the bundled decoder.
+        }
+      }
+      const mod = await import("barcode-detector/pure");
+      // The decoder fetches its WebAssembly from a CDN unless told otherwise,
+      // which would make camera scanning the one feature that stops working
+      // when the line goes down — in a product whose whole argument is that it
+      // keeps running when the line goes down. Vite emits the module as an
+      // asset of this build, so it is served from the same origin as the app
+      // and is present inside the desktop bundle.
+      mod.setZXingModuleOverrides({
+        locateFile: (path: string, prefix: string) =>
+          (path.endsWith(".wasm")
+            ? `${import.meta.env.BASE_URL}zxing_reader.wasm`
+            : prefix + path),
+      });
+      return new mod.BarcodeDetector({ formats: FORMATS as any });
+    })();
+  }
+  return detectorPromise;
+}
+
+interface CameraProps {
+  onScan: (code: string) => void;
+  onClose: () => void;
+  /** Keep the viewfinder open and keep reading. The default, for a basket. */
+  continuous?: boolean;
+  /** What has been captured so far, shown under the viewfinder. */
+  children?: React.ReactNode;
+  title?: string;
+}
+
+/** The viewfinder.
+ *
+ *  Deliberately not a dialog that closes on its first hit. At a counter, or at
+ *  a delivery, scanning is repetitive — five packs, twenty packs — and a camera
+ *  that shuts after each one turns a single gesture into three. So the lens
+ *  stays live and what has been captured accumulates underneath it, where it
+ *  can be checked without looking away from the goods.
+ */
 export function ScanCamera({
-  onScan, onClose,
-}: { onScan: (code: string) => void; onClose: () => void }) {
+  onScan, onClose, continuous = true, children, title = "Scan",
+}: CameraProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState("");
-  const [hint, setHint] = useState("Point the camera at the barcode.");
+  const [ready, setReady] = useState(false);
+  const [flash, setFlash] = useState(false);
   const stopped = useRef(false);
+  const lastHit = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
 
   useEffect(() => {
     let stream: MediaStream | null = null;
-    let raf = 0;
+    let timer = 0;
     stopped.current = false;
 
     async function start() {
-      // Checked before asking, because the failure is a browser policy rather
-      // than a device fault and the two need different advice. A pharmacy
-      // running this against its own server on the LAN reaches it over plain
-      // HTTP at an IP address, and every browser refuses camera access to a
-      // page loaded that way. Without this the operator sees a camera that
-      // simply never opens.
+      // Checked before asking, because this failure is a browser policy rather
+      // than a device fault, and the two need different advice. A pharmacy
+      // running this against its own server reaches it over plain HTTP at a LAN
+      // address, and every browser refuses camera access to a page loaded that
+      // way. Unnamed, it looks like a camera that simply never opens.
       if (!window.isSecureContext) {
         setError(
-          "Your browser only allows camera access over a secure connection. "
-          + "This page was opened over plain HTTP, so scanning by camera is "
-          + "blocked. Reach the system over HTTPS, or scan with a USB scanner "
-          + "and type codes in the meantime.",
+          "Your browser only allows camera access over a secure connection. This "
+          + "page was opened over plain HTTP, so the camera is blocked. Reach the "
+          + "system over HTTPS, or use a USB scanner in the meantime.",
         );
         return;
       }
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError("This browser does not provide camera access to web pages.");
+        setError("This browser does not give web pages access to a camera.");
         return;
       }
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          // The back camera. Without this a phone opens the selfie camera and
-          // the operator has to work out why nothing is decoding.
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            // The back camera on a phone. Without this a phone opens the selfie
+            // camera and the operator has to work out why nothing decodes. A
+            // laptop has one camera and ignores the preference.
+            facingMode: { ideal: "environment" },
+            // A barcode is fine detail, and the default resolution loses the
+            // bars at arm's length.
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
         });
         const video = videoRef.current;
         if (!video) return;
         video.srcObject = stream;
         await video.play();
+        setReady(true);
 
-        const Detector = (window as any).BarcodeDetector;
-        const detector = new Detector({ formats: FORMATS });
+        const detector = await getDetector();
 
         const tick = async () => {
           if (stopped.current) return;
           try {
             const found = await detector.detect(video);
-            if (found.length) {
-              const value = found[0].rawValue as string;
-              if (value) {
-                stopped.current = true;
-                // Confirm physically. At a counter the operator is looking at
-                // the pack, not the screen, and needs to know it took.
+            const value = found?.[0]?.rawValue as string | undefined;
+            if (value) {
+              const now = Date.now();
+              // A pack held in front of a lens decodes many times a second and
+              // the operator means one item. Anything else double-counts stock.
+              const repeat = lastHit.current.code === value && now - lastHit.current.at < 1800;
+              if (!repeat) {
+                lastHit.current = { code: value, at: now };
                 navigator.vibrate?.(60);
-                onScan(value);
-                return;
+                setFlash(true);
+                window.setTimeout(() => setFlash(false), 220);
+                onScanRef.current(value);
+                if (!continuous) { stopped.current = true; return; }
               }
             }
           } catch {
             // A frame that will not decode is the normal case, not an error.
           }
-          raf = requestAnimationFrame(tick);
+          // Throttled rather than run every frame: decoding is the expensive
+          // part, and eight looks a second is past what a hand can present.
+          timer = window.setTimeout(tick, 120);
         };
-        raf = requestAnimationFrame(tick);
+        tick();
       } catch (e: any) {
         setError(
           e?.name === "NotAllowedError"
-            ? "The camera was blocked. Allow camera access for this site, then try again."
+            ? "Camera access was refused. Allow the camera for this site in your browser, then try again."
             : e?.name === "NotFoundError"
-              ? "This device has no camera available."
+              ? "No camera was found on this device."
               : "The camera could not be started on this device.",
         );
       }
     }
 
     start();
-    const slow = window.setTimeout(
-      () => setHint("Hold steady, and fill the frame with the barcode."),
-      6000,
-    );
     return () => {
       stopped.current = true;
-      cancelAnimationFrame(raf);
-      window.clearTimeout(slow);
-      // Releasing every track is what turns the phone's camera light off. Skip
-      // it and the light stays on after the sheet closes, which users read —
+      window.clearTimeout(timer);
+      // Releasing every track is what turns the camera light off. Skip it and
+      // the light stays on after the sheet closes, which people read — quite
       // correctly — as the application still watching them.
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [onScan]);
+  }, [continuous]);
 
   return (
-    <div className="scan-sheet" role="dialog" aria-modal="true" aria-label="Scan a barcode">
+    <div className="scan-sheet" role="dialog" aria-modal="true" aria-label={title}>
       <div className="scan-sheet-head">
-        <span>Scan a barcode</span>
+        <span>{title}</span>
         <button className="btn ghost" onClick={onClose} aria-label="Close the scanner">
-          Close
+          Done
         </button>
       </div>
-      <div className="scan-stage">
+
+      <div className={"scan-stage" + (flash ? " is-hit" : "")}>
         {error ? (
           <p className="scan-error">{error}</p>
         ) : (
           <>
             <video ref={videoRef} className="scan-video" playsInline muted />
-            {/* The frame is the instruction. Nobody reads the sentence. */}
+            {/* Four corners rather than a box: a full rectangle reads as a
+                required alignment, and people waste time squaring the pack up
+                inside it. */}
             <div className="scan-reticle" aria-hidden="true" />
+            {!ready && <p className="scan-hint scan-hint-over">Starting the camera…</p>}
           </>
         )}
       </div>
-      {!error && <p className="scan-hint">{hint}</p>}
+
+      {/* What has been captured, under the lens, where it can be checked
+          without looking away from the goods. */}
+      {children && <div className="scan-feed">{children}</div>}
     </div>
   );
 }
@@ -310,6 +391,10 @@ interface ScanBarProps {
   onValueChange?: (next: string) => void;
   /** For screens with a "focus the scan box" hotkey. */
   inputRef?: React.RefObject<HTMLInputElement>;
+  /** Rendered under the viewfinder while the camera is open — the basket, the
+   *  delivery so far. Without it the operator is scanning blind. */
+  cameraFeed?: React.ReactNode;
+  cameraTitle?: string;
 }
 
 /** The scan input: a wedge target, a typed fallback, and a camera button.
@@ -321,6 +406,7 @@ export function ScanBar({
   onResolved, context, branchId, orderId,
   placeholder = "Scan a barcode, or type a code or name…",
   enabled = true, autoFocus = false, value, onValueChange, inputRef: externalRef,
+  cameraFeed, cameraTitle,
 }: ScanBarProps) {
   const toast = useToast();
   const resolve = useScanResolver(context, { branch_id: branchId, order_id: orderId });
@@ -502,12 +588,15 @@ export function ScanBar({
       )}
       {camera && (
         <ScanCamera
+          title={cameraTitle ?? "Scan"}
           onClose={() => setCamera(false)}
-          onScan={(code) => {
-            setCamera(false);
-            handle(code);
-          }}
-        />
+          // The lens stays open. Closing on the first hit would make a twenty
+          // item basket twenty separate gestures.
+          continuous
+          onScan={handle}
+        >
+          {cameraFeed}
+        </ScanCamera>
       )}
     </>
   );

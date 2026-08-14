@@ -40,3 +40,5 @@ INFO:     127.0.0.1:61412 - "GET /api/pos/sales?status=pending&limit=20 HTTP/1.1
 INFO:     127.0.0.1:62806 - "GET /api/products?q=Paracetamol&limit=6 HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59679 - "POST /api/scan/link HTTP/1.1" 200 OK
 INFO:     127.0.0.1:58680 - "POST /api/scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63495 - "GET /api/suppliers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63494 - "GET /api/products?q= HTTP/1.1" 200 OK

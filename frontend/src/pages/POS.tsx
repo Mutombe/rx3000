@@ -330,6 +330,32 @@ export default function POS() {
               onValueChange={setScan}
               onResolved={onScanned}
               placeholder="Scan a barcode, or type a product name…"
+              cameraTitle="Scan items"
+              // The basket travels with the camera. Scanning a trolley of
+              // front-shop items without seeing what has gone in is how you
+              // find out at the till that something scanned twice.
+              cameraFeed={
+                <>
+                  <div className="scan-feed-head">
+                    <span>Scanned items</span>
+                    <span>{money(total)}</span>
+                  </div>
+                  {cart.length === 0 && (
+                    <p className="muted" style={{ margin: 0 }}>
+                      Point the camera at a barcode to start.
+                    </p>
+                  )}
+                  {cart.map((l) => (
+                    <div key={l.product.id} className="scan-feed-row">
+                      <span>
+                        {l.product.name}
+                        {l.quantity > 1 && <b> ×{l.quantity}</b>}
+                      </span>
+                      <span className="mono">{money(l.product.unit_price * l.quantity)}</span>
+                    </div>
+                  ))}
+                </>
+              }
               autoFocus
             />
             {results.map((p) => (

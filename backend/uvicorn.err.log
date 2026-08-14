@@ -13,3 +13,5 @@ INFO:     Waiting for application startup.
 2026-08-14 12:41:05,192 rx3000.scheduler INFO Scheduler started
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8177 (Press CTRL+C to quit)
+2026-08-14 12:46:05,195 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-14 12:46:05 SAST)" (scheduled at 2026-08-14 12:46:05.189043+02:00)
+2026-08-14 12:46:05,221 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-14 12:51:05 SAST)" executed successfully
