@@ -76,6 +76,7 @@ export default function Dispense() {
   const [otcLog, setOtcLog] = useState<OTCSale[]>([]);
 
   const [recent, setRecent] = useState<Prescription[]>([]);
+  const [moreRecent, setMoreRecent] = useState(false);
   const [repeatsDue, setRepeatsDue] = useState<PrescriptionItem[]>([]);
 
   // The side rail shows one list at a time; which lists are offered depends on
@@ -102,6 +103,11 @@ export default function Dispense() {
 
   function loadLists() {
     api.get<Prescription[]>("/api/prescriptions?limit=12").then(setRecent);
+    // Ask for one more than is shown. If it comes back there are more, which
+    // is all the screen needs to say — a truthful "there is more" beats a
+    // precise total that costs another endpoint, and beats silence entirely.
+    api.get<Prescription[]>("/api/prescriptions?limit=13")
+      .then((all) => setMoreRecent(all.length > 12)).catch(() => setMoreRecent(false));
     api.get<PrescriptionItem[]>("/api/repeats/due?days=14").then(setRepeatsDue);
     api.get<ControlledDispensing[]>("/api/dispensing/controlled/log?days=90").then(setControlledLog);
     api.get<OTCSale[]>("/api/dispensing/otc?days=30").then(setOtcLog);
@@ -451,7 +457,7 @@ export default function Dispense() {
           </div>
         </div>
       ) : (
-        <div className="grid cols-2">
+        <div className="rx-split">
           <div>
             {route === "controlled" && (
               <div className="card" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
@@ -694,7 +700,7 @@ export default function Dispense() {
             </div>
           </div>
 
-          <div>
+          <div className="rx-aside">
             <div className="pill-tabs">
               {railTabs.map((t) => (
                 <button key={t.key} className={rail === t.key ? "active" : ""} onClick={() => setRail(t.key)}>
@@ -766,6 +772,12 @@ export default function Dispense() {
                           <td className="muted">{fmtDate(rx.date_prescribed)}</td>
                         </tr>
                       ))}
+                      {moreRecent && (
+                        <div className="rx-capped">
+                          <span>Showing the {recent.length} most recent</span>
+                          <Link to="/prescriptions">See all</Link>
+                        </div>
+                      )}
                     </tbody>
                   </table>
                   {recent.length === 0 && <div className="empty">No prescriptions yet</div>}

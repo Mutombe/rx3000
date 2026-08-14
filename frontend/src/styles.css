@@ -1638,7 +1638,11 @@ html, body { max-width: 100%; overflow-x: hidden; }
   /* min-height: 0 lets a flex child shrink below its content and actually
      scroll. Without it the child stays content-sized and the overflow escapes
      to the page, which is the same bug wearing a different hat. */
-  .shell > .sidebar { height: 100vh; min-height: 0; overflow: hidden; }
+  /* `overflow: hidden` here clipped the collapse handle, which deliberately
+     straddles the sidebar's right border. The sidebar itself must not scroll —
+     its nav does — so the constraint that was wanted is a fixed height, not a
+     clip. `visible` lets the handle sit proud while .nav still scrolls itself. */
+  .shell > .sidebar { height: 100vh; min-height: 0; overflow: visible; }
   .nav { overscroll-behavior: contain; }
 
   .main {
@@ -1688,3 +1692,100 @@ img { -webkit-user-drag: none; user-select: none; }
 /* Focus rings stay for the keyboard, which is how a dispensary is actually
    driven, but do not appear on a mouse click. */
 :focus:not(:focus-visible) { outline: none; }
+
+/* ==========================================================================
+   Dispensary: the work column and the reference column
+   ==========================================================================
+   These were `grid cols-2`, a rigid 50/50. But the two sides are not peers.
+   The left is the work — patient, items, safety check — and the right is
+   material the dispenser glances at while typing: repeats due, recent scripts,
+   schedule rules. Giving a glance the same width as the work crowds the work.
+
+   It is beside the entry rather than behind it for one reason: checking a
+   repeat must not mean leaving a half-entered script. If it does, the dispenser
+   either loses the entry or stops checking, and stopping is the dangerous one.
+
+   The reference column also scrolls itself. As a co-equal grid child its height
+   drove the row, so a long list either padded the entry column with dead space
+   or dragged the page past the viewport. */
+
+.rx-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;   /* not stretch: the short side must not inherit the tall side's height */
+}
+
+.rx-aside {
+  position: sticky;
+  top: var(--s5);
+  /* Capped so the glance column can never define the page height. */
+  max-height: calc(100vh - var(--s12));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+/* A capped list has to say it is capped. Showing twelve of forty repeats with
+   nothing on screen to say so is the same wrong-answer bug this project spent a
+   round removing from eleven endpoints, wearing a layout costume. */
+.rx-capped {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s2); padding: var(--s2) var(--s1) 0;
+  font-size: var(--t-sm); color: var(--ink-soft);
+}
+.rx-capped a { color: var(--ink); }
+
+@media (max-width: 1240px) {
+  .rx-split { grid-template-columns: 1fr; }
+  .rx-aside { position: static; max-height: none; overflow: visible; }
+}
+
+/* ==========================================================================
+   Scrollbars
+   ==========================================================================
+   The platform scrollbar is 17px of grey furniture on Windows and it lands
+   right beside a 232px sidebar, where it reads as a second border. These are
+   thin, quiet, and darken on hover so they can still be grabbed. */
+
+.nav, .main, .rx-aside, .modal, .sel-list, .dx-list, .ai-box, .dt-scroll {
+  scrollbar-width: thin;                              /* Firefox */
+  scrollbar-color: var(--line-strong) transparent;
+}
+.nav::-webkit-scrollbar,
+.main::-webkit-scrollbar,
+.rx-aside::-webkit-scrollbar,
+.modal::-webkit-scrollbar,
+.sel-list::-webkit-scrollbar,
+.dx-list::-webkit-scrollbar,
+.ai-box::-webkit-scrollbar,
+.dt-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+
+.nav::-webkit-scrollbar-track,
+.main::-webkit-scrollbar-track,
+.rx-aside::-webkit-scrollbar-track,
+.modal::-webkit-scrollbar-track { background: transparent; }
+
+.nav::-webkit-scrollbar-thumb,
+.main::-webkit-scrollbar-thumb,
+.rx-aside::-webkit-scrollbar-thumb,
+.modal::-webkit-scrollbar-thumb,
+.sel-list::-webkit-scrollbar-thumb,
+.dx-list::-webkit-scrollbar-thumb,
+.ai-box::-webkit-scrollbar-thumb,
+.dt-scroll::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+  /* Inset by a transparent border so the thumb reads as 4px of ink inside an
+     8px track — grabbable, but not a stripe down the edge of the screen. */
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.nav::-webkit-scrollbar-thumb:hover,
+.main::-webkit-scrollbar-thumb:hover,
+.rx-aside::-webkit-scrollbar-thumb:hover,
+.modal::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); background-clip: content-box; }
+
+/* The sidebar's own is quieter still: it sits against a border already. */
+.nav { scrollbar-color: var(--line) transparent; }
+.nav::-webkit-scrollbar { width: 6px; }
