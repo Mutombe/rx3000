@@ -9,7 +9,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..services import paging
 from ..models import Account, JournalEntry, User
-from ..services import bank_recon, ledger, posting, reporting
+from ..services import bank_recon, ledger, posting, reporting, statements
 
 router = APIRouter(prefix="/api/ledger", tags=["ledger"],
                    dependencies=[Depends(get_current_user)])
@@ -289,14 +289,51 @@ def vat_return(period_code: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+def _year_start(upto: date) -> date:
+    """The start of the financial year `upto` falls in.
+
+    Taken from the jurisdiction pack rather than assumed to be January. A
+    year-end in the wrong month puts the whole of the current year's profit in
+    the wrong period, and the balance sheet still balances while being wrong.
+    """
+    from ..config import settings
+
+    j = settings.jurisdiction
+    month = getattr(j, "tax_year_start_month", 1) or 1
+    day = getattr(j, "tax_year_start_day", 1) or 1
+    start = date(upto.year, month, day)
+    return start if start <= upto else date(upto.year - 1, month, day)
+
+
 @router.get("/income-statement")
-def income_statement(period_code: str = "", db: Session = Depends(get_db)):
-    return reporting.income_statement(db, period_code)
+def income_statement(
+    start: date | None = None, upto: date | None = None,
+    period_code: str = "", hide_zero: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Revenue through to profit, with cost of sales separated out.
+
+    `period_code` is still accepted so existing callers keep working, but the
+    window is what actually drives this: the old report summed all time, which
+    quietly folded every previous year's trading into "profit".
+    """
+    upto = upto or date.today()
+    return statements.income_statement(
+        db, start=start or _year_start(upto), upto=upto, hide_zero=hide_zero)
 
 
 @router.get("/balance-sheet")
-def balance_sheet(asof: date | None = None, db: Session = Depends(get_db)):
-    return reporting.balance_sheet(db, asof=asof)
+def balance_sheet(
+    asof: date | None = None, upto: date | None = None,
+    hide_zero: bool = False, db: Session = Depends(get_db),
+):
+    """Position at a date, split current and non-current.
+
+    `asof` is the original parameter name and still works.
+    """
+    at = upto or asof or date.today()
+    return statements.balance_sheet(
+        db, upto=at, year_start=_year_start(at), hide_zero=hide_zero)
 
 
 @router.post("/backfill")

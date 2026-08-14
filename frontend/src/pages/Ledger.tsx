@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtDate, money, prefetchRoute } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import Statements from "../components/Statements";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -37,7 +38,7 @@ interface Unposted {
   sales: { sale_id: number; sale_number: string; total: number }[];
 }
 
-type Tab = "trial" | "journal" | "recon" | "unposted";
+type Tab = "trial" | "income" | "balance" | "journal" | "recon" | "unposted";
 
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
@@ -52,6 +53,10 @@ export default function Ledger() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "trial", label: "Trial balance", count: tb?.lines.length },
+    { key: "income", label: "Income statement",
+      hint: "Revenue, cost of sales and profit for the financial year" },
+    { key: "balance", label: "Balance sheet",
+      hint: "What the pharmacy owns and owes at a date" },
     { key: "journal", label: "Journal", count: entries.length },
     { key: "recon", label: "Reconciliation" },
     { key: "unposted", label: "Not posted", count: unposted?.count,
@@ -110,6 +115,9 @@ export default function Ledger() {
       {unposted?.count ? <div className="alert warn">{unposted.message}</div> : null}
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
+
+      {tab === "income" && <Statements kind="income" />}
+      {tab === "balance" && <Statements kind="balance" />}
 
       {tab === "trial" && (
         <Refreshable

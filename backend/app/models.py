@@ -1468,6 +1468,15 @@ class Account(Base):
     # That check is the whole reason to keep them separate.
     subledger = Column(String(20), default="", index=True)  # debtors | creditors | stock | vat
     parent_code = Column(String(10), default="")
+    # Where this account appears on a statement. `type` says what an account is;
+    # this says where a reader expects to find it. Stock and a delivery van are
+    # both assets and belong in different halves of the balance sheet, and no
+    # amount of inspecting the type column will separate them.
+    #
+    # current_asset | non_current_asset | current_liability |
+    # non_current_liability | equity | revenue | cogs | operating_expense |
+    # other_income | other_expense
+    section = Column(String(24), default="", index=True)
     active = Column(Boolean, default=True)
     notes = Column(Text, default="")
 

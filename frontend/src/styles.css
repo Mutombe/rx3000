@@ -1972,3 +1972,43 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .rate-code { font-size: .8rem; letter-spacing: .04em; color: var(--ink-soft); }
 .rate-value { font-size: 1.35rem; font-weight: 600; margin-top: var(--s1); }
+
+/* Financial statements. Numbers are the content, so they are given the width
+   and the alignment; headings recede. */
+.st-controls {
+  display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap;
+  margin-bottom: var(--s4);
+}
+.st-control { display: flex; align-items: center; gap: var(--s2); font-size: .85rem; }
+.st-control > span { color: var(--ink-soft); }
+.st-check { cursor: pointer; }
+.st-table { width: 100%; border-collapse: collapse; }
+.st-table td { padding: var(--s2) var(--s3); }
+.st-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.st-section > td { font-weight: 600; border-top: 1px solid var(--line); }
+.st-section.is-openable { cursor: pointer; }
+.st-section.is-openable:hover > td { background: var(--accent-soft); }
+.st-caret {
+  display: inline-block; width: 1em; color: var(--ink-faint);
+  transition: transform .12s ease;
+}
+.st-caret.is-open { transform: rotate(90deg); }
+.st-count { font-weight: 400; font-size: .78rem; }
+.st-line > td { padding-left: var(--s6); color: var(--ink-mid); font-size: .88rem; }
+.st-line > td:first-child { padding-left: calc(var(--s6) + 1em); }
+.st-badge { margin-left: var(--s2); }
+.st-subtotal > tr > td { background: var(--surface-sunk); }
+.st-table tfoot td {
+  padding: var(--s2) var(--s3); border-top: 1px solid var(--line);
+  color: var(--ink-soft); font-size: .88rem;
+}
+.st-table tfoot tr.st-total td {
+  border-top: 2px solid var(--line-strong); font-weight: 700;
+  color: var(--ink); font-size: 1rem;
+}
+.st-note {
+  margin: var(--s4) 0 0; padding: var(--s3);
+  border-radius: var(--r-sm); font-size: .87rem;
+}
+.st-note.is-ok { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok-line); }
+.st-note.is-bad { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-line); }
