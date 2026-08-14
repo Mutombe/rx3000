@@ -172,6 +172,25 @@ export function ScanCamera({
     stopped.current = false;
 
     async function start() {
+      // Checked before asking, because the failure is a browser policy rather
+      // than a device fault and the two need different advice. A pharmacy
+      // running this against its own server on the LAN reaches it over plain
+      // HTTP at an IP address, and every browser refuses camera access to a
+      // page loaded that way. Without this the operator sees a camera that
+      // simply never opens.
+      if (!window.isSecureContext) {
+        setError(
+          "Your browser only allows camera access over a secure connection. "
+          + "This page was opened over plain HTTP, so scanning by camera is "
+          + "blocked. Reach the system over HTTPS, or scan with a USB scanner "
+          + "and type codes in the meantime.",
+        );
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("This browser does not provide camera access to web pages.");
+        return;
+      }
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           // The back camera. Without this a phone opens the selfie camera and
