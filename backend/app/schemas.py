@@ -692,6 +692,11 @@ class BackupOut(BaseModel):
     filename: str
     size_bytes: int
     created_at: datetime
+    # Whether this file was opened and proven restorable, not merely
+    # whether it was written.
+    verified: bool = False
+    checked_at: Optional[datetime] = None
+    problem: str = ""
 
 
 # ---------- labels ----------

@@ -16,6 +16,7 @@ from ..auth import get_current_user, require_role
 from ..config import settings
 from ..database import get_db
 from ..services import paging
+from ..services import backup_verify
 from ..services import currency
 from ..models import AuditLog, Product, User
 
@@ -211,10 +212,45 @@ def create_backup() -> Path:
     finally:
         source.close()
 
-    backups = sorted(BACKUP_DIR.glob("rx3000_*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for old in backups[BACKUP_KEEP:]:
-        old.unlink(missing_ok=True)
+    # Prove it before trusting it. A file having been written is not a backup;
+    # the system we are replacing lists a 0.00 MByte archive beside its good
+    # ones and a pharmacy learns which is which on the day it needs to restore.
+    verdict = backup_verify.verify_and_record(target, _db_path())
+
+    _prune()
     return target
+
+
+def _prune() -> None:
+    """Keep the most recent backups, but never at the cost of a verified one.
+
+    The obvious retention rule — keep the newest N — quietly does the wrong
+    thing the moment backups start failing: three broken nightly runs push the
+    last good copy off the end, and the pharmacy is left holding only files that
+    cannot be restored. So verified backups are kept in preference to unverified
+    ones, and only then by age.
+    """
+    backups = sorted(
+        BACKUP_DIR.glob("rx3000_*.db"),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    verified, unverified = [], []
+    for path in backups:
+        verdict = backup_verify.read_verdict(path)
+        (verified if (verdict or {}).get("ok") else unverified).append(path)
+
+    # Newest good ones first, then fill the remainder with the rest.
+    keep = verified[:BACKUP_KEEP]
+    if len(keep) < BACKUP_KEEP:
+        keep += unverified[: BACKUP_KEEP - len(keep)]
+    keeping = set(keep)
+
+    for path in backups:
+        if path in keeping:
+            continue
+        path.unlink(missing_ok=True)
+        backup_verify.sidecar_for(path).unlink(missing_ok=True)
 
 
 @router.post("/backup", response_model=schemas.BackupOut)
@@ -234,11 +270,41 @@ def list_backups(_: User = Depends(require_role("admin"))):
     out = []
     for path in sorted(BACKUP_DIR.glob("rx3000_*.db"), key=lambda p: p.stat().st_mtime, reverse=True):
         stat = path.stat()
+        verdict = backup_verify.read_verdict(path)
         out.append(schemas.BackupOut(
             filename=path.name, size_bytes=stat.st_size,
             created_at=datetime.fromtimestamp(stat.st_mtime),
+            # A listing that shows only name, date and size cannot tell a good
+            # backup from a failed one, which is the whole problem.
+            verified=bool((verdict or {}).get("ok")),
+            checked_at=(datetime.fromisoformat(verdict["verified_at"])
+                        if verdict and verdict.get("verified_at") else None),
+            problem=("; ".join(verdict.get("problems", []))
+                     if verdict and not verdict.get("ok") else ""),
         ))
     return out
+
+
+@router.post("/backups/{filename}/verify", response_model=schemas.BackupOut)
+def verify_backup(filename: str, _: User = Depends(require_role("admin"))):
+    """Re-check an existing backup.
+
+    Worth having on demand as well as on write: a file that verified when it was
+    made can still rot on a failing disk, and the point of asking is to find that
+    out before the restore rather than during it.
+    """
+    path = (BACKUP_DIR / filename).resolve()
+    if path.parent != BACKUP_DIR.resolve() or not path.exists():
+        raise HTTPException(status_code=404, detail="That backup no longer exists.")
+    verdict = backup_verify.verify_and_record(path, _db_path())
+    stat = path.stat()
+    return schemas.BackupOut(
+        filename=path.name, size_bytes=stat.st_size,
+        created_at=datetime.fromtimestamp(stat.st_mtime),
+        verified=verdict["ok"],
+        checked_at=datetime.fromisoformat(verdict["verified_at"]),
+        problem="; ".join(verdict.get("problems", [])),
+    )
 
 
 @router.get("/backups/{filename}/download")
