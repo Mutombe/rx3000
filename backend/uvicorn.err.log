@@ -1,14 +1,14 @@
-INFO:     Started server process [26744]
+INFO:     Started server process [25104]
 INFO:     Waiting for application startup.
-2026-08-15 20:01:29,387 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 20:01:29,390 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 20:01:29,426 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 20:01:29,428 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 20:01:29,507 apscheduler.scheduler INFO Added job "queue_repeat_reminders" to job store "default"
-2026-08-15 20:01:29,509 apscheduler.scheduler INFO Added job "queue_birthday_messages" to job store "default"
-2026-08-15 20:01:29,511 apscheduler.scheduler INFO Added job "send_pending_messages" to job store "default"
-2026-08-15 20:01:29,512 apscheduler.scheduler INFO Added job "nightly_backup" to job store "default"
-2026-08-15 20:01:29,513 apscheduler.scheduler INFO Scheduler started
-2026-08-15 20:01:29,516 rx3000.scheduler INFO Scheduler started
+2026-08-15 20:07:40,672 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:07:40,673 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:07:40,676 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:07:40,677 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:07:40,683 apscheduler.scheduler INFO Added job "queue_repeat_reminders" to job store "default"
+2026-08-15 20:07:40,684 apscheduler.scheduler INFO Added job "queue_birthday_messages" to job store "default"
+2026-08-15 20:07:40,685 apscheduler.scheduler INFO Added job "send_pending_messages" to job store "default"
+2026-08-15 20:07:40,686 apscheduler.scheduler INFO Added job "nightly_backup" to job store "default"
+2026-08-15 20:07:40,687 apscheduler.scheduler INFO Scheduler started
+2026-08-15 20:07:40,688 rx3000.scheduler INFO Scheduler started
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8177 (Press CTRL+C to quit)

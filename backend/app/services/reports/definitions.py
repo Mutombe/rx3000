@@ -479,296 +479,50 @@ register(Report(
 def _schedule_register(db: Session, p: dict):
     from ...models import RegisterEntry
 
-    rows = []
-    for entry in (
+    entries = (
         db.query(RegisterEntry)
         .filter(func.date(RegisterEntry.created_at) >= p["date_from"])
         .filter(func.date(RegisterEntry.created_at) <= p["date_to"])
         .order_by(RegisterEntry.created_at.desc())
         .all()
-    ):
-        product = db.query(Product).get(entry.product_id)
-        patient = (
-            db.query(Patient).get(entry.patient_id)
-            if getattr(entry, "patient_id", None) else None
-        )
-        user = db.query(User).get(entry.user_id) if entry.user_id else None
-        rows.append({
-            "date": entry.created_at.isoformat(sep=" ", timespec="minutes"),
-            "product": product.name if product else f"#{entry.product_id}",
-            "schedule": f"S{entry.schedule}",
-            "quantity": abs(entry.quantity_delta or 0),
-            "patient": f"{patient.first_name} {patient.last_name}" if patient else "—",
-            "dispenser": (user.full_name or user.username) if user else "—",
-            "reference": getattr(entry, "reference", "") or "",
-        })
-    return rows
-
-
-# ------------------------------------------------------- stock, second batch
-#
-# Everything below is a declaration. That is the whole point of the engine:
-# these came to about thirty lines each, and every one gets date handling,
-# paging, sorting, footer totals, Excel, CSV and print without asking.
-
-register(Report(
-    key="slow_movers",
-    title="Slow movers",
-    module="Stock",
-    purpose="Lines that still sell, but too slowly for the money tied up in "
-            "them. The step before something becomes dead stock.",
-    params=[
-        Param("days", "Over the last (days)", "text", default="90"),
-        Param("max_turns", "Fewer turns per year than", "text", default="2"),
-    ],
-    columns=[
-        Column("product", "Product", "text"),
-        Column("on_hand", "On hand", "number", total=True),
-        Column("sold", "Sold in period", "number", total=True),
-        Column("turns", "Turns/year", "number"),
-        Column("months_cover", "Months of cover", "number"),
-        Column("value", "Tied up", "money", total=True),
-    ],
-    rows=lambda db, p: _slow_movers(db, p),
-))
-
-
-def _slow_movers(db: Session, p: dict):
-    try:
-        days = max(7, int(p.get("days") or 90))
-        max_turns = float(p.get("max_turns") or 2)
-    except (TypeError, ValueError):
-        days, max_turns = 90, 2.0
-    since = date.today() - timedelta(days=days)
-
-    sold = dict(
-        db.query(StockMovement.product_id,
-                 func.sum(func.abs(StockMovement.quantity_delta)))
-        .filter(StockMovement.movement_type == "sale")
-        .filter(func.date(StockMovement.created_at) >= since)
-        .group_by(StockMovement.product_id)
-        .all()
     )
-    rows = []
-    for product in db.query(Product).filter(
-            Product.active, Product.quantity_on_hand > 0).all():
-        units = float(sold.get(product.id) or 0)
-        # No sales at all is dead stock, which has its own report. Mixing the
-        # two makes both harder to act on.
-        if units <= 0:
-            continue
-        annual = units * (365.0 / days)
-        turns = round(annual / product.quantity_on_hand, 2) if product.quantity_on_hand else 0.0
-        if turns > max_turns:
-            continue
-        monthly = annual / 12 if annual else 0
-        rows.append({
-            "product_id": product.id,
-            "product": product.name,
-            "on_hand": product.quantity_on_hand,
-            "sold": int(units),
-            "turns": turns,
-            "months_cover": round(product.quantity_on_hand / monthly, 1) if monthly else 999,
-            "value": round((product.cost_price or 0) * product.quantity_on_hand, 2),
-        })
-    rows.sort(key=lambda r: -r["value"])
-    return rows
+    if not entries:
+        return []
 
+    # Looked up in three queries rather than three per row. The previous version
+    # fetched the product, patient and user individually for every entry, which
+    # on six hundred entries is eighteen hundred round trips — slow enough that
+    # the browser abandoned the request, and a report nobody can wait for is a
+    # report nobody has.
+    product_ids = {e.product_id for e in entries if e.product_id}
+    patient_ids = {e.patient_id for e in entries if e.patient_id}
+    user_ids = {e.user_id for e in entries if e.user_id}
 
-register(Report(
-    key="stock_movements",
-    title="Stock movement history",
-    module="Stock",
-    purpose="Every movement in and out, with who did it. Where a discrepancy "
-            "gets traced back to a decision.",
-    params=[
-        DATE_FROM, DATE_TO,
-        Param("movement_type", "Type", "text", help="receive, sale, adjustment"),
-    ],
-    columns=[
-        Column("date", "When", "datetime"),
-        Column("product", "Product", "text"),
-        Column("type", "Type", "text"),
-        Column("delta", "Change", "number", total=True),
-        Column("balance", "Balance after", "number"),
-        Column("reference", "Reference", "code"),
-        Column("user", "By", "text"),
-    ],
-    rows=lambda db, p: _movements_report(db, p),
-))
+    products = {
+        pr.id: pr.name
+        for pr in db.query(Product).filter(Product.id.in_(product_ids)).all()
+    } if product_ids else {}
+    patients = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip()
+        for pt in db.query(Patient).filter(Patient.id.in_(patient_ids)).all()
+    } if patient_ids else {}
+    users = {
+        u.id: (u.full_name or u.username)
+        for u in db.query(User).filter(User.id.in_(user_ids)).all()
+    } if user_ids else {}
 
-
-def _movements_report(db: Session, p: dict):
-    query = (
-        db.query(StockMovement)
-        .filter(func.date(StockMovement.created_at) >= p["date_from"])
-        .filter(func.date(StockMovement.created_at) <= p["date_to"])
-    )
-    if p.get("movement_type"):
-        query = query.filter(StockMovement.movement_type == p["movement_type"])
-    names = {u.id: (u.full_name or u.username) for u in db.query(User).all()}
-    products = {pr.id: pr.name for pr in db.query(Product).all()}
     return [
         {
-            "date": m.created_at.isoformat(sep=" ", timespec="minutes"),
-            "product": products.get(m.product_id, "#" + str(m.product_id)),
-            "type": m.movement_type,
-            "delta": m.quantity_delta,
-            "balance": m.balance_after,
-            "reference": m.reference or "",
-            "user": names.get(m.user_id, "-"),
+            "date": e.created_at.isoformat(sep=" ", timespec="minutes"),
+            "product": products.get(e.product_id, "#" + str(e.product_id)),
+            "schedule": "S" + str(e.schedule),
+            "quantity": abs(e.quantity_delta or 0),
+            "patient": patients.get(e.patient_id, "-"),
+            "dispenser": users.get(e.user_id, "-"),
+            "reference": e.reference or "",
         }
-        # No limit. A cap here would make the footer report the cap as the
-        # total, which looks complete and is not — the exact failure this
-        # engine exists to avoid. The date range is what bounds the volume,
-        # and it defaults to the current month.
-        for m in query.order_by(StockMovement.created_at.desc()).all()
+        for e in entries
     ]
-
-
-register(Report(
-    key="negative_stock",
-    title="Stock exceptions",
-    module="Stock",
-    purpose="Lines below zero, or where the product total and its batches "
-            "disagree. Always a fault, never a judgement call.",
-    params=[],
-    columns=[
-        Column("product", "Product", "text"),
-        Column("on_hand", "Product says", "number", total=True),
-        Column("batches", "Batches say", "number", total=True),
-        Column("gap", "Gap", "number", total=True),
-        Column("supplier", "Supplier", "text"),
-    ],
-    rows=lambda db, p: _negative_stock(db, p),
-))
-
-
-def _negative_stock(db: Session, p: dict):
-    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
-    batched = dict(
-        db.query(StockBatch.product_id, func.sum(StockBatch.quantity_remaining))
-        .group_by(StockBatch.product_id).all()
-    )
-    rows = []
-    for product in db.query(Product).filter(Product.active).all():
-        # Airtime has no batches by design, so it is not an exception.
-        if (product.category or "") == "airtime":
-            continue
-        on_hand = product.quantity_on_hand or 0
-        in_batches = int(batched.get(product.id) or 0)
-        # Either figure being negative is a fault, and so is the two of them
-        # disagreeing: the product row and its batches are meant to be two
-        # views of one truth.
-        if on_hand >= 0 and in_batches >= 0 and on_hand == in_batches:
-            continue
-        rows.append({
-            "product_id": product.id,
-            "product": product.name,
-            "on_hand": on_hand,
-            "batches": in_batches,
-            "gap": on_hand - in_batches,
-            "supplier": suppliers.get(product.supplier_id, "-"),
-        })
-    rows.sort(key=lambda r: (r["on_hand"] >= 0, -abs(r["gap"])))
-    return rows
-
-
-register(Report(
-    key="purchases_by_supplier",
-    title="Purchases by supplier",
-    module="Procurement",
-    purpose="What was bought from whom, and how much of it actually arrived.",
-    params=[DATE_FROM, DATE_TO],
-    columns=[
-        Column("supplier", "Supplier", "text"),
-        Column("orders", "Orders", "number", total=True),
-        Column("ordered", "Units ordered", "number", total=True),
-        Column("received", "Units received", "number", total=True),
-        Column("fill_rate", "Fill rate", "percent"),
-        Column("value", "Value", "money", total=True),
-    ],
-    rows=lambda db, p: _purchases_by_supplier(db, p),
-))
-
-
-def _purchases_by_supplier(db: Session, p: dict):
-    from ...models import PurchaseOrder
-
-    groups = {}
-    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
-    orders = (
-        db.query(PurchaseOrder)
-        .filter(func.date(PurchaseOrder.created_at) >= p["date_from"])
-        .filter(func.date(PurchaseOrder.created_at) <= p["date_to"])
-        .all()
-    )
-    for order in orders:
-        row = groups.setdefault(order.supplier_id, {
-            "supplier": suppliers.get(order.supplier_id, "-"),
-            "orders": 0, "ordered": 0, "received": 0, "value": 0.0,
-        })
-        row["orders"] += 1
-        for line in order.items:
-            row["ordered"] += line.quantity_ordered or 0
-            row["received"] += line.quantity_received or 0
-            row["value"] = round(
-                row["value"] + (line.unit_cost or 0) * (line.quantity_ordered or 0), 2)
-    rows = []
-    for row in groups.values():
-        row["fill_rate"] = (round(row["received"] / row["ordered"] * 100, 1)
-                            if row["ordered"] else 0.0)
-        rows.append(row)
-    rows.sort(key=lambda r: -r["value"])
-    return rows
-
-
-register(Report(
-    key="goods_received_not_invoiced",
-    title="Received not invoiced",
-    module="Procurement",
-    purpose="Stock on the shelf that no supplier invoice has arrived for. A "
-            "liability the books do not know about yet.",
-    params=[],
-    columns=[
-        Column("order_number", "Order", "code"),
-        Column("supplier", "Supplier", "text"),
-        Column("received_at", "Received", "date"),
-        Column("units", "Units", "number", total=True),
-        Column("value", "Value at cost", "money", total=True),
-        Column("days", "Days waiting", "number"),
-    ],
-    rows=lambda db, p: _grni(db, p),
-))
-
-
-def _grni(db: Session, p: dict):
-    from ...models import PurchaseOrder
-
-    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
-    rows = []
-    for order in db.query(PurchaseOrder).filter(
-            PurchaseOrder.status == "received").all():
-        received = sum(l.quantity_received or 0 for l in order.items)
-        if not received:
-            continue
-        # An invoice reference recorded against the order means it has been
-        # billed. The notes field is where that lands today.
-        if "invoice" in (order.notes or "").lower():
-            continue
-        when = order.received_at or order.created_at
-        rows.append({
-            "order_id": order.id,
-            "order_number": order.order_number,
-            "supplier": suppliers.get(order.supplier_id, "-"),
-            "received_at": when.date().isoformat() if when else "",
-            "units": received,
-            "value": round(sum((l.unit_cost or 0) * (l.quantity_received or 0)
-                               for l in order.items), 2),
-            "days": (date.today() - when.date()).days if when else 0,
-        })
-    rows.sort(key=lambda r: -r["days"])
-    return rows
 
 
 # --------------------------------------------------------- third batch
@@ -1029,4 +783,266 @@ def _top_customers(db: Session, p: dict):
             "last_seen": last.date().isoformat() if last else "",
         })
     rows.sort(key=lambda r: -r["spend"])
+    return rows
+
+
+# ------------------------------------------------------- stock, second batch
+#
+# Everything below is a declaration. That is the whole point of the engine:
+# these came to about thirty lines each, and every one gets date handling,
+# paging, sorting, footer totals, Excel, CSV and print without asking.
+
+register(Report(
+    key="slow_movers",
+    title="Slow movers",
+    module="Stock",
+    purpose="Lines that still sell, but too slowly for the money tied up in "
+            "them. The step before something becomes dead stock.",
+    params=[
+        Param("days", "Over the last (days)", "text", default="90"),
+        Param("max_turns", "Fewer turns per year than", "text", default="2"),
+    ],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("sold", "Sold in period", "number", total=True),
+        Column("turns", "Turns/year", "number"),
+        Column("months_cover", "Months of cover", "number"),
+        Column("value", "Tied up", "money", total=True),
+    ],
+    rows=lambda db, p: _slow_movers(db, p),
+))
+
+
+def _slow_movers(db: Session, p: dict):
+    try:
+        days = max(7, int(p.get("days") or 90))
+        max_turns = float(p.get("max_turns") or 2)
+    except (TypeError, ValueError):
+        days, max_turns = 90, 2.0
+    since = date.today() - timedelta(days=days)
+
+    sold = dict(
+        db.query(StockMovement.product_id,
+                 func.sum(func.abs(StockMovement.quantity_delta)))
+        .filter(StockMovement.movement_type == "sale")
+        .filter(func.date(StockMovement.created_at) >= since)
+        .group_by(StockMovement.product_id)
+        .all()
+    )
+    rows = []
+    for product in db.query(Product).filter(
+            Product.active, Product.quantity_on_hand > 0).all():
+        units = float(sold.get(product.id) or 0)
+        # No sales at all is dead stock, which has its own report. Mixing the
+        # two makes both harder to act on.
+        if units <= 0:
+            continue
+        annual = units * (365.0 / days)
+        turns = round(annual / product.quantity_on_hand, 2) if product.quantity_on_hand else 0.0
+        if turns > max_turns:
+            continue
+        monthly = annual / 12 if annual else 0
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "on_hand": product.quantity_on_hand,
+            "sold": int(units),
+            "turns": turns,
+            "months_cover": round(product.quantity_on_hand / monthly, 1) if monthly else 999,
+            "value": round((product.cost_price or 0) * product.quantity_on_hand, 2),
+        })
+    rows.sort(key=lambda r: -r["value"])
+    return rows
+
+
+register(Report(
+    key="stock_movements",
+    title="Stock movement history",
+    module="Stock",
+    purpose="Every movement in and out, with who did it. Where a discrepancy "
+            "gets traced back to a decision.",
+    params=[
+        DATE_FROM, DATE_TO,
+        Param("movement_type", "Type", "text", help="receive, sale, adjustment"),
+    ],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("product", "Product", "text"),
+        Column("type", "Type", "text"),
+        Column("delta", "Change", "number", total=True),
+        Column("balance", "Balance after", "number"),
+        Column("reference", "Reference", "code"),
+        Column("user", "By", "text"),
+    ],
+    rows=lambda db, p: _movements_report(db, p),
+))
+
+
+def _movements_report(db: Session, p: dict):
+    query = (
+        db.query(StockMovement)
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+    )
+    if p.get("movement_type"):
+        query = query.filter(StockMovement.movement_type == p["movement_type"])
+    names = {u.id: (u.full_name or u.username) for u in db.query(User).all()}
+    products = {pr.id: pr.name for pr in db.query(Product).all()}
+    return [
+        {
+            "date": m.created_at.isoformat(sep=" ", timespec="minutes"),
+            "product": products.get(m.product_id, "#" + str(m.product_id)),
+            "type": m.movement_type,
+            "delta": m.quantity_delta,
+            "balance": m.balance_after,
+            "reference": m.reference or "",
+            "user": names.get(m.user_id, "-"),
+        }
+        for m in query.order_by(StockMovement.created_at.desc()).limit(5000).all()
+    ]
+
+
+register(Report(
+    key="negative_stock",
+    title="Stock exceptions",
+    module="Stock",
+    purpose="Lines below zero, or where the product total and its batches "
+            "disagree. Always a fault, never a judgement call.",
+    params=[],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("on_hand", "Product says", "number", total=True),
+        Column("batches", "Batches say", "number", total=True),
+        Column("gap", "Gap", "number", total=True),
+        Column("supplier", "Supplier", "text"),
+    ],
+    rows=lambda db, p: _negative_stock(db, p),
+))
+
+
+def _negative_stock(db: Session, p: dict):
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    batched = dict(
+        db.query(StockBatch.product_id, func.sum(StockBatch.quantity_remaining))
+        .group_by(StockBatch.product_id).all()
+    )
+    rows = []
+    for product in db.query(Product).filter(Product.active).all():
+        # Airtime has no batches by design, so it is not an exception.
+        if (product.category or "") == "airtime":
+            continue
+        on_hand = product.quantity_on_hand or 0
+        in_batches = int(batched.get(product.id) or 0)
+        # Either figure being negative is a fault, and so is the two of them
+        # disagreeing: the product row and its batches are meant to be two
+        # views of one truth.
+        if on_hand >= 0 and in_batches >= 0 and on_hand == in_batches:
+            continue
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "on_hand": on_hand,
+            "batches": in_batches,
+            "gap": on_hand - in_batches,
+            "supplier": suppliers.get(product.supplier_id, "-"),
+        })
+    rows.sort(key=lambda r: (r["on_hand"] >= 0, -abs(r["gap"])))
+    return rows
+
+
+register(Report(
+    key="purchases_by_supplier",
+    title="Purchases by supplier",
+    module="Procurement",
+    purpose="What was bought from whom, and how much of it actually arrived.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("supplier", "Supplier", "text"),
+        Column("orders", "Orders", "number", total=True),
+        Column("ordered", "Units ordered", "number", total=True),
+        Column("received", "Units received", "number", total=True),
+        Column("fill_rate", "Fill rate", "percent"),
+        Column("value", "Value", "money", total=True),
+    ],
+    rows=lambda db, p: _purchases_by_supplier(db, p),
+))
+
+
+def _purchases_by_supplier(db: Session, p: dict):
+    from ...models import PurchaseOrder
+
+    groups = {}
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    orders = (
+        db.query(PurchaseOrder)
+        .filter(func.date(PurchaseOrder.created_at) >= p["date_from"])
+        .filter(func.date(PurchaseOrder.created_at) <= p["date_to"])
+        .all()
+    )
+    for order in orders:
+        row = groups.setdefault(order.supplier_id, {
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "orders": 0, "ordered": 0, "received": 0, "value": 0.0,
+        })
+        row["orders"] += 1
+        for line in order.items:
+            row["ordered"] += line.quantity_ordered or 0
+            row["received"] += line.quantity_received or 0
+            row["value"] = round(
+                row["value"] + (line.unit_cost or 0) * (line.quantity_ordered or 0), 2)
+    rows = []
+    for row in groups.values():
+        row["fill_rate"] = (round(row["received"] / row["ordered"] * 100, 1)
+                            if row["ordered"] else 0.0)
+        rows.append(row)
+    rows.sort(key=lambda r: -r["value"])
+    return rows
+
+
+register(Report(
+    key="goods_received_not_invoiced",
+    title="Received not invoiced",
+    module="Procurement",
+    purpose="Stock on the shelf that no supplier invoice has arrived for. A "
+            "liability the books do not know about yet.",
+    params=[],
+    columns=[
+        Column("order_number", "Order", "code"),
+        Column("supplier", "Supplier", "text"),
+        Column("received_at", "Received", "date"),
+        Column("units", "Units", "number", total=True),
+        Column("value", "Value at cost", "money", total=True),
+        Column("days", "Days waiting", "number"),
+    ],
+    rows=lambda db, p: _grni(db, p),
+))
+
+
+def _grni(db: Session, p: dict):
+    from ...models import PurchaseOrder
+
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    rows = []
+    for order in db.query(PurchaseOrder).filter(
+            PurchaseOrder.status == "received").all():
+        received = sum(l.quantity_received or 0 for l in order.items)
+        if not received:
+            continue
+        # An invoice reference recorded against the order means it has been
+        # billed. The notes field is where that lands today.
+        if "invoice" in (order.notes or "").lower():
+            continue
+        when = order.received_at or order.created_at
+        rows.append({
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "received_at": when.date().isoformat() if when else "",
+            "units": received,
+            "value": round(sum((l.unit_cost or 0) * (l.quantity_received or 0)
+                               for l in order.items), 2),
+            "days": (date.today() - when.date()).days if when else 0,
+        })
+    rows.sort(key=lambda r: -r["days"])
     return rows
