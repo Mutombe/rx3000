@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import { PageSkeleton } from "./components/Skeleton";
 import { ToastProvider } from "./components/Toast";
 import { ConfirmProvider } from "./components/Confirm";
+import { ConnectionProvider, RequiresConnection } from "./components/Connection";
 
 /* Every page is split out of the initial bundle. A till on a mobile
  * connection pays for the whole application on first load otherwise, and
@@ -65,6 +66,7 @@ export default function App() {
   return (
     <ToastProvider>
     <ConfirmProvider>
+    <ConnectionProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
       {/* Public, unauthenticated, and deliberately above the Protected route so
@@ -90,7 +92,8 @@ export default function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/patients" element={<Patients />} />
                 <Route path="/patients/:id" element={<PatientDetail />} />
-                <Route path="/dispense" element={<Dispense />} />
+                <Route path="/dispense" element={
+                  <RequiresConnection what="Dispensing"><Dispense /></RequiresConnection>} />
                 <Route path="/to-follows" element={<ToFollows />} />
                 <Route path="/periods" element={<Periods />} />
                 <Route path="/system" element={<System />} />
@@ -106,7 +109,8 @@ export default function App() {
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/orders/:id" element={<OrderDetail />} />
-                <Route path="/register" element={<Register />} />
+                <Route path="/register" element={
+                  <RequiresConnection what="The controlled register"><Register /></RequiresConnection>} />
                 <Route path="/reminders" element={<Reminders />} />
                 <Route path="/shifts" element={<Shifts />} />
                 <Route path="/reconciliation" element={<CardReconciliation />} />
@@ -132,6 +136,7 @@ export default function App() {
         }
       />
     </Routes>
+    </ConnectionProvider>
     </ConfirmProvider>
     </ToastProvider>
   );

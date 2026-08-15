@@ -2183,3 +2183,32 @@ img { -webkit-user-drag: none; user-select: none; }
 .cu-table tfoot td {
   border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: 700;
 }
+
+/* ------------------------------------------------------------- connection
+   The offline banner is deliberately not red. Losing the line is an ordinary
+   event in a Zimbabwean pharmacy, the till still works, and alarming a cashier
+   about a condition they cannot fix and do not need to act on is how warnings
+   stop being read. */
+.conn-banner {
+  position: sticky; top: 0; z-index: 900;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s4);
+  background: var(--warn-soft); color: var(--warn);
+  border-bottom: 1px solid var(--warn-line);
+  font-size: .86rem;
+}
+.conn-banner b { font-weight: 700; }
+.conn-banner .btn.ghost { margin-left: auto; color: var(--warn); border-color: var(--warn-line); }
+.conn-dot {
+  width: 8px; height: 8px; border-radius: var(--r-pill);
+  background: currentColor; flex: 0 0 auto;
+  animation: conn-pulse 2s ease-in-out infinite;
+}
+@keyframes conn-pulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
+@media (prefers-reduced-motion: reduce) { .conn-dot { animation: none } }
+
+.conn-blocked { max-width: 62ch; }
+.conn-blocked h3 { margin-top: 0; }
+.conn-reasons { margin: var(--s3) 0; padding-left: var(--s5); line-height: 1.6; }
+.conn-reasons li { margin-bottom: var(--s2); }
+.conn-actions { display: flex; gap: var(--s2); margin-top: var(--s4); }
