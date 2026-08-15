@@ -1051,3 +1051,176 @@ def _grni(db: Session, p: dict):
         })
     rows.sort(key=lambda r: -r["days"])
     return rows
+
+
+# --------------------------------------------------------- fourth batch
+
+register(Report(
+    key="gross_profit_by_product",
+    title="Gross profit by product",
+    module="Till",
+    purpose="What each line actually earns. Volume and profit are different "
+            "leagues, and the best seller is often not the best earner.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("category", "Department", "text"),
+        Column("units", "Units", "number", total=True),
+        Column("revenue", "Revenue", "money", total=True),
+        Column("cost", "Cost", "money", total=True),
+        Column("profit", "Gross profit", "money", total=True),
+        Column("margin", "Margin", "percent"),
+    ],
+    rows=lambda db, p: _gross_profit(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _gross_profit(db: Session, p: dict):
+    # Aggregated in SQL. Three reports in this catalogue shipped with an N+1
+    # before the rule was written down: never reach for a related record inside
+    # a loop over rows.
+    query = (
+        db.query(
+            Product.id, Product.name, Product.category,
+            func.sum(SaleItem.quantity),
+            func.sum(SaleItem.unit_price * SaleItem.quantity),
+            func.sum(func.coalesce(Product.cost_price, 0) * SaleItem.quantity),
+        )
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .join(Product, Product.id == SaleItem.product_id)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .group_by(Product.id, Product.name, Product.category)
+    )
+    rows = []
+    for pid, name, category, units, revenue, cost in query.all():
+        revenue = round(float(revenue or 0), 2)
+        cost = round(float(cost or 0), 2)
+        rows.append({
+            "product_id": pid,
+            "product": name,
+            "category": (category or "").replace("_", " "),
+            "units": int(units or 0),
+            "revenue": revenue,
+            "cost": cost,
+            "profit": round(revenue - cost, 2),
+            "margin": round((revenue - cost) / revenue * 100, 1) if revenue else 0.0,
+        })
+    rows.sort(key=lambda r: -r["profit"])
+    return rows
+
+
+register(Report(
+    key="loyalty_summary",
+    title="Loyalty points",
+    module="Till",
+    purpose="Points earned against points redeemed. Unredeemed points are a "
+            "promise the pharmacy has made and not yet paid for.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("day", "Day", "date"),
+        Column("sales", "Sales", "number", total=True),
+        Column("earned", "Earned", "number", total=True),
+        Column("redeemed", "Redeemed", "number", total=True),
+        Column("net", "Net outstanding", "number", total=True),
+    ],
+    rows=lambda db, p: _loyalty(db, p),
+))
+
+
+def _loyalty(db: Session, p: dict):
+    rows_q = (
+        db.query(
+            func.date(Sale.created_at),
+            func.count(Sale.id),
+            func.sum(Sale.loyalty_points_earned),
+            func.sum(Sale.loyalty_points_redeemed),
+        )
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .group_by(func.date(Sale.created_at))
+        .all()
+    )
+    rows = []
+    for day, count, earned, redeemed in rows_q:
+        earned = int(earned or 0)
+        redeemed = int(redeemed or 0)
+        if not earned and not redeemed:
+            continue
+        rows.append({
+            "day": str(day),
+            "sales": int(count or 0),
+            "earned": earned,
+            "redeemed": redeemed,
+            "net": earned - redeemed,
+        })
+    rows.sort(key=lambda r: r["day"], reverse=True)
+    return rows
+
+
+register(Report(
+    key="dispenser_activity",
+    title="Dispenser activity",
+    module="Dispensary",
+    purpose="Who dispensed what, and how much of it. Workload, and the first "
+            "place to look when a dispensing question needs a person.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("dispenser", "Dispenser", "text"),
+        Column("items", "Items dispensed", "number", total=True),
+        Column("units", "Units", "number", total=True),
+        Column("controlled", "Of which S5/S6", "number", total=True),
+        Column("busiest_day", "Busiest day", "date"),
+    ],
+    rows=lambda db, p: _dispenser_activity(db, p),
+))
+
+
+def _dispenser_activity(db: Session, p: dict):
+    rows_q = (
+        db.query(Dispensing, Product.schedule)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .all()
+    )
+    if not rows_q:
+        return []
+
+    groups = {}
+    days = {}
+    for dispensing, schedule in rows_q:
+        key = dispensing.dispensed_by_id or 0
+        row = groups.setdefault(key, {
+            "_id": key, "items": 0, "units": 0, "controlled": 0,
+        })
+        row["items"] += 1
+        row["units"] += dispensing.quantity or 0
+        if (schedule or 0) >= 5:
+            row["controlled"] += 1
+        day = dispensing.dispensed_at.date().isoformat()
+        days.setdefault(key, {}).setdefault(day, 0)
+        days[key][day] += 1
+
+    names = {
+        u.id: (u.full_name or u.username)
+        for u in db.query(User).filter(User.id.in_([k for k in groups if k])).all()
+    } if any(groups) else {}
+
+    out = []
+    for key, row in groups.items():
+        per_day = days.get(key, {})
+        busiest = max(per_day, key=per_day.get) if per_day else ""
+        out.append({
+            "dispenser": names.get(key, "(not recorded)"),
+            "items": row["items"],
+            "units": row["units"],
+            "controlled": row["controlled"],
+            "busiest_day": busiest,
+        })
+    out.sort(key=lambda r: -r["items"])
+    return out
