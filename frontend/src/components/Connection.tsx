@@ -4,11 +4,15 @@
  *  against, so the question is not whether to handle it but what the till is
  *  still permitted to do while it is down.
  *
- *  **The answer is: sell, but do not dispense.** Selling a bottle of shampoo
- *  offline is trivial — decrement stock, take the cash, reconcile on reconnect,
- *  and nothing can go wrong that the sync cannot fix. Dispensing is a different
- *  act, because four of the things it depends on live on the server and cannot
- *  be guessed at:
+ *  **The answer is: sell, but never dispense.** Selling offline is a solvable
+ *  problem — decrement a locally cached stock figure, take the cash, reconcile
+ *  on reconnect, and nothing goes wrong that the sync cannot fix. That local
+ *  cache and sync queue are not built yet, so today offline means the till
+ *  cannot save either; the banner says so rather than promising otherwise.
+ *
+ *  Dispensing is a different matter and will stay blocked even after offline
+ *  selling works, because four of the things it depends on live on the server
+ *  and cannot be deferred:
  *
  *  * **Repeats.** Whether repeat 3 of 6 was already collected — possibly at the
  *    other branch, twenty minutes ago. Offline there is no way to know, and
@@ -118,9 +122,12 @@ function OfflineBanner({ onRetry }: { onRetry: () => void }) {
     <div className="conn-banner" role="status">
       <span className="conn-dot" aria-hidden="true" />
       <span>
-        <b>No connection to the server.</b> The front shop still works — you can
-        sell, take payment and print. Dispensing is unavailable until the line is
-        back.
+        {/* Says only what is true today. Offline selling needs a local
+            catalogue and a queue for sales, and until that exists a banner
+            promising the front shop still works would be the software lying to
+            a cashier at the moment they are least able to check. */}
+        <b>No connection to the server.</b> Nothing can be saved until the line
+        is back. Dispensing stays closed even once it returns to this screen.
       </span>
       <button className="btn ghost small" onClick={onRetry}>Try again</button>
     </div>
@@ -163,12 +170,12 @@ export function RequiresConnection({
         </li>
       </ul>
       <p className="muted">
-        The front shop is unaffected. You can keep selling, taking payment and
-        printing receipts, and everything reconciles when the line returns.
+        Dispensing stays unavailable offline by design, even once offline
+        selling is supported — the three checks above cannot be made without the
+        server, and none of them can safely be deferred.
       </p>
       <div className="conn-actions">
         <button className="small" onClick={recheck}>Check again</button>
-        <a className="btn secondary small" href="/pos">Go to the till</a>
       </div>
     </div>
   );
