@@ -899,7 +899,12 @@ def _movements_report(db: Session, p: dict):
             "reference": m.reference or "",
             "user": names.get(m.user_id, "-"),
         }
-        for m in query.order_by(StockMovement.created_at.desc()).limit(5000).all()
+        # No cap. A limit here makes the footer report the cap as the total,
+        # which looks complete and is not — the exact failure this engine
+        # exists to prevent. This regressed once already, when restoring
+        # this batch from an older copy re-introduced the limit, so it is
+        # worth the comment: the date range is what bounds the volume.
+        for m in query.order_by(StockMovement.created_at.desc()).all()
     ]
 
 
