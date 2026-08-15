@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money } from "../api";
 import { Shift, ShiftTakings } from "../types";
 
@@ -7,7 +8,6 @@ export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [openFloat, setOpenFloat] = useState("500");
-  const [counted, setCounted] = useState("");
   const [notes, setNotes] = useState("");
   const [takings, setTakings] = useState<ShiftTakings | null>(null);
   const toast = useToast();
@@ -38,28 +38,6 @@ export default function Shifts() {
     } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
   }
 
-  async function closeShift(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const closed = await api.post<Shift>("/api/shifts/close", {
-        counted_cash: Number(counted) || 0, notes,
-      });
-      const v = closed.variance;
-      toast.ok(
-        Math.abs(v) < 0.005
-          ? `Shift balanced exactly at ${money(closed.expected_cash)}.`
-          : `Shift closed with a ${v > 0 ? "surplus" : "shortfall"} of ${money(Math.abs(v))}.`,
-      );
-      setCounted(""); setNotes("");
-      load();
-    } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
-  }
-
-  const variancePreview = current && counted !== ""
-    ? Number(counted) - current.expected_cash
-    : null;
-
   return (
     <>
       <div className="page-head">
@@ -73,9 +51,14 @@ export default function Shifts() {
         <>
           <div className="grid cols-4">
             <div className="card stat hero">
-              <div className="label">Expected in drawer</div>
-              <div className="value">{money(current.expected_cash)}</div>
-              <div className="hint">Float {money(current.opening_float)} + cash sales</div>
+              {/* This was the expected drawer total, in the largest type on the
+                  page, directly above the box you type your count into. The
+                  float is the useful part and gives nothing away: it is what
+                  was in the drawer before trading, not what should be in it
+                  now. */}
+              <div className="label">Opening float</div>
+              <div className="value">{money(current.opening_float)}</div>
+              <div className="hint">Counted in at the start of this shift</div>
             </div>
             <div className="card stat">
               <div className="label">Card takings</div>
@@ -103,7 +86,7 @@ export default function Shifts() {
                 <thead>
                   <tr><th>Currency</th><th className="num">Opening float</th><th className="num">Cash (net)</th>
                     <th className="num">Card</th><th className="num">Mobile money</th>
-                    <th className="num">Expected in drawer</th></tr>
+</tr>
                 </thead>
                 <tbody>
                   {takings.currencies.map((c) => (
@@ -116,7 +99,6 @@ export default function Shifts() {
                       <td className="num">{c.cash.toFixed(2)}</td>
                       <td className="num">{c.card.toFixed(2)}</td>
                       <td className="num">{c.mobile_money.toFixed(2)}</td>
-                      <td className="num"><b>{c.expected_cash.toFixed(2)}</b></td>
                     </tr>
                   ))}
                 </tbody>
@@ -124,31 +106,8 @@ export default function Shifts() {
             </div>
           )}
 
-          <div className="card">
-            <h3>Cash up &amp; close shift</h3>
-            <form onSubmit={closeShift}>
-              <div className="form-row">
-                <div className="field">
-                  <label>Cash counted in drawer</label>
-                  <input type="number" step="0.01" value={counted} required
-                    onChange={(e) => setCounted(e.target.value)} placeholder="0.00" autoFocus />
-                </div>
-                <div className="field">
-                  <label>Notes</label>
-                  <input value={notes} onChange={(e) => setNotes(e.target.value)}
-                    placeholder="e.g. R50 paid out for delivery" />
-                </div>
-              </div>
-              {variancePreview !== null && (
-                <div className={Math.abs(variancePreview) < 0.005 ? "success-banner" : "error-banner"}>
-                  {Math.abs(variancePreview) < 0.005
-                    ? "Balances exactly."
-                    : `${variancePreview > 0 ? "Over" : "Short"} by ${money(Math.abs(variancePreview))}`}
-                </div>
-              )}
-              <button disabled={busy}>{busy ? "Closing…" : "Close shift"}</button>
-            </form>
-          </div>
+          <CashUp shiftId={current.id} onCounted={load} />
+
         </>
       ) : (
         <div className="card">

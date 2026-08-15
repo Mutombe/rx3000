@@ -14,6 +14,12 @@ log = logging.getLogger("rx3000.migrate")
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0"},
+    "shifts": {
+        "till_no": "VARCHAR(10)", "run_number": "INTEGER DEFAULT 0",
+        "draw_no": "VARCHAR(10)", "branch_id": "INTEGER",
+        "cashup_json": "TEXT", "counted_by_id": "INTEGER",
+        "counted_at": "TIMESTAMP",
+    },
     # Branches. Nullable on purpose: every row written before branches existed
     # is backfilled to the default branch by the seed rather than guessed at
     # here, and a column that arrives NOT NULL on a populated table cannot be

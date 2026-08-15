@@ -100,6 +100,13 @@ def takings(shift_id: int, db: Session = Depends(get_db), _: User = Depends(get_
             bucket["opening_float"] = 0.0
             bucket["expected_cash"] = bucket["cash"]
 
+    # The same rule as /current: what should be in the drawer is not knowable
+    # from the browser until a count exists. This endpoint computes it per
+    # currency, which made it the more useful back door of the two.
+    if not getattr(shift, "counted_at", None):
+        for bucket in by_currency.values():
+            bucket.pop("expected_cash", None)
+
     return {
         "shift_id": shift.id,
         "base_currency": base,
@@ -114,6 +121,17 @@ def get_current(db: Session = Depends(get_db), user: User = Depends(get_current_
     if shift:
         for key, value in _totals(db, shift).items():
             setattr(shift, key, value)
+        # The blind count only works if the expected figure is genuinely not in
+        # the browser. This endpoint was sending it, which meant the count screen
+        # could show a live variance as the operator typed — and a count that can
+        # be adjusted until it balances is not a count.
+        #
+        # Withheld until a count has been committed. Everything else the shift
+        # knows stays: how many sales, how long it has been open, the float.
+        # None of those tell you what should be in the drawer.
+        if not getattr(shift, "counted_at", None):
+            shift.expected_cash = 0.0
+            shift.variance = 0.0
     return shift
 
 
@@ -152,3 +170,124 @@ def close_shift(body: schemas.ShiftClose, db: Session = Depends(get_db), user: U
 @router.get("", response_model=list[schemas.ShiftOut])
 def list_shifts(limit: int = 50, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     return db.query(Shift).order_by(Shift.opened_at.desc()).limit(limit).all()
+
+
+# ------------------------------------------------------------------ cash-up
+#
+# The contract here is the whole point: there is no endpoint that returns the
+# expected figure before a count has been submitted. Not "we choose not to show
+# it" — it is not obtainable. A control that depends on the front end declining
+# to display something it was given is not a control.
+from pydantic import BaseModel, Field  # noqa: E402
+
+from ..services import cashup as cashup_svc  # noqa: E402
+
+
+class CountIn(BaseModel):
+    """A committed count. Submitting this is what makes the expected visible."""
+    counted: dict[str, float] = Field(default_factory=dict)
+    # {"100": 3, "20": 5, "0.5": 2} — what was physically in the drawer.
+    coinage: dict[str, int] = Field(default_factory=dict)
+    currency: str = "USD"
+    notes: str = ""
+    till_no: str = ""
+    draw_no: str = ""
+
+
+@router.get("/cashup/denominations")
+def cashup_denominations(currency: str = ""):
+    """The notes and coins to count, biggest first.
+
+    From the jurisdiction pack rather than hard-coded. The system we are
+    replacing lists pounds, which is a locale default nobody ever changed, and
+    a Zimbabwean drawer holds neither pounds nor a single currency.
+    """
+    from ..config import settings
+
+    pack = settings.jurisdiction
+    codes = [c.code for c in pack.currencies]
+    chosen = (currency or pack.base_currency.code).upper()
+    return {
+        "currencies": codes,
+        "currency": chosen,
+        "denominations": cashup_svc.denominations(chosen),
+        "tenders": [{"method": m, "label": l} for m, l in cashup_svc.TENDERS],
+    }
+
+
+@router.post("/{shift_id}/cashup")
+def submit_cashup(
+    shift_id: int, body: CountIn,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    """Commit a count and get the reconciliation back.
+
+    One shot. Re-counting after seeing the variance is exactly the behaviour a
+    blind count exists to prevent, so a shift that has been counted is refused
+    rather than quietly overwritten — a correction is a supervisor's job and
+    leaves its own record.
+    """
+    shift = db.query(Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="That shift no longer exists.")
+    if getattr(shift, "counted_at", None):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This till has already been cashed up. Counting again after the "
+                "variance is known would defeat the point of the count; ask a "
+                "manager to record a correction instead."
+            ),
+        )
+
+    counted = dict(body.counted or {})
+    # Where a denomination count was entered, it wins. It is the only figure in
+    # the whole exercise that was produced by counting objects rather than by
+    # someone doing arithmetic in their head.
+    if body.coinage:
+        counted["cash"] = cashup_svc.count_from_coinage(body.coinage)
+
+    result = cashup_svc.reconcile(db, shift, counted)
+    result["currency"] = body.currency
+
+    if body.till_no:
+        shift.till_no = body.till_no
+    if body.draw_no:
+        shift.draw_no = body.draw_no
+    shift.counted_by_id = user.id
+    shift.counted_at = datetime.utcnow()
+    cashup_svc.store(shift, result, body.coinage, body.notes)
+
+    # Counting the drawer is what ends the shift. Leaving it open afterwards
+    # would mean sales could land in a run that has already been reconciled,
+    # and the count would silently stop being true.
+    if shift.status == "open":
+        shift.status = "closed"
+        shift.closed_at = datetime.utcnow()
+    db.commit()
+    result["shift_closed"] = True
+    return result
+
+
+@router.get("/{shift_id}/cashup")
+def read_cashup(shift_id: int, db: Session = Depends(get_db)):
+    """Read a cash-up back, after it has been committed."""
+    shift = db.query(Shift).get(shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="That shift no longer exists.")
+    if not getattr(shift, "counted_at", None):
+        # Deliberately not the figures. Until a count exists there is nothing
+        # to report, and answering with the expected total here would be a
+        # back door around the blind count.
+        raise HTTPException(
+            status_code=404,
+            detail="This till has not been cashed up yet.",
+        )
+    import json as _json
+
+    stored = _json.loads(shift.cashup_json or "{}")
+    return {
+        "counted_at": shift.counted_at.isoformat(),
+        "counted_by": shift.counted_by_id,
+        **stored,
+    }

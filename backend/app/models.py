@@ -1087,7 +1087,24 @@ class Shift(Base):
     notes = Column(Text, default="")
     status = Column(String(10), default="open")  # open | closed
 
-    user = relationship("User")
+    # Which drawer, on which till, on which run. The incumbent keys its whole
+    # cash-up on these three and it is the right key: a till can be cashed up
+    # more than once a day, and two people can share one till across a
+    # handover, so "today's takings" is not a unit anyone can reconcile.
+    till_no = Column(String(10), default="")
+    run_number = Column(Integer, default=0, index=True)
+    draw_no = Column(String(10), default="")
+    branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
+    # The full reconciliation as counted, including the denomination breakdown.
+    # "The drawer was 12 short" is not a useful record without knowing whether
+    # that was one missing twenty and eight extra singles.
+    cashup_json = Column(Text, default="")
+    counted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    counted_at = Column(DateTime, nullable=True)
+    # Two columns now point at users — whose shift it is, and who counted
+    # the drawer — so the join has to say which one it means.
+    user = relationship("User", foreign_keys=[user_id])
+    counted_by = relationship("User", foreign_keys=[counted_by_id])
 
 
 class StockBatch(Base):

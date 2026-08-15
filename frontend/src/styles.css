@@ -2130,3 +2130,56 @@ img { -webkit-user-drag: none; user-select: none; }
   .rr-actions, .rr-params, .app-sidebar, .page-tabs { display: none !important; }
   .rr-scroll { overflow: visible; }
 }
+
+/* ------------------------------------------------------------- cash-up
+   The denomination grid is the screen. Everything else defers to it, because
+   counting a drawer is the one thing happening here. */
+.cu-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s5);
+}
+.cu-ident { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.cu-ident input, .cu-ident select { width: 90px; }
+.cu-section {
+  margin: var(--s5) 0 var(--s2); font-size: .76rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-soft);
+}
+.cu-denoms {
+  display: grid; gap: var(--s2);
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+}
+.cu-denom {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+.cu-face { font-size: .78rem; font-weight: 600; color: var(--ink-soft); }
+.cu-denom input {
+  width: 100%; text-align: right; font-family: var(--font-mono);
+  font-size: 1.05rem; padding: var(--s1) var(--s2);
+}
+.cu-sub { font-size: .72rem; color: var(--ink-faint); text-align: right; min-height: 1em; }
+.cu-total {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: var(--s3); padding: var(--s3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  font-weight: 700; font-size: 1.15rem;
+}
+.cu-others { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.cu-actions { display: flex; justify-content: flex-end; margin-top: var(--s5); }
+.cu-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.cu-table { width: 100%; border-collapse: collapse; }
+.cu-table th, .cu-table td {
+  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.cu-table th {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-soft); border-bottom: 1px solid var(--line);
+}
+.cu-table tr.is-off td { background: var(--warn-soft); }
+.cu-table td.cu-diff { color: var(--danger); font-weight: 700; }
+.cu-table tfoot td {
+  border-top: 1px solid var(--line-strong); border-bottom: 0; font-weight: 700;
+}
