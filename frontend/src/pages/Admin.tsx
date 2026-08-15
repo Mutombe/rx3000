@@ -203,6 +203,23 @@ export default function Admin() {
     } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
   }
 
+  /** Re-open a backup and see whether it still reads.
+   *
+   *  A file that verified when it was written can still rot on a failing disk,
+   *  and the point of asking is to find that out before the restore rather than
+   *  during it.
+   */
+  async function recheck(filename: string) {
+    try {
+      const b = await api.post<Backup>(`/api/admin/backups/${filename}/verify`);
+      setBackups((rows) => rows.map((r) => (r.filename === filename ? b : r)));
+      if (b.verified) toast.ok(`${filename} opened cleanly and can be restored.`);
+      else toast.error(b.problem || `${filename} could not be verified.`);
+    } catch (e: any) {
+      toast.error(e?.message || "That backup could not be checked.");
+    }
+  }
+
   async function makeBackup() {
     setBusy(true);
     try {
@@ -643,19 +660,64 @@ export default function Admin() {
 
       {tab === "backups" && (
         <div className="card">
+          {/* The only question anyone actually has about backups is not "is it
+              configured" but "when did one last actually work". A list of files
+              cannot answer that, which is precisely why the system we are
+              replacing shows a failed 0.00 MByte archive indistinguishable from
+              its good ones. So the answer is stated first, in a sentence. */}
+          {(() => {
+            const good = backups.find((b) => b.verified);
+            const failing = backups.filter((b) => !b.verified).length;
+            if (!backups.length) return null;
+            return (
+              <p className={`st-note ${good ? "is-ok" : "is-bad"}`}>
+                {good
+                  ? `Last backup proven restorable: ${fmtDateTime(good.created_at)}.`
+                  : "No backup here has been proven restorable. Take one now and check the result."}
+                {failing > 0 && ` ${failing} of ${backups.length} could not be verified.`}
+              </p>
+            );
+          })()}
+
           <div className="toolbar">
             <button onClick={makeBackup} disabled={busy}>{busy ? "Backing up…" : "Back up now"}</button>
-            <span className="muted">Automatic backup runs nightly at 23:30 · 20 most recent kept</span>
+            <span className="muted">
+              Runs nightly at 23:30 · 20 kept, verified ones first
+            </span>
           </div>
           <table>
-            <thead><tr><th>File</th><th>Created</th><th className="num">Size</th><th></th></tr></thead>
+            <thead>
+              <tr>
+                <th>File</th><th>Created</th><th className="num">Size</th>
+                <th>Restorable</th><th></th>
+              </tr>
+            </thead>
             <tbody>
               {backups.map((b) => (
                 <tr key={b.filename}>
                   <td className="mono">{b.filename}</td>
                   <td>{fmtDateTime(b.created_at)}</td>
                   <td className="num">{(b.size_bytes / 1024).toFixed(0)} KB</td>
-                  <td className="right"><button className="small secondary" onClick={() => download(b.filename)}>Download</button></td>
+                  <td>
+                    {b.verified ? (
+                      <span className="badge ok">verified</span>
+                    ) : (
+                      // The reason travels with the verdict. "Failed" on its own
+                      // tells an owner they have a problem and nothing about
+                      // which problem.
+                      <span className="badge danger" title={b.problem}>
+                        {b.problem ? b.problem.split(".")[0] : "not checked"}
+                      </span>
+                    )}
+                  </td>
+                  <td className="right">
+                    <button className="small ghost" onClick={() => recheck(b.filename)}>
+                      Check
+                    </button>
+                    <button className="small secondary" onClick={() => download(b.filename)}>
+                      Download
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

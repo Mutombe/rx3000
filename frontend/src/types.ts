@@ -263,6 +263,10 @@ export interface Backup {
   filename: string;
   size_bytes: number;
   created_at: string;
+  /** Opened and proven restorable, not merely written. */
+  verified: boolean;
+  checked_at: string | null;
+  problem: string;
 }
 
 export interface Label {
