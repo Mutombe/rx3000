@@ -232,15 +232,34 @@ export default function ReportRunner({
                 </tr>
               </thead>
               <tbody>
-                {result.rows.map((row, i) => (
-                  <tr key={i}>
-                    {result.columns.map((c) => (
-                      <td key={c.key} className={c.align === "right" ? "st-amount mono" : ""}>
-                        {render(row[c.key], c.kind)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {result.rows.map((row, i) => {
+                  // Where the report says this row leads. A report that names a
+                  // product and then makes you go and search for it has answered
+                  // half a question.
+                  const to = row._drill as string | undefined;
+                  return (
+                    <tr
+                      key={i}
+                      className={to ? "is-drillable" : undefined}
+                      onClick={to ? () => navigate(to) : undefined}
+                      // Reachable without a mouse, since a row is now an action.
+                      tabIndex={to ? 0 : undefined}
+                      role={to ? "link" : undefined}
+                      onKeyDown={to ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(to);
+                        }
+                      } : undefined}
+                    >
+                      {result.columns.map((c) => (
+                        <td key={c.key} className={c.align === "right" ? "st-amount mono" : ""}>
+                          {render(row[c.key], c.kind)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
               </tbody>
               {Object.keys(result.totals).length > 0 && (
                 <tfoot>

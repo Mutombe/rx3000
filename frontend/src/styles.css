@@ -2212,3 +2212,12 @@ img { -webkit-user-drag: none; user-select: none; }
 .conn-reasons { margin: var(--s3) 0; padding-left: var(--s5); line-height: 1.6; }
 .conn-reasons li { margin-bottom: var(--s2); }
 .conn-actions { display: flex; gap: var(--s2); margin-top: var(--s4); }
+
+/* A report row that leads somewhere. Only rows that actually do get the
+   affordance — a table where everything looks clickable and half of it is not
+   teaches people to stop trying. */
+.rr-table tr.is-drillable { cursor: pointer; }
+.rr-table tr.is-drillable:hover td { background: var(--accent-soft); }
+.rr-table tr.is-drillable:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: -2px;
+}

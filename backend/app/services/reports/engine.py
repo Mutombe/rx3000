@@ -206,6 +206,19 @@ def run(
     start = (page - 1) * per_page
     window = rows[start:start + per_page]
 
+    # Where a row leads, computed for the page being sent rather than for every
+    # row. A report that names a product and then makes you go and search for it
+    # has answered half a question; this is what stops a total being a dead end.
+    # Only the visible page pays for it, and a drill that raises is skipped
+    # rather than taking the whole report down with it.
+    if report.drill:
+        window = [dict(row) for row in window]
+        for row in window:
+            try:
+                row["_drill"] = report.drill(row)
+            except Exception:
+                pass
+
     return {
         "key": report.key,
         "title": report.title,
