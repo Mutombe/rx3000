@@ -1,44 +1,14 @@
-INFO:     Started server process [19024]
+INFO:     Started server process [26744]
 INFO:     Waiting for application startup.
-2026-08-15 17:17:52,069 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 17:17:52,070 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 17:17:52,074 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 17:17:52,075 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
-2026-08-15 17:17:52,081 apscheduler.scheduler INFO Added job "queue_repeat_reminders" to job store "default"
-2026-08-15 17:17:52,083 apscheduler.scheduler INFO Added job "queue_birthday_messages" to job store "default"
-2026-08-15 17:17:52,084 apscheduler.scheduler INFO Added job "send_pending_messages" to job store "default"
-2026-08-15 17:17:52,085 apscheduler.scheduler INFO Added job "nightly_backup" to job store "default"
-2026-08-15 17:17:52,086 apscheduler.scheduler INFO Scheduler started
-2026-08-15 17:17:52,088 rx3000.scheduler INFO Scheduler started
+2026-08-15 20:01:29,387 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:01:29,390 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:01:29,426 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:01:29,428 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 20:01:29,507 apscheduler.scheduler INFO Added job "queue_repeat_reminders" to job store "default"
+2026-08-15 20:01:29,509 apscheduler.scheduler INFO Added job "queue_birthday_messages" to job store "default"
+2026-08-15 20:01:29,511 apscheduler.scheduler INFO Added job "send_pending_messages" to job store "default"
+2026-08-15 20:01:29,512 apscheduler.scheduler INFO Added job "nightly_backup" to job store "default"
+2026-08-15 20:01:29,513 apscheduler.scheduler INFO Scheduler started
+2026-08-15 20:01:29,516 rx3000.scheduler INFO Scheduler started
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8177 (Press CTRL+C to quit)
-2026-08-15 17:22:52,086 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:22:52 SAST)" (scheduled at 2026-08-15 17:22:52.073956+02:00)
-2026-08-15 17:22:52,104 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:27:52 SAST)" executed successfully
-2026-08-15 17:27:52,084 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:32:52 SAST)" (scheduled at 2026-08-15 17:27:52.073956+02:00)
-2026-08-15 17:27:52,097 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:32:52 SAST)" executed successfully
-2026-08-15 17:32:52,087 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:37:52 SAST)" (scheduled at 2026-08-15 17:32:52.073956+02:00)
-2026-08-15 17:32:52,100 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:37:52 SAST)" executed successfully
-2026-08-15 17:37:52,075 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:42:52 SAST)" (scheduled at 2026-08-15 17:37:52.073956+02:00)
-2026-08-15 17:37:52,080 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:42:52 SAST)" executed successfully
-2026-08-15 17:42:52,076 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:47:52 SAST)" (scheduled at 2026-08-15 17:42:52.073956+02:00)
-2026-08-15 17:42:52,085 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:47:52 SAST)" executed successfully
-2026-08-15 17:47:52,075 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:52:52 SAST)" (scheduled at 2026-08-15 17:47:52.073956+02:00)
-2026-08-15 17:47:52,080 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:52:52 SAST)" executed successfully
-2026-08-15 17:52:52,075 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:57:52 SAST)" (scheduled at 2026-08-15 17:52:52.073956+02:00)
-2026-08-15 17:52:52,082 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 17:57:52 SAST)" executed successfully
-2026-08-15 17:57:52,081 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:02:52 SAST)" (scheduled at 2026-08-15 17:57:52.073956+02:00)
-2026-08-15 17:57:52,091 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:02:52 SAST)" executed successfully
-2026-08-15 18:02:52,078 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:07:52 SAST)" (scheduled at 2026-08-15 18:02:52.073956+02:00)
-2026-08-15 18:02:52,088 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:07:52 SAST)" executed successfully
-2026-08-15 18:07:52,076 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:12:52 SAST)" (scheduled at 2026-08-15 18:07:52.073956+02:00)
-2026-08-15 18:07:52,088 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:12:52 SAST)" executed successfully
-2026-08-15 18:12:52,086 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:17:52 SAST)" (scheduled at 2026-08-15 18:12:52.073956+02:00)
-2026-08-15 18:12:52,096 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:17:52 SAST)" executed successfully
-2026-08-15 18:17:52,081 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:22:52 SAST)" (scheduled at 2026-08-15 18:17:52.073956+02:00)
-2026-08-15 18:17:52,100 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:22:52 SAST)" executed successfully
-2026-08-15 18:22:52,084 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:27:52 SAST)" (scheduled at 2026-08-15 18:22:52.073956+02:00)
-2026-08-15 18:22:52,093 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:27:52 SAST)" executed successfully
-2026-08-15 18:27:52,077 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:32:52 SAST)" (scheduled at 2026-08-15 18:27:52.073956+02:00)
-2026-08-15 18:27:52,095 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:32:52 SAST)" executed successfully
-2026-08-15 18:32:52,089 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:37:52 SAST)" (scheduled at 2026-08-15 18:32:52.073956+02:00)
-2026-08-15 18:32:52,107 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-15 18:37:52 SAST)" executed successfully

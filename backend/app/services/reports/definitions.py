@@ -15,8 +15,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ...models import (
-    Dispensing, Patient, PrescriptionItem, Product, Sale, SaleItem, StockBatch,
-    StockMovement, Supplier, User,
+    Dispensing, Patient, PrescriptionItem, Product, Sale, SaleItem, SaleTender,
+    StockBatch, StockMovement, Supplier, User,
 )
 from .engine import Column, Param, Report, month_start, register, today
 
@@ -768,4 +768,265 @@ def _grni(db: Session, p: dict):
             "days": (date.today() - when.date()).days if when else 0,
         })
     rows.sort(key=lambda r: -r["days"])
+    return rows
+
+
+# --------------------------------------------------------- third batch
+#
+# Every field referenced below was checked against the model first. Three of the
+# defects in this catalogue so far were invented column names that a clean
+# typecheck and a green build both waved through.
+
+register(Report(
+    key="voids_and_refunds",
+    title="Voids and refunds",
+    module="Till",
+    purpose="Every cancelled sale, with who cancelled it. A void is the easiest "
+            "way to take money out of a till, so the report exists whether or "
+            "not anyone is suspected.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("sale_number", "Sale", "code"),
+        Column("cashier", "Cashier", "text"),
+        Column("method", "Tender", "text"),
+        Column("amount", "Amount", "money", total=True),
+    ],
+    rows=lambda db, p: _voids(db, p),
+))
+
+
+def _voids(db: Session, p: dict):
+    names = {u.id: (u.full_name or u.username) for u in db.query(User).all()}
+    rows = (
+        db.query(Sale)
+        .filter(Sale.status == "void")
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .order_by(Sale.created_at.desc())
+        .all()
+    )
+    return [
+        {
+            "date": s.created_at.isoformat(sep=" ", timespec="minutes"),
+            "sale_number": s.sale_number or ("#" + str(s.id)),
+            "cashier": names.get(s.cashier_id, "-"),
+            "method": s.payment_method or "-",
+            "amount": round(s.total or 0, 2),
+        }
+        for s in rows
+    ]
+
+
+register(Report(
+    key="payment_mix",
+    title="Payment mix",
+    module="Till",
+    purpose="How customers actually pay. What the pharmacy banks, what it "
+            "waits for, and what it pays a fee on.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("method", "Tender", "text"),
+        Column("transactions", "Transactions", "number", total=True),
+        Column("amount", "Value", "money", total=True),
+        Column("share", "Share", "percent"),
+        Column("average", "Average", "money"),
+    ],
+    rows=lambda db, p: _payment_mix(db, p),
+))
+
+
+def _payment_mix(db: Session, p: dict):
+    # Tenders where a sale recorded them, because a split payment is two facts
+    # about how money arrived and one row on the sale.
+    tendered = (
+        db.query(SaleTender.method, func.count(SaleTender.id),
+                 func.sum(SaleTender.amount_in_base))
+        .join(Sale, Sale.id == SaleTender.sale_id)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .group_by(SaleTender.method)
+        .all()
+    )
+    seen = {
+        r[0] for r in
+        db.query(SaleTender.sale_id).join(Sale, Sale.id == SaleTender.sale_id)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .distinct().all()
+    }
+    groups = {}
+    for method, count, amount in tendered:
+        row = groups.setdefault(method, {"method": method, "transactions": 0, "amount": 0.0})
+        row["transactions"] += int(count or 0)
+        row["amount"] = round(row["amount"] + float(amount or 0), 2)
+
+    simple = (
+        db.query(Sale.payment_method, func.count(Sale.id), func.sum(Sale.total))
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .filter(~Sale.id.in_(seen) if seen else True)
+        .group_by(Sale.payment_method)
+        .all()
+    )
+    for method, count, amount in simple:
+        row = groups.setdefault(method or "unrecorded",
+                                {"method": method or "unrecorded",
+                                 "transactions": 0, "amount": 0.0})
+        row["transactions"] += int(count or 0)
+        row["amount"] = round(row["amount"] + float(amount or 0), 2)
+
+    total = sum(r["amount"] for r in groups.values()) or 1
+    rows = []
+    for row in groups.values():
+        row["method"] = row["method"].replace("_", " ")
+        row["share"] = round(row["amount"] / total * 100, 1)
+        row["average"] = (round(row["amount"] / row["transactions"], 2)
+                          if row["transactions"] else 0.0)
+        rows.append(row)
+    rows.sort(key=lambda r: -r["amount"])
+    return rows
+
+
+register(Report(
+    key="cashup_history",
+    title="Cash-up history",
+    module="Till",
+    purpose="Every drawer count and what it came to. Where a pattern shows up "
+            "that no single cash-up ever would.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("opened", "Opened", "datetime"),
+        Column("cashier", "Cashier", "text"),
+        Column("counted_by", "Counted by", "text"),
+        Column("float_amount", "Float", "money", total=True),
+        Column("expected", "Expected", "money", total=True),
+        Column("counted", "Counted", "money", total=True),
+        Column("variance", "Over/short", "money", total=True),
+    ],
+    rows=lambda db, p: _cashup_history(db, p),
+))
+
+
+def _cashup_history(db: Session, p: dict):
+    from ...models import Shift
+
+    names = {u.id: (u.full_name or u.username) for u in db.query(User).all()}
+    rows = (
+        db.query(Shift)
+        .filter(func.date(Shift.opened_at) >= p["date_from"])
+        .filter(func.date(Shift.opened_at) <= p["date_to"])
+        .order_by(Shift.opened_at.desc())
+        .all()
+    )
+    return [
+        {
+            "opened": s.opened_at.isoformat(sep=" ", timespec="minutes"),
+            "cashier": names.get(s.user_id, "-"),
+            "counted_by": names.get(getattr(s, "counted_by_id", None), "-"),
+            "float_amount": round(s.opening_float or 0, 2),
+            "expected": round(s.expected_cash or 0, 2),
+            "counted": round(s.counted_cash or 0, 2),
+            "variance": round(s.variance or 0, 2),
+        }
+        for s in rows
+    ]
+
+
+register(Report(
+    key="expired_stock",
+    title="Expired stock",
+    module="Stock",
+    purpose="Batches already past their expiry with units still on hand. This "
+            "should be empty, and anything on it is sitting on a shelf where a "
+            "dispenser could reach for it.",
+    params=[],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("batch", "Batch", "code"),
+        Column("expiry", "Expired", "date"),
+        Column("days_over", "Days over", "number"),
+        Column("quantity", "Still on hand", "number", total=True),
+        Column("value", "Value at cost", "money", total=True),
+    ],
+    rows=lambda db, p: _expired(db, p),
+))
+
+
+def _expired(db: Session, p: dict):
+    today_ = date.today()
+    rows = []
+    for batch in (
+        db.query(StockBatch)
+        .filter(StockBatch.quantity_remaining > 0)
+        .filter(StockBatch.expiry_date.isnot(None))
+        .filter(StockBatch.expiry_date < today_)
+        .order_by(StockBatch.expiry_date.asc())
+        .all()
+    ):
+        product = db.query(Product).get(batch.product_id)
+        cost = (product.cost_price if product else 0) or 0
+        rows.append({
+            "product_id": batch.product_id,
+            "product": product.name if product else "#" + str(batch.product_id),
+            "batch": batch.batch_number,
+            "expiry": batch.expiry_date.isoformat(),
+            "days_over": (today_ - batch.expiry_date).days,
+            "quantity": batch.quantity_remaining,
+            "value": round(cost * batch.quantity_remaining, 2),
+        })
+    return rows
+
+
+register(Report(
+    key="top_customers",
+    title="Top customers",
+    module="CRM",
+    purpose="Who actually spends. The list a pharmacy should know by name and "
+            "usually does not.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("patient", "Customer", "text"),
+        Column("visits", "Visits", "number", total=True),
+        Column("spend", "Spend", "money", total=True),
+        Column("average", "Average basket", "money"),
+        Column("last_seen", "Last seen", "date"),
+    ],
+    rows=lambda db, p: _top_customers(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _top_customers(db: Session, p: dict):
+    agg = (
+        db.query(Sale.patient_id, func.count(Sale.id), func.sum(Sale.total),
+                 func.max(Sale.created_at))
+        .filter(Sale.patient_id.isnot(None))
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .group_by(Sale.patient_id)
+        .all()
+    )
+    ids = [r[0] for r in agg]
+    people = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip()
+        for pt in db.query(Patient).filter(Patient.id.in_(ids)).all()
+    } if ids else {}
+    rows = []
+    for patient_id, visits, spend, last in agg:
+        spend = round(float(spend or 0), 2)
+        rows.append({
+            "patient_id": patient_id,
+            "patient": people.get(patient_id, "#" + str(patient_id)),
+            "visits": int(visits or 0),
+            "spend": spend,
+            "average": round(spend / visits, 2) if visits else 0.0,
+            "last_seen": last.date().isoformat() if last else "",
+        })
+    rows.sort(key=lambda r: -r["spend"])
     return rows
