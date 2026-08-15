@@ -2012,3 +2012,50 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .st-note.is-ok { background: var(--ok-soft); color: var(--ok); border: 1px solid var(--ok-line); }
 .st-note.is-bad { background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger-line); }
+
+/* Cash flow: the sign of a working-capital line is not self-evident, so the
+   reason travels with it. */
+.cf-note {
+  margin-left: var(--s2); font-size: .75rem; color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* Aged analysis. Old money is the point of the report, so it is the thing that
+   is emphasised — a grid where every cell looks the same gets acted on by
+   nobody. */
+.age-summary {
+  display: grid; gap: var(--s3); margin-bottom: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+.age-stat {
+  padding: var(--s3); border: 1px solid var(--line);
+  border-radius: var(--r-md); background: var(--surface-sunk);
+}
+.age-stat.is-warn { border-color: var(--warn-line); background: var(--warn-soft); }
+.age-stat-label {
+  display: block; font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-soft);
+}
+.age-stat-value { display: block; font-size: 1.3rem; font-weight: 600; margin-top: var(--s1); }
+.age-stat.is-warn .age-stat-value { color: var(--warn); }
+.age-stat-hint { display: block; font-size: .76rem; color: var(--ink-soft); }
+
+/* Wide on a phone: scrolls inside itself rather than pushing the page sideways. */
+.age-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.age-table { width: 100%; border-collapse: collapse; min-width: 640px; }
+.age-table th, .age-table td {
+  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.age-table th {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-soft); border-bottom: 1px solid var(--line);
+}
+.age-table th.is-old { color: var(--danger); }
+.age-table td.is-old { color: var(--danger); font-weight: 600; }
+.age-table td.is-nil { color: var(--ink-faint); }
+.age-table td.age-row-total { font-weight: 600; border-left: 1px solid var(--line-soft); }
+.age-table tfoot td {
+  border-top: 1px solid var(--line-strong); border-bottom: 0;
+  font-weight: 700; padding-top: var(--s3);
+}

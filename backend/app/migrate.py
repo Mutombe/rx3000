@@ -13,7 +13,7 @@ log = logging.getLogger("rx3000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
-    "accounts": {"section": "VARCHAR(24)"},
+    "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0"},
     # Branches. Nullable on purpose: every row written before branches existed
     # is backfilled to the default branch by the seed rather than guessed at
     # here, and a column that arrives NOT NULL on a populated table cannot be
@@ -184,6 +184,31 @@ def _name_the_nameless(conn) -> int:
     return len(rows)
 
 
+def _mark_cash_accounts(conn) -> int:
+    """Flag the obvious cash accounts on a chart that predates the column.
+
+    Only run where nothing is flagged yet, so a pharmacy that has classified its
+    own accounts is never overwritten by a guess. The guess itself is narrow on
+    purpose: an account is cash if it is named like cash, not if it merely sits
+    near cash in the numbering.
+    """
+    already = conn.execute(text(
+        "SELECT COUNT(*) FROM accounts WHERE is_cash = 1"
+    )).scalar()
+    if already:
+        return 0
+    result = conn.execute(text(
+        "UPDATE accounts SET is_cash = 1 "
+        "WHERE type = 'asset' AND ("
+        "  LOWER(name) LIKE '%cash%' OR LOWER(name) LIKE '%bank%'"
+        "  OR LOWER(name) LIKE '%petty%' OR LOWER(name) LIKE '%till%')"
+    ))
+    count = result.rowcount or 0
+    if count:
+        log.info("Marked %d account(s) as cash for the cash flow statement", count)
+    return count
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -207,4 +232,6 @@ def run_migrations(engine: Engine) -> int:
 
         if "products" in existing_tables:
             applied += _name_the_nameless(conn)
+        if "accounts" in existing_tables:
+            applied += _mark_cash_accounts(conn)
     return applied

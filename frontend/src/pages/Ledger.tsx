@@ -9,6 +9,8 @@ import { useEffect, useState } from "react";
 import { api, fmtDate, money, prefetchRoute } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Statements from "../components/Statements";
+import CashFlow from "../components/CashFlow";
+import AgedAnalysis from "../components/AgedAnalysis";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -38,7 +40,7 @@ interface Unposted {
   sales: { sale_id: number; sale_number: string; total: number }[];
 }
 
-type Tab = "trial" | "income" | "balance" | "journal" | "recon" | "unposted";
+type Tab = "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "unposted";
 
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
@@ -57,6 +59,10 @@ export default function Ledger() {
       hint: "Revenue, cost of sales and profit for the financial year" },
     { key: "balance", label: "Balance sheet",
       hint: "What the pharmacy owns and owes at a date" },
+    { key: "cash", label: "Cash flow",
+      hint: "Why the bank balance moved, which profit alone never explains" },
+    { key: "ageing", label: "Aged analysis",
+      hint: "How old the money owed is, and who is sitting on it" },
     { key: "journal", label: "Journal", count: entries.length },
     { key: "recon", label: "Reconciliation" },
     { key: "unposted", label: "Not posted", count: unposted?.count,
@@ -118,6 +124,8 @@ export default function Ledger() {
 
       {tab === "income" && <Statements kind="income" />}
       {tab === "balance" && <Statements kind="balance" />}
+      {tab === "cash" && <CashFlow />}
+      {tab === "ageing" && <AgedAnalysis />}
 
       {tab === "trial" && (
         <Refreshable

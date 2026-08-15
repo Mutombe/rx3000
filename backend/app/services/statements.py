@@ -226,3 +226,121 @@ def balance_sheet(db: Session, *, upto: date, year_start: date, hide_zero: bool 
                  "account is missing from the chart."
         ),
     }
+
+
+def cash_flow(db: Session, *, start: date, upto: date) -> dict:
+    """Where the cash actually went, by the indirect method.
+
+    Profit is not cash, and the gap between them is what kills otherwise
+    healthy pharmacies. A month can show a good margin while the bank balance
+    falls, because the profit is sitting in stock on a shelf and in claims a
+    medical scheme has not paid yet. This statement is the one report that makes
+    that visible, so it is worth building carefully.
+
+    The indirect method starts from profit and undoes the accruals:
+
+    * Non-cash charges are added back. A stock write-off reduced profit and
+      moved no money.
+    * Working capital movements are subtracted. Stock going *up* consumed cash;
+      creditors going *up* preserved it. The signs here are the easiest thing in
+      accounting to invert, so each one is stated explicitly below rather than
+      folded into a clever expression.
+
+    And then the part that makes it trustworthy: the total it computes is
+    checked against the actual movement on the cash accounts. If those two
+    disagree the statement says so and prints the difference, in the same spirit
+    as the balance sheet saying whether it balances. A cash flow statement that
+    cannot be tied back to the bank is a guess with a heading on it.
+    """
+    accounts = db.query(Account).filter(Account.active).order_by(Account.code).all()
+    by_code = {a.code: a for a in accounts}
+
+    opening = _movements(db, start=None, upto=start - _one_day())
+    closing = _movements(db, start=None, upto=upto)
+
+    def moved(code: str) -> float:
+        """Change in an account's balance over the window, reader-signed."""
+        account = by_code[code]
+        return round(_signed(account, closing.get(code, 0.0))
+                     - _signed(account, opening.get(code, 0.0)), 2)
+
+    cash_codes = [a.code for a in accounts if a.is_cash]
+    actual_cash_movement = round(sum(moved(c) for c in cash_codes), 2)
+
+    result = income_statement(db, start=start, upto=upto)
+    profit = result["net_profit"]
+
+    operating, investing, financing = [], [], []
+
+    def add(bucket: list, label: str, amount: float, note: str = ""):
+        # Zero lines are kept. "Stock: no change" is a fact about the period;
+        # a missing line is an unanswered question.
+        bucket.append({"label": label, "amount": round(amount, 2), "note": note})
+
+    add(operating, "Profit for the period", profit)
+
+    for account in accounts:
+        if account.is_cash:
+            continue
+        section = infer_section(account)
+        change = moved(account.code)
+
+        if section == "current_asset":
+            # An asset growing has absorbed cash: money became stock, or became
+            # an unpaid claim. Hence the sign flip.
+            add(operating, account.name, -change,
+                "more cash tied up" if change > 0 else "cash released")
+        elif section == "current_liability":
+            # A liability growing has held on to cash: the supplier is waiting.
+            add(operating, account.name, change,
+                "cash held back" if change > 0 else "paid down")
+        elif section == "non_current_asset":
+            add(investing, account.name, -change)
+        elif section == "non_current_liability":
+            add(financing, account.name, change)
+        elif section == "equity":
+            # The period's profit is already the opening line; counting the
+            # movement in retained earnings as well would double it.
+            add(financing, account.name, change)
+
+    operating_total = round(sum(l["amount"] for l in operating), 2)
+    investing_total = round(sum(l["amount"] for l in investing), 2)
+    financing_total = round(sum(l["amount"] for l in financing), 2)
+    computed = round(operating_total + investing_total + financing_total, 2)
+    difference = round(computed - actual_cash_movement, 2)
+
+    opening_cash = round(sum(_signed(by_code[c], opening.get(c, 0.0)) for c in cash_codes), 2)
+    closing_cash = round(sum(_signed(by_code[c], closing.get(c, 0.0)) for c in cash_codes), 2)
+
+    return {
+        "from": start.isoformat(), "to": upto.isoformat(),
+        "sections": [
+            {"key": "operating", "heading": "Cash from operations",
+             "total": operating_total, "lines": operating},
+            {"key": "investing", "heading": "Cash from investing",
+             "total": investing_total, "lines": investing},
+            {"key": "financing", "heading": "Cash from financing",
+             "total": financing_total, "lines": financing},
+        ],
+        "net_movement": computed,
+        "opening_cash": opening_cash,
+        "closing_cash": closing_cash,
+        "actual_movement": actual_cash_movement,
+        "cash_accounts": [{"code": c, "name": by_code[c].name} for c in cash_codes],
+        "reconciles": difference == 0,
+        "difference": difference,
+        "note": (
+            "This ties back to the movement on the cash accounts."
+            if difference == 0
+            else f"Does not tie back to the cash accounts — out by {difference:.2f}. "
+                 "An account is missing a section, or is not flagged as cash."
+        )
+        if cash_codes
+        else "No account is flagged as cash, so this cannot be checked against the bank.",
+    }
+
+
+def _one_day():
+    from datetime import timedelta
+
+    return timedelta(days=1)

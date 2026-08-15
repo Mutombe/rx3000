@@ -403,3 +403,13 @@ def bank_reconciliation(account_code: str = Body(default="1010"),
         return bank_recon.reconcile(db, account_code=account_code, lines=lines)
     except bank_recon.ReconError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/cash-flow")
+def cash_flow(
+    start: date | None = None, upto: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """Where the cash went, and whether that ties back to the bank."""
+    upto = upto or date.today()
+    return statements.cash_flow(db, start=start or _year_start(upto), upto=upto)

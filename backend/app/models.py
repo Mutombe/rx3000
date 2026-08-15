@@ -1477,6 +1477,11 @@ class Account(Base):
     # non_current_liability | equity | revenue | cogs | operating_expense |
     # other_income | other_expense
     section = Column(String(24), default="", index=True)
+    # Whether this account IS cash. A cash flow statement has to know, and no
+    # combination of type and section can tell it: cash, stock and money owed by
+    # a medical scheme are all current assets, and only one of them is something
+    # you can pay a supplier with.
+    is_cash = Column(Boolean, default=False, index=True)
     active = Column(Boolean, default=True)
     notes = Column(Text, default="")
 
