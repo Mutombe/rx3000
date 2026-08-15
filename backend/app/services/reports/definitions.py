@@ -1224,3 +1224,173 @@ def _dispenser_activity(db: Session, p: dict):
         })
     out.sort(key=lambda r: -r["items"])
     return out
+
+
+# ---------------------------------------------------------- fifth batch
+
+register(Report(
+    key="repeats_due",
+    title="Repeats due",
+    module="Dispensary",
+    purpose="Patients with a repeat now due or overdue. The most direct list "
+            "of business already won and not yet collected.",
+    params=[
+        Param("overdue_only", "Overdue only", "bool", default=False),
+        Param("horizon", "Due within (days)", "text", default="14"),
+    ],
+    columns=[
+        Column("patient", "Patient", "text"),
+        Column("phone", "Phone", "text"),
+        Column("product", "Medicine", "text"),
+        Column("due", "Due", "date"),
+        Column("days", "Days", "number"),
+        Column("remaining", "Repeats left", "number", total=True),
+    ],
+    rows=lambda db, p: _repeats_due(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _repeats_due(db: Session, p: dict):
+    from ...models import Prescription
+
+    try:
+        horizon = max(0, int(p.get("horizon") or 14))
+    except (TypeError, ValueError):
+        horizon = 14
+    overdue_only = bool(p.get("overdue_only"))
+    today_ = date.today()
+    cutoff = today_ + timedelta(days=horizon)
+
+    query = (
+        db.query(PrescriptionItem, Prescription, Product)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(PrescriptionItem.next_repeat_date.isnot(None))
+        .filter(PrescriptionItem.next_repeat_date <= cutoff)
+        .filter(PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed)
+    )
+    if overdue_only:
+        query = query.filter(PrescriptionItem.next_repeat_date < today_)
+
+    patient_ids = set()
+    found = query.all()
+    for item, script, product in found:
+        if script.patient_id:
+            patient_ids.add(script.patient_id)
+    people = {
+        pt.id: ((pt.first_name + " " + pt.last_name).strip(), pt.phone or "")
+        for pt in db.query(Patient).filter(Patient.id.in_(patient_ids)).all()
+    } if patient_ids else {}
+
+    rows = []
+    for item, script, product in found:
+        name, phone = people.get(script.patient_id, ("(unknown)", ""))
+        due = item.next_repeat_date
+        rows.append({
+            "patient_id": script.patient_id,
+            "patient": name,
+            "phone": phone,
+            "product": product.name,
+            "due": due.isoformat(),
+            # Negative reads as overdue, which is the ordering that matters.
+            "days": (due - today_).days,
+            "remaining": (item.repeats_allowed or 0) - (item.repeats_used or 0),
+        })
+    rows.sort(key=lambda r: r["days"])
+    return rows
+
+
+register(Report(
+    key="margin_exceptions",
+    title="Selling at or below cost",
+    module="Stock",
+    purpose="Lines priced at or under what they cost. Every one of these loses "
+            "money on every sale, quietly, until somebody looks.",
+    params=[
+        Param("min_margin", "Flag margin under (%)", "text", default="0"),
+    ],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("category", "Department", "text"),
+        Column("cost_price", "Cost", "money"),
+        Column("unit_price", "Selling", "money"),
+        Column("margin", "Margin", "percent"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("exposure", "Loss if all sold", "money", total=True),
+    ],
+    rows=lambda db, p: _margin_exceptions(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _margin_exceptions(db: Session, p: dict):
+    try:
+        threshold = float(p.get("min_margin") or 0)
+    except (TypeError, ValueError):
+        threshold = 0.0
+    rows = []
+    for product in db.query(Product).filter(Product.active).all():
+        cost = product.cost_price or 0
+        price = product.unit_price or 0
+        # A line with no cost recorded is a different problem — it cannot be
+        # said to be selling at a loss, only that nobody knows.
+        if cost <= 0 or price <= 0:
+            continue
+        margin = (price - cost) / price * 100
+        if margin > threshold:
+            continue
+        quantity = product.quantity_on_hand or 0
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "category": (product.category or "").replace("_", " "),
+            "cost_price": round(cost, 2),
+            "unit_price": round(price, 2),
+            "margin": round(margin, 1),
+            "on_hand": quantity,
+            "exposure": round((cost - price) * quantity, 2),
+        })
+    rows.sort(key=lambda r: -r["exposure"])
+    return rows
+
+
+register(Report(
+    key="uncosted_products",
+    title="Products with no cost price",
+    module="Stock",
+    purpose="Lines the system cannot value or report a margin on. They quietly "
+            "distort stock valuation and every profit figure that uses it.",
+    params=[],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("category", "Department", "text"),
+        Column("unit_price", "Selling", "money"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("supplier", "Supplier", "text"),
+    ],
+    rows=lambda db, p: _uncosted(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _uncosted(db: Session, p: dict):
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    rows = []
+    for product in db.query(Product).filter(Product.active).all():
+        if (product.cost_price or 0) > 0:
+            continue
+        # Airtime is bought and sold at face value and has no cost of its own,
+        # so it is not a gap in the data.
+        if (product.category or "") == "airtime":
+            continue
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "category": (product.category or "").replace("_", " "),
+            "unit_price": round(product.unit_price or 0, 2),
+            "on_hand": product.quantity_on_hand or 0,
+            "supplier": suppliers.get(product.supplier_id, "(none set)"),
+        })
+    rows.sort(key=lambda r: -r["on_hand"])
+    return rows
