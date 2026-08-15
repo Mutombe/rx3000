@@ -1,0 +1,11 @@
+INFO:     127.0.0.1:49162 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50653 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50674 - "GET /api/shifts/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50675 - "POST /api/shifts/98/cashup HTTP/1.1" 409 Conflict
+INFO:     127.0.0.1:50677 - "POST /api/shifts/open HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:50679 - "GET /api/shifts/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50682 - "GET /api/shifts/98/takings HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52029 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52040 - "POST /api/shifts/open HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52043 - "GET /api/shifts/current HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52047 - "GET /api/shifts/99/cashup HTTP/1.1" 404 Not Found

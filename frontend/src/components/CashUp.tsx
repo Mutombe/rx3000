@@ -96,9 +96,11 @@ export default function CashUp(
         counted, coinage, currency, notes, till_no: till, draw_no: draw,
       }));
       toast.ok("Count recorded and the shift is closed.");
-      // The shift is closed now, so the page around this needs to stop
-      // showing it as the open one.
-      onCounted?.();
+      // Deliberately NOT telling the page to reload here. Committing closes the
+      // shift, so a reload makes the parent stop rendering this component — and
+      // the reconciliation, which is the entire output of the exercise, would
+      // disappear the instant it was produced. The operator dismisses it when
+      // they have read it.
     } catch (e: any) {
       toast.error(e?.message || "That count could not be recorded.");
     } finally {
@@ -166,6 +168,10 @@ export default function CashUp(
             from the figures above.
           </p>
         )}
+
+        <div className="cu-actions">
+          <button className="small" onClick={() => onCounted?.()}>Done</button>
+        </div>
       </div>
     );
   }

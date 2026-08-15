@@ -1,0 +1,14 @@
+INFO:     Started server process [6644]
+INFO:     Waiting for application startup.
+2026-08-15 16:43:16,925 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 16:43:16,926 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 16:43:16,927 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 16:43:16,928 apscheduler.scheduler INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-08-15 16:43:16,929 apscheduler.scheduler INFO Added job "queue_repeat_reminders" to job store "default"
+2026-08-15 16:43:16,930 apscheduler.scheduler INFO Added job "queue_birthday_messages" to job store "default"
+2026-08-15 16:43:16,930 apscheduler.scheduler INFO Added job "send_pending_messages" to job store "default"
+2026-08-15 16:43:16,931 apscheduler.scheduler INFO Added job "nightly_backup" to job store "default"
+2026-08-15 16:43:16,931 apscheduler.scheduler INFO Scheduler started
+2026-08-15 16:43:16,933 rx3000.scheduler INFO Scheduler started
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8177 (Press CTRL+C to quit)
