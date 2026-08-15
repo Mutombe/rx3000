@@ -223,3 +223,85 @@ def stock_valuation(db: Session = Depends(get_db)):
         "total_at_retail": round(sum(l["value_at_retail"] for l in lines), 2),
         "lines": sorted(lines, key=lambda l: -l["value_at_cost"]),
     }
+
+
+# ---------------------------------------------------------- report engine
+#
+# Three endpoints serve the whole catalogue, however large it grows. Adding a
+# report means declaring it, never touching this file — which is the difference
+# between a catalogue that can reach a hundred reports and one that cannot.
+from fastapi import Query, Request, Response  # noqa: E402
+from ..services import reports as report_engine  # noqa: E402
+
+
+@router.get("/catalogue")
+def report_catalogue():
+    """Every report the system can run, for the reports index."""
+    return {"reports": report_engine.catalogue()}
+
+
+@router.get("/run/{key}")
+def run_report(
+    key: str,
+    request: Request,
+    page: int = 1, per_page: int = 100,
+    sort: str = "", desc: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Run a report. Report-specific parameters arrive as ordinary query
+    parameters and are validated by the report's own declaration."""
+    given = {
+        k: v for k, v in request.query_params.items()
+        if k not in ("page", "per_page", "sort", "desc")
+    }
+    try:
+        return report_engine.run(db, key, given, page=page, per_page=per_page,
+                                 sort=sort, desc=desc)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc).strip("'")) from exc
+    except ValueError as exc:
+        # A bad parameter is the user's mistake and is worth saying plainly,
+        # rather than arriving as a 500 with no sentence in it.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/export/{key}")
+def export_report(
+    key: str,
+    request: Request,
+    format: str = Query("xlsx", pattern="^(xlsx|csv)$"),
+    sort: str = "", desc: bool = False,
+    db: Session = Depends(get_db),
+):
+    """The same query the screen ran, as a file.
+
+    Deliberately not a second implementation. An export that re-derives its own
+    rows is an export that can disagree with what the person exporting it was
+    looking at, and they are the last people who would notice.
+    """
+    given = {
+        k: v for k, v in request.query_params.items()
+        if k not in ("format", "sort", "desc")
+    }
+    try:
+        report = report_engine.REGISTRY[key]
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"There is no report called '{key}'.")
+
+    stamp = date.today().isoformat()
+    safe = "".join(c if c.isalnum() or c in "-_" else "-" for c in report.title).strip("-")
+    try:
+        if format == "csv":
+            body = report_engine.to_csv(db, key, given, sort=sort, desc=desc)
+            return Response(
+                content=body, media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f'attachment; filename="{safe}-{stamp}.csv"'},
+            )
+        body = report_engine.to_xlsx(db, key, given, sort=sort, desc=desc)
+        return Response(
+            content=body,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{safe}-{stamp}.xlsx"'},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

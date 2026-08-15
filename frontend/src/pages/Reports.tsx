@@ -2,18 +2,21 @@ import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, money } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import ReportCatalogue from "../components/ReportCatalogue";
 import { Patient } from "../types";
 
-type Tab = "daily" | "vat" | "valuation" | "tax";
+type Tab = "all" | "daily" | "vat" | "valuation" | "tax";
 
 export default function Reports() {
   const TABS: TabDef<Tab>[] = [
+    { key: "all", label: "All reports",
+      hint: "Every report in the system, by module" },
     { key: "daily", label: "Daily totals" },
     { key: "vat", label: "VAT / tax" },
     { key: "valuation", label: "Stock valuation" },
     { key: "tax", label: "Patient tax statement" },
   ];
-  const [tab, setTab] = usePageTabs<Tab>(TABS, "daily");
+  const [tab, setTab] = usePageTabs<Tab>(TABS, "all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [daily, setDaily] = useState<any[]>([]);
@@ -63,6 +66,9 @@ export default function Reports() {
           <span className="muted">(blank = last 30 days)</span>
         </div>
       )}
+
+      {tab === "all" && <ReportCatalogue />}
+
 
       {tab === "daily" && (
         <div className="card">

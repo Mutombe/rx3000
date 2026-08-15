@@ -2059,3 +2059,74 @@ img { -webkit-user-drag: none; user-select: none; }
   border-top: 1px solid var(--line-strong); border-bottom: 0;
   font-weight: 700; padding-top: var(--s3);
 }
+
+/* ------------------------------------------------------------- reports
+   The catalogue is a chooser, not a table: each entry carries the question it
+   answers, because a list of eighty bare titles is a filing cabinet. */
+.rc-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s5);
+}
+.rc-search { min-width: 220px; }
+.rc-group { margin-bottom: var(--s5); }
+.rc-module {
+  margin: 0 0 var(--s2); font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--ink-soft);
+}
+.rc-list { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.rc-item {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  padding: var(--s3); background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  cursor: pointer; font: inherit; height: 100%;
+}
+.rc-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+.rc-item-title { font-weight: 600; font-size: .92rem; }
+.rc-item-purpose { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; }
+.rc-lock { margin-left: var(--s2); }
+
+.rr-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+}
+.rr-title { margin: var(--s2) 0 0; }
+.rr-purpose { margin: 2px 0 0; max-width: 60ch; font-size: .86rem; }
+.rr-actions { display: flex; gap: var(--s2); }
+.rr-params {
+  display: flex; gap: var(--s4); flex-wrap: wrap; align-items: flex-end;
+  padding: var(--s3); margin-bottom: var(--s4);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.rr-param { display: flex; flex-direction: column; gap: var(--s1); }
+.rr-param > span {
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-soft);
+}
+/* Wide reports scroll inside themselves rather than pushing the page sideways. */
+.rr-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+.rr-table { width: 100%; border-collapse: collapse; }
+.rr-table th, .rr-table td {
+  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  white-space: nowrap;
+}
+.rr-table th {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-soft); border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--surface); z-index: 1;
+}
+.rr-table th.is-sortable { cursor: pointer; user-select: none; }
+.rr-table th.is-sortable:hover { color: var(--ink); }
+.rr-table th.is-sorted { color: var(--ink); }
+.rr-arrow { margin-left: 4px; }
+.rr-table tfoot td {
+  border-top: 1px solid var(--line-strong); border-bottom: 0;
+  font-weight: 700; padding-top: var(--s3);
+}
+.rr-running { margin-top: var(--s2); font-size: .8rem; color: var(--ink-faint); }
+
+@media print {
+  /* On paper the controls are noise; the figures are the document. */
+  .rr-actions, .rr-params, .app-sidebar, .page-tabs { display: none !important; }
+  .rr-scroll { overflow: visible; }
+}

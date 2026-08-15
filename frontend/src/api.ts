@@ -144,6 +144,37 @@ export const api = {
     request<T>("PUT", path, body, stepUp),
   delete: <T>(path: string, stepUp?: string) =>
     request<T>("DELETE", path, undefined, stepUp),
+  /** Fetch a file, with the session's credentials attached.
+   *
+   *  A plain `<a href>` or a `window.location` cannot carry the Authorization
+   *  header, and the usual workaround — putting the token in the query string —
+   *  writes it into every access log, proxy log and browser history it passes
+   *  through. So a download is a normal authenticated fetch that happens to
+   *  return bytes, and the filename is read back off the response rather than
+   *  guessed at.
+   */
+  blob: async (path: string): Promise<{ body: Blob; filename: string }> => {
+    const res = await fetch(BASE + path, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      // An error body here is JSON, not a file, and it usually contains the
+      // one sentence explaining what was wrong with the parameters.
+      let detail = statusWording(res.status);
+      try {
+        detail = readableDetail(await res.json()) || detail;
+      } catch {
+        /* not JSON; the status wording stands */
+      }
+      throw new Error(detail);
+    }
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    return {
+      body: await res.blob(),
+      filename: match ? decodeURIComponent(match[1]) : "",
+    };
+  },
 };
 
 /** Currency and locale come from the jurisdiction pack, not from a hard-coded
