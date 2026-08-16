@@ -34,6 +34,24 @@ DATE_TO = Param("date_to", "To", "date", default=today)
 BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 
 
+def line_cost():
+    """What a sold line cost us, as one rule used by every margin report.
+
+    Two sources, and neither is right on its own. `SaleItem.unit_cost` is the
+    cost captured when the sale happened, which is the correct figure for a
+    historical period — but it is absent on 39% of the lines in this database,
+    because it was added after trading began. `Product.cost_price` is always
+    present but is *today's* cost, which silently restates last year's margin
+    every time a supplier raises a price.
+
+    So: the captured cost where there is one, today's cost where there is not.
+    Stated once here because two reports using two different rules disagreed
+    about the same period's gross profit by more than two hundred thousand, and
+    both looked authoritative.
+    """
+    return func.coalesce(func.nullif(SaleItem.unit_cost, 0), Product.cost_price, 0)
+
+
 def _sales_in(db: Session, p: dict):
     query = db.query(Sale).filter(
         func.date(Sale.created_at) >= p["date_from"],
@@ -139,7 +157,7 @@ def _department_sales(db: Session, p: dict):
             Product.category,
             func.sum(SaleItem.quantity),
             func.sum(SaleItem.unit_price * SaleItem.quantity),
-            func.sum(func.coalesce(Product.cost_price, 0) * SaleItem.quantity),
+            func.sum(line_cost() * SaleItem.quantity),
         )
         .join(Sale, Sale.id == SaleItem.sale_id)
         .join(Product, Product.id == SaleItem.product_id)
@@ -1085,7 +1103,7 @@ def _gross_profit(db: Session, p: dict):
             Product.id, Product.name, Product.category,
             func.sum(SaleItem.quantity),
             func.sum(SaleItem.unit_price * SaleItem.quantity),
-            func.sum(func.coalesce(Product.cost_price, 0) * SaleItem.quantity),
+            func.sum(line_cost() * SaleItem.quantity),
         )
         .join(Sale, Sale.id == SaleItem.sale_id)
         .join(Product, Product.id == SaleItem.product_id)
@@ -2206,3 +2224,359 @@ def _price_variance(db: Session, p: dict):
         })
     rows.sort(key=lambda r: -abs(r["percent"]))
     return rows
+
+
+# ---------------------------------------------------------- till, second batch
+
+register(Report(
+    key="daily_totals",
+    title="Daily totals",
+    module="Till",
+    purpose="One line a day: what was taken, over how many sales, and at what "
+            "margin. The report a manager reads first.",
+    params=[DATE_FROM, DATE_TO, BRANCH],
+    columns=[
+        Column("day", "Day", "date"),
+        Column("sales", "Sales", "number", total=True),
+        Column("items", "Items", "number", total=True),
+        Column("takings", "Takings", "money", total=True),
+        Column("cost", "Cost", "money", total=True),
+        Column("profit", "Gross profit", "money", total=True),
+        Column("margin", "Margin", "percent"),
+        Column("average", "Average sale", "money"),
+        Column("voids", "Voids", "number", total=True),
+    ],
+    rows=lambda db, p: _daily_totals(db, p),
+))
+
+
+def _daily_totals(db: Session, p: dict):
+    day = func.date(Sale.created_at)
+    base = (
+        db.query(day, func.count(Sale.id), func.sum(Sale.total))
+        .filter(day >= p["date_from"]).filter(day <= p["date_to"])
+        .filter(Sale.status != "void")
+    )
+    voided = (
+        db.query(day, func.count(Sale.id))
+        .filter(day >= p["date_from"]).filter(day <= p["date_to"])
+        .filter(Sale.status == "void")
+    )
+    lines = (
+        db.query(day, func.sum(SaleItem.quantity),
+                 func.sum(line_cost() * SaleItem.quantity))
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .join(Product, Product.id == SaleItem.product_id)
+        .filter(day >= p["date_from"]).filter(day <= p["date_to"])
+        .filter(Sale.status != "void")
+    )
+    if p.get("branch_id"):
+        branch = int(p["branch_id"])
+        base = base.filter(Sale.branch_id == branch)
+        voided = voided.filter(Sale.branch_id == branch)
+        lines = lines.filter(Sale.branch_id == branch)
+
+    rows = {}
+    for d, count, total in base.group_by(day).all():
+        rows[str(d)] = {
+            "day": str(d), "sales": int(count or 0),
+            "takings": round(float(total or 0), 2),
+            "items": 0, "cost": 0.0, "voids": 0,
+        }
+    for d, quantity, cost in lines.group_by(day).all():
+        row = rows.get(str(d))
+        if row:
+            row["items"] = int(quantity or 0)
+            row["cost"] = round(float(cost or 0), 2)
+    for d, count in voided.group_by(day).all():
+        row = rows.setdefault(str(d), {
+            "day": str(d), "sales": 0, "takings": 0.0, "items": 0, "cost": 0.0, "voids": 0,
+        })
+        row["voids"] = int(count or 0)
+
+    out = []
+    for row in rows.values():
+        row["profit"] = round(row["takings"] - row["cost"], 2)
+        row["margin"] = round(row["profit"] / row["takings"] * 100, 1) if row["takings"] else 0.0
+        row["average"] = round(row["takings"] / row["sales"], 2) if row["sales"] else 0.0
+        out.append(row)
+    out.sort(key=lambda r: r["day"], reverse=True)
+    return out
+
+
+register(Report(
+    key="monthly_summary",
+    title="Monthly sales summary",
+    module="Till",
+    purpose="Month against month, with the trend. Where a quiet season shows "
+            "up as a season rather than as a bad week.",
+    params=[
+        Param("months", "Months back", "text", default="12"),
+        BRANCH,
+    ],
+    columns=[
+        Column("month", "Month", "text"),
+        Column("sales", "Sales", "number", total=True),
+        Column("takings", "Takings", "money", total=True),
+        Column("average", "Average sale", "money"),
+        Column("change", "vs previous", "percent"),
+    ],
+    rows=lambda db, p: _monthly(db, p),
+))
+
+
+def _monthly(db: Session, p: dict):
+    try:
+        months = max(1, min(int(p.get("months") or 12), 60))
+    except (TypeError, ValueError):
+        months = 12
+    # Roughly, then trimmed: a month is not a fixed number of days and the
+    # report only needs a floor to filter from.
+    since = date.today() - timedelta(days=months * 31)
+
+    query = (
+        db.query(Sale.created_at, Sale.total)
+        .filter(func.date(Sale.created_at) >= since)
+        .filter(Sale.status != "void")
+    )
+    if p.get("branch_id"):
+        query = query.filter(Sale.branch_id == int(p["branch_id"]))
+
+    buckets = {}
+    for created, total in query.all():
+        key = created.strftime("%Y-%m")
+        row = buckets.setdefault(key, {"month": key, "sales": 0, "takings": 0.0})
+        row["sales"] += 1
+        row["takings"] = round(row["takings"] + float(total or 0), 2)
+
+    ordered = sorted(buckets.values(), key=lambda r: r["month"])
+    ordered = ordered[-months:]
+    for i, row in enumerate(ordered):
+        row["average"] = round(row["takings"] / row["sales"], 2) if row["sales"] else 0.0
+        previous = ordered[i - 1]["takings"] if i else 0
+        row["change"] = round((row["takings"] - previous) / previous * 100, 1) if previous else 0.0
+    ordered.reverse()
+    return ordered
+
+
+register(Report(
+    key="tender_register",
+    title="Tender detail register",
+    module="Till",
+    purpose="Every payment of one kind, individually. What a cash-up is checked "
+            "against when a figure is disputed.",
+    params=[
+        Param("method", "Tender", "select", default="card",
+              options=[{"value": m, "label": l} for m, l in
+                       (("cash", "Cash"), ("card", "Card"),
+                        ("mobile_money", "Mobile money"), ("medical_aid", "Medical aid"),
+                        ("voucher", "Voucher"), ("cheque", "Cheque"),
+                        ("direct", "Direct deposit"))]),
+        DATE_FROM, DATE_TO,
+    ],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("sale_number", "Sale", "code"),
+        Column("cashier", "Cashier", "text"),
+        Column("currency", "Currency", "text"),
+        Column("amount", "Amount", "money", total=True),
+        Column("in_base", "In base", "money", total=True),
+        Column("reference", "Reference", "code"),
+    ],
+    rows=lambda db, p: _tender_register(db, p),
+))
+
+
+def _tender_register(db: Session, p: dict):
+    method = (p.get("method") or "card").strip() or "card"
+    rows_q = (
+        db.query(SaleTender, Sale)
+        .join(Sale, Sale.id == SaleTender.sale_id)
+        .filter(SaleTender.method == method)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .order_by(Sale.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    names = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({s.cashier_id for _t, s in rows_q if s.cashier_id})).all()
+    }
+    return [
+        {
+            "date": sale.created_at.isoformat(sep=" ", timespec="minutes"),
+            "sale_number": sale.sale_number or ("#" + str(sale.id)),
+            "cashier": names.get(sale.cashier_id, "-"),
+            "currency": tender.currency_code or "",
+            "amount": round(tender.amount or 0, 2),
+            "in_base": round(tender.amount_in_base or 0, 2),
+            "reference": tender.reference or "",
+        }
+        for tender, sale in rows_q
+    ]
+
+
+register(Report(
+    key="price_overrides",
+    title="Price overrides",
+    module="Till",
+    purpose="Where a line was sold for something other than its shelf price, "
+            "and by whom. Discounting is only visible if somebody looks.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("sale_number", "Sale", "code"),
+        Column("product", "Product", "text"),
+        Column("shelf_price", "Shelf", "money"),
+        Column("sold_at", "Sold at", "money"),
+        Column("difference", "Difference", "money", total=True),
+        Column("percent", "Discount", "percent"),
+        Column("cashier", "Cashier", "text"),
+    ],
+    rows=lambda db, p: _overrides(db, p),
+))
+
+
+def _overrides(db: Session, p: dict):
+    rows_q = (
+        db.query(SaleItem, Sale, Product)
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .join(Product, Product.id == SaleItem.product_id)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .filter(SaleItem.unit_price != Product.unit_price)
+        .order_by(Sale.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    names = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({s.cashier_id for _i, s, _p in rows_q if s.cashier_id})).all()
+    }
+    out = []
+    for item, sale, product in rows_q:
+        shelf = round(product.unit_price or 0, 2)
+        sold = round(item.unit_price or 0, 2)
+        quantity = item.quantity or 0
+        out.append({
+            "date": sale.created_at.isoformat(sep=" ", timespec="minutes"),
+            "sale_number": sale.sale_number or ("#" + str(sale.id)),
+            "product": product.name,
+            "shelf_price": shelf,
+            "sold_at": sold,
+            "difference": round((sold - shelf) * quantity, 2),
+            "percent": round((sold - shelf) / shelf * 100, 1) if shelf else 0.0,
+            "cashier": names.get(sale.cashier_id, "-"),
+        })
+    out.sort(key=lambda r: r["difference"])
+    return out
+
+
+register(Report(
+    key="audit_log",
+    title="Audit log",
+    module="Till",
+    purpose="Who did what, and whether it worked. The record that answers a "
+            "question about an action nobody admits to.",
+    params=[
+        DATE_FROM, DATE_TO,
+        Param("user", "User", "text", help="username, or leave blank for all"),
+        Param("failures_only", "Failures only", "bool", default=False),
+    ],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("username", "User", "text"),
+        Column("action", "Action", "text"),
+        Column("summary", "Detail", "text"),
+        Column("status_code", "Result", "number"),
+        Column("ip_address", "From", "code"),
+    ],
+    rows=lambda db, p: _audit(db, p),
+))
+
+
+def _audit(db: Session, p: dict):
+    from ...models import AuditLog
+
+    query = (
+        db.query(AuditLog)
+        .filter(func.date(AuditLog.created_at) >= p["date_from"])
+        .filter(func.date(AuditLog.created_at) <= p["date_to"])
+    )
+    if p.get("user"):
+        query = query.filter(AuditLog.username.ilike("%" + str(p["user"]) + "%"))
+    if p.get("failures_only"):
+        # Anything the server refused. A log filtered to failures is how a
+        # question about a refused action gets answered in one screen.
+        query = query.filter(AuditLog.status_code >= 400)
+    return [
+        {
+            "date": a.created_at.isoformat(sep=" ", timespec="minutes"),
+            "username": a.username or "-",
+            "action": a.action or "",
+            "summary": (a.summary or a.path or "")[:140],
+            "status_code": a.status_code,
+            "ip_address": a.ip_address or "",
+        }
+        for a in query.order_by(AuditLog.created_at.desc()).all()
+    ]
+
+
+register(Report(
+    key="quotes",
+    title="Quotes",
+    module="Till",
+    purpose="Every quote and what became of it. The ones still open are work "
+            "that has been done and not yet paid for.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "Raised", "date"),
+        Column("quote_number", "Quote", "code"),
+        Column("status", "Status", "text"),
+        Column("total", "Value", "money", total=True),
+        Column("valid_until", "Valid until", "date"),
+        Column("days_open", "Days open", "number"),
+        Column("raised_by", "Raised by", "text"),
+    ],
+    rows=lambda db, p: _quotes(db, p),
+))
+
+
+def _quotes(db: Session, p: dict):
+    from ...models import Quote
+
+    rows_q = (
+        db.query(Quote)
+        .filter(func.date(Quote.created_at) >= p["date_from"])
+        .filter(func.date(Quote.created_at) <= p["date_to"])
+        .order_by(Quote.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    names = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({q.created_by_id for q in rows_q if q.created_by_id})).all()
+    }
+    today_ = date.today()
+    return [
+        {
+            "date": q.created_at.date().isoformat() if q.created_at else "",
+            "quote_number": q.quote_number,
+            "status": q.status or "",
+            "total": round(q.total or 0, 2),
+            "valid_until": q.valid_until.isoformat() if q.valid_until else "",
+            # Days open stops at the decision, so a quote settled last month is
+            # not still ageing.
+            "days_open": ((q.decided_at.date() if q.decided_at else today_)
+                          - q.created_at.date()).days if q.created_at else 0,
+            "raised_by": names.get(q.created_by_id, "-"),
+        }
+        for q in rows_q
+    ]

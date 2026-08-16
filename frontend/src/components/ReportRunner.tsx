@@ -261,7 +261,12 @@ export default function ReportRunner({
                   );
                 })}
               </tbody>
-              {Object.keys(result.totals).length > 0 && (
+              {/* Always shown, even when no column is totalled. The row count
+                  is the footer's first job and a statement has no meaningful
+                  column sum — dropping the footer with the totals took the
+                  count away with it and left the reader unable to see how much
+                  had matched. */}
+              {(
                 <tfoot>
                   <tr>
                     {result.columns.map((c, i) => (
