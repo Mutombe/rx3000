@@ -40,6 +40,20 @@ export default async function run(page, ui) {
   await page.waitForSelector(".rc-item", { timeout: 20000 });
   out.total = await page.locator(".rc-item").count();
 
+  // What the server is actually serving, against what the source declares. A
+  // sweep of a stale process reports "60 ran, 0 broken, of 60" — internally
+  // consistent, entirely wrong, and indistinguishable from success. The server
+  // holds the catalogue in memory, so a report added since the last restart is
+  // invisible to it and to this.
+  out.headingSays = await page.locator(".rc-head h3").innerText().catch(() => "");
+  const declared = Number((out.headingSays.match(/^(\d+)/) || [])[1] || 0);
+  if (declared && declared !== out.total) {
+    out.broken.push({
+      title: "(catalogue)",
+      why: `the page says ${declared} reports but ${out.total} cards rendered`,
+    });
+  }
+
   // The manager badge is part of the title cell but not part of the name.
   const titles = (await page.locator(".rc-item-title").allInnerTexts())
     .map((t) => t.replace(/\s*manager\s*$/i, "").trim())
