@@ -500,6 +500,19 @@ class Sale(Base):
     loyalty_points_earned = Column(Integer, default=0)
     loyalty_points_redeemed = Column(Integer, default=0)
     status = Column(String(20), default="pending")  # pending | paid | void
+
+    # The till's own reference for this sale, generated before it was first
+    # sent. A sale taken while the line was down is retried until the server
+    # confirms it, and a retry cannot tell "never arrived" apart from "arrived,
+    # and the reply was lost". Without this, the second case posts the sale
+    # twice: stock decremented twice, takings overstated, a phantom transaction
+    # on a patient's record. Unique, so the database refuses a duplicate even if
+    # the application logic is wrong.
+    client_ref = Column(String(64), unique=True, nullable=True, index=True)
+    # When the till actually took the money, as against when the server heard
+    # about it. On a queued sale these are hours apart, and the first is the one
+    # that belongs on the receipt and in the day's figures.
+    taken_offline_at = Column(DateTime, nullable=True)
     shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True, index=True)
 
     # Card tender detail — what the terminal slip carries. Without these a card

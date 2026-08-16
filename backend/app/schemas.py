@@ -414,6 +414,10 @@ class SaleCreate(CardTender):
     # and the claim is submitted when it can be.
     claim_later: bool = False
     claim_later_reason: str = ""
+    # Set by a till replaying a sale it took while offline. Same value on every
+    # retry, which is what lets the server recognise a repeat.
+    client_ref: str = ""
+    taken_offline_at: Optional[datetime] = None
 
 
 class SaleItemOut(ORM):

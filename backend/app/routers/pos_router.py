@@ -155,8 +155,20 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
     if not body.items:
         raise HTTPException(status_code=400, detail="Basket is empty")
 
+    # A till replaying a sale it took while the line was down sends the same
+    # reference every time. If this one has been seen, the sale is already on
+    # the books and the right answer is the sale we already have — not a second
+    # one, and not an error either, because from the till's point of view the
+    # request succeeded and it needs the result to clear its queue.
+    if body.client_ref:
+        seen = db.query(Sale).filter(Sale.client_ref == body.client_ref).first()
+        if seen:
+            return seen
+
     shift = shifts_router.current_open_shift(db, user.id)
     sale = Sale(
+        client_ref=body.client_ref or None,
+        taken_offline_at=body.taken_offline_at,
         sale_number=helpers.next_number(db, Sale, "INV", "sale_number"),
         patient_id=body.patient_id,
         cashier_id=user.id,

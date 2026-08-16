@@ -35,6 +35,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "sales": {
         # Which branch sold it. Drives branch takings and the branch VAT return.
         "branch_id": "INTEGER",
+        # The till's own reference, so a sale replayed from the offline queue is
+        # recognised rather than posted twice.
+        "client_ref": "VARCHAR(64)",
+        "taken_offline_at": "TIMESTAMP",
         "shift_id": "INTEGER",
         "card_auth_code": "VARCHAR(20) DEFAULT ''",
         "card_reference": "VARCHAR(40) DEFAULT ''",
@@ -119,6 +123,46 @@ RELAXED_NULLABLE = {
     # still being chased when the pharmacist is interrupted).
     "prescriptions": ("rx_number", "doctor_id"),
 }
+
+
+def _assert_no_shadowed_tables() -> None:
+    """Fail loudly if a table is listed twice in ADDED_COLUMNS.
+
+    A duplicate key in a dict literal is not an error in Python: the later one
+    silently wins and the earlier one's columns are never created. That has
+    already happened here once — `sales` was listed twice and `branch_id` was
+    never added, which surfaced much later as a column present in the model and
+    absent from the database.
+
+    The literal is read back from the source file because by the time the dict
+    object exists the evidence is gone: the duplicate has already collapsed.
+    """
+    import pathlib as _pathlib
+    import re as _re
+
+    text = _pathlib.Path(__file__).read_text(encoding="utf-8")
+    body = text.split("ADDED_COLUMNS", 1)[-1]
+    # Stop at the closing brace of this literal, so other dicts below are not
+    # counted. Nesting here is only one level deep, so counting braces is enough.
+    depth, cut = 0, len(body)
+    for index, char in enumerate(body):
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                cut = index
+                break
+    listed = _re.findall(r'^    "(\w+)":', body[:cut], _re.M)
+    dupes = sorted({t for t in listed if listed.count(t) > 1})
+    if dupes:
+        raise RuntimeError(
+            "ADDED_COLUMNS lists these tables more than once, so the earlier "
+            "entries are silently ignored: " + ", ".join(dupes) + ". Merge them."
+        )
+
+
+_assert_no_shadowed_tables()
 
 
 def _relax_not_null(conn, inspector, table: str, columns: tuple) -> int:
