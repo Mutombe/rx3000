@@ -1570,3 +1570,639 @@ def _journal(db: Session, p: dict):
             "source": entry.source + (" (reversed)" if entry.status == "reversed" else ""),
         })
     return rows
+
+
+# ------------------------------------------------- financial statements
+#
+# These already existed as screens under Ledger, with their own layouts, and
+# none of them could be exported. An accountant wants a balance sheet in a
+# spreadsheet, and a report that can only be looked at is a report that gets
+# retyped. Putting them in the catalogue is not duplication: the screen is for
+# reading and this is for taking away.
+#
+# A statement is hierarchical and a report row is flat, so the section is a
+# column rather than a nesting level. That is also how an accountant pastes it
+# into a working paper.
+
+def _statement_rows(sections, subtotal_label="Total"):
+    """Flatten a statement's sections into rows, keeping the shape legible."""
+    rows = []
+    for section in sections:
+        rows.append({
+            "section": section["heading"],
+            "line": section["heading"],
+            "code": "",
+            "amount": section["total"],
+            "level": "section",
+        })
+        for account in section.get("accounts", []):
+            rows.append({
+                "section": section["heading"],
+                "line": account["name"],
+                "code": account["code"],
+                "amount": account["amount"],
+                "level": "account",
+            })
+    return rows
+
+
+register(Report(
+    key="trial_balance",
+    title="Trial balance",
+    module="Finance",
+    purpose="Every account with a movement, and the proof the whole thing "
+            "balances. The statement every other statement is checked against.",
+    params=[Param("upto", "Up to", "date", default=today)],
+    columns=[
+        Column("code", "Code", "code"),
+        Column("name", "Account", "text"),
+        Column("type", "Type", "text"),
+        Column("debit", "Debit", "money", total=True),
+        Column("credit", "Credit", "money", total=True),
+        # Debits and credits are totalled because their agreement is the point
+        # of a trial balance. The balance column is not: summing reader-signed
+        # balances across assets, liabilities, equity, income and expense gives
+        # a number that looks authoritative and means nothing.
+        Column("balance", "Balance", "money"),
+    ],
+    rows=lambda db, p: _trial_balance(db, p),
+))
+
+
+def _trial_balance(db: Session, p: dict):
+    from ...services import ledger
+
+    result = ledger.trial_balance(db, upto=p["upto"])
+    return result.get("lines", [])
+
+
+register(Report(
+    key="income_statement_report",
+    title="Income statement",
+    module="Finance",
+    purpose="Revenue through to profit for the financial year, with cost of "
+            "sales separated out.",
+    params=[
+        Param("start", "From", "date", default=None,
+              help="Defaults to the start of the financial year"),
+        Param("upto", "To", "date", default=today),
+    ],
+    columns=[
+        Column("section", "Section", "text"),
+        Column("code", "Code", "code"),
+        Column("line", "Line", "text"),
+        # Deliberately not totalled. These rows carry section subtotals and the
+        # accounts that make them up, so a column sum double counts everything
+        # and produces a confident, meaningless figure. The statement states its
+        # own totals as rows.
+        Column("amount", "Amount", "money"),
+    ],
+    rows=lambda db, p: _income_rows(db, p),
+))
+
+
+def _income_rows(db: Session, p: dict):
+    from ...services import statements
+    from ...routers.ledger_router import _year_start
+
+    upto = p["upto"]
+    start = p.get("start") or _year_start(upto)
+    result = statements.income_statement(db, start=start, upto=upto)
+    rows = _statement_rows(result["sections"])
+    # The figures a reader actually looks for, stated rather than left to be
+    # derived from the sections above them.
+    for label, value in (
+        ("Gross profit", result["gross_profit"]),
+        ("Net profit", result["net_profit"]),
+    ):
+        rows.append({"section": "Result", "line": label, "code": "",
+                     "amount": value, "level": "total"})
+    return rows
+
+
+register(Report(
+    key="balance_sheet_report",
+    title="Balance sheet",
+    module="Finance",
+    purpose="What the pharmacy owns and owes at a date, split current and "
+            "non-current, including the profit earned so far this year.",
+    params=[Param("upto", "As at", "date", default=today)],
+    columns=[
+        Column("section", "Section", "text"),
+        Column("code", "Code", "code"),
+        Column("line", "Line", "text"),
+        # Deliberately not totalled. These rows carry section subtotals and the
+        # accounts that make them up, so a column sum double counts everything
+        # and produces a confident, meaningless figure. The statement states its
+        # own totals as rows.
+        Column("amount", "Amount", "money"),
+    ],
+    rows=lambda db, p: _balance_rows(db, p),
+))
+
+
+def _balance_rows(db: Session, p: dict):
+    from ...services import statements
+    from ...routers.ledger_router import _year_start
+
+    upto = p["upto"]
+    result = statements.balance_sheet(db, upto=upto, year_start=_year_start(upto))
+    rows = _statement_rows(result["sections"])
+    rows.append({"section": "Check", "line": "Total assets", "code": "",
+                 "amount": result["total_assets"], "level": "total"})
+    rows.append({"section": "Check", "line": "Liabilities and equity", "code": "",
+                 "amount": round(result["total_liabilities"] + result["total_equity"], 2),
+                 "level": "total"})
+    # Whether it balances travels with the figures. A balance sheet exported
+    # without that is a balance sheet nobody can check.
+    rows.append({"section": "Check",
+                 "line": result["note"], "code": "",
+                 "amount": result["difference"], "level": "note"})
+    return rows
+
+
+register(Report(
+    key="cash_flow_report",
+    title="Cash flow",
+    module="Finance",
+    purpose="Why the bank balance moved, which profit alone never explains. "
+            "Checked against the actual movement on the cash accounts.",
+    params=[
+        Param("start", "From", "date", default=None,
+              help="Defaults to the start of the financial year"),
+        Param("upto", "To", "date", default=today),
+    ],
+    columns=[
+        Column("section", "Section", "text"),
+        Column("line", "Line", "text"),
+        Column("note", "Effect", "text"),
+        # Not totalled, for the same reason as the other statements: the rows
+        # include their own subtotals.
+        Column("amount", "Amount", "money"),
+    ],
+    rows=lambda db, p: _cash_flow_rows(db, p),
+))
+
+
+def _cash_flow_rows(db: Session, p: dict):
+    from ...services import statements
+    from ...routers.ledger_router import _year_start
+
+    upto = p["upto"]
+    start = p.get("start") or _year_start(upto)
+    result = statements.cash_flow(db, start=start, upto=upto)
+    rows = []
+    for section in result["sections"]:
+        for line in section["lines"]:
+            rows.append({
+                "section": section["heading"],
+                "line": line["label"],
+                "note": line.get("note", ""),
+                "amount": line["amount"],
+            })
+        rows.append({"section": section["heading"], "line": "Subtotal",
+                     "note": "", "amount": section["total"]})
+    rows.append({"section": "Cash", "line": "Opening", "note": start.isoformat(),
+                 "amount": result["opening_cash"]})
+    rows.append({"section": "Cash", "line": "Closing", "note": upto.isoformat(),
+                 "amount": result["closing_cash"]})
+    rows.append({"section": "Cash", "line": "Reconciliation", "note": result["note"],
+                 "amount": result["difference"]})
+    return rows
+
+
+register(Report(
+    key="aged_analysis",
+    title="Aged analysis",
+    module="Finance",
+    purpose="How old the money is, by who owes it. A total is nearly useless "
+            "on its own; the buckets are the report.",
+    params=[
+        Param("subledger", "Ledger", "select", default="debtors",
+              options=[{"value": "debtors", "label": "Owed to us"},
+                       {"value": "creditors", "label": "Owed by us"}]),
+        Param("asof", "As at", "date", default=today),
+    ],
+    columns=[
+        Column("name", "Account", "text"),
+        Column("current", "Current", "money", total=True),
+        Column("d30", "30 days", "money", total=True),
+        Column("d60", "60 days", "money", total=True),
+        Column("d90", "90 days", "money", total=True),
+        Column("d120", "120+ days", "money", total=True),
+        Column("total", "Total", "money", total=True),
+    ],
+    rows=lambda db, p: _aged_rows(db, p),
+))
+
+
+def _aged_rows(db: Session, p: dict):
+    from ...services import ledger, reporting
+
+    which = (p.get("subledger") or "debtors").strip() or "debtors"
+    try:
+        result = reporting.ageing(db, which, asof=p["asof"])
+    except ledger.LedgerError as exc:
+        # A missing control account is a configuration fault, not an empty
+        # report, and saying so beats returning nothing.
+        raise ValueError(str(exc))
+
+    keys = {"current": "current", "30 days": "d30", "60 days": "d60",
+            "90 days": "d90", "120+ days": "d120"}
+    rows = []
+    for party in result["parties"]:
+        row = {"name": party["name"], "total": party["total"]}
+        for label, key in keys.items():
+            row[key] = party["buckets"].get(label, 0.0)
+        rows.append(row)
+    return rows
+
+
+register(Report(
+    key="vat_return",
+    title="VAT return",
+    module="Finance",
+    purpose="The figures a VAT return is filed from, taken from the ledger so "
+            "the return agrees with the accounts behind it.",
+    params=[Param("period_code", "Trading period", "text",
+                  help="e.g. 202608")],
+    columns=[
+        Column("line", "Line", "text"),
+        Column("amount", "Amount", "money", total=False),
+    ],
+    rows=lambda db, p: _vat_rows(db, p),
+))
+
+
+def _vat_rows(db: Session, p: dict):
+    from ...models import TradingPeriod
+    from ...services import ledger, reporting
+
+    code = (p.get("period_code") or "").strip()
+    if not code:
+        # Default to the period the pharmacy is actually trading in, so the
+        # report opens with something rather than an empty form.
+        period = (db.query(TradingPeriod)
+                  .order_by(TradingPeriod.start_date.desc()).first())
+        if not period:
+            return []
+        code = period.code
+    try:
+        result = reporting.vat_return(db, code)
+    except ledger.LedgerError as exc:
+        raise ValueError(str(exc))
+
+    return [
+        {"line": "Trading period", "amount": None, "text": result["period_name"]},
+        {"line": "Turnover excluding VAT", "amount": result["turnover_excluding_vat"]},
+        {"line": "Output tax (on sales)", "amount": result["output_tax"]},
+        {"line": "Input tax (on purchases)", "amount": result["input_tax"]},
+        {"line": result["direction"], "amount": result["payable"]},
+    ]
+
+
+# ------------------------------------------------------- stock, fourth batch
+
+register(Report(
+    key="stock_usage_per_item",
+    title="Stock usage per item",
+    module="Stock",
+    purpose="How much of each line moved, in and out, over a period. What a "
+            "reorder level should actually be set from.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("received", "Received", "number", total=True),
+        Column("sold", "Sold", "number", total=True),
+        Column("adjusted", "Adjusted", "number", total=True),
+        Column("on_hand", "On hand now", "number", total=True),
+        Column("weeks_cover", "Weeks of cover", "number"),
+    ],
+    rows=lambda db, p: _usage_per_item(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _usage_per_item(db: Session, p: dict):
+    days = max(1, (p["date_to"] - p["date_from"]).days + 1)
+    moved = (
+        db.query(StockMovement.product_id, StockMovement.movement_type,
+                 func.sum(StockMovement.quantity_delta))
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .group_by(StockMovement.product_id, StockMovement.movement_type)
+        .all()
+    )
+    if not moved:
+        return []
+    ids = {m[0] for m in moved}
+    products = {pr.id: pr for pr in db.query(Product).filter(Product.id.in_(ids)).all()}
+
+    rows = {}
+    for product_id, kind, delta in moved:
+        product = products.get(product_id)
+        if not product:
+            continue
+        row = rows.setdefault(product_id, {
+            "product_id": product_id, "product": product.name,
+            "received": 0, "sold": 0, "adjusted": 0,
+            "on_hand": product.quantity_on_hand or 0,
+        })
+        amount = int(delta or 0)
+        if kind == "receive":
+            row["received"] += amount
+        elif kind == "sale":
+            row["sold"] += abs(amount)
+        else:
+            row["adjusted"] += amount
+
+    for row in rows.values():
+        weekly = row["sold"] / (days / 7) if row["sold"] else 0
+        # 999 rather than blank for a line that never sells: it sorts to the end
+        # and reads as "effectively forever", which is the truth.
+        row["weeks_cover"] = round(row["on_hand"] / weekly, 1) if weekly else 999
+    return sorted(rows.values(), key=lambda r: -r["sold"])
+
+
+register(Report(
+    key="min_max_order",
+    title="Min–max order report",
+    module="Stock",
+    purpose="Where each line sits against its reorder level and target, and "
+            "what ordering to the target would cost.",
+    params=[BRANCH],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("supplier", "Supplier", "text"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("minimum", "Minimum", "number"),
+        Column("target", "Target", "number"),
+        Column("shortfall", "Short by", "number", total=True),
+        Column("cost", "Cost to fill", "money", total=True),
+    ],
+    rows=lambda db, p: _min_max(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _min_max(db: Session, p: dict):
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    rows = []
+    for product in db.query(Product).filter(Product.active).all():
+        on_hand = product.quantity_on_hand or 0
+        minimum = product.reorder_level or 0
+        target = minimum + (product.reorder_quantity or 0)
+        if on_hand > minimum:
+            continue
+        shortfall = max(0, target - on_hand)
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "supplier": suppliers.get(product.supplier_id, "(none set)"),
+            "on_hand": on_hand,
+            "minimum": minimum,
+            "target": target,
+            "shortfall": shortfall,
+            "cost": round((product.cost_price or 0) * shortfall, 2),
+        })
+    rows.sort(key=lambda r: (r["supplier"], -r["cost"]))
+    return rows
+
+
+register(Report(
+    key="stock_on_order",
+    title="Stock on order",
+    module="Stock",
+    purpose="What has been ordered and not yet arrived. The stock a reorder "
+            "decision should account for and usually does not.",
+    params=[],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("supplier", "Supplier", "text"),
+        Column("order_number", "Order", "code"),
+        Column("ordered", "Ordered", "number", total=True),
+        Column("received", "Received", "number", total=True),
+        Column("outstanding", "Still due", "number", total=True),
+        Column("value", "Value", "money", total=True),
+        Column("days", "Days since ordered", "number"),
+    ],
+    rows=lambda db, p: _on_order(db, p),
+))
+
+
+def _on_order(db: Session, p: dict):
+    from ...models import PurchaseOrder, PurchaseOrderItem
+
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    orders = (
+        db.query(PurchaseOrder)
+        .filter(PurchaseOrder.status.in_(("draft", "sent")))
+        .all()
+    )
+    if not orders:
+        return []
+    order_ids = [o.id for o in orders]
+    lines = (
+        db.query(PurchaseOrderItem)
+        .filter(PurchaseOrderItem.order_id.in_(order_ids))
+        .all()
+    )
+    products = {
+        pr.id: pr.name for pr in
+        db.query(Product).filter(Product.id.in_({l.product_id for l in lines})).all()
+    }
+    by_order = {o.id: o for o in orders}
+
+    rows = []
+    for line in lines:
+        outstanding = (line.quantity_ordered or 0) - (line.quantity_received or 0)
+        if outstanding <= 0:
+            continue
+        order = by_order[line.order_id]
+        rows.append({
+            "product": products.get(line.product_id, "#" + str(line.product_id)),
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "order_number": order.order_number,
+            "ordered": line.quantity_ordered or 0,
+            "received": line.quantity_received or 0,
+            "outstanding": outstanding,
+            "value": round((line.unit_cost or 0) * outstanding, 2),
+            "days": (date.today() - order.created_at.date()).days if order.created_at else 0,
+        })
+    # Oldest first: an order outstanding for six weeks is the one to chase.
+    rows.sort(key=lambda r: -r["days"])
+    return rows
+
+
+register(Report(
+    key="stock_write_offs",
+    title="Write-offs and adjustments",
+    module="Stock",
+    purpose="Stock removed without being sold, with who removed it. Shrinkage "
+            "is only visible if somebody looks at this.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("product", "Product", "text"),
+        Column("delta", "Change", "number", total=True),
+        Column("value", "Value at cost", "money", total=True),
+        Column("reference", "Reference", "code"),
+        Column("user", "By", "text"),
+        Column("notes", "Reason", "text"),
+    ],
+    rows=lambda db, p: _write_offs(db, p),
+))
+
+
+def _write_offs(db: Session, p: dict):
+    rows_q = (
+        db.query(StockMovement)
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .filter(StockMovement.movement_type.notin_(("sale", "receive")))
+        .order_by(StockMovement.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    products = {
+        pr.id: pr for pr in
+        db.query(Product).filter(Product.id.in_({m.product_id for m in rows_q})).all()
+    }
+    names = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({m.user_id for m in rows_q if m.user_id})).all()
+    }
+    out = []
+    for m in rows_q:
+        product = products.get(m.product_id)
+        cost = (product.cost_price if product else 0) or 0
+        out.append({
+            "date": m.created_at.isoformat(sep=" ", timespec="minutes"),
+            "product": product.name if product else "#" + str(m.product_id),
+            "delta": m.quantity_delta,
+            # Signed, not absolute. abs() valued an opening-stock adjustment as
+            # though it were a loss, so the column read 235,000 of shrinkage on a
+            # net movement of 332 units — a frightening figure that was wrong.
+            "value": round(cost * (m.quantity_delta or 0), 2),
+            "reference": m.reference or "",
+            "user": names.get(m.user_id, "-"),
+            "notes": (m.notes or "")[:120],
+        })
+    return out
+
+
+register(Report(
+    key="department_stock",
+    title="Stock by department",
+    module="Stock",
+    purpose="Where the money on the shelves actually sits, by category.",
+    params=[],
+    columns=[
+        Column("category", "Department", "text"),
+        Column("lines", "Lines", "number", total=True),
+        Column("in_stock", "Lines in stock", "number", total=True),
+        Column("units", "Units", "number", total=True),
+        Column("cost_value", "At cost", "money", total=True),
+        Column("share", "Share of stock", "percent"),
+    ],
+    rows=lambda db, p: _department_stock(db, p),
+))
+
+
+def _department_stock(db: Session, p: dict):
+    groups = {}
+    for product in db.query(Product).filter(Product.active).all():
+        key = (product.category or "uncategorised").replace("_", " ")
+        row = groups.setdefault(key, {
+            "category": key, "lines": 0, "in_stock": 0, "units": 0, "cost_value": 0.0,
+        })
+        quantity = product.quantity_on_hand or 0
+        row["lines"] += 1
+        if quantity > 0:
+            row["in_stock"] += 1
+            row["units"] += quantity
+            row["cost_value"] = round(
+                row["cost_value"] + (product.cost_price or 0) * quantity, 2)
+    total = sum(r["cost_value"] for r in groups.values()) or 1
+    rows = []
+    for row in groups.values():
+        row["share"] = round(row["cost_value"] / total * 100, 1)
+        rows.append(row)
+    rows.sort(key=lambda r: -r["cost_value"])
+    return rows
+
+
+register(Report(
+    key="supplier_price_variance",
+    title="Cost price changes",
+    module="Stock",
+    purpose="Lines whose cost moved on the last receipt, and by how much. What "
+            "a supplier increase looks like before it reaches the margin.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("supplier", "Supplier", "text"),
+        Column("old_cost", "Was", "money"),
+        Column("new_cost", "Now", "money"),
+        Column("change", "Change", "money", total=True),
+        Column("percent", "Change", "percent"),
+        Column("selling", "Selling", "money"),
+        Column("margin_now", "Margin now", "percent"),
+    ],
+    rows=lambda db, p: _price_variance(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _price_variance(db: Session, p: dict):
+    """Compare each batch's landed cost against the product's current cost.
+
+    Batches carry the cost they were received at, so a change between the
+    newest batch in the window and the product's own cost price is a supplier
+    price movement that has already happened and not yet been priced for.
+    """
+    batches = (
+        db.query(StockBatch)
+        .filter(func.date(StockBatch.received_at) >= p["date_from"])
+        .filter(func.date(StockBatch.received_at) <= p["date_to"])
+        .filter(StockBatch.unit_cost > 0)
+        .order_by(StockBatch.received_at.desc())
+        .all()
+    )
+    if not batches:
+        return []
+
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    products = {
+        pr.id: pr for pr in
+        db.query(Product).filter(Product.id.in_({b.product_id for b in batches})).all()
+    }
+    seen = set()
+    rows = []
+    for batch in batches:
+        if batch.product_id in seen:
+            continue
+        seen.add(batch.product_id)
+        product = products.get(batch.product_id)
+        if not product:
+            continue
+        old = round(product.cost_price or 0, 2)
+        new = round(batch.unit_cost or 0, 2)
+        if not old or abs(new - old) < 0.005:
+            continue
+        selling = round(product.unit_price or 0, 2)
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "supplier": suppliers.get(product.supplier_id, "-"),
+            "old_cost": old,
+            "new_cost": new,
+            "change": round(new - old, 2),
+            "percent": round((new - old) / old * 100, 1),
+            "selling": selling,
+            "margin_now": round((selling - new) / selling * 100, 1) if selling else 0.0,
+        })
+    rows.sort(key=lambda r: -abs(r["percent"]))
+    return rows
