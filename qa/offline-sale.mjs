@@ -53,11 +53,15 @@ export default async function run(page, ui) {
 
   const tender = page.locator('input[type="number"]').last();
   if (await tender.count()) await tender.fill("100");
-  const pay = page.locator("button", { hasText: /complete|charge|pay|checkout/i }).first();
+  // Exact text, not a pattern. A loose match found the "Awaiting payment" tab
+  // first and clicked that instead, which switched away from the till and made
+  // the sale silently not happen — the same too-loose-selector mistake that made
+  // the report sweep check the wrong screens.
+  const pay = page.getByRole("button", { name: "Complete sale", exact: true });
   out.foundPayButton = await pay.count();
   if (await pay.count()) {
     await pay.click();
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(3500);
   }
   out.toastsAfterSale = await page.evaluate(() =>
     Array.from(document.querySelectorAll(".toast")).map((t) => t.textContent.trim()));

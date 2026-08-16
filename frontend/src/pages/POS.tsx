@@ -627,7 +627,7 @@ export default function POS() {
             )}
             {patient && (patient.loyalty_points ?? 0) > 0 && (
               <div className="field">
-                <label>Redeem loyalty points (1 pt = R1) — available: {patient.loyalty_points}</label>
+                <label>Redeem loyalty points (1 pt = {money(1)}) — available: {patient.loyalty_points}</label>
                 <input type="number" min={0} max={patient.loyalty_points} value={redeem} onChange={(e) => setRedeem(e.target.value)} />
               </div>
             )}

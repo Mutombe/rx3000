@@ -31,7 +31,7 @@
 import {
   createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState,
 } from "react";
-import { apiBase } from "../api";
+import { apiBase, getToken } from "../api";
 import * as catalogue from "../offline/catalogue";
 import * as queue from "../offline/queue";
 
@@ -61,6 +61,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [held, setHeld] = useState(0);
+  // A token appearing is not something React re-renders for, so it is
+  // sampled on each connection poll — which is frequent enough to pick up
+  // a sign-in within seconds and cheap enough not to matter.
+  const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
   const [flushed, setFlushed] = useState(0);
   const timer = useRef<number>();
 
@@ -84,6 +88,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       const ok = res.ok;
       setOnline(ok);
       setCheckedAt(new Date());
+      setSignedIn(Boolean(getToken()));
       return ok;
     } catch {
       setOnline(false);
@@ -97,17 +102,23 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   // it is offline has nothing left to cache with.
   const synced = useRef(false);
   useEffect(() => {
-    if (!online || synced.current) return;
+    // Not before somebody has signed in. This provider wraps the sign-in page
+    // as well as the application, and without the check the till asks for the
+    // whole catalogue while unauthenticated — a 401 on every mount, repeated,
+    // against a server that is answering perfectly well.
+    if (!online || synced.current || !getToken()) return;
     synced.current = true;
     catalogue.sync().catch(() => { synced.current = false; });
-  }, [online]);
+  }, [online, signedIn]);
 
   // Send anything taken while the line was down. Safe to run on every return
   // because a replayed sale is recognised by its reference rather than posted
   // again — see offline/queue.ts, which is where that property is argued for.
   useEffect(() => {
     queue.pendingCount().then(setHeld).catch(() => {});
-    if (!online) return;
+    // Same reason: a queued sale cannot be posted by a till nobody is signed
+    // in to, and trying produces a 401 that looks like a rejected sale.
+    if (!online || !getToken()) return;
     let cancelled = false;
     queue.flush()
       .then(async (r) => {
@@ -117,7 +128,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [online]);
+  }, [online, signedIn]);
 
   useEffect(() => {
     let cancelled = false;
