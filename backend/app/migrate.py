@@ -39,6 +39,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # recognised rather than posted twice.
         "client_ref": "VARCHAR(64)",
         "taken_offline_at": "TIMESTAMP",
+        "transferred_at": "TIMESTAMP",
+        "transferred_by_id": "INTEGER",
         "shift_id": "INTEGER",
         "card_auth_code": "VARCHAR(20) DEFAULT ''",
         "card_reference": "VARCHAR(40) DEFAULT ''",

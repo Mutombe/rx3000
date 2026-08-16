@@ -509,6 +509,18 @@ class Sale(Base):
     # on a patient's record. Unique, so the database refuses a duplicate even if
     # the application logic is wrong.
     client_ref = Column(String(64), unique=True, nullable=True, index=True)
+    # A sale awaiting payment is a COD — cash on delivery. Its state is already
+    # carried by `status`: pending is outstanding, paid is settled, void is
+    # cancelled. Adding a second status column to say the same thing again
+    # would give two fields that can disagree, and the one on the report is the
+    # one nobody checks.
+    #
+    # Transfer is the exception: moving an unpaid sale onto a debtor's account
+    # is a real event that nothing else records, so it gets a column and no
+    # more than that.
+    transferred_at = Column(DateTime, nullable=True, index=True)
+    transferred_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # When the till actually took the money, as against when the server heard
     # about it. On a queued sale these are hours apart, and the first is the one
     # that belongs on the receipt and in the day's figures.
@@ -531,7 +543,11 @@ class Sale(Base):
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
     patient = relationship("Patient")
-    cashier = relationship("User")
+    # Two columns point at users now — who rang it up, and who moved it to an
+    # account — so the join has to say which one it means. Adding the second
+    # FK without this broke every report in the catalogue at once.
+    cashier = relationship("User", foreign_keys=[cashier_id])
+    transferred_by = relationship("User", foreign_keys=[transferred_by_id])
     tenders = relationship("SaleTender", back_populates="sale", cascade="all, delete-orphan")
     items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")
     claim = relationship("Claim", back_populates="sale", uselist=False)
@@ -1706,3 +1722,18 @@ class PettyCash(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")
+
+
+# Fail here rather than on the first query.
+#
+# SQLAlchemy configures mappers lazily, so a broken relationship — two foreign
+# keys to the same table and no `foreign_keys=` to say which one is meant —
+# imports perfectly and then raises on whatever query happens to run first.
+# That has happened twice in this file: once on Shift.user, once on
+# Sale.cashier, and the second time it broke all sixty reports at once while
+# `from app.main import app` still printed "ok".
+#
+# Configuring eagerly turns a silent import into a loud one.
+from sqlalchemy.orm import configure_mappers as _configure_mappers  # noqa: E402
+
+_configure_mappers()

@@ -304,3 +304,53 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
 @router.get("/claims", response_model=list[schemas.ClaimOut])
 def list_claims(limit: int = 100, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     return db.query(Claim).order_by(Claim.created_at.desc()).limit(limit).all()
+
+
+@router.post("/sales/{sale_id}/transfer-to-account")
+def transfer_to_account(
+    sale_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    """Move an unpaid sale onto the customer's account.
+
+    The third thing that can happen to a COD, after being paid and being
+    cancelled. The goods have gone, the customer is not paying today, and the
+    debt moves from "money expected at the door" to "money owed on an account"
+    — which is where it can be aged, chased and eventually provided against.
+
+    It needs a customer, because an account balance with nobody attached to it
+    cannot be collected. That is the same unattributed debt the aged analysis
+    keeps reporting, and this is where it would come from if it were allowed.
+    """
+    sale = db.query(Sale).get(sale_id)
+    if not sale:
+        raise HTTPException(status_code=404, detail="That sale no longer exists.")
+    if sale.status != "pending":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Only a sale still awaiting payment can be transferred. "
+                f"This one is {sale.status}."
+            ),
+        )
+    if not sale.patient_id:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This sale has no customer on it, so there is no account to "
+                "transfer it to. Attach the customer first."
+            ),
+        )
+    if sale.transferred_at:
+        return {"ok": True, "already": True,
+                "message": "This sale is already on the customer's account."}
+
+    sale.transferred_at = datetime.utcnow()
+    sale.transferred_by_id = user.id
+    db.commit()
+    return {
+        "ok": True,
+        "message": (
+            f"{sale.sale_number} moved to the customer's account. It will now "
+            "appear in the aged analysis rather than as an outstanding COD."
+        ),
+    }

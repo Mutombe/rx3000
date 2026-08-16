@@ -3311,3 +3311,129 @@ def _petty_cash(db: Session, p: dict):
         }
         for r in rows_q
     ]
+
+
+# --------------------------------------------------------------------- CODs
+#
+# A COD is a sale awaiting payment. Its state lives on the sale itself —
+# pending is outstanding, paid is settled, void is cancelled — so these three
+# reports read that rather than a second status kept alongside it.
+
+def _cod_rows(db: Session, p: dict, status: str, transferred=None):
+    from ...models import Waybill
+
+    query = (
+        db.query(Sale)
+        .filter(Sale.status == status)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+    )
+    if transferred is True:
+        query = query.filter(Sale.transferred_at.isnot(None))
+    elif transferred is False:
+        query = query.filter(Sale.transferred_at.is_(None))
+    sales = query.order_by(Sale.created_at.desc()).all()
+    if not sales:
+        return []
+
+    people = {
+        pt.id: pt for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({s.patient_id for s in sales if s.patient_id})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({s.cashier_id for s in sales if s.cashier_id}
+                        | {s.transferred_by_id for s in sales if s.transferred_by_id})).all()
+    }
+    # Whether the goods actually left, which is what makes an unpaid sale a COD
+    # rather than a basket somebody abandoned at the counter.
+    delivered = {
+        w.sale_id for w in
+        db.query(Waybill).filter(Waybill.sale_id.in_([s.id for s in sales])).all()
+    }
+    today_ = date.today()
+
+    rows = []
+    for sale in sales:
+        person = people.get(sale.patient_id)
+        rows.append({
+            "sale_id": sale.id,
+            "date": sale.created_at.date().isoformat() if sale.created_at else "",
+            "sale_number": sale.sale_number or ("#" + str(sale.id)),
+            "customer": ((person.first_name + " " + person.last_name).strip()
+                         if person else "(no customer on the sale)"),
+            "phone": (person.phone or "") if person else "",
+            "amount": round(sale.total or 0, 2),
+            "delivered": "yes" if sale.id in delivered else "",
+            "days": (today_ - sale.created_at.date()).days if sale.created_at else 0,
+            "cashier": users.get(sale.cashier_id, "-"),
+            "transferred_by": users.get(sale.transferred_by_id, "-"),
+            "transferred_on": (sale.transferred_at.date().isoformat()
+                               if sale.transferred_at else ""),
+        })
+    return rows
+
+
+register(Report(
+    key="cod_outstanding",
+    title="Outstanding CODs",
+    module="Till",
+    purpose="Goods that have gone out and not been paid for. Oldest first, "
+            "because that is the order they need chasing in.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "Raised", "date"),
+        Column("sale_number", "Sale", "code"),
+        Column("customer", "Customer", "text"),
+        Column("phone", "Phone", "text"),
+        Column("delivered", "Delivered", "text"),
+        Column("days", "Days outstanding", "number"),
+        Column("amount", "Amount", "money", total=True),
+        Column("cashier", "Raised by", "text"),
+    ],
+    rows=lambda db, p: sorted(_cod_rows(db, p, "pending", transferred=False),
+                              key=lambda r: -r["days"]),
+    drill=lambda row: "/pos",
+))
+
+
+register(Report(
+    key="cod_cancelled",
+    title="Cancelled CODs",
+    module="Till",
+    purpose="Unpaid sales that were voided rather than settled. Goods that went "
+            "out and came back, or never went at all.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "Raised", "date"),
+        Column("sale_number", "Sale", "code"),
+        Column("customer", "Customer", "text"),
+        Column("delivered", "Was delivered", "text"),
+        Column("amount", "Amount", "money", total=True),
+        Column("cashier", "Raised by", "text"),
+    ],
+    rows=lambda db, p: _cod_rows(db, p, "void"),
+))
+
+
+register(Report(
+    key="cod_transferred",
+    title="Transferred CODs",
+    module="Till",
+    purpose="Unpaid sales moved onto a customer account. They stop being a "
+            "doorstep collection and start being a debt that ages.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "Raised", "date"),
+        Column("sale_number", "Sale", "code"),
+        Column("customer", "Customer", "text"),
+        Column("amount", "Amount", "money", total=True),
+        Column("transferred_on", "Moved on", "date"),
+        Column("transferred_by", "Moved by", "text"),
+        Column("days", "Days since raised", "number"),
+    ],
+    rows=lambda db, p: _cod_rows(db, p, "pending", transferred=True),
+))
