@@ -1556,12 +1556,14 @@ register(Report(
         Column("credit", "Credit", "money", total=True),
         Column("source", "Caused by", "text"),
     ],
-    rows=lambda db, p: _journal(db, p),
+    rows=lambda db, p: _journal_shape(_journal_query(db, p).limit(500).all(), db),
+    paged_rows=lambda db, p, offset, limit: _journal_page(db, p, offset, limit),
+    paged_totals=lambda db, p: _journal_totals(db, p),
 ))
 
 
-def _journal(db: Session, p: dict):
-    from ...models import Account, JournalEntry, JournalLine
+def _journal_query(db: Session, p: dict):
+    from ...models import JournalEntry, JournalLine
 
     query = (
         db.query(JournalLine, JournalEntry)
@@ -1571,12 +1573,15 @@ def _journal(db: Session, p: dict):
     )
     if p.get("source"):
         query = query.filter(JournalEntry.source == p["source"])
+    return query.order_by(JournalEntry.entry_date.desc(), JournalEntry.id.desc())
+
+
+def _journal_shape(rows, db):
+    from ...models import Account
 
     names = {a.code: a.name for a in db.query(Account).all()}
-    rows = []
-    for line, entry in query.order_by(JournalEntry.entry_date.desc(),
-                                      JournalEntry.id.desc()).all():
-        rows.append({
+    return [
+        {
             "date": str(entry.entry_date),
             "reference": entry.reference,
             "account": line.account_code + " " + names.get(line.account_code, ""),
@@ -1586,8 +1591,37 @@ def _journal(db: Session, p: dict):
             # A reversed entry still shows, because pretending it never happened
             # is exactly what a journal must not do.
             "source": entry.source + (" (reversed)" if entry.status == "reversed" else ""),
-        })
-    return rows
+        }
+        for line, entry in rows
+    ]
+
+
+def _journal_page(db: Session, p: dict, offset: int, limit: int):
+    query = _journal_query(db, p)
+    total = query.order_by(None).count()
+    return total, _journal_shape(query.offset(offset).limit(limit).all(), db)
+
+
+def _journal_totals(db: Session, p: dict):
+    """Debits and credits across the whole journal, in one aggregate.
+
+    Computed separately rather than by summing the page, because their
+    agreement is the proof the ledger balances — and a page of a hundred lines
+    balancing says nothing at all about the other eight thousand.
+    """
+    from ...models import JournalEntry, JournalLine
+
+    query = (
+        db.query(func.coalesce(func.sum(JournalLine.debit), 0.0),
+                 func.coalesce(func.sum(JournalLine.credit), 0.0))
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalEntry.entry_date >= p["date_from"])
+        .filter(JournalEntry.entry_date <= p["date_to"])
+    )
+    if p.get("source"):
+        query = query.filter(JournalEntry.source == p["source"])
+    debit, credit = query.one()
+    return {"debit": round(float(debit or 0), 2), "credit": round(float(credit or 0), 2)}
 
 
 # ------------------------------------------------- financial statements

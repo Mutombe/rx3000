@@ -85,11 +85,12 @@ class Report:
     # is the slow part. A log of one entry per request reaches tens of thousands
     # of rows in a week, and the browser gives up before the answer arrives.
     #
-    # The trade is explicit: a report that pages itself cannot have footer
-    # totals across the whole result, because it never sees the whole result.
-    # That is fine for a log, where nobody sums anything, and wrong for a
-    # margin report — so it is opt-in rather than automatic.
+    # A report that pages itself never sees its whole result, so it cannot have
+    # the engine total across it. Where the totals matter — a journal's debits
+    # and credits are the proof the ledger balances — it can compute them itself
+    # in one aggregate query and return them alongside.
     paged_rows: Callable[[Session, dict, int, int], tuple[int, list[dict]]] | None = None
+    paged_totals: Callable[[Session, dict], dict] | None = None
     # Sensitive reports demand a second person, not a second prompt.
     step_up: bool = False
 
@@ -217,11 +218,14 @@ def run(
             "columns": [
                 {"key": c.key, "header": c.header, "kind": c.kind,
                  "align": c.align or ("right" if c.kind in ("money", "number", "percent") else ""),
-                 "total": False}
+                 # A column is only marked as totalled if the report actually
+                 # supplies totals, or the footer promises a figure it has not
+                 # got.
+                 "total": bool(report.paged_totals) and c.total}
                 for c in report.columns
             ],
             "rows": window,
-            "totals": {},
+            "totals": report.paged_totals(db, params) if report.paged_totals else {},
             "params": {k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
                        for k, v in params.items()},
             "page": page, "per_page": per_page, "total": total, "pages": last,
