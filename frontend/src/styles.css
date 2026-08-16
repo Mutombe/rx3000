@@ -1935,6 +1935,8 @@ img { -webkit-user-drag: none; user-select: none; }
   width: 100%; text-align: left; padding: var(--s2) var(--s3);
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-sm); cursor: pointer; font: inherit; color: var(--ink);
+  /* Same override as .rc-item: a product name is longer than a button label. */
+  height: auto; white-space: normal; overflow-wrap: anywhere;
 }
 .scan-teach-row:hover { border-color: var(--accent); background: var(--accent-soft); }
 
@@ -2075,11 +2077,25 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .rc-list { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .rc-item {
+  /* These four undo the global button rule, which sets a fixed control height,
+     nowrap text and centred alignment — sane for a button with a word on it,
+     wrong for a card carrying a sentence. Without them the purpose text escapes
+     the card entirely and overlaps the columns beside it. */
+  height: auto;
+  min-height: 0;
+  white-space: normal;
+  align-items: flex-start;
+  justify-content: flex-start;
+
   display: flex; flex-direction: column; gap: 3px; text-align: left;
   padding: var(--s3); background: var(--surface); color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--r-md);
-  cursor: pointer; font: inherit; height: 100%;
+  cursor: pointer; font: inherit;
+  /* A product name with no spaces should not push the card wider than its
+     column. */
+  overflow-wrap: anywhere;
 }
+.rc-item > * { max-width: 100%; }
 .rc-item:hover { border-color: var(--accent); background: var(--accent-soft); }
 .rc-item-title { font-weight: 600; font-size: .92rem; }
 .rc-item-purpose { font-size: .8rem; color: var(--ink-soft); line-height: 1.4; }
