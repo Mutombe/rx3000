@@ -3259,3 +3259,55 @@ def _patient_activity(db: Session, p: dict):
         })
     rows.sort(key=lambda r: -r["days_since"] if quiet else -r["spend"])
     return rows
+
+
+register(Report(
+    key="petty_cash",
+    title="Petty cash",
+    module="Till",
+    purpose="Money in and out of the drawer that was not a sale, with what it "
+            "was for. Unrecorded, every one of these shows up as a shortage.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("description", "What for", "text"),
+        Column("category", "Category", "text"),
+        Column("amount", "Amount", "money", total=True),
+        Column("receipt", "Receipt", "text"),
+        Column("reference", "Reference", "code"),
+        Column("user", "By", "text"),
+    ],
+    rows=lambda db, p: _petty_cash(db, p),
+))
+
+
+def _petty_cash(db: Session, p: dict):
+    from ...models import PettyCash
+
+    rows_q = (
+        db.query(PettyCash)
+        .filter(func.date(PettyCash.created_at) >= p["date_from"])
+        .filter(func.date(PettyCash.created_at) <= p["date_to"])
+        .order_by(PettyCash.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    names = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({r.user_id for r in rows_q if r.user_id})).all()
+    }
+    return [
+        {
+            "date": r.created_at.isoformat(sep=" ", timespec="minutes"),
+            "description": r.description or "",
+            "category": r.category or "",
+            "amount": round(r.amount, 2),
+            # Named rather than left blank: "no receipt" is a fact worth
+            # counting, and a blank reads as unknown.
+            "receipt": "yes" if r.receipt_seen else "no receipt",
+            "reference": r.reference or "",
+            "user": names.get(r.user_id, "-"),
+        }
+        for r in rows_q
+    ]

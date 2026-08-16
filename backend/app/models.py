@@ -1674,3 +1674,35 @@ class BranchTransfer(Base):
     from_branch = relationship("Branch", foreign_keys=[from_branch_id])
     to_branch = relationship("Branch", foreign_keys=[to_branch_id])
     product = relationship("Product")
+
+
+class PettyCash(Base):
+    """Money in or out of the drawer that was not a sale.
+
+    A pharmacy pays the window cleaner out of the till, buys milk, refunds a bus
+    fare. Without a record of it the drawer is short at cash-up by exactly that
+    amount, every time, and the cashier is asked to explain a variance that is
+    not theirs. The incumbent's cash-up screen carries the note "Petty Cash
+    Transactions NOT shown in Grid" — it knows the money left and keeps it out
+    of the sales list, which is right.
+
+    Signed rather than typed: negative is money out, positive is money in
+    (a float top-up, change brought from the safe). One column and a sign beats
+    two columns and a rule about which to use.
+    """
+    __tablename__ = "petty_cash"
+    id = Column(Integer, primary_key=True)
+    shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    amount = Column(Float, nullable=False)
+    currency_code = Column(String(5), default="")
+    category = Column(String(40), default="")     # cleaning, transport, refreshments…
+    description = Column(String(240), default="")
+    reference = Column(String(60), default="")
+    # Whether a receipt or slip was produced. A payout with no receipt is not
+    # forbidden — a bus fare rarely has one — but it should be countable.
+    receipt_seen = Column(Boolean, default=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

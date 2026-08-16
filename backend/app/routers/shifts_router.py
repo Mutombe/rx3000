@@ -291,3 +291,85 @@ def read_cashup(shift_id: int, db: Session = Depends(get_db)):
         "counted_by": shift.counted_by_id,
         **stored,
     }
+
+
+# ---------------------------------------------------------------- petty cash
+class PettyCashIn(BaseModel):
+    """Money out of the drawer, or into it.
+
+    Signed: negative is a payout, positive is a top-up. One field and a sign
+    beats two fields and a rule about which one to use.
+    """
+    amount: float
+    category: str = ""
+    description: str = ""
+    reference: str = ""
+    receipt_seen: bool = False
+
+
+@router.post("/petty-cash")
+def add_petty_cash(
+    body: PettyCashIn,
+    db: Session = Depends(get_db), user: User = Depends(get_current_user),
+):
+    from ..models import PettyCash
+
+    if not body.amount:
+        raise HTTPException(status_code=400, detail="Enter an amount.")
+    if not body.description.strip():
+        # The whole value of this record is what the money was for. An entry
+        # reading "-20.00" and nothing else is not a record, it is a hole with
+        # a number beside it.
+        raise HTTPException(
+            status_code=400,
+            detail="Say what the money was for — that is the point of the record.",
+        )
+
+    shift = current_open_shift(db, user.id)
+    row = PettyCash(
+        shift_id=shift.id if shift else None,
+        branch_id=getattr(shift, "branch_id", None) if shift else None,
+        amount=round(body.amount, 2),
+        category=body.category.strip(),
+        description=body.description.strip(),
+        reference=body.reference.strip(),
+        receipt_seen=body.receipt_seen,
+        user_id=user.id,
+        created_at=datetime.utcnow(),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    direction = "out of" if row.amount < 0 else "into"
+    return {
+        "id": row.id,
+        "amount": row.amount,
+        "message": f"{abs(row.amount):.2f} recorded {direction} the drawer.",
+    }
+
+
+@router.get("/petty-cash")
+def list_petty_cash(
+    limit: int = 50, db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """This shift's entries, so the person at the till can see what they logged."""
+    from ..models import PettyCash
+
+    shift = current_open_shift(db, user.id)
+    query = db.query(PettyCash)
+    if shift:
+        query = query.filter(PettyCash.shift_id == shift.id)
+    rows = query.order_by(PettyCash.created_at.desc()).limit(max(1, min(limit, 200))).all()
+    return {
+        "net": round(sum(r.amount for r in rows), 2),
+        "entries": [
+            {
+                "id": r.id, "amount": r.amount, "category": r.category,
+                "description": r.description, "reference": r.reference,
+                "receipt_seen": r.receipt_seen,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in rows
+        ],
+    }

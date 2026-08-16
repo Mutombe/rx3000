@@ -145,6 +145,26 @@ def system_totals(db: Session, shift: Shift) -> dict[str, float]:
     return totals
 
 
+def petty_cash_total(db: Session, shift: Shift) -> float:
+    """Net petty cash for this shift. Negative means money left the drawer.
+
+    Counted separately from sales because it is not a sale, and included in what
+    the drawer should hold because it is real money that moved. Leave it out and
+    the till is short at every cash-up by exactly the amount that was paid out,
+    and a cashier is asked to explain a variance that is not theirs.
+    """
+    from ..models import PettyCash
+
+    start = shift.opened_at
+    end = shift.closed_at or datetime.utcnow()
+    total = (
+        db.query(func.coalesce(func.sum(PettyCash.amount), 0.0))
+        .filter(PettyCash.created_at >= start, PettyCash.created_at <= end)
+        .scalar()
+    )
+    return round(float(total or 0), 2)
+
+
 def reconcile(db: Session, shift: Shift, counted: dict[str, float]) -> dict:
     """Compare a committed count to the system, once and for the record."""
     system = system_totals(db, shift)
@@ -158,25 +178,31 @@ def reconcile(db: Session, shift: Shift, counted: dict[str, float]) -> dict:
     # will be there after, so it is added to what the drawer should hold but
     # never to what the till sold.
     opening_float = round(shift.opening_float or 0, 2)
-    expected_cash = round(system.get("cash", 0.0) + opening_float, 2)
+    petty = petty_cash_total(db, shift)
+    expected_cash = round(system.get("cash", 0.0) + opening_float + petty, 2)
     counted_cash = round(float(counted.get("cash") or 0), 2)
 
     total_counted = round(sum(l.counted for l in lines), 2)
-    total_system = round(sum(l.system for l in lines) + opening_float, 2)
+    total_system = round(sum(l.system for l in lines) + opening_float + petty, 2)
 
     return {
         "shift_id": shift.id,
         "till_no": getattr(shift, "till_no", None),
         "run_number": getattr(shift, "run_number", None),
         "opening_float": opening_float,
+        "petty_cash": petty,
         "lines": [
             {
                 "method": l.method, "label": l.label,
                 "counted": l.counted,
                 # The float belongs to the cash line and nowhere else.
-                "system": round(l.system + (opening_float if l.method == "cash" else 0), 2),
+                # The float and any petty cash belong to the cash line and
+                # nowhere else.
+                "system": round(
+                    l.system + (opening_float + petty if l.method == "cash" else 0), 2),
                 "difference": round(
-                    l.counted - l.system - (opening_float if l.method == "cash" else 0), 2),
+                    l.counted - l.system
+                    - (opening_float + petty if l.method == "cash" else 0), 2),
             }
             for l in lines
         ],
