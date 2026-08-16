@@ -80,6 +80,16 @@ class Report:
     rows: Callable[[Session, dict], list[dict]] = None  # type: ignore
     # Optional: a link target for a row, so a total is never a dead end.
     drill: Callable[[dict], str] | None = None
+    # Optional: (db, params, offset, limit) -> (total, rows), for reports whose
+    # tables are large enough that materialising every row to page it in Python
+    # is the slow part. A log of one entry per request reaches tens of thousands
+    # of rows in a week, and the browser gives up before the answer arrives.
+    #
+    # The trade is explicit: a report that pages itself cannot have footer
+    # totals across the whole result, because it never sees the whole result.
+    # That is fine for a log, where nobody sums anything, and wrong for a
+    # margin report — so it is opt-in rather than automatic.
+    paged_rows: Callable[[Session, dict, int, int], tuple[int, list[dict]]] | None = None
     # Sensitive reports demand a second person, not a second prompt.
     step_up: bool = False
 
@@ -182,6 +192,42 @@ def run(
         raise KeyError(f"There is no report called '{key}'.")
     params = resolve_params(report, given)
 
+    per_page = max(1, min(int(per_page or 100), 1000))
+
+    if report.paged_rows:
+        # The report knows how to page in the database. Sorting is left to its
+        # own ordering: re-sorting one page of a large table would order the
+        # page rather than the report, which looks like sorting and is not.
+        total = 0
+        page = max(1, int(page or 1))
+        total, window = report.paged_rows(db, params, (page - 1) * per_page, per_page)
+        last = max(1, -(-total // per_page))
+        if page > last:
+            page = last
+            total, window = report.paged_rows(db, params, (page - 1) * per_page, per_page)
+        if report.drill:
+            window = [dict(r) for r in window]
+            for row in window:
+                try:
+                    row["_drill"] = report.drill(row)
+                except Exception:
+                    pass
+        return {
+            "key": report.key, "title": report.title, "purpose": report.purpose,
+            "columns": [
+                {"key": c.key, "header": c.header, "kind": c.kind,
+                 "align": c.align or ("right" if c.kind in ("money", "number", "percent") else ""),
+                 "total": False}
+                for c in report.columns
+            ],
+            "rows": window,
+            "totals": {},
+            "params": {k: (v.isoformat() if isinstance(v, (date, datetime)) else v)
+                       for k, v in params.items()},
+            "page": page, "per_page": per_page, "total": total, "pages": last,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
     rows = report.rows(db, params)
 
     if sort:
@@ -199,7 +245,6 @@ def run(
         for c in report.columns if c.total
     }
 
-    per_page = max(1, min(int(per_page or 100), 1000))
     total = len(rows)
     last = max(1, -(-total // per_page))
     page = max(1, min(int(page or 1), last))
@@ -246,7 +291,12 @@ def _all_rows(db: Session, key: str, given: dict, sort: str = "", desc: bool = F
     """
     report = REGISTRY[key]
     params = resolve_params(report, given)
-    rows = report.rows(db, params)
+    if report.paged_rows:
+        # Everything, for an export. A spreadsheet of one page is not an export.
+        total, _first = report.paged_rows(db, params, 0, 1)
+        _t, rows = report.paged_rows(db, params, 0, max(total, 1))
+    else:
+        rows = report.rows(db, params)
     if sort:
         rows = sorted(rows, key=lambda r: (r.get(sort) is None, r.get(sort)), reverse=desc)
     return report, params, rows

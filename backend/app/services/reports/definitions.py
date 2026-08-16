@@ -18,7 +18,7 @@ from ...models import (
     Dispensing, Patient, PrescriptionItem, Product, Sale, SaleItem, SaleTender,
     StockBatch, StockMovement, Supplier, User,
 )
-from .engine import Column, Param, Report, month_start, register, today
+from .engine import Column, Param, Report, days_ago, month_start, register, today
 
 
 def _branch_options(db: Session):
@@ -2484,7 +2484,13 @@ register(Report(
     purpose="Who did what, and whether it worked. The record that answers a "
             "question about an action nobody admits to.",
     params=[
-        DATE_FROM, DATE_TO,
+        # A week rather than the month every other report defaults to. This log
+        # takes an entry per request, so a month of it is tens of thousands of
+        # rows — enough that the browser gives up before the answer arrives, and
+        # a report nobody can wait for is a report nobody has. The window is a
+        # default and not a cap: widen it and the total widens with it.
+        Param("date_from", "From", "date", default=days_ago(7)),
+        DATE_TO,
         Param("user", "User", "text", help="username, or leave blank for all"),
         Param("failures_only", "Failures only", "bool", default=False),
     ],
@@ -2497,11 +2503,12 @@ register(Report(
         Column("status_code", "Result", "number"),
         Column("ip_address", "From", "code"),
     ],
-    rows=lambda db, p: _audit(db, p),
+    rows=lambda db, p: _audit(db, p, 0, 200),
+    paged_rows=lambda db, p, offset, limit: _audit_page(db, p, offset, limit),
 ))
 
 
-def _audit(db: Session, p: dict):
+def _audit_query(db: Session, p: dict):
     from ...models import AuditLog
 
     query = (
@@ -2515,6 +2522,10 @@ def _audit(db: Session, p: dict):
         # Anything the server refused. A log filtered to failures is how a
         # question about a refused action gets answered in one screen.
         query = query.filter(AuditLog.status_code >= 400)
+    return query.order_by(AuditLog.created_at.desc())
+
+
+def _audit_shape(rows):
     return [
         {
             "date": a.created_at.isoformat(sep=" ", timespec="minutes"),
@@ -2524,8 +2535,24 @@ def _audit(db: Session, p: dict):
             "status_code": a.status_code,
             "ip_address": a.ip_address or "",
         }
-        for a in query.order_by(AuditLog.created_at.desc()).all()
+        for a in rows
     ]
+
+
+def _audit_page(db: Session, p: dict, offset: int, limit: int):
+    """Count and one page, both in the database.
+
+    The count is a separate query rather than len() of the rows, for the reason
+    this engine keeps insisting on: a page that reports its own length as the
+    total looks complete and is not.
+    """
+    query = _audit_query(db, p)
+    total = query.order_by(None).count()
+    return total, _audit_shape(query.offset(offset).limit(limit).all())
+
+
+def _audit(db: Session, p: dict, offset: int = 0, limit: int = 200):
+    return _audit_shape(_audit_query(db, p).offset(offset).limit(limit).all())
 
 
 register(Report(
