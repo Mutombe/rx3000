@@ -2943,3 +2943,285 @@ def _by_scheme(db: Session, p: dict):
     ]
     rows.sort(key=lambda r: -r["patients"])
     return rows
+
+
+# ----------------------------------------------------- procurement, second batch
+
+register(Report(
+    key="purchase_orders",
+    title="Purchase orders",
+    module="Procurement",
+    purpose="Every order and where it got to. The list a buyer works from.",
+    params=[DATE_FROM, DATE_TO,
+            Param("status", "Status", "select", default="",
+                  options=[{"value": "", "label": "All"},
+                           {"value": "draft", "label": "Draft"},
+                           {"value": "sent", "label": "Sent"},
+                           {"value": "received", "label": "Received"},
+                           {"value": "cancelled", "label": "Cancelled"}])],
+    columns=[
+        Column("order_number", "Order", "code"),
+        Column("date", "Raised", "date"),
+        Column("supplier", "Supplier", "text"),
+        Column("status", "Status", "text"),
+        Column("lines", "Lines", "number", total=True),
+        Column("ordered", "Units", "number", total=True),
+        Column("received", "Received", "number", total=True),
+        Column("value", "Value", "money", total=True),
+        Column("age", "Days old", "number"),
+    ],
+    rows=lambda db, p: _purchase_orders(db, p),
+    drill=lambda row: "/orders/" + str(row.get("order_id")),
+))
+
+
+def _purchase_orders(db: Session, p: dict):
+    from ...models import PurchaseOrder
+
+    query = (
+        db.query(PurchaseOrder)
+        .filter(func.date(PurchaseOrder.created_at) >= p["date_from"])
+        .filter(func.date(PurchaseOrder.created_at) <= p["date_to"])
+    )
+    if p.get("status"):
+        query = query.filter(PurchaseOrder.status == p["status"])
+    orders = query.order_by(PurchaseOrder.created_at.desc()).all()
+    if not orders:
+        return []
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    today_ = date.today()
+    rows = []
+    for order in orders:
+        lines = order.items
+        rows.append({
+            "order_id": order.id,
+            "order_number": order.order_number,
+            "date": order.created_at.date().isoformat() if order.created_at else "",
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "status": order.status or "",
+            "lines": len(lines),
+            "ordered": sum(l.quantity_ordered or 0 for l in lines),
+            "received": sum(l.quantity_received or 0 for l in lines),
+            "value": round(sum((l.unit_cost or 0) * (l.quantity_ordered or 0) for l in lines), 2),
+            # Age stops at receipt, so a delivered order is not still ageing.
+            "age": ((order.received_at.date() if order.received_at else today_)
+                    - order.created_at.date()).days if order.created_at else 0,
+        })
+    return rows
+
+
+register(Report(
+    key="supplier_performance",
+    title="Supplier performance",
+    module="Procurement",
+    purpose="Who delivers what they promised, and how long they take. The "
+            "figures behind a conversation about terms.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("supplier", "Supplier", "text"),
+        Column("orders", "Orders", "number", total=True),
+        Column("delivered", "Delivered", "number", total=True),
+        Column("fill_rate", "Fill rate", "percent"),
+        Column("avg_days", "Avg days to deliver", "number"),
+        Column("slowest", "Slowest", "number"),
+        Column("value", "Spend", "money", total=True),
+    ],
+    rows=lambda db, p: _supplier_performance(db, p),
+))
+
+
+def _supplier_performance(db: Session, p: dict):
+    from ...models import PurchaseOrder
+
+    orders = (
+        db.query(PurchaseOrder)
+        .filter(func.date(PurchaseOrder.created_at) >= p["date_from"])
+        .filter(func.date(PurchaseOrder.created_at) <= p["date_to"])
+        .all()
+    )
+    if not orders:
+        return []
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    groups = {}
+    for order in orders:
+        row = groups.setdefault(order.supplier_id, {
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "orders": 0, "delivered": 0, "_ordered": 0, "_received": 0,
+            "_days": [], "value": 0.0,
+        })
+        row["orders"] += 1
+        for line in order.items:
+            row["_ordered"] += line.quantity_ordered or 0
+            row["_received"] += line.quantity_received or 0
+            row["value"] = round(
+                row["value"] + (line.unit_cost or 0) * (line.quantity_ordered or 0), 2)
+        if order.received_at and order.created_at:
+            row["delivered"] += 1
+            row["_days"].append((order.received_at.date() - order.created_at.date()).days)
+
+    out = []
+    for row in groups.values():
+        ordered = row.pop("_ordered")
+        received = row.pop("_received")
+        days = row.pop("_days")
+        row["fill_rate"] = round(received / ordered * 100, 1) if ordered else 0.0
+        # Averaged over delivered orders only. Including orders still outstanding
+        # would report a supplier as fast because their late orders have not
+        # arrived to be counted yet.
+        row["avg_days"] = round(sum(days) / len(days), 1) if days else 0
+        row["slowest"] = max(days) if days else 0
+        out.append(row)
+    out.sort(key=lambda r: -r["value"])
+    return out
+
+
+register(Report(
+    key="order_price_difference",
+    title="Order price differences",
+    module="Procurement",
+    purpose="Lines invoiced at a different cost from the one ordered. Where a "
+            "supplier increase arrives without being agreed.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("order_number", "Order", "code"),
+        Column("supplier", "Supplier", "text"),
+        Column("product", "Product", "text"),
+        Column("ordered_cost", "Ordered at", "money"),
+        Column("received_cost", "Received at", "money"),
+        Column("difference", "Difference", "money", total=True),
+        Column("percent", "Change", "percent"),
+        Column("quantity", "Units", "number", total=True),
+        Column("exposure", "Total effect", "money", total=True),
+    ],
+    rows=lambda db, p: _order_price_diff(db, p),
+))
+
+
+def _order_price_diff(db: Session, p: dict):
+    """Compare a line's ordered cost against what the batch actually landed at.
+
+    The batch carries the cost it was received at and the order line carries
+    what was agreed, so a gap between them is a price change that has already
+    been paid for.
+    """
+    from ...models import PurchaseOrder, PurchaseOrderItem
+
+    orders = (
+        db.query(PurchaseOrder)
+        .filter(PurchaseOrder.status == "received")
+        .filter(func.date(PurchaseOrder.created_at) >= p["date_from"])
+        .filter(func.date(PurchaseOrder.created_at) <= p["date_to"])
+        .all()
+    )
+    if not orders:
+        return []
+    refs = {o.order_number: o for o in orders}
+    batches = (
+        db.query(StockBatch)
+        .filter(StockBatch.reference.in_(list(refs.keys())))
+        .filter(StockBatch.unit_cost > 0)
+        .all()
+    )
+    if not batches:
+        return []
+    suppliers = {s.id: s.name for s in db.query(Supplier).all()}
+    products = {
+        pr.id: pr.name for pr in
+        db.query(Product).filter(Product.id.in_({b.product_id for b in batches})).all()
+    }
+    lines = {}
+    for line in db.query(PurchaseOrderItem).filter(
+            PurchaseOrderItem.order_id.in_([o.id for o in orders])).all():
+        lines[(line.order_id, line.product_id)] = line
+
+    rows = []
+    for batch in batches:
+        order = refs.get(batch.reference)
+        if not order:
+            continue
+        line = lines.get((order.id, batch.product_id))
+        if not line or not line.unit_cost:
+            continue
+        ordered = round(line.unit_cost, 2)
+        landed = round(batch.unit_cost, 2)
+        if abs(landed - ordered) < 0.005:
+            continue
+        quantity = batch.quantity_received or 0
+        rows.append({
+            "order_number": order.order_number,
+            "supplier": suppliers.get(order.supplier_id, "-"),
+            "product": products.get(batch.product_id, "#" + str(batch.product_id)),
+            "ordered_cost": ordered,
+            "received_cost": landed,
+            "difference": round(landed - ordered, 2),
+            "percent": round((landed - ordered) / ordered * 100, 1),
+            "quantity": quantity,
+            "exposure": round((landed - ordered) * quantity, 2),
+        })
+    rows.sort(key=lambda r: -abs(r["exposure"]))
+    return rows
+
+
+register(Report(
+    key="patient_activity",
+    title="Patient activity",
+    module="CRM",
+    purpose="Who has been in, when they were last seen, and who has stopped "
+            "coming. A lapsed regular is the cheapest customer to win back.",
+    params=[
+        Param("quiet_days", "Not seen for (days)", "text", default="0",
+              help="0 shows everyone"),
+    ],
+    columns=[
+        Column("patient", "Patient", "text"),
+        Column("phone", "Phone", "text"),
+        Column("visits", "Visits", "number", total=True),
+        Column("spend", "Total spend", "money", total=True),
+        Column("last_seen", "Last seen", "date"),
+        Column("days_since", "Days since", "number"),
+    ],
+    rows=lambda db, p: _patient_activity(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _patient_activity(db: Session, p: dict):
+    try:
+        quiet = max(0, int(p.get("quiet_days") or 0))
+    except (TypeError, ValueError):
+        quiet = 0
+
+    agg = (
+        db.query(Sale.patient_id, func.count(Sale.id), func.sum(Sale.total),
+                 func.max(Sale.created_at))
+        .filter(Sale.patient_id.isnot(None))
+        .filter(Sale.status != "void")
+        .group_by(Sale.patient_id)
+        .all()
+    )
+    if not agg:
+        return []
+    people = {
+        pt.id: pt for pt in
+        db.query(Patient).filter(Patient.id.in_([a[0] for a in agg])).all()
+    }
+    today_ = date.today()
+    rows = []
+    for patient_id, visits, spend, last in agg:
+        person = people.get(patient_id)
+        if not person:
+            continue
+        since = (today_ - last.date()).days if last else 9999
+        if quiet and since < quiet:
+            continue
+        rows.append({
+            "patient_id": patient_id,
+            "patient": (person.first_name + " " + person.last_name).strip(),
+            "phone": person.phone or "",
+            "visits": int(visits or 0),
+            "spend": round(float(spend or 0), 2),
+            "last_seen": last.date().isoformat() if last else "",
+            "days_since": since,
+        })
+    rows.sort(key=lambda r: -r["days_since"] if quiet else -r["spend"])
+    return rows
