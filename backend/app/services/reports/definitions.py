@@ -15,8 +15,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ...models import (
-    Dispensing, Patient, PrescriptionItem, Product, Sale, SaleItem, SaleTender,
-    StockBatch, StockMovement, Supplier, User,
+    Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem,
+    SaleTender, StockBatch, StockMovement, Supplier, User,
 )
 from .engine import Column, Param, Report, days_ago, month_start, register, today
 
@@ -2607,3 +2607,339 @@ def _quotes(db: Session, p: dict):
         }
         for q in rows_q
     ]
+
+
+# ------------------------------------------------- dispensary, second batch
+
+register(Report(
+    key="script_analysis",
+    title="Script analysis",
+    module="Dispensary",
+    purpose="Scripts dispensed by day, with how many were repeats. The shape "
+            "of the dispensary's work rather than its total.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("day", "Day", "date"),
+        Column("scripts", "Scripts", "number", total=True),
+        Column("items", "Items", "number", total=True),
+        Column("repeats", "Of which repeats", "number", total=True),
+        Column("controlled", "Of which S5/S6", "number", total=True),
+        Column("value", "Value", "money", total=True),
+    ],
+    rows=lambda db, p: _script_analysis(db, p),
+))
+
+
+def _script_analysis(db: Session, p: dict):
+    rows_q = (
+        db.query(Dispensing, PrescriptionItem, Product, Prescription)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .all()
+    )
+    days = {}
+    seen_scripts = {}
+    for dispensing, item, product, script in rows_q:
+        key = dispensing.dispensed_at.date().isoformat()
+        row = days.setdefault(key, {
+            "day": key, "scripts": 0, "items": 0,
+            "repeats": 0, "controlled": 0, "value": 0.0,
+        })
+        # A script with four items is one script, not four. Counting items as
+        # scripts is the usual way this report ends up quadrupling itself.
+        scripts_today = seen_scripts.setdefault(key, set())
+        if script.id not in scripts_today:
+            scripts_today.add(script.id)
+            row["scripts"] += 1
+        row["items"] += 1
+        if dispensing.is_repeat:
+            row["repeats"] += 1
+        if (product.schedule or 0) >= 5:
+            row["controlled"] += 1
+        row["value"] = round(
+            row["value"] + (product.unit_price or 0) * (dispensing.quantity or 0), 2)
+    out = sorted(days.values(), key=lambda r: r["day"], reverse=True)
+    return out
+
+
+register(Report(
+    key="prescriber_activity",
+    title="Prescribers",
+    module="Dispensary",
+    purpose="Which doctors send work, and what they prescribe. The list a "
+            "pharmacy should know and rarely has in one place.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("doctor", "Prescriber", "text"),
+        Column("practice", "Practice no.", "code"),
+        Column("scripts", "Scripts", "number", total=True),
+        Column("items", "Items", "number", total=True),
+        Column("patients", "Patients", "number", total=True),
+        Column("value", "Value", "money", total=True),
+    ],
+    rows=lambda db, p: _prescribers(db, p),
+))
+
+
+def _prescribers(db: Session, p: dict):
+    from ...models import Doctor
+
+    rows_q = (
+        db.query(Dispensing, PrescriptionItem, Product, Prescription)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .all()
+    )
+    if not rows_q:
+        return []
+    doctors = {
+        d.id: d for d in
+        db.query(Doctor).filter(
+            Doctor.id.in_({s.doctor_id for _d, _i, _p, s in rows_q if s.doctor_id})).all()
+    }
+    groups = {}
+    for dispensing, item, product, script in rows_q:
+        key = script.doctor_id or 0
+        doctor = doctors.get(key)
+        row = groups.setdefault(key, {
+            "doctor": doctor.name if doctor else "(not recorded)",
+            "practice": doctor.practice_number if doctor else "",
+            "scripts": set(), "items": 0, "patients": set(), "value": 0.0,
+        })
+        row["scripts"].add(script.id)
+        row["patients"].add(script.patient_id)
+        row["items"] += 1
+        row["value"] = round(
+            row["value"] + (product.unit_price or 0) * (dispensing.quantity or 0), 2)
+    out = []
+    for row in groups.values():
+        row["scripts"] = len(row["scripts"])
+        row["patients"] = len(row["patients"])
+        out.append(row)
+    out.sort(key=lambda r: -r["value"])
+    return out
+
+
+register(Report(
+    key="script_book",
+    title="Script book",
+    module="Dispensary",
+    purpose="Every script dispensed, in order, with who wrote it and who "
+            "dispensed it. The chronological record.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("rx_number", "Script", "code"),
+        Column("patient", "Patient", "text"),
+        Column("product", "Item", "text"),
+        Column("quantity", "Qty", "number", total=True),
+        Column("repeat", "Repeat", "text"),
+        Column("prescriber", "Prescriber", "text"),
+        Column("dispenser", "Dispensed by", "text"),
+    ],
+    rows=lambda db, p: _script_book(db, p),
+))
+
+
+def _script_book(db: Session, p: dict):
+    from ...models import Doctor
+
+    rows_q = (
+        db.query(Dispensing, PrescriptionItem, Product, Prescription)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .order_by(Dispensing.dispensed_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    doctors = {d.id: d.name for d in db.query(Doctor).all()}
+    patients = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({s.patient_id for _d, _i, _p, s in rows_q if s.patient_id})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({d.dispensed_by_id for d, _i, _p, _s in rows_q if d.dispensed_by_id})).all()
+    }
+    return [
+        {
+            "date": d.dispensed_at.isoformat(sep=" ", timespec="minutes"),
+            "rx_number": script.rx_number or ("#" + str(script.id)),
+            "patient": patients.get(script.patient_id, "-"),
+            "product": product.name,
+            "quantity": d.quantity or 0,
+            "repeat": "repeat" if d.is_repeat else "",
+            "prescriber": doctors.get(script.doctor_id, "-"),
+            "dispenser": users.get(d.dispensed_by_id, "-"),
+        }
+        for d, item, product, script in rows_q
+    ]
+
+
+register(Report(
+    key="generic_substitution",
+    title="Generic substitution",
+    module="Dispensary",
+    purpose="How often a molecule was dispensed as a generic rather than the "
+            "originator. Margin and adherence both live here.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("ingredient", "Active ingredient", "text"),
+        Column("brands", "Products used", "number"),
+        Column("items", "Items", "number", total=True),
+        Column("cheapest", "Cheapest", "money"),
+        Column("dearest", "Dearest", "money"),
+        Column("spread", "Spread", "percent"),
+    ],
+    rows=lambda db, p: _substitution(db, p),
+))
+
+
+def _substitution(db: Session, p: dict):
+    rows_q = (
+        db.query(Dispensing, Product)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .filter(Product.active_ingredient != "")
+        .all()
+    )
+    groups = {}
+    for dispensing, product in rows_q:
+        key = product.active_ingredient
+        row = groups.setdefault(key, {
+            "ingredient": key, "items": 0, "_prices": [], "_products": set(),
+        })
+        row["items"] += 1
+        row["_products"].add(product.id)
+        if product.unit_price:
+            row["_prices"].append(product.unit_price)
+    out = []
+    for row in groups.values():
+        prices = row.pop("_prices")
+        row["brands"] = len(row.pop("_products"))
+        # Only interesting where there was a choice: one product for a molecule
+        # is not a substitution decision.
+        if row["brands"] < 2 or not prices:
+            continue
+        row["cheapest"] = round(min(prices), 2)
+        row["dearest"] = round(max(prices), 2)
+        row["spread"] = round((row["dearest"] - row["cheapest"]) / row["cheapest"] * 100, 1)
+        out.append(row)
+    out.sort(key=lambda r: -r["spread"])
+    return out
+
+
+register(Report(
+    key="controlled_compliance",
+    title="Controlled dispensing compliance",
+    module="Dispensary",
+    purpose="Schedule 5 and 6 items dispensed without the checks recorded. "
+            "What an inspector looks for and what a defence rests on.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("product", "Product", "text"),
+        Column("schedule", "Sch", "text"),
+        Column("quantity", "Qty", "number", total=True),
+        Column("dispenser", "Dispensed by", "text"),
+        Column("missing", "Not recorded", "text"),
+    ],
+    rows=lambda db, p: _controlled(db, p),
+))
+
+
+def _controlled(db: Session, p: dict):
+    rows_q = (
+        db.query(Dispensing, Product)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .filter(Product.schedule >= 5)
+        .order_by(Dispensing.dispensed_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({d.dispensed_by_id for d, _p in rows_q if d.dispensed_by_id})).all()
+    }
+    out = []
+    for dispensing, product in rows_q:
+        gaps = []
+        if not dispensing.id_verified:
+            gaps.append("identity")
+        if not dispensing.script_sighted:
+            gaps.append("script sighted")
+        if not dispensing.prescriber_verified:
+            gaps.append("prescriber")
+        if (product.schedule or 0) >= 6 and not dispensing.witness_id:
+            gaps.append("witness")
+        # Only the ones with something missing. A compliance report listing
+        # everything that went right is a report nobody reads to the end.
+        if not gaps:
+            continue
+        out.append({
+            "date": dispensing.dispensed_at.isoformat(sep=" ", timespec="minutes"),
+            "product": product.name,
+            "schedule": "S" + str(product.schedule),
+            "quantity": dispensing.quantity or 0,
+            "dispenser": users.get(dispensing.dispensed_by_id, "-"),
+            "missing": ", ".join(gaps),
+        })
+    return out
+
+
+register(Report(
+    key="patients_by_scheme",
+    title="Patients by medical aid",
+    module="Dispensary",
+    purpose="How the patient book splits across schemes, and which schemes "
+            "actually bring dispensing work.",
+    params=[],
+    columns=[
+        Column("scheme", "Medical aid", "text"),
+        Column("patients", "Patients", "number", total=True),
+        Column("share", "Share", "percent"),
+    ],
+    rows=lambda db, p: _by_scheme(db, p),
+))
+
+
+def _by_scheme(db: Session, p: dict):
+    from ...models import MedicalAid
+
+    schemes = {m.id: m.name for m in db.query(MedicalAid).all()}
+    counts = (
+        db.query(Patient.medical_aid_id, func.count(Patient.id))
+        .group_by(Patient.medical_aid_id)
+        .all()
+    )
+    total = sum(c for _s, c in counts) or 1
+    rows = [
+        {
+            "scheme": schemes.get(scheme_id, "Private / cash"),
+            "patients": int(count or 0),
+            "share": round(count / total * 100, 1),
+        }
+        for scheme_id, count in counts
+    ]
+    rows.sort(key=lambda r: -r["patients"])
+    return rows
