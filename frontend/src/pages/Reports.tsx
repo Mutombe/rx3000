@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, money } from "../api";
+import { api, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ReportCatalogue from "../components/ReportCatalogue";
 import { Patient } from "../types";
@@ -30,9 +30,9 @@ export default function Reports() {
   const range = `date_from=${dateFrom}&date_to=${dateTo}`;
 
   useEffect(() => {
-    if (tab === "daily") api.get<any[]>(`/api/reports/daily-totals?${range}`).then(setDaily).catch((e) => toast.error(e.message));
-    if (tab === "vat") api.get(`/api/reports/vat?${range}`).then(setVat).catch((e) => toast.error(e.message));
-    if (tab === "valuation") api.get(`/api/reports/stock-valuation`).then(setValuation).catch((e) => toast.error(e.message));
+    if (tab === "daily") api.get<any[]>(`/api/reports/daily-totals?${range}`).then(setDaily).catch((e) => toast.error(errorText(e)));
+    if (tab === "vat") api.get(`/api/reports/vat?${range}`).then(setVat).catch((e) => toast.error(errorText(e)));
+    if (tab === "valuation") api.get(`/api/reports/stock-valuation`).then(setValuation).catch((e) => toast.error(errorText(e)));
   }, [tab, dateFrom, dateTo]);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function Reports() {
   function loadTax(p: Patient) {
     setPatients([]);
     setPatientQ("");
-    api.get(`/api/reports/patient/${p.id}/tax`).then(setTaxReport).catch((e) => toast.error(e.message));
+    api.get(`/api/reports/patient/${p.id}/tax`).then(setTaxReport).catch((e) => toast.error(errorText(e)));
   }
 
   return (

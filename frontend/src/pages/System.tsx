@@ -10,7 +10,7 @@
  *  database — and a screenshot of this page answers all of it at once.
  */
 import { useEffect, useState } from "react";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
@@ -48,11 +48,11 @@ export default function System() {
 
   function load() {
     setLoading(true);
-    api.get<Info>("/api/system/info").then(setInfo).catch((e) => toast.error(e.message));
+    api.get<Info>("/api/system/info").then(setInfo).catch((e) => toast.error(errorText(e)));
     api
       .get<{ status: BackupStatus; files: BackupFile[] }>("/api/system/backups")
       .then(setBackups)
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
@@ -68,7 +68,7 @@ export default function System() {
     } catch (e: any) {
       // A failed backup deletes itself rather than leaving something to rely
       // on, so the message is the whole story and is shown as written.
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(false);
     }

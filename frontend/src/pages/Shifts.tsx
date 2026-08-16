@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import CashUp from "../components/CashUp";
-import { api, fmtDateTime, money } from "../api";
+import { api, fmtDateTime, money, errorText  } from "../api";
 import { Shift, ShiftTakings } from "../types";
 
 export default function Shifts() {
@@ -22,7 +22,7 @@ export default function Shifts() {
       } else {
         setTakings(null);
       }
-    }).catch((e) => toast.error(e.message));
+    }).catch((e) => toast.error(errorText(e)));
     api.get<Shift[]>("/api/shifts").then(setHistory);
   }
 
@@ -35,7 +35,7 @@ export default function Shifts() {
       await api.post("/api/shifts/open", { opening_float: Number(openFloat) || 0 });
       toast.ok("Shift opened — sales you process are now tracked against it.");
       load();
-    } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
+    } catch (err: any) { toast.error(errorText(err)); } finally { setBusy(false); }
   }
 
   return (

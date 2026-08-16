@@ -13,7 +13,7 @@
  *  order, because that is the answer most of the time.
  */
 import { useCallback, useRef, useState } from "react";
-import { api } from "../api";
+import { api, errorText  } from "../api";
 import { ScanBar, ScanResult } from "./Scanner";
 import { useToast } from "./Toast";
 
@@ -86,7 +86,7 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
       setPending(null);
       onReceived();
     } catch (e: any) {
-      toast.error(e?.message || "That line could not be booked in.");
+      toast.error(errorText(e, "That line could not be booked in."));
     } finally {
       setBusy(false);
     }

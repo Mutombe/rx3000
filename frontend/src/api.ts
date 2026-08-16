@@ -60,8 +60,22 @@ function readableDetail(detail: unknown): string | null {
       const loc = Array.isArray(d?.loc)
         ? d.loc.filter((x: unknown) => x !== "body" && x !== "query").join(" → ")
         : "";
-      const msg = typeof d?.msg === "string" ? d.msg : "is not valid";
-      return loc ? `${loc}: ${msg}` : msg;
+      const raw = typeof d?.msg === "string" ? d.msg : "is not valid";
+      // Pydantic writes for a developer: "Field required", "Input should be a
+      // valid integer". A person filling in a form needs the field named the
+      // way it is labelled on screen, and the requirement in plain words.
+      const msg = raw
+        .replace(/^Field required$/i, "is required")
+        .replace(/^Input should be /i, "should be ")
+        .replace(/^Value error, /i, "")
+        .replace(/^String should have at least (\d+) characters?$/i, "cannot be empty")
+        .replace(/^ensure this value /i, "must ");
+      const field = loc
+        .replace(/_/g, " ")
+        .replace(/\bid\b/gi, "")
+        .trim();
+      const label = field ? field.charAt(0).toUpperCase() + field.slice(1) : "";
+      return label ? `${label} ${msg}`.replace(/\s+/g, " ").trim() : msg;
     });
     // More than a couple of field errors at once is a form problem, not a
     // sentence — name the first and say how many others there are.
@@ -77,17 +91,81 @@ function readableDetail(detail: unknown): string | null {
   return null;
 }
 
-/** A sentence for a response that did not explain itself. */
-function statusWording(status: number): string {
+/** Details that a framework produced rather than a person.
+ *
+ *  FastAPI answers an unknown address with `{"detail": "Not Found"}`. That is
+ *  technically a message and practically none: it beat the carefully worded
+ *  fallback simply by existing, so a missing endpoint told a pharmacist "Not
+ *  Found" and left them looking for a record that was never the problem.
+ *  Anything on this list is treated as though the server said nothing.
+ */
+const EMPTY_DETAILS = new Set([
+  "not found", "method not allowed", "internal server error",
+  "unprocessable entity", "bad request", "forbidden", "unauthorized",
+  "conflict", "error", "failed",
+]);
+
+function isUseless(detail: string): boolean {
+  return EMPTY_DETAILS.has(detail.trim().toLowerCase().replace(/[.!]$/, ""));
+}
+
+/** A sentence for a response that did not explain itself.
+ *
+ *  `path` matters more than it looks. A 404 means two completely different
+ *  things: a record that has been deleted, and an address that does not exist
+ *  because the front end is asking for the wrong one. Telling a pharmacist
+ *  "that record no longer exists" when the truth is that we shipped a typo
+ *  sends them looking for a data problem they will never find — which is
+ *  exactly what happened with the switch log, where the URL was missing its
+ *  /api prefix and the screen blamed the data.
+ *
+ *  The heuristic is deliberately simple: an address ending in a collection
+ *  (no trailing identifier) cannot have had "the record" deleted, so a 404
+ *  there is a fault in the software rather than in the data.
+ */
+function statusWording(status: number, path = ""): string {
+  if (status === 400) return "That request was not valid. Check the values and try again.";
   if (status === 403) return "You do not have permission to do that.";
-  if (status === 404) return "That record no longer exists.";
+  if (status === 404) {
+    const tail = path.split("?")[0].replace(/\/+$/, "").split("/").pop() ?? "";
+    const looksLikeARecord = /^\d+$/.test(tail);
+    return looksLikeARecord
+      ? "That record no longer exists."
+      : "That part of the system could not be reached. This is a fault on our "
+        + "side rather than anything you did — please report it.";
+  }
+  if (status === 405) {
+    return "That action is not allowed here. This is a fault on our side; please report it.";
+  }
   if (status === 409) return "Someone else changed this first. Reload and try again.";
   if (status === 413) return "That file is too large to upload.";
+  if (status === 422) return "Some of the details were not accepted. Check the highlighted fields.";
   if (status === 429) return "Too many requests just now. Wait a moment and retry.";
   if (status === 502 || status === 503 || status === 504)
     return "The server is not responding. It may be starting up — try again shortly.";
   if (status >= 500) return "Something went wrong at the server. Please try again.";
   return `The request was refused (${status}).`;
+}
+
+/** Put the technical detail where a developer will find it, and nowhere else.
+ *
+ *  The person at the counter needs one sentence they can act on. Everything
+ *  that helps diagnose the fault — the method, the address, the status, the
+ *  raw body — belongs in the console, where it is available when someone goes
+ *  looking and invisible when they are serving a customer. Putting either one
+ *  in the other's place is how you end up with a stack trace in a toast, or a
+ *  bug report that says only "it did not work".
+ */
+function logFailure(
+  method: string, path: string, status: number, raw: unknown, shown: string,
+) {
+  // One console.error, not a group. A collapsed group is not reliably captured
+  // by tooling that watches the console, and a diagnostic nobody can capture is
+  // only half a diagnostic.
+  console.error(
+    `[RX3000] ${method} ${path} -> ${status}`,
+    { status, method, path, serverSaid: raw, shownToUser: shown },
+  );
 }
 
 export class ApiError extends Error {
@@ -104,7 +182,9 @@ async function request<T>(
   body?: unknown,
   stepUp?: string,
 ): Promise<T> {
-  const res = await fetch(BASE + path, {
+  let res: Response;
+  try {
+    res = await fetch(BASE + path, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -112,27 +192,71 @@ async function request<T>(
       ...(stepUp ? { "X-Step-Up": stepUp } : {}),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
-  });
+    });
+  } catch (cause) {
+    // fetch rejects for exactly one class of reason: the request never got an
+    // answer. "TypeError: Failed to fetch" is what the browser calls that, and
+    // it is meaningless to anybody standing at a till.
+    logFailure(method, path, 0, String(cause), "Could not reach the server.");
+    throw new ApiError(
+      0,
+      "Could not reach the server. Check the connection, or the server may be down.",
+    );
+  }
   if (res.status === 401) {
     setToken(null);
     window.location.href = "/login";
-    throw new ApiError(401, "Session expired");
+    throw new ApiError(401, "Your session has ended. Please sign in again.");
   }
   if (!res.ok) {
     let detail = "";
+    let raw: unknown;
     try {
-      const data = await res.json();
-      detail = readableDetail(data.detail) ?? "";
+      raw = await res.json();
+      detail = readableDetail((raw as any)?.detail) ?? "";
     } catch {
-      /* body was not JSON — fall through to the status-based wording */
+      /* body was not JSON — the status-based wording carries it instead */
     }
     // Never throw a blank message. HTTP/2 carries no status text, so
     // `res.statusText` is an empty string on any modern host — which produced a
     // toast with a count badge and no words at all. An error nobody can read is
     // worse than no error: it says something is wrong and refuses to say what.
-    throw new ApiError(res.status, detail.trim() || statusWording(res.status));
+    const clean = detail.trim();
+    const shown = clean && !isUseless(clean) ? clean : statusWording(res.status, path);
+    logFailure(method, path, res.status, raw, shown);
+    throw new ApiError(res.status, shown);
   }
-  return res.json();
+
+  // A 204, or any empty body, is a success with nothing to parse. Calling
+  // res.json() on it throws, and the caller then reports a working request as
+  // a failure.
+  if (res.status === 204) return undefined as T;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    logFailure(method, path, res.status, text.slice(0, 400),
+               "The server sent something we could not read.");
+    throw new ApiError(res.status, "The server sent something we could not read.");
+  }
+}
+
+/** The sentence to show a person for any thrown thing.
+ *
+ *  Requests already fail with a message written for a human. This exists for
+ *  everything else: a bug in our own code throws a TypeError whose message is
+ *  written for a compiler, and "Cannot read properties of undefined" in a toast
+ *  tells a pharmacist nothing except that we are not in control of the
+ *  software. Those go to the console, where they are useful, and the screen
+ *  gets one honest sentence.
+ */
+export function errorText(cause: unknown, fallback = "That did not work. Please try again."): string {
+  if (cause instanceof ApiError) return cause.message;
+  if (typeof cause === "string" && cause.trim()) return cause;
+  // Anything else is ours, and is a defect rather than a condition.
+  console.error("[RX3000] unhandled failure:", cause);
+  return fallback;
 }
 
 export const api = {

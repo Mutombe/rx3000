@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Link } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
@@ -167,7 +167,7 @@ export default function Dispense() {
       const detail = (p as any).product ?? p;
       setItems((current) => current.map((it, i) =>
         (i === idx ? { ...it, product: detail } : it)));
-    }).catch((e) => toast.error(e.message));
+    }).catch((e) => toast.error(errorText(e)));
   }
   // Declared below; read lazily so the binding always sees the current value.
   const complianceReadyRef = () =>
@@ -226,7 +226,7 @@ export default function Dispense() {
   async function printRxLabels(rxId: number) {
     try {
       printLabels(await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`));
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function checkInteractions() {
@@ -276,7 +276,7 @@ export default function Dispense() {
       setWitnessId(""); setIdNumber(""); setComplianceNotes("");
       loadLists();
       printRxLabels(rx.id);
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
   async function dispenseRepeat(item: PrescriptionItem) {
@@ -288,7 +288,7 @@ export default function Dispense() {
       setDoneSale(sale); setDoneRxId(item.prescription.id);
       loadLists();
       printRxLabels(item.prescription.id);
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function sellOtc() {
@@ -305,7 +305,7 @@ export default function Dispense() {
       setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
       loadLists();
       alert(`Sold — ${record.quantity} × ${record.product?.name}. Recorded in the pharmacy-medicine register.`);
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;

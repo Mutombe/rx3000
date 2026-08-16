@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import { HelpdeskStats, Patient, Ticket, User } from "../types";
@@ -87,7 +87,7 @@ export default function HelpDesk() {
 
   function load() {
     const q = filter === "breached" ? "breached=true" : `status=${filter}`;
-    api.get<Ticket[]>(`/api/helpdesk/tickets?${q}`).then(setTickets).catch((e) => toast.error(e.message));
+    api.get<Ticket[]>(`/api/helpdesk/tickets?${q}`).then(setTickets).catch((e) => toast.error(errorText(e)));
     api.get<HelpdeskStats>("/api/helpdesk/stats").then(setStats);
   }
 
@@ -112,7 +112,7 @@ export default function HelpDesk() {
       });
       setSelected(updated); setReply(""); setInternal(false);
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function patch(patchBody: Record<string, unknown>) {
@@ -121,7 +121,7 @@ export default function HelpDesk() {
       const updated = await api.put<Ticket>(`/api/helpdesk/tickets/${selected.id}`, patchBody);
       setSelected(updated);
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function draftReply() {
@@ -130,7 +130,7 @@ export default function HelpDesk() {
     try {
       const res = await api.post<{ text: string }>(`/api/ai/ticket-reply/${selected.id}`);
       setReply(res.text);
-    } catch (e: any) { toast.error(e.message); } finally { setAiBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setAiBusy(false); }
   }
 
   async function createTicket(e: FormEvent) {
@@ -142,7 +142,7 @@ export default function HelpDesk() {
       setPatientQ("");
       load();
       open(t);
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });

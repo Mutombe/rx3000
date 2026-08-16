@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
@@ -75,7 +75,7 @@ export default function PatientDetail() {
       toast.ok(
         `Link copied — send it to ${r.send_to}. It works for ${r.expires_in_days} days.`);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 

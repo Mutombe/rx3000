@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import { Message, Patient } from "../types";
 
 export default function Reminders() {
@@ -17,7 +17,7 @@ export default function Reminders() {
   const [busy, setBusy] = useState(false);
 
   function load() {
-    api.get<Message[]>(`/api/messages?message_type=${typeFilter}`).then(setMessages).catch((e) => toast.error(e.message));
+    api.get<Message[]>(`/api/messages?message_type=${typeFilter}`).then(setMessages).catch((e) => toast.error(errorText(e)));
   }
 
   useEffect(load, [typeFilter]);
@@ -34,7 +34,7 @@ export default function Reminders() {
       toast.ok(`Queued ${res.repeat_reminders_queued} repeat + ${res.birthday_messages_queued} birthday reminders; delivered ${res.messages_sent} message(s).`);
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -52,7 +52,7 @@ export default function Reminders() {
       setPatient(null); setSubject(""); setBody("");
       load();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(errorText(err));
     } finally {
       setBusy(false);
     }

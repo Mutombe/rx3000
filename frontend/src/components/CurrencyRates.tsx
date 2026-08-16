@@ -11,7 +11,7 @@
  *  guarantee that is to make the past unwritable.
  */
 import { useEffect, useState } from "react";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import { useToast } from "./Toast";
 import { TableSkeleton } from "./Skeleton";
 
@@ -59,7 +59,7 @@ export default function CurrencyRates() {
       setValue(""); setNote("");
       load();
     } catch (e: any) {
-      toast.error(e?.message || "That rate could not be published.");
+      toast.error(errorText(e, "That rate could not be published."));
     } finally {
       setBusy(false);
     }

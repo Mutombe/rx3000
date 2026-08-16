@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, fmtDate, money } from "../api";
+import { api, fmtDate, money, errorText  } from "../api";
 import { TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import Pagination from "./Pagination";
@@ -91,7 +91,7 @@ export default function ReportRunner({
       if (sort) { q.set("sort", sort); q.set("desc", String(desc)); }
       setResult(await api.get<RunResult>(`/api/reports/run/${report.key}?${q}`));
     } catch (e: any) {
-      toast.error(e?.message || "That report could not be run.");
+      toast.error(errorText(e, "That report could not be run."));
       setResult(null);
     } finally {
       setRunning(false);
@@ -137,7 +137,7 @@ export default function ReportRunner({
       // download it has not started yet.
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
     } catch (e: any) {
-      toast.error(e?.message || "That export could not be produced.");
+      toast.error(errorText(e, "That export could not be produced."));
     }
   }
 

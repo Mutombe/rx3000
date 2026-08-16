@@ -150,13 +150,13 @@ def submit_claim(body: schemas.ClaimRequest, db: Session = Depends(get_db)):
     return out
 
 
-@router.get("/gateway/funders", response_model=list[schemas.FunderOut],
+@router.get("/api/gateway/funders", response_model=list[schemas.FunderOut],
             dependencies=[Depends(get_current_user)])
 def list_funders(db: Session = Depends(get_db)):
     return db.query(Funder).filter(Funder.active).order_by(Funder.name).all()
 
 
-@router.get("/gateway/tariffs", response_model=list[schemas.TariffOut],
+@router.get("/api/gateway/tariffs", response_model=list[schemas.TariffOut],
             dependencies=[Depends(get_current_user)])
 def list_tariffs(q: str = "", year: int = 0, limit: int = 100,
                  db: Session = Depends(get_db)):
@@ -188,13 +188,13 @@ def _txn_query(db, kind):
     return query.order_by(desc(GatewayTransaction.created_at))
 
 
-@router.get("/gateway/transactions", dependencies=[Depends(get_current_user)])
+@router.get("/api/gateway/transactions", dependencies=[Depends(get_current_user)])
 def list_transactions(kind: str = "", limit: int = 100, db: Session = Depends(get_db)):
     """The audit trail — what was sent, what came back, and how long it took."""
     return [_txn_row(t) for t in _txn_query(db, kind).limit(limit).all()]
 
 
-@router.get("/gateway/transactions/paged", dependencies=[Depends(get_current_user)])
+@router.get("/api/gateway/transactions/paged", dependencies=[Depends(get_current_user)])
 def list_transactions_paged(kind: str = "", page: int = 1,
                             per_page: int = paging.DEFAULT_PER_PAGE,
                             db: Session = Depends(get_db)):
@@ -246,7 +246,7 @@ def feature_parity(area: str = "", state: str = ""):
     }
 
 
-@router.get("/gateway/errors", dependencies=[Depends(get_current_user)])
+@router.get("/api/gateway/errors", dependencies=[Depends(get_current_user)])
 def error_vocabulary():
     """The full error contract, so a caller can code against it."""
     return [{"error_code": code, "http_status": status, "context": context}

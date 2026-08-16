@@ -1,6 +1,6 @@
 import { ChangeEvent, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime, money } from "../api";
+import { api, fmtDateTime, money, errorText  } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -38,7 +38,7 @@ export default function CardReconciliation() {
       setReport(await api.post<CardReconciliationReport>("/api/pos/reconciliation/card", {
         csv_text: csv, date_from: from || null, date_to: to || null,
       }));
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
   const matchCols: Column<ReconMatch>[] = [

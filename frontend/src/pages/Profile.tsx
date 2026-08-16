@@ -17,7 +17,7 @@ import {
   Key,
   UserCircle,
 } from "@phosphor-icons/react";
-import { api } from "../api";
+import { api, errorText  } from "../api";
 import { useToast } from "../components/Toast";
 import { Block } from "../components/Skeleton";
 
@@ -40,10 +40,10 @@ export default function Profile() {
   useEffect(() => {
     api.get<Me>("/api/profile/me")
       .then((m) => { setMe(m); setName(m.full_name); })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
     api.get<{ fields: CompanyField[]; editable: boolean }>("/api/profile/company")
       .then((c) => { setFields(c.fields); setEditable(c.editable); })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
   }, []);
 
   async function saveName(e: FormEvent) {
@@ -53,7 +53,7 @@ export default function Profile() {
       const r = await api.put<{ message: string }>("/api/profile/me", { full_name: name });
       toast.ok(r.message);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setSavingName(false);
     }
@@ -75,7 +75,7 @@ export default function Profile() {
       toast.ok(r.message);
       setPw({ current_password: "", new_password: "", confirm: "" });
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -88,7 +88,7 @@ export default function Profile() {
       const r = await api.put<{ message: string }>("/api/profile/company", { values });
       toast.ok(r.message);
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setSavingCompany(false);
     }

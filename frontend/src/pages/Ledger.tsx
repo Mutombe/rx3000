@@ -6,7 +6,7 @@
  *  wrong wants the entries behind it, not a filter they have to build by hand.
  */
 import { useEffect, useState } from "react";
-import { api, fmtDate, money, prefetchRoute } from "../api";
+import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Statements from "../components/Statements";
 import CashFlow from "../components/CashFlow";
@@ -73,7 +73,7 @@ export default function Ledger() {
   function load() {
     setLoading(true);
     api.get<TrialBalance>("/api/ledger/trial-balance").then(setTb)
-      .catch((e) => toast.error(e.message)).finally(() => setLoading(false));
+      .catch((e) => toast.error(errorText(e))).finally(() => setLoading(false));
     api
       .get<Paged<Entry>>(`/api/ledger/entries/paged?page=${jPage}&per_page=${jSize}`)
       .then((r) => {
@@ -81,7 +81,7 @@ export default function Ledger() {
         setJMeta(r);
         if (r.page !== jPage) setJPage(r.page);
       })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
     api.get<Unposted>("/api/ledger/unposted").then(setUnposted).catch(() => undefined);
     for (const name of ["debtors", "creditors", "stock", "vat"]) {
       api.get<Recon>(`/api/ledger/subledgers/${name}/reconcile`)
@@ -95,7 +95,7 @@ export default function Ledger() {
     const res = await api
       .post<{ posted: boolean; reason?: string; reference?: string }>(
         `/api/ledger/post-sale/${saleId}`)
-      .catch((e) => { toast.error(e.message); return null; });
+      .catch((e) => { toast.error(errorText(e)); return null; });
     if (!res) return;
     if (res.posted) toast.ok(`Posted as ${res.reference}.`);
     else toast.warn(res.reason || "Not posted.");

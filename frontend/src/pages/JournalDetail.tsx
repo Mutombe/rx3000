@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { EntityLink } from "../components/Filters";
 import { FormSkeleton, TableSkeleton } from "../components/Skeleton";
@@ -39,7 +39,7 @@ export default function JournalDetail() {
     setLoading(true);
     api.get<Entry>(`/api/ledger/entries/${id}`)
       .then(setEntry)
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }
   useEffect(load, [id]);
@@ -47,7 +47,7 @@ export default function JournalDetail() {
   async function reverse() {
     const res = await api
       .post<{ reversal: Entry }>(`/api/ledger/entries/${id}/reverse`, { reason })
-      .catch((e) => { toast.error(e.message); return null; });
+      .catch((e) => { toast.error(errorText(e)); return null; });
     if (!res) return;
     toast.ok(`Reversed by ${res.reversal.reference}.`);
     setReversing(false);

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
-import { api, money } from "../api";
+import { api, money, errorText  } from "../api";
 import { BarList, ColumnChart, Donut, FunnelChart, Legend, SERIES } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 
@@ -27,10 +27,10 @@ export default function CrmReports() {
   const toast = useToast();
 
   useEffect(() => {
-    if (tab === "forecast") api.get<ForecastMonth[]>("/api/crm/reports/forecast?months=6").then(setForecast).catch((e) => toast.error(e.message));
-    if (tab === "funnel") api.get<FunnelReport>("/api/crm/reports/funnel").then(setFunnel).catch((e) => toast.error(e.message));
-    if (tab === "owners") api.get<OwnerReport[]>("/api/crm/reports/by-owner").then(setOwners).catch((e) => toast.error(e.message));
-    if (tab === "campaigns") api.get<CampaignROI[]>("/api/crm/reports/campaign-roi").then(setRoi).catch((e) => toast.error(e.message));
+    if (tab === "forecast") api.get<ForecastMonth[]>("/api/crm/reports/forecast?months=6").then(setForecast).catch((e) => toast.error(errorText(e)));
+    if (tab === "funnel") api.get<FunnelReport>("/api/crm/reports/funnel").then(setFunnel).catch((e) => toast.error(errorText(e)));
+    if (tab === "owners") api.get<OwnerReport[]>("/api/crm/reports/by-owner").then(setOwners).catch((e) => toast.error(errorText(e)));
+    if (tab === "campaigns") api.get<CampaignROI[]>("/api/crm/reports/campaign-roi").then(setRoi).catch((e) => toast.error(errorText(e)));
   }, [tab]);
 
   const totals = useMemo(() => ({

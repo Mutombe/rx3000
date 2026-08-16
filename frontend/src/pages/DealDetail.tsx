@@ -3,7 +3,7 @@ import { DetailSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights, Path } from "../components/record";
 import { Deal, Product, Quote, TimelineEntry } from "../types";
@@ -40,7 +40,7 @@ export default function DealDetail() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "lines");
 
   function load() {
-    api.get<Deal>(`/api/crm/deals/${id}`).then(setDeal).catch((e) => toast.error(e.message));
+    api.get<Deal>(`/api/crm/deals/${id}`).then(setDeal).catch((e) => toast.error(errorText(e)));
     api.get<Quote[]>(`/api/crm/deals/${id}/quotes`).then(setQuotes);
     api.get<TimelineEntry[]>(`/api/crm/timeline?deal_id=${id}`).then(setTimeline);
   }
@@ -62,12 +62,12 @@ export default function DealDetail() {
       setDeal(updated);
       setLine({ product_id: 0, description: "", quantity: 1, unit_price: 0, discount_percent: 0 });
       setProductQ("");
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function removeLine(itemId: number) {
     try { setDeal(await api.delete<Deal>(`/api/crm/deals/${id}/items/${itemId}`)); }
-    catch (e: any) { toast.error(e.message); }
+    catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function moveStage(stage: string) {
@@ -76,21 +76,21 @@ export default function DealDetail() {
     try {
       await api.post(`/api/crm/deals/${id}/stage`, { stage, lost_reason });
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function createQuote() {
     try {
       await api.post(`/api/crm/deals/${id}/quotes`, { valid_days: 30 });
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function setQuoteStatus(quote: Quote, status: string) {
     try {
       await api.post(`/api/crm/quotes/${quote.id}/status?status=${status}`);
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function addNote(e: FormEvent) {

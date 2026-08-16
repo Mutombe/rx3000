@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Campaign, Message, Patient, Segment } from "../types";
 
@@ -30,7 +30,7 @@ export default function Marketing() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "compose");
 
   function loadSegments() {
-    api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments).catch((e) => toast.error(e.message));
+    api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments).catch((e) => toast.error(errorText(e)));
   }
   function loadCampaigns() {
     api.get<Campaign[]>("/api/marketing/campaigns").then(setCampaigns);
@@ -54,7 +54,7 @@ export default function Marketing() {
         goal: goal || "Encourage patients to visit the pharmacy",
       });
       setBody(res.text);
-    } catch (e: any) { toast.error(e.message); } finally { setAiBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setAiBusy(false); }
   }
 
   async function createAndSend(e: FormEvent) {
@@ -79,7 +79,7 @@ export default function Marketing() {
       toast.ok(`"${sent.name}" delivered to ${sent.sent_count} recipient(s)${sent.failed_count ? `, ${sent.failed_count} failed` : ""}.`);
       setName(""); setSubject(""); setBody(""); setGoal("");
       loadCampaigns(); loadSegments();
-    } catch (err: any) { toast.error(err.message); } finally { setBusy(false); }
+    } catch (err: any) { toast.error(errorText(err)); } finally { setBusy(false); }
   }
 
   async function viewMessages(c: Campaign) {

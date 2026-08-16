@@ -24,7 +24,7 @@
 import React, {
   useCallback, useEffect, useRef, useState,
 } from "react";
-import { api } from "../api";
+import { api, errorText  } from "../api";
 import * as catalogue from "../offline/catalogue";
 import { useConnection } from "./Connection";
 import { useToast } from "./Toast";
@@ -513,13 +513,13 @@ export function ScanBar({
           // A miss is the start of a workflow, not the end of one. Offer to
           // attach the code to a product rather than leaving a dead end.
           setMiss(result);
-          if (result.message) toast.error(result.message);
+          if (result.message) toast.error(errorText(result));
         } else {
           setMiss(null);
         }
         onResolved(result);
       } catch (e: any) {
-        toast.error(e?.message || "That scan could not be checked. Try again.");
+        toast.error(errorText(e, "That scan could not be checked. Try again."));
       } finally {
         setBusy(false);
         inputRef.current?.focus();
@@ -554,7 +554,7 @@ export function ScanBar({
       // this puts them exactly where the successful scan would have.
       handle(code);
     } catch (e: any) {
-      toast.error(e?.message || "That code could not be attached.");
+      toast.error(errorText(e, "That code could not be attached."));
     }
   }
 

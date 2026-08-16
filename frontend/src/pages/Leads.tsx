@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { Avatar, Path, ScoreRing } from "../components/record";
 import { DuplicateWarning, Lead, LeadScoreExplanation, User } from "../types";
 
@@ -59,7 +59,7 @@ export default function Leads() {
   const navigate = useNavigate();
 
   function load() {
-    api.get<Lead[]>("/api/crm/leads?status=").then(setLeads).catch((e) => toast.error(e.message));
+    api.get<Lead[]>("/api/crm/leads?status=").then(setLeads).catch((e) => toast.error(errorText(e)));
   }
   useEffect(() => {
     load();
@@ -117,7 +117,7 @@ export default function Leads() {
       toast.ok(`Lead captured — scored ${lead.score}/100 (${lead.rating})${lead.owner ? `, routed to ${lead.owner.full_name}` : ""}.`);
       setShowForm(false); setForm({ ...EMPTY }); setDupes([]);
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function setStatusOf(lead: Lead, next: string) {
@@ -126,7 +126,7 @@ export default function Leads() {
     try {
       await api.post(`/api/crm/leads/${lead.id}/status`, { status: next, disqualified_reason: reason });
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   async function bulkAssign(ownerId: number) {
@@ -136,7 +136,7 @@ export default function Leads() {
       toast.ok(`${checked.length} lead(s) reassigned.`);
       setChecked([]);
       load();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
 
   function openConvert(lead: Lead) {
@@ -159,7 +159,7 @@ export default function Leads() {
       toast.ok("Lead converted into an account, a contact and an opportunity.");
       load();
       if (res.deal_id) navigate(`/deals/${res.deal_id}`);
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   const set = (k: string) => (e: any) =>

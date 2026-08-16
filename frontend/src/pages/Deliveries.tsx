@@ -9,7 +9,7 @@
  *  check identity at the door.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmtDateTime, prefetchRoute } from "../api";
+import { api, fmtDateTime, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
@@ -55,7 +55,7 @@ export default function Deliveries() {
       ),
     )
       .then((all) => setRows(Object.fromEntries(all)))
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }
   useEffect(load, []);
@@ -68,7 +68,7 @@ export default function Deliveries() {
       toast.ok(`${w.waybill_number} is out for delivery.`);
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -82,7 +82,7 @@ export default function Deliveries() {
       setSigning(null); setReceivedBy(""); setIdSeen("");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -94,7 +94,7 @@ export default function Deliveries() {
       setFailing(null); setReason("");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 

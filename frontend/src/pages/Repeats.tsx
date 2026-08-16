@@ -11,7 +11,7 @@
  *  telephones a patient they cannot serve.
  */
 import { useEffect, useState } from "react";
-import { api, fmtDate, money, prefetchRoute } from "../api";
+import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -66,7 +66,7 @@ export default function Repeats() {
       .get<Due>(`/api/repeats/call-sheet?within_days=${horizon}` +
                 (overdueOnly ? "&overdue_only=true" : ""))
       .then(setDue)
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }
   useEffect(load, [horizon, overdueOnly]);
@@ -85,7 +85,7 @@ export default function Repeats() {
         medical_aid_id: aidId === "" ? null : Number(aidId),
       }));
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
   useEffect(() => { if (pick) price(pick); }, [qty, aidId]);

@@ -16,7 +16,7 @@
  *  count exists to catch.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, money } from "../api";
+import { api, money, errorText  } from "../api";
 import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
 
@@ -102,7 +102,7 @@ export default function CashUp(
       // disappear the instant it was produced. The operator dismisses it when
       // they have read it.
     } catch (e: any) {
-      toast.error(e?.message || "That count could not be recorded.");
+      toast.error(errorText(e, "That count could not be recorded."));
     } finally {
       setBusy(false);
     }

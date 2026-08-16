@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDate } from "../api";
+import { api, fmtDate, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
@@ -125,7 +125,7 @@ export default function Accounts() {
   ];
 
   function load() {
-    api.get<Company[]>(`/api/crm/companies?q=${encodeURIComponent(q)}`).then(setCompanies).catch((e) => toast.error(e.message));
+    api.get<Company[]>(`/api/crm/companies?q=${encodeURIComponent(q)}`).then(setCompanies).catch((e) => toast.error(errorText(e)));
     api.get<Contact[]>(`/api/crm/contacts?q=${encodeURIComponent(q)}`).then(setContacts);
   }
 
@@ -139,7 +139,7 @@ export default function Accounts() {
       else await api.post("/api/crm/companies", body);
       setShowCo(false); setEditingCo(null); setCoForm({ ...EMPTY_CO });
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function saveContact(e: FormEvent) {
@@ -150,7 +150,7 @@ export default function Accounts() {
       });
       setShowCt(false); setCtForm({ ...EMPTY_CT });
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function aiSummary(company: Company) {

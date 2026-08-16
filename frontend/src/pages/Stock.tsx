@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -170,7 +170,7 @@ export default function Stock() {
   ];
 
   function load() {
-    api.get<Product[]>(`/api/products?q=${encodeURIComponent(q)}${lowOnly ? "&low_stock=true" : ""}`).then(setProducts).catch((e) => toast.error(e.message));
+    api.get<Product[]>(`/api/products?q=${encodeURIComponent(q)}${lowOnly ? "&low_stock=true" : ""}`).then(setProducts).catch((e) => toast.error(errorText(e)));
   }
 
   useEffect(load, [q, lowOnly]);
@@ -184,7 +184,7 @@ export default function Stock() {
           setMvMeta(r);
           if (r.page !== mvPage) setMvPage(r.page);
         })
-        .catch((e) => toast.error(e.message));
+        .catch((e) => toast.error(errorText(e)));
     if (tab === "batches") loadBatches();
   }, [tab, expiringOnly, mvPage, mvSize, bPage, bSize]);
   useEffect(() => setBPage(1), [expiringOnly]);
@@ -199,7 +199,7 @@ export default function Stock() {
         setBMeta(r);
         if (r.page !== bPage) setBPage(r.page);
       })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
   }
 
   async function writeOff(b: StockBatch) {
@@ -220,7 +220,7 @@ export default function Stock() {
       await api.post(`/api/stock/batches/${b.id}/write-off`);
       loadBatches();
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   function openNew() { setEditing(null); setForm({ ...EMPTY }); setShowForm(true); }
@@ -243,7 +243,7 @@ export default function Stock() {
       }
       setShowForm(false);
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   async function applyAdjust(e: FormEvent) {
@@ -262,7 +262,7 @@ export default function Stock() {
       });
       setAdjusting(null); setAdjQty("0"); setAdjNotes(""); setAdjBatch(""); setAdjExpiry("");
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.type === "number" ? Number(e.target.value) : e.target.value });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
-import { api, fmtDateTime, money } from "../api";
+import { api, fmtDateTime, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
 import { useConnection } from "../components/Connection";
@@ -326,7 +326,7 @@ export default function POS() {
         deviceAgent.printReceiptOnAgent(sale, "RX3000 Pharmacy").catch(() => {});
       }
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -348,7 +348,7 @@ export default function POS() {
         deviceAgent.printReceiptOnAgent(paid, "RX3000 Pharmacy").catch(() => {});
       }
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 

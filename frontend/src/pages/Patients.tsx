@@ -4,7 +4,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
-import { api, fmtDate, prefetchRoute } from "../api";
+import { api, fmtDate, prefetchRoute, errorText  } from "../api";
 import { MedicalAid, Patient } from "../types";
 
 const EMPTY = {
@@ -39,7 +39,7 @@ export default function Patients() {
         // the data disagree about where we are.
         if (r.page !== page) setPage(r.page);
       })
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }
 
@@ -78,7 +78,7 @@ export default function Patients() {
       setShowForm(false);
       load();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(errorText(err));
     }
   }
 

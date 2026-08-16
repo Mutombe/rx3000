@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
-import { api, fmtDate, money, currentCurrency } from "../api";
+import { api, fmtDate, money, currentCurrency, errorText  } from "../api";
 import { Avatar } from "../components/record";
 import { Company, Contact, CrmDashboard, Deal } from "../types";
 
@@ -37,7 +37,7 @@ export default function Pipeline() {
   const navigate = useNavigate();
 
   function load() {
-    api.get<Deal[]>("/api/crm/deals").then(setDeals).catch((e) => toast.error(e.message));
+    api.get<Deal[]>("/api/crm/deals").then(setDeals).catch((e) => toast.error(errorText(e)));
     api.get<CrmDashboard>("/api/crm/dashboard").then(setStats);
   }
 
@@ -60,7 +60,7 @@ export default function Pipeline() {
       await api.post(`/api/crm/deals/${dealId}/stage`, { stage, lost_reason });
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
       load();
     }
   }
@@ -78,7 +78,7 @@ export default function Pipeline() {
       setShowForm(false);
       setForm({ ...EMPTY });
       load();
-    } catch (err: any) { toast.error(err.message); }
+    } catch (err: any) { toast.error(errorText(err)); }
   }
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });

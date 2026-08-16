@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, fmtDate, money, prefetchRoute } from "../api";
+import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import Breadcrumbs from "../components/Breadcrumbs";
 import RowLink from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -40,7 +40,7 @@ export default function AccountLedger() {
     api
       .get<AccountView>(`/api/ledger/accounts/${code}`)
       .then(setView)
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
   }, [code]);
 

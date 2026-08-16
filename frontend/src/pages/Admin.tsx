@@ -2,7 +2,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import CurrencyRates from "../components/CurrencyRates";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, getToken, money } from "../api";
+import { api, fmtDate, fmtDateTime, getToken, money, errorText  } from "../api";
 import { AuditEntry, AutomationRule, Backup, EmailTemplate, PriceImportResult, User } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 
@@ -99,21 +99,21 @@ export default function Admin() {
     if (tab === "audit") loadAudit();
     if (tab === "scripts")
       api.get<Submitted[]>("/api/portal-admin/submitted")
-        .then(setSubmitted).catch((e) => toast.error(e.message));
+        .then(setSubmitted).catch((e) => toast.error(errorText(e)));
     if (tab === "switch")
       api
         .get<Paged<Txn>>(
-          `/gateway/transactions/paged?kind=${encodeURIComponent(txnKind)}&page=${txnPage}&per_page=50`,
+          `/api/gateway/transactions/paged?kind=${encodeURIComponent(txnKind)}&page=${txnPage}&per_page=50`,
         )
         .then((r) => { setTxns(r.items); setTxnMeta(r); if (r.page !== txnPage) setTxnPage(r.page); })
-        .catch((e) => toast.error(e.message));
+        .catch((e) => toast.error(errorText(e)));
     if (tab === "notices")
       api
         .get<Paged<Notice>>(
           `/api/counter-messages/paged?active_only=${noticeActive}&page=${noticePage}&per_page=50`,
         )
         .then((r) => { setNotices(r.items); setNoticeMeta(r); if (r.page !== noticePage) setNoticePage(r.page); })
-        .catch((e) => toast.error(e.message));
+        .catch((e) => toast.error(errorText(e)));
     if (tab === "backups") loadBackups();
     if (tab === "automation") { loadRules(); api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }
     if (tab === "templates") loadTemplates();
@@ -126,7 +126,7 @@ export default function Admin() {
       // Drop it from the queue immediately; the server has already moved it on.
       setSubmitted((all) => all.filter((s) => s.id !== id));
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -136,10 +136,10 @@ export default function Admin() {
   useEffect(() => setAuditPage(1), [auditUser]);
 
   function loadRules() {
-    api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(e.message));
+    api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(errorText(e)));
   }
   function loadTemplates() {
-    api.get<EmailTemplate[]>("/api/crm/templates").then(setTemplates).catch((e) => toast.error(e.message));
+    api.get<EmailTemplate[]>("/api/crm/templates").then(setTemplates).catch((e) => toast.error(errorText(e)));
   }
 
   async function saveRule() {
@@ -147,7 +147,7 @@ export default function Admin() {
       await api.post("/api/crm/automation", { ...newRule, sort_order: Number(newRule.sort_order) || 100 });
       setNewRule({ ...newRule, name: "", trigger_value: "", action_value: "" });
       loadRules();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
   async function toggleRule(rule: AutomationRule) {
     await api.put(`/api/crm/automation/${rule.id}`, { ...rule, active: !rule.active });
@@ -162,7 +162,7 @@ export default function Admin() {
       await api.post("/api/crm/templates", newTemplate);
       setNewTemplate({ ...newTemplate, name: "", subject: "", body: "" });
       loadTemplates();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) { toast.error(errorText(e)); }
   }
   async function runEscalations() {
     const res = await api.post<{ escalated: number }>("/api/crm/automation/run-escalations");
@@ -180,10 +180,10 @@ export default function Admin() {
         setAuditMeta(r);
         if (r.page !== auditPage) setAuditPage(r.page);
       })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
   }
   function loadBackups() {
-    api.get<Backup[]>("/api/admin/backups").then(setBackups).catch((e) => toast.error(e.message));
+    api.get<Backup[]>("/api/admin/backups").then(setBackups).catch((e) => toast.error(errorText(e)));
   }
 
   function onFile(e: ChangeEvent<HTMLInputElement>) {
@@ -200,7 +200,7 @@ export default function Admin() {
       });
       setResult(res);
       if (apply) toast.ok(`Applied ${res.updated} price change(s) across ${res.matched} matched product(s).`);
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
   /** Re-open a backup and see whether it still reads.
@@ -216,7 +216,7 @@ export default function Admin() {
       if (b.verified) toast.ok(`${filename} opened cleanly and can be restored.`);
       else toast.error(b.problem || `${filename} could not be verified.`);
     } catch (e: any) {
-      toast.error(e?.message || "That backup could not be checked.");
+      toast.error(errorText(e, "That backup could not be checked."));
     }
   }
 
@@ -226,7 +226,7 @@ export default function Admin() {
       const b = await api.post<Backup>("/api/admin/backup");
       toast.ok(`Backup created: ${b.filename}`);
       loadBackups();
-    } catch (e: any) { toast.error(e.message); } finally { setBusy(false); }
+    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
   async function download(filename: string) {

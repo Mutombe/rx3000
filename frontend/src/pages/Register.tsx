@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime } from "../api";
+import { api, fmtDateTime, errorText  } from "../api";
 import { RegisterEntry } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 
@@ -28,7 +28,7 @@ export default function Register() {
         setMeta(r);
         if (r.page !== page) setPage(r.page);
       })
-      .catch((e) => toast.error(e.message));
+      .catch((e) => toast.error(errorText(e)));
   }, [schedule, dateFrom, dateTo, page, perPage]);
 
   // Narrowing the filters must return to the first page, or you land past the

@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { useStepUp } from "../components/StepUp";
 
 interface Period {
@@ -50,7 +50,7 @@ export default function Periods() {
   const { guarded, prompt } = useStepUp();
 
   function load() {
-    api.get<Period[]>("/api/periods").then(setPeriods).catch((e) => toast.error(e.message));
+    api.get<Period[]>("/api/periods").then(setPeriods).catch((e) => toast.error(errorText(e)));
     api.get<Period>("/api/periods/current").then(setCurrent).catch(() => undefined);
   }
 
@@ -62,7 +62,7 @@ export default function Periods() {
       toast.ok(`${period.name} ${verb === "close" ? "closed" : "locked"}.`);
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -81,7 +81,7 @@ export default function Periods() {
       setReason("");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 

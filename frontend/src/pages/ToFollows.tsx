@@ -12,7 +12,7 @@
  *  server does refuse, the row snaps back and says why.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmtDate, fmtDateTime, prefetchRoute } from "../api";
+import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -79,7 +79,7 @@ export default function ToFollows() {
     api
       .get<Owed[]>("/api/to-follows/ready")
       .then(setReady)
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
     api.get<Owed[]>("/api/to-follows").then(setAll).catch(() => undefined);
     api.get<Owed[]>("/api/to-follows?status=settled").then(setSettled).catch(() => undefined);
@@ -118,7 +118,7 @@ export default function ToFollows() {
       // Snap back and say why, rather than leaving a lie on the screen.
       setReady(before.ready);
       setAll(before.all);
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       const next = new Set(saving);
       next.delete(owed.id);
@@ -135,7 +135,7 @@ export default function ToFollows() {
       setReason("");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 

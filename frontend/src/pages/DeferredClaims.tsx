@@ -11,7 +11,7 @@
  *  queue in a state nobody can reason about.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmtDateTime, money } from "../api";
+import { api, fmtDateTime, money, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 
@@ -53,7 +53,7 @@ export default function DeferredClaims() {
   const [failures, setFailures] = useState<BatchResult["failed"]>([]);
 
   function load() {
-    api.get<Deferred[]>("/api/claims/deferred").then(setRows).catch((e) => toast.error(e.message));
+    api.get<Deferred[]>("/api/claims/deferred").then(setRows).catch((e) => toast.error(errorText(e)));
     api.get<Summary>("/api/claims/deferred/summary").then(setSummary).catch(() => undefined);
   }
 
@@ -68,7 +68,7 @@ export default function DeferredClaims() {
       );
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(null);
     }
@@ -88,7 +88,7 @@ export default function DeferredClaims() {
       setFailures(res.failed);
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(null);
     }

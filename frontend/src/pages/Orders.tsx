@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
-import { api, fmtDateTime, money } from "../api";
+import { api, fmtDateTime, money, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, PurchaseOrder } from "../types";
@@ -45,7 +45,7 @@ export default function Orders() {
         setMeta(r);
         if (r.page !== page) setPage(r.page);
       })
-      .catch((e) => toast.error(e.message))
+      .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
     api.get<Product[]>("/api/products?low_stock=true").then(setLowStock);
   }
@@ -59,7 +59,7 @@ export default function Orders() {
       toast.ok(created.length ? `Created ${created.length} draft order(s) from reorder levels.` : "Nothing at reorder level — no orders needed.");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     } finally {
       setBusy(false);
     }
@@ -70,7 +70,7 @@ export default function Orders() {
       await api.post(`/api/orders/${order.id}/status?status=${status}`);
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
@@ -98,7 +98,7 @@ export default function Orders() {
       toast.ok("Stock received — batches created and quantities updated.");
       load();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(errorText(e));
     }
   }
 
