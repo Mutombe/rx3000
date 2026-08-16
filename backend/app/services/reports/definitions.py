@@ -1394,3 +1394,179 @@ def _uncosted(db: Session, p: dict):
         })
     rows.sort(key=lambda r: -r["on_hand"])
     return rows
+
+
+# ---------------------------------------------------------- sixth batch
+#
+# Finance. The ledger is the best-instrumented part of the system and had no
+# reports at all, which meant the only way to answer "who owes us" was to open a
+# screen and read it.
+
+def _party_balances(db: Session, subledger: str, p: dict):
+    """Net balance per party against a subledger's control accounts.
+
+    Grouped in SQL, then named in one lookup per party type. The alternative —
+    a query per party — is the N+1 that three reports in this catalogue shipped
+    with before it was written down as a rule.
+    """
+    from ...models import Account, JournalEntry, JournalLine
+
+    controls = [
+        a.code for a in db.query(Account).filter(Account.subledger == subledger).all()
+    ]
+    if not controls:
+        return []
+
+    rows = (
+        db.query(
+            JournalLine.party_type,
+            JournalLine.party_id,
+            func.sum(JournalLine.debit),
+            func.sum(JournalLine.credit),
+            func.max(JournalEntry.entry_date),
+        )
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalEntry.status == "posted")
+        .filter(JournalLine.account_code.in_(controls))
+        .filter(JournalEntry.entry_date <= p["as_at"])
+        .group_by(JournalLine.party_type, JournalLine.party_id)
+        .all()
+    )
+
+    # Debtors are debit-positive, creditors credit-positive. Getting this the
+    # wrong way round prints every balance as a negative, which is the fastest
+    # way to make a finance report unreadable.
+    debit_positive = subledger == "debtors"
+
+    wanted = {"patient": set(), "supplier": set(), "scheme": set()}
+    for party_type, party_id, _d, _c, _last in rows:
+        if party_type in wanted and party_id:
+            wanted[party_type].add(party_id)
+
+    names = {}
+    if wanted["patient"]:
+        for row in db.query(Patient).filter(Patient.id.in_(wanted["patient"])).all():
+            names[("patient", row.id)] = (row.first_name + " " + row.last_name).strip()
+    if wanted["supplier"]:
+        for row in db.query(Supplier).filter(Supplier.id.in_(wanted["supplier"])).all():
+            names[("supplier", row.id)] = row.name
+    if wanted["scheme"]:
+        try:
+            from ...models import MedicalAid
+
+            for row in db.query(MedicalAid).filter(MedicalAid.id.in_(wanted["scheme"])).all():
+                names[("scheme", row.id)] = row.name
+        except Exception:
+            # A scheme table that is not there or not shaped as expected must
+            # not take the report down; the balance is still the point.
+            pass
+
+    out = []
+    for party_type, party_id, debit, credit, last in rows:
+        balance = float(debit or 0) - float(credit or 0)
+        if not debit_positive:
+            balance = -balance
+        balance = round(balance, 2)
+        # Settled parties are not debtors any more, and leaving them in pads the
+        # list with rows that need no action.
+        if abs(balance) < 0.005:
+            continue
+        out.append({
+            "party": names.get((party_type, party_id))
+                     or ("unattributed" if not party_type else party_type + " #" + str(party_id)),
+            "kind": party_type or "unattributed",
+            "balance": balance,
+            "last_movement": str(last) if last else "",
+        })
+    out.sort(key=lambda r: -abs(r["balance"]))
+    return out
+
+
+AS_AT = Param("as_at", "As at", "date", default=today)
+
+
+register(Report(
+    key="debtor_balances",
+    title="Who owes us",
+    module="Finance",
+    purpose="Every patient and scheme with money outstanding, largest first. "
+            "The balance sheet gives the total; this gives the names.",
+    params=[AS_AT],
+    columns=[
+        Column("party", "Account", "text"),
+        Column("kind", "Type", "text"),
+        Column("balance", "Owing", "money", total=True),
+        Column("last_movement", "Last movement", "date"),
+    ],
+    rows=lambda db, p: _party_balances(db, "debtors", p),
+))
+
+
+register(Report(
+    key="creditor_balances",
+    title="Who we owe",
+    module="Finance",
+    purpose="Every supplier with a balance outstanding. What the pharmacy is "
+            "carrying, and to whom.",
+    params=[AS_AT],
+    columns=[
+        Column("party", "Supplier", "text"),
+        Column("kind", "Type", "text"),
+        Column("balance", "Owed", "money", total=True),
+        Column("last_movement", "Last movement", "date"),
+    ],
+    rows=lambda db, p: _party_balances(db, "creditors", p),
+))
+
+
+register(Report(
+    key="journal",
+    title="Journal",
+    module="Finance",
+    purpose="Every posting, with what caused it. Where a figure on a statement "
+            "is traced back to the event that produced it.",
+    params=[
+        DATE_FROM, DATE_TO,
+        Param("source", "Source", "text", help="sale, stock_receipt, adjustment"),
+    ],
+    columns=[
+        Column("date", "Date", "date"),
+        Column("reference", "Reference", "code"),
+        Column("account", "Account", "code"),
+        Column("description", "Description", "text"),
+        Column("debit", "Debit", "money", total=True),
+        Column("credit", "Credit", "money", total=True),
+        Column("source", "Caused by", "text"),
+    ],
+    rows=lambda db, p: _journal(db, p),
+))
+
+
+def _journal(db: Session, p: dict):
+    from ...models import Account, JournalEntry, JournalLine
+
+    query = (
+        db.query(JournalLine, JournalEntry)
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalEntry.entry_date >= p["date_from"])
+        .filter(JournalEntry.entry_date <= p["date_to"])
+    )
+    if p.get("source"):
+        query = query.filter(JournalEntry.source == p["source"])
+
+    names = {a.code: a.name for a in db.query(Account).all()}
+    rows = []
+    for line, entry in query.order_by(JournalEntry.entry_date.desc(),
+                                      JournalEntry.id.desc()).all():
+        rows.append({
+            "date": str(entry.entry_date),
+            "reference": entry.reference,
+            "account": line.account_code + " " + names.get(line.account_code, ""),
+            "description": line.description or entry.description or "",
+            "debit": round(line.debit or 0, 2),
+            "credit": round(line.credit or 0, 2),
+            # A reversed entry still shows, because pretending it never happened
+            # is exactly what a journal must not do.
+            "source": entry.source + (" (reversed)" if entry.status == "reversed" else ""),
+        })
+    return rows
