@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "../api";
+import AiOutput from "../components/AiOutput";
 
 interface Exchange {
   question: string;
@@ -70,7 +71,7 @@ export default function Assistant() {
       {history.map((h, i) => (
         <div className="card" key={i}>
           <h3>“{h.question}”</h3>
-          <div className="ai-box">{h.answer}</div>
+          <AiOutput text={h.answer} title="Assistant answer" context={h.question} />
         </div>
       ))}
       {history.length === 0 && (

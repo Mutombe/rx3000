@@ -13,3 +13,11 @@ INFO:     Waiting for application startup.
 2026-08-16 16:36:01,188 rx3000.scheduler INFO Scheduler started
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8177 (Press CTRL+C to quit)
+2026-08-16 16:41:01,195 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:41:01 SAST)" (scheduled at 2026-08-16 16:41:01.183896+02:00)
+2026-08-16 16:41:01,279 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:46:01 SAST)" executed successfully
+2026-08-16 16:46:01,188 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:51:01 SAST)" (scheduled at 2026-08-16 16:46:01.183896+02:00)
+2026-08-16 16:46:01,206 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:51:01 SAST)" executed successfully
+2026-08-16 16:51:01,187 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:56:01 SAST)" (scheduled at 2026-08-16 16:51:01.183896+02:00)
+2026-08-16 16:51:01,199 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 16:56:01 SAST)" executed successfully
+2026-08-16 16:56:01,199 apscheduler.executors.default INFO Running job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 17:01:01 SAST)" (scheduled at 2026-08-16 16:56:01.183896+02:00)
+2026-08-16 16:56:01,207 apscheduler.executors.default INFO Job "send_pending_messages (trigger: interval[0:05:00], next run at: 2026-08-16 17:01:01 SAST)" executed successfully

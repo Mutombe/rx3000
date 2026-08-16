@@ -3,6 +3,7 @@ import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money } from "../api";
+import AiOutput from "../components/AiOutput";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
 import { Label, Patient, Prescription, Sale } from "../types";
@@ -110,7 +111,7 @@ export default function PatientDetail() {
 
       <div className="card">
         <h3>✦ AI clinical summary</h3>
-        {aiSummary ? <div className="ai-box">{aiSummary}</div> : (
+        {aiSummary ? <AiOutput text={aiSummary} title="Patient summary" context={`Patient #${id}`} /> : (
           <p className="muted">Generate a Claude-powered hand-over summary of this patient's medication history and counseling points.</p>
         )}
         <div style={{ marginTop: 12 }}>

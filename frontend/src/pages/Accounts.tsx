@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate } from "../api";
+import AiOutput from "../components/AiOutput";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -222,7 +223,7 @@ export default function Accounts() {
       {summary && (
         <div className="card">
           <h3>✦ AI account review — {summary.name}</h3>
-          <div className="ai-box">{summary.text}</div>
+          <AiOutput text={summary.text} title="Account summary" context={summary.name} />
           <div style={{ marginTop: 10 }}>
             <button className="secondary small" onClick={() => setSummary(null)}>Dismiss</button>
           </div>

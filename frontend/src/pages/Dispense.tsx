@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Link } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money } from "../api";
+import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
@@ -695,7 +696,7 @@ export default function Dispense() {
                   Complete every item in the compliance record before this controlled substance can be dispensed.
                 </div>
               )}
-              {aiResult && <div className="ai-box">{aiResult}</div>}
+              {aiResult && <AiOutput text={aiResult} title="Interaction check" />}
               <KeyBar keys={hotkeys} />
             </div>
           </div>

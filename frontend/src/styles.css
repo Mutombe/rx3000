@@ -2244,3 +2244,79 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--ok-soft); color: var(--ok); border-bottom-color: var(--ok-line);
 }
 .conn-banner.is-good .btn.ghost { color: var(--ok); border-color: var(--ok-line); }
+
+/* ---------------------------------------------------------- AI output
+   Rendered Markdown. Typography is deliberately close to the rest of the
+   application rather than to a document: this is read on screen, and a note
+   that looks like a Word file pasted into a page reads as foreign. */
+.md { font-size: .92rem; line-height: 1.6; color: var(--ink); }
+.md > *:first-child { margin-top: 0; }
+.md > *:last-child { margin-bottom: 0; }
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  font-family: var(--font-display); line-height: 1.3;
+  margin: var(--s4) 0 var(--s2); color: var(--ink);
+}
+.md h1 { font-size: 1.2rem; }
+.md h2 { font-size: 1.05rem; }
+.md h3 { font-size: .95rem; }
+.md h4, .md h5, .md h6 { font-size: .9rem; color: var(--ink-mid); }
+.md p { margin: 0 0 var(--s3); }
+.md ul, .md ol { margin: 0 0 var(--s3); padding-left: var(--s5); }
+.md li { margin-bottom: 4px; }
+.md li::marker { color: var(--ink-faint); }
+.md strong { font-weight: 700; color: var(--ink); }
+.md em { font-style: italic; }
+.md del { opacity: .6; }
+.md a { color: var(--brand-deep); text-decoration: underline; }
+.md code {
+  font-family: var(--font-mono); font-size: .85em;
+  background: var(--accent-soft); padding: 1px 5px; border-radius: var(--r-xs);
+}
+.md pre {
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: var(--s3);
+  overflow-x: auto; overscroll-behavior-x: contain; margin: 0 0 var(--s3);
+}
+.md pre code { background: none; padding: 0; font-size: .82rem; }
+.md blockquote {
+  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
+  border-left: 3px solid var(--line-strong); background: var(--surface-sunk);
+  color: var(--ink-mid);
+}
+.md hr { border: 0; border-top: 1px solid var(--line); margin: var(--s4) 0; }
+/* A table from a model can be wider than the column it lands in, so it scrolls
+   inside itself rather than stretching the card that holds it. */
+.md-table-wrap { overflow-x: auto; overscroll-behavior-x: contain; margin: 0 0 var(--s3); }
+.md table { border-collapse: collapse; width: 100%; font-size: .86rem; }
+.md th, .md td {
+  border: 1px solid var(--line); padding: var(--s2) var(--s3); text-align: left;
+}
+.md th { background: var(--surface-sunk); font-weight: 600; }
+
+.ai-out {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: var(--s4);
+}
+.ai-out-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s3);
+  padding-bottom: var(--s2); border-bottom: 1px solid var(--line-soft);
+}
+.ai-out-label {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft); font-weight: 600;
+}
+.ai-out-actions { display: flex; gap: var(--s2); align-items: center; }
+.ai-out-menu { position: relative; }
+.ai-out-list {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 40;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-sm); box-shadow: var(--e2); padding: 4px; min-width: 130px;
+}
+.ai-out-list button {
+  display: block; width: 100%; text-align: left; height: auto;
+  white-space: nowrap; padding: var(--s2) var(--s3);
+  background: transparent; color: var(--ink); border: 0;
+  font-size: .86rem; font-weight: 500; border-radius: var(--r-xs);
+}
+.ai-out-list button:hover { background: var(--accent-soft); }
