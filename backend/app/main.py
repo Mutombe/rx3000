@@ -26,6 +26,7 @@ from .routers import (
     branches_router,
     portal_router,
     profile_router,
+    layby_router,
     scan_router,
     shifts_router, stock_router, system_router, to_follows_router,
 )
@@ -106,7 +107,7 @@ for router_module in (
     compounding_router, gateway_router, claims_admin_router, periods_router,
     to_follows_router, deferred_router, messages_router, ledger_router,
     dispensing_extras_router, system_router, profile_router, portal_router,
-    branches_router, scan_router,
+    branches_router, scan_router, layby_router,
 ):
     app.include_router(router_module.router)
 

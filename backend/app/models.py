@@ -1724,6 +1724,104 @@ class PettyCash(Base):
     user = relationship("User")
 
 
+
+class LayBy(Base):
+    """Goods set aside, paid for over time, collected when settled.
+
+    Different from a COD in the way that matters: with a COD the goods have
+    gone and the money has not. With a lay-by the money is coming and the goods
+    have not gone — they are off the shelf, in the back, belonging to nobody
+    until the last instalment.
+
+    Two consequences the accounting has to respect, and both are easy to get
+    wrong in a way that flatters the figures:
+
+    **A deposit is not income.** It is money held on behalf of a customer, and
+    the pharmacy owes either the goods or the money back. Booking it as revenue
+    overstates profit and hides a liability, and the day a lay-by is cancelled
+    the "revenue" has to be unwound. Nothing here recognises a sale until the
+    final payment.
+
+    **The stock is gone from the shelf the moment the lay-by is raised.** It is
+    physically in the back and cannot be sold to anybody else, so it comes out
+    of available stock immediately — not on completion. A system that leaves it
+    on hand will cheerfully sell the same box twice.
+    """
+    __tablename__ = "laybys"
+    id = Column(Integer, primary_key=True)
+    layby_number = Column(String(30), unique=True, nullable=False, index=True)
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    # open | completed | cancelled
+    status = Column(String(12), default="open", index=True)
+    total = Column(Float, default=0.0)
+    # What the customer must have paid before the goods can leave. Held on the
+    # record rather than recomputed, because a policy that changes next month
+    # must not retrospectively alter an agreement made today.
+    minimum_deposit = Column(Float, default=0.0)
+    due_date = Column(Date, nullable=True, index=True)
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    cancelled_at = Column(DateTime, nullable=True)
+    # Kept when a lay-by is cancelled, where the pharmacy's terms allow it. The
+    # rest is refunded.
+    cancellation_fee = Column(Float, default=0.0)
+    # The sale raised on completion, so the two records point at each other.
+    sale_id = Column(Integer, ForeignKey("sales.id"), nullable=True)
+
+    patient = relationship("Patient")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    items = relationship("LayByItem", back_populates="layby",
+                         cascade="all, delete-orphan")
+    payments = relationship("LayByPayment", back_populates="layby",
+                            cascade="all, delete-orphan")
+
+    @property
+    def paid(self) -> float:
+        return round(sum(p.amount for p in self.payments), 2)
+
+    @property
+    def balance(self) -> float:
+        return round((self.total or 0) - self.paid, 2)
+
+
+class LayByItem(Base):
+    """A line on a lay-by, priced when it was agreed.
+
+    The price is copied rather than looked up, because a lay-by is an agreement
+    made on a day. A customer paying over three months should not find the
+    balance has moved because the shelf price did.
+    """
+    __tablename__ = "layby_items"
+    id = Column(Integer, primary_key=True)
+    layby_id = Column(Integer, ForeignKey("laybys.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, default=1)
+    unit_price = Column(Float, default=0.0)
+
+    layby = relationship("LayBy", back_populates="items")
+    product = relationship("Product")
+
+
+class LayByPayment(Base):
+    """One instalment. Append-only: a correction is a negative payment."""
+    __tablename__ = "layby_payments"
+    id = Column(Integer, primary_key=True)
+    layby_id = Column(Integer, ForeignKey("laybys.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    method = Column(String(20), default="cash")
+    currency_code = Column(String(5), default="")
+    reference = Column(String(60), default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    layby = relationship("LayBy", back_populates="payments")
+    user = relationship("User")
+
+
+
 # Fail here rather than on the first query.
 #
 # SQLAlchemy configures mappers lazily, so a broken relationship — two foreign

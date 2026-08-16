@@ -3437,3 +3437,111 @@ register(Report(
     ],
     rows=lambda db, p: _cod_rows(db, p, "pending", transferred=True),
 ))
+
+
+register(Report(
+    key="laybys_outstanding",
+    title="Outstanding lay-bys",
+    module="Till",
+    purpose="Goods held in the back with money still owed on them. Stock that "
+            "cannot be sold and cash that has not arrived, at the same time.",
+    params=[],
+    columns=[
+        Column("layby_number", "Lay-by", "code"),
+        Column("customer", "Customer", "text"),
+        Column("phone", "Phone", "text"),
+        Column("total", "Total", "money", total=True),
+        Column("paid", "Paid", "money", total=True),
+        Column("balance", "Outstanding", "money", total=True),
+        Column("due", "Due", "date"),
+        Column("age", "Days held", "number"),
+    ],
+    rows=lambda db, p: _laybys(db, p, "open"),
+))
+
+
+register(Report(
+    key="laybys_settled",
+    title="Lay-bys completed and cancelled",
+    module="Till",
+    purpose="What became of them. A high cancellation rate is stock that sat "
+            "in the back for weeks and earned nothing.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("layby_number", "Lay-by", "code"),
+        Column("customer", "Customer", "text"),
+        Column("status", "Outcome", "text"),
+        Column("total", "Total", "money", total=True),
+        Column("paid", "Paid", "money", total=True),
+        Column("fee", "Fee kept", "money", total=True),
+        Column("age", "Days held", "number"),
+    ],
+    rows=lambda db, p: _laybys_closed(db, p),
+))
+
+
+def _layby_people(db, rows):
+    return {
+        pt.id: pt for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({r.patient_id for r in rows if r.patient_id})).all()
+    }
+
+
+def _laybys(db: Session, p: dict, status: str):
+    from ...models import LayBy
+
+    rows = (db.query(LayBy).filter(LayBy.status == status)
+            .order_by(LayBy.created_at.asc()).all())
+    if not rows:
+        return []
+    people = _layby_people(db, rows)
+    today_ = date.today()
+    out = []
+    for r in rows:
+        person = people.get(r.patient_id)
+        out.append({
+            "layby_number": r.layby_number,
+            "customer": ((person.first_name + " " + person.last_name).strip()
+                         if person else "-"),
+            "phone": (person.phone or "") if person else "",
+            "total": round(r.total or 0, 2),
+            "paid": r.paid,
+            "balance": r.balance,
+            "due": r.due_date.isoformat() if r.due_date else "",
+            # Oldest first: stock held longest is the stock to chase.
+            "age": (today_ - r.created_at.date()).days if r.created_at else 0,
+        })
+    return out
+
+
+def _laybys_closed(db: Session, p: dict):
+    from ...models import LayBy
+
+    rows = (
+        db.query(LayBy)
+        .filter(LayBy.status.in_(("completed", "cancelled")))
+        .filter(func.date(LayBy.created_at) >= p["date_from"])
+        .filter(func.date(LayBy.created_at) <= p["date_to"])
+        .order_by(LayBy.created_at.desc())
+        .all()
+    )
+    if not rows:
+        return []
+    people = _layby_people(db, rows)
+    out = []
+    for r in rows:
+        person = people.get(r.patient_id)
+        closed = r.completed_at or r.cancelled_at
+        out.append({
+            "layby_number": r.layby_number,
+            "customer": ((person.first_name + " " + person.last_name).strip()
+                         if person else "-"),
+            "status": r.status,
+            "total": round(r.total or 0, 2),
+            "paid": r.paid,
+            "fee": round(r.cancellation_fee or 0, 2),
+            "age": ((closed.date() - r.created_at.date()).days
+                    if closed and r.created_at else 0),
+        })
+    return out
