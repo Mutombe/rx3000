@@ -25,6 +25,8 @@ import React, {
   useCallback, useEffect, useRef, useState,
 } from "react";
 import { api } from "../api";
+import * as catalogue from "../offline/catalogue";
+import { useConnection } from "./Connection";
 import { useToast } from "./Toast";
 
 /* ------------------------------------------------------------------ types */
@@ -373,6 +375,65 @@ export function useScanResolver(context: ScanContext, extra?: { branch_id?: numb
   );
 }
 
+/** Answer a scan from the local catalogue, in the server's own shape.
+ *
+ *  Returning the same object as the endpoint is the point: every screen above
+ *  this handles one case, and a till behaves the same whether or not the line
+ *  is up. The differences that cannot be hidden are stated as warnings rather
+ *  than quietly ignored — alternate barcodes are not cached, and the stock
+ *  figure is as at the last sync, which is a fact the operator should have.
+ */
+async function resolveLocally(code: string): Promise<ScanResult> {
+  const hit = await catalogue.lookup(code);
+  const base: ScanResult = {
+    found: false, code, symbology: "plain", matched_on: "",
+    quantity_multiplier: 1, batch_number: "", expiry_date: null, serial: "",
+    product: null, suggestions: [], warnings: [],
+  };
+
+  if (!(await catalogue.usable())) {
+    return {
+      ...base,
+      message:
+        "There is no local copy of the catalogue on this till yet, so nothing "
+        + "can be looked up while the server is unreachable.",
+    };
+  }
+
+  if (!hit) {
+    const near = await catalogue.search(code, 5);
+    return {
+      ...base,
+      suggestions: near.map((p) => ({ id: p.id, name: p.name, barcode: p.barcode })),
+      message:
+        "Nothing in the offline catalogue matches that code. Alternate barcodes "
+        + "are not held locally, so it may still be a code the system knows.",
+    };
+  }
+
+  const warnings = ["Offline — stock shown is as at the last sync."];
+  if (hit.schedule >= 5) {
+    warnings.push(
+      `Schedule ${hit.schedule} — this cannot be sold at the till, and cannot be `
+      + "dispensed while the server is unreachable.",
+    );
+  }
+
+  return {
+    ...base,
+    found: true,
+    matched_on: "local catalogue",
+    product: {
+      id: hit.id, name: hit.name, category: hit.category, schedule: hit.schedule,
+      strength: hit.strength, dosage_form: "", pack_size: "",
+      unit_price: hit.unit_price, cost_price: hit.cost_price,
+      barcode: hit.barcode, nappi_code: hit.nappi_code,
+      quantity_on_hand: hit.quantity_on_hand,
+    },
+    warnings,
+  };
+}
+
 /* ------------------------------------------------------------- the field */
 
 interface ScanBarProps {
@@ -409,6 +470,7 @@ export function ScanBar({
   cameraFeed, cameraTitle,
 }: ScanBarProps) {
   const toast = useToast();
+  const { online } = useConnection();
   const resolve = useScanResolver(context, { branch_id: branchId, order_id: orderId });
   const [ownText, setOwnText] = useState("");
   const controlled = value !== undefined;
@@ -440,7 +502,9 @@ export function ScanBar({
 
       setBusy(true);
       try {
-        const result = await resolve(clean);
+        // Offline, the same code is answered from the local catalogue. Same
+        // shape either way, so nothing above this has to know which happened.
+        const result = online ? await resolve(clean) : await resolveLocally(clean);
         setTyped("");
         // Warnings are advisory — an out-of-stock line or a schedule 5 item is
         // still added, the operator is just told. Errors come back as throws.

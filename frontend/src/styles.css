@@ -2221,3 +2221,10 @@ img { -webkit-user-drag: none; user-select: none; }
 .rr-table tr.is-drillable:focus-visible {
   outline: 2px solid var(--accent); outline-offset: -2px;
 }
+
+/* The queue drained. Green rather than amber: this is the good news, and it
+   dismisses itself out of the way. */
+.conn-banner.is-good {
+  background: var(--ok-soft); color: var(--ok); border-bottom-color: var(--ok-line);
+}
+.conn-banner.is-good .btn.ghost { color: var(--ok); border-color: var(--ok-line); }

@@ -1,0 +1,13 @@
+INFO:     127.0.0.1:59493 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51613 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53006 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60789 - "POST /api/scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60795 - "POST /api/pos/sales HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60817 - "POST /api/pos/sales HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60821 - "POST /api/pos/sales HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60826 - "POST /api/pos/sales HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60828 - "POST /api/scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60831 - "POST /api/pos/sales HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62818 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52000 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61142 - "GET /api/health HTTP/1.1" 200 OK

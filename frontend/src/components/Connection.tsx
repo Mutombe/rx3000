@@ -32,6 +32,8 @@ import {
   createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState,
 } from "react";
 import { apiBase } from "../api";
+import * as catalogue from "../offline/catalogue";
+import * as queue from "../offline/queue";
 
 interface Connection {
   online: boolean;
@@ -58,6 +60,8 @@ const POLL_DOWN = 5_000;
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
+  const [held, setHeld] = useState(0);
+  const [flushed, setFlushed] = useState(0);
   const timer = useRef<number>();
 
   const check = useCallback(async () => {
@@ -88,6 +92,33 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Refresh the local catalogue while the line is up, so the copy on disk is
+  // always from the last good moment. A till that only caches once it notices
+  // it is offline has nothing left to cache with.
+  const synced = useRef(false);
+  useEffect(() => {
+    if (!online || synced.current) return;
+    synced.current = true;
+    catalogue.sync().catch(() => { synced.current = false; });
+  }, [online]);
+
+  // Send anything taken while the line was down. Safe to run on every return
+  // because a replayed sale is recognised by its reference rather than posted
+  // again — see offline/queue.ts, which is where that property is argued for.
+  useEffect(() => {
+    queue.pendingCount().then(setHeld).catch(() => {});
+    if (!online) return;
+    let cancelled = false;
+    queue.flush()
+      .then(async (r) => {
+        if (cancelled) return;
+        setHeld(r.remaining);
+        if (r.posted) setFlushed(r.posted);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [online]);
+
   useEffect(() => {
     let cancelled = false;
     async function loop() {
@@ -111,23 +142,35 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{ online, checkedAt, recheck: check }}>
-      {!online && <OfflineBanner onRetry={check} />}
+      {!online && <OfflineBanner onRetry={check} held={held} />}
+      {/* Said once, when it happens, then gone. A till that carries a permanent
+          notice about a queue that is empty teaches people to ignore it. */}
+      {online && flushed > 0 && (
+        <div className="conn-banner is-good" role="status">
+          <span>
+            {flushed} sale{flushed === 1 ? "" : "s"} taken offline {flushed === 1 ? "has" : "have"} now been sent.
+          </span>
+          <button className="btn ghost small" onClick={() => setFlushed(0)}>Dismiss</button>
+        </div>
+      )}
       {children}
     </Ctx.Provider>
   );
 }
 
-function OfflineBanner({ onRetry }: { onRetry: () => void }) {
+function OfflineBanner({ onRetry, held }: { onRetry: () => void; held: number }) {
   return (
     <div className="conn-banner" role="status">
       <span className="conn-dot" aria-hidden="true" />
       <span>
-        {/* Says only what is true today. Offline selling needs a local
-            catalogue and a queue for sales, and until that exists a banner
-            promising the front shop still works would be the software lying to
-            a cashier at the moment they are least able to check. */}
-        <b>No connection to the server.</b> Nothing can be saved until the line
-        is back. Dispensing stays closed even once it returns to this screen.
+        {/* Every clause here is something the till can actually do. This
+            promised the front shop worked before it did, which is the software
+            lying to a cashier at the moment they are least able to check, so
+            it now changes only when the capability does. */}
+        <b>No connection to the server.</b> Cash sales still work and are held on
+        this till until the line is back. Card, mobile money and medical aid need
+        the server. Dispensing is closed.
+        {held > 0 && <> <b>{held} sale{held === 1 ? "" : "s"} waiting.</b></>}
       </span>
       <button className="btn ghost small" onClick={onRetry}>Try again</button>
     </div>

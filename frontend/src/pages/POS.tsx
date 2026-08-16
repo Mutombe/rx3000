@@ -4,6 +4,8 @@ import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDateTime, money } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
+import { useConnection } from "../components/Connection";
+import * as queue from "../offline/queue";
 import * as deviceAgent from "../deviceAgent";
 import { printReceipt } from "../print";
 import { CurrencyState, Patient, Product, Sale } from "../types";
@@ -52,6 +54,7 @@ export default function POS() {
   const [mobilePhone, setMobilePhone] = useState("");
   const [mobileState, setMobileState] = useState("");
   const scanRef = useRef<HTMLInputElement>(null);
+  const { online } = useConnection();
 
   useEffect(() => { loadPending(); }, []);
   // Optional hardware — absent agent simply means manual capture and browser printing
@@ -221,7 +224,71 @@ export default function POS() {
   ];
   useHotkeys(hotkeys);
 
+  /** Take the sale offline, into the queue.
+   *
+   *  Narrower than the online path on purpose. Everything refused here needs
+   *  the server at the moment of sale and cannot be settled afterwards by
+   *  replaying a record: a card has to be authorised by the acquirer, mobile
+   *  money has to be confirmed by the customer's handset, a medical aid claim
+   *  has to be adjudicated, and loyalty points have to be checked against a
+   *  balance we cannot read. Accepting any of them offline would mean handing
+   *  over goods against a payment that may never have happened.
+   *
+   *  Cash is the exception, because cash settles in the drawer rather than on a
+   *  network, and that is the whole of what an offline till can honestly do.
+   */
+  async function checkoutOffline() {
+    if (payMethod !== "cash" || splitMode) {
+      toast.error(
+        "Only cash can be taken while the server is unreachable. A card or "
+        + "mobile payment has to be authorised at the time, and cannot be "
+        + "settled later from a queued record.",
+      );
+      return;
+    }
+    if (patient && redeemValue > 0) {
+      toast.error("Loyalty points cannot be redeemed offline — the balance cannot be checked.");
+      return;
+    }
+    const schedules = cart.filter((l) => (l.product.schedule ?? 0) >= 5);
+    if (schedules.length) {
+      toast.error(
+        `${schedules[0].product.name} is a schedule ${schedules[0].product.schedule} `
+        + "item and cannot leave the counter without the register.",
+      );
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const row = await queue.enqueue({
+        patient_id: patient?.id ?? null,
+        items: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+        payment_method: "cash",
+        amount_tendered: Number(tendered) || payable,
+        loyalty_points_redeemed: 0,
+      });
+      const held = await queue.pendingCount();
+      toast.ok(
+        `Sale held on this till (${row.ref.slice(0, 12)}…). ${held} waiting to be `
+        + "sent when the line is back. Give the customer their change and goods.",
+      );
+      setCart([]); setPatient(null); setTendered(""); setRedeem("0");
+      scanRef.current?.focus();
+    } catch (e: any) {
+      // The one failure that must never be quiet: if it did not reach the
+      // queue, the sale exists nowhere at all.
+      toast.error(
+        "This sale could not be saved on the till, so it has NOT been recorded. "
+        + "Write it down before continuing. " + (e?.message || ""),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function checkout() {
+    if (!online) return checkoutOffline();
     setBusy(true);
     try {
       const cardTender = !splitMode && payMethod === "card"
