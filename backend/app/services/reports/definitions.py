@@ -3545,3 +3545,354 @@ def _laybys_closed(db: Session, p: dict):
                     if closed and r.created_at else 0),
         })
     return out
+
+
+# ------------------------------------------------------------------ claims
+#
+# The NH263 *integration* is not built. These are not that: they read the claims
+# already in the system, and I spent a day repeating that they were blocked
+# without checking whether the data existed. It did — 449 claims, 132
+# remittances, 3,482 remittance lines.
+
+def _schemes(db):
+    from ...models import MedicalAid
+
+    return {m.id: m.name for m in db.query(MedicalAid).all()}
+
+
+register(Report(
+    key="claims_outstanding",
+    title="Outstanding claims",
+    module="Claims",
+    purpose="Claims submitted and not yet settled, oldest first. Money a "
+            "scheme owes that nobody is chasing until it appears on a list.",
+    params=[
+        Param("min_days", "Outstanding at least (days)", "text", default="0"),
+    ],
+    columns=[
+        Column("claim_number", "Claim", "code"),
+        Column("scheme", "Medical aid", "text"),
+        Column("submitted", "Submitted", "date"),
+        Column("days", "Days outstanding", "number"),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("approved", "Approved", "money", total=True),
+        Column("status", "Status", "text"),
+    ],
+    rows=lambda db, p: _claims_outstanding(db, p),
+))
+
+
+def _claims_outstanding(db: Session, p: dict):
+    from ...models import Claim
+
+    try:
+        min_days = max(0, int(p.get("min_days") or 0))
+    except (TypeError, ValueError):
+        min_days = 0
+    rows_q = (
+        db.query(Claim)
+        .filter(Claim.settled_at.is_(None))
+        .filter(Claim.status.notin_(("rejected", "cancelled")))
+        .all()
+    )
+    schemes = _schemes(db)
+    today_ = date.today()
+    out = []
+    for c in rows_q:
+        when = c.submitted_at or c.created_at
+        days = (today_ - when.date()).days if when else 0
+        if days < min_days:
+            continue
+        out.append({
+            "claim_number": c.claim_number,
+            "scheme": schemes.get(c.medical_aid_id, "-"),
+            "submitted": when.date().isoformat() if when else "",
+            "days": days,
+            "claimed": round(c.amount_claimed or 0, 2),
+            "approved": round(c.amount_approved or 0, 2),
+            "status": c.status or "",
+        })
+    out.sort(key=lambda r: -r["days"])
+    return out
+
+
+register(Report(
+    key="claims_by_scheme",
+    title="Claims by medical aid",
+    module="Claims",
+    purpose="What each scheme has been claimed, approved and settled, and how "
+            "long it takes them. The figures behind a conversation with a "
+            "scheme that pays slowly.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("scheme", "Medical aid", "text"),
+        Column("claims", "Claims", "number", total=True),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("approved", "Approved", "money", total=True),
+        Column("settled", "Settled", "money", total=True),
+        Column("shortfall", "Not paid", "money", total=True),
+        Column("approval_rate", "Approved", "percent"),
+        Column("avg_days", "Avg days to pay", "number"),
+    ],
+    rows=lambda db, p: _claims_by_scheme(db, p),
+))
+
+
+def _claims_by_scheme(db: Session, p: dict):
+    from ...models import Claim
+
+    rows_q = (
+        db.query(Claim)
+        .filter(func.date(Claim.created_at) >= p["date_from"])
+        .filter(func.date(Claim.created_at) <= p["date_to"])
+        .all()
+    )
+    schemes = _schemes(db)
+    groups = {}
+    for c in rows_q:
+        row = groups.setdefault(c.medical_aid_id, {
+            "scheme": schemes.get(c.medical_aid_id, "-"),
+            "claims": 0, "claimed": 0.0, "approved": 0.0, "settled": 0.0, "_days": [],
+        })
+        row["claims"] += 1
+        row["claimed"] = round(row["claimed"] + (c.amount_claimed or 0), 2)
+        row["approved"] = round(row["approved"] + (c.amount_approved or 0), 2)
+        row["settled"] = round(row["settled"] + (c.settled_amount or 0), 2)
+        if c.settled_at and c.submitted_at:
+            row["_days"].append((c.settled_at.date() - c.submitted_at.date()).days)
+    out = []
+    for row in groups.values():
+        days = row.pop("_days")
+        # Averaged over settled claims only. Counting unsettled ones as zero
+        # would make the slowest scheme look like the fastest, because its
+        # money has not arrived to be measured.
+        row["avg_days"] = round(sum(days) / len(days), 1) if days else 0
+        row["shortfall"] = round(row["claimed"] - row["settled"], 2)
+        row["approval_rate"] = (round(row["approved"] / row["claimed"] * 100, 1)
+                                if row["claimed"] else 0.0)
+        out.append(row)
+    out.sort(key=lambda r: -r["claimed"])
+    return out
+
+
+register(Report(
+    key="claim_rejections",
+    title="Rejections and short payments",
+    module="Claims",
+    purpose="Every line a scheme refused or paid short, with the reason it "
+            "gave. A rejection code nobody reads is money written off by "
+            "default.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("reason", "Reason given", "text"),
+        Column("code", "Code", "code"),
+        Column("lines", "Lines", "number", total=True),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("paid", "Paid", "money", total=True),
+        Column("shortfall", "Lost", "money", total=True),
+        Column("written_off", "Written off", "number", total=True),
+    ],
+    rows=lambda db, p: _rejections(db, p),
+))
+
+
+def _rejections(db: Session, p: dict):
+    from ...models import Remittance, RemittanceLine
+
+    rows_q = (
+        db.query(RemittanceLine)
+        .join(Remittance, Remittance.id == RemittanceLine.remittance_id)
+        .filter(func.date(Remittance.payment_date) >= p["date_from"])
+        .filter(func.date(Remittance.payment_date) <= p["date_to"])
+        .all()
+    )
+    groups = {}
+    for line in rows_q:
+        claimed = round(line.amount_claimed or 0, 2)
+        paid = round(line.amount_paid or 0, 2)
+        # Only the lines where money went missing. A remittance that paid in
+        # full is not a rejection and padding the report with them is how the
+        # ones that matter stop being read.
+        if paid >= claimed - 0.005:
+            continue
+        key = (line.reason_code or "", line.reason or "(no reason given)")
+        row = groups.setdefault(key, {
+            "code": key[0], "reason": key[1], "lines": 0,
+            "claimed": 0.0, "paid": 0.0, "written_off": 0,
+        })
+        row["lines"] += 1
+        row["claimed"] = round(row["claimed"] + claimed, 2)
+        row["paid"] = round(row["paid"] + paid, 2)
+        if line.written_off:
+            row["written_off"] += 1
+    out = []
+    for row in groups.values():
+        row["shortfall"] = round(row["claimed"] - row["paid"], 2)
+        out.append(row)
+    out.sort(key=lambda r: -r["shortfall"])
+    return out
+
+
+register(Report(
+    key="claim_batches",
+    title="Claim batches",
+    module="Claims",
+    purpose="Batches sent to pay offices and what came back. Schemes settle in "
+            "batches, so this is the unit a reconciliation actually works in.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("batch_number", "Batch", "code"),
+        Column("status", "Status", "text"),
+        Column("period", "Covering", "text"),
+        Column("claims", "Claims", "number", total=True),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("settled", "Settled", "money", total=True),
+        Column("outstanding", "Outstanding", "money", total=True),
+        Column("days", "Days since sent", "number"),
+    ],
+    rows=lambda db, p: _batches(db, p),
+))
+
+
+def _batches(db: Session, p: dict):
+    from ...models import ClaimBatch
+
+    rows_q = (
+        db.query(ClaimBatch)
+        .filter(func.date(ClaimBatch.created_at) >= p["date_from"])
+        .filter(func.date(ClaimBatch.created_at) <= p["date_to"])
+        .order_by(ClaimBatch.created_at.desc())
+        .all()
+    )
+    today_ = date.today()
+    out = []
+    for b in rows_q:
+        claimed = round(b.total_claimed or 0, 2)
+        settled = round(b.total_settled or 0, 2)
+        sent = b.submitted_at or b.created_at
+        out.append({
+            "batch_number": b.batch_number,
+            "status": b.status or "",
+            "period": (f"{b.period_from} to {b.period_to}"
+                       if b.period_from and b.period_to else ""),
+            "claims": b.claim_count or 0,
+            "claimed": claimed,
+            "settled": settled,
+            "outstanding": round(claimed - settled, 2),
+            "days": (today_ - sent.date()).days if sent else 0,
+        })
+    return out
+
+
+register(Report(
+    key="remittance_reconciliation",
+    title="Remittance reconciliation",
+    module="Claims",
+    purpose="What each scheme said it paid against what was claimed, and "
+            "whether the lines add up to the payment. A remittance that does "
+            "not reconcile is money nobody has chased.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("remittance_number", "Remittance", "code"),
+        Column("payment_date", "Paid", "date"),
+        Column("reference", "Payment ref", "code"),
+        Column("lines", "Lines", "number", total=True),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("paid", "Paid", "money", total=True),
+        Column("line_sum", "Lines add to", "money", total=True),
+        Column("difference", "Unreconciled", "money", total=True),
+    ],
+    rows=lambda db, p: _remittances(db, p),
+))
+
+
+def _remittances(db: Session, p: dict):
+    from ...models import Remittance, RemittanceLine
+
+    rows_q = (
+        db.query(Remittance)
+        .filter(func.date(Remittance.payment_date) >= p["date_from"])
+        .filter(func.date(Remittance.payment_date) <= p["date_to"])
+        .order_by(Remittance.payment_date.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    sums = dict(
+        db.query(RemittanceLine.remittance_id,
+                 func.coalesce(func.sum(RemittanceLine.amount_paid), 0.0))
+        .filter(RemittanceLine.remittance_id.in_([r.id for r in rows_q]))
+        .group_by(RemittanceLine.remittance_id).all()
+    )
+    counts = dict(
+        db.query(RemittanceLine.remittance_id, func.count(RemittanceLine.id))
+        .filter(RemittanceLine.remittance_id.in_([r.id for r in rows_q]))
+        .group_by(RemittanceLine.remittance_id).all()
+    )
+    out = []
+    for r in rows_q:
+        paid = round(r.total_paid or 0, 2)
+        line_sum = round(float(sums.get(r.id) or 0), 2)
+        out.append({
+            "remittance_number": r.remittance_number,
+            "payment_date": str(r.payment_date) if r.payment_date else "",
+            "reference": r.payment_reference or "",
+            "lines": int(counts.get(r.id) or 0),
+            "claimed": round(r.total_claimed or 0, 2),
+            "paid": paid,
+            "line_sum": line_sum,
+            # The check that makes this worth running: the lines must add up to
+            # the payment. Where they do not, either a line is missing or the
+            # scheme paid something it has not explained.
+            "difference": round(paid - line_sum, 2),
+        })
+    out.sort(key=lambda r: -abs(r["difference"]))
+    return out
+
+
+register(Report(
+    key="claims_deferred",
+    title="Held claims",
+    module="Claims",
+    purpose="Claims not submitted, and why they were held. The switch was "
+            "down, a card was absent — every one is revenue waiting on "
+            "somebody to come back to it.",
+    params=[],
+    columns=[
+        Column("claim_number", "Claim", "code"),
+        Column("scheme", "Medical aid", "text"),
+        Column("held_on", "Held", "date"),
+        Column("days", "Days held", "number"),
+        Column("reason", "Why", "text"),
+        Column("attempts", "Attempts", "number", total=True),
+        Column("claimed", "Amount", "money", total=True),
+    ],
+    rows=lambda db, p: _deferred(db, p),
+))
+
+
+def _deferred(db: Session, p: dict):
+    from ...models import Claim
+
+    rows_q = (
+        db.query(Claim)
+        .filter(Claim.submitted_at.is_(None))
+        .filter(Claim.status.notin_(("cancelled",)))
+        .all()
+    )
+    schemes = _schemes(db)
+    today_ = date.today()
+    out = []
+    for c in rows_q:
+        when = c.deferred_at or c.created_at
+        out.append({
+            "claim_number": c.claim_number,
+            "scheme": schemes.get(c.medical_aid_id, "-"),
+            "held_on": when.date().isoformat() if when else "",
+            "days": (today_ - when.date()).days if when else 0,
+            "reason": c.deferred_reason or c.response_message or "(not recorded)",
+            "attempts": c.submit_attempts or 0,
+            "claimed": round(c.amount_claimed or 0, 2),
+        })
+    out.sort(key=lambda r: -r["days"])
+    return out
