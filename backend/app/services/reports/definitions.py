@@ -3896,3 +3896,370 @@ def _deferred(db: Session, p: dict):
         })
     out.sort(key=lambda r: -r["days"])
     return out
+
+
+# ------------------------------------------------- statements and chase lists
+
+def _party_ledger(db: Session, subledger: str, p: dict, party_type: str | None = None):
+    """Every posting against a subledger, party by party, with a running balance.
+
+    A statement is not a balance — it is how the balance was arrived at. A
+    customer disputing what they owe wants the lines, in order, with the total
+    moving down the page, and a report that gives only the closing figure
+    invites the phone call it was meant to prevent.
+    """
+    from ...models import Account, JournalEntry, JournalLine
+
+    controls = [a.code for a in db.query(Account).filter(Account.subledger == subledger).all()]
+    if not controls:
+        return []
+    rows = (
+        db.query(JournalLine, JournalEntry)
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalEntry.status == "posted")
+        .filter(JournalLine.account_code.in_(controls))
+        .filter(JournalEntry.entry_date <= p["as_at"])
+        .order_by(JournalEntry.entry_date.asc(), JournalEntry.id.asc())
+        .all()
+    )
+    if not rows:
+        return []
+
+    debit_positive = subledger == "debtors"
+    names = {}
+    ids = {(l.party_type, l.party_id) for l, _e in rows if l.party_id}
+    for pt in db.query(Patient).filter(
+            Patient.id.in_({i for t, i in ids if t == "patient"})).all():
+        names[("patient", pt.id)] = (pt.first_name + " " + pt.last_name).strip()
+    for sp in db.query(Supplier).filter(
+            Supplier.id.in_({i for t, i in ids if t == "supplier"})).all():
+        names[("supplier", sp.id)] = sp.name
+    try:
+        from ...models import MedicalAid
+
+        for sc in db.query(MedicalAid).filter(
+                MedicalAid.id.in_({i for t, i in ids if t == "scheme"})).all():
+            names[("scheme", sc.id)] = sc.name
+    except Exception:
+        pass
+
+    running: dict = {}
+    out = []
+    for line, entry in rows:
+        key = (line.party_type or "", line.party_id)
+        if party_type and line.party_type != party_type:
+            continue
+        movement = (line.debit or 0) - (line.credit or 0)
+        if not debit_positive:
+            movement = -movement
+        running[key] = round(running.get(key, 0.0) + movement, 2)
+        out.append({
+            "party": names.get(key) or ("unattributed" if not key[0]
+                                        else f"{key[0]} #{key[1]}"),
+            "date": str(entry.entry_date),
+            "reference": entry.reference,
+            "description": line.description or entry.description or "",
+            "charge": round(line.debit if debit_positive else line.credit, 2) or 0,
+            "payment": round(line.credit if debit_positive else line.debit, 2) or 0,
+            "balance": running[key],
+        })
+    # Grouped by party, oldest first inside each: that is the shape of a
+    # statement, and sorting the whole thing by date interleaves customers.
+    out.sort(key=lambda r: (r["party"], r["date"]))
+    return out
+
+
+AS_AT_P = Param("as_at", "As at", "date", default=today)
+
+register(Report(
+    key="debtor_statements",
+    title="Debtor statements",
+    module="Finance",
+    purpose="Every charge and payment against each customer account, with the "
+            "balance running down the page. What you send when somebody asks "
+            "what they owe and why.",
+    params=[AS_AT_P],
+    columns=[
+        Column("party", "Account", "text"),
+        Column("date", "Date", "date"),
+        Column("reference", "Reference", "code"),
+        Column("description", "Detail", "text"),
+        Column("charge", "Charged", "money", total=True),
+        Column("payment", "Paid", "money", total=True),
+        Column("balance", "Balance", "money"),
+    ],
+    rows=lambda db, p: _party_ledger(db, "debtors", p),
+))
+
+
+register(Report(
+    key="creditor_statements",
+    title="Creditor statements",
+    module="Finance",
+    purpose="Every invoice and payment against each supplier, with the balance "
+            "running down the page. What you check a supplier statement "
+            "against.",
+    params=[AS_AT_P],
+    columns=[
+        Column("party", "Supplier", "text"),
+        Column("date", "Date", "date"),
+        Column("reference", "Reference", "code"),
+        Column("description", "Detail", "text"),
+        Column("charge", "Invoiced", "money", total=True),
+        Column("payment", "Paid", "money", total=True),
+        Column("balance", "Balance", "money"),
+    ],
+    rows=lambda db, p: _party_ledger(db, "creditors", p),
+))
+
+
+register(Report(
+    key="debtors_to_chase",
+    title="Debtors to chase",
+    module="Finance",
+    purpose="Who to ring today, with their number. An ageing report says how "
+            "bad it is; this says what to do about it.",
+    params=[
+        Param("over_days", "Overdue by more than (days)", "text", default="30"),
+        Param("min_amount", "Owing at least", "text", default="0"),
+    ],
+    columns=[
+        Column("customer", "Customer", "text"),
+        Column("phone", "Phone", "text"),
+        Column("balance", "Owing", "money", total=True),
+        Column("oldest", "Oldest item", "date"),
+        Column("days", "Days overdue", "number"),
+        Column("last_payment", "Last paid", "date"),
+    ],
+    rows=lambda db, p: _to_chase(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _to_chase(db: Session, p: dict):
+    from ...models import Account, JournalEntry, JournalLine
+
+    try:
+        over = max(0, int(p.get("over_days") or 30))
+        floor = float(p.get("min_amount") or 0)
+    except (TypeError, ValueError):
+        over, floor = 30, 0.0
+
+    controls = [a.code for a in db.query(Account).filter(Account.subledger == "debtors").all()]
+    if not controls:
+        return []
+    rows = (
+        db.query(JournalLine, JournalEntry)
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalEntry.status == "posted")
+        .filter(JournalLine.account_code.in_(controls))
+        .filter(JournalLine.party_type == "patient")
+        .all()
+    )
+    if not rows:
+        return []
+    agg: dict = {}
+    for line, entry in rows:
+        row = agg.setdefault(line.party_id, {
+            "balance": 0.0, "oldest": None, "last_payment": None,
+        })
+        charge = (line.debit or 0) - (line.credit or 0)
+        row["balance"] = round(row["balance"] + charge, 2)
+        if charge > 0 and (row["oldest"] is None or entry.entry_date < row["oldest"]):
+            row["oldest"] = entry.entry_date
+        if charge < 0 and (row["last_payment"] is None or entry.entry_date > row["last_payment"]):
+            row["last_payment"] = entry.entry_date
+
+    people = {
+        pt.id: pt for pt in
+        db.query(Patient).filter(Patient.id.in_(list(agg.keys()))).all()
+    }
+    today_ = date.today()
+    out = []
+    for pid, row in agg.items():
+        person = people.get(pid)
+        if not person or row["balance"] < max(0.005, floor):
+            continue
+        days = (today_ - row["oldest"]).days if row["oldest"] else 0
+        if days < over:
+            continue
+        out.append({
+            "patient_id": pid,
+            "customer": (person.first_name + " " + person.last_name).strip(),
+            "phone": person.phone or "(no number on file)",
+            "balance": row["balance"],
+            "oldest": row["oldest"].isoformat() if row["oldest"] else "",
+            "days": days,
+            "last_payment": row["last_payment"].isoformat() if row["last_payment"] else "",
+        })
+    out.sort(key=lambda r: -r["balance"])
+    return out
+
+
+register(Report(
+    key="remittance_advice",
+    title="Remittance advice",
+    module="Claims",
+    purpose="Line by line, what a scheme paid against what was claimed. The "
+            "document you work through when a payment does not match.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("remittance", "Remittance", "code"),
+        Column("paid_on", "Paid", "date"),
+        Column("member", "Member", "text"),
+        Column("service_date", "Service", "date"),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("allowed", "Allowed", "money", total=True),
+        Column("paid", "Paid", "money", total=True),
+        Column("variance", "Short by", "money", total=True),
+        Column("reason", "Reason", "text"),
+    ],
+    rows=lambda db, p: _remittance_advice(db, p),
+))
+
+
+def _remittance_advice(db: Session, p: dict):
+    from ...models import Remittance, RemittanceLine
+
+    rows_q = (
+        db.query(RemittanceLine, Remittance)
+        .join(Remittance, Remittance.id == RemittanceLine.remittance_id)
+        .filter(func.date(Remittance.payment_date) >= p["date_from"])
+        .filter(func.date(Remittance.payment_date) <= p["date_to"])
+        .order_by(Remittance.payment_date.desc(), RemittanceLine.line_number.asc())
+        .all()
+    )
+    return [
+        {
+            "remittance": rem.remittance_number,
+            "paid_on": str(rem.payment_date) if rem.payment_date else "",
+            "member": line.member_name or line.policy_number or "-",
+            "service_date": str(line.service_date) if line.service_date else "",
+            "claimed": round(line.amount_claimed or 0, 2),
+            "allowed": round(line.amount_allowed or 0, 2),
+            "paid": round(line.amount_paid or 0, 2),
+            "variance": round((line.amount_claimed or 0) - (line.amount_paid or 0), 2),
+            "reason": line.reason or line.reason_code or "",
+        }
+        for line, rem in rows_q
+    ]
+
+
+register(Report(
+    key="otc_sales",
+    title="Pharmacist-only sales",
+    module="Dispensary",
+    purpose="Schedule 2 and 3 items sold without a prescription, with the "
+            "indication and whether counselling was given. The record a "
+            "pharmacist is accountable for.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("product", "Product", "text"),
+        Column("schedule", "Sch", "text"),
+        Column("quantity", "Qty", "number", total=True),
+        Column("customer", "Customer", "text"),
+        Column("indication", "Indication", "text"),
+        Column("counselling", "Counselled", "text"),
+        Column("referred", "Referred", "text"),
+        Column("pharmacist", "Pharmacist", "text"),
+    ],
+    rows=lambda db, p: _otc(db, p),
+))
+
+
+def _otc(db: Session, p: dict):
+    from ...models import OTCSale
+
+    rows_q = (
+        db.query(OTCSale)
+        .filter(func.date(OTCSale.created_at) >= p["date_from"])
+        .filter(func.date(OTCSale.created_at) <= p["date_to"])
+        .order_by(OTCSale.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    products = {
+        pr.id: pr.name for pr in
+        db.query(Product).filter(Product.id.in_({r.product_id for r in rows_q})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({r.pharmacist_id for r in rows_q if r.pharmacist_id})).all()
+    }
+    people = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({r.patient_id for r in rows_q if r.patient_id})).all()
+    }
+    return [
+        {
+            "date": r.created_at.isoformat(sep=" ", timespec="minutes"),
+            "product": products.get(r.product_id, "#" + str(r.product_id)),
+            "schedule": "S" + str(r.schedule) if r.schedule else "",
+            "quantity": r.quantity or 0,
+            "customer": people.get(r.patient_id) or r.customer_name or "(walk-in)",
+            "indication": r.indication or "",
+            # Named rather than blank. "Not recorded" is a finding; an empty
+            # cell reads as nothing happening.
+            "counselling": "yes" if r.counselling_given else "not recorded",
+            "referred": "referred" if r.referred_to_doctor else "",
+            "pharmacist": users.get(r.pharmacist_id, "-"),
+        }
+        for r in rows_q
+    ]
+
+
+register(Report(
+    key="members",
+    title="Medical aid members",
+    module="Dispensary",
+    purpose="Every patient on a scheme, with their membership and dependent "
+            "code. What a claim is rejected for when it is wrong.",
+    params=[],
+    columns=[
+        Column("patient", "Patient", "text"),
+        Column("scheme", "Medical aid", "text"),
+        Column("membership", "Membership no.", "code"),
+        Column("dependent", "Dep.", "code"),
+        Column("phone", "Phone", "text"),
+        Column("missing", "Incomplete", "text"),
+    ],
+    rows=lambda db, p: _members(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _members(db: Session, p: dict):
+    from ...models import MedicalAid
+
+    schemes = {m.id: m.name for m in db.query(MedicalAid).all()}
+    rows = (
+        db.query(Patient)
+        .filter(Patient.medical_aid_id.isnot(None))
+        .order_by(Patient.last_name, Patient.first_name)
+        .all()
+    )
+    out = []
+    for pt in rows:
+        gaps = []
+        if not (pt.medical_aid_number or "").strip():
+            gaps.append("membership number")
+        if not (pt.dependent_code or "").strip():
+            gaps.append("dependent code")
+        out.append({
+            "patient_id": pt.id,
+            "patient": (pt.first_name + " " + pt.last_name).strip(),
+            "scheme": schemes.get(pt.medical_aid_id, "-"),
+            "membership": pt.medical_aid_number or "",
+            "dependent": pt.dependent_code or "",
+            "phone": pt.phone or "",
+            # The point of the report: a claim fails on exactly these fields,
+            # and finding out at submission is finding out too late.
+            "missing": ", ".join(gaps),
+        })
+    # Incomplete first — those are the ones that will bounce.
+    out.sort(key=lambda r: (not r["missing"], r["patient"]))
+    return out
