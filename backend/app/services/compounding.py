@@ -117,6 +117,14 @@ def prepare(db: Session, mixture: Mixture, user_id: int, batches: float = 1.0,
         # consumes a unit, which is how a dispensary actually works.
         units = int(needed) if float(needed).is_integer() else int(needed) + 1
         helpers.consume_stock_fefo(db, ing.product, units, "compound", user_id, reference=ref)
+        # A controlled ingredient going into a mixture is controlled stock
+        # leaving the shelf, and the register must show where it went. This was
+        # missing: preparing a Schedule 5 cream drew the Tramadol through FEFO and
+        # wrote nothing to the register, so the register balanced against a
+        # quantity that was no longer there and nobody could say why. The helper
+        # is a no-op below S5, so ordinary ingredients cost nothing here.
+        helpers.record_register_entry(
+            db, ing.product, -units, "compound", user_id, reference=ref)
         drawn.append({"product": ing.product.name, "units": units})
 
     expiry = date.today() + timedelta(days=mixture.shelf_life_days or 30)
