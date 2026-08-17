@@ -51,7 +51,13 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "card_batch": "VARCHAR(30) DEFAULT ''",
         "currency_code": "VARCHAR(5) DEFAULT ''",
     },
-    "patients": {"marketing_opt_in": "BOOLEAN DEFAULT 1"},
+    "patients": {
+        "marketing_opt_in": "BOOLEAN DEFAULT 1",
+        "caregiver_name": "VARCHAR(120)",
+        "caregiver_phone": "VARCHAR(30)",
+        "caregiver_relationship": "VARCHAR(40)",
+        "contact_caregiver_first": "BOOLEAN DEFAULT 0",
+    },
     "prescriptions": {
         "status": "VARCHAR(12) DEFAULT 'active'",
         "draft_ref": "VARCHAR(30) DEFAULT ''",
@@ -106,6 +112,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},
     "dispensings": {
+        "pharmacist_initial": "VARCHAR(8)",
         "dispense_type": "VARCHAR(20) DEFAULT 'prescription'",
         "schedule": "INTEGER DEFAULT 0",
         "id_verified": "BOOLEAN DEFAULT 0",

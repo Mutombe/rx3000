@@ -78,7 +78,7 @@ def create_prescription(
         db.add(PrescriptionItem(
             prescription_id=rx.id,
             product_id=item.product_id,
-            dosage_instructions=item.dosage_instructions,
+            dosage_instructions=sig.expand(db, item.dosage_instructions),
             quantity=item.quantity,
             repeats_allowed=repeats,
             repeat_interval_days=item.repeat_interval_days,
@@ -318,7 +318,17 @@ def prescription_labels(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Dispensing-label data for a script — patient, directions, cautions, batch."""
+    """Dispensing-label data for a script — patient, directions, cautions, batch.
+
+    Directions are expanded from shorthand before they leave here. A dispenser
+    types `1t tds pc` because typing the sentence forty times a day is what
+    makes people abbreviate the label itself — and the label is where a patient
+    reads what to do. The shorthand belongs in the input; the words belong on
+    the box.
+    """
+    from ..services import sig
+
+    sig.seed_if_empty(db)
     rx = db.get(Prescription, rx_id)
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
@@ -349,7 +359,7 @@ def prescription_labels(
             strength=product.strength,
             dosage_form=product.dosage_form,
             quantity=item.quantity,
-            dosage_instructions=item.dosage_instructions or "As directed by your doctor",
+            dosage_instructions=sig.expand(db, item.dosage_instructions) or "As directed by your doctor",
             warnings=_warnings(product),
             schedule=product.schedule or 0,
             batch_number=batch_number or "",
@@ -439,7 +449,7 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
                                                         item.repeats_allowed)
         db.add(PrescriptionItem(
             prescription_id=rx.id, product_id=item.product_id,
-            dosage_instructions=item.dosage_instructions, quantity=item.quantity,
+            dosage_instructions=sig.expand(db, item.dosage_instructions), quantity=item.quantity,
             repeats_allowed=repeats, repeat_interval_days=item.repeat_interval_days,
             auto_refill=item.auto_refill and repeats > 0,
             icd10_code=(item.icd10_code or "").strip().upper(),

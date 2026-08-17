@@ -648,3 +648,47 @@ def realtime_reverse(transaction_id: str, reason: str = Body(..., embed=True),
         response={"accepted": True}, started=_time.monotonic())
     return {"reversed": original.transaction_id, "reversal_id": txn,
             "amount": original.amount_approved, "by": user.full_name}
+
+
+# --------------------------------------------------- dosage shorthand and labels
+@router.get("/dosage-abbreviations")
+def dosage_abbreviations(db: Session = Depends(get_db)):
+    """Every code a dispenser can type, with what it prints.
+
+    Returned in full rather than searched, because the list is short and a
+    dispenser learning the shorthand wants to see it, not query it.
+    """
+    from ..models import DosageAbbreviation
+    from ..services import sig
+
+    sig.seed_if_empty(db)
+    rows = (
+        db.query(DosageAbbreviation)
+        .filter(DosageAbbreviation.active)
+        .order_by(DosageAbbreviation.category, DosageAbbreviation.code)
+        .all()
+    )
+    grouped: dict[str, list[dict]] = {}
+    for row in rows:
+        grouped.setdefault(row.category or "other", []).append(
+            {"code": row.code, "expansion": row.expansion, "meaning": row.meaning}
+        )
+    return {"count": len(rows), "groups": grouped}
+
+
+@router.post("/dosage-abbreviations/expand")
+def expand_dosage(shorthand: str = Body(..., embed=True),
+                  db: Session = Depends(get_db)):
+    """Turn typed shorthand into the sentence that prints on the label."""
+    from ..services import sig
+
+    sig.seed_if_empty(db)
+    return {"shorthand": shorthand, "directions": sig.expand(db, shorthand)}
+
+
+# A /prescriptions/{rx_id}/labels endpoint already exists in
+# prescriptions_router, and it is the better one — it carries the patient's ID
+# number, repeats remaining, the dispensed batch and expiry, and the prescriber.
+# A second registration of the same path is not an override: FastAPI matches the
+# first one it was given, so the duplicate written here was dead code that read
+# as live. The abbreviation expansion was moved into the real endpoint instead.

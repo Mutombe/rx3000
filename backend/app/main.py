@@ -61,6 +61,8 @@ async def lifespan(app: FastAPI):
         seed_gateway_if_empty(db)
         from .services.ledger import ensure_chart
         ensure_chart(db)
+        from .services import sig as _sig
+        _sig.seed_if_empty(db)
         from .helpers import ensure_opening_batches
         if ensure_opening_batches(db):
             db.commit()

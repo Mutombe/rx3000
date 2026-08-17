@@ -295,6 +295,17 @@ class Patient(Base):
     medical_aid_number = Column(String(40), default="")
     dependent_code = Column(String(10), default="00")
     loyalty_points = Column(Integer, default=0)
+    # Who looks after this patient. Not next of kin and not an emergency
+    # contact: the person who actually collects the medicine, signs for a
+    # delivery, takes the reminder call and answers the survey. For an elderly
+    # or paediatric patient that is almost never the patient, and a reminder
+    # placed to the patient's own number reaches nobody.
+    caregiver_name = Column(String(120), default="")
+    caregiver_phone = Column(String(30), default="")
+    caregiver_relationship = Column(String(40), default="")
+    # Whether the caregiver is the right person to contact by default. A patient
+    # who manages their own medicine should not have calls diverted.
+    contact_caregiver_first = Column(Boolean, default=False)
     marketing_opt_in = Column(Boolean, default=True)  # POPIA consent for campaigns
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -464,6 +475,16 @@ class Dispensing(Base):
     id_number_seen = Column(String(30), default="")
     script_sighted = Column(Boolean, default=False)
     prescriber_verified = Column(Boolean, default=False)
+    # The dispensing pharmacist's initials, typed at the point of handover.
+    #
+    # This replaces a second user acting as witness. A witness requirement that
+    # cannot be met — one pharmacist on a Sunday — is either ignored or worked
+    # around by sharing a login, and a shared login is worse than no control at
+    # all because it makes the record actively wrong. An initial is a claim by a
+    # named, logged-in person that they checked it, which is what the record
+    # needs to say.
+    pharmacist_initial = Column(String(8), default="")
+    # Kept for scripts dispensed before the change. Nothing writes to it.
     witness_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     compliance_notes = Column(Text, default="")
 
@@ -1921,6 +1942,56 @@ class ScriptChange(Base):
     changed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     changed_by = relationship("User")
+
+
+
+
+class DosageAbbreviation(Base):
+    """A short code a dispenser types, and the words that print on the label.
+
+    Typing "one tablet three times a day after food" forty times a day is how
+    directions end up abbreviated on the label itself, which is where a patient
+    reads them. So the abbreviation lives here and the full sentence prints:
+    the dispenser types `1t tds pc`, the label says what the patient needs.
+
+    Seeded with the codes in common use, and editable — every pharmacy has its
+    own shorthand and one it inherited from whoever trained there.
+    """
+    __tablename__ = "dosage_abbreviations"
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), unique=True, nullable=False, index=True)
+    # What prints on the label, in words a patient can follow.
+    expansion = Column(String(200), nullable=False)
+    # Latin or trade origin, for a dispenser who wants to know what it means.
+    meaning = Column(String(120), default="")
+    category = Column(String(30), default="")   # frequency | route | timing | quantity
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MedicalAidDueDate(Base):
+    """When a scheme is contracted to pay, so the pharmacy can chase on time.
+
+    A memorandum of understanding gives a pharmacy the dates it will be paid on.
+    Nothing in this system knew them, so "are we overdue or is it simply not due
+    yet" was a question answered from memory — and a claim chased too early
+    annoys the scheme while one chased too late is written off.
+    """
+    __tablename__ = "medical_aid_due_dates"
+    id = Column(Integer, primary_key=True)
+    medical_aid_id = Column(Integer, ForeignKey("medical_aids.id"),
+                            nullable=False, index=True)
+    # Day of the month a submission is due, and the day payment is expected.
+    submit_by_day = Column(Integer, default=0)
+    payment_day = Column(Integer, default=0)
+    # Days after submission, where a scheme works to a lag rather than a date.
+    payment_lag_days = Column(Integer, default=0)
+    notes = Column(Text, default="")
+    reminder_days_before = Column(Integer, default=3)
+    active = Column(Boolean, default=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    medical_aid = relationship("MedicalAid")
 
 
 
