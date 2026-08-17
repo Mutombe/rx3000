@@ -498,24 +498,53 @@ def alter_script(rx_id: int, item_id: int = Body(...),
                    "altered - the register would no longer match the medicine. "
                    "Reverse the dispensing first, or capture a new script.")
 
+    from ..models import ScriptChange
+
     changes = []
+    # Each change is also written as a row, not only as prose in the notes.
+    # A sentence appended to a free-text field cannot be queried, filtered by
+    # field, counted, or aged — so "how often are directions changed after
+    # capture, and by whom" had no answer despite the information being there.
+    recorded: list[ScriptChange] = []
+
+    def record(field: str, old_value, new_value):
+        recorded.append(ScriptChange(
+            prescription_id=rx.id,
+            prescription_item_id=item.id,
+            field=field,
+            old_value=str(old_value if old_value not in (None, "") else ""),
+            new_value=str(new_value if new_value not in (None, "") else ""),
+            reason=reason.strip(),
+            changed_at=datetime.utcnow(),
+            changed_by_id=user.id,
+        ))
+
     if quantity is not None and quantity != item.quantity:
         if quantity <= 0:
             raise HTTPException(status_code=400, detail="Quantity must be positive.")
         changes.append(f"quantity {item.quantity} to {quantity}")
+        record("quantity", item.quantity, quantity)
         item.quantity = quantity
     if dosage_instructions is not None and dosage_instructions != item.dosage_instructions:
         changes.append("directions changed")
+        # The old directions are kept in full. "Directions changed" is exactly
+        # the note that is useless when somebody asks what they used to say.
+        record("dosage_instructions", item.dosage_instructions, dosage_instructions)
         item.dosage_instructions = dosage_instructions
     if icd10_code is not None and icd10_code.upper() != (item.icd10_code or ""):
         changes.append(f"diagnosis {item.icd10_code or 'none'} to {icd10_code.upper()}")
+        record("icd10_code", item.icd10_code, icd10_code.upper())
         item.icd10_code = icd10_code.upper()
     if supply_days is not None and supply_days != item.supply_days:
         changes.append(f"supply days {item.supply_days} to {supply_days}")
+        record("supply_days", item.supply_days, supply_days)
         item.supply_days = supply_days
 
     if not changes:
         return {"altered": False, "reason": "Nothing on that line was different."}
+
+    for row in recorded:
+        db.add(row)
 
     stamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M")
     rx.notes = (f"{rx.notes}\n[{stamp}] {user.full_name} altered "

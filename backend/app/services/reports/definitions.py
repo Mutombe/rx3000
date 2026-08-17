@@ -4740,3 +4740,186 @@ def _invoice_page(db: Session, p: dict, offset: int, limit: int):
 
 def _invoice_lookup(db: Session, p: dict, offset: int = 0, limit: int = 200):
     return _invoice_shape(db, _invoice_query(db, p).offset(offset).limit(limit).all())
+
+
+# ------------------------------------------- over the newly recorded data
+
+register(Report(
+    key="bin_locations",
+    title="Stock by bin location",
+    module="Stock",
+    purpose="What sits where, in bin order. A picking list in bin order is "
+            "walked once; the same list in product order is walked three times.",
+    params=[Param("bin", "Bin starts with", "text")],
+    columns=[
+        Column("bin_location", "Bin", "code"),
+        Column("product", "Product", "text"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("value", "Value at cost", "money", total=True),
+    ],
+    rows=lambda db, p: _bins(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _bins(db: Session, p: dict):
+    query = db.query(Product).filter(Product.active)
+    prefix = str(p.get("bin") or "").strip()
+    if prefix:
+        query = query.filter(Product.bin_location.ilike(prefix + "%"))
+    rows = []
+    unassigned = 0
+    for product in query.all():
+        if not (product.bin_location or "").strip():
+            unassigned += 1
+            continue
+        rows.append({
+            "product_id": product.id,
+            "bin_location": product.bin_location,
+            "product": product.name,
+            "on_hand": product.quantity_on_hand or 0,
+            "value": round((product.cost_price or 0) * (product.quantity_on_hand or 0), 2),
+        })
+    rows.sort(key=lambda r: (r["bin_location"], r["product"]))
+    if unassigned and not prefix:
+        # Stated as a row rather than left out. A picking list that silently
+        # omits everything without a bin is a picking list that misses stock.
+        rows.append({
+            "product_id": None,
+            "bin_location": "(no bin set)",
+            "product": f"{unassigned} product(s) have no bin location recorded",
+            "on_hand": 0, "value": 0,
+        })
+    return rows
+
+
+register(Report(
+    key="stock_take_variance",
+    title="Stock take variance",
+    module="Stock",
+    purpose="What the shelves held against what the system believed. This is "
+            "where shrinkage becomes visible — a till can reconcile perfectly "
+            "while stock walks out of the back.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("reference", "Count", "code"),
+        Column("date", "Counted", "date"),
+        Column("product", "Product", "text"),
+        Column("expected", "System said", "number", total=True),
+        Column("counted", "Actually there", "number", total=True),
+        Column("variance", "Variance", "number", total=True),
+        Column("value", "Value", "money", total=True),
+        Column("counted_by", "Counted by", "text"),
+        Column("note", "Note", "text"),
+    ],
+    rows=lambda db, p: _take_variance(db, p),
+))
+
+
+def _take_variance(db: Session, p: dict):
+    from ...models import StockTake, StockTakeLine
+
+    rows_q = (
+        db.query(StockTakeLine, StockTake)
+        .join(StockTake, StockTake.id == StockTakeLine.stock_take_id)
+        .filter(func.date(StockTakeLine.counted_at) >= p["date_from"])
+        .filter(func.date(StockTakeLine.counted_at) <= p["date_to"])
+        .all()
+    )
+    if not rows_q:
+        return []
+    products = {
+        pr.id: pr.name for pr in
+        db.query(Product).filter(
+            Product.id.in_({l.product_id for l, _t in rows_q})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({l.counted_by_id for l, _t in rows_q if l.counted_by_id})).all()
+    }
+    out = []
+    for line, take in rows_q:
+        variance = line.variance
+        # Lines that agreed are left out. A variance report listing everything
+        # that matched is a report nobody reads to the end, and the ones that
+        # matched are exactly the ones needing no attention.
+        if variance == 0:
+            continue
+        out.append({
+            "reference": take.reference,
+            "date": line.counted_at.date().isoformat() if line.counted_at else "",
+            "product": products.get(line.product_id, "#" + str(line.product_id)),
+            "expected": line.expected,
+            "counted": line.counted,
+            "variance": variance,
+            "value": round(variance * (line.unit_cost or 0), 2),
+            "counted_by": users.get(line.counted_by_id, "-"),
+            "note": line.note or "",
+        })
+    out.sort(key=lambda r: r["value"])
+    return out
+
+
+register(Report(
+    key="script_change_history",
+    title="Script change history",
+    module="Dispensary",
+    purpose="What was altered on a script after capture, from what to what, by "
+            "whom and why. The question asked precisely when something has "
+            "gone wrong.",
+    params=[DATE_FROM, DATE_TO,
+            Param("field", "Field", "text", help="quantity, dosage_instructions…")],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("rx_number", "Script", "code"),
+        Column("patient", "Patient", "text"),
+        Column("field", "Changed", "text"),
+        Column("old_value", "From", "text"),
+        Column("new_value", "To", "text"),
+        Column("reason", "Reason given", "text"),
+        Column("changed_by", "By", "text"),
+    ],
+    rows=lambda db, p: _script_changes(db, p),
+))
+
+
+def _script_changes(db: Session, p: dict):
+    from ...models import ScriptChange
+
+    query = (
+        db.query(ScriptChange, Prescription)
+        .join(Prescription, Prescription.id == ScriptChange.prescription_id)
+        .filter(func.date(ScriptChange.changed_at) >= p["date_from"])
+        .filter(func.date(ScriptChange.changed_at) <= p["date_to"])
+    )
+    if p.get("field"):
+        query = query.filter(ScriptChange.field.ilike("%" + str(p["field"]) + "%"))
+    rows_q = query.order_by(ScriptChange.changed_at.desc()).all()
+    if not rows_q:
+        return []
+    people = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({s.patient_id for _c, s in rows_q if s.patient_id})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({c.changed_by_id for c, _s in rows_q if c.changed_by_id})).all()
+    }
+    return [
+        {
+            "date": c.changed_at.isoformat(sep=" ", timespec="minutes"),
+            "rx_number": script.rx_number or ("#" + str(script.id)),
+            "patient": people.get(script.patient_id, "-"),
+            "field": (c.field or "").replace("_", " "),
+            "old_value": (c.old_value or "(blank)")[:80],
+            "new_value": (c.new_value or "(blank)")[:80],
+            "reason": c.reason or "",
+            "changed_by": users.get(c.changed_by_id, "-"),
+        }
+        for c, script in rows_q
+    ]

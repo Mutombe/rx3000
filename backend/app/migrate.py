@@ -98,7 +98,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "settled_amount": "FLOAT DEFAULT 0",
         "settled_at": "DATETIME",
     },
-    "products": {"mmap_price": "FLOAT DEFAULT 0",
+    "products": {
+        "bin_location": "VARCHAR(20)",
+        "manufacturer": "VARCHAR(120)",
+        "sep_price": "DOUBLE PRECISION DEFAULT 0","mmap_price": "FLOAT DEFAULT 0",
                  "active_ingredient": "VARCHAR(160) DEFAULT ''"},
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},

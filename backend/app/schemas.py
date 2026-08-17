@@ -99,6 +99,12 @@ class ProductBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     nappi_code: str = ""
     barcode: str = ""
+    # Where it sits on the shelf, who makes it, and the regulated
+    # maximum where one is published. All optional: a pharmacy that
+    # does not use bin locations should not be made to invent them.
+    bin_location: str = ""
+    manufacturer: str = ""
+    sep_price: float = 0.0
     category: str = "medicine"
     schedule: int = 0
     dosage_form: str = ""

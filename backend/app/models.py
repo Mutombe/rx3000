@@ -317,6 +317,17 @@ class Product(Base):
     name = Column(String(200), nullable=False, index=True)
     nappi_code = Column(String(30), default="", index=True)
     barcode = Column(String(40), default="", index=True)
+    # Where it lives on the shelf. A picking list in bin order is walked once;
+    # a picking list in product order is walked three times.
+    bin_location = Column(String(20), default="", index=True)
+    # Who makes it, as against who sells it to us. Two suppliers can carry the
+    # same manufacturer's product, and a recall names the manufacturer.
+    manufacturer = Column(String(120), default="", index=True)
+    # The regulated maximum, where one is published. Zimbabwe does not operate a
+    # single exit price the way South Africa does, so this is left blank rather
+    # than invented, and the comparison report says so when nothing is set.
+    sep_price = Column(Float, default=0.0)
+
     category = Column(String(40), default="medicine")  # medicine | front_shop | airtime
     schedule = Column(Integer, default=0)  # 0-6 (S5/S6 tracked in register)
     dosage_form = Column(String(60), default="")
@@ -1819,6 +1830,97 @@ class LayByPayment(Base):
 
     layby = relationship("LayBy", back_populates="payments")
     user = relationship("User")
+
+
+
+
+class StockTake(Base):
+    """A physical count of the shelves, against what the system believes.
+
+    Shrinkage is invisible without this. A pharmacy can reconcile its till to
+    the cent every day and still be losing stock, because the till only knows
+    about things that were sold.
+
+    A count is a session rather than an event: it opens, lines are counted over
+    hours or days, and it is closed once — at which point the variances become
+    stock movements and the shelves and the system agree again. Nothing is
+    adjusted before the close, so a half-finished count leaves the system exactly
+    as it was.
+    """
+    __tablename__ = "stock_takes"
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(30), unique=True, nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    # open | closed | abandoned
+    status = Column(String(12), default="open", index=True)
+    # Narrows what is expected to be counted, so a pharmacy can count one aisle
+    # on a Tuesday rather than the whole shop on a Sunday.
+    scope_category = Column(String(40), default="")
+    scope_bin = Column(String(20), default="")
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+    closed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    closed_by = relationship("User", foreign_keys=[closed_by_id])
+    lines = relationship("StockTakeLine", back_populates="stock_take",
+                         cascade="all, delete-orphan")
+
+
+class StockTakeLine(Base):
+    """One product counted.
+
+    `expected` is captured when the line is counted rather than read at close,
+    because a count that takes two days would otherwise compare Monday's count
+    against Wednesday's system figure and call the difference shrinkage.
+    """
+    __tablename__ = "stock_take_lines"
+    id = Column(Integer, primary_key=True)
+    stock_take_id = Column(Integer, ForeignKey("stock_takes.id"),
+                           nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    counted = Column(Integer, nullable=False)
+    expected = Column(Integer, nullable=False)
+    unit_cost = Column(Float, default=0.0)
+    counted_at = Column(DateTime, default=datetime.utcnow)
+    counted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    note = Column(String(240), default="")
+
+    stock_take = relationship("StockTake", back_populates="lines")
+    product = relationship("Product")
+    counted_by = relationship("User")
+
+    @property
+    def variance(self) -> int:
+        return (self.counted or 0) - (self.expected or 0)
+
+
+class ScriptChange(Base):
+    """What changed on a prescription, and who changed it.
+
+    A script is the one record in this system that carries clinical weight, and
+    it is editable. Without a trail, "the dose was changed" has no answer to
+    "by whom, from what, and when" — and that question is asked precisely when
+    something has gone wrong.
+
+    Append-only. A correction is another row.
+    """
+    __tablename__ = "script_changes"
+    id = Column(Integer, primary_key=True)
+    prescription_id = Column(Integer, ForeignKey("prescriptions.id"),
+                             nullable=False, index=True)
+    prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"),
+                                  nullable=True, index=True)
+    field = Column(String(40), nullable=False)
+    old_value = Column(String(240), default="")
+    new_value = Column(String(240), default="")
+    reason = Column(String(240), default="")
+    changed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    changed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    changed_by = relationship("User")
 
 
 
