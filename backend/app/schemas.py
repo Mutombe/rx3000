@@ -669,6 +669,11 @@ class MessageOut(ORM):
 # ---------- shifts / cash-up ----------
 class ShiftOpen(BaseModel):
     opening_float: float = 0.0
+    # Which physical till and drawer this run belongs to. Asked at the start
+    # rather than at cash-up, because a run number that only exists after the
+    # money is counted cannot be printed on anything that happened during it.
+    till_no: str = ""
+    draw_no: str = ""
 
 
 class ShiftClose(BaseModel):
@@ -690,6 +695,12 @@ class ShiftOut(ORM):
     sales_count: int
     notes: str
     status: str
+    # Till / Run / Draw. Returned so the cashier is told their run number when
+    # the shift opens — it was allocated and then never reported, which meant
+    # nobody could quote the number the cash-up is keyed on.
+    till_no: str = ""
+    run_number: int = 0
+    draw_no: str = ""
     user: Optional[UserOut] = None
 
 

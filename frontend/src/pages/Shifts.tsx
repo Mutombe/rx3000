@@ -8,6 +8,8 @@ export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
   const [openFloat, setOpenFloat] = useState("500");
+  const [till, setTill] = useState("1");
+  const [draw, setDraw] = useState("");
   const [notes, setNotes] = useState("");
   const [takings, setTakings] = useState<ShiftTakings | null>(null);
   const toast = useToast();
@@ -32,7 +34,10 @@ export default function Shifts() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.post("/api/shifts/open", { opening_float: Number(openFloat) || 0 });
+      await api.post("/api/shifts/open", {
+        opening_float: Number(openFloat) || 0,
+        till_no: till.trim(), draw_no: draw.trim(),
+      });
       toast.ok("Shift opened — sales you process are now tracked against it.");
       load();
     } catch (err: any) { toast.error(errorText(err)); } finally { setBusy(false); }
@@ -118,6 +123,20 @@ export default function Shifts() {
               <label>Opening float</label>
               <input type="number" step="0.01" value={openFloat} onChange={(e) => setOpenFloat(e.target.value)} />
             </div>
+            {/* Asked now, not at cash-up. The run number is allocated per till
+                when the shift opens, so the run has an identity while it is
+                still trading rather than only once the money is counted. */}
+            <div className="field">
+              <label>Till</label>
+              <input
+                value={till} onChange={(e) => setTill(e.target.value)}
+                placeholder="e.g. 1"
+              />
+            </div>
+            <div className="field">
+              <label>Drawer <span className="muted">(optional)</span></label>
+              <input value={draw} onChange={(e) => setDraw(e.target.value)} />
+            </div>
             <button disabled={busy}>{busy ? "Opening…" : "Open shift"}</button>
           </form>
         </div>
@@ -128,7 +147,7 @@ export default function Shifts() {
         <table>
           <thead>
             <tr>
-              <th>Cashier</th><th>Opened</th><th>Closed</th>
+              <th>Cashier</th><th>Run</th><th>Opened</th><th>Closed</th>
               <th className="num">Float</th><th className="num">Expected</th><th className="num">Counted</th>
               <th className="num">Variance</th><th className="num">Sales</th><th>Notes</th>
             </tr>
@@ -137,6 +156,15 @@ export default function Shifts() {
             {history.map((s) => (
               <tr key={s.id}>
                 <td><b>{s.user?.full_name ?? s.user_id}</b></td>
+                {/* A run number without its till is meaningless, and every shift
+                    opened before runs were numbered has neither. Both absent
+                    shows a dash rather than "Till  · run 0". */}
+                <td className="mono sh-run">
+                  {s.till_no || s.run_number
+                    ? [s.till_no && `Till ${s.till_no}`, s.run_number && `run ${s.run_number}`]
+                        .filter(Boolean).join(" · ")
+                    : "—"}
+                </td>
                 <td>{fmtDateTime(s.opened_at)}</td>
                 <td>{s.closed_at ? fmtDateTime(s.closed_at) : <span className="badge">open</span>}</td>
                 <td className="num">{money(s.opening_float)}</td>

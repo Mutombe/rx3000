@@ -224,6 +224,11 @@ export interface Shift {
   sales_count: number;
   notes: string;
   status: string;
+  /** Till / Run / Draw. Runs are numbered per till, so a run number only means
+   *  something alongside its till. Pre-existing shifts have no till and run 0. */
+  till_no: string;
+  run_number: number;
+  draw_no: string;
   user?: User;
 }
 

@@ -136,11 +136,40 @@ def get_current(db: Session = Depends(get_db), user: User = Depends(get_current_
     return shift
 
 
+def _next_run_number(db: Session, till_no: str) -> int:
+    """The next run number for a till.
+
+    A run is one till's trading between two cash-ups, and it is what the whole
+    cash-up is keyed on: Till / Run / Draw. Numbered per till rather than
+    globally, because "till 2, run 47" is a thing a person can find, while a
+    global counter tells you only how many runs the shop has ever had.
+
+    Allocated when the shift opens. The system this replaces increments it when
+    the cash-up is saved, which means nothing that happens *during* the run can
+    carry the number — no invoice, no reprint, no query. Allocating up front
+    costs nothing and makes the run identifiable while it is still open.
+
+    The column existed and was reported by the cash-up before this, and nothing
+    ever assigned it, so every run in the system was run 0 and the screen showed
+    it as though it meant something.
+    """
+    highest = (
+        db.query(func.max(Shift.run_number))
+        .filter(func.coalesce(Shift.till_no, "") == (till_no or ""))
+        .scalar()
+    )
+    return int(highest or 0) + 1
+
+
 @router.post("/open", response_model=schemas.ShiftOut)
 def open_shift(body: schemas.ShiftOpen, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     if current_open_shift(db, user.id):
         raise HTTPException(status_code=400, detail="You already have an open shift — close it first")
-    shift = Shift(user_id=user.id, opening_float=body.opening_float, status="open")
+    shift = Shift(
+        user_id=user.id, opening_float=body.opening_float, status="open",
+        till_no=body.till_no.strip(), draw_no=body.draw_no.strip(),
+        run_number=_next_run_number(db, body.till_no.strip()),
+    )
     db.add(shift)
     db.commit()
     db.refresh(shift)
@@ -251,10 +280,15 @@ def submit_cashup(
     result = cashup_svc.reconcile(db, shift, counted)
     result["currency"] = body.currency
 
-    if body.till_no:
-        shift.till_no = body.till_no
+    if body.till_no and body.till_no.strip() != (shift.till_no or ""):
+        # The run number was allocated against whichever till the shift opened
+        # on. Moving the cash-up to a different till without re-allocating would
+        # leave it numbered in the old till's sequence — a run 47 on till 2 that
+        # collides with till 2's real run 47.
+        shift.till_no = body.till_no.strip()
+        shift.run_number = _next_run_number(db, shift.till_no)
     if body.draw_no:
-        shift.draw_no = body.draw_no
+        shift.draw_no = body.draw_no.strip()
     shift.counted_by_id = user.id
     shift.counted_at = datetime.utcnow()
     cashup_svc.store(shift, result, body.coinage, body.notes)
@@ -268,6 +302,83 @@ def submit_cashup(
     db.commit()
     result["shift_closed"] = True
     return result
+
+
+@router.get("/{shift_id}/invoices")
+def run_invoices(shift_id: int, db: Session = Depends(get_db),
+                 _: User = Depends(get_current_user)):
+    """Every document in the run — sales, voids and credits.
+
+    Available only once the drawer has been counted, and that is not a detail.
+    The system this replaces puts the invoice list on the cash-up screen next to
+    the count boxes, which hands the counter the expected figure in a form they
+    only have to add up. Withholding the expected total while publishing its
+    addends is not a blind count.
+
+    Voids and credits are listed rather than filtered out, because they are what
+    a supervisor is looking for: a void is the standard way to make a sale
+    disappear after the money has been taken, and it leaves no trace in a list
+    that only shows what was paid.
+    """
+    shift = db.get(Shift, shift_id)
+    if not shift:
+        raise HTTPException(status_code=404, detail="That shift no longer exists.")
+    if not getattr(shift, "counted_at", None):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "The invoices for a run can be listed once the drawer has been "
+                "counted. Until then they would add up to the figure the count "
+                "is meant to arrive at independently."
+            ),
+        )
+
+    end = shift.closed_at or datetime.utcnow()
+    sales = (
+        db.query(Sale)
+        .filter(Sale.created_at >= shift.opened_at, Sale.created_at <= end)
+        .order_by(Sale.created_at)
+        .all()
+    )
+
+    rows = []
+    for sale in sales:
+        methods = sorted({t.method for t in sale.tenders}) if sale.tenders \
+            else ([sale.payment_method] if sale.payment_method else [])
+        rows.append({
+            "id": sale.id,
+            "sale_number": sale.sale_number,
+            "at": sale.created_at.isoformat() if sale.created_at else None,
+            "status": sale.status,
+            "total": round(float(sale.total or 0), 2),
+            "methods": methods,
+            "cashier_id": sale.cashier_id,
+        })
+
+    def summed(status: str) -> dict:
+        picked = [r for r in rows if r["status"] == status]
+        return {"count": len(picked),
+                "total": round(sum(r["total"] for r in picked), 2)}
+
+    # A run is normally a day at one till, but a till left open over a weekend is
+    # not rare and there is no reason for one screen to carry thousands of rows.
+    # The totals and counts are computed over everything and only the list is
+    # shortened, with `showing` saying so — a truncated list reported as the whole
+    # thing is the failure this codebase has made five times.
+    LIMIT = 500
+    return {
+        "shift_id": shift.id,
+        "till_no": shift.till_no,
+        "run_number": shift.run_number,
+        "draw_no": shift.draw_no,
+        "documents": len(rows),
+        "showing": min(len(rows), LIMIT),
+        "paid": summed("paid"),
+        "void": summed("void"),
+        "credited": summed("credited"),
+        "pending": summed("pending"),
+        "invoices": rows[:LIMIT],
+    }
 
 
 @router.get("/{shift_id}/cashup")

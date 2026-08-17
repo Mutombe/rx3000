@@ -2183,8 +2183,24 @@ img { -webkit-user-drag: none; user-select: none; }
   font-weight: 700; font-size: 1.15rem;
 }
 .cu-others { display: grid; gap: var(--s3); grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.cu-actions { display: flex; justify-content: flex-end; margin-top: var(--s5); }
+/* Two buttons now, so they need spacing rather than both being flush right. */
+.cu-actions {
+  display: flex; justify-content: flex-end; gap: var(--s2);
+  margin-top: var(--s5); flex-wrap: wrap;
+}
 .cu-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
+/* Till and run, quoted back to whoever asks about this cash-up. */
+.cu-run {
+  font-size: .78rem; color: var(--ink-soft);
+  padding: 2px var(--s2); border: 1px solid var(--line); border-radius: var(--r-sm);
+  white-space: nowrap;
+}
+/* A run can be hundreds of documents; it scrolls inside its own box rather than
+   pushing the variance and the Done button off the screen. */
+.cu-run-list { max-height: 44vh; overflow-y: auto; margin-top: var(--s3); }
+/* "Till 7 · run 1" is one fact. Wrapped, it left the separator dangling at the
+   start of the second line. */
+.sh-run { white-space: nowrap; }
 .cu-table { width: 100%; border-collapse: collapse; }
 .cu-table th, .cu-table td {
   padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);

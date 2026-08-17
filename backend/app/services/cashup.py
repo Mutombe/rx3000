@@ -213,6 +213,36 @@ def reconcile(db: Session, shift: Shift, counted: dict[str, float]) -> dict:
         "total_counted": total_counted,
         "total_system": total_system,
         "variance": round(total_counted - total_system, 2),
+        # What was cancelled during the run. Not part of the reconciliation —
+        # a void takes no money — but it is the figure a supervisor reads next
+        # to a variance, because voiding a sale after taking the cash produces a
+        # drawer that is over by exactly the voided amount.
+        **_cancellations(db, shift),
+    }
+
+
+def _cancellations(db: Session, shift: Shift) -> dict:
+    """Voids and credits raised during the run, with counts.
+
+    Returned only as part of a reconciliation, which exists only after a count
+    has been committed. These are sale totals, and sale totals published before
+    the count are the expected figure waiting to be added up.
+    """
+    start = shift.opened_at
+    end = shift.closed_at or datetime.utcnow()
+    rows = (
+        db.query(Sale.status, func.count(Sale.id), func.coalesce(func.sum(Sale.total), 0.0))
+        .filter(Sale.created_at >= start, Sale.created_at <= end)
+        .filter(Sale.status.in_(("void", "credited")))
+        .group_by(Sale.status)
+        .all()
+    )
+    found = {status: (int(n), round(float(total or 0), 2)) for status, n, total in rows}
+    voids, void_total = found.get("void", (0, 0.0))
+    credits, credit_total = found.get("credited", (0, 0.0))
+    return {
+        "void_count": voids, "void_total": void_total,
+        "credit_count": credits, "credit_total": credit_total,
     }
 
 

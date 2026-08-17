@@ -16,7 +16,7 @@
  *  count exists to catch.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, money, errorText  } from "../api";
+import { api, money, errorText, fmtDateTime } from "../api";
 import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
 
@@ -34,6 +34,25 @@ interface Result {
   expected_cash: number; counted_cash: number; cash_variance: number;
   total_counted: number; total_system: number; variance: number;
   unattributed: number;
+  // Till / Run / Draw — what the run is keyed on, and what somebody quotes when
+  // they come back to ask about it.
+  till_no?: string | null; run_number?: number | null;
+  void_count: number; void_total: number;
+  credit_count: number; credit_total: number;
+}
+
+interface RunDoc {
+  id: number; sale_number: string; at: string | null;
+  status: string; total: number; methods: string[];
+}
+interface RunList {
+  documents: number; showing: number;
+  paid: { count: number; total: number };
+  void: { count: number; total: number };
+  credited: { count: number; total: number };
+  pending: { count: number; total: number };
+  invoices: RunDoc[];
+  till_no?: string | null; run_number?: number | null; draw_no?: string | null;
 }
 
 export default function CashUp(
@@ -50,6 +69,11 @@ export default function CashUp(
   const [draw, setDraw] = useState("");
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  // The run's documents, fetched only once a count exists — the server refuses
+  // before that, because a list of invoices adds up to the figure the count is
+  // supposed to reach on its own.
+  const [run, setRun] = useState<RunList | null>(null);
+  const [showRun, setShowRun] = useState(false);
 
   useEffect(() => {
     const q = currency ? `?currency=${currency}` : "";
@@ -110,10 +134,32 @@ export default function CashUp(
 
   if (!setup) return <div className="card"><div className="empty">Loading the drawer…</div></div>;
 
+  async function loadRun() {
+    setShowRun(true);
+    if (run) return;
+    try {
+      setRun(await api.get<RunList>(`/api/shifts/${shiftId}/invoices`));
+    } catch (e) {
+      toast.error(errorText(e, "The invoices for this run could not be listed."));
+      setShowRun(false);
+    }
+  }
+
   if (result) {
+    const runLabel = [
+      result.till_no ? `Till ${result.till_no}` : "",
+      result.run_number ? `run ${result.run_number}` : "",
+    ].filter(Boolean).join(" · ");
+
     return (
       <div className="card">
-        <h3>Cash-up</h3>
+        <div className="cu-head">
+          <h3 style={{ margin: 0 }}>Cash-up</h3>
+          {/* Only rendered when there is something to render. A shift opened
+              before runs were numbered has no run, and "run 0" reads as a real
+              answer. */}
+          {runLabel && <span className="cu-run mono">{runLabel}</span>}
+        </div>
         <div className="cu-scroll">
           <table className="cu-table">
             <thead>
@@ -169,7 +215,65 @@ export default function CashUp(
           </p>
         )}
 
+        {/* Voids and credits sit next to the variance because that is where they
+            are read. A sale voided after the cash was taken leaves the drawer
+            over by exactly the voided amount, so a clean variance with a large
+            void total is a different story from a clean variance without one. */}
+        {(result.void_count > 0 || result.credit_count > 0) && (
+          <p className="st-note">
+            {result.void_count > 0 && (
+              <>{result.void_count} sale{result.void_count === 1 ? "" : "s"} voided
+                during this run, {money(result.void_total)} in total. </>
+            )}
+            {result.credit_count > 0 && (
+              <>{result.credit_count} credit{result.credit_count === 1 ? "" : "s"} raised,
+                {" "}{money(result.credit_total)}.</>
+            )}
+          </p>
+        )}
+
+        {showRun && run && (
+          <div className="cu-scroll cu-run-list">
+            <p className="muted small">
+              {run.documents} document{run.documents === 1 ? "" : "s"} in this run
+              {run.showing < run.documents
+                // Said plainly. A shortened list presented as the whole thing is
+                // the mistake this codebase has made repeatedly.
+                ? ` — showing the first ${run.showing}. The totals above cover all ${run.documents}.`
+                : "."}
+            </p>
+            {/* Only when there is something to list. A table of headings above no
+                rows reads as a failure to load rather than as an empty run. */}
+            {run.invoices.length > 0 && (
+            <table className="cu-table">
+              <thead>
+                <tr>
+                  <th>Invoice</th><th>Time</th><th>Status</th>
+                  <th>Tender</th><th className="st-amount">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {run.invoices.map((d) => (
+                  <tr key={d.id} className={d.status === "void" ? "is-off" : ""}>
+                    <td className="mono">{d.sale_number}</td>
+                    <td>{d.at ? fmtDateTime(d.at) : "—"}</td>
+                    <td>{d.status}</td>
+                    <td>{d.methods.join(", ") || "—"}</td>
+                    <td className="st-amount mono">{money(d.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            )}
+          </div>
+        )}
+
         <div className="cu-actions">
+          {!showRun && (
+            <button className="small ghost" onClick={loadRun}>
+              Show the invoices in this run
+            </button>
+          )}
           <button className="small" onClick={() => onCounted?.()}>Done</button>
         </div>
       </div>
