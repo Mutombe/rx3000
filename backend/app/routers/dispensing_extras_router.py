@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from .. import helpers, schedule_policy
 from ..auth import get_current_user
+from .periods_router import require_step_up
 from ..config import settings
 from ..database import get_db
 from ..models import (
@@ -467,7 +468,8 @@ def alter_script(rx_id: int, item_id: int = Body(...),
                  supply_days: int | None = Body(default=None),
                  reason: str = Body(...),
                  db: Session = Depends(get_db),
-                 user: User = Depends(get_current_user)):
+                 user: User = Depends(get_current_user),
+                 _grant=Depends(require_step_up("script.alter"))):
     """Correct a captured script without voiding and re-keying it.
 
     The rule that makes this safe rather than a hole: **what has already been

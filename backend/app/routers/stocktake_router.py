@@ -30,6 +30,7 @@ from .. import helpers
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Product, StockTake, StockTakeLine, User
+from .periods_router import require_step_up
 from ..services import branches as branch_svc
 
 router = APIRouter(prefix="/api/stock-takes", tags=["stock take"],
@@ -177,7 +178,8 @@ def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
 
 @router.post("/{take_id}/close")
 def close_take(take_id: int, db: Session = Depends(get_db),
-               user: User = Depends(get_current_user)):
+               user: User = Depends(get_current_user),
+               _grant=Depends(require_step_up("stocktake.close"))):
     """Post the variances and bring the system into line with the shelves.
 
     This is where stock actually moves, and it is deliberately the only step

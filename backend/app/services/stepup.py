@@ -90,6 +90,42 @@ register(Action(
     approvers=("admin", "pharmacist"), self_approval=True))
 
 register(Action(
+    key="stocktake.close", name="Close a stock take",
+    why="Closing a count posts every variance as a stock movement, and a count "
+        "can write off thousands of dollars in one call. It is the largest "
+        "single adjustment anybody in the building can make, and the shape of "
+        "action that should not rest on one login.",
+    approvers=("admin", "pharmacist"), self_approval=False))
+
+register(Action(
+    key="layby.cancel", name="Cancel a lay-by",
+    why="Cancelling returns goods to the shelf and decides what is refunded and "
+        "what fee is kept. A customer's money is being handed back, or not, on "
+        "somebody's judgement.",
+    approvers=("admin", "pharmacist"), self_approval=True))
+
+register(Action(
+    key="script.alter", name="Alter a captured script",
+    why="A script is the one record here that carries clinical weight. Changing "
+        "a dose or directions after capture is a clinical act, and the trail is "
+        "worth nothing if the change itself was casual.",
+    approvers=("admin", "pharmacist"), self_approval=True))
+
+register(Action(
+    key="pettycash.record", name="Take money out of the till",
+    why="A payout leaves the drawer with no sale behind it. Small amounts, often, "
+        "with a description nobody checks is the oldest way to lose cash from a "
+        "pharmacy.",
+    approvers=("admin", "pharmacist", "manager"), self_approval=True))
+
+register(Action(
+    key="settings.global", name="Change global settings",
+    why="These decide how the whole system behaves — VAT, currency, scheme terms, "
+        "reminder rules. One wrong figure here is wrong on every transaction "
+        "afterwards, silently.",
+    approvers=("admin",), self_approval=True))
+
+register(Action(
     key="scheme.edit", name="Change a medical scheme's terms",
     why="Levies, discounts and fee models decide what every future claim pays. A "
         "wrong figure here misprices thousands of transactions before anyone "

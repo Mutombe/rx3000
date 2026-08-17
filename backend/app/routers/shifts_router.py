@@ -9,6 +9,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Sale, Shift, User
 from ..services import currency
+from .periods_router import require_step_up
 
 router = APIRouter(prefix="/api/shifts", tags=["shifts"])
 
@@ -311,6 +312,7 @@ class PettyCashIn(BaseModel):
 def add_petty_cash(
     body: PettyCashIn,
     db: Session = Depends(get_db), user: User = Depends(get_current_user),
+    _grant=Depends(require_step_up("pettycash.record")),
 ):
     from ..models import PettyCash
 

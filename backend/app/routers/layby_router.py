@@ -23,6 +23,7 @@ from .. import helpers
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import LayBy, LayByItem, LayByPayment, Patient, Product, User
+from .periods_router import require_step_up
 
 router = APIRouter(prefix="/api/laybys", tags=["laybys"],
                    dependencies=[Depends(get_current_user)])
@@ -262,7 +263,8 @@ def complete(layby_id: int, db: Session = Depends(get_db),
 
 @router.post("/{layby_id}/cancel")
 def cancel(layby_id: int, fee: float = 0.0, db: Session = Depends(get_db),
-           user: User = Depends(get_current_user)):
+           user: User = Depends(get_current_user),
+           _grant=Depends(require_step_up("layby.cancel"))):
     """Put the goods back and work out what is refundable."""
     layby = db.query(LayBy).get(layby_id)
     if not layby:
