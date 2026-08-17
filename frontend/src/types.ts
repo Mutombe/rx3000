@@ -252,6 +252,13 @@ export interface PriceImportLine {
   new_cost: number | null;
   old_price: number | null;
   new_price: number | null;
+  /** Published ceiling and molecule reference price. Separate from the selling
+   *  price because they are a different decision — the most the pharmacy may
+   *  charge, not what it does charge. */
+  old_sep: number | null;
+  new_sep: number | null;
+  old_mmap: number | null;
+  new_mmap: number | null;
   message: string;
 }
 

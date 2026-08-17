@@ -76,6 +76,26 @@ class MedicalAidOut(ORM):
     name: str
     scheme_code: str
     phone: str = ""
+    # The terms that decide what a claim pays and how much the pharmacy will
+    # carry. Returned so the exposure report and the scheme screen read the same
+    # figures rather than each holding their own idea of them.
+    levy_fixed: float = 0.0
+    levy_percent: float = 0.0
+    discount_percent: float = 0.0
+    credit_limit: float = 0.0
+
+
+class MedicalAidTerms(BaseModel):
+    """A change to what a scheme pays, or to what we will carry for it.
+
+    Every field optional: this is used to change one figure at a time, and a
+    payload that had to restate all of them would let a stale screen quietly
+    revert a colleague's edit to a field it was not touching.
+    """
+    levy_fixed: Optional[float] = None
+    levy_percent: Optional[float] = None
+    discount_percent: Optional[float] = None
+    credit_limit: Optional[float] = None
 
 
 class DoctorBase(BaseModel):
@@ -733,6 +753,13 @@ class PriceImportLine(BaseModel):
     new_cost: Optional[float] = None
     old_price: Optional[float] = None
     new_price: Optional[float] = None
+    # The published ceiling and the molecule's reference price. Shown separately
+    # from the selling price because they are not the same decision: one is what
+    # the pharmacy charges, the other is the most it is allowed to.
+    old_sep: Optional[float] = None
+    new_sep: Optional[float] = None
+    old_mmap: Optional[float] = None
+    new_mmap: Optional[float] = None
     message: str = ""
 
 

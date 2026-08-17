@@ -67,6 +67,12 @@ export default function Admin() {
   const setTab = (t: Tab) => setParams(t === "prices" ? {} : { tab: t }, { replace: true });
   const [csv, setCsv] = useState("");
   const [result, setResult] = useState<PriceImportResult | null>(null);
+  // Whether the imported file actually carried published prices. Derived from the
+  // result rather than from parsing the CSV here, so the columns shown always
+  // match what the server understood — the UI guessing at the header aliases is
+  // how the two drift apart.
+  const showsSep = !!result?.lines.some((l) => l.old_sep != null || l.new_sep != null);
+  const showsMmap = !!result?.lines.some((l) => l.old_mmap != null || l.new_mmap != null);
   const [updateCost, setUpdateCost] = useState(true);
   const [updateSelling, setUpdateSelling] = useState(true);
   const [audit, setAudit] = useState<AuditEntry[]>([]);
@@ -439,9 +445,28 @@ export default function Admin() {
           {result && (
             <div className="card">
               <h3>{result.applied ? "Applied" : "Preview"} — {result.matched} matched, {result.unmatched} unmatched</h3>
+              {(showsSep || showsMmap) && (
+                // Said explicitly, because it is the one thing about this import
+                // that is not obvious: a published ceiling is not a price to
+                // charge. Aliasing SEP to the selling price is exactly the
+                // mistake this file used to make.
+                <p className="muted small">
+                  SEP and MMAP are recorded as published figures. They do not
+                  change what the pharmacy charges — see the “Prices above the
+                  published maximum” report for anything now over its ceiling.
+                </p>
+              )}
               <table>
                 <thead>
-                  <tr><th>Row</th><th>Key</th><th>Product</th><th className="num">Cost</th><th className="num">Selling</th><th>Result</th></tr>
+                  <tr>
+                    <th>Row</th><th>Key</th><th>Product</th>
+                    <th className="num">Cost</th><th className="num">Selling</th>
+                    {/* Shown only when the file carries them, so an ordinary
+                        supplier file is not padded with two empty columns. */}
+                    {showsSep && <th className="num">SEP</th>}
+                    {showsMmap && <th className="num">MMAP</th>}
+                    <th>Result</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {result.lines.map((l) => (
@@ -459,6 +484,20 @@ export default function Admin() {
                           ? <><span className="muted">{money(l.old_price)}</span> → <b>{money(l.new_price)}</b></>
                           : <span className="muted">{l.old_price !== null ? money(l.old_price) : "—"}</span>}
                       </td>
+                      {showsSep && (
+                        <td className="num">
+                          {l.new_sep != null
+                            ? <><span className="muted">{l.old_sep != null ? money(l.old_sep) : "—"}</span> → <b>{money(l.new_sep)}</b></>
+                            : <span className="muted">{l.old_sep != null ? money(l.old_sep) : "—"}</span>}
+                        </td>
+                      )}
+                      {showsMmap && (
+                        <td className="num">
+                          {l.new_mmap != null
+                            ? <><span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "—"}</span> → <b>{money(l.new_mmap)}</b></>
+                            : <span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "—"}</span>}
+                        </td>
+                      )}
                       <td>
                         <span className={`badge ${l.message === "Updated" ? "ok" : l.matched ? "muted" : "danger"}`}>
                           {l.message}

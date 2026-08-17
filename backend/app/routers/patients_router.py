@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -7,6 +9,9 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..services import paging
 from ..models import Doctor, MedicalAid, Patient, Sale, User
+from .periods_router import require_step_up
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api", tags=["patients"], dependencies=[Depends(get_current_user)])
 
@@ -99,6 +104,61 @@ def patient_sales(patient_id: int, db: Session = Depends(get_db)):
 @router.get("/medical-aids", response_model=list[schemas.MedicalAidOut])
 def list_medical_aids(db: Session = Depends(get_db)):
     return db.query(MedicalAid).order_by(MedicalAid.name).all()
+
+
+@router.put("/medical-aids/{aid_id}", response_model=schemas.MedicalAidOut)
+def update_medical_aid_terms(
+    aid_id: int, body: schemas.MedicalAidTerms,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _grant=Depends(require_step_up("scheme.edit")),
+):
+    """Change a scheme's terms.
+
+    Behind `scheme.edit`, which had been declared as a protected action since the
+    step-up work went in and guarded nothing, because no endpoint existed to
+    change a scheme at all. A declared control with no code behind it is worse
+    than no control: it appears in the list of protected actions and in the audit
+    configuration, so it reads as covered.
+
+    Levies and discounts reprice every future claim, and the credit limit decides
+    when the pharmacy stops lending to a scheme. Both are the kind of figure that
+    is changed once, by one person, after a phone call — and then argued about
+    months later, which is why the change is attributable.
+    """
+    aid = db.get(MedicalAid, aid_id)
+    if not aid:
+        raise HTTPException(status_code=404, detail="That scheme no longer exists.")
+
+    changes = body.model_dump(exclude_unset=True, exclude_none=True)
+    if not changes:
+        raise HTTPException(status_code=400, detail="Nothing was sent to change.")
+
+    for field in ("levy_percent", "discount_percent"):
+        value = changes.get(field)
+        # A percentage outside 0–100 is a typo every time, and one that would
+        # reprice every claim afterwards without anything looking wrong.
+        if value is not None and not 0 <= value <= 100:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{field.replace('_', ' ').capitalize()} must be between 0 and 100.",
+            )
+    if changes.get("credit_limit") is not None and changes["credit_limit"] < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="A credit limit cannot be negative. Zero means no limit is set.",
+        )
+
+    before = {f: getattr(aid, f) for f in changes}
+    for field, value in changes.items():
+        setattr(aid, field, value)
+    db.commit()
+    db.refresh(aid)
+    log.info(
+        "scheme.terms_changed scheme=%s by=%s from=%s to=%s",
+        aid.name, user.username, before, changes,
+    )
+    return aid
 
 
 @router.get("/doctors", response_model=list[schemas.DoctorOut])

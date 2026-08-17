@@ -77,6 +77,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "not_dispensed": "BOOLEAN DEFAULT 0",
     },
     "medical_aids": {
+        "credit_limit": "FLOAT DEFAULT 0",
         "pay_office_id": "INTEGER",
         "fee_model_id": "INTEGER",
         "currency_code": "VARCHAR(5) DEFAULT ''",

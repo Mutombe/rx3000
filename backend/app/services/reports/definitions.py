@@ -4923,3 +4923,213 @@ def _script_changes(db: Session, p: dict):
         }
         for c, script in rows_q
     ]
+
+
+# --------------------------------------------------------------- regulated pricing
+#
+# `sep_price` is the published maximum for a product and `mmap_price` the
+# reference price for its molecule. Both columns existed for weeks with a value
+# of 0 on all 545 products, because the price-file importer aliased a SEP column
+# to the selling price instead of to its own field. pricing.py caps scheme
+# charges at the MMAP but only when it is above zero, so that cap had never once
+# applied.
+#
+# Two reports rather than one, deliberately. A breach report that returns nothing
+# reads as "we comply with every published price" when it can equally mean "no
+# published prices have ever been loaded", and those two states could not be
+# told apart from the screen. The coverage report is what distinguishes them, and
+# it is named in the breach report's purpose so whoever reads an empty table
+# knows where to look.
+
+register(Report(
+    key="price_ceiling_breaches",
+    title="Prices above the published maximum",
+    module="Stock",
+    purpose="Every product being sold for more than its published ceiling. An "
+            "empty list here means one of two things — nothing is overpriced, or "
+            "no ceilings have been imported — so read it next to 'Published "
+            "price coverage'.",
+    params=[
+        Param("basis", "Compare against", "select", default="sep", options=lambda db: [
+            {"value": "sep", "label": "Published maximum (SEP)"},
+            {"value": "mmap", "label": "Reference price (MMAP)"},
+        ]),
+    ],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("nappi", "NAPPI", "code"),
+        Column("price", "Selling price", "money"),
+        Column("ceiling", "Maximum", "money"),
+        Column("over_by", "Over by", "money", total=True),
+        Column("over_pct", "Over by", "percent"),
+        Column("on_hand", "On hand", "number", total=True),
+    ],
+    rows=lambda db, p: _price_ceiling_breaches(db, p),
+    drill=lambda row: f"/products/{row.get('product_id')}",
+))
+
+
+def _price_ceiling_breaches(db: Session, p: dict):
+    mmap = (p.get("basis") or "sep") == "mmap"
+    ceiling = Product.mmap_price if mmap else Product.sep_price
+    rows = (
+        db.query(Product)
+        # Zero is not a ceiling of nothing, it is an absent ceiling. Comparing
+        # against it would report every priced product as a breach.
+        .filter(ceiling > 0)
+        .filter(Product.unit_price > ceiling)
+        .filter(Product.active.is_(True))
+        .order_by((Product.unit_price - ceiling).desc())
+        .all()
+    )
+    out = []
+    for product in rows:
+        cap = (product.mmap_price if mmap else product.sep_price) or 0
+        over = round((product.unit_price or 0) - cap, 2)
+        out.append({
+            "product_id": product.id,
+            "product": product.name,
+            "nappi": product.nappi_code or "",
+            "price": round(product.unit_price or 0, 2),
+            "ceiling": round(cap, 2),
+            "over_by": over,
+            "over_pct": round(over / cap * 100, 1) if cap else None,
+            "on_hand": product.quantity_on_hand or 0,
+        })
+    return out
+
+
+register(Report(
+    key="published_price_coverage",
+    title="Published price coverage",
+    module="Stock",
+    purpose="How much of the catalogue has a published maximum and a reference "
+            "price at all. This is the report that tells you whether a clean "
+            "compliance check means compliance or means an empty column.",
+    columns=[
+        Column("measure", "Measure", "text"),
+        # No footer total. Each row counts the same catalogue a different way and
+        # one product can appear in two of them, so a sum reported 1,068 products
+        # in a catalogue of 534 — the same meaningless-total mistake as the
+        # balance sheet whose columns added to six times its assets.
+        Column("products", "Products", "number"),
+        Column("share", "Share of catalogue", "percent"),
+    ],
+    rows=lambda db, p: _published_price_coverage(db, p),
+))
+
+
+def _published_price_coverage(db: Session, p: dict):
+    active = db.query(func.count(Product.id)).filter(Product.active.is_(True)).scalar() or 0
+
+    def counted(condition):
+        return db.query(func.count(Product.id)).filter(
+            Product.active.is_(True)).filter(condition).scalar() or 0
+
+    has_sep = counted(Product.sep_price > 0)
+    has_mmap = counted(Product.mmap_price > 0)
+    neither = counted((func.coalesce(Product.sep_price, 0) <= 0)
+                      & (func.coalesce(Product.mmap_price, 0) <= 0))
+
+    def row(measure, n):
+        return {
+            "measure": measure,
+            "products": n,
+            # Share of the active catalogue, so the rows do not sum to 100% and
+            # are not presented as though they should — a product can have both.
+            "share": round(n / active * 100, 1) if active else None,
+        }
+
+    return [
+        row("Active products in the catalogue", active),
+        row("With a published maximum (SEP)", has_sep),
+        row("With a reference price (MMAP)", has_mmap),
+        row("With neither", neither),
+    ]
+
+
+# ------------------------------------------------------------ scheme exposure
+#
+# A scheme that pays ninety days late is borrowing from the dispensary, and the
+# pharmacy had nowhere to say how much of that it was prepared to carry.
+# `medical_aids.credit_limit` records the agreed ceiling; this reports the
+# outstanding balance against it.
+#
+# Unsettled value is claimed minus settled, matching "Claims by scheme" so the
+# two cannot disagree on screen. Deliberately not approved-minus-settled: what a
+# scheme has approved is what it admits it owes, and the pharmacy's exposure is
+# everything it has dispensed and not been paid for, including what is still
+# being argued about.
+
+register(Report(
+    key="scheme_exposure",
+    title="Scheme exposure against credit limit",
+    module="Claims",
+    purpose="What each scheme owes, against what the pharmacy agreed to carry. "
+            "A limit of zero means none has been set — it is not a limit of "
+            "nothing, and those rows are marked rather than treated as breaches. "
+            "Counted from the claims themselves; 'Who owes us' counts the same "
+            "money from the posted ledger, so the two answer slightly differently "
+            "whenever a claim has been raised but not yet posted.",
+    columns=[
+        Column("scheme", "Scheme", "text"),
+        Column("outstanding", "Outstanding", "money", total=True),
+        Column("limit", "Credit limit", "money"),
+        Column("headroom", "Headroom", "money"),
+        Column("used_pct", "Limit used", "percent"),
+        Column("oldest_days", "Oldest unpaid (days)", "number"),
+        Column("claims", "Open claims", "number", total=True),
+        Column("state", "State", "text"),
+    ],
+    rows=lambda db, p: _scheme_exposure(db, p),
+))
+
+
+def _scheme_exposure(db: Session, p: dict):
+    from ...models import Claim, MedicalAid
+
+    # One grouped query rather than a claim-by-claim walk. The claims table is
+    # the largest in the system and three earlier reports had to be rewritten
+    # after the browser gave up waiting on exactly this shape of loop.
+    rows = (
+        db.query(
+            Claim.medical_aid_id,
+            func.count(Claim.id),
+            func.coalesce(func.sum(Claim.amount_claimed), 0.0),
+            func.coalesce(func.sum(Claim.settled_amount), 0.0),
+            func.min(Claim.created_at),
+        )
+        .filter(Claim.status != "rejected")
+        .group_by(Claim.medical_aid_id)
+        .all()
+    )
+
+    today_ = date.today()
+    out = []
+    for aid_id, count, claimed, settled, oldest in rows:
+        outstanding = round(float(claimed or 0) - float(settled or 0), 2)
+        # A scheme that has paid everything is not exposure and does not belong
+        # on a list of what is owed.
+        if outstanding <= 0.005:
+            continue
+        aid = db.get(MedicalAid, aid_id) if aid_id else None
+        limit = round(float(getattr(aid, "credit_limit", 0) or 0), 2)
+        oldest_days = (today_ - oldest.date()).days if oldest else None
+        out.append({
+            "scheme": aid.name if aid else "Unattributed",
+            "outstanding": outstanding,
+            "limit": limit or None,
+            "headroom": round(limit - outstanding, 2) if limit else None,
+            "used_pct": round(outstanding / limit * 100, 1) if limit else None,
+            "oldest_days": oldest_days,
+            "claims": int(count or 0),
+            "state": ("No limit set" if not limit
+                      else "Over limit" if outstanding > limit
+                      else "Near limit" if outstanding >= limit * 0.8
+                      else "Within limit"),
+        })
+    # Breaches first, then the largest exposure. Somebody opening this report is
+    # looking for what to chase, not for an alphabetical list of schemes.
+    order = {"Over limit": 0, "Near limit": 1, "Within limit": 2, "No limit set": 3}
+    out.sort(key=lambda r: (order[r["state"]], -r["outstanding"]))
+    return out

@@ -31,7 +31,17 @@ HEADER_ALIASES = {
     "barcode": "barcode", "ean": "barcode", "gtin": "barcode",
     "name": "name", "description": "name", "product": "name", "product_name": "name",
     "cost": "cost", "cost_price": "cost", "trade_price": "cost", "nett": "cost", "net_price": "cost",
-    "price": "price", "selling_price": "price", "retail": "price", "retail_price": "price", "sep": "price",
+    "price": "price", "selling_price": "price", "retail": "price", "retail_price": "price",
+    # SEP is the published maximum, not what to charge. It used to be aliased to
+    # "price", so importing a file with a SEP column set every matched product's
+    # selling price to the regulatory ceiling — a pricing policy decided by an
+    # alias table, and `sep_price` stayed 0 on all 545 products.
+    "sep": "sep", "sep_price": "sep", "single_exit_price": "sep",
+    "max_price": "sep", "maximum_price": "sep",
+    # The reference price for the molecule. pricing.py already caps scheme
+    # charges at it — but only when it is greater than zero, which it never was,
+    # so `apply_mmap` on a scheme has been silently doing nothing.
+    "mmap": "mmap", "mmap_price": "mmap", "reference_price": "mmap",
 }
 
 
@@ -78,8 +88,16 @@ def price_import(
             status_code=400,
             detail="CSV needs an identifying column: nappi, barcode or name",
         )
-    if not ({"cost", "price"} & field_map.keys()):
-        raise HTTPException(status_code=400, detail="CSV needs a cost and/or price column")
+    # A regulated price list carries SEP and MMAP and no trading prices at all,
+    # and that is a legitimate file to import. It used to be accepted only
+    # because a SEP column was mis-aliased to the selling price; once that was
+    # corrected this guard started rejecting it, which the test caught.
+    if not ({"cost", "price", "sep", "mmap"} & field_map.keys()):
+        raise HTTPException(
+            status_code=400,
+            detail=("CSV needs at least one price column: cost, selling price, "
+                    "SEP or MMAP."),
+        )
 
     lines: list[schemas.PriceImportLine] = []
     matched = updated = 0
@@ -109,10 +127,13 @@ def price_import(
         matched += 1
         new_cost = _to_float(row.get(field_map.get("cost", ""), "")) if "cost" in field_map else None
         new_price = _to_float(row.get(field_map.get("price", ""), "")) if "price" in field_map else None
+        new_sep = _to_float(row.get(field_map.get("sep", ""), "")) if "sep" in field_map else None
+        new_mmap = _to_float(row.get(field_map.get("mmap", ""), "")) if "mmap" in field_map else None
 
         line = schemas.PriceImportLine(
             row=index, key=key, product_name=product.name, matched=True,
             old_cost=product.cost_price, old_price=product.unit_price,
+            old_sep=product.sep_price or None, old_mmap=product.mmap_price or None,
         )
         changed = False
         if body.update_cost and new_cost is not None and abs(new_cost - product.cost_price) > 0.005:
@@ -120,6 +141,16 @@ def price_import(
             changed = True
         if body.update_selling and new_price is not None and abs(new_price - product.unit_price) > 0.005:
             line.new_price = new_price
+            changed = True
+        # Always taken when the column is present. These are published figures,
+        # not a pricing choice, so there is no "update reference prices?" switch
+        # to leave off — and a stale ceiling is worse than none, because it reads
+        # as though it has been checked.
+        if new_sep is not None and abs(new_sep - (product.sep_price or 0)) > 0.005:
+            line.new_sep = new_sep
+            changed = True
+        if new_mmap is not None and abs(new_mmap - (product.mmap_price or 0)) > 0.005:
+            line.new_mmap = new_mmap
             changed = True
 
         if not changed:
@@ -129,6 +160,10 @@ def price_import(
                 product.cost_price = line.new_cost
             if line.new_price is not None:
                 product.unit_price = line.new_price
+            if line.new_sep is not None:
+                product.sep_price = line.new_sep
+            if line.new_mmap is not None:
+                product.mmap_price = line.new_mmap
             line.message = "Updated"
             updated += 1
         else:

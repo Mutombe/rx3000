@@ -257,6 +257,15 @@ class MedicalAid(Base):
     levy_percent = Column(Float, default=0.0)
     discount_percent = Column(Float, default=0.0)   # scheme discount off the claim
     extra_markup_percent = Column(Float, default=0.0)
+    # How much unsettled claim value the pharmacy is willing to carry for this
+    # scheme. Zero means no limit has been set, not a limit of nothing — a
+    # scheme with no agreed ceiling is the normal starting state, and treating
+    # zero as "stop dispensing" would close the counter on day one.
+    #
+    # This is the pharmacy's exposure, not the patient's benefit. A scheme that
+    # pays ninety days late is lending money from the dispensary, and until now
+    # there was nowhere to record how much of that was acceptable.
+    credit_limit = Column(Float, default=0.0)
     active = Column(Boolean, default=True)
 
     patients = relationship("Patient", back_populates="medical_aid")
