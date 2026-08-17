@@ -12,6 +12,11 @@ frontend/dist/
 # them later does not remove them.
 backend/rx3000.db*
 backend/*.db
+# Also at the root. A QA script with a relative SQLite path, run from the wrong
+# directory, makes an empty database here rather than failing — and one got
+# committed before this line existed.
+/rx3000.db*
+/*.db
 backend/*.db-shm
 backend/*.db-wal
 *.before-repair
