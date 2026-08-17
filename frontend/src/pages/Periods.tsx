@@ -14,6 +14,13 @@ import { useToast } from "../components/Toast";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 
+interface VatReturn {
+  period_code: string; period_name: string; period_status: string;
+  from: string; to: string; vat_rate: number;
+  turnover_excluding_vat: number; output_tax: number; input_tax: number;
+  payable: number; direction: string; warning: string;
+}
+
 interface Period {
   id: number;
   code: string;
@@ -48,6 +55,11 @@ export default function Periods() {
   const [reopening, setReopening] = useState<Period | null>(null);
   const [reason, setReason] = useState("");
   const { guarded, prompt } = useStepUp();
+  // The VAT return for one period. Reached from the period it belongs to rather
+  // than from a screen of its own, because the figures are only trustworthy once
+  // that period is closed — and the server says so on the return itself.
+  const [vat, setVat] = useState<VatReturn | null>(null);
+  const [vatBusy, setVatBusy] = useState("");
 
   function load() {
     api.get<Period[]>("/api/periods").then(setPeriods).catch((e) => toast.error(errorText(e)));
@@ -158,6 +170,22 @@ export default function Periods() {
                     Close
                   </button>
                 )}
+                <button
+                  className="btn ghost sm"
+                  disabled={vatBusy === p.code}
+                  onClick={async () => {
+                    setVatBusy(p.code);
+                    try {
+                      setVat(await api.get<VatReturn>(`/api/ledger/vat-return/${p.code}`));
+                    } catch (e) {
+                      toast.error(errorText(e, "That VAT return could not be worked out."));
+                    } finally {
+                      setVatBusy("");
+                    }
+                  }}
+                >
+                  {vatBusy === p.code ? "Working…" : "VAT return"}
+                </button>
                 {p.status === "closed" && (
                   <>
                     <button className="btn ghost sm" onClick={() => setReopening(p)}>
@@ -211,6 +239,60 @@ export default function Periods() {
       )}
 
       {prompt}
+
+      {vat && (
+        <div className="modal-backdrop" onClick={() => setVat(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>VAT return — {vat.period_name}</h2>
+            <p className="muted">
+              {fmtDate(vat.from)} to {fmtDate(vat.to)}, at {(vat.vat_rate * 100).toFixed(0)}%.
+            </p>
+            {/* Which basis, said plainly. This is worked out from the posted
+                income accounts, and the VAT figure in Analytics is worked out
+                from till sales — the two legitimately differ when something has
+                been sold and not yet posted. This is the one that ties to the
+                accounts a revenue authority will ask to see, so it is the one to
+                file, and a screen that showed two VAT totals without saying which
+                is which invites the wrong one to be filed. */}
+            <p className="muted small">
+              From the posted income accounts, so it ties to the ledger rather than
+              to the till. The VAT figure under Analytics counts till sales instead
+              and will differ while anything is unposted.
+            </p>
+
+            {/* The server's own warning, verbatim. A return filed from a period
+                that can still receive postings will not match the accounts when
+                somebody checks it, and that is worth more than a tidy screen. */}
+            {vat.warning && <p className="alert warn">{vat.warning}</p>}
+
+            <table>
+              <tbody>
+                <tr>
+                  <td>Turnover excluding VAT</td>
+                  <td className="num mono">{money(vat.turnover_excluding_vat)}</td>
+                </tr>
+                <tr>
+                  <td>Output tax <span className="muted">— charged on sales</span></td>
+                  <td className="num mono">{money(vat.output_tax)}</td>
+                </tr>
+                <tr>
+                  <td>Input tax <span className="muted">— paid on purchases</span></td>
+                  <td className="num mono">{money(vat.input_tax)}</td>
+                </tr>
+                <tr>
+                  <td><b>{vat.direction}</b></td>
+                  <td className="num mono"><b>{money(Math.abs(vat.payable))}</b></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => window.print()}>Print</button>
+              <button className="btn primary" onClick={() => setVat(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
