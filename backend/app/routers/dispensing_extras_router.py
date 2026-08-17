@@ -692,3 +692,33 @@ def expand_dosage(shorthand: str = Body(..., embed=True),
 # A second registration of the same path is not an override: FastAPI matches the
 # first one it was given, so the duplicate written here was dead code that read
 # as live. The abbreviation expansion was moved into the real endpoint instead.
+
+
+# ------------------------------------------------------ the dispensary worklist
+@router.get("/dispensary/worklist")
+def dispensary_worklist(db: Session = Depends(get_db)):
+    """What to dispense today, who is chronic, and who is due a repeat.
+
+    One call rather than three, because these are read together on one screen
+    and three round trips make a panel that fills in stages.
+    """
+    from ..services import worklist
+
+    queue, waiting_total, everything = worklist.pending(db)
+    # Bands across the whole backlog, not the visible page. Taken from the page
+    # they would shrink as the queue grew, so a worsening backlog would report
+    # fewer time-critical items.
+    bands = worklist.band_counts(everything)
+    reminders = worklist.due_reminders(db)
+    return {
+        "queue": queue,
+        "bands": bands,
+        "chronics": worklist.chronic_patients(db),
+        "reminders": reminders,
+        "counts": {
+            "waiting": waiting_total,
+            "showing": len(queue),
+            "time_critical": bands.get("Time-critical", 0),
+            "overdue_repeats": sum(1 for r in reminders if r["overdue"]),
+        },
+    }
