@@ -63,8 +63,15 @@ def _out(layby: LayBy) -> dict:
         "minimum_deposit": round(layby.minimum_deposit or 0, 2),
         "due_date": layby.due_date.isoformat() if layby.due_date else None,
         "created_at": layby.created_at.isoformat() if layby.created_at else None,
+        # The customer's name and the product names, because a lay-by identified
+        # only by numbers cannot be looked up by the person at the counter
+        # holding a receipt and asking about "my daughter's inhaler".
+        "patient": (f"{layby.patient.first_name} {layby.patient.last_name}"
+                    if layby.patient else ""),
         "items": [
-            {"product_id": i.product_id, "quantity": i.quantity,
+            {"product_id": i.product_id,
+             "product": i.product.name if i.product else f"#{i.product_id}",
+             "quantity": i.quantity,
              "unit_price": round(i.unit_price or 0, 2)}
             for i in layby.items
         ],
@@ -302,13 +309,21 @@ def cancel(layby_id: int, fee: float = 0.0, db: Session = Depends(get_db),
     }
 
 
+LISTING_CAP = 200
+
+
 @router.get("")
 def listing(status: str = "open", db: Session = Depends(get_db)):
     query = db.query(LayBy)
     if status:
         query = query.filter(LayBy.status == status)
-    rows = query.order_by(LayBy.created_at.desc()).limit(200).all()
-    return {"laybys": [_out(r) for r in rows]}
+    total = query.count()
+    rows = query.order_by(LayBy.created_at.desc()).limit(LISTING_CAP).all()
+    # The count is of everything, the list is of what fits. Reporting the cap as
+    # the total is the mistake this codebase has made in five separate places,
+    # and it reads as "the pharmacy has 200 lay-bys" when it has more.
+    return {"laybys": [_out(r) for r in rows], "total": total,
+            "showing": len(rows)}
 
 
 @router.get("/{layby_id}")

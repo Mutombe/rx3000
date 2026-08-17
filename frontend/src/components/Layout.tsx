@@ -11,6 +11,7 @@ import {
   ClockCountdown,
   Desktop,
   Funnel,
+  HandCoins,
   Headset,
   Megaphone,
   Notebook,
@@ -84,6 +85,7 @@ const NAV = [
       // Opening and closing the fiscal day is a daily counter act, not an admin
       // setting, so it sits with the till rather than in the control panel.
       { to: "/fiscal", label: "Fiscalisation", icon: Receipt },
+      { to: "/laybys", label: "Lay-bys", icon: HandCoins },
     ],
   },
   {
