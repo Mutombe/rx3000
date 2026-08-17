@@ -134,7 +134,7 @@ def update_medical_aid_terms(
     if not changes:
         raise HTTPException(status_code=400, detail="Nothing was sent to change.")
 
-    for field in ("levy_percent", "discount_percent"):
+    for field in ("levy_percent", "discount_percent", "extra_markup_percent"):
         value = changes.get(field)
         # A percentage outside 0–100 is a typo every time, and one that would
         # reprice every claim afterwards without anything looking wrong.

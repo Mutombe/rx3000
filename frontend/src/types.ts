@@ -42,6 +42,12 @@ export interface Patient {
   medical_aid_id: number | null;
   medical_aid_number: string;
   dependent_code: string;
+  /** Who to deal with when it is not the patient — used for reminders, delivery
+   *  signatures and follow-up calls. Empty for a patient who manages their own. */
+  caregiver_name: string;
+  caregiver_phone: string;
+  caregiver_relationship: string;
+  contact_caregiver_first: boolean;
   loyalty_points: number;
   medical_aid?: MedicalAid | null;
 }
@@ -63,6 +69,14 @@ export interface Product {
   reorder_level: number;
   reorder_quantity: number;
   supplier_id: number | null;
+  /** Shelf position and maker. Optional — a pharmacy that does not use bin
+   *  locations should not be made to invent them. */
+  bin_location: string;
+  manufacturer: string;
+  /** Published ceiling and molecule reference price, both loaded from a price
+   *  file rather than typed. Zero means none is published. */
+  sep_price: number;
+  mmap_price: number;
   active?: boolean;
 }
 
@@ -350,6 +364,9 @@ export interface ControlledDispensing {
   script_sighted: boolean;
   prescriber_verified: boolean;
   compliance_notes: string;
+  /** Initials of the pharmacist who checked it. Replaced the witness; `witness`
+   *  remains only so rows recorded before the change still display one. */
+  pharmacist_initial: string;
   dispensed_by?: User | null;
   witness?: User | null;
 }

@@ -173,6 +173,25 @@ def dispense(
             status_code=403,
             detail=f"{policy.label} must be dispensed by a pharmacist.",
         )
+
+    # The setting has existed and been true by default while nothing read it, so
+    # a dispensing could complete with no record of who checked it — which is the
+    # one thing the initial is for.
+    from ..routers.settings_router import get_value
+
+    if get_value(db, "dispensing.require_pharmacist_initial"):
+        initial = body.pharmacist_initial.strip()
+        if not initial:
+            raise HTTPException(
+                status_code=400,
+                detail=("Enter the initials of the pharmacist who checked this "
+                        "dispensing. This is the record that somebody checked it."),
+            )
+        if len(initial) > 8:
+            raise HTTPException(
+                status_code=400,
+                detail="Initials should be a few letters, not a full name.",
+            )
     if policy.route == "controlled":
         missing = []
         if policy.requires_id_verification and not body.id_verified:
@@ -181,19 +200,17 @@ def dispense(
             missing.append("original prescription sighted")
         if policy.requires_prescriber_verification and not body.prescriber_verified:
             missing.append("prescriber verification")
-        if policy.requires_witness and body.witness_id is None:
-            missing.append("independent witness")
+        # Where the jurisdiction pack asks for an independent witness, this asks
+        # for the checking pharmacist's initials instead. A witness is a second
+        # body in the room; an initial is a name against the check, which is what
+        # the record is actually for.
+        if policy.requires_witness and not body.pharmacist_initial.strip():
+            missing.append("the checking pharmacist's initials")
         if missing:
             raise HTTPException(
                 status_code=400,
                 detail=f"{policy.label} requires: {', '.join(missing)}.",
             )
-        if body.witness_id is not None:
-            witness = db.get(User, body.witness_id)
-            if not witness:
-                raise HTTPException(status_code=400, detail="Witness user not found")
-            if witness.id == user.id:
-                raise HTTPException(status_code=400, detail="The witness must be a different staff member")
         for item in items:
             allowed = schedule_policy.policy_for(item.product.schedule).max_repeats
             if allowed == 0 and (item.repeats_used > 0 or item.dispensings):
@@ -289,7 +306,10 @@ def dispense(
             id_number_seen=body.id_number_seen,
             script_sighted=body.script_sighted,
             prescriber_verified=body.prescriber_verified,
-            witness_id=body.witness_id if item_policy.requires_witness else None,
+            # Stored on every dispensing, not only the controlled ones. It is the
+            # line the label prints as "checked by", and a patient asking who
+            # checked their medicine is not asking only about schedule 5.
+            pharmacist_initial=body.pharmacist_initial.strip().upper(),
             compliance_notes=body.compliance_notes,
         )
         db.add(dispensing)
@@ -389,7 +409,15 @@ def prescription_labels(
             repeats_remaining=max(0, item.repeats_allowed - item.repeats_used),
             next_repeat_date=item.next_repeat_date,
             doctor_name=rx.doctor.name if rx.doctor else "",
-            dispensed_by=(dispensing.dispensed_by.full_name if dispensing else user.full_name),
+            # The initials if they were recorded, the full name otherwise. The
+            # initials are what the checking pharmacist actually put their name
+            # to; the dispensing user is only who was logged in, and on a shared
+            # till those are not always the same person.
+            dispensed_by=(
+                (dispensing.pharmacist_initial
+                 or (dispensing.dispensed_by.full_name if dispensing.dispensed_by else ""))
+                if dispensing else user.full_name
+            ),
             dispensed_at=(dispensing.dispensed_at if dispensing else datetime.utcnow()),
             pharmacy_name=settings.PHARMACY_NAME,
             pharmacy_reg_no=settings.PHARMACY_REG_NO,

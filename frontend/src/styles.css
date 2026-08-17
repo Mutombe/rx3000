@@ -414,6 +414,18 @@ label {
 }
 .check-row label { margin: 0; font-weight: 400; }
 
+/* A heading inside a form, separating one group of fields from the next. Needed
+   once a patient record grew a caregiver section; without it the new fields read
+   as more of the medical-aid block above them. */
+.form-section {
+  margin: var(--s4) 0 var(--s1);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+  font-size: .82rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-soft); font-weight: 600;
+}
+.form-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
 .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .toolbar input[type="text"], .toolbar input[type="search"] { max-width: 340px; }
 .toolbar select { width: auto; }

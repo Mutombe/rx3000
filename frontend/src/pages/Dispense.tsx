@@ -82,7 +82,10 @@ export default function Dispense() {
   const [idNumber, setIdNumber] = useState("");
   const [scriptSighted, setScriptSighted] = useState(false);
   const [prescriberVerified, setPrescriberVerified] = useState(false);
-  const [witnessId, setWitnessId] = useState<number | "">("");
+  // Initials of the pharmacist who checked the dispensing. This replaced the
+  // independent-witness selector: the server now asks for initials wherever it
+  // used to ask for a second member of staff.
+  const [initials, setInitials] = useState("");
   const [complianceNotes, setComplianceNotes] = useState("");
   const [controlledLog, setControlledLog] = useState<ControlledDispensing[]>([]);
 
@@ -158,7 +161,10 @@ export default function Dispense() {
   const policyFor = (schedule: number) => policies.find((p) => p.schedule === schedule);
   const highestSchedule = items.reduce((m, i) => Math.max(m, i.product.schedule || 0), 0);
   const activePolicy = policyFor(highestSchedule);
-  const needsWitness = items.some((i) => policyFor(i.product.schedule)?.requires_witness);
+  // The policy field is still called requires_witness — it is the jurisdiction
+  // pack's name for "this needs a second signature". What satisfies it is now
+  // the checking pharmacist's initials.
+  const needsInitials = items.some((i) => policyFor(i.product.schedule)?.requires_witness);
 
   const [showKeys, setShowKeys] = useState(false);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
@@ -195,7 +201,7 @@ export default function Dispense() {
     !blocked &&
     (route !== "controlled" ||
     (items.length > 0 && idVerified && scriptSighted && prescriberVerified &&
-      (!needsWitness || witnessId !== "")));
+      (!needsInitials || initials.trim() !== "")));
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -225,7 +231,7 @@ export default function Dispense() {
   const complianceReady =
     route !== "controlled" ||
     (items.length > 0 && idVerified && scriptSighted && prescriberVerified &&
-      (!needsWitness || witnessId !== ""));
+      (!needsInitials || initials.trim() !== ""));
 
   function addItem(p: Product) {
     if (items.some((i) => i.product.id === p.id)) return;
@@ -266,7 +272,7 @@ export default function Dispense() {
       ? {
           id_verified: idVerified, id_number_seen: idNumber, script_sighted: scriptSighted,
           prescriber_verified: prescriberVerified,
-          witness_id: witnessId === "" ? null : Number(witnessId),
+          pharmacist_initial: initials.trim(),
           compliance_notes: complianceNotes,
         }
       : {};
@@ -294,7 +300,7 @@ export default function Dispense() {
       setDoneSale(sale); setDoneRxId(rx.id);
       setItems([]); setAiResult("");
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
-      setWitnessId(""); setIdNumber(""); setComplianceNotes("");
+      setInitials(""); setIdNumber(""); setComplianceNotes("");
       loadLists();
       printRxLabels(rx.id);
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
@@ -501,7 +507,7 @@ export default function Dispense() {
                 <p className="muted" style={{ fontSize: 13 }}>
                   Schedule 5 and 6 medicines must be dispensed by a pharmacist, entered in the
                   electronic schedule register, and supported by a full compliance record.
-                  Schedule 6 permits <b>no repeats</b> and requires an independent witness.
+                  Schedule 6 permits <b>no repeats</b> and requires the checking pharmacist’s initials.
                 </p>
               </div>
             )}
@@ -677,15 +683,17 @@ export default function Dispense() {
                   <label>ID number sighted</label>
                   <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="As per identity document" />
                 </div>
-                {needsWitness && (
-                  <div className="field">
-                    <label>Independent witness (required for Schedule 6)</label>
-                    <select value={witnessId} onChange={(e) => setWitnessId(e.target.value === "" ? "" : Number(e.target.value))}>
-                      <option value="">Select witness…</option>
-                      {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                    </select>
-                  </div>
-                )}
+                <div className="field">
+                  <label>
+                    Checked by (pharmacist initials)
+                    {needsInitials && <span className="muted"> — required for this schedule</span>}
+                  </label>
+                  <input
+                    value={initials} maxLength={8}
+                    onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                    placeholder="e.g. TM"
+                  />
+                </div>
                 <div className="field">
                   <label>Compliance notes</label>
                   <textarea rows={2} value={complianceNotes} onChange={(e) => setComplianceNotes(e.target.value)}
@@ -749,7 +757,7 @@ export default function Dispense() {
             {rail === "log" && (
               <div className="card">
                 <table>
-                  <thead><tr><th>When</th><th>Sched.</th><th>Qty</th><th>Compliance</th><th>Dispensed by</th><th>Witness</th></tr></thead>
+                  <thead><tr><th>When</th><th>Sched.</th><th>Qty</th><th>Compliance</th><th>Dispensed by</th><th>Checked by</th></tr></thead>
                   <tbody>
                     {controlledLog.map((d) => (
                       <tr key={d.id}>
@@ -763,7 +771,7 @@ export default function Dispense() {
                           {d.id_number_seen && <div className="muted mono">{d.id_number_seen}</div>}
                         </td>
                         <td className="muted">{d.dispensed_by?.full_name}</td>
-                        <td className="muted">{d.witness?.full_name ?? "—"}</td>
+                        <td className="mono">{d.pharmacist_initial || "—"}</td>
                       </tr>
                     ))}
                   </tbody>

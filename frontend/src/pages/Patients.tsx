@@ -11,6 +11,10 @@ const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
   phone: "", email: "", address: "", allergies: "", chronic_conditions: "",
   medical_aid_id: "" as string | number, medical_aid_number: "", dependent_code: "00",
+  // Who to deal with when it is not the patient. The columns and the worklist
+  // that reads them existed; the form had no fields, so nothing was ever set.
+  caregiver_name: "", caregiver_phone: "", caregiver_relationship: "",
+  contact_caregiver_first: false,
 };
 
 export default function Patients() {
@@ -61,6 +65,9 @@ export default function Patients() {
       allergies: p.allergies, chronic_conditions: p.chronic_conditions,
       medical_aid_id: p.medical_aid_id ?? "", medical_aid_number: p.medical_aid_number,
       dependent_code: p.dependent_code,
+      caregiver_name: p.caregiver_name ?? "", caregiver_phone: p.caregiver_phone ?? "",
+      caregiver_relationship: p.caregiver_relationship ?? "",
+      contact_caregiver_first: p.contact_caregiver_first ?? false,
     });
     setShowForm(true);
   }
@@ -185,6 +192,31 @@ export default function Patients() {
                 <div className="field"><label>Member number</label><input value={form.medical_aid_number} onChange={set("medical_aid_number")} /></div>
                 <div className="field" style={{ maxWidth: 90 }}><label>Dep.</label><input value={form.dependent_code} onChange={set("dependent_code")} /></div>
               </div>
+
+              <h4 className="form-section">Caregiver</h4>
+              <p className="muted small">
+                Left blank for a patient who manages their own medicine. Filled in,
+                this is who gets the reminder, signs for a delivery and takes the
+                follow-up call.
+              </p>
+              <div className="form-row">
+                <div className="field"><label>Name</label><input value={form.caregiver_name} onChange={set("caregiver_name")} /></div>
+                <div className="field"><label>Phone</label><input value={form.caregiver_phone} onChange={set("caregiver_phone")} placeholder="+263…" /></div>
+                <div className="field"><label>Relationship</label><input value={form.caregiver_relationship} onChange={set("caregiver_relationship")} placeholder="e.g. daughter" /></div>
+              </div>
+              <label className="check-row">
+                <input
+                  type="checkbox" checked={form.contact_caregiver_first}
+                  onChange={(e) => setForm({ ...form, contact_caregiver_first: e.target.checked })}
+                  disabled={!form.caregiver_phone.trim()}
+                />
+                Contact the caregiver first
+                {/* Meaningless without a number to ring, so it cannot be ticked
+                    until there is one. */}
+                {!form.caregiver_phone.trim() && (
+                  <span className="muted"> — needs a caregiver phone number</span>
+                )}
+              </label>
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit">Save patient</button>

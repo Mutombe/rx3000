@@ -96,6 +96,10 @@ class MedicalAidTerms(BaseModel):
     levy_percent: Optional[float] = None
     discount_percent: Optional[float] = None
     credit_limit: Optional[float] = None
+    # pricing.py adds this on top of the medicine price for schemes that allow a
+    # higher margin. It was read on every priced claim and settable nowhere, so
+    # the markup was always zero — the feature existed only in the calculation.
+    extra_markup_percent: Optional[float] = None
 
 
 class DoctorBase(BaseModel):
@@ -134,6 +138,19 @@ class PatientBase(BaseModel):
     medical_aid_id: Optional[int] = None
     medical_aid_number: str = ""
     dependent_code: str = "00"
+    # Who to deal with when it is not the patient themselves — an elderly
+    # patient's daughter, a child's parent. Used for reminders, for signing on
+    # delivery, and for the follow-up calls.
+    #
+    # The columns and the worklist that reads them both existed already, and
+    # nothing could set them: they were absent from this schema, so a caregiver
+    # sent by the front end was discarded without complaint on all 161 patients.
+    caregiver_name: str = ""
+    caregiver_phone: str = ""
+    caregiver_relationship: str = ""
+    # Where the caregiver is the right first point of contact. A patient with
+    # dementia should not be the one receiving the reminder.
+    contact_caregiver_first: bool = False
 
 
 class PatientCreate(PatientBase):
@@ -322,7 +339,15 @@ class DispenseRequest(BaseModel):
     id_number_seen: str = ""
     script_sighted: bool = False
     prescriber_verified: bool = False
-    witness_id: Optional[int] = None
+    # The initials of the pharmacist who checked the dispensing. This replaced
+    # the independent-witness requirement: a second member of staff standing
+    # there to countersign is a rule that gets satisfied by whoever is nearest,
+    # while an initial names the person who takes responsibility for the check.
+    #
+    # The column and the setting that requires it both existed already, and
+    # nothing captured or enforced either — a dispensing recorded no initial at
+    # all, on 1,047 rows.
+    pharmacist_initial: str = ""
     compliance_notes: str = ""
 
 
@@ -389,6 +414,9 @@ class DispensingOut(ORM):
     script_sighted: bool
     prescriber_verified: bool
     compliance_notes: str
+    # Who checked it. `witness` is kept so historical rows that recorded one
+    # still show it, but nothing writes it any more — the initials replaced it.
+    pharmacist_initial: str = ""
     dispensed_by: Optional[UserOut] = None
     witness: Optional[UserOut] = None
 

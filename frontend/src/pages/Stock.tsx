@@ -26,6 +26,10 @@ const EMPTY = {
   dosage_form: "", strength: "", pack_size: "", unit_price: 0, cost_price: 0,
   vat_rate: 0.15, quantity_on_hand: 0, reorder_level: 10, reorder_quantity: 20,
   supplier_id: "" as string | number,
+  // Where it sits on the shelf and who makes it. Both columns existed, both were
+  // read by reports and by the stock-take sheet, and neither had a field on this
+  // form — so they were NULL on all 545 products.
+  bin_location: "", manufacturer: "",
 };
 
 export default function Stock() {
@@ -415,6 +419,16 @@ export default function Stock() {
               <div className="form-row">
                 <div className="field"><label>NAPPI code</label><input value={form.nappi_code} onChange={set("nappi_code")} /></div>
                 <div className="field"><label>Barcode</label><input value={form.barcode} onChange={set("barcode")} /></div>
+              </div>
+              <div className="form-row">
+                <div className="field">
+                  <label>Bin location</label>
+                  <input value={form.bin_location} onChange={set("bin_location")} placeholder="e.g. A3-04" />
+                </div>
+                <div className="field">
+                  <label>Manufacturer</label>
+                  <input value={form.manufacturer} onChange={set("manufacturer")} />
+                </div>
               </div>
               <div className="form-row">
                 <div className="field"><label>Selling price (incl. VAT)</label><input type="number" step="0.01" value={form.unit_price} onChange={set("unit_price")} /></div>
