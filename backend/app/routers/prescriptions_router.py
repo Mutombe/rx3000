@@ -28,6 +28,23 @@ def list_prescriptions(
     return query.order_by(Prescription.created_at.desc()).limit(limit).all()
 
 
+
+def _default_icd10(db: Session) -> str:
+    """The pharmacy's default diagnosis code, if it set one.
+
+    Read per call rather than cached, because a setting that needs a restart to
+    take effect is a setting people believe is broken.
+    """
+    try:
+        from .settings_router import get_value
+
+        return str(get_value(db, "dispensing.default_icd10") or "").strip().upper()
+    except Exception:
+        # A missing or unreadable setting must never stop a script being
+        # captured. No default simply means the field stays blank.
+        return ""
+
+
 @router.post("/prescriptions", response_model=schemas.PrescriptionOut)
 def create_prescription(
     body: schemas.PrescriptionCreate,
@@ -83,7 +100,12 @@ def create_prescription(
             repeats_allowed=repeats,
             repeat_interval_days=item.repeat_interval_days,
             auto_refill=item.auto_refill and repeats > 0,
-            icd10_code=(item.icd10_code or "").strip().upper(),
+            # Falls back to the pharmacy's default where the line carries
+            # none, so a dispenser corrects one field rather than typing
+            # the same code all day. Blank by default: a pharmacy that
+            # wants every diagnosis deliberate leaves the setting empty.
+            icd10_code=((item.icd10_code or "").strip().upper()
+                        or _default_icd10(db)),
             supply_days=item.supply_days,
             no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
@@ -452,7 +474,12 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
             dosage_instructions=sig.expand(db, item.dosage_instructions), quantity=item.quantity,
             repeats_allowed=repeats, repeat_interval_days=item.repeat_interval_days,
             auto_refill=item.auto_refill and repeats > 0,
-            icd10_code=(item.icd10_code or "").strip().upper(),
+            # Falls back to the pharmacy's default where the line carries
+            # none, so a dispenser corrects one field rather than typing
+            # the same code all day. Blank by default: a pharmacy that
+            # wants every diagnosis deliberate leaves the setting empty.
+            icd10_code=((item.icd10_code or "").strip().upper()
+                        or _default_icd10(db)),
             supply_days=item.supply_days, no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
         ))
