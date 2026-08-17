@@ -5133,3 +5133,126 @@ def _scheme_exposure(db: Session, p: dict):
     order = {"Over limit": 0, "Near limit": 1, "Within limit": 2, "No limit set": 3}
     out.sort(key=lambda r: (order[r["state"]], -r["outstanding"]))
     return out
+
+
+# ----------------------------------------------------------------- tariff usage
+#
+# I had this listed as blocked on a schema decision for weeks: claims carry no
+# tariff column, so there was nowhere to read usage from. That was wrong. Every
+# claim submitted through the gateway is kept whole in
+# `gateway_transactions.request_json` for dispute and audit, tariff lines
+# included — 1,918 claims across three codes were sitting there the entire time.
+#
+# Read from the stored payloads rather than from a new column, because a new
+# column only knows about claims submitted after it exists and would report
+# nothing for all the history that is already here. The parse is the cost of
+# that: a few thousand small documents per run, on a report nobody opens in a
+# hot path.
+#
+# Out-of-band charging is the point of the report. The gateway refuses a line
+# priced outside its negotiated band at submission time, so a breach here means
+# the band moved afterwards — a renegotiated tariff, or a book loaded for a new
+# financial year — and every claim already submitted at the old price is now
+# wrong in the funder's eyes.
+
+register(Report(
+    key="tariff_usage",
+    title="Tariff usage",
+    module="Claims",
+    purpose="Which AHFoZ tariff codes the pharmacy actually bills, how much they "
+            "brought in, and any line priced outside the band published for it. "
+            "Read from submitted claims, so it covers what was really sent.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("tariff_code", "Code", "code"),
+        Column("description", "Service", "text"),
+        Column("claims", "Claims", "number", total=True),
+        Column("lines", "Lines", "number", total=True),
+        Column("quantity", "Quantity", "number", total=True),
+        Column("charged", "Charged", "money", total=True),
+        Column("average", "Average price", "money"),
+        Column("band", "Published band", "text"),
+        Column("out_of_band", "Outside band", "number", total=True),
+    ],
+    rows=lambda db, p: _tariff_usage(db, p),
+))
+
+
+def _tariff_usage(db: Session, p: dict):
+    import json as _json
+
+    from ...models import GatewayTransaction, Tariff
+
+    rows = (
+        db.query(GatewayTransaction.request_json)
+        .filter(GatewayTransaction.kind == "claim")
+        .filter(GatewayTransaction.request_json != "")
+        .filter(func.date(GatewayTransaction.created_at) >= p["date_from"])
+        .filter(func.date(GatewayTransaction.created_at) <= p["date_to"])
+        .all()
+    )
+
+    book = {t.tariff_code: t for t in db.query(Tariff).filter(Tariff.active).all()}
+    groups: dict[str, dict] = {}
+
+    for (raw,) in rows:
+        try:
+            payload = _json.loads(raw)
+        except (ValueError, TypeError):
+            # A payload we cannot read is not a reason to fail the whole report,
+            # but it is counted rather than skipped in silence.
+            groups.setdefault("(unreadable)", {
+                "tariff_code": "(unreadable)", "description": "Payload could not be parsed",
+                "claims": 0, "lines": 0, "quantity": 0.0, "charged": 0.0, "out_of_band": 0,
+            })["claims"] += 1
+            continue
+
+        seen_in_this_claim = set()
+        for line in payload.get("claim_lines") or []:
+            if not isinstance(line, dict):
+                continue
+            code = (line.get("tariff_code") or "").strip()
+            if not code:
+                continue
+            group = groups.setdefault(code, {
+                "tariff_code": code,
+                "description": (book[code].description if code in book
+                                else line.get("description") or ""),
+                "claims": 0, "lines": 0, "quantity": 0.0, "charged": 0.0,
+                "out_of_band": 0,
+            })
+            # A claim with three lines on one code is one claim, not three.
+            if code not in seen_in_this_claim:
+                group["claims"] += 1
+                seen_in_this_claim.add(code)
+            group["lines"] += 1
+            group["quantity"] += float(line.get("quantity") or 0)
+            group["charged"] = round(group["charged"] + float(line.get("total_price") or 0), 2)
+
+            tariff = book.get(code)
+            if tariff:
+                low = tariff.min_price or tariff.unit_price or 0
+                high = tariff.max_price or tariff.unit_price or 0
+                unit = float(line.get("unit_price") or 0)
+                if high and not (low - 0.005 <= unit <= high + 0.005):
+                    group["out_of_band"] += 1
+
+    out = []
+    for group in groups.values():
+        tariff = book.get(group["tariff_code"])
+        if tariff:
+            low = tariff.min_price or tariff.unit_price or 0
+            high = tariff.max_price or tariff.unit_price or 0
+            group["band"] = (f"{low:.2f}–{high:.2f} {tariff.currency_code}".strip()
+                            if high else "")
+        else:
+            # Billed against a code that is not in the active book. Named, not
+            # blanked: it is the most interesting row on the report.
+            group["band"] = "not in the active book"
+        group["quantity"] = round(group["quantity"], 2)
+        group["average"] = (round(group["charged"] / group["quantity"], 2)
+                            if group["quantity"] else None)
+        out.append(group)
+
+    out.sort(key=lambda r: (-r["out_of_band"], -r["charged"]))
+    return out
