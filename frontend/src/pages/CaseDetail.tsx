@@ -3,6 +3,7 @@ import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDateTime } from "../api";
+import DraftEditor from "../components/DraftEditor";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
 import { Ticket, User } from "../types";
@@ -160,8 +161,8 @@ export default function CaseDetail() {
         <form onSubmit={sendReply}>
           <div className="field">
             <label>Reply</label>
-            <textarea rows={3} value={reply} onChange={(e) => setReply(e.target.value)}
-              placeholder="Type your response to the customer…" />
+            <DraftEditor rows={4} value={reply} onChange={setReply}
+                  audience="the customer" placeholder="Type your response to the customer…" />
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>

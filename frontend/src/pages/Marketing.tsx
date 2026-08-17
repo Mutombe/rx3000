@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
 import { api, fmtDateTime, errorText  } from "../api";
+import DraftEditor from "../components/DraftEditor";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Campaign, Message, Patient, Segment } from "../types";
 
@@ -147,8 +148,8 @@ export default function Marketing() {
                 Message — merge fields:{" "}
                 <span className="mono">{"{first_name} {points} {pharmacy}"}</span>
               </label>
-              <textarea rows={5} required value={body} onChange={(e) => setBody(e.target.value)}
-                placeholder="Hi {first_name}, flu vaccines are now in stock at {pharmacy}…" />
+              <DraftEditor rows={5} required value={body} onChange={setBody}
+                audience="the customer" placeholder="Hi {first_name}, flu vaccines are now in stock at {pharmacy}…" />
               {channel === "sms" && (
                 <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>
                   {body.length} characters {body.length > 160 && "· over one SMS segment"}

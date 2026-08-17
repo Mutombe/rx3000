@@ -2320,3 +2320,105 @@ img { -webkit-user-drag: none; user-select: none; }
   font-size: .86rem; font-weight: 500; border-radius: var(--r-xs);
 }
 .ai-out-list button:hover { background: var(--accent-soft); }
+
+/* ------------------------------------------------------- dispensary worklist
+   A column beside the work, not a page you navigate to. Sized so it survives a
+   1366-wide laptop, which is what a dispensary counter actually has. */
+.wl {
+  display: flex; flex-direction: column; gap: var(--s3);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); padding: var(--s3);
+  max-height: calc(100vh - 160px);
+}
+.wl-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft); font-weight: 600;
+}
+.wl-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.wl-stat {
+  display: flex; flex-direction: column; gap: 0; height: auto; padding: var(--s2);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-sm); color: var(--ink); white-space: normal;
+  align-items: flex-start; text-align: left; cursor: pointer;
+}
+.wl-stat b { font-size: 1.15rem; line-height: 1.1; }
+.wl-stat span { font-size: .68rem; color: var(--ink-soft); line-height: 1.2; }
+.wl-stat.is-on { border-color: var(--accent); }
+/* Only a non-zero urgent count is loud. A permanent red zero is furniture. */
+.wl-stat.is-urgent b { color: var(--danger); }
+.wl-tabs { display: flex; gap: 2px; }
+.wl-tabs button {
+  flex: 1; height: var(--control-sm); padding: 0 var(--s2);
+  font-size: .72rem; background: transparent; color: var(--ink-soft);
+  border: 1px solid var(--line); border-radius: var(--r-sm); white-space: nowrap;
+}
+.wl-tabs button.on { background: var(--surface-sunk); color: var(--ink); border-color: var(--line-strong); }
+.wl-list {
+  display: flex; flex-direction: column; gap: var(--s2);
+  overflow-y: auto; overscroll-behavior: contain; padding-right: 2px;
+}
+.wl-row {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  height: auto; white-space: normal; text-align: left; align-items: stretch;
+  padding: var(--s2) var(--s3); font: inherit; color: var(--ink);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong); border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.wl-row:hover { background: var(--accent-soft); }
+.wl-row-top { display: flex; justify-content: space-between; gap: var(--s2); align-items: baseline; }
+.wl-patient { font-weight: 600; font-size: .84rem; }
+.wl-qty { font-family: var(--font-mono); font-size: .78rem; color: var(--ink-soft); }
+.wl-row-mid { font-size: .78rem; color: var(--ink-mid); }
+.wl-row-foot { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.wl-tag {
+  font-size: .64rem; text-transform: uppercase; letter-spacing: .04em;
+  padding: 1px 5px; border-radius: var(--r-xs);
+  background: var(--accent-soft); color: var(--ink-mid);
+}
+.wl-tag-sched { background: var(--danger-soft); color: var(--danger); }
+.wl-wait { font-size: .7rem; color: var(--ink-faint); margin-left: auto; }
+.wl-call { font-size: .72rem; color: var(--brand-deep); text-decoration: none; }
+.wl-call:hover { text-decoration: underline; }
+.wl-empty { font-size: .78rem; color: var(--ink-faint); margin: var(--s2) 0; }
+.wl-skeleton { display: flex; flex-direction: column; gap: var(--s2); }
+.wl-skeleton span {
+  /* sk-pulse, which exists. `animation: sk` was written first and names no
+     keyframes, so the block rendered as a static grey rectangle — invented CSS
+     fails silently, which is what makes it worth checking rather than assuming. */
+  height: 46px; border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+  animation: sk-pulse 1.3s ease-in-out infinite;
+}
+/* Bands. Colour carries the urgency so the eye finds the top of the tray. */
+.wl-band-1 { border-left-color: var(--danger); }
+.wl-band-2 { border-left-color: var(--warn); }
+.wl-band-3 { border-left-color: var(--brand); }
+.wl-band-4 { border-left-color: var(--line-strong); }
+.wl-band-5 { border-left-color: var(--line); }
+.wl-state-overdue { border-left-color: var(--danger); }
+.wl-state-due { border-left-color: var(--warn); }
+.wl-state-on-track { border-left-color: var(--ok); }
+
+/* The dispensary becomes work-plus-worklist above a laptop width, and stacks
+   below it — a 300px column on a phone leaves no room for the work itself. */
+.disp-with-worklist { display: grid; gap: var(--s4); grid-template-columns: 1fr; }
+@media (min-width: 1180px) {
+  .disp-with-worklist { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+}
+
+/* A draft that can be previewed. The preview sits in the same box as the
+   textarea so the field does not jump size when it is toggled. */
+.draft { display: flex; flex-direction: column; gap: var(--s2); }
+.draft-bar { display: flex; gap: var(--s2); align-items: center; }
+.draft-bar .btn.ghost.is-on {
+  background: var(--accent-soft); color: var(--ink); border-color: var(--line-strong);
+}
+.draft-hint { font-size: .74rem; color: var(--ink-faint); }
+.draft-hint b { font-family: var(--font-mono); font-weight: 400; }
+.draft-preview {
+  min-height: 90px; padding: var(--s3);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}

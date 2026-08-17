@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDateTime, errorText  } from "../api";
+import DraftEditor from "../components/DraftEditor";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import { HelpdeskStats, Patient, Ticket, User } from "../types";
@@ -259,8 +260,8 @@ export default function HelpDesk() {
             <form onSubmit={sendReply}>
               <div className="field">
                 <label>Reply</label>
-                <textarea rows={3} value={reply} onChange={(e) => setReply(e.target.value)}
-                  placeholder="Type your response to the customer…" />
+                <DraftEditor rows={4} value={reply} onChange={setReply}
+                  audience="the customer" placeholder="Type your response to the customer…" />
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>

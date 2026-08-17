@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import DispensaryWorklist from "../components/DispensaryWorklist";
 import { Link } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
@@ -322,6 +323,13 @@ export default function Dispense() {
           </div>
         </div>
       </div>
+
+      {/* Work on the left, worklist on the right. The queue has to be in view
+          while dispensing happens — a panel you navigate to is a panel checked
+          twice a day. It stacks below laptop width, where a 320px column would
+          leave no room for the work itself. */}
+      <div className="disp-with-worklist">
+      <div>
       {doneSale && (
         <div className="success-banner">
           Dispensed — invoice <b>{doneSale.sale_number}</b> for {money(doneSale.total)} is pending payment.
@@ -810,6 +818,29 @@ export default function Dispense() {
           </div>
         </div>
       )}
+      </div>
+
+      <DispensaryWorklist
+        onPick={(row) => {
+          // Load the patient the queued line belongs to. This screen captures
+          // and dispenses against a patient rather than looking a script up by
+          // number, so putting their record in the picker is what actually
+          // starts the work — a queue you can only read is a list, not a queue.
+          if (!row.patient_id) {
+            toast.warn("That line has no patient attached, so it cannot be opened from here.");
+            return;
+          }
+          api.get<Patient>(`/api/patients/${row.patient_id}`)
+            .then((p) => {
+              setPatient(p);
+              setPatientQ("");
+              setRoute(row.schedule >= 5 ? "controlled" : "prescription");
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            })
+            .catch((e) => toast.error(errorText(e, "That patient could not be opened.")));
+        }}
+      />
+      </div>
     </>
   );
 }
