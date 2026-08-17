@@ -17,6 +17,7 @@ import {
   PauseCircle,
   Prescription,
   Presentation,
+  Receipt,
   Scales,
   SignOut,
   SlidersHorizontal,
@@ -78,6 +79,9 @@ const NAV = [
     links: [
       { to: "/pos", label: "Till", icon: Storefront, tier: 1 },
       { to: "/shifts", label: "Cash Office", icon: Vault },
+      // Opening and closing the fiscal day is a daily counter act, not an admin
+      // setting, so it sits with the till rather than in the control panel.
+      { to: "/fiscal", label: "Fiscalisation", icon: Receipt },
     ],
   },
   {

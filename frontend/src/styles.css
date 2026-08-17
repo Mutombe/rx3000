@@ -2526,3 +2526,25 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .lbl-copies { display: flex; align-items: center; gap: var(--s2); font-size: .82rem; }
 .lbl-copies input { width: 64px; }
+
+/* ----------------------------------------------------------- fiscalisation
+   Who files with the authority is stated, not implied. A pharmacy that reads
+   "fiscalised" next to a green tick and assumes it is compliant has been misled
+   by its software, so the arrangement gets its own block at the top. */
+.fs-route { margin: 0 0 var(--s3); font-size: 1.02rem; font-weight: 600; }
+.fs-facts { display: grid; gap: var(--s2); margin: 0 0 var(--s3); }
+.fs-facts > div { display: flex; gap: var(--s3); align-items: baseline; }
+.fs-facts dt {
+  flex: 0 0 7.5rem; font-size: .74rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-soft);
+}
+.fs-facts dd { margin: 0; font-size: .9rem; }
+.fs-day {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s3);
+}
+.fs-daynum { font-size: 1.1rem; font-weight: 700; margin-right: var(--s2); }
+@media (max-width: 640px) {
+  .fs-facts > div { flex-direction: column; gap: 2px; }
+  .fs-facts dt { flex: none; }
+}
