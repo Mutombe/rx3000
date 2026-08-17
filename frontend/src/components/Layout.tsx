@@ -16,6 +16,7 @@ import {
   Package,
   PauseCircle,
   Prescription,
+  PaperPlaneTilt,
   Presentation,
   Receipt,
   Scales,
@@ -94,6 +95,9 @@ const NAV = [
   {
     section: "Accounts",
     links: [
+      // Batching and sending claims is the weekly round; "Claims held" is the
+      // exception queue for ones that could not go. Sending comes first.
+      { to: "/claiming", label: "Claiming", icon: PaperPlaneTilt },
       { to: "/claims-held", label: "Claims held", icon: PauseCircle },
       { to: "/reconciliation", label: "Reconciliation", icon: ArrowsLeftRight },
       { to: "/ledger", label: "Ledger", icon: Scales },

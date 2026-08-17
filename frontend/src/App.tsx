@@ -53,6 +53,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const SaleDetail = lazy(() => import("./pages/SaleDetail"));
 const Shifts = lazy(() => import("./pages/Shifts"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
+const Claiming = lazy(() => import("./pages/Claiming"));
 const Stock = lazy(() => import("./pages/Stock"));
 const System = lazy(() => import("./pages/System"));
 const ToFollows = lazy(() => import("./pages/ToFollows"));
@@ -115,6 +116,7 @@ export default function App() {
                 <Route path="/reminders" element={<Reminders />} />
                 <Route path="/shifts" element={<Shifts />} />
                 <Route path="/fiscal" element={<Fiscal />} />
+                <Route path="/claiming" element={<Claiming />} />
                 <Route path="/reconciliation" element={<CardReconciliation />} />
                 <Route path="/leads" element={<Leads />} />
                 <Route path="/pipeline" element={<Pipeline />} />

@@ -1,6 +1,9 @@
+import logging
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
@@ -12,6 +15,9 @@ from ..models import (
     FormularyEntry, MedicalAid, PayOffice, Product, User,
 )
 from ..services import formulary as formulary_service, pricing
+from .periods_router import require_step_up
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/claiming", tags=["claiming"],
                    dependencies=[Depends(get_current_user)])
@@ -124,6 +130,63 @@ def create_fee_model(body: schemas.FeeModelCreate, db: Session = Depends(get_db)
         db.add(FeeTier(fee_model_id=model.id, **tier.model_dump()))
     db.commit()
     db.refresh(model)
+    return model
+
+
+class FeeModelPatch(BaseModel):
+    """A change to an existing fee model.
+
+    Separate from FeeModelCreate, and partial, because the two are different
+    acts. Creating asks for the bands; changing one usually means flipping a
+    single switch, and a payload that had to restate every band would let a
+    stale screen flatten the pricing of every future claim while the user
+    thought they were ticking a box.
+
+    Bands are deliberately not editable here. Renegotiating them is a new model,
+    so that claims priced under the old one keep something to point at.
+    """
+    name: Optional[str] = None
+    basis: Optional[str] = None
+    vat_on_fee: Optional[bool] = None
+    apply_mmap: Optional[bool] = None
+    notes: Optional[str] = None
+    active: Optional[bool] = None
+
+
+@router.patch("/fee-models/{model_id}", response_model=schemas.FeeModelOut)
+def update_fee_model(
+    model_id: int, body: FeeModelPatch,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    _grant=Depends(require_step_up("scheme.edit")),
+):
+    """Change a fee model.
+
+    There was no way to change one at all: POST creates and refuses a duplicate
+    code, so `apply_mmap` — the switch that caps a scheme's charge at the
+    published reference price — could only ever be set when the model was first
+    created. The cap has been in pricing.py the whole time, reading a field that
+    nothing populated and a flag nobody could turn on.
+
+    Behind the same authority as a scheme's terms, because it is the same kind of
+    change: it reprices every claim made afterwards, and nothing on a receipt
+    says which model produced the figure.
+    """
+    model = db.get(FeeModel, model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="That fee model no longer exists.")
+
+    changes = body.model_dump(exclude_unset=True, exclude_none=True)
+    if not changes:
+        raise HTTPException(status_code=400, detail="Nothing was sent to change.")
+
+    before = {field: getattr(model, field) for field in changes}
+    for field, value in changes.items():
+        setattr(model, field, value)
+    db.commit()
+    db.refresh(model)
+    log.info("fee_model.changed model=%s by=%s from=%s to=%s",
+             model.code, user.username, before, changes)
     return model
 
 

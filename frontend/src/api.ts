@@ -266,6 +266,10 @@ export const api = {
     request<T>("POST", path, body, stepUp),
   put: <T>(path: string, body?: unknown, stepUp?: string) =>
     request<T>("PUT", path, body, stepUp),
+  /** A partial change. Used where sending a whole object back would let a stale
+   *  screen overwrite a field it was not editing. */
+  patch: <T>(path: string, body?: unknown, stepUp?: string) =>
+    request<T>("PATCH", path, body, stepUp),
   delete: <T>(path: string, stepUp?: string) =>
     request<T>("DELETE", path, undefined, stepUp),
   /** Fetch a file, with the session's credentials attached.

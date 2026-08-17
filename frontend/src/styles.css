@@ -2548,3 +2548,28 @@ img { -webkit-user-drag: none; user-select: none; }
   .fs-facts > div { flex-direction: column; gap: 2px; }
   .fs-facts dt { flex: none; }
 }
+
+/* ------------------------------------------------------------- fee models
+   Each model is a small block rather than a table row: it carries bands, and
+   bands do not fit in a cell. */
+.fm-model {
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.fm-model:last-child { border-bottom: 0; padding-bottom: 0; }
+.fm-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s2);
+}
+.fm-name { font-weight: 600; font-size: 1rem; }
+.fm-flags { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.fm-tiers { margin: var(--s3) 0; }
+.fm-tiers th, .fm-tiers td { padding: var(--s1) var(--s2); font-size: .84rem; }
+/* The switch that turns the reference-price cap on. Set apart from the bands
+   because it is the one thing on this card that changes what a patient pays. */
+.fm-mmap {
+  margin: 0; padding: var(--s2) var(--s3);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-sm); align-items: flex-start;
+}
+.fm-mmap label { line-height: 1.45; }
