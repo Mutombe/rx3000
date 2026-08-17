@@ -98,6 +98,7 @@ const NAV = [
       { to: "/stock", label: "Inventory", icon: Package },
       { to: "/orders", label: "Procurement", icon: Truck },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
+      { to: "/branches", label: "Branches", icon: Storefront },
     ],
   },
   {
