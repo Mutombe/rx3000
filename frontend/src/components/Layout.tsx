@@ -8,6 +8,7 @@ import {
   CaretRight,
   ChartLineUp,
   ClipboardText,
+  Coins,
   ClockCountdown,
   Desktop,
   Funnel,
@@ -103,6 +104,7 @@ const NAV = [
       // exception queue for ones that could not go. Sending comes first.
       { to: "/claiming", label: "Claiming", icon: PaperPlaneTilt },
       { to: "/claims-held", label: "Claims held", icon: PauseCircle },
+      { to: "/remittances", label: "Remittances", icon: Coins },
       { to: "/reconciliation", label: "Reconciliation", icon: ArrowsLeftRight },
       { to: "/ledger", label: "Ledger", icon: Scales },
       { to: "/periods", label: "Periods", icon: CalendarCheck },

@@ -76,6 +76,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "no_claim": "BOOLEAN DEFAULT 0",
         "not_dispensed": "BOOLEAN DEFAULT 0",
     },
+    "remittance_lines": {"resolution_note": "VARCHAR(300) DEFAULT ''"},
     "medical_aids": {
         "credit_limit": "FLOAT DEFAULT 0",
         "pay_office_id": "INTEGER",
@@ -341,6 +342,41 @@ def _mark_cash_accounts(conn) -> int:
     return count
 
 
+def _unmix_remittance_notes(conn, existing_tables: set) -> int:
+    """Take our working notes back out of the funder's stated reason.
+
+    `resolve_line` used to append its note to `line.reason`, so every resolution
+    rewrote what the scheme had said, and a line resolved repeatedly ended up
+    reading "Reduced by the member's co-payment or levy. | uneconomic |
+    uneconomic | uneconomic | uneconomic". The funder's reason is evidence in a
+    dispute; ours is a working note. They now have separate columns, and this
+    repairs the rows written before that.
+
+    The split is safe because the funder's reason never contains a pipe: it comes
+    from a fixed vocabulary. Everything before the first pipe is theirs,
+    everything after is ours, de-duplicated because the same note was appended
+    over and over.
+    """
+    if "remittance_lines" not in existing_tables:
+        return 0
+    rows = conn.execute(text(
+        "SELECT id, reason FROM remittance_lines WHERE reason LIKE '%|%'"
+    )).fetchall()
+    for line_id, reason in rows:
+        parts = [p.strip() for p in (reason or "").split("|")]
+        funder_reason = parts[0]
+        # dict.fromkeys keeps the order and drops the repeats.
+        notes = list(dict.fromkeys(p for p in parts[1:] if p))
+        conn.execute(
+            text("UPDATE remittance_lines SET reason = :r, resolution_note = :n "
+                 "WHERE id = :i"),
+            {"r": funder_reason[:200], "n": " | ".join(notes)[:300], "i": line_id},
+        )
+    if rows:
+        log.info("Unmixed notes from the funder's reason on %s remittance lines", len(rows))
+    return len(rows)
+
+
 def _fill_null_text(conn, inspector, existing_tables: set) -> int:
     """Turn NULLs in added text columns into empty strings.
 
@@ -400,6 +436,7 @@ def run_migrations(engine: Engine) -> int:
                 applied += 1
 
         applied += _fill_null_text(conn, inspector, existing_tables)
+        applied += _unmix_remittance_notes(conn, existing_tables)
 
         if "products" in existing_tables:
             applied += _name_the_nameless(conn)

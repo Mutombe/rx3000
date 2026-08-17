@@ -247,9 +247,12 @@ def list_remittances(funder_id: str = "", status: str = "", limit: int = 100,
 def outstanding(funder_id: str = "", limit: int = 200, db: Session = Depends(get_db)):
     """Every shortfall not yet billed or written off — the money still in the air."""
     lines = era.outstanding_lines(db, funder_id, limit)
+    count, total = era.outstanding_totals(db, funder_id)
     return {
-        "count": len(lines),
-        "total": round(sum(l.variance for l in lines), 2),
+        # Over everything open, not over the page. The list below is capped.
+        "count": count,
+        "total": total,
+        "showing": len(lines),
         "lines": [{
             "id": l.id, "remittance_id": l.remittance_id,
             "remittance_number": l.remittance.remittance_number if l.remittance else "",
@@ -280,6 +283,7 @@ def get_remittance(remittance_id: int, db: Session = Depends(get_db)):
             "status": l.status, "claim_id": l.claim_id,
             "gateway_transaction_id": l.gateway_transaction_id,
             "written_off": l.written_off, "patient_billed": l.patient_billed,
+            "resolution_note": l.resolution_note or "",
         } for l in sorted(advice.lines, key=lambda x: x.line_number)],
     }
 
@@ -296,6 +300,7 @@ def resolve(line_id: int, action: str, note: str = "", db: Session = Depends(get
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": line.id, "status": line.status, "variance": line.variance,
             "written_off": line.written_off, "patient_billed": line.patient_billed,
+            "resolution_note": line.resolution_note or "",
             "reason": line.reason}
 
 

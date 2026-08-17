@@ -24,6 +24,7 @@ import csv
 import io
 from datetime import date, datetime
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Claim, GatewayTransaction, Remittance, RemittanceLine
@@ -323,7 +324,11 @@ def resolve_line(db: Session, line: RemittanceLine, action: str,
         raise RemittanceError(
             f"'{action}' is not a resolution — use bill_patient, write_off or reopen.")
     if note:
-        line.reason = f"{line.reason} | {note}".strip(" |")
+        # Into our own field. Appending to `reason` overwrote the funder's
+        # stated reason with our working notes, and did it again on every
+        # resolution — the seeded data carries lines where the scheme's reason is
+        # followed by the same word eight times.
+        line.resolution_note = note.strip()[:300]
     db.commit()
     return line
 
@@ -338,3 +343,25 @@ def outstanding_lines(db: Session, funder_id: str = "", limit: int = 200) -> lis
         query = (query.join(Remittance)
                  .filter(Remittance.funder_id == funder_id.strip().upper()))
     return query.order_by(RemittanceLine.variance.desc()).limit(limit).all()
+
+
+def outstanding_totals(db: Session, funder_id: str = "") -> tuple[int, float]:
+    """How many shortfalls are open and what they come to — over all of them.
+
+    Separate from `outstanding_lines` because that one is capped, and the caller
+    needs the true figures alongside the visible ones. Summed here rather than
+    over the returned rows: adding up a capped list reported 200 lines worth
+    $70,000 when 1,317 lines worth $98,096 were open, and a pharmacy reading that
+    screen would have understated what it is owed by twenty-eight thousand
+    dollars.
+    """
+    query = (db.query(func.count(RemittanceLine.id),
+                      func.coalesce(func.sum(RemittanceLine.variance), 0.0))
+             .filter(RemittanceLine.status.in_(("short_paid", "rejected")),
+                     RemittanceLine.written_off.is_(False),
+                     RemittanceLine.patient_billed.is_(False)))
+    if funder_id:
+        query = (query.join(Remittance)
+                 .filter(Remittance.funder_id == funder_id.strip().upper()))
+    count, total = query.one()
+    return int(count or 0), round(float(total or 0), 2)

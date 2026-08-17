@@ -1343,6 +1343,13 @@ class RemittanceLine(Base):
     gateway_transaction_id = Column(String(40), default="")
     written_off = Column(Boolean, default=False)
     patient_billed = Column(Boolean, default=False)
+    # Our note about how the shortfall was settled, kept apart from `reason`.
+    # It used to be appended to the funder's own words, which meant every
+    # resolution rewrote what the scheme had said and a line resolved a few times
+    # ended up reading "Reduced by the member's levy. | uneconomic | uneconomic |
+    # uneconomic". The funder's reason is evidence; ours is a working note, and
+    # the two must not be mixed.
+    resolution_note = Column(String(300), default="")
 
     remittance = relationship("Remittance", back_populates="lines")
     claim = relationship("Claim")
