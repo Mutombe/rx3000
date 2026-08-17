@@ -481,6 +481,10 @@ def list_petty_cash(
                 "id": r.id, "amount": r.amount, "category": r.category,
                 "description": r.description, "reference": r.reference,
                 "receipt_seen": r.receipt_seen,
+                # Who took the money out. The relationship existed and was never
+                # returned, so a screen could show every payout without showing
+                # who made it — which is most of what a petty-cash control is for.
+                "user": r.user.full_name if r.user else "",
                 "created_at": r.created_at.isoformat(),
             }
             for r in rows

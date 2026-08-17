@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import PettyCash from "../components/PettyCash";
 import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money, errorText  } from "../api";
 import { Shift, ShiftTakings } from "../types";
@@ -141,6 +142,10 @@ export default function Shifts() {
           </form>
         </div>
       )}
+
+      {/* Sits with the drawer it affects rather than in an admin screen: the
+          cash-up counts petty cash into what the till should hold. */}
+      <PettyCash />
 
       <div className="card">
         <h3>Shift history</h3>

@@ -2645,3 +2645,10 @@ img { -webkit-user-drag: none; user-select: none; }
   cursor: pointer;
 }
 .sig-book button:hover { background: var(--surface-sunk); }
+
+/* --------------------------------------------------------------- petty cash */
+.pc-form {
+  padding: var(--s3); margin: var(--s3) 0;
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
