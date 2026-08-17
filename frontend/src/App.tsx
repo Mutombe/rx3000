@@ -57,6 +57,7 @@ const Claiming = lazy(() => import("./pages/Claiming"));
 const StockTake = lazy(() => import("./pages/StockTake"));
 const LayBys = lazy(() => import("./pages/LayBys"));
 const Remittances = lazy(() => import("./pages/Remittances"));
+const Authorisations = lazy(() => import("./pages/Authorisations"));
 const Stock = lazy(() => import("./pages/Stock"));
 const System = lazy(() => import("./pages/System"));
 const ToFollows = lazy(() => import("./pages/ToFollows"));
@@ -123,6 +124,7 @@ export default function App() {
                 <Route path="/stock-take" element={<StockTake />} />
                 <Route path="/laybys" element={<LayBys />} />
                 <Route path="/remittances" element={<Remittances />} />
+                <Route path="/authorisations" element={<Authorisations />} />
                 <Route path="/reconciliation" element={<CardReconciliation />} />
                 <Route path="/leads" element={<Leads />} />
                 <Route path="/pipeline" element={<Pipeline />} />

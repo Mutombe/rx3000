@@ -23,6 +23,7 @@ import {
   Presentation,
   Receipt,
   Scales,
+  SealCheck,
   SignOut,
   SlidersHorizontal,
   Sparkle,
@@ -103,6 +104,7 @@ const NAV = [
       // Batching and sending claims is the weekly round; "Claims held" is the
       // exception queue for ones that could not go. Sending comes first.
       { to: "/claiming", label: "Claiming", icon: PaperPlaneTilt },
+      { to: "/authorisations", label: "Authorisations", icon: SealCheck },
       { to: "/claims-held", label: "Claims held", icon: PauseCircle },
       { to: "/remittances", label: "Remittances", icon: Coins },
       { to: "/reconciliation", label: "Reconciliation", icon: ArrowsLeftRight },

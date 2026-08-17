@@ -38,10 +38,13 @@ function bundleDecoderWasm() {
 export default defineConfig({
   plugins: [react(), bundleDecoderWasm()],
   server: {
-    port: 5180,
+    // Overridable so a second dev server can be run against a second backend.
+    // Hard-coding both meant that when a stale uvicorn held 8177 there was no way
+    // to check anything in a browser without killing somebody else's process.
+    port: Number(process.env.RX3000_PORT ?? 5180),
     strictPort: true,
     proxy: {
-      "/api": "http://localhost:8177",
+      "/api": process.env.RX3000_API ?? "http://localhost:8177",
     },
   },
 });
