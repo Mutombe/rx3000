@@ -6,7 +6,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  await page.goto("http://localhost:5180/dispense");
+  await page.goto(new URL("/dispense", page.url()).href);
   await page.waitForTimeout(3000);
 
   // Add a product so a script line with a directions field exists.
@@ -15,7 +15,7 @@ export default async function run(page, ui) {
   if (!out.foundProductSearch) return { ...out, snapshot: (await ui.snapshot()).slice(0, 1200) };
   await productSearch.fill("Amoxicillin");
   await page.waitForTimeout(2000);
-  // Results are clickable divs (.product-pick), not buttons — a button selector
+  // Results are clickable divs (.product-pick), not buttons â€” a button selector
   // matched nothing and the script line was never added.
   const first = page.locator(".product-pick").first();
   out.resultsFound = await first.count();

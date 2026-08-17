@@ -5,7 +5,7 @@ export default async function run(page) {
   await page.locator('input[type="password"]').first().fill("admin123");
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
-  await page.goto("http://localhost:5190/branches");
+  await page.goto(new URL("/branches", page.url()).href);
   await page.waitForSelector("tbody tr", { timeout: 20000 }).catch(() => {});
   out.branches = await page.locator("tbody tr").count();
   const text = await page.locator("tbody").innerText();

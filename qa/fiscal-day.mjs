@@ -9,7 +9,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  await page.goto("http://localhost:5180/fiscal");
+  await page.goto(new URL("/fiscal", page.url()).href);
   await page.waitForSelector(".fs-route", { timeout: 20000 }).catch(() => {});
 
   const body = await page.locator("body").innerText();

@@ -8,7 +8,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  await page.goto("http://localhost:5190/authorisations");
+  await page.goto(new URL("/authorisations", page.url()).href);
   await page.waitForSelector("tbody tr", { timeout: 20000 }).catch(() => {});
   out.rows = await page.locator("tbody tr").count();
   out.statuses = [...new Set(await page.locator("tbody .badge").allInnerTexts())];

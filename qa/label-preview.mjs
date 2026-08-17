@@ -20,7 +20,7 @@ export default async function run(page, ui) {
   await page.waitForTimeout(3000);
 
   // RX260801167 — a script with a real dispensing behind it.
-  await page.goto("http://localhost:5180/dispense?reprint=1167");
+  await page.goto(new URL("/dispense?reprint=1167", page.url()).href);
   await page.waitForSelector(".lbl", { timeout: 20000 }).catch(() => {});
 
   const labels = await page.locator(".lbl").count();

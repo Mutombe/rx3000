@@ -3,7 +3,7 @@ export default async function run(page, ui) {
   await page.locator('input[type="password"]').first().fill("admin123");
   await page.keyboard.press("Enter");
   await page.waitForTimeout(3500);
-  await page.goto("http://localhost:5180/pos");
+  await page.goto(new URL("/pos", page.url()).href);
   await page.waitForTimeout(2000);
 
   // Capture inside the page, so nothing depends on console forwarding.

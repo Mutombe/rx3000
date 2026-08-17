@@ -32,6 +32,25 @@ const sample = [
   "<script>window.pwned = true;</script>",
   "[Guidance](javascript:alert(1)) and [real](https://example.com)",
 ].join("\n");
+// Imported, not assumed. This file previously called markdownToHtml with no
+// import at all, so it threw ReferenceError before checking anything — a test
+// that cannot pass is indistinguishable from one nobody ran. The bundle is built
+// by the command in the header; if it is missing, say so rather than fail
+// obscurely.
+const bundle = new URL("./out/Markdown.js", import.meta.url);
+let markdownToHtml;
+try {
+  ({ markdownToHtml } = await import(bundle.href));
+} catch (e) {
+  console.error([
+    "Build the bundle first:",
+    "  cd frontend && npx esbuild src/components/Markdown.tsx --bundle"
+    + " --format=esm --outfile=../qa/out/Markdown.js --loader:.tsx=tsx --external:react",
+    `(${e.message})`,
+  ].join("\n"));
+  process.exit(2);
+}
+
 const html = markdownToHtml(sample);
 const has = (s) => html.includes(s);
 console.log(JSON.stringify({

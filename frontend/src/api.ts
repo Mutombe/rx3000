@@ -162,8 +162,19 @@ function logFailure(
   // One console.error, not a group. A collapsed group is not reliably captured
   // by tooling that watches the console, and a diagnostic nobody can capture is
   // only half a diagnostic.
+  //
+  // The same reasoning applies to the payload, which is why what the server said
+  // is now in the message itself. Passing it only as an object argument reads
+  // perfectly in DevTools and captures as the literal text "[object Object]" —
+  // so the log line that exists to carry technical detail carried none. The
+  // object is still passed for interactive inspection.
+  const detail = typeof raw === "string"
+    ? raw
+    : (() => { try { return JSON.stringify(raw); } catch { return String(raw); } })();
   console.error(
-    `[RX3000] ${method} ${path} -> ${status}`,
+    `[RX3000] ${method} ${path} -> ${status}`
+    + ` | server said: ${(detail ?? "").slice(0, 300) || "(nothing)"}`
+    + ` | user saw: ${shown}`,
     { status, method, path, serverSaid: raw, shownToUser: shown },
   );
 }

@@ -5,7 +5,7 @@ export default async function run(page) {
   await page.locator('input[type="password"]').first().fill("admin123");
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
-  await page.goto("http://localhost:5180/laybys");
+  await page.goto(new URL("/laybys", page.url()).href);
   await page.waitForSelector(".pill-tabs button", { timeout: 20000 });
 
   // Raise one to cancel.

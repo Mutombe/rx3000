@@ -36,7 +36,7 @@ export default async function run(page, ui) {
   await page.keyboard.press("Enter");
   await page.waitForTimeout(3500);
 
-  await page.goto("http://localhost:5180/reports");
+  await page.goto(new URL("/reports", page.url()).href);
   await page.waitForSelector(".rc-item", { timeout: 20000 });
   out.total = await page.locator(".rc-item").count();
 
@@ -60,7 +60,7 @@ export default async function run(page, ui) {
     .filter(Boolean);
 
   for (const title of titles) {
-    await page.goto("http://localhost:5180/reports");
+    await page.goto(new URL("/reports", page.url()).href);
     await page.waitForSelector(".rc-item", { timeout: 15000 });
     await page.locator(".rc-item-title").filter({ hasText: title }).first().click();
 

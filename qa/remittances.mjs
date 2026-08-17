@@ -6,7 +6,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  await page.goto("http://localhost:5180/remittances");
+  await page.goto(new URL("/remittances", page.url()).href);
   await page.waitForSelector(".pill-tabs button", { timeout: 20000 });
   await page.waitForTimeout(2500);
 

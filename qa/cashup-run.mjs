@@ -4,7 +4,7 @@ export default async function run(page, ui) {
   await page.locator('input[type="password"]').first().fill("admin123");
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
-  await page.goto("http://localhost:5180/shifts");
+  await page.goto(new URL("/shifts", page.url()).href);
   await page.waitForTimeout(2500);
 
   out.buttons = (await ui.snapshot()).split("\n").filter((l) => /button/.test(l));

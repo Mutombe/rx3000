@@ -25,7 +25,7 @@ export default async function run(page, ui) {
   say("signedIn", !/login/i.test(await page.locator("body").innerText()));
 
   // ---- the settings tab ----------------------------------------------------
-  await page.goto("http://localhost:5180/admin?tab=settings");
+  await page.goto(new URL("/admin?tab=settings", page.url()).href);
   await page.waitForTimeout(600);
   // Wait for content, not a fixed delay: a slow render and a broken one look
   // identical otherwise.

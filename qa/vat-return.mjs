@@ -5,7 +5,7 @@ export default async function run(page) {
   await page.locator('input[type="password"]').first().fill("admin123");
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
-  await page.goto("http://localhost:5190/periods");
+  await page.goto(new URL("/periods", page.url()).href);
   await page.waitForSelector("tbody tr", { timeout: 20000 });
   await page.waitForTimeout(1200);
   out.periods = await page.locator("tbody tr").count();

@@ -35,6 +35,7 @@ nothing:
     hide genuine bad-request bugs.
 """
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -42,7 +43,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
-BASE = "http://localhost:8177"
+# Overridable, because a stale server holding the default port makes this check
+# describe code from days ago while reporting "0 failing" — which is worse than
+# not running it. RX3000_API points it at whichever backend is current.
+BASE = os.environ.get("RX3000_API", "http://localhost:8177")
 # 401/403 mean the route is alive and guarded; 404/422 mean it wants arguments
 # this script does not invent. 5xx is the only thing being hunted.
 OK = {200, 204, 400, 401, 403, 404, 422, 428}

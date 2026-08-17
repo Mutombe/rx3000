@@ -8,7 +8,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  await page.goto("http://localhost:5180/claiming");
+  await page.goto(new URL("/claiming", page.url()).href);
   // Wait for content, not a container — .card is also the skeleton.
   await page.waitForSelector(".pill-tabs button", { timeout: 20000 }).catch(() => {});
   await page.waitForTimeout(2500);
@@ -57,7 +57,7 @@ export default async function run(page, ui) {
   }
 
   // The fee-model tab: the MMAP switch.
-  await page.goto("http://localhost:5180/claiming?tab=models");
+  await page.goto(new URL("/claiming?tab=models", page.url()).href);
   await page.waitForSelector(".fm-model", { timeout: 20000 }).catch(() => {});
   out.models = await page.locator(".fm-model").count();
   out.tierRows = await page.locator(".fm-tiers tbody tr").count();
