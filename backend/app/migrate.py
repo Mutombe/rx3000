@@ -178,13 +178,24 @@ def _assert_portable_defaults() -> None:
     Cheap, and it turns the next occurrence of this class of bug into a failure
     on a developer's machine rather than a production deploy that will not boot.
     """
+    # Each entry is a pattern that survives translation and that Postgres will
+    # reject at ALTER time — which on Render means a deploy that never boots.
+    unsafe = (
+        (r"\bBOOLEAN\s+DEFAULT\s+\d",                 "boolean column with an integer default"),
+        (r"\bDATETIME\b",                             "DATETIME is not a Postgres type"),
+        # A quoted default on a numeric column is the same mistake in the other
+        # direction, and was not previously checked for.
+        (r"\b(?:INTEGER|FLOAT|DOUBLE PRECISION|NUMERIC)\b[^,]*DEFAULT\s+''",
+                                                      "number column with a text default"),
+        (r"\bAUTOINCREMENT\b",                        "AUTOINCREMENT is SQLite-only"),
+    )
     bad = []
     for table, columns in ADDED_COLUMNS.items():
         for column, ddl in columns.items():
             translated = _portable(ddl, "postgresql")
-            if re.search(r"\bBOOLEAN\s+DEFAULT\s+\d", translated, re.I) \
-                    or re.search(r"\bDATETIME\b", translated, re.I):
-                bad.append(f"{table}.{column} = {ddl!r}")
+            for pattern, why in unsafe:
+                if re.search(pattern, translated, re.I):
+                    bad.append(f"{table}.{column} = {ddl!r} ({why})")
     if bad:
         raise RuntimeError(
             "These column definitions are not valid on Postgres even after "
