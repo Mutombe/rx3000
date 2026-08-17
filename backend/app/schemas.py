@@ -1,11 +1,47 @@
 from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ORM(BaseModel):
+    """Base for anything read out of the database.
+
+    A text column that is NULL reads as empty text rather than as a validation
+    failure. This is not cosmetic: `field: str = ""` only supplies the default
+    when the key is *missing*, and reading from an ORM object the attribute is
+    always present — so a single NULL in one row of one column makes Pydantic
+    reject the entire response.
+
+    That is exactly what happened. Adding `bin_location` and `manufacturer` left
+    545 existing products NULL, and `GET /api/products` answered 500 for every
+    caller — the whole catalogue, the stock screens, and the offline catalogue
+    sync, from two columns nobody had filled in yet. The friendly error worked
+    perfectly and told nobody which two columns.
+
+    Coercing here rather than per-field because the trap is structural: every
+    `str` field over a nullable column is the same outage waiting for its first
+    NULL, and adding a column is the most ordinary change there is. Only
+    non-optional `str` fields are touched, where None was already a guaranteed
+    error, so this can turn a 500 into a sane answer and nothing else.
+    """
+
     model_config = ConfigDict(from_attributes=True)
+
+    # Per field rather than per model, deliberately. A model-level 'before'
+    # validator would have to flatten the ORM instance into a dict to override
+    # anything on it, and that means a getattr on every field — including
+    # relationships, which would fire a lazy load per row and turn a fixed 500
+    # into an N+1. This sees one value at a time and touches nothing else.
+    @field_validator("*", mode="before")
+    @classmethod
+    def _null_text_is_empty(cls, v, info):
+        if v is not None:
+            return v
+        field = cls.model_fields.get(info.field_name)
+        # Only bare `str`. Optional[str] means "None is meaningful here" and an
+        # int or a date must keep failing loudly.
+        return "" if field is not None and field.annotation is str else v
 
 
 # ---------- auth ----------

@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
-import { useStepUp } from "../components/StepUp";
+import { useStepUp, CANCELLED } from "../components/StepUp";
 
 interface Period {
   id: number;
@@ -70,12 +70,15 @@ export default function Periods() {
     if (!reopening) return;
     const period = reopening;
         try {
-      await guarded(
+      const res = await guarded(
         "period.reopen",
         (token) =>
           api.post(`/api/periods/${period.code}/reopen`, { reason }, token),
         period.code,
       );
+      // Somebody backed out of the password prompt, so the period is still
+      // closed. Saying it reopened would be a lie the next person acts on.
+      if (res === CANCELLED) return;
       toast.ok(`${period.name} reopened. The reason is on the period's record.`);
       setReopening(null);
       setReason("");

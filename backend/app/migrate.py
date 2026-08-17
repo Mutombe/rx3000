@@ -105,8 +105,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "settled_at": "DATETIME",
     },
     "products": {
-        "bin_location": "VARCHAR(20)",
-        "manufacturer": "VARCHAR(120)",
+        # DEFAULT '' matters on both of these. Without it every existing row is
+        # NULL, and the API declares them as plain strings — which took
+        # GET /api/products down with a 500 for all 545 products.
+        "bin_location": "VARCHAR(20) DEFAULT ''",
+        "manufacturer": "VARCHAR(120) DEFAULT ''",
         "sep_price": "DOUBLE PRECISION DEFAULT 0","mmap_price": "FLOAT DEFAULT 0",
                  "active_ingredient": "VARCHAR(160) DEFAULT ''"},
     "messages": {"campaign_id": "INTEGER"},
@@ -326,6 +329,40 @@ def _mark_cash_accounts(conn) -> int:
     return count
 
 
+def _fill_null_text(conn, inspector, existing_tables: set) -> int:
+    """Turn NULLs in added text columns into empty strings.
+
+    Adding a column leaves every existing row NULL, and the API declares these
+    fields as plain strings — so one unfilled column answers 500 for every row
+    in the table. Correcting the DDL fixes the next install and does nothing for
+    the ones already running, which is where the outage actually is.
+
+    Scoped to columns this file added and only where a DEFAULT '' is declared, so
+    it can only ever write the value the column would have had anyway. Runs every
+    startup: it is idempotent, and the same NULLs exist on any deployment that
+    took the column before the default was there.
+    """
+    filled = 0
+    for table, columns in ADDED_COLUMNS.items():
+        if table not in existing_tables:
+            continue
+        present = {c["name"] for c in inspector.get_columns(table)}
+        for column, ddl_type in columns.items():
+            if column not in present:
+                continue
+            if "CHAR" not in ddl_type.upper() and "TEXT" not in ddl_type.upper():
+                continue
+            if "DEFAULT ''" not in ddl_type:
+                continue
+            done = conn.execute(text(
+                f"UPDATE {table} SET {column} = '' WHERE {column} IS NULL"
+            )).rowcount
+            if done:
+                log.info("Filled %s NULL %s.%s", done, table, column)
+                filled += 1
+    return filled
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -349,6 +386,8 @@ def run_migrations(engine: Engine) -> int:
                 ))
                 log.info("Added column %s.%s", table, column)
                 applied += 1
+
+        applied += _fill_null_text(conn, inspector, existing_tables)
 
         if "products" in existing_tables:
             applied += _name_the_nameless(conn)

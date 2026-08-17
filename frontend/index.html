@@ -9,7 +9,20 @@
     <meta name="theme-color" content="#3b3e56" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <!-- Loaded without blocking the first paint. A stylesheet link blocks
+         rendering until it resolves, and this one points at a host a pharmacy
+         running offline cannot reach — so the till would sit on a blank screen
+         waiting for a font request to time out. media="print" makes the browser
+         fetch it at low priority and not wait for it; onload promotes it once it
+         has actually arrived.
+
+         The font stacks in styles.css fall back to system-ui and ui-monospace,
+         so an offline branch gets a slightly different typeface and everything
+         else identical. Bundling the two families is still the right end state
+         and is not done here. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet" media="print" onload="this.media='all'" />
   </head>
   <body>
     <div id="root"></div>

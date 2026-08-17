@@ -147,38 +147,61 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   );
 }
 
+/** What `guarded` resolves to when the person closed the dialog instead of
+ *  authorising. A distinct value rather than `undefined`, because `undefined` is
+ *  also what a 204 returns — so a caller could not tell "nothing to send back"
+ *  from "nobody approved this", and would report a cancelled action as done.
+ */
+export const CANCELLED = Symbol("step-up cancelled");
+
 /** Run a request that needs authority, prompting for it only if the server asks.
  *
  *  Deliberately optimistic: it tries without a token first. Most protected
  *  actions are attempted by someone who turns out to be allowed, and a dialog
  *  shown before it is needed trains people to type passwords on reflex — which
  *  is the habit the prompt exists to prevent.
+ *
+ *  Callers must check the result against CANCELLED before announcing success.
+ *  Cancelling is not an error — nothing went wrong and nothing happened — so it
+ *  is not thrown; an error toast reading "cancelled" describes a fault that does
+ *  not exist.
  */
 export function useStepUp() {
   const [pending, setPending] = useState<{
     action: string;
     context: string;
     run: (token: string) => void;
+    cancel: () => void;
   } | null>(null);
 
   async function guarded<T>(
     action: string,
     attempt: (token?: string) => Promise<T>,
     context = "",
-  ): Promise<T | undefined> {
+  ): Promise<T | typeof CANCELLED> {
     try {
       return await attempt();
     } catch (err: any) {
       // 428 is the server saying 'signed in, but this needs more authority'.
       if (err?.status !== 428) throw err;
-      return new Promise<T | undefined>((resolve) => {
+      return new Promise<T | typeof CANCELLED>((resolve, reject) => {
         setPending({
           action,
           context,
           run: async (token: string) => {
             setPending(null);
-            resolve(await attempt(token));
+            // The retry can fail on its own account — a wrong password is
+            // handled inside the dialog, but the authorised call can still hit
+            // a closed period or a stock rule. Rejecting hands that to the
+            // caller's catch; resolving would have swallowed it and left the
+            // screen claiming the work was done.
+            try {
+              resolve(await attempt(token));
+            } catch (retryErr) {
+              reject(retryErr);
+            }
           },
+          cancel: () => resolve(CANCELLED),
         });
       });
     }
@@ -189,7 +212,10 @@ export function useStepUp() {
       action={pending.action}
       context={pending.context}
       onGranted={pending.run}
-      onCancel={() => setPending(null)}
+      // Settles the promise. Without this the awaiting caller hangs forever, so
+      // anything it set before calling — a busy flag, a disabled button — stays
+      // set and the screen looks stuck mid-save.
+      onCancel={() => { const c = pending.cancel; setPending(null); c(); }}
     />
   ) : null;
 

@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import DispensaryWorklist from "../components/DispensaryWorklist";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
+import LabelSheet from "../components/LabelSheet";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
 import {
@@ -56,6 +57,25 @@ export default function Dispense() {
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
   const [doneRxId, setDoneRxId] = useState<number | null>(null);
+  // ?reprint=<rx id> opens the label preview straight away. Without it a reprint
+  // is only reachable in the moments after dispensing, in the same browser
+  // session — so nobody could reprint a label for yesterday's script, which is
+  // when labels are actually asked for again.
+  const [params, setParams] = useSearchParams();
+  const [reprintRx, setReprintRx] = useState<number | null>(() => {
+    const n = Number(params.get("reprint"));
+    return Number.isFinite(n) && n > 0 ? n : null;
+  });
+
+  function closeReprint() {
+    setReprintRx(null);
+    if (params.has("reprint")) {
+      // Clear it, or a refresh reopens a dialog the user just dismissed.
+      const next = new URLSearchParams(params);
+      next.delete("reprint");
+      setParams(next, { replace: true });
+    }
+  }
 
   // controlled compliance
   const [idVerified, setIdVerified] = useState(false);
@@ -330,11 +350,18 @@ export default function Dispense() {
           leave no room for the work itself. */}
       <div className="disp-with-worklist">
       <div>
+      {reprintRx !== null && (
+        <LabelSheet rxId={reprintRx} onClose={closeReprint} />
+      )}
+
       {doneSale && (
         <div className="success-banner">
           Dispensed — invoice <b>{doneSale.sale_number}</b> for {money(doneSale.total)} is pending payment.
           Labels sent to the printer.{" "}
-          {doneRxId && <button className="ghost small" onClick={() => printRxLabels(doneRxId)}>🖨 Reprint labels</button>}
+          {/* A reprint gets the preview: whoever is asking for one already had a
+              set come out, so the question now is how many and for which item —
+              not "print immediately", which is what already happened. */}
+          {doneRxId && <button className="ghost small" onClick={() => setReprintRx(doneRxId)}>🖨 Reprint labels</button>}
           {" "}<Link to="/pos">Settle at Point of Sale →</Link>
         </div>
       )}

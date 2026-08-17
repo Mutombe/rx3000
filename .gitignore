@@ -26,3 +26,10 @@ desktop/src-tauri/target/
 desktop/src-tauri/build.log
 desktop/src-tauri/bundle.log
 qa/out/
+
+# Server logs. These were committed by accident and had reached 2.2MB of
+# stack traces and request lines — they change on every run, so they turn every
+# commit into a diff of yesterday's traffic. Worth keeping on disk, never in git.
+backend/uvicorn.err.log
+backend/uvicorn.out.log
+backend/*.log

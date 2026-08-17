@@ -1,6 +1,7 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import CurrencyRates from "../components/CurrencyRates";
+import GlobalSettings from "../components/GlobalSettings";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, getToken, money, errorText  } from "../api";
 import { AuditEntry, AutomationRule, Backup, EmailTemplate, PriceImportResult, User } from "../types";
@@ -14,10 +15,11 @@ const RULE_TYPES = [
   ["deal_task", "Deal task creation"],
 ];
 
-type Tab = "prices" | "currency" | "scripts" | "audit" | "switch" | "notices" | "backups" | "automation" | "templates";
+type Tab = "prices" | "currency" | "settings" | "scripts" | "audit" | "switch" | "notices" | "backups" | "automation" | "templates";
 
 const TABS: [Tab, string][] = [
   ["prices", "Price file import"], ["currency", "Currency & rates"],
+  ["settings", "Global settings"],
   ["scripts", "Prescriber scripts"],
   ["audit", "Audit log"],
   ["switch", "Switch log"], ["notices", "Counter notices"],
@@ -247,7 +249,7 @@ export default function Admin() {
         <div>
           <h1>Control Panel</h1>
           <div className="sub">
-            Supplier price files, user activity audit, database backups, CRM automation rules and message templates
+            Global settings, supplier price files, user activity audit, database backups, CRM automation rules and message templates
           </div>
         </div>
       </div>
@@ -393,6 +395,10 @@ export default function Admin() {
       )}
 
       {tab === "currency" && <CurrencyRates />}
+
+      {/* Fetches its own rows from the server's declaration, so nothing here
+          needs to know which settings exist. */}
+      {tab === "settings" && <GlobalSettings />}
 
       {tab === "prices" && (
         <>

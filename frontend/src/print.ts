@@ -121,30 +121,55 @@ const LABEL_CSS = `
   .label:last-child { page-break-after: auto; }
   .pharmacy { font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; }
   .patient { font-size: 11px; font-weight: bold; margin: 1mm 0 0.5mm; }
-  .med { font-size: 10.5px; font-weight: bold; }
-  .dose { font-size: 10px; margin: 0.7mm 0; }
+  .med { font-size: 9.5px; font-weight: bold; }
+  /* The directions are the largest thing on the sticker, because they are the
+     only line the patient has to act on. The medicine name was set larger than
+     them, which put the emphasis on what a pharmacist reads for identification
+     rather than on what the person taking it needs. */
+  .dose { font-size: 11.5px; font-weight: bold; margin: 0.7mm 0; line-height: 1.25; }
   .warn { font-size: 7.5px; font-style: italic; border-top: 1px solid #000; padding-top: 0.6mm; margin-top: 0.6mm; }
   .meta { font-size: 7px; display: flex; justify-content: space-between; margin-top: 0.6mm; }
   .sched { font-size: 7.5px; font-weight: bold; }
 `;
 
-export function printLabels(labels: Label[]) {
+/** Escape anything that came from the database before it becomes markup.
+ *
+ *  Names and directions are free text typed by staff. A product called
+ *  "Vitamin C <500mg>" or a patient named "Smith & Sons" silently swallowed the
+ *  rest of the line when interpolated raw, and a label that prints half a dose
+ *  instruction is worse than one that fails to print.
+ */
+function esc(v: unknown): string {
+  return String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/** Send labels to the printer.
+ *
+ *  `copies` exists because one dispensing often spans several boxes and each
+ *  needs its own sticker. Repeating whole sets rather than consecutive
+ *  duplicates keeps a patient's items together when they come off the printer.
+ */
+export function printLabels(labels: Label[], copies = 1) {
   if (labels.length === 0) return;
-  const body = labels
+  const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
+  const body = sheet
     .map(
       (l) => `
       <div class="label">
-        <div class="pharmacy">${l.pharmacy_name}${l.pharmacy_reg_no ? ` &nbsp;·&nbsp; Reg ${l.pharmacy_reg_no}` : ""}</div>
-        <div class="patient">${l.patient_name}</div>
-        <div class="med">${l.product_name} ${l.strength} ${l.dosage_form ? `(${l.dosage_form})` : ""} &nbsp;— &nbsp;Qty ${l.quantity}</div>
-        <div class="dose">${l.dosage_instructions}</div>
-        ${l.warnings ? `<div class="warn">${l.warnings}</div>` : ""}
+        <div class="pharmacy">${esc(l.pharmacy_name)}${l.pharmacy_reg_no ? ` &nbsp;·&nbsp; Reg ${esc(l.pharmacy_reg_no)}` : ""}</div>
+        <div class="patient">${esc(l.patient_name)}</div>
+        <div class="med">${esc(l.product_name)} ${esc(l.strength)} ${l.dosage_form ? `(${esc(l.dosage_form)})` : ""} &nbsp;— &nbsp;Qty ${l.quantity}</div>
+        <div class="dose">${esc(l.dosage_instructions)}</div>
+        ${l.warnings ? `<div class="warn">${esc(l.warnings)}</div>` : ""}
         <div class="meta">
-          <span>${l.rx_number} · ${new Date(l.dispensed_at).toLocaleDateString("en-ZA")}</span>
-          <span>${l.dispensed_by}</span>
+          <span>${esc(l.rx_number)} · ${new Date(l.dispensed_at).toLocaleDateString("en-ZA")}</span>
+          <span>${esc(l.dispensed_by)}</span>
         </div>
         <div class="meta">
-          <span>${l.batch_number ? `Batch ${l.batch_number}` : ""}${l.expiry_date ? ` · Exp ${l.expiry_date}` : ""}</span>
+          <span>${l.batch_number ? `Batch ${esc(l.batch_number)}` : ""}${l.expiry_date ? ` · Exp ${esc(l.expiry_date)}` : ""}</span>
           <span class="sched">${l.schedule > 0 ? `S${l.schedule}` : ""}${l.repeats_remaining > 0 ? ` · ${l.repeats_remaining} repeat(s) left` : ""}</span>
         </div>
       </div>`,
