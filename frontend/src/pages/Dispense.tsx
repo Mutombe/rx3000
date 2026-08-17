@@ -8,6 +8,7 @@ import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
 import LabelSheet from "../components/LabelSheet";
+import SigInput from "../components/SigInput";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
 import {
@@ -584,8 +585,12 @@ export default function Dispense() {
                       </div>
                       <div className="field">
                         <label>Dosage instructions</label>
-                        <input placeholder="e.g. One tablet at night" value={it.dosage_instructions}
-                          onChange={(e) => updateItem(idx, { dosage_instructions: e.target.value })} />
+                        {/* Shorthand in, sentence out. `1 t tds pc` becomes the
+                            line the patient reads on the label. */}
+                        <SigInput
+                          value={it.dosage_instructions}
+                          onChange={(next) => updateItem(idx, { dosage_instructions: next })}
+                        />
                       </div>
                     </div>
                     <div className="field">

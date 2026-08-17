@@ -2611,3 +2611,37 @@ img { -webkit-user-drag: none; user-select: none; }
 .lb-lines { margin: var(--s3) 0; }
 .lb-lines td { padding: var(--s1) var(--s2); }
 @media (max-width: 700px) { .lb-cols { grid-template-columns: 1fr; gap: var(--s3); } }
+
+/* ------------------------------------------------------- dosage shorthand
+   `1 t tds pc` in, "three times a day after food" out. The codes are one click
+   away rather than memorised, because a dispenser learning the shorthand needs
+   to see the book, not query it. */
+.sig { position: relative; }
+.sig-row { display: flex; gap: var(--s2); align-items: center; }
+.sig-row input { flex: 1 1 auto; min-width: 0; }
+.sig-note { margin: var(--s1) 0 0; font-size: .78rem; color: var(--ink-soft); }
+.linkish {
+  background: none; border: 0; padding: 0; height: auto;
+  font: inherit; color: var(--accent-ink, inherit); text-decoration: underline;
+  cursor: pointer;
+}
+.sig-book {
+  position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 16rem; overflow-y: auto;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--s3); padding: var(--s3);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18));
+}
+.sig-book h5 {
+  margin: 0 0 var(--s1); font-size: .7rem; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--ink-soft);
+}
+.sig-book ul { list-style: none; margin: 0; padding: 0; }
+.sig-book button {
+  display: block; width: 100%; text-align: left; padding: 2px var(--s1);
+  background: none; border: 0; height: auto; white-space: normal;
+  font: inherit; font-size: .8rem; color: inherit; border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.sig-book button:hover { background: var(--surface-sunk); }
