@@ -2573,3 +2573,25 @@ img { -webkit-user-drag: none; user-select: none; }
   border-radius: var(--r-sm); align-items: flex-start;
 }
 .fm-mmap label { line-height: 1.45; }
+
+/* -------------------------------------------------------------- stock take
+   The product search shows no quantities. That is the point of the screen, not
+   an oversight: a count is blind, and a picker that lists stock on hand hands
+   the counter the answer while they are still holding the box. */
+.st-results { list-style: none; margin: var(--s2) 0 0; padding: 0; }
+.st-results li { border-bottom: 1px solid var(--line-soft); }
+.st-results li:last-child { border-bottom: 0; }
+.st-results button {
+  display: block; width: 100%; text-align: left;
+  padding: var(--s2) var(--s2); background: none; border: 0;
+  height: auto; white-space: normal; font: inherit; color: inherit;
+  border-radius: var(--r-sm); cursor: pointer;
+}
+.st-results button:hover { background: var(--surface-sunk); }
+.st-picked {
+  display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  padding: var(--s2) var(--s3); margin-bottom: var(--s3);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.st-picked .btn { margin-left: auto; }

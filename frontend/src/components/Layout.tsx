@@ -7,6 +7,7 @@ import {
   CaretLeft,
   CaretRight,
   ChartLineUp,
+  ClipboardText,
   ClockCountdown,
   Desktop,
   Funnel,
@@ -90,6 +91,7 @@ const NAV = [
     links: [
       { to: "/stock", label: "Inventory", icon: Package },
       { to: "/orders", label: "Procurement", icon: Truck },
+      { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
     ],
   },
   {
