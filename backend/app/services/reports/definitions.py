@@ -9,7 +9,7 @@ a select, a branch filter, money and percent columns, footer totals, a
 drill-down and a step-up — so that the reports added after it have a worked
 example of every shape they might need.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -1556,7 +1556,11 @@ register(Report(
         Column("credit", "Credit", "money", total=True),
         Column("source", "Caused by", "text"),
     ],
-    rows=lambda db, p: _journal_shape(_journal_query(db, p).limit(500).all(), db),
+    # Unreachable: paged_rows takes precedence everywhere, including export.
+    # Kept because the field is part of a report's declaration, and made
+    # small deliberately — a capped query sitting in a definition is how
+    # this catalogue shipped a truncated total four separate times.
+    rows=lambda db, p: _journal_shape(_journal_query(db, p).limit(1).all(), db),
     paged_rows=lambda db, p, offset, limit: _journal_page(db, p, offset, limit),
     paged_totals=lambda db, p: _journal_totals(db, p),
 ))
@@ -4263,3 +4267,476 @@ def _members(db: Session, p: dict):
     # Incomplete first — those are the ones that will bounce.
     out.sort(key=lambda r: (not r["missing"], r["patient"]))
     return out
+
+
+# ------------------------------------------------------------- final batch
+
+register(Report(
+    key="deliveries",
+    title="Deliveries",
+    module="Dispensary",
+    purpose="Medicine that left the shop for somewhere other than the counter, "
+            "and whether it arrived. The one point where dispensed medicine is "
+            "out of the pharmacy's hands and not yet in the patient's.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("date", "Raised", "datetime"),
+        Column("waybill", "Waybill", "code"),
+        Column("recipient", "To", "text"),
+        Column("address", "Address", "text"),
+        Column("status", "Status", "text"),
+        Column("driver", "Driver", "text"),
+        Column("received_by", "Received by", "text"),
+        Column("hours", "Hours in transit", "number"),
+    ],
+    rows=lambda db, p: _deliveries(db, p),
+))
+
+
+def _deliveries(db: Session, p: dict):
+    from ...models import Waybill
+
+    rows_q = (
+        db.query(Waybill)
+        .filter(func.date(Waybill.created_at) >= p["date_from"])
+        .filter(func.date(Waybill.created_at) <= p["date_to"])
+        .order_by(Waybill.created_at.desc())
+        .all()
+    )
+    if not rows_q:
+        return []
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(User.id.in_({w.driver_id for w in rows_q if w.driver_id})).all()
+    }
+    now = datetime.utcnow()
+    out = []
+    for w in rows_q:
+        start = w.dispatched_at or w.created_at
+        end = w.delivered_at or now
+        out.append({
+            "date": w.created_at.isoformat(sep=" ", timespec="minutes") if w.created_at else "",
+            "waybill": w.waybill_number,
+            "recipient": w.recipient or "",
+            "address": (w.address or "")[:60],
+            # A failure carries its reason, because "failed" alone tells nobody
+            # whether to redeliver or refund.
+            "status": (w.status or "") + (f" — {w.failure_reason}" if w.failure_reason else ""),
+            "driver": users.get(w.driver_id, "-"),
+            "received_by": w.received_by or "",
+            "hours": round((end - start).total_seconds() / 3600, 1) if start else 0,
+        })
+    return out
+
+
+register(Report(
+    key="branch_transactions",
+    title="Branch transactions",
+    module="Till",
+    purpose="What each branch took, and what moved between them. A group total "
+            "is the wrong answer to a branch manager's question.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("branch", "Branch", "text"),
+        Column("sales", "Sales", "number", total=True),
+        Column("takings", "Takings", "money", total=True),
+        Column("average", "Average sale", "money"),
+        Column("transfers_out", "Transfers out", "number", total=True),
+        Column("transfers_in", "Transfers in", "number", total=True),
+    ],
+    rows=lambda db, p: _branch_transactions(db, p),
+))
+
+
+def _branch_transactions(db: Session, p: dict):
+    from ...models import Branch, BranchTransfer
+
+    branches = {b.id: b.name for b in db.query(Branch).all()}
+    sales = (
+        db.query(Sale.branch_id, func.count(Sale.id), func.sum(Sale.total))
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+        .filter(Sale.status != "void")
+        .group_by(Sale.branch_id).all()
+    )
+    rows = {}
+    for bid, count, total in sales:
+        rows[bid] = {
+            "branch": branches.get(bid, "(not recorded)"),
+            "sales": int(count or 0),
+            "takings": round(float(total or 0), 2),
+            "transfers_out": 0, "transfers_in": 0,
+        }
+    for t in db.query(BranchTransfer).all():
+        for attr, key in (("from_branch_id", "transfers_out"), ("to_branch_id", "transfers_in")):
+            bid = getattr(t, attr, None)
+            if bid is None:
+                continue
+            row = rows.setdefault(bid, {
+                "branch": branches.get(bid, "(not recorded)"),
+                "sales": 0, "takings": 0.0, "transfers_out": 0, "transfers_in": 0,
+            })
+            row[key] += 1
+    out = []
+    for row in rows.values():
+        row["average"] = round(row["takings"] / row["sales"], 2) if row["sales"] else 0.0
+        out.append(row)
+    out.sort(key=lambda r: -r["takings"])
+    return out
+
+
+register(Report(
+    key="messages_sent",
+    title="Messages sent",
+    module="CRM",
+    purpose="Every reminder and notice sent to a patient, and whether it got "
+            "there. A reminder that failed silently is a repeat nobody "
+            "collected.",
+    params=[DATE_FROM, DATE_TO,
+            Param("failed_only", "Failures only", "bool", default=False)],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("channel", "Channel", "text"),
+        Column("recipient", "To", "text"),
+        Column("kind", "Kind", "text"),
+        Column("status", "Status", "text"),
+        Column("detail", "Detail", "text"),
+    ],
+    rows=lambda db, p: _messages(db, p, 0, 200),
+    paged_rows=lambda db, p, offset, limit: _messages_page(db, p, offset, limit),
+))
+
+
+def _messages_query(db: Session, p: dict):
+    from ...models import Message
+
+    # A message has a scheduled time and a sent time and no created time. Which
+    # one matters depends on the question: a reminder queued for next Tuesday is
+    # not activity today. Reported on when it was sent, falling back to when it
+    # was scheduled for the ones that never went.
+    when = func.coalesce(Message.sent_at, Message.scheduled_for)
+    query = (
+        db.query(Message)
+        .filter(func.date(when) >= p["date_from"])
+        .filter(func.date(when) <= p["date_to"])
+    )
+    if p.get("failed_only"):
+        query = query.filter(Message.status.notin_(("sent", "delivered")))
+    return query.order_by(when.desc())
+
+
+def _messages_shape(db: Session, rows_q):
+    if not rows_q:
+        return []
+
+    people = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({m.patient_id for m in rows_q if m.patient_id})).all()
+    }
+    out = []
+    for m in rows_q:
+        stamp = m.sent_at or m.scheduled_for
+        out.append({
+            "date": stamp.isoformat(sep=" ", timespec="minutes") if stamp else "",
+            "channel": m.channel or "-",
+            "recipient": people.get(m.patient_id, "-"),
+            "kind": m.message_type or "",
+            # An unsent message is not a failure and not a success; saying
+            # "queued" beats leaving the cell to be guessed at.
+            "status": m.status or ("sent" if m.sent_at else "queued"),
+            "detail": (m.detail or m.subject or "")[:120],
+        })
+    return out
+
+
+def _messages_page(db: Session, p: dict, offset: int, limit: int):
+    """Count and one page, both in the database.
+
+    Written first with .limit(5000), which made the footer report 5,000 as the
+    total when there were 7,001 — the third time this catalogue has shipped that
+    exact bug. A cap looks like a safety measure and behaves like a lie.
+    """
+    query = _messages_query(db, p)
+    total = query.order_by(None).count()
+    return total, _messages_shape(db, query.offset(offset).limit(limit).all())
+
+
+def _messages(db: Session, p: dict, offset: int = 0, limit: int = 200):
+    return _messages_shape(db, _messages_query(db, p).offset(offset).limit(limit).all())
+
+
+register(Report(
+    key="claims_by_pay_office",
+    title="Claims by pay office",
+    module="Claims",
+    purpose="A scheme can settle through several pay offices and they pay at "
+            "different speeds. Averaging them together hides the slow one.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("pay_office", "Pay office", "text"),
+        Column("batches", "Batches", "number", total=True),
+        Column("claims", "Claims", "number", total=True),
+        Column("claimed", "Claimed", "money", total=True),
+        Column("settled", "Settled", "money", total=True),
+        Column("outstanding", "Outstanding", "money", total=True),
+        Column("avg_days", "Avg days to settle", "number"),
+    ],
+    rows=lambda db, p: _by_pay_office(db, p),
+))
+
+
+def _by_pay_office(db: Session, p: dict):
+    from ...models import ClaimBatch
+
+    rows_q = (
+        db.query(ClaimBatch)
+        .filter(func.date(ClaimBatch.created_at) >= p["date_from"])
+        .filter(func.date(ClaimBatch.created_at) <= p["date_to"])
+        .all()
+    )
+    offices = {}
+    try:
+        from ...models import PayOffice
+
+        offices = {o.id: o.name for o in db.query(PayOffice).all()}
+    except Exception:
+        pass
+
+    groups = {}
+    for b in rows_q:
+        row = groups.setdefault(b.pay_office_id, {
+            "pay_office": offices.get(b.pay_office_id, f"pay office #{b.pay_office_id}"
+                                      if b.pay_office_id else "(not recorded)"),
+            "batches": 0, "claims": 0, "claimed": 0.0, "settled": 0.0, "_days": [],
+        })
+        row["batches"] += 1
+        row["claims"] += b.claim_count or 0
+        row["claimed"] = round(row["claimed"] + (b.total_claimed or 0), 2)
+        row["settled"] = round(row["settled"] + (b.total_settled or 0), 2)
+        if b.settled_at and b.submitted_at:
+            row["_days"].append((b.settled_at.date() - b.submitted_at.date()).days)
+    out = []
+    for row in groups.values():
+        days = row.pop("_days")
+        row["avg_days"] = round(sum(days) / len(days), 1) if days else 0
+        row["outstanding"] = round(row["claimed"] - row["settled"], 2)
+        out.append(row)
+    out.sort(key=lambda r: -r["claimed"])
+    return out
+
+
+# Dispensing fees and levies is deliberately not registered.
+#
+# Claim carries gross, discount, levy and dispensing_fee, and every one of them
+# is zero on all 449 claims — the columns exist and nothing writes to them. A
+# report over them would render, total, and show zeros, which is
+# indistinguishable from "the pharmacy earned no professional fees this period".
+#
+# The same reasoning kept tariff usage out. A report over data that does not
+# exist is a screen that lies quietly, and it is worse than a gap because a gap
+# is visible. When claims start carrying fees, this is a thirty-line
+# declaration.
+
+register(Report(
+    key="markup",
+    title="Markup report",
+    module="Stock",
+    purpose="What each line is marked up by, against what it should be. A "
+            "product priced by hand years ago drifts, and nothing points at it.",
+    params=[
+        Param("below", "Marked up less than (%)", "text", default="",
+              help="blank shows everything"),
+    ],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("category", "Department", "text"),
+        Column("cost", "Cost", "money"),
+        Column("price", "Selling", "money"),
+        Column("markup", "Markup", "percent"),
+        Column("margin", "Margin", "percent"),
+        Column("on_hand", "On hand", "number", total=True),
+    ],
+    rows=lambda db, p: _markup(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _markup(db: Session, p: dict):
+    try:
+        below = float(p["below"]) if str(p.get("below") or "").strip() else None
+    except (TypeError, ValueError):
+        below = None
+    rows = []
+    for product in db.query(Product).filter(Product.active).all():
+        cost = product.cost_price or 0
+        price = product.unit_price or 0
+        # A line with no cost cannot have a markup, and reporting it as 0%
+        # would put it top of a list it does not belong on. Products with no
+        # cost price have their own report.
+        if cost <= 0 or price <= 0:
+            continue
+        markup = (price - cost) / cost * 100
+        if below is not None and markup >= below:
+            continue
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "category": (product.category or "").replace("_", " "),
+            "cost": round(cost, 2),
+            "price": round(price, 2),
+            "markup": round(markup, 1),
+            "margin": round((price - cost) / price * 100, 1),
+            "on_hand": product.quantity_on_hand or 0,
+        })
+    rows.sort(key=lambda r: r["markup"])
+    return rows
+
+
+register(Report(
+    key="repeats_lapsed",
+    title="Repeats not collected",
+    module="Dispensary",
+    purpose="Repeats that fell due and were never filled. A patient who "
+            "stopped collecting a chronic medicine is a clinical problem "
+            "before it is a commercial one.",
+    params=[Param("overdue_by", "Overdue by more than (days)", "text", default="14")],
+    columns=[
+        Column("patient", "Patient", "text"),
+        Column("phone", "Phone", "text"),
+        Column("product", "Medicine", "text"),
+        Column("due", "Was due", "date"),
+        Column("days", "Days late", "number"),
+        Column("remaining", "Repeats left", "number", total=True),
+    ],
+    rows=lambda db, p: _lapsed(db, p),
+    drill=lambda row: "/patients/" + str(row.get("patient_id")),
+))
+
+
+def _lapsed(db: Session, p: dict):
+    try:
+        overdue = max(1, int(p.get("overdue_by") or 14))
+    except (TypeError, ValueError):
+        overdue = 14
+    cutoff = date.today() - timedelta(days=overdue)
+
+    rows_q = (
+        db.query(PrescriptionItem, Prescription, Product)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(PrescriptionItem.next_repeat_date.isnot(None))
+        .filter(PrescriptionItem.next_repeat_date < cutoff)
+        .filter(PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed)
+        .all()
+    )
+    if not rows_q:
+        return []
+    people = {
+        pt.id: pt for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({s.patient_id for _i, s, _p in rows_q if s.patient_id})).all()
+    }
+    today_ = date.today()
+    out = []
+    for item, script, product in rows_q:
+        person = people.get(script.patient_id)
+        out.append({
+            "patient_id": script.patient_id,
+            "patient": ((person.first_name + " " + person.last_name).strip()
+                        if person else "-"),
+            "phone": (person.phone or "") if person else "",
+            "product": product.name,
+            "due": item.next_repeat_date.isoformat(),
+            "days": (today_ - item.next_repeat_date).days,
+            "remaining": (item.repeats_allowed or 0) - (item.repeats_used or 0),
+        })
+    out.sort(key=lambda r: -r["days"])
+    return out
+
+
+register(Report(
+    key="invoice_reprints",
+    title="Invoice lookup",
+    module="Till",
+    purpose="Find a sale by number, customer or day, to reprint or query it. "
+            "The report somebody runs while a customer waits at the counter.",
+    params=[
+        DATE_FROM, DATE_TO,
+        Param("q", "Sale number or customer", "text"),
+    ],
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("sale_number", "Invoice", "code"),
+        Column("customer", "Customer", "text"),
+        Column("items", "Items", "number", total=True),
+        Column("total", "Total", "money", total=True),
+        Column("method", "Paid by", "text"),
+        Column("status", "Status", "text"),
+        Column("cashier", "Served by", "text"),
+    ],
+    rows=lambda db, p: _invoice_lookup(db, p, 0, 200),
+    paged_rows=lambda db, p, offset, limit: _invoice_page(db, p, offset, limit),
+))
+
+
+def _invoice_query(db: Session, p: dict):
+    query = (
+        db.query(Sale)
+        .filter(func.date(Sale.created_at) >= p["date_from"])
+        .filter(func.date(Sale.created_at) <= p["date_to"])
+    )
+    term = str(p.get("q") or "").strip()
+    if term:
+        like = f"%{term}%"
+        matching = {
+            pt.id for pt in db.query(Patient).filter(
+                (Patient.first_name.ilike(like)) | (Patient.last_name.ilike(like))).all()
+        }
+        query = query.filter(
+            Sale.sale_number.ilike(like) | Sale.patient_id.in_(matching or {-1})
+        )
+    return query.order_by(Sale.created_at.desc())
+
+
+def _invoice_shape(db: Session, rows_q):
+    if not rows_q:
+        return []
+    people = {
+        pt.id: (pt.first_name + " " + pt.last_name).strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({s.patient_id for s in rows_q if s.patient_id})).all()
+    }
+    users = {
+        u.id: (u.full_name or u.username) for u in
+        db.query(User).filter(
+            User.id.in_({s.cashier_id for s in rows_q if s.cashier_id})).all()
+    }
+    counts = dict(
+        db.query(SaleItem.sale_id, func.sum(SaleItem.quantity))
+        .filter(SaleItem.sale_id.in_([s.id for s in rows_q]))
+        .group_by(SaleItem.sale_id).all()
+    )
+    return [
+        {
+            "date": s.created_at.isoformat(sep=" ", timespec="minutes"),
+            "sale_number": s.sale_number or ("#" + str(s.id)),
+            "customer": people.get(s.patient_id, "(walk-in)"),
+            "items": int(counts.get(s.id) or 0),
+            "total": round(s.total or 0, 2),
+            "method": (s.payment_method or "").replace("_", " "),
+            "status": s.status or "",
+            "cashier": users.get(s.cashier_id, "-"),
+        }
+        for s in rows_q
+    ]
+
+
+def _invoice_page(db: Session, p: dict, offset: int, limit: int):
+    query = _invoice_query(db, p)
+    total = query.order_by(None).count()
+    return total, _invoice_shape(db, query.offset(offset).limit(limit).all())
+
+
+def _invoice_lookup(db: Session, p: dict, offset: int = 0, limit: int = 200):
+    return _invoice_shape(db, _invoice_query(db, p).offset(offset).limit(limit).all())
