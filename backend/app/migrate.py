@@ -6,6 +6,7 @@ an existing rx3000.db never requires deleting it.
 """
 import logging
 
+import re
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
@@ -125,6 +126,60 @@ RELAXED_NULLABLE = {
     # still being chased when the pharmacist is interrupted).
     "prescriptions": ("rx_number", "doctor_id"),
 }
+
+
+def _portable(ddl: str, dialect: str) -> str:
+    """Translate a column definition into something the target database accepts.
+
+    The definitions in ADDED_COLUMNS are written the way SQLite thinks, because
+    that is what development runs on. SQLite has no boolean type and no opinion
+    about `DATETIME`, so it accepts `BOOLEAN DEFAULT 0` and `DATETIME` happily.
+    Postgres accepts neither: a boolean column cannot take an integer default,
+    and `DATETIME` is not a type it has.
+
+    Every such definition in this file was a live landmine, and only one of them
+    went off. The rest survived because their columns were created by
+    `create_all` on a fresh Postgres database, so the ALTER that would have
+    failed never ran. `is_cash` was genuinely new, the ALTER ran, and production
+    would not start.
+
+    Translating here rather than rewriting the table means the entries stay
+    readable in the dialect they were written in, and any future one is fixed
+    before it reaches a database that cares.
+    """
+    if not dialect.startswith("postgres"):
+        return ddl
+
+    out = ddl
+    # A boolean default of 0/1 is an integer to Postgres.
+    out = re.sub(r"\bBOOLEAN\s+DEFAULT\s+0\b", "BOOLEAN DEFAULT FALSE", out, flags=re.I)
+    out = re.sub(r"\bBOOLEAN\s+DEFAULT\s+1\b", "BOOLEAN DEFAULT TRUE", out, flags=re.I)
+    # Postgres has no DATETIME.
+    out = re.sub(r"\bDATETIME\b", "TIMESTAMP", out, flags=re.I)
+    return out
+
+
+def _assert_portable_defaults() -> None:
+    """Refuse to start if a definition cannot be translated for Postgres.
+
+    Cheap, and it turns the next occurrence of this class of bug into a failure
+    on a developer's machine rather than a production deploy that will not boot.
+    """
+    bad = []
+    for table, columns in ADDED_COLUMNS.items():
+        for column, ddl in columns.items():
+            translated = _portable(ddl, "postgresql")
+            if re.search(r"\bBOOLEAN\s+DEFAULT\s+\d", translated, re.I) \
+                    or re.search(r"\bDATETIME\b", translated, re.I):
+                bad.append(f"{table}.{column} = {ddl!r}")
+    if bad:
+        raise RuntimeError(
+            "These column definitions are not valid on Postgres even after "
+            "translation: " + "; ".join(bad)
+        )
+
+
+_assert_portable_defaults()
 
 
 def _assert_no_shadowed_tables() -> None:
@@ -278,7 +333,10 @@ def run_migrations(engine: Engine) -> int:
             for column, ddl_type in columns.items():
                 if column in present:
                     continue
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
+                conn.execute(text(
+                    f"ALTER TABLE {table} ADD COLUMN {column} "
+                    f"{_portable(ddl_type, conn.dialect.name)}"
+                ))
                 log.info("Added column %s.%s", table, column)
                 applied += 1
 
