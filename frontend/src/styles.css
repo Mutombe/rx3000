@@ -239,20 +239,55 @@ a:hover { opacity: 0.75; }
 .nav a.active .icon { color: var(--accent); }
 .nav .icon { color: var(--ink-faint); }
 .nav .icon { width: 20px; text-align: center; }
-.sidebar-footer {
-  padding: var(--s4); font-size: var(--t-sm); color: var(--ink-soft);
-  border-top: 1px solid var(--line);
-}
-.sidebar-footer .who { color: var(--ink); font-weight: 600; }
-.sidebar-footer button {
-  margin-top: var(--s3); width: 100%;
-  background: var(--surface); border: 1px solid var(--line-strong);
-  color: var(--ink-mid); height: var(--control-sm); border-radius: var(--r-md);
-  font-weight: 500; font-size: var(--t-sm);
-}
-.sidebar-footer button:hover { background: var(--surface-sunk); color: var(--ink); }
+/* The signed-in user lives in the top bar now, so the rail ends with the
+   navigation and nothing follows it. */
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
-.main { flex: 1; padding: var(--s8) var(--s8) var(--s12); max-width: 1400px; }
+.topbar {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: var(--s3); padding: var(--s3) var(--s8);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 30;
+}
+.topbar-right { position: relative; }
+
+.me {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s1) var(--s2); height: auto;
+  background: none; border: 1px solid transparent; border-radius: var(--r-md);
+  color: inherit; font: inherit; cursor: pointer; white-space: nowrap;
+}
+.me:hover { background: var(--surface-sunk); border-color: var(--line); }
+.me-avatar {
+  display: grid; place-items: center; flex: 0 0 auto;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent-soft); color: var(--ink);
+  font-size: .72rem; font-weight: 700; letter-spacing: .02em;
+}
+.me-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.me-text .who { font-size: .84rem; font-weight: 600; color: var(--ink); }
+.me-text .role { font-size: .68rem; color: var(--ink-soft); text-transform: capitalize; }
+.me-caret { color: var(--ink-faint); }
+
+.me-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  min-width: 12rem; padding: var(--s1);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); box-shadow: var(--e2);
+  display: flex; flex-direction: column;
+}
+.me-menu a, .me-menu button {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2); width: 100%; height: auto;
+  background: none; border: 0; border-radius: var(--r-sm);
+  font: inherit; font-size: .86rem; color: var(--ink-mid);
+  text-align: left; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.me-menu a:hover, .me-menu button:hover { background: var(--surface-sunk); color: var(--ink); }
+
+.main { flex: 1; padding: var(--s8) var(--s8) var(--s12); max-width: 1400px; width: 100%; }
+@media (max-width: 640px) { .topbar { padding: var(--s2) var(--s4); } }
 .page-head {
   display: flex; align-items: flex-end; justify-content: space-between;
   margin-bottom: var(--s6); gap: var(--s4); flex-wrap: wrap;
@@ -546,13 +581,26 @@ label {
     radial-gradient(300px 120px at 0% 0%, rgba(240, 180, 182, 0.35), transparent 70%),
     radial-gradient(300px 120px at 100% 100%, rgba(106, 100, 133, 0.20), transparent 70%);
 }
-.chart-bars { display: flex; align-items: flex-end; gap: 10px; height: 150px; padding-top: 10px; }
-.chart-bars .bar {
-  flex: 1; border-radius: var(--r-sm) var(--r-sm) 0 0; min-height: 3px; position: relative;
-  background: var(--accent); opacity: 0.85;
-  transition: opacity 0.12s;
+.chart-bars {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: var(--s3); height: 150px; padding-top: 10px;
+  /* A rule for the bars to stand on. Without it they float in the card and a
+     short week reads as a gap rather than as a low day. */
+  border-bottom: 1px solid var(--line);
 }
-.chart-bars .bar:hover { opacity: 1; }
+.chart-bars .bar {
+  /* Capped, and centred by the flex above. `flex: 1` alone turned a two-day week
+     into two slabs half the card wide, which reads as a design rather than as
+     data. */
+  flex: 1 1 auto; max-width: 68px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0; min-height: 3px; position: relative;
+  /* Solid near-black was heavy enough to be the loudest thing on the dashboard.
+     Same ink, lighter at the foot, so the bar reads as a quantity rather than a
+     block. */
+  background: linear-gradient(180deg, var(--accent) 0%, rgba(22, 22, 29, 0.72) 100%);
+  transition: filter 0.12s, transform 0.12s;
+}
+.chart-bars .bar:hover { filter: brightness(1.35); }
 .chart-bars .bar span {
   position: absolute; bottom: -22px; left: 0; right: 0; text-align: center;
   font-size: 10.5px; color: var(--ink-soft); white-space: nowrap;
@@ -1284,6 +1332,7 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 }
 .toast {
   pointer-events: auto;
+  position: relative; overflow: hidden;
   display: flex; align-items: flex-start; gap: var(--s2);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
@@ -1294,6 +1343,23 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+/* The time remaining, drawn as a line that empties. Errors now clear themselves
+   after fifteen seconds, and a message that vanishes with no warning reads as a
+   glitch — this makes the disappearance something you can see coming.
+
+   It pauses with the hover that pauses the timer, so the bar and the behaviour
+   never disagree. */
+.toast-life {
+  position: absolute; left: 0; bottom: 0; height: 2px;
+  width: 100%; transform-origin: left;
+  background: currentColor; opacity: .35;
+  animation: toast-drain var(--toast-life, 4000ms) linear forwards;
+}
+.toasts:hover .toast-life,
+.toasts:focus-within .toast-life { animation-play-state: paused; }
+@keyframes toast-drain { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .toast-life { display: none; } }
+
 .toast-body { flex: 1; min-width: 0; }
 .toast-body .badge { margin-left: var(--s2); }
 .toast-close {
@@ -1428,7 +1494,6 @@ input:disabled, select:disabled, textarea:disabled {
 }
 
 .sidebar { border-right: 1px solid var(--line); }
-.sidebar-footer { border-top: 1px solid var(--line); }
 
 /* ==========================================================================
    The collapsible rail
@@ -1446,11 +1511,8 @@ input:disabled, select:disabled, textarea:disabled {
 .shell.is-collapsed .brand-text,
 .shell.is-collapsed .nav-label,
 .shell.is-collapsed .nav-section,
-.shell.is-collapsed .me-text { display: none; }
 
 .shell.is-collapsed .nav a,
-.shell.is-collapsed .me,
-.shell.is-collapsed .signout { justify-content: center; padding: 0; }
 
 /* Collapsed, the section headings are gone, so a rule takes their place —
  * otherwise the groups run together into one undifferentiated column. */
@@ -1491,34 +1553,10 @@ input:disabled, select:disabled, textarea:disabled {
 /* The icon is the whole content, so it must never inherit a zero size. */
 .rail-toggle svg { display: block; width: 13px; height: 13px; }
 
-/* ---- who is signed in ---- */
-.sidebar-footer { display: grid; gap: var(--s2); }
-.me {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s2) var(--s3); border-radius: var(--r-md);
-  color: var(--ink); text-decoration: none; border: 1px solid transparent;
-}
-.me:hover { background: var(--surface-sunk); border-color: var(--line); }
-.me.active { background: var(--accent-soft); border-color: var(--line); }
-.me-avatar {
-  flex: 0 0 auto; width: 30px; height: 30px; border-radius: var(--r-pill);
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--accent); color: #fff;
-  font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
-}
-.me-text { display: grid; min-width: 0; }
-.me-text .who {
-  font-weight: 600; font-size: var(--t-base);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.me-text .role { font-size: var(--t-sm); color: var(--ink-soft); text-transform: capitalize; }
-.signout {
-  display: flex; align-items: center; gap: var(--s3);
-  padding: var(--s2) var(--s3); width: 100%;
-  border: 1px solid transparent; border-radius: var(--r-md);
-  background: none; color: var(--ink-soft); cursor: pointer; font: inherit;
-}
-.signout:hover { background: var(--surface-sunk); color: var(--ink); border-color: var(--line); }
+/* ---- who is signed in ----
+   The sidebar block that used to live here is gone with the sidebar footer. It
+   defined `.me` a second time, later in the file, so it would have quietly
+   overridden the top-bar version with a grid layout meant for a vertical rail. */
 
 /* ---- toast repeat count ---- */
 .toast-count {
@@ -1588,11 +1626,8 @@ input:disabled, select:disabled, textarea:disabled {
      for it, and leaving it on stripped the labels off the open drawer too. */
   .shell.is-collapsed .brand-text,
   .shell.is-collapsed .nav-label,
-  .shell.is-collapsed .nav-section,
-  .shell.is-collapsed .me-text { display: revert; }
-  .shell.is-collapsed .nav a,
-  .shell.is-collapsed .me,
-  .shell.is-collapsed .signout { justify-content: flex-start; padding: 0 var(--s3); }
+  .shell.is-collapsed .nav-section { display: revert; }
+  .shell.is-collapsed .nav a { justify-content: flex-start; padding: 0 var(--s3); }
   .shell.is-collapsed .nav > div + div { border-top: none; margin-top: 0; padding-top: 0; }
 
   /* The handle rides with the drawer, staying reachable when it is closed. */
@@ -2652,3 +2687,54 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
+
+/* ------------------------------------------------------------- file drop
+   The native file control is a grey button reading "No file chosen" that cannot
+   be styled and offers nowhere to drop anything. This is a label wrapping a
+   visually hidden input, so it stays keyboard reachable and screen-reader
+   announced without any ARIA. */
+.fd { display: block; }
+.fd-zone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; min-height: 88px; padding: var(--s3) var(--s4);
+  border: 1.5px dashed var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface-sunk); cursor: pointer; text-align: center;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.fd-zone:hover { border-color: var(--accent); }
+/* Focus lands on the hidden input, so the ring has to be drawn on the label. */
+.fd-input:focus-visible + .fd-name,
+.fd-zone:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fd-zone.is-over { border-color: var(--accent); background: var(--accent-soft); }
+.fd-zone.is-set { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
+/* Hidden without display:none, which would take it out of the tab order. */
+.fd-input {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.fd-name { font-weight: 600; font-size: .9rem; color: var(--ink); }
+.fd-meta { font-size: .78rem; color: var(--ink-soft); }
+.fd-swap { font-size: .72rem; color: var(--ink-faint); }
+.fd-error { margin: var(--s2) 0 0; font-size: .82rem; color: var(--danger); }
+
+/* ------------------------------------------------------------- variants
+   The same molecule under another name. Cheapest first, and the saving is the
+   emphasis because that is the conversation at the counter. */
+.vr { margin-top: var(--s2); }
+.vr-head {
+  margin: 0 0 var(--s1); font-size: .74rem; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--ink-soft);
+}
+.vr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.vr-list li {
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+  padding: 2px var(--s2); border-radius: var(--r-xs); font-size: .84rem;
+  background: var(--surface-sunk);
+}
+.vr-list li.is-out { opacity: .6; }
+.vr-name { flex: 1 1 12rem; min-width: 0; }
+.vr-price { font-variant-numeric: tabular-nums; }
+.vr-cheaper { color: var(--ok); font-weight: 600; }
+.vr-dearer { color: var(--ink-faint); }
+.vr-stock { font-size: .76rem; color: var(--ink-soft); }
+.vr-none { margin: var(--s2) 0 0; font-size: .78rem; color: var(--ink-faint); }

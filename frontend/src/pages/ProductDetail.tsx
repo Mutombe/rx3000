@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
+import Variants from "../components/Variants";
 import { api, fmtDate, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -108,8 +109,13 @@ export default function ProductDetail() {
           <div><dt>NAPPI</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
           <div><dt>Barcode</dt><dd className="mono">{p.barcode || "—"}</dd></div>
           <div><dt>Pack size</dt><dd>{p.pack_size || "—"}</dd></div>
+          <div><dt>Bin</dt><dd>{p.bin_location || "—"}</dd></div>
+          <div><dt>Ingredient</dt><dd>{p.active_ingredient || "—"}</dd></div>
+          <div><dt>Manufacturer</dt><dd>{p.manufacturer || "—"}</dd></div>
           <div><dt>Reorder quantity</dt><dd>{p.reorder_quantity}</dd></div>
         </dl>
+        {/* The rest of the family: other products holding the same molecule. */}
+        <Variants productId={p.id} />
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

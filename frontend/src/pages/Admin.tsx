@@ -1,5 +1,6 @@
 import { ChangeEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import FileDrop from "../components/FileDrop";
 import CurrencyRates from "../components/CurrencyRates";
 import GlobalSettings from "../components/GlobalSettings";
 import { Link, useSearchParams } from "react-router-dom";
@@ -417,7 +418,12 @@ export default function Admin() {
               <span className="mono">price/selling_price/sep</span>.
             </p>
             <div className="toolbar" style={{ marginTop: 14 }}>
-              <input type="file" accept=".csv,text/csv" onChange={onFile} style={{ maxWidth: 300 }} />
+              <FileDrop
+                accept=".csv,text/csv"
+                label="price file"
+                hint="From the supplier, or a regulated price list"
+                onFile={(text) => { setCsv(text); setResult(null); }}
+              />
               <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
                 <input type="checkbox" checked={updateCost} onChange={(e) => setUpdateCost(e.target.checked)} />
                 Update cost prices

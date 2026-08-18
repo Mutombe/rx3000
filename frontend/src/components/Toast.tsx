@@ -34,6 +34,9 @@ interface Toast {
   tone: Tone;
   message: string;
   count: number;
+  /** When it appeared. A repeat resets this, so the fifth failure gets its full
+   *  time rather than inheriting what was left of the first one's. */
+  born: number;
 }
 
 interface ToastApi {
@@ -46,8 +49,18 @@ interface ToastApi {
 
 const Ctx = createContext<ToastApi | null>(null);
 
-/** Successes clear themselves; failures do not. */
-const LIFETIME: Record<Tone, number | null> = { ok: 4000, warn: 8000, error: null };
+/** How long each tone stays before clearing itself.
+ *
+ *  Errors used to stay forever, on the reasoning that a failure is the only
+ *  record something did not happen. In use that turned the corner of the screen
+ *  into a wall of old failures nobody had closed, which hides the next one — the
+ *  opposite of the intent.
+ *
+ *  So they clear too, but slowly, and the timer stops while the pointer is over
+ *  the toast or it holds keyboard focus. Nobody loses a message halfway through
+ *  reading it, and nothing has to be dismissed by hand to see the screen again.
+ */
+const LIFETIME: Record<Tone, number> = { ok: 4000, warn: 8000, error: 15000 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -66,14 +79,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         "Something went wrong, and the details did not come back.";
       const same = all.find((t) => t.tone === tone && t.message === message);
       if (same) {
-        return all.map((t) => (t === same ? { ...t, count: t.count + 1 } : t));
+        return all.map((t) =>
+          (t === same ? { ...t, count: t.count + 1, born: Date.now() } : t));
       }
       const id = ++seq.current;
-      const life = LIFETIME[tone];
-      if (life) window.setTimeout(() => dismiss(id), life);
-      return [...all, { id, tone, message, count: 1 }];
+      return [...all, { id, tone, message, count: 1, born: Date.now() }];
     });
   }, [dismiss]);
+
+  // One ticker for all of them rather than a timer per toast. A setTimeout
+  // captured at push time cannot be paused, and pausing is the whole point: a
+  // message that vanishes while somebody is reading it is worse than one that
+  // lingers. `paused` is a ref so hovering does not re-render the stack.
+  const paused = useRef(false);
+  useEffect(() => {
+    if (toasts.length === 0) return;
+    const tick = window.setInterval(() => {
+      if (paused.current) return;
+      const now = Date.now();
+      setToasts((all) => all.filter((t) => now - t.born < LIFETIME[t.tone]));
+    }, 500);
+    return () => window.clearInterval(tick);
+  }, [toasts.length]);
 
   const api = useMemo<ToastApi>(() => ({
     ok: (m) => push("ok", m),
@@ -95,9 +122,23 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={api}>
       {children}
-      <div className="toasts" role="status" aria-live="polite">
+      <div
+        className="toasts" role="status" aria-live="polite"
+        // Reading one holds it. Both events, because a keyboard user tabbing to
+        // the dismiss button is reading it just as much as a mouse user.
+        onMouseEnter={() => { paused.current = true; }}
+        onMouseLeave={() => { paused.current = false; }}
+        onFocusCapture={() => { paused.current = true; }}
+        onBlurCapture={() => { paused.current = false; }}
+      >
         {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.tone}`}>
+          <div
+            key={t.id}
+            className={`toast toast-${t.tone}`}
+            // Drives the thin bar that shows the time left, so the toast is
+            // visibly going rather than disappearing without warning.
+            style={{ ["--toast-life" as string]: `${LIFETIME[t.tone]}ms` }}
+          >
             <span className="toast-body">
               {t.message}
               {/* A repeat count sat next to the dismiss button as "×2", beside a
@@ -110,6 +151,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 </span>
               )}
             </span>
+            <span className="toast-life" aria-hidden="true" />
             <button
               className="toast-close"
               onClick={() => dismiss(t.id)}

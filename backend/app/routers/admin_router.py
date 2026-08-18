@@ -42,6 +42,14 @@ HEADER_ALIASES = {
     # charges at it — but only when it is greater than zero, which it never was,
     # so `apply_mmap` on a scheme has been silently doing nothing.
     "mmap": "mmap", "mmap_price": "mmap", "reference_price": "mmap",
+    # What the medicine actually is. This is the only thing that makes two
+    # products interchangeable, and it was recorded on 113 of 534 products
+    # because the sole way to set it was to type it into each one. A price file
+    # usually carries it, under one of these headings.
+    "active_ingredient": "ingredient", "ingredient": "ingredient",
+    "generic": "ingredient", "generic_name": "ingredient",
+    "molecule": "ingredient", "inn": "ingredient",
+    "strength": "strength", "pack": "pack_size", "pack_size": "pack_size",
 }
 
 
@@ -92,11 +100,11 @@ def price_import(
     # and that is a legitimate file to import. It used to be accepted only
     # because a SEP column was mis-aliased to the selling price; once that was
     # corrected this guard started rejecting it, which the test caught.
-    if not ({"cost", "price", "sep", "mmap"} & field_map.keys()):
+    if not ({"cost", "price", "sep", "mmap", "ingredient"} & field_map.keys()):
         raise HTTPException(
             status_code=400,
-            detail=("CSV needs at least one price column: cost, selling price, "
-                    "SEP or MMAP."),
+            detail=("CSV needs at least one column to import: cost, selling "
+                    "price, SEP, MMAP, or the active ingredient."),
         )
 
     lines: list[schemas.PriceImportLine] = []
@@ -127,6 +135,9 @@ def price_import(
         matched += 1
         new_cost = _to_float(row.get(field_map.get("cost", ""), "")) if "cost" in field_map else None
         new_price = _to_float(row.get(field_map.get("price", ""), "")) if "price" in field_map else None
+        new_ingredient = (row.get(field_map.get("ingredient", ""), "") or "").strip()
+        new_strength = (row.get(field_map.get("strength", ""), "") or "").strip()
+        new_pack = (row.get(field_map.get("pack_size", ""), "") or "").strip()
         new_sep = _to_float(row.get(field_map.get("sep", ""), "")) if "sep" in field_map else None
         new_mmap = _to_float(row.get(field_map.get("mmap", ""), "")) if "mmap" in field_map else None
 
@@ -152,6 +163,24 @@ def price_import(
         if new_mmap is not None and abs(new_mmap - (product.mmap_price or 0)) > 0.005:
             line.new_mmap = new_mmap
             changed = True
+        # Descriptive fields are filled in where they are missing and left alone
+        # where they are not. A price file overwriting a pharmacy's own carefully
+        # corrected ingredient with the supplier's spelling of it would make the
+        # import something nobody dares run twice.
+        filled = []
+        for field, value in (("active_ingredient", new_ingredient),
+                             ("strength", new_strength),
+                             ("pack_size", new_pack)):
+            if value and not (getattr(product, field, "") or "").strip():
+                filled.append(field.replace("_", " "))
+                if body.apply:
+                    setattr(product, field, value[:160])
+                changed = True
+
+        # Named in the line's message rather than given columns of their own:
+        # they are filled in once and then never again, so a column would be
+        # empty on every subsequent import of the same file.
+        filled_note = f" (filled in {', '.join(filled)})" if filled else ""
 
         if not changed:
             line.message = "No change"
@@ -164,10 +193,10 @@ def price_import(
                 product.sep_price = line.new_sep
             if line.new_mmap is not None:
                 product.mmap_price = line.new_mmap
-            line.message = "Updated"
+            line.message = "Updated" + filled_note
             updated += 1
         else:
-            line.message = "Would update"
+            line.message = "Would update" + filled_note
             updated += 1
 
         lines.append(line)

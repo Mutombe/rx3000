@@ -97,6 +97,77 @@ def product_by_barcode(code: str, db: Session = Depends(get_db)):
     return product
 
 
+@router.get("/products/{product_id}/variants")
+def product_variants(product_id: int, db: Session = Depends(get_db)):
+    """Other products that are the same medicine.
+
+    A pharmacy stocks one molecule several times over: the brand and two
+    generics, the same generic from two importers, 20s and 30s of the same pack.
+    They are separate products because they have separate stock and separate
+    prices, and they must stay that way — but the person at the counter is
+    holding a script for a *medicine*, and needs to see the alternatives before
+    telling a patient the price.
+
+    Grouped on the active ingredient, which is the only thing that makes two
+    products interchangeable. Not on the name: "Atorvastatin" and "Atorva-Gen"
+    share nothing in their names and are the same medicine, while "Panado" and
+    "Panadeine" nearly share theirs and are not.
+
+    Strength is reported rather than filtered on. A 10mg and a 20mg atorvastatin
+    are the same molecule and the substitution is a clinical judgement about
+    halving a tablet, not something this endpoint should make silently.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="That product no longer exists.")
+
+    molecule = (product.active_ingredient or "").strip()
+    if not molecule:
+        # Said plainly rather than answered with an empty list. No alternatives
+        # and "we cannot tell" are different answers, and only one of them is a
+        # reason to go and fill in the field.
+        return {
+            "product": product.name,
+            "molecule": "",
+            "known": False,
+            "reason": ("No active ingredient is recorded for this product, so "
+                       "there is no way to tell what it is interchangeable with."),
+            "variants": [],
+        }
+
+    rows = (
+        db.query(Product)
+        .filter(func.lower(Product.active_ingredient) == molecule.lower())
+        .filter(Product.id != product.id)
+        .filter(Product.active.is_(True))
+        .order_by(Product.unit_price)
+        .all()
+    )
+    here = round(product.unit_price or 0, 2)
+    return {
+        "product": product.name,
+        "molecule": molecule,
+        "known": True,
+        "reason": "",
+        "this_price": here,
+        "variants": [{
+            "id": v.id,
+            "name": v.name,
+            "strength": v.strength or "",
+            "pack_size": v.pack_size or "",
+            "manufacturer": v.manufacturer or "",
+            "schedule": v.schedule or 0,
+            "price": round(v.unit_price or 0, 2),
+            # What the patient would save, which is the number the conversation
+            # at the counter is actually about.
+            "difference": round((v.unit_price or 0) - here, 2),
+            "on_hand": v.quantity_on_hand or 0,
+            "same_strength": (v.strength or "").strip().lower()
+                             == (product.strength or "").strip().lower(),
+        } for v in rows],
+    }
+
+
 @router.get("/products/{product_id}", response_model=schemas.ProductDetail)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """Everything the product record page needs in one call."""

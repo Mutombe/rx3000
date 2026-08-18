@@ -1,5 +1,6 @@
 import { ChangeEvent, useState } from "react";
 import { useToast } from "../components/Toast";
+import FileDrop from "../components/FileDrop";
 import { api, fmtDateTime, money, errorText  } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
@@ -26,11 +27,6 @@ export default function CardReconciliation() {
     { key: "missing_statement", label: "Not banked", count: report?.missing_in_statement.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "matched");
-
-  function onFile(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) file.text().then((t) => { setCsv(t); setReport(null); });
-  }
 
   async function run() {
     setBusy(true);
@@ -111,8 +107,19 @@ export default function CardReconciliation() {
           Lines are matched on auth code first, then reference, then a same-day amount —
           amount-only matches are flagged <span className="badge warn">weak</span> for review.
         </p>
+        {/* The drop zone gets its own row. Sharing one with two narrow date
+            fields wrapped the second date onto a line of its own and left the
+            row looking broken. */}
+        <div className="field">
+          <label>Statement file</label>
+          <FileDrop
+            accept=".csv,text/csv"
+            label="bank statement"
+            hint="Exported from the bank as CSV"
+            onFile={(text) => { setCsv(text); setReport(null); }}
+          />
+        </div>
         <div className="form-row">
-          <div className="field"><label>File</label><input type="file" accept=".csv,text/csv" onChange={onFile} /></div>
           <div className="field" style={{ maxWidth: 190 }}><label>From</label>
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
           <div className="field" style={{ maxWidth: 190 }}><label>To</label>

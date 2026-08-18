@@ -73,6 +73,9 @@ export interface Product {
    *  locations should not be made to invent them. */
   bin_location: string;
   manufacturer: string;
+  /** What the medicine actually is. The only thing that makes two products
+   *  interchangeable, so it is what variants are grouped on. */
+  active_ingredient: string;
   /** Published ceiling and molecule reference price, both loaded from a price
    *  file rather than typed. Zero means none is published. */
   sep_price: number;

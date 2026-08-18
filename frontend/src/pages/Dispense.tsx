@@ -9,6 +9,7 @@ import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
+import Variants from "../components/Variants";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
 import {
@@ -577,6 +578,10 @@ export default function Dispense() {
                       </b>
                       <button className="ghost small" onClick={() => setItems(items.filter((_, i) => i !== idx))}>Remove</button>
                     </div>
+                    {/* Whether the same medicine is on the shelf under another
+                        name, and what it costs. The substitution conversation
+                        happens here, with the script in hand — not later. */}
+                    <Variants productId={it.product.id} />
                     <div className="form-row" style={{ marginTop: 8 }}>
                       <div className="field" style={{ maxWidth: 90 }}>
                         <label>Qty</label>

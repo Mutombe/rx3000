@@ -4,6 +4,7 @@ import {
   BellRinging,
   Buildings,
   CalendarCheck,
+  CaretDown,
   CaretLeft,
   CaretRight,
   ChartLineUp,
@@ -32,11 +33,12 @@ import {
   Storefront,
   Truck,
   UserPlus,
+  UserCircle,
   Users,
   Van,
   Vault,
 } from "@phosphor-icons/react";
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { api, configureLocale, setToken } from "../api";
 import { User } from "../types";
@@ -176,6 +178,27 @@ export default function Layout({ children }: { children: ReactNode }) {
     localStorage.setItem("rx3000_rail", collapsed ? "1" : "0");
   }, [collapsed]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // A menu that only closes on its own button is a menu people leave open. Any
+  // click elsewhere, and Escape, put it away.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDown(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
   function logout() {
     setToken(null);
     navigate("/login");
@@ -224,21 +247,44 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="sidebar-footer">
-          <NavLink to="/profile" className="me" title={collapsed ? "Your profile" : undefined}>
-            <span className="me-avatar">{initials(user?.full_name)}</span>
-            <span className="me-text">
-              <span className="who">{user?.full_name ?? "…"}</span>
-              <span className="role">{user?.role}</span>
-            </span>
-          </NavLink>
-          <button className="signout" onClick={logout} title="Sign out">
-            <SignOut size={16} />
-            <span className="nav-label">Sign out</span>
-          </button>
-        </div>
       </aside>
-      <main className="main">{children}</main>
+
+      <div className="content">
+        {/* Who is signed in belongs where people look for it — the top right —
+            rather than at the foot of a rail that collapses to icons. It also
+            takes sign-out out of the navigation, where it sat one careless click
+            below the last menu item. */}
+        <header className="topbar">
+          <div className="topbar-right" ref={menuRef}>
+            <button
+              className="me"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <span className="me-avatar">{initials(user?.full_name)}</span>
+              <span className="me-text">
+                <span className="who">{user?.full_name ?? "…"}</span>
+                <span className="role">{user?.role}</span>
+              </span>
+              <CaretDown size={12} weight="bold" className="me-caret" />
+            </button>
+
+            {menuOpen && (
+              <div className="me-menu" role="menu">
+                <NavLink to="/profile" role="menuitem" onClick={() => setMenuOpen(false)}>
+                  <UserCircle size={16} /> Your profile
+                </NavLink>
+                <button role="menuitem" onClick={logout}>
+                  <SignOut size={16} /> Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        <main className="main">{children}</main>
+      </div>
     </div>
   );
 }
