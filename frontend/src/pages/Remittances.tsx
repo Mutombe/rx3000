@@ -54,6 +54,7 @@ export default function Remittances() {
 
   const [open, setOpen] = useState<Outstanding | null>(null);
   const [advices, setAdvices] = useState<Advice[]>([]);
+  const [moreAdvices, setMoreAdvices] = useState(false);
   const [reasons, setReasons] = useState<Reason[]>([]);
   const [busy, setBusy] = useState("");
 
@@ -68,7 +69,12 @@ export default function Remittances() {
     api.get<Outstanding>("/api/remittances/outstanding?limit=200")
       .then(setOpen)
       .catch((e) => toast.error(errorText(e, "The outstanding shortfalls could not be listed.")));
-    api.get<Advice[]>("/api/remittances?limit=100").then(setAdvices).catch(() => undefined);
+    // 100 is a page, not the total, and the endpoint returns a bare list — so the
+    // screen must not imply otherwise. Asking for one more than is shown is the
+    // cheapest honest signal available: if it comes back, there are more.
+    api.get<Advice[]>("/api/remittances?limit=101")
+      .then((all) => { setAdvices(all.slice(0, 100)); setMoreAdvices(all.length > 100); })
+      .catch(() => undefined);
     api.get<Reason[]>("/api/remittances/reasons/vocabulary").then(setReasons).catch(() => undefined);
   }, [toast]);
 
@@ -189,13 +195,15 @@ export default function Remittances() {
                     {open.lines.map((l) => (
                       <tr key={l.id}>
                         <td className="mono">{l.claim_reference}</td>
-                        <td>{l.member_name || <span className="muted">—</span>}</td>
+                        <td><span className="clip" title={l.member_name}>{l.member_name || <span className="muted">—</span>}</span></td>
                         <td>{l.service_date ? fmtDate(l.service_date) : "—"}</td>
                         <td className="num">{money(l.amount_claimed)}</td>
                         <td className="num">{money(l.amount_paid)}</td>
                         <td className="num cu-diff">{money(l.variance)}</td>
                         <td>
-                          {l.reason || <span className="muted">not given</span>}
+                          <span className="clip clip-2" title={l.reason}>
+                            {l.reason || <span className="muted">not given</span>}
+                          </span>
                           {l.reason_code && (
                             <div className="muted mono small">{l.reason_code}</div>
                           )}
@@ -223,6 +231,11 @@ export default function Remittances() {
       {tab === "advices" && (
         <div className="card">
           <h3>Advices received</h3>
+          {moreAdvices && (
+            <p className="muted small">
+              The 100 most recent. Narrow by funder or date to see the rest.
+            </p>
+          )}
           {advices.length === 0 ? (
             <div className="empty">No remittance advices yet.</div>
           ) : (

@@ -18,8 +18,13 @@ export interface Column<T> {
   value?: (row: T) => string | number;
   align?: "left" | "right" | "center";
   sortable?: boolean;
-  /** Clamp the cell to this many characters, full text on hover. */
+  /** Clamp the cell to this many characters, full text on hover. Rarely needed
+   *  now: cells clip to the column width by default, which is better than a
+   *  character count because it cuts where the column actually ends. */
   truncate?: number;
+  /** Let this column wrap and grow instead of clipping to one line. For the
+   *  occasional column that genuinely holds a sentence. */
+  wrap?: boolean;
   width?: number;
   /** Column total shown in the footer when `totals` is on. */
   total?: (row: T) => number;
@@ -35,6 +40,60 @@ export function Truncate({ text, at = 40 }: { text: string; at?: number }) {
   if (!text) return <span className="muted">—</span>;
   if (text.length <= at) return <>{text}</>;
   return <span title={text}>{text.slice(0, at - 1).trimEnd()}…</span>;
+}
+
+/** How wide each column should be when it does not say.
+ *
+ *  Fixed layout is what makes a long value clip instead of stretching the table,
+ *  but it divides the width equally between unsized columns — which made a
+ *  product name the same 95px as a quantity.
+ *
+ *  Pinning the numeric columns in pixels and giving the name a percentage was the
+ *  next attempt and over-subscribed the table: 5 numeric columns at 116px plus a
+ *  34% name left 52px for the two columns in between, so "Sched." and "Barcode"
+ *  rendered 25px wide. Absolute widths mixed with percentages cannot be reasoned
+ *  about without knowing the table's width.
+ *
+ *  So every unsized column gets a share of one hundred percent, weighted by what
+ *  it holds. Nothing can collapse, the total always adds up, and the identifier
+ *  still dominates.
+ */
+const WEIGHT = { first: 3, text: 1.7, center: 1, right: 1.15 };
+
+/** What each kind of column needs to be readable at all.
+ *
+ *  Shares alone are not enough. Eight columns sharing 956px gave every money
+ *  column 90px, which clipped "$5,665,724.50" and cut the row actions in half —
+ *  the layout held its shape by hiding the data, which is not the point.
+ *
+ *  So a table also declares the width below which it stops squeezing and starts
+ *  scrolling. `.dt-scroll` already scrolls; it simply never had anything to
+ *  scroll, because a fixed-layout table at width:100% cannot exceed its box. The
+ *  scroll belongs to the table's container, never to the page. */
+const MINIMUM = { first: 200, text: 130, center: 96, right: 136 };
+
+function kindOf<T>(c: Column<T>, firstText: Column<T> | undefined, many: boolean) {
+  if (c === firstText && many) return "first" as const;
+  if (c.align === "right") return "right" as const;
+  if (c.align === "center") return "center" as const;
+  return "text" as const;
+}
+
+function widthFor<T>(c: Column<T>, columns: Column<T>[]): string | undefined {
+  const unsized = columns.filter((x) => !x.width);
+  if (!unsized.includes(c)) return undefined;
+  const firstText = unsized.find((x) => x.align !== "right" && x.align !== "center");
+  const weigh = (x: Column<T>) => WEIGHT[kindOf(x, firstText, unsized.length > 2)];
+  const total = unsized.reduce((sum, x) => sum + weigh(x), 0);
+  return `${((weigh(c) / total) * 100).toFixed(2)}%`;
+}
+
+/** The width at which the table stops squeezing and the container scrolls. */
+export function minimumTableWidth<T>(columns: Column<T>[]): number {
+  const unsized = columns.filter((x) => !x.width);
+  const firstText = unsized.find((x) => x.align !== "right" && x.align !== "center");
+  return columns.reduce((sum, c) => sum
+    + (c.width ?? MINIMUM[kindOf(c, firstText, unsized.length > 2)]), 0);
 }
 
 function defaultValue<T>(row: T, key: string) {
@@ -175,14 +234,23 @@ export default function DataTable<T>({
       </div>
 
       <div className="dt-scroll">
-        <table className={`dt dt-${density}`}>
+        <table
+          className={`dt dt-${density}`}
+          style={{ minWidth: minimumTableWidth(columns) }}
+        >
           <thead>
             <tr>
               {columns.map((c) => (
                 <th
                   key={c.key}
                   className={`${c.align === "right" ? "num" : ""}${canSort(c) ? " sortable" : ""}`}
-                  style={c.width ? { width: c.width } : undefined}
+                  // Fixed layout divides the table equally between columns that
+                  // do not state a width, which left a product name the same 95px
+                  // as a quantity. Numbers and dates have a natural size and text
+                  // does not, so the narrow ones are pinned and the text columns
+                  // share what is left — the opposite of equal, and the right way
+                  // round.
+                  style={{ width: c.width ?? widthFor(c, columns) }}
                   onClick={() => toggleSort(c)}
                   aria-sort={sort?.key === c.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
                 >
@@ -209,9 +277,24 @@ export default function DataTable<T>({
                     : c.truncate
                       ? <Truncate text={String(defaultValue(row, c.key))} at={c.truncate} />
                       : String(defaultValue(row, c.key));
+                  // Clipping is the default, not something a column has to ask
+                  // for. A guard that must be remembered per column is absent
+                  // from the columns nobody thought about — and those are the
+                  // ones a 173-character product name lands in.
+                  //
+                  // The title carries the whole value, so nothing is lost, only
+                  // deferred to a hover. It is only set where the text is known
+                  // here; a custom `render` may return elements, and stringifying
+                  // those would put "[object Object]" in a tooltip.
+                  const plain = c.value
+                    ? String(c.value(row))
+                    : (!c.render ? String(defaultValue(row, c.key)) : "");
+                  const numeric = c.align === "right";
                   return (
-                    <td key={c.key} className={c.align === "right" ? "num" : c.align === "center" ? "center" : ""}>
-                      {raw}
+                    <td key={c.key} className={numeric ? "num" : c.align === "center" ? "center" : ""}>
+                      {c.wrap || numeric
+                        ? raw
+                        : <span className="clip" title={plain || undefined}>{raw}</span>}
                     </td>
                   );
                 })}

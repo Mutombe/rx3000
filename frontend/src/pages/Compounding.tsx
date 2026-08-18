@@ -252,7 +252,7 @@ export default function Compounding() {
                 <tbody>
                   {cost.ingredients.map((i) => (
                     <tr key={i.product_id} className={i.short ? "is-off" : ""}>
-                      <td>{i.name}</td>
+                      <td><span className="clip" title={i.name}>{i.name}</span></td>
                       <td className="num">{i.quantity} {i.unit}</td>
                       <td className="num">{money(i.unit_cost)}</td>
                       <td className="num">{money(i.line_cost)}</td>

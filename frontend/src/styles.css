@@ -2633,7 +2633,13 @@ img { -webkit-user-drag: none; user-select: none; }
 
 /* ----------------------------------------------------------------- lay-bys */
 .lb-modal { max-width: 44rem; }
-.lb-actions { display: flex; gap: var(--s1); justify-content: flex-end; flex-wrap: wrap; }
+/* One line, always. Wrapping these turned a row with four actions into 147px of
+   table next to a 55px neighbour — the raggedness the data-at-scale check
+   measures. The table's own container scrolls instead. */
+.lb-actions {
+  display: flex; gap: var(--s1); justify-content: flex-end;
+  flex-wrap: nowrap; white-space: nowrap;
+}
 .lb-detail { background: var(--surface-sunk); }
 .lb-cols {
   display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5);
@@ -2738,3 +2744,73 @@ img { -webkit-user-drag: none; user-select: none; }
 .vr-dearer { color: var(--ink-faint); }
 .vr-stock { font-size: .76rem; color: var(--ink-soft); }
 .vr-none { margin: var(--s2) 0 0; font-size: .78rem; color: var(--ink-faint); }
+
+/* ================================================================ data at scale
+   Data is untrusted input for the layout. A product name can be one word or a
+   paragraph, and the table must look the same either way.
+
+   The measured failure here was not sideways spill — `html { overflow-x: hidden }`
+   was already hiding that, which treats the symptom — it was row height. A
+   173-character name wrapped to three lines, so one long value made its row
+   three times taller than its neighbours and the table went ragged.
+
+   Clipping needs something to clip against. The obvious move — `table-layout:
+   fixed` on every table — was wrong twice over: it redistributes the column
+   widths of every existing table to fix a narrower problem, and `max-width` on a
+   `<td>` is not reliably honoured in auto layout anyway.
+
+   A block inside the cell was the first attempt, and measuring it showed why it
+   is not enough: with `table-layout: auto` the browser sizes the column to the
+   cell's content and ignores a max-width on a descendant, so a 173-character
+   name took the table from 956px to 1863px. The row height held, which is what
+   made it look fixed, and the table quietly doubled instead.
+
+   Fixed layout is therefore applied to `.dt` — the one governed table component,
+   which already supports a per-column width — and not to hand-written tables
+   elsewhere, whose columns would be redistributed for no reason. */
+.dt { table-layout: fixed; width: 100%; }
+/* With fixed layout a cell can no longer be sized by its content, so every cell
+   clips unless its column opts out. */
+.dt td, .dt th { overflow: hidden; }
+.dt td .clip { max-width: 100%; }
+
+/* One line, clipped, with the full value on the element's title so nothing is
+   lost — only deferred to a hover. Applied per cell rather than to every td,
+   because a wrapped address in a detail panel is correct and a wrapped name in a
+   table row is not. */
+.clip {
+  display: block;
+  /* A sensible ceiling for a name in a table. Long enough that ordinary values
+     are never clipped, short enough that a paragraph cannot set the column
+     width. Override per column where a table wants more or less. */
+  max-width: 22rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* A flex or grid child will not shrink below its content without this, and
+     then the ellipsis never appears — the single commonest cause of a table
+     pushing the page sideways. */
+  min-width: 0; max-width: 100%;
+}
+/* Multi-line text that still must not grow without bound: two lines, then clip. */
+.clip-2 {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-width: 0;
+}
+.clip-2 { max-width: 30rem; }
+/* Where a table is genuinely wide, the scroll belongs to the table's own box and
+   never to the page. Paired with the page shell clipping its own overflow. */
+.cu-scroll, .dt-scroll, .age-scroll, .rr-scroll { max-width: 100%; min-width: 0; }
+
+/* Hand-written tables inside a scroll box get the same treatment as the governed
+   one, and for the same measured reason: with auto layout the column is sized to
+   its content and the `.clip` inside it is ignored. A 173-character product name
+   in the in-transit table still wrapped to four lines with the clip applied.
+   Fixed layout gives the clip a width to work against; the floor below stops the
+   columns being squeezed instead, and the box scrolls. */
+.cu-scroll > table { table-layout: fixed; width: 100%; min-width: 52rem; }
+.cu-scroll > table td, .cu-scroll > table th { overflow: hidden; }
+.cu-scroll > table td .clip { max-width: 100%; }
+
+/* Numbers line up column to column whatever their magnitude. Already true of
+   `.num`; stated here as well so a new table gets it by using the class. */
+.num, .mono, .clip-num { font-variant-numeric: tabular-nums; }
+.clip-num { text-align: right; }

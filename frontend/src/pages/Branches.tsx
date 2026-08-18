@@ -225,6 +225,7 @@ export default function Branches() {
           <p className="muted">
             Sent and not yet confirmed as arrived. Stock here is on neither shelf.
           </p>
+          <div className="cu-scroll">
           <table>
             <thead>
               <tr>
@@ -237,10 +238,10 @@ export default function Branches() {
               {transit.map((t) => (
                 <tr key={t.id} className={t.days_in_transit >= 7 ? "is-off" : ""}>
                   <td className="mono">{t.reference}</td>
-                  <td>{t.product}</td>
+                  <td><span className="clip" title={t.product}>{t.product}</span></td>
                   <td className="num">{t.quantity}</td>
-                  <td>{t.from_branch}</td>
-                  <td>{t.to_branch}</td>
+                  <td><span className="clip" title={t.from_branch}>{t.from_branch}</span></td>
+                  <td><span className="clip" title={t.to_branch}>{t.to_branch}</span></td>
                   <td className="muted">
                     {t.despatched_at ? fmtDate(t.despatched_at) : "—"}
                   </td>
@@ -259,6 +260,7 @@ export default function Branches() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -282,14 +284,17 @@ export default function Branches() {
                       {b.is_default && <span className="badge ok">default</span>}
                       {!b.active && <span className="badge muted">closed</span>}
                     </td>
-                    <td>{b.city || <span className="muted">—</span>}</td>
+                    <td><span className="clip" title={b.city}>
+                      {b.city || <span className="muted">—</span>}</span></td>
                     <td>
                       {/* Empty is worth pointing at rather than leaving blank: a
                           branch with nobody named is a compliance gap, not a
                           missing nicety. */}
-                      {b.responsible_pharmacist || (
-                        <span className="cu-diff">nobody named</span>
-                      )}
+                      <span className="clip" title={b.responsible_pharmacist}>
+                        {b.responsible_pharmacist || (
+                          <span className="cu-diff">nobody named</span>
+                        )}
+                      </span>
                     </td>
                     <td className="mono muted">{b.registration_no || "—"}</td>
                     <td className="num lb-actions">
@@ -325,6 +330,12 @@ export default function Branches() {
       {viewing !== null && (
         <div className="card">
           <h3>Stock at {nameOf(viewing)}</h3>
+          {stock && stock.lines.length >= 200 && (
+            <p className="muted small">
+              The first 200 lines. This is a shelf list, not a stock report — use
+              Analytics for the whole branch.
+            </p>
+          )}
           {!stock ? <TableSkeleton cols={4} rows={5} /> : stock.lines.length === 0 ? (
             <div className="empty">Nothing on this branch's shelves.</div>
           ) : (
@@ -339,7 +350,7 @@ export default function Branches() {
                 <tbody>
                   {stock.lines.map((l) => (
                     <tr key={l.product_id} className={l.below_reorder ? "is-off" : ""}>
-                      <td>{l.name}</td>
+                      <td><span className="clip" title={l.name}>{l.name}</span></td>
                       <td className={`num${l.below_reorder ? " cu-diff" : ""}`}>{l.here}</td>
                       {/* The group total answers the question a branch actually
                           asks when it runs low: is there any elsewhere? */}

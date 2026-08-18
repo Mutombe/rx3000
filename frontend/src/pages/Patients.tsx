@@ -122,21 +122,39 @@ export default function Patients() {
           <tbody>
             {patients.map((p) => (
               <RowLink key={p.id} to={`/patients/${p.id}`} prefetch={prefetchRoute}>
+                {/* The name was the cell making rows ragged: "Probe 02872A,
+                    Allergy…" wrapped to four lines and took its row from 66px to
+                    86px. Two clipped lines, each with the full value on hover. */}
                 <td>
-                  <Link to={`/patients/${p.id}`}><b>{p.last_name}, {p.first_name}</b></Link>
-                  <div className="muted">{fmtDate(p.date_of_birth)}</div>
+                  <Link to={`/patients/${p.id}`} className="clip"
+                    title={`${p.last_name}, ${p.first_name}`}>
+                    <b>{p.last_name}, {p.first_name}</b>
+                  </Link>
+                  <div className="muted clip">{fmtDate(p.date_of_birth)}</div>
                 </td>
                 <td className="mono">{p.id_number || "—"}</td>
-                <td>{p.phone}<div className="muted">{p.email}</div></td>
+                <td>
+                  <span className="clip" title={p.phone}>{p.phone}</span>
+                  <span className="clip muted" title={p.email}>{p.email}</span>
+                </td>
                 <td>
                   {p.medical_aid ? (
                     <>
-                      <span className="badge">{p.medical_aid.name}</span>
-                      <div className="muted mono">{p.medical_aid_number}</div>
+                      <span className="badge clip" title={p.medical_aid.name}
+                        style={{ maxWidth: "10rem" }}>{p.medical_aid.name}</span>
+                      <div className="muted mono clip">{p.medical_aid_number}</div>
                     </>
                   ) : <span className="badge muted">Private</span>}
                 </td>
-                <td>{p.allergies ? <span className="badge danger">{p.allergies}</span> : "—"}</td>
+                {/* Free text in a badge: "penicillin, sulfa, aspirin, latex,
+                    iodine…" grew the row past its neighbours. Clipped, with the
+                    full list on hover — and the badge keeps its shape. */}
+                <td>
+                  {p.allergies
+                    ? <span className="badge danger clip" title={p.allergies}
+                        style={{ maxWidth: "12rem" }}>{p.allergies}</span>
+                    : "—"}
+                </td>
                 <td className="num">{p.loyalty_points} pts</td>
                 <RowActions>
                   <button className="ghost small" onClick={() => openEdit(p)}>

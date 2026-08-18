@@ -44,6 +44,7 @@ export default function Authorisations() {
   const toast = useToast();
   const confirm = useConfirm();
   const [rows, setRows] = useState<Auth[] | null>(null);
+  const [more, setMore] = useState(false);
   const [busy, setBusy] = useState("");
   const [checked, setChecked] = useState<Record<number, Check>>({});
 
@@ -68,8 +69,9 @@ export default function Authorisations() {
   const [useAmount, setUseAmount] = useState("");
 
   const load = useCallback(() => {
-    api.get<Auth[]>("/api/authorisations?limit=100")
-      .then(setRows)
+    // One more than is shown, so "100" is never presented as "all".
+    api.get<Auth[]>("/api/authorisations?limit=101")
+      .then((all) => { setRows(all.slice(0, 100)); setMore(all.length > 100); })
       .catch((e) => toast.error(errorText(e, "The authorisations could not be listed.")));
   }, [toast]);
 
@@ -197,6 +199,11 @@ export default function Authorisations() {
           <div className="empty">No authorisations yet.</div>
         ) : (
           <div className="cu-scroll">
+            {more && (
+              <p className="muted small">
+                The 100 most recent authorisations.
+              </p>
+            )}
             <table>
               <thead>
                 <tr>
@@ -219,7 +226,9 @@ export default function Authorisations() {
                       </td>
                       <td>{a.funder_id}</td>
                       <td>
-                        {a.description || <span className="muted">—</span>}
+                        <span className="clip" title={a.description}>
+                          {a.description || <span className="muted">—</span>}
+                        </span>
                         {a.icd10_code && <div className="muted mono small">{a.icd10_code}</div>}
                       </td>
                       <td>

@@ -10,6 +10,7 @@ from . import schedule_policy
 from .audit import AuditMiddleware
 from .config import settings
 from .database import Base, SessionLocal, engine
+from .limits import RequestSizeLimit
 from .migrate import run_migrations
 from .routers import (
     admin_router, ai_router, auth_router, claiming_router, claims_admin_router,
@@ -75,6 +76,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="RX3000 Pharmacy Management System", version="1.0.0", lifespan=lifespan)
+
+# Bounds every size parameter before a handler sees it. Above the audit log so
+# what is recorded is what was actually served.
+app.add_middleware(RequestSizeLimit)
 
 app.add_middleware(AuditMiddleware)
 

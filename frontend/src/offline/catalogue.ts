@@ -32,9 +32,40 @@ export interface CachedProduct {
 const LAST_SYNC = "catalogue_synced_at";
 const COUNT = "catalogue_count";
 
+/** A page at a time. The offline catalogue is the one thing that genuinely wants
+ *  every row, and it used to ask for them in a single `?limit=100000` request.
+ *  The server now clamps any size parameter to 200, so that request quietly
+ *  returned 200 products and the till would have gone offline believing the
+ *  pharmacy stocked two hundred things.
+ *
+ *  Wanting everything and asking for everything in one request are different: the
+ *  paged endpoint reports the total, so this can walk it and know when it has the
+ *  lot rather than guessing from the size of the reply. */
+const PAGE = 200;
+
+async function fetchEveryProduct(): Promise<any[]> {
+  const all: any[] = [];
+  let page = 1;
+  for (;;) {
+    const res = await api.get<{ items: any[]; total: number; pages: number }>(
+      `/api/products/paged?page=${page}&per_page=${PAGE}`);
+    all.push(...(res.items ?? []));
+    // Stop on the reported page count, not on a short page: a page that comes
+    // back short because a product was deleted mid-sync is not the end.
+    if (!res.items?.length || page >= (res.pages ?? 1)) {
+      if (res.total && all.length < res.total && page < 500) {
+        page += 1;
+        continue;
+      }
+      return all;
+    }
+    page += 1;
+  }
+}
+
 /** Pull the catalogue down and replace the local copy. */
 export async function sync(): Promise<{ count: number; at: string }> {
-  const rows = await api.get<any[]>("/api/products?limit=100000");
+  const rows = await fetchEveryProduct();
   const cached: CachedProduct[] = rows.map((p) => ({
     id: p.id,
     name: p.name ?? "",

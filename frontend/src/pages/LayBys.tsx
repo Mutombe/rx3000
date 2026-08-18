@@ -251,7 +251,7 @@ export default function LayBys() {
                             {l.layby_number}
                           </button>
                         </td>
-                        <td>{l.patient}</td>
+                        <td><span className="clip" title={l.patient}>{l.patient}</span></td>
                         <td>{l.created_at ? fmtDate(l.created_at) : "—"}</td>
                         <td className={overdue(l) ? "cu-diff" : ""}>
                           {l.due_date ? fmtDate(l.due_date) : "—"}
