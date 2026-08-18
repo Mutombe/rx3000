@@ -342,6 +342,54 @@ def _mark_cash_accounts(conn) -> int:
     return count
 
 
+# Columns that are filtered or ordered by, and were not indexed. Every one of
+# these is cheap on a demo database and decisive on a real one: a pharmacy's
+# claims table grows faster than anything else here, and every claims report
+# filters it by status and date.
+#
+# Composite where the query uses the columns together — the outstanding-shortfall
+# query asks for all three at once, and three separate indexes make the database
+# choose one and scan for the rest.
+WANTED_INDEXES: list[tuple[str, str, tuple[str, ...]]] = [
+    ("claims", "ix_claims_status", ("status",)),
+    ("claims", "ix_claims_medical_aid_id", ("medical_aid_id",)),
+    ("claims", "ix_claims_created_at", ("created_at",)),
+    ("claims", "ix_claims_batch_id", ("batch_id",)),
+    ("sales", "ix_sales_status", ("status",)),
+    ("sales", "ix_sales_shift_id", ("shift_id",)),
+    ("branch_transfers", "ix_branch_transfers_status", ("status",)),
+    ("branch_transfers", "ix_branch_transfers_despatched_at", ("despatched_at",)),
+    ("remittance_lines", "ix_remittance_lines_open",
+     ("status", "written_off", "patient_billed")),
+    ("authorisations", "ix_authorisations_patient_id", ("patient_id",)),
+]
+
+
+def _create_indexes(conn, inspector, existing_tables: set) -> int:
+    """Add the indexes the queries actually need.
+
+    `create_all` builds indexes for tables it creates and leaves existing tables
+    alone, so an index added to a model after the first run never appears on a
+    database that predates it. IF NOT EXISTS makes this idempotent on both SQLite
+    and Postgres.
+    """
+    made = 0
+    for table, name, columns in WANTED_INDEXES:
+        if table not in existing_tables:
+            continue
+        present = {c["name"] for c in inspector.get_columns(table)}
+        if not set(columns) <= present:
+            continue
+        existing = {i["name"] for i in inspector.get_indexes(table)}
+        if name in existing:
+            continue
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({', '.join(columns)})"))
+        log.info("Created index %s on %s(%s)", name, table, ", ".join(columns))
+        made += 1
+    return made
+
+
 def _unmix_remittance_notes(conn, existing_tables: set) -> int:
     """Take our working notes back out of the funder's stated reason.
 
@@ -437,6 +485,7 @@ def run_migrations(engine: Engine) -> int:
 
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
+        applied += _create_indexes(conn, inspector, existing_tables)
 
         if "products" in existing_tables:
             applied += _name_the_nameless(conn)

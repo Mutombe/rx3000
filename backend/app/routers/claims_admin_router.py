@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import schemas
 from ..auth import get_current_user
@@ -145,8 +145,13 @@ def list_authorisations_paged(
             Authorisation.description.ilike(like),
             Authorisation.policy_number.ilike(like),
         ))
+    # `summarise` reads `auth.uses` on every row, which lazily fired one query per
+    # authorisation: 28 queries for a page of 25. selectinload fetches all the
+    # draws in one further query, so the page is three regardless of its size.
     result = paging.page(
-        query.order_by(desc(Authorisation.created_at)), page=page, per_page=per_page)
+        query.options(selectinload(Authorisation.uses))
+             .order_by(desc(Authorisation.created_at)),
+        page=page, per_page=per_page)
     return {**result.envelope(),
             "items": [auth_service.summarise(db, row) for row in result.items]}
 
@@ -169,8 +174,11 @@ def list_remittances_paged(
             Remittance.remittance_number.ilike(like),
             Remittance.payment_reference.ilike(like),
         ))
+    # Same shape: `reconcile` reads `advice.lines` per row.
     result = paging.page(
-        query.order_by(desc(Remittance.created_at)), page=page, per_page=per_page)
+        query.options(selectinload(Remittance.lines))
+             .order_by(desc(Remittance.created_at)),
+        page=page, per_page=per_page)
     return {**result.envelope(),
             # Serialised by the same function as the capped endpoint, so the two
             # cannot drift into describing a remittance differently.

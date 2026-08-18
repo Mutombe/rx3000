@@ -19,7 +19,7 @@ removes, receipt adds, and the gap between the two is stock in transit.
 from datetime import datetime
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..models import Branch, BranchTransfer, Product, StockBatch, StockMovement
 
@@ -225,7 +225,12 @@ def in_transit(db: Session) -> list[dict]:
     A group that cannot see this number loses stock in the gap and blames the
     count.
     """
+    # Three many-to-ones read per row — the sending branch, the receiving branch
+    # and the product — so a list of transfers cost 1 + 3n queries. Joined in one.
     rows = (db.query(BranchTransfer)
+            .options(joinedload(BranchTransfer.from_branch),
+                     joinedload(BranchTransfer.to_branch),
+                     joinedload(BranchTransfer.product))
             .filter(BranchTransfer.status == "despatched")
             .order_by(BranchTransfer.despatched_at.desc()).all())
     return [{

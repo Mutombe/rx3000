@@ -564,30 +564,65 @@ def funnel(db: Session = Depends(get_db)):
 
 @router.get("/reports/by-owner")
 def by_owner(db: Session = Depends(get_db)):
-    """Per-rep performance: pipeline, won, open tickets, overdue tasks."""
-    users = db.query(User).filter(User.active).all()
+    """Per-rep performance: pipeline, won, open tickets, overdue tasks.
+
+    Every figure is aggregated by the database over the whole set, grouped by
+    owner. It used to run a query per user and sum the results in Python —
+    fourteen queries for three reps, and every deal that rep has ever had loaded
+    into memory to add up four numbers. That cost grows with the deals, not with
+    the number of reps, which is the wrong thing to grow with.
+    """
     now = datetime.utcnow()
+    users = db.query(User).filter(User.active).all()
+
+    def grouped(query):
+        return {row[0]: row[1:] for row in query.all() if row[0] is not None}
+
+    open_stages = ~Deal.stage.in_(("won", "lost"))
+    pipeline = grouped(
+        db.query(Deal.owner_id,
+                 func.count(Deal.id),
+                 func.coalesce(func.sum(Deal.value), 0.0),
+                 # Weighted by probability, in SQL. The same arithmetic, done
+                 # where the rows already are.
+                 func.coalesce(func.sum(Deal.value * func.coalesce(Deal.probability, 0) / 100.0), 0.0))
+        .filter(open_stages).group_by(Deal.owner_id))
+    won = grouped(
+        db.query(Deal.owner_id, func.count(Deal.id),
+                 func.coalesce(func.sum(Deal.value), 0.0))
+        .filter(Deal.stage == "won").group_by(Deal.owner_id))
+    lost = grouped(
+        db.query(Deal.owner_id, func.count(Deal.id))
+        .filter(Deal.stage == "lost").group_by(Deal.owner_id))
+    leads = grouped(
+        db.query(Lead.owner_id, func.count(Lead.id))
+        .filter(Lead.status.in_(["new", "working", "nurturing"])).group_by(Lead.owner_id))
+    tickets = grouped(
+        db.query(Ticket.assigned_to_id, func.count(Ticket.id))
+        .filter(Ticket.status.in_(["open", "pending"])).group_by(Ticket.assigned_to_id))
+    overdue = grouped(
+        db.query(Activity.owner_id, func.count(Activity.id))
+        .filter(Activity.completed_at.is_(None),
+                Activity.due_at.isnot(None), Activity.due_at < now)
+        .group_by(Activity.owner_id))
+
     rows = []
     for user in users:
-        deals = db.query(Deal).filter(Deal.owner_id == user.id).all()
-        open_deals = [d for d in deals if d.stage not in ("won", "lost")]
-        won = [d for d in deals if d.stage == "won"]
-        lost = [d for d in deals if d.stage == "lost"]
+        open_count, open_value, weighted = pipeline.get(user.id, (0, 0.0, 0.0))
+        won_count, won_value = won.get(user.id, (0, 0.0))
+        (lost_count,) = lost.get(user.id, (0,))
+        decided = won_count + lost_count
         rows.append({
             "user_id": user.id, "name": user.full_name, "role": user.role,
-            "open_deals": len(open_deals),
-            "pipeline_value": round(sum(d.value for d in open_deals), 2),
-            "weighted_value": round(sum(d.value * (d.probability or 0) / 100 for d in open_deals), 2),
-            "won_value": round(sum(d.value for d in won), 2),
-            "won_count": len(won),
-            "win_rate": round(len(won) / (len(won) + len(lost)) * 100, 1) if (won or lost) else 0.0,
-            "open_leads": db.query(func.count(Lead.id)).filter(
-                Lead.owner_id == user.id, Lead.status.in_(["new", "working", "nurturing"])).scalar(),
-            "open_tickets": db.query(func.count(Ticket.id)).filter(
-                Ticket.assigned_to_id == user.id, Ticket.status.in_(["open", "pending"])).scalar(),
-            "overdue_tasks": db.query(func.count(Activity.id)).filter(
-                Activity.owner_id == user.id, Activity.completed_at.is_(None),
-                Activity.due_at.isnot(None), Activity.due_at < now).scalar(),
+            "open_deals": int(open_count),
+            "pipeline_value": round(float(open_value), 2),
+            "weighted_value": round(float(weighted), 2),
+            "won_value": round(float(won_value), 2),
+            "won_count": int(won_count),
+            "win_rate": round(won_count / decided * 100, 1) if decided else 0.0,
+            "open_leads": int(leads.get(user.id, (0,))[0]),
+            "open_tickets": int(tickets.get(user.id, (0,))[0]),
+            "overdue_tasks": int(overdue.get(user.id, (0,))[0]),
         })
     return sorted(rows, key=lambda r: -r["pipeline_value"])
 

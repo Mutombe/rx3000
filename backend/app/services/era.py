@@ -25,7 +25,7 @@ import io
 from datetime import date, datetime
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..models import Claim, GatewayTransaction, Remittance, RemittanceLine
 
@@ -342,7 +342,11 @@ def outstanding_lines(db: Session, funder_id: str = "", limit: int = 200) -> lis
     if funder_id:
         query = (query.join(Remittance)
                  .filter(Remittance.funder_id == funder_id.strip().upper()))
-    return query.order_by(RemittanceLine.variance.desc()).limit(limit).all()
+    # Each line's serialiser reads `line.remittance` for the advice number and
+    # funder, which lazily cost one query per line. Joined here because it is a
+    # many-to-one: one join beats a second round trip.
+    return (query.options(joinedload(RemittanceLine.remittance))
+            .order_by(RemittanceLine.variance.desc()).limit(limit).all())
 
 
 def outstanding_totals(db: Session, funder_id: str = "") -> tuple[int, float]:

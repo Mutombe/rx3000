@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import schemas
 from ..auth import get_current_user
@@ -13,7 +13,13 @@ router = APIRouter(prefix="/api/compounding", tags=["compounding"],
 
 @router.get("/mixtures", response_model=list[schemas.MixtureOut])
 def list_mixtures(q: str = "", db: Session = Depends(get_db)):
-    query = db.query(Mixture).filter(Mixture.active)
+    # Each mixture's ingredients, and each ingredient's product, were read per row
+    # while serialising — six queries for two formulae, and it grows with the
+    # formula book. Two queries now, whatever the size.
+    query = (db.query(Mixture)
+             .options(selectinload(Mixture.ingredients)
+                      .joinedload(MixtureIngredient.product))
+             .filter(Mixture.active))
     if q:
         query = query.filter(Mixture.name.ilike(f"%{q}%"))
     return query.order_by(Mixture.name).all()
