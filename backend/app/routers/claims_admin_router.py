@@ -7,7 +7,7 @@ import time
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 from sqlalchemy.orm import Session
 
 from .. import schemas
@@ -16,6 +16,7 @@ from ..database import get_db
 from ..models import Authorisation, Remittance, RemittanceLine, User
 from ..services import authorisation as auth_service
 from ..services import era, gateway
+from ..services import paging
 
 router = APIRouter(prefix="/api", tags=["claims-admin"],
                    dependencies=[Depends(get_current_user)])
@@ -109,6 +110,71 @@ def list_authorisations(status: str = "", patient_id: int = 0, funder_id: str = 
         # Expiry and exhaustion are computed, so they cannot be filtered in SQL.
         out = [a for a in out if a["effective_status"] in auth_service.USABLE]
     return out
+
+
+@router.get("/authorisations/paged")
+def list_authorisations_paged(
+    status: str = "", patient_id: int = 0, funder_id: str = "", q: str = "",
+    page: int = 1, per_page: int = paging.DEFAULT_PER_PAGE,
+    db: Session = Depends(get_db),
+):
+    """Authorisations, a page at a time, with the total.
+
+    Only filters the database can apply are offered here. `usable_only` on the
+    capped endpoint is computed per row — expiry and exhaustion are not columns —
+    so applying it after a page is cut would return "12 of 340" when it means
+    "12 usable among the 50 rows you happened to be shown". A count that answers a
+    different question from the list is the failure this whole endpoint exists to
+    avoid.
+
+    Narrowing happens before the page is cut, so finding one authorisation never
+    depends on paging through the rest.
+    """
+    query = db.query(Authorisation)
+    if status:
+        query = query.filter(Authorisation.status == status)
+    if patient_id:
+        query = query.filter(Authorisation.patient_id == patient_id)
+    if funder_id:
+        query = query.filter(Authorisation.funder_id == funder_id.strip().upper())
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(or_(
+            Authorisation.reference.ilike(like),
+            Authorisation.authorisation_number.ilike(like),
+            Authorisation.description.ilike(like),
+            Authorisation.policy_number.ilike(like),
+        ))
+    result = paging.page(
+        query.order_by(desc(Authorisation.created_at)), page=page, per_page=per_page)
+    return {**result.envelope(),
+            "items": [auth_service.summarise(db, row) for row in result.items]}
+
+
+@router.get("/remittances/paged")
+def list_remittances_paged(
+    funder_id: str = "", status: str = "", q: str = "",
+    page: int = 1, per_page: int = paging.DEFAULT_PER_PAGE,
+    db: Session = Depends(get_db),
+):
+    """Remittance advices, a page at a time, with the total."""
+    query = db.query(Remittance)
+    if funder_id:
+        query = query.filter(Remittance.funder_id == funder_id.strip().upper())
+    if status:
+        query = query.filter(Remittance.status == status)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(or_(
+            Remittance.remittance_number.ilike(like),
+            Remittance.payment_reference.ilike(like),
+        ))
+    result = paging.page(
+        query.order_by(desc(Remittance.created_at)), page=page, per_page=per_page)
+    return {**result.envelope(),
+            # Serialised by the same function as the capped endpoint, so the two
+            # cannot drift into describing a remittance differently.
+            "items": [era.reconcile(db, r) for r in result.items]}
 
 
 @router.get("/authorisations/{authorisation_id}")

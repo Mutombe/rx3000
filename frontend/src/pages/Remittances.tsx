@@ -17,11 +17,13 @@
  *  out of its own margin. It is a judgement each time, and the reason the scheme
  *  gave is shown next to the buttons so it can be made.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api, errorText, fmtDate, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
+import Pagination, { Paged } from "../components/Pagination";
+import { useDebounced } from "../hooks/useDebounced";
 import { useToast } from "../components/Toast";
 
 type Tab = "outstanding" | "advices" | "import";
@@ -54,7 +56,10 @@ export default function Remittances() {
 
   const [open, setOpen] = useState<Outstanding | null>(null);
   const [advices, setAdvices] = useState<Advice[]>([]);
-  const [moreAdvices, setMoreAdvices] = useState(false);
+  const [adviceMeta, setAdviceMeta] = useState<Paged<Advice> | null>(null);
+  const [advicePage, setAdvicePage] = useState(1);
+  const [adviceSearch, setAdviceSearch] = useState("");
+  const settledSearch = useDebounced(adviceSearch);
   const [reasons, setReasons] = useState<Reason[]>([]);
   const [busy, setBusy] = useState("");
 
@@ -69,16 +74,26 @@ export default function Remittances() {
     api.get<Outstanding>("/api/remittances/outstanding?limit=200")
       .then(setOpen)
       .catch((e) => toast.error(errorText(e, "The outstanding shortfalls could not be listed.")));
-    // 100 is a page, not the total, and the endpoint returns a bare list — so the
-    // screen must not imply otherwise. Asking for one more than is shown is the
-    // cheapest honest signal available: if it comes back, there are more.
-    api.get<Advice[]>("/api/remittances?limit=101")
-      .then((all) => { setAdvices(all.slice(0, 100)); setMoreAdvices(all.length > 100); })
+    api.get<Paged<Advice>>(
+      `/api/remittances/paged?page=${advicePage}&per_page=25`
+      + `&q=${encodeURIComponent(settledSearch)}`)
+      .then((res) => {
+        setAdvices(res.items);
+        setAdviceMeta(res);
+        if (res.page !== advicePage) setAdvicePage(res.page);
+      })
       .catch(() => undefined);
     api.get<Reason[]>("/api/remittances/reasons/vocabulary").then(setReasons).catch(() => undefined);
-  }, [toast]);
+  }, [toast, advicePage, settledSearch]);
 
   useEffect(load, [load]);
+
+  // Narrowing the set sends you back to the first page of it.
+  const firstSearch = useRef(true);
+  useEffect(() => {
+    if (firstSearch.current) { firstSearch.current = false; return; }
+    setAdvicePage(1);
+  }, [settledSearch]);
 
   async function resolve(line: Line, action: "bill_patient" | "write_off") {
     const billing = action === "bill_patient";
@@ -231,11 +246,12 @@ export default function Remittances() {
       {tab === "advices" && (
         <div className="card">
           <h3>Advices received</h3>
-          {moreAdvices && (
-            <p className="muted small">
-              The 100 most recent. Narrow by funder or date to see the rest.
-            </p>
-          )}
+          <input
+            className="page-search"
+            value={adviceSearch}
+            onChange={(e) => setAdviceSearch(e.target.value)}
+            placeholder="Search advice number or payment reference"
+          />
           {advices.length === 0 ? (
             <div className="empty">No remittance advices yet.</div>
           ) : (
@@ -275,6 +291,9 @@ export default function Remittances() {
                 </tbody>
               </table>
             </div>
+          )}
+          {adviceMeta && (
+            <Pagination meta={adviceMeta} onPage={setAdvicePage} noun="advices" />
           )}
         </div>
       )}

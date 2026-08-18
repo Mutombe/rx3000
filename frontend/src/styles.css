@@ -2814,3 +2814,8 @@ img { -webkit-user-drag: none; user-select: none; }
    `.num`; stated here as well so a new table gets it by using the class. */
 .num, .mono, .clip-num { font-variant-numeric: tabular-nums; }
 .clip-num { text-align: right; }
+
+/* A search box that belongs to a page rather than to a table. */
+.page-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.page-search { min-width: 16rem; max-width: 22rem; }
+@media (max-width: 640px) { .page-search { min-width: 0; width: 100%; } }

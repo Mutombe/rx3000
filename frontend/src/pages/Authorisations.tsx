@@ -15,11 +15,13 @@
  *  governs, and a screen that showed the stored status would show "approved"
  *  over an authorisation that lapsed last month.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Pagination, { Paged } from "../components/Pagination";
+import { useDebounced } from "../hooks/useDebounced";
 import { Patient, Product } from "../types";
 
 interface Use { quantity: number; amount: number; reference: string; at?: string }
@@ -44,7 +46,12 @@ export default function Authorisations() {
   const toast = useToast();
   const confirm = useConfirm();
   const [rows, setRows] = useState<Auth[] | null>(null);
-  const [more, setMore] = useState(false);
+  const [meta, setMeta] = useState<Paged<Auth> | null>(null);
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  // The server does the narrowing, and only once the typing stops.
+  const settled = useDebounced(search);
   const [busy, setBusy] = useState("");
   const [checked, setChecked] = useState<Record<number, Check>>({});
 
@@ -69,13 +76,27 @@ export default function Authorisations() {
   const [useAmount, setUseAmount] = useState("");
 
   const load = useCallback(() => {
-    // One more than is shown, so "100" is never presented as "all".
-    api.get<Auth[]>("/api/authorisations?limit=101")
-      .then((all) => { setRows(all.slice(0, 100)); setMore(all.length > 100); })
+    api.get<Paged<Auth>>(
+      `/api/authorisations/paged?page=${page}&per_page=${perPage}`
+      + `&q=${encodeURIComponent(settled)}`)
+      .then((res) => {
+        // The previous page stays on screen until the next one arrives, so
+        // paging never blanks the table or collapses its height.
+        setRows(res.items);
+        setMeta(res);
+        if (res.page !== page) setPage(res.page);
+      })
       .catch((e) => toast.error(errorText(e, "The authorisations could not be listed.")));
-  }, [toast]);
+  }, [toast, page, perPage, settled]);
 
   useEffect(load, [load]);
+
+  // A new search on page 7 of a set that now has two pages shows nothing at all.
+  const firstSearch = useRef(true);
+  useEffect(() => {
+    if (firstSearch.current) { firstSearch.current = false; return; }
+    setPage(1);
+  }, [settled]);
 
   useEffect(() => {
     if (patientQ.trim().length < 2) { setPatients([]); return; }
@@ -189,9 +210,17 @@ export default function Authorisations() {
             and what is left
           </div>
         </div>
-        <button className="btn primary" onClick={() => setAsking(true)}>
-          Request an authorisation
-        </button>
+        <div className="page-actions">
+          <input
+            className="page-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search reference, number or item"
+          />
+          <button className="btn primary" onClick={() => setAsking(true)}>
+            Request an authorisation
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -199,11 +228,7 @@ export default function Authorisations() {
           <div className="empty">No authorisations yet.</div>
         ) : (
           <div className="cu-scroll">
-            {more && (
-              <p className="muted small">
-                The 100 most recent authorisations.
-              </p>
-            )}
+
             <table>
               <thead>
                 <tr>
@@ -287,6 +312,14 @@ export default function Authorisations() {
               </tbody>
             </table>
           </div>
+        )}
+        {meta && (
+          <Pagination
+            meta={meta}
+            onPage={setPage}
+            onPerPage={(n) => { setPerPage(n); setPage(1); }}
+            noun="authorisations"
+          />
         )}
       </div>
 
