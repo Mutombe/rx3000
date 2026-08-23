@@ -40,7 +40,7 @@ import {
 } from "@phosphor-icons/react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { api, configureLocale, setToken } from "../api";
+import { api, configureLocale, fmtDateTime, setToken } from "../api";
 import { User } from "../types";
 
 /** The navigation, ordered by how often a pharmacy actually touches each screen.
@@ -149,6 +149,23 @@ export default function Layout({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [, setReady] = useState(0);
   const navigate = useNavigate();
+
+  // Ask the API whether it is running the code that is on disk. A server left
+  // running while the code moves on answers every request happily with
+  // yesterday's behaviour, and the symptom is a 404 on an endpoint that plainly
+  // exists — which has cost five separate diagnoses here, and once left
+  // production serving an API three days older than this front end.
+  const [staleApi, setStaleApi] = useState<{ started: string; written: string } | null>(null);
+  useEffect(() => {
+    api.get<{ running_stale_code?: boolean; process_started_at?: string; code_written_at?: string }>(
+      "/api/health")
+      .then((h) => {
+        if (h.running_stale_code && h.process_started_at && h.code_written_at) {
+          setStaleApi({ started: h.process_started_at, written: h.code_written_at });
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api.get<User>("/api/auth/me").then(setUser).catch(() => {});
@@ -282,6 +299,17 @@ export default function Layout({ children }: { children: ReactNode }) {
             )}
           </div>
         </header>
+
+        {staleApi && (
+          // Deliberately not dismissible and deliberately plain. The alternative
+          // is somebody spending an hour on a 404 for an endpoint that exists.
+          <div className="stale-api" role="status">
+            <b>The server is running older code than is on disk.</b>{" "}
+            It started {fmtDateTime(staleApi.started)} and the code was last
+            changed {fmtDateTime(staleApi.written)}, so endpoints added since then
+            will answer 404. Restart the API.
+          </div>
+        )}
 
         <main className="main">{children}</main>
       </div>

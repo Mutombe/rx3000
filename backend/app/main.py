@@ -1,4 +1,7 @@
 import logging
+import time
+from datetime import datetime
+from pathlib import Path
 import os
 from contextlib import asynccontextmanager
 
@@ -75,6 +78,15 @@ async def lifespan(app: FastAPI):
     scheduler.stop()
 
 
+# When this process began, as an epoch and as a readable time.
+#
+# Two values on purpose. `datetime.utcnow().timestamp()` reads a naive UTC time as
+# local, which here shifted the comparison by two hours and reported a
+# just-started server as stale — the check accusing itself of the fault it exists
+# to find.
+_STARTED_EPOCH = time.time()
+_STARTED = datetime.utcnow()
+
 app = FastAPI(title="RX3000 Pharmacy Management System", version="1.0.0", lifespan=lifespan)
 
 # Bounds every size parameter before a handler sees it. Above the audit log so
@@ -150,9 +162,41 @@ async def unhandled(request: Request, exc: Exception):
     )
 
 
+def _code_stamp() -> dict:
+    """When the code this process is running was last written.
+
+    A server left running while the code moves on answers every request happily
+    with yesterday's behaviour, and the symptom is a 404 on an endpoint that
+    plainly exists. That has cost five separate diagnoses here, and once left
+    production serving an API three days older than the front end talking to it.
+
+    The newest mtime across the app is a good enough stamp and needs no build
+    tooling: it is exactly the question being asked — is this process older than
+    the code on disk?
+    """
+    here = Path(__file__).resolve().parent
+    newest = 0.0
+    for path in here.rglob("*.py"):
+        if "__pycache__" in str(path):
+            continue
+        try:
+            newest = max(newest, path.stat().st_mtime)
+        except OSError:
+            continue
+    return {
+        "code_written_at": datetime.utcfromtimestamp(newest).isoformat() + "Z" if newest else None,
+        "process_started_at": _STARTED.isoformat() + "Z",
+        # The comparison a caller actually wants, made here rather than left to
+        # every client to get right.
+        # Both epochs, so no timezone assumption enters the comparison. A second
+        # of slack: writing a file during startup is not staleness.
+        "running_stale_code": bool(newest and newest > _STARTED_EPOCH + 1),
+    }
+
+
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "pharmacy": settings.PHARMACY_NAME}
+    return {"status": "ok", "pharmacy": settings.PHARMACY_NAME, **_code_stamp()}
 
 
 @app.get("/api/jurisdiction")

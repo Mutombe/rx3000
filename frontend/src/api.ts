@@ -53,6 +53,17 @@ function readableDetail(detail: unknown): string | null {
   if (detail == null) return null;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
+    // A validation error about a *path* segment is not something the reader can
+    // fix: they did not type the URL, the application built it. Showing them
+    // "Path → authorisation should be a valid integer" hands a pharmacist a
+    // developer's sentence about a value they never chose. It is almost always a
+    // route the server does not have — most often because the server is running
+    // older code than the screen calling it.
+    if (detail.some((d: any) => Array.isArray(d?.loc) && d.loc[0] === "path")) {
+      return "That address was not understood by the server. If this has just "
+        + "started happening, the server may be running an older version than "
+        + "this screen.";
+    }
     const parts = detail.map((d: any) => {
       if (typeof d === "string") return d;
       // `loc` is ["body", "field", ...]; the last segment names the field, and

@@ -2819,3 +2819,13 @@ img { -webkit-user-drag: none; user-select: none; }
 .page-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 .page-search { min-width: 16rem; max-width: 22rem; }
 @media (max-width: 640px) { .page-search { min-width: 0; width: 100%; } }
+
+/* The API is behind the code. Not dismissible: the alternative is an hour spent
+   on a 404 for an endpoint that exists. */
+.stale-api {
+  padding: var(--s2) var(--s8);
+  background: var(--warn-soft); color: var(--warn);
+  border-bottom: 1px solid var(--warn-line);
+  font-size: .84rem;
+}
+@media (max-width: 640px) { .stale-api { padding: var(--s2) var(--s4); } }
