@@ -155,13 +155,20 @@ export default function Layout({ children }: { children: ReactNode }) {
   // yesterday's behaviour, and the symptom is a 404 on an endpoint that plainly
   // exists — which has cost five separate diagnoses here, and once left
   // production serving an API three days older than this front end.
-  const [staleApi, setStaleApi] = useState<{ started: string; written: string } | null>(null);
+  const [staleApi, setStaleApi] = useState<{ started?: string; written?: string } | null>(null);
   useEffect(() => {
     api.get<{ running_stale_code?: boolean; process_started_at?: string; code_written_at?: string }>(
       "/api/health")
       .then((h) => {
-        if (h.running_stale_code && h.process_started_at && h.code_written_at) {
+        if (h.running_stale_code) {
           setStaleApi({ started: h.process_started_at, written: h.code_written_at });
+        } else if (h.running_stale_code === undefined) {
+          // The field is missing, which means the server predates the check
+          // itself — so it is older than a version that already knew how to say
+          // it was old. The first version of this banner stayed silent in exactly
+          // that case, which is the one where it is most needed: a server old
+          // enough to lack the field is old enough to be missing endpoints.
+          setStaleApi({});
         }
       })
       .catch(() => undefined);
@@ -305,9 +312,19 @@ export default function Layout({ children }: { children: ReactNode }) {
           // is somebody spending an hour on a 404 for an endpoint that exists.
           <div className="stale-api" role="status">
             <b>The server is running older code than is on disk.</b>{" "}
-            It started {fmtDateTime(staleApi.started)} and the code was last
-            changed {fmtDateTime(staleApi.written)}, so endpoints added since then
-            will answer 404. Restart the API.
+            {staleApi.started && staleApi.written ? (
+              <>
+                It started {fmtDateTime(staleApi.started)} and the code was last
+                changed {fmtDateTime(staleApi.written)}, so endpoints added since
+                then will answer 404.
+              </>
+            ) : (
+              <>
+                It is old enough that it cannot report its own version, so it is
+                missing endpoints this screen calls.
+              </>
+            )}{" "}
+            Restart the API.
           </div>
         )}
 
