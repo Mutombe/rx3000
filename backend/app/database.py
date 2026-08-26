@@ -22,9 +22,29 @@ def _normalise(url: str) -> str:
     return url
 
 
+#: Keepalives, so a connection that dies mid-query fails instead of hanging.
+#:
+#: `pool_pre_ping` checks a connection when it is handed out, which catches the
+#: pooler having closed it between requests. It does nothing for a socket that
+#: dies while a query is in flight: the read simply blocks, for ever, with no
+#: exception for anything to retry. A seeding run against a hosted database sat
+#: like that for twenty-five minutes at nought per cent CPU, looking from the
+#: outside exactly like slow progress.
+#:
+#: These make the kernel probe an idle socket and give up after about a minute,
+#: which turns a silent hang into an ordinary error the retry loop can act on.
+_PG_CONNECT_ARGS = {
+    "connect_timeout": 15,
+    "keepalives": 1,
+    "keepalives_idle": 30,
+    "keepalives_interval": 10,
+    "keepalives_count": 5,
+}
+
 engine = create_engine(
     _normalise(settings.DATABASE_URL),
-    connect_args={"check_same_thread": False, "timeout": 30} if _is_sqlite else {},
+    connect_args=({"check_same_thread": False, "timeout": 30} if _is_sqlite
+                  else _PG_CONNECT_ARGS),
     pool_pre_ping=True,
 )
 
