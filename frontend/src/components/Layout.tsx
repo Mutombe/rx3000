@@ -141,6 +141,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/claims-held", label: "Claims held", icon: PauseCircle },
       { to: "/remittances", label: "Remittances", icon: Coins },
       { to: "/reconciliation", label: "Reconciliation", icon: ArrowsLeftRight },
+      // Supplier accounts sit beside the ledger rather than under Stock:
+      // procurement is about getting the goods, this is about what is owed
+      // for them, and the person who reads it is doing the books.
+      { to: "/payables", label: "Supplier accounts", icon: Receipt },
       { to: "/ledger", label: "Ledger", icon: Scales },
       { to: "/periods", label: "Periods", icon: CalendarCheck },
     ],

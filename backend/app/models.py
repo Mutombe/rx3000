@@ -782,6 +782,112 @@ class PurchaseOrderItem(Base):
     product = relationship("Product")
 
 
+class SupplierInvoice(Base):
+    """What the supplier says is owed, as against what we thought we ordered.
+
+    The purchase order is our intention and the goods receipt is what arrived.
+    Neither is a bill. Until this table existed the ledger raised the creditor
+    from the order's own costs, which quietly assumes the supplier charged what
+    we expected — so a price rise between ordering and delivery was absorbed
+    without anybody seeing it, and a supplier who billed for twelve when ten
+    arrived was paid for twelve.
+    """
+    __tablename__ = "supplier_invoices"
+    id = Column(Integer, primary_key=True)
+    #: The supplier's number, not ours. Two suppliers may well use the same one.
+    invoice_number = Column(String(40), nullable=False, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False, index=True)
+    #: The order it bills for. Nullable: some invoices arrive for stock nobody
+    #: raised an order against, and refusing to record those would push them
+    #: back onto the spike on the counter, which is where they were before.
+    order_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=True, index=True)
+    invoice_date = Column(Date, default=date.today, index=True)
+    due_date = Column(Date, nullable=True, index=True)
+    #: As billed, gross of tax, in the invoice's own currency.
+    total = Column(Float, default=0.0)
+    vat_total = Column(Float, default=0.0)
+    currency_code = Column(String(3), default="USD")
+    #: unmatched | matched | queried | approved | paid
+    #:
+    #: `queried` is a real state, not a failure: a disputed invoice is not
+    #: unmatched, and the difference between the two is whether anybody has
+    #: telephoned the supplier yet.
+    status = Column(String(20), default="unmatched", index=True)
+    query_note = Column(Text, default="")
+    approved_at = Column(DateTime, nullable=True)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    posted_reference = Column(String(30), default="")
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    supplier = relationship("Supplier")
+    order = relationship("PurchaseOrder")
+    items = relationship("SupplierInvoiceItem", back_populates="invoice",
+                         cascade="all, delete-orphan")
+
+
+class SupplierInvoiceItem(Base):
+    """A billed line. Optional, and the match says so when they are absent.
+
+    Entering every line off a wholesaler's invoice is real work, so a pharmacy
+    is allowed to record the total alone. What it must not do is call that a
+    three-way match, because a total that agrees can still hide two errors
+    cancelling out.
+    """
+    __tablename__ = "supplier_invoice_items"
+    id = Column(Integer, primary_key=True)
+    invoice_id = Column(Integer, ForeignKey("supplier_invoices.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    #: What the invoice calls it, kept verbatim: matching by name is how an
+    #: unrecognised line gets identified later.
+    description = Column(String(200), default="")
+    quantity = Column(Integer, default=0)
+    unit_cost = Column(Float, default=0.0)
+    line_total = Column(Float, default=0.0)
+
+    invoice = relationship("SupplierInvoice", back_populates="items")
+    product = relationship("Product")
+
+
+class SupplierPayment(Base):
+    """Money going out. Before this, trade creditors only ever grew."""
+    __tablename__ = "supplier_payments"
+    id = Column(Integer, primary_key=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False, index=True)
+    paid_on = Column(Date, default=date.today, index=True)
+    amount = Column(Float, default=0.0)
+    #: bank | cash | ecocash | cheque
+    method = Column(String(20), default="bank")
+    reference = Column(String(60), default="")
+    currency_code = Column(String(3), default="USD")
+    posted_reference = Column(String(30), default="")
+    notes = Column(Text, default="")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("Supplier")
+    allocations = relationship("SupplierPaymentAllocation", back_populates="payment",
+                               cascade="all, delete-orphan")
+
+
+class SupplierPaymentAllocation(Base):
+    """Which invoice a payment settled.
+
+    Kept separate from the payment because one transfer routinely settles five
+    invoices, and a remittance advice the supplier can reconcile is the whole
+    reason to record it at that grain. An unallocated payment is still a real
+    payment; it sits against the supplier until somebody says what it was for.
+    """
+    __tablename__ = "supplier_payment_allocations"
+    id = Column(Integer, primary_key=True)
+    payment_id = Column(Integer, ForeignKey("supplier_payments.id"), nullable=False, index=True)
+    invoice_id = Column(Integer, ForeignKey("supplier_invoices.id"), nullable=False, index=True)
+    amount = Column(Float, default=0.0)
+
+    payment = relationship("SupplierPayment", back_populates="allocations")
+    invoice = relationship("SupplierInvoice")
+
+
 class RegisterEntry(Base):
     """Electronic schedule register, immutable log for S5/S6 substances."""
     __tablename__ = "register_entries"

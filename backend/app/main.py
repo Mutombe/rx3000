@@ -26,7 +26,7 @@ from .routers import (
     dispensing_extras_router, gateway_router,
     dispensing_router,
     fiscal_router,
-    helpdesk_router, leads_router, ledger_router, marketing_router,
+    helpdesk_router, leads_router, ledger_router, marketing_router, payables_router,
     messages_router,
     patients_router,
     periods_router, pos_router,
@@ -151,7 +151,7 @@ for router_module in (
     to_follows_router, deferred_router, messages_router, ledger_router,
     dispensing_extras_router, system_router, profile_router, portal_router,
     branches_router, scan_router, layby_router, stocktake_router,
-    settings_router,
+    settings_router, payables_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

@@ -30,12 +30,16 @@ from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from . import auth, zimdata
+from .config import settings
 from .database import SessionLocal
 from .models import (
-    Campaign, Claim, Deal, Dispensing, Doctor, LayBy, LayByItem, LayByPayment,
-    Lead, MedicalAid, Message, OwedItem, Patient, Prescription, PrescriptionItem,
+    Campaign, Claim, Deal, Dispensing, Doctor, JournalEntry, LayBy, LayByItem,
+    LayByPayment,
+    Lead, MedicalAid, Message, OwedItem, Patient, Prescription,
+    PrescriptionItem,
     Product, PurchaseOrder, PurchaseOrderItem, RegisterEntry, Sale, SaleItem,
-    Shift, StockBatch, Supplier, User,
+    Shift, StockBatch, Supplier, SupplierInvoice, SupplierInvoiceItem,
+    SupplierPayment, SupplierPaymentAllocation, User,
 )
 
 # A fixed seed, so two people running this get the same pharmacy and can talk
@@ -629,6 +633,20 @@ def _trading(db: Session, days: int, products: list[Product],
     return made
 
 
+def _settled_on(sold_at, status):
+    """When a claim was paid, or None if it has not been.
+
+    A settlement date is a fixed number of days after the sale, which for a
+    script dispensed last week lands next month. A remittance dated in the
+    future is the kind of detail that ends a demonstration, so a claim whose
+    money has not arrived yet is simply not settled.
+    """
+    if status not in ("approved", "partial"):
+        return None
+    paid = sold_at + timedelta(days=RNG.randint(14, 45))
+    return paid if paid.date() <= date.today() else None
+
+
 def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> dict[str, int]:
     """Scripts, what was dispensed against them, and everything that follows.
 
@@ -839,11 +857,21 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
     # takings screens agree about how much money is involved.
     if schemed:
         by_id = {p.id: p for p in schemed}
+        # Sales that already carry a claim, so a second run tops up rather than
+        # writing a duplicate.
+        #
+        # This block sits outside the day-by-day skip above and ran in full every
+        # time, so re-running the seeder gave every scheme sale a second claim
+        # against it — 101 became 202 with the same money behind them, and the
+        # claim summary quietly doubled. One sale has one claim.
+        claimed_already = {sale_id for (sale_id,) in db.query(Claim.sale_id).all()}
         sales = (db.query(Sale)
                    .filter(Sale.patient_id.in_(list(by_id)))
                    .order_by(Sale.created_at.desc())
                    .limit(420).all())
         for sale in sales:
+            if sale.id in claimed_already:
+                continue
             patient = by_id.get(sale.patient_id)
             if not patient or not patient.medical_aid_id:
                 continue
@@ -874,10 +902,10 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                 amount_approved=(claimed if status == "approved" else
                                  round(claimed * 0.6, 2) if status == "partial" else 0),
                 patient_liable=levy,
-                settled_amount=(claimed if status == "approved" else
-                                round(claimed * 0.6, 2) if status == "partial" else 0),
-                settled_at=(sale.created_at + timedelta(days=RNG.randint(14, 45))
-                            if status in ("approved", "partial") else None),
+                settled_amount=((claimed if status == "approved" else
+                                 round(claimed * 0.6, 2) if status == "partial" else 0)
+                                if _settled_on(sale.created_at, status) else 0.0),
+                settled_at=_settled_on(sale.created_at, status),
                 submitted_at=(sale.created_at + timedelta(days=1)
                               if status != "deferred" else None),
                 status=status,
@@ -906,8 +934,17 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
     if not suppliers or not products:
         return dict(made)
 
+    # Each half decides for itself whether it has work.
+    #
+    # The caller used to gate the whole stage on the number of batches, so a
+    # database that had batches but no purchase orders got neither — which is
+    # exactly the state that produced no deliveries, no supplier invoices and
+    # no creditors, on a system whose accounting screens all read from them.
+    need_batches = db.query(StockBatch).count() < 50
+    need_orders = db.query(PurchaseOrder).count() == 0
+
     today = date.today()
-    for i, product in enumerate(products):
+    for i, product in enumerate(products if need_batches else []):
         # Two or three batches a line, one of which is often short dated. A batch
         # list where nothing ever expires makes the expiry report look like a
         # feature nobody needs.
@@ -931,29 +968,63 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
             db.commit()
     db.commit()
 
+    # What is short comes first, and the rest of the order is made up from the
+    # catalogue.
+    #
+    # The old version ordered only what was at or below its reorder level, which
+    # after a seed is nothing at all — so it made no orders, and with no orders
+    # there were no deliveries, no supplier invoices and no creditors. A
+    # pharmacy orders every week whether or not anything has hit its minimum.
+    if not need_orders:
+        return dict(made)
+
     low = [p for p in products if (p.quantity_on_hand or 0) <= (p.reorder_level or 0)]
-    for n, supplier in enumerate(suppliers):
-        lines = RNG.sample(low, min(len(low), RNG.randint(3, 8))) if low else []
-        if not lines:
-            continue
-        status = RNG.choice(["draft", "sent", "sent", "received"])
-        order = PurchaseOrder(
-            order_number=f"PO2026{1000 + n}",
-            supplier_id=supplier.id,
-            status=status,
-            created_at=datetime.now() - timedelta(days=RNG.randint(1, 30)),
-        )
-        db.add(order)
-        db.flush()
-        for product in lines:
-            want = RNG.choice([20, 30, 50, 100])
-            db.add(PurchaseOrderItem(
-                order_id=order.id, product_id=product.id,
-                quantity_ordered=want,
-                quantity_received=want if status == "received" else 0,
-                unit_cost=product.cost_price or 0,
-            ))
-        made["purchase orders"] += 1
+    orders_each = 3
+    n = 0
+    for supplier in suppliers:
+        for _ in range(orders_each):
+            n += 1
+            want = RNG.randint(4, 9)
+            lines = list(RNG.sample(low, min(len(low), want))) if low else []
+            if len(lines) < want:
+                spare = [p for p in products if p not in lines]
+                lines += RNG.sample(spare, min(len(spare), want - len(lines)))
+            if not lines:
+                continue
+            # Weighted to received, because a delivery that arrived is the one
+            # that carries a bill behind it.
+            status = RNG.choices(["draft", "sent", "received"],
+                                 weights=[10, 22, 68])[0]
+            placed = datetime.now() - timedelta(days=RNG.randint(3, 75))
+            order = PurchaseOrder(
+                order_number=f"PO2026{1000 + n}",
+                supplier_id=supplier.id,
+                status=status,
+                created_at=placed,
+                # Set, not left null: the payables screen ages a delivery from
+                # the day it arrived, and every row read "not recorded".
+                received_at=(placed + timedelta(days=RNG.randint(1, 6))
+                             if status == "received" else None),
+            )
+            db.add(order)
+            db.flush()
+            for product in lines:
+                qty = RNG.choice([20, 30, 50, 100])
+                # Not every delivery is complete. A short delivery is what the
+                # three-way match on the payables screen exists to catch, and
+                # one that never happens leaves it with nothing to find.
+                got = qty
+                if status == "received" and RNG.random() < 0.12:
+                    got = int(qty * RNG.uniform(0.6, 0.9))
+                db.add(PurchaseOrderItem(
+                    order_id=order.id, product_id=product.id,
+                    quantity_ordered=qty,
+                    quantity_received=got if status == "received" else 0,
+                    unit_cost=product.cost_price or 0,
+                ))
+            made["purchase orders"] += 1
+            if n % 6 == 0:
+                db.commit()
     db.commit()
     return dict(made)
 
@@ -1001,6 +1072,284 @@ def _allocate_batches(db: Session) -> dict[str, int]:
             made["batch allocations"] += 1
         if made["batch allocations"] % 500 == 0:
             db.commit()
+    db.commit()
+    return dict(made)
+
+
+def _payables(db: Session) -> dict[str, int]:
+    """Supplier invoices against the deliveries, and payment of some of them.
+
+    Without these the supplier accounts screen has nothing to show, and the
+    creditors control account carries deliveries nobody has been billed for.
+
+    A deliberate few do not match: a price rise between order and invoice, and a
+    short delivery billed in full. Those two are the whole reason the three-way
+    match exists, and a demonstration in which every invoice agrees does not
+    show it doing anything.
+    """
+    made = collections.Counter()
+    already = db.query(SupplierInvoice).count()
+    if already:
+        return {"invoices already recorded": already}
+
+    received = (db.query(PurchaseOrder)
+                  .filter(PurchaseOrder.status == "received").all())
+    if not received:
+        return dict(made)
+
+    today = date.today()
+    seq = 44000
+    raised: list[tuple[SupplierInvoice, float]] = []
+
+    for order in received:
+        goods = round(sum((i.unit_cost or 0.0) * (i.quantity_received or 0)
+                          for i in order.items), 2)
+        if goods <= 0:
+            continue
+        seq += 1
+        billed_on = (order.received_at or datetime.now()).date()
+
+        # Most invoices agree. About one in six does not, which is close to what
+        # a pharmacy actually sees and often enough that the match earns its
+        # place on the screen.
+        trouble = RNG.random()
+        short_billed = 0.10 <= trouble < 0.17
+        lines_at: dict[int, float] = {}
+        billed = goods
+        if trouble < 0.10:
+            bump = RNG.uniform(1.06, 1.22)
+            billed = round(goods * bump, 2)
+            lines_at = {i.product_id: round((i.unit_cost or 0.0) * bump, 2)
+                        for i in order.items}
+        elif short_billed:
+            billed = round(sum((i.unit_cost or 0.0) * (i.quantity_ordered or 0)
+                               for i in order.items), 2)
+
+        invoice = SupplierInvoice(
+            invoice_number=f"ZW-{seq}", supplier_id=order.supplier_id,
+            order_id=order.id, invoice_date=billed_on,
+            due_date=billed_on + timedelta(days=RNG.choice([30, 30, 45, 60])),
+            total=billed, currency_code="USD",
+            status="matched" if abs(billed - goods) < 0.005 else "unmatched",
+            created_at=datetime.combine(billed_on, datetime.min.time()),
+        )
+        db.add(invoice)
+        db.flush()
+        for item in order.items:
+            quantity = ((item.quantity_ordered or 0) if short_billed
+                        else (item.quantity_received or 0))
+            if not quantity:
+                continue
+            cost = lines_at.get(item.product_id, item.unit_cost or 0.0)
+            db.add(SupplierInvoiceItem(
+                invoice_id=invoice.id, product_id=item.product_id,
+                quantity=quantity, unit_cost=round(cost, 2),
+                line_total=round(cost * quantity, 2)))
+        made["invoices"] += 1
+        raised.append((invoice, billed))
+    db.commit()
+
+    # Pay the older ones and leave the recent ones outstanding, so the ageing
+    # has something in every column rather than one lump in the first.
+    for invoice, billed in raised:
+        if (today - invoice.invoice_date).days < 25 or RNG.random() < 0.25:
+            continue
+        paid_on = invoice.invoice_date + timedelta(days=RNG.randint(20, 40))
+        if paid_on > today:
+            continue
+        payment = SupplierPayment(
+            supplier_id=invoice.supplier_id, amount=billed, paid_on=paid_on,
+            method=RNG.choice(["bank", "bank", "bank", "ecocash"]),
+            reference=f"FCB-TT-{RNG.randint(1000, 9999)}",
+            created_at=datetime.combine(paid_on, datetime.min.time()))
+        db.add(payment)
+        db.flush()
+        db.add(SupplierPaymentAllocation(
+            payment_id=payment.id, invoice_id=invoice.id, amount=billed))
+        invoice.status = "paid"
+        made["payments"] += 1
+    db.commit()
+    return dict(made)
+
+
+def _ledger(db: Session) -> dict[str, int]:
+    """Put the trading history into the books.
+
+    The ledger was empty. Not thin — empty: no chart, no entries, so the trial
+    balance, the VAT return, the balance sheet and the creditors ageing all had
+    nothing to read and every one of them rendered a zero as though that were
+    the answer.
+
+    Takings post as one entry a day rather than one an eighty-first of a day.
+    That is not a shortcut: a pharmacy's cash book is a daily takings journal,
+    and four thousand individual entries would be both slower to write and less
+    like the thing being modelled.
+    """
+    from .services import ledger, payables, posting
+
+    made = collections.Counter()
+    ledger.ensure_chart(db)
+
+    # A sale with a claim against it was not paid for in cash.
+    #
+    # Every sale was marked cash, so the day's takings all landed in the cash
+    # account and medical scheme debtors stayed at nil while three hundred
+    # claims sat outstanding. The books said nobody owed the pharmacy anything
+    # while the claims screen said otherwise, and both were reading the same
+    # database.
+    marked = db.execute(text(
+        "UPDATE sales SET payment_method = 'medical_aid' "
+        " WHERE payment_method <> 'medical_aid' "
+        "   AND id IN (SELECT sale_id FROM claims)")).rowcount
+    if marked:
+        db.commit()
+        made["sales billed to a scheme"] = marked
+
+    # Skip the takings that are already written, not the whole stage.
+    #
+    # Returning here meant the deliveries below never posted, so a database that
+    # had its takings but gained purchase orders afterwards ended up with
+    # supplier invoices and an empty creditors account — and the ageing screen
+    # then reported a difference of everything owed, blaming the pharmacy for a
+    # gap this function had left.
+    posted_takings = {e.source_id for e in db.query(JournalEntry)
+                      .filter(JournalEntry.source == "daily_takings").all()}
+    if posted_takings:
+        made["takings already posted"] = len(posted_takings)
+
+    rate = settings.VAT_RATE or 0.0
+    rows = db.execute(text(
+        "SELECT DATE(created_at) AS d, "
+        "       SUM(total) AS gross, "
+        "       SUM(CASE WHEN payment_method = 'medical_aid' THEN total ELSE 0 END) AS aid "
+        "  FROM sales GROUP BY DATE(created_at) ORDER BY d")).mappings().all()
+
+    for row in rows:
+        gross = round(float(row["gross"] or 0.0), 2)
+        if gross <= 0:
+            continue
+        on_account = round(float(row["aid"] or 0.0), 2)
+        cash = round(gross - on_account, 2)
+        net = round(gross / (1 + rate), 2) if rate else gross
+        vat = round(gross - net, 2)
+        day = row["d"] if isinstance(row["d"], date) else date.fromisoformat(str(row["d"]))
+        if int(day.strftime("%Y%m%d")) in posted_takings:
+            continue
+
+        lines = []
+        if cash:
+            lines.append(ledger.Line(account_code="1000", debit=cash,
+                                     description="Takings banked"))
+        if on_account:
+            lines.append(ledger.Line(account_code="1110", debit=on_account,
+                                     description="Owed by the schemes"))
+        lines.append(ledger.Line(account_code="4000", credit=net,
+                                 description="Dispensary and front shop"))
+        if vat:
+            lines.append(ledger.Line(account_code="2100", credit=vat,
+                                     description="VAT on sales"))
+        try:
+            ledger.post(db, entry_date=day,
+                        description=f"Takings for {day:%d %B %Y}", lines=lines,
+                        source="daily_takings", source_id=int(day.strftime("%Y%m%d")))
+            made["days posted"] += 1
+        except ledger.LedgerError:
+            # One day that will not balance is not worth losing the other sixty.
+            made["days that would not post"] += 1
+
+    # The purchase side, so stock does not only ever go down.
+    for order in db.query(PurchaseOrder).filter(
+            PurchaseOrder.status == "received").all():
+        if posting.post_stock_receipt(db, order).get("posted"):
+            made["deliveries posted"] += 1
+    db.commit()
+
+    # An invoice that agrees with the delivery needs no one's judgement, so it
+    # is approved and posted. The ones that do not agree are deliberately left
+    # for a pharmacist, which is the whole point of the match.
+    for invoice in db.query(SupplierInvoice).filter(
+            SupplierInvoice.posted_reference == "").all():
+        if payables.match(db, invoice)["matched"]:
+            if payables.post_invoice(db, invoice).get("posted"):
+                made["invoices posted"] += 1
+            else:
+                made["invoices that agreed already"] += 1
+    db.commit()
+
+    # Cash banked, weekly.
+    #
+    # Without it the bank account only ever went down — supplier payments left
+    # it and nothing arrived — so the balance sheet showed a pharmacy four
+    # thousand dollars overdrawn while its safe held thirty. A pharmacy banks
+    # its takings; the books should say so.
+    banked_already = {e.source_id for e in db.query(JournalEntry)
+                      .filter(JournalEntry.source == "banking").all()}
+    weeks = db.execute(text(
+        "SELECT MIN(DATE(created_at)) AS start, MAX(DATE(created_at)) AS finish "
+        "  FROM sales")).mappings().first()
+    if weeks and weeks["start"]:
+        start = weeks["start"] if isinstance(weeks["start"], date) else date.fromisoformat(str(weeks["start"]))
+        finish = weeks["finish"] if isinstance(weeks["finish"], date) else date.fromisoformat(str(weeks["finish"]))
+        day = start + timedelta(days=(4 - start.weekday()) % 7)   # the first Friday
+        while day <= finish:
+            marker = int(day.strftime("%Y%m%d"))
+            if marker in banked_already:
+                day += timedelta(days=7)
+                continue
+            week = db.execute(text(
+                "SELECT COALESCE(SUM(total), 0) AS t FROM sales "
+                " WHERE payment_method <> 'medical_aid' "
+                "   AND DATE(created_at) > :from_day AND DATE(created_at) <= :to_day"),
+                {"from_day": day - timedelta(days=7), "to_day": day}).scalar()
+            # A float of the week's takings, kept back to open the till on
+            # Monday. Banking every last cent is not what anybody does.
+            amount = round(float(week or 0.0) * RNG.uniform(0.82, 0.93), 2)
+            if amount > 0:
+                try:
+                    ledger.post(
+                        db, entry_date=day,
+                        description=f"Cash banked, week to {day:%d %B}",
+                        lines=[
+                            ledger.Line(account_code="1010", debit=amount,
+                                        description="Deposited"),
+                            ledger.Line(account_code="1000", credit=amount,
+                                        description="Out of the safe"),
+                        ],
+                        source="banking", source_id=marker)
+                    made["weeks banked"] += 1
+                except ledger.LedgerError:
+                    made["weeks that would not bank"] += 1
+            day += timedelta(days=7)
+    db.commit()
+
+    # And the money that went out.
+    #
+    # The payments were written as rows and never posted, so trade creditors
+    # carried every delivery and none of the settlements — the account said the
+    # pharmacy owed four thousand dollars it had already paid, which is the
+    # same one-way creditor this whole module was written to end.
+    for payment in db.query(SupplierPayment).filter(
+            SupplierPayment.posted_reference == "").all():
+        supplier = db.get(Supplier, payment.supplier_id)
+        amount = round(payment.amount or 0.0, 2)
+        if amount <= 0:
+            continue
+        try:
+            entry = ledger.post(
+                db, entry_date=payment.paid_on,
+                description=f"Payment to {supplier.name if supplier else 'a supplier'}",
+                lines=[
+                    ledger.Line(account_code="2000", debit=amount,
+                                description="Settled",
+                                party_type="supplier", party_id=payment.supplier_id),
+                    ledger.Line(account_code="1010", credit=amount,
+                                description=payment.reference or "Payment"),
+                ],
+                source="supplier_payment", source_id=payment.id)
+            payment.posted_reference = entry.reference
+            made["payments posted"] += 1
+        except ledger.LedgerError:
+            made["payments that would not post"] += 1
     db.commit()
     return dict(made)
 
@@ -1421,10 +1770,9 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         print("filling in the dispensary…")
         for k, v in _dispensary(db, days, products, patients, doctors, cashiers).items():
                 print(f"  {v} {k}")
-        if wipe_all or db.query(StockBatch).count() < 50:
-            print("receiving stock…")
-            for k, v in _stock_and_supply(db, products, cashiers).items():
-                print(f"  {v} {k}")
+        print("receiving stock…")
+        for k, v in _stock_and_supply(db, products, cashiers).items():
+            print(f"  {v} {k}")
 
         print("linking batches to what was sold…")
         for k, v in _allocate_batches(db).items():
@@ -1449,6 +1797,15 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
             print("replacing the CRM fixtures…")
             for k, v in _crm(db, cashiers).items():
                 print(f"  {v} {k}")
+
+        print("invoicing the deliveries…")
+        for k, v in _payables(db).items():
+            print(f"  {v} {k}")
+
+        # Last, because it reads what every stage before it wrote.
+        print("writing up the books…")
+        for k, v in _ledger(db).items():
+            print(f"  {v} {k}")
 
         print("done.")
     finally:
