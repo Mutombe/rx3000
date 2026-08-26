@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RX3000 — Pharmacy management built for Zimbabwe</title>
+<title>RX5000 — Pharmacy management built for Zimbabwe</title>
 <meta name="description" content="Dispensing, claiming, stock and accounting for Zimbabwean pharmacies. MCAZ categories, AHFoZ claiming, ZIMRA fiscalisation, USD and ZiG.">
 
 <!--
@@ -312,6 +312,7 @@
   html, body { overflow-x: hidden; max-width: 100%; }
   img, table { max-width: 100%; }
 
+  .hero-fine { margin-top: 18px; max-width: 62ch; }
 </style>
 </head>
 <body>
@@ -320,12 +321,13 @@
   <div class="wrap">
     <a class="brand" href="./">
       <img src="assets/logo.png" alt="" width="34" height="34" />
-      <span class="brand-word">RX<em>3000</em></span>
+      <span class="brand-word">RX<em>5000</em></span>
     </a>
     <nav>
       <a href="#what">What it does</a>
       <a href="#zimbabwe">Built for Zimbabwe</a>
       <a href="#how">Getting started</a>
+      <a href="#new">New in 1.1</a>
       <a href="#desktop">Download</a>
       <a href="#faq">Questions</a>
       <a href="#contact">Contact</a>
@@ -339,15 +341,28 @@
     <span class="badge">For Zimbabwean pharmacies</span>
     <h1>The dispensary runs the shop.<br>The software should keep up.</h1>
     <p class="lede">
-      RX3000 handles dispensing, medical aid claiming, stock, deliveries and the
+      RX5000 handles dispensing, medical aid claiming, stock, deliveries and the
       accounts on one system, in USD and ZiG, against MCAZ categories and AHFoZ
       tariffs. It is built around what a pharmacist actually does at eleven on a
       Saturday morning, not around what is easy to write.
     </p>
     <div class="cta">
-      <a class="btn btn-primary" href="#how">See how a trial works</a>
+      <!-- The demo goes first, and it is self-service.
+           A pharmacy manager reading this at nine at night should be inside the
+           product before they close the tab; asking them to book a call first
+           loses most of them, and the ones it keeps are the ones who would have
+           called anyway. -->
+      <a class="btn btn-primary" href="https://rx3000-app.onrender.com/login">
+        Try it free for four hours
+      </a>
+      <a class="btn btn-ghost" href="#desktop">Download for Windows</a>
       <a class="btn btn-ghost" href="#zimbabwe">Why it is different here</a>
     </div>
+    <p class="small hero-fine">
+      No card, no call, no password to remember. Every screen, real data you can
+      change, nothing switched off. When the four hours are up the account stops
+      and everything you entered is kept.
+    </p>
   </div>
 </section>
 
@@ -392,6 +407,58 @@
   </div>
 </section>
 
+<section id="new">
+  <div class="wrap">
+    <h2>New in 1.1</h2>
+    <p class="lede">
+      Most of this came out of watching people use it on a counter rather than
+      out of a roadmap.
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>A dark theme that was chosen, not inverted</h3>
+        <p>Dispensaries are dark at six in the morning and lit by one strip light
+        at nine at night. Light, dark, or follow the machine, from the top bar.
+        Every colour in it was measured against the surface it is painted on,
+        including the schedule badges, which is the one label nobody can afford
+        to squint at.</p>
+      </div>
+      <div class="card">
+        <h3>Mobile money that knows which wallet you meant</h3>
+        <p>EcoCash, Omari and InnBucks, each offering only the currencies it
+        actually settles in. Type a 071 number with EcoCash selected and it says
+        so, because a decline at the counter with a customer watching is the
+        expensive way to find out.</p>
+      </div>
+      <div class="card">
+        <h3>A till that locks instead of logging out</h3>
+        <p>Log a pharmacist out between customers and they lose the basket, so
+        the timeout gets switched off and the machine then sits signed in all day
+        with every action attributed to whoever opened the shop. This locks: the
+        work survives, and a four-digit PIN says who is back at the keyboard.</p>
+      </div>
+      <div class="card">
+        <h3>Charts you can zoom into</h3>
+        <p>Every report draws itself, and the chart holds a window you can zoom
+        and drag the way a trading chart does. Sixty days of takings at a glance,
+        or one Tuesday afternoon hour by hour.</p>
+      </div>
+      <div class="card">
+        <h3>Pulse AI, answering from your own figures</h3>
+        <p>Ask which lines are running low that sold well this week, and read the
+        answer as it is written. Every question you ask is kept, so the useful one
+        from last Tuesday is still there.</p>
+      </div>
+      <div class="card">
+        <h3>Training your new assistant can follow</h3>
+        <p>Every screen, in the order somebody actually meets them, arranged by
+        the job they do rather than by the menu. A cashier never has to scroll
+        past the claiming chapter.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="zimbabwe">
   <div class="wrap">
     <h2>Built for here, not adapted to here</h2>
@@ -402,7 +469,7 @@
     <div class="table-scroll">
     <table>
       <thead>
-        <tr><th>What is different</th><th>How RX3000 handles it</th></tr>
+        <tr><th>What is different</th><th>How RX5000 handles it</th></tr>
       </thead>
       <tbody>
         <tr>
@@ -442,7 +509,7 @@
       <strong>What we will not pretend.</strong> Some integrations need documents
       or accounts from third parties before they can be finished. A switch's
       specification, a merchant account, a licensed drug-interaction database.
-      RX3000 says exactly which of those are live, which are simulated and which
+      RX5000 says exactly which of those are live, which are simulated and which
       are waiting, on a screen inside the product. You will never find out from a
       customer that something was not connected.
     </div>
@@ -465,7 +532,7 @@
       </li>
       <li>
         <h3>Run alongside what you have</h3>
-        <p>For the first weeks RX3000 runs beside your current system rather than
+        <p>For the first weeks RX5000 runs beside your current system rather than
         instead of it. Nobody bets a pharmacy on a switchover weekend.</p>
       </li>
       <li>
@@ -556,9 +623,17 @@
     <div class="grid">
       <div class="card">
         <h3>Windows</h3>
-        <p class="small">Windows 10 and 11, 64-bit. Installs per machine.</p>
-        <a class="btn btn-ghost is-pending" aria-disabled="true"
-           title="Available at first installation">Installer</a>
+        <p class="small">
+          Windows 10 and 11, 64-bit. 2.4 MB, installs per machine, no runtime to
+          install alongside it.
+        </p>
+        <a class="btn btn-primary" href="downloads/RX5000_1.1.0_x64-setup.exe" download>
+          Download for Windows
+        </a>
+        <p class="small">
+          Prefer an MSI for Group Policy?
+          <a href="downloads/RX5000_1.1.0_x64_en-US.msi" download>RX5000 1.1.0 MSI</a>.
+        </p>
       </div>
       <div class="card">
         <h3>Linux</h3>
@@ -577,9 +652,13 @@
     </div>
 
     <p class="small">
-      Installers are issued with your installation rather than downloaded blind,
-      because each one is configured with the address of your own server and
-      signed for your machines. Ask us and we will send yours.
+      The Windows build downloads here and points at
+      <code>http://localhost:8177</code> out of the box, which is the
+      single-machine pharmacy. On a counter with its own server, put the address
+      in <code>server.txt</code> beside the executable or set
+      <code>RX5000_SERVER</code>; nothing needs rebuilding. macOS and Linux builds
+      are made to order because they have to be signed for your machines, so ask
+      and we will send yours.
     </p>
   </div>
 </section>
@@ -623,7 +702,7 @@
 
 <footer>
   <div class="wrap">
-    <p><strong>RX3000</strong>. Pharmacy management for Zimbabwe.</p>
+    <p><strong>RX5000</strong>. Pharmacy management for Zimbabwe.</p>
     <p class="small">
       Medicine classifications follow MCAZ distribution categories. Fiscalisation
       follows ZIMRA requirements for VAT-registered operators. Claiming follows
