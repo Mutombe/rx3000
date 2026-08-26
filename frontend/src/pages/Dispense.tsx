@@ -803,6 +803,11 @@ export default function Dispense() {
               <InteractionPanel
                 patientId={patient?.id ?? null}
                 productIds={items.map((i) => i.product.id)}
+                lines={items.map((i) => ({
+                  product_id: i.product.id,
+                  instructions: i.dosage_instructions,
+                  quantity: i.quantity,
+                }))}
                 acknowledged={ixAcknowledged}
                 onAcknowledge={setIxAcknowledged}
                 onScreened={setIxMajor}

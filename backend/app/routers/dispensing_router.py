@@ -5,7 +5,7 @@ Three distinct workflows:
   * Prescription (S3-S4)            — ordinary script dispensing
   * Controlled / dangerous drugs    — S5/S6, with the full compliance record
 """
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func
@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import interactions, paging
+from ..services import doses, interactions, paging
 from ..models import (
     Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product,
     Sale, SaleItem, User,
@@ -207,6 +207,7 @@ def dispensing_stats(days: int = 30, db: Session = Depends(get_db)):
 @router.post("/interaction-screen")
 def interaction_screen(patient_id: int | None = Body(default=None),
                        product_ids: list[int] = Body(default_factory=list),
+                       lines: list[dict] = Body(default_factory=list),
                        db: Session = Depends(get_db)):
     """Screen a basket, and screen it against what the patient already takes.
 
@@ -265,6 +266,40 @@ def interaction_screen(patient_id: int | None = Body(default=None),
          for p in products],
         existing=history,
     )
+    # --- dose ranges, on the same call --------------------------------------
+    #
+    # One request rather than two, because both screens answer the same
+    # question — is this basket safe to hand over — and two requests firing on
+    # every keystroke is two chances for the answers to arrive out of order and
+    # contradict each other on screen.
+    #
+    # `lines` carries the directions and is optional: the checker needs to know
+    # how often, and only the dispensing screen knows that. Called with product
+    # ids alone it still reports what it could not read, which is the honest
+    # answer rather than a silent pass.
+    typed = {int(l.get("product_id")): l for l in lines if l.get("product_id")}
+    dose_items = []
+    for product in products:
+        line = typed.get(product.id, {})
+        dose_items.append({
+            "name": f"{product.name} {product.strength or ''}".strip(),
+            "active_ingredient": product.active_ingredient or "",
+            "strength": product.strength or "",
+            "instructions": line.get("instructions", ""),
+            "quantity": line.get("quantity"),
+        })
+
+    age = None
+    if patient_id:
+        patient = db.get(Patient, patient_id)
+        if patient and patient.date_of_birth:
+            today = date.today()
+            born = patient.date_of_birth
+            age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
+
+    result["doses"] = doses.check(dose_items, age=age)
+    result["patient_age"] = age
+
     result["history_source"] = (
         f"{len(history)} medicine(s) dispensed to this patient in the last six months"
         if history else

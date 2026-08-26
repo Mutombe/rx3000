@@ -41,6 +41,14 @@ await page.waitForTimeout(1600);
 const hit = page.locator(".product-pick").filter({ hasText: "Tramadol" }).first();
 if (await hit.count()) { await hit.click(); await page.waitForTimeout(1800); }
 
+// Directions that are genuinely over the maximum, so the dose half of the panel
+// has something real to judge rather than reporting it could not read them.
+const sig = page.locator('input[placeholder*="1 t tds" i], input[placeholder*="tds" i]').first();
+if (await sig.count()) { await sig.fill("3 tabs qds"); await page.waitForTimeout(1800); }
+out.doseRows = (await page.locator(".ix-row").allInnerTexts())
+  .filter((t) => /maximum|could not be read|not judged/.test(t))
+  .map((t) => t.replace(/\s+/g, " ").slice(0, 150));
+
 out.panelAppeared = await page.locator(".ix").count() > 0;
 out.isMajor = await page.locator(".ix.ix-major").count() > 0;
 out.headline = (await page.locator(".ix-head").innerText().catch(() => "")).replace(/\s+/g, " ");
