@@ -655,13 +655,40 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
         return dict(made)
 
     start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    rx_seq, claim_seq, owed_seq = 38100, 9100, 400
+    claim_seq, owed_seq = 9100, 400
     balances: dict[int, int] = {}
+
+    # Which days already have scripts, so an interrupted run fills the gaps
+    # rather than starting again or writing a second set on top.
+    done_days = {str(d) for (d,) in
+                 db.query(func.date(Prescription.created_at))
+                   .group_by(func.date(Prescription.created_at)).all()}
+
+    # Carry on from the highest number in use rather than a constant, or a
+    # resumed run collides on the unique index partway through.
+    rx_seq = 38100
+    for (number,) in db.query(Prescription.rx_number).all():
+        digits = re.findall(r"(\d+)$", number or "")
+        if digits:
+            rx_seq = max(rx_seq, int(digits[0]) + 1)
+    for prefix, table, column, start_at in [("TF", "owed_items", "reference", 400),
+                                            ("CLM", "claims", "claim_number", 9100)]:
+        highest = start_at
+        for (ref,) in db.execute(text(f"SELECT {column} FROM {table}")).all():
+            digits = re.findall(r"(\d+)$", ref or "")
+            if digits:
+                highest = max(highest, int(digits[0]) + 1)
+        if prefix == "TF":
+            owed_seq = highest
+        else:
+            claim_seq = highest
 
     for back in range(days, -1, -1):
         day = start - timedelta(days=back)
         # 434 scripts in a fortnight at the pharmacy the figures came from, so
         # about thirty a day, and a Sunday is quieter.
+        if day.date().isoformat() in done_days:
+            continue
         count = 30 if day.weekday() < 5 else (18 if day.weekday() == 5 else 9)
 
         # Built in three passes, one flush each, instead of two flushes per line.
@@ -1382,19 +1409,18 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         print(f"  {n} sales" if n else "  every day already has trade")
 
         doctors = db.query(Doctor).all()
-        if db.query(Prescription).count() < 50 or db.query(Dispensing).count() < 50:
-            print("filling in the dispensary…")
-            # Rebuilding means the old scripts go too, or the next run stacks a
-            # second set of items on prescriptions that already have them.
-            for table in ["register_entries", "owed_items", "dispensings",
-                          "prescription_items", "prescriptions"]:
-                _delete_where_in(db, table, "id",
-                                 [r[0] for r in db.execute(text(f"SELECT id FROM {table}"))])
-            for k, v in _dispensary(db, days, products, patients, doctors, cashiers).items():
+        # No wipe. `_dispensary` skips any day that already has scripts, the same
+        # way trading does, so this resumes instead of starting over.
+        #
+        # It used to delete every prescription and dispensing before rebuilding,
+        # which is defensible on a laptop where the whole stage takes twelve
+        # seconds. Against a hosted database it is not: seed_remote retries on a
+        # dropped connection, and every retry threw away the work of the one
+        # before it. Watching it, the dispensing count went 30, then 0, then 56 —
+        # a stage that could never finish while the connection kept dropping.
+        print("filling in the dispensary…")
+        for k, v in _dispensary(db, days, products, patients, doctors, cashiers).items():
                 print(f"  {v} {k}")
-        else:
-            print("skipping the dispensary: scripts already recorded")
-
         if wipe_all or db.query(StockBatch).count() < 50:
             print("receiving stock…")
             for k, v in _stock_and_supply(db, products, cashiers).items():
