@@ -68,9 +68,21 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
     been there longest, and a list that opens on this morning's dispensings puts
     the thing you need at the bottom.
     """
+    # Everything the loop below touches is loaded here, in one query.
+    #
+    # Only the product was eager-loaded, and the loop then reached for the
+    # prescription, the patient on it and the pharmacist who dispensed —
+    # three lazy loads a row. On a laptop with SQLite that is invisible. On a
+    # hosted database it is three network round trips per bag, so a shelf of
+    # two hundred became six hundred round trips and the screen timed out
+    # rather than drew.
     rows = (_base(db)
             .options(joinedload(Dispensing.prescription_item)
-                     .joinedload(PrescriptionItem.product))
+                     .joinedload(PrescriptionItem.product),
+                     joinedload(Dispensing.prescription_item)
+                     .joinedload(PrescriptionItem.prescription)
+                     .joinedload(Prescription.patient),
+                     joinedload(Dispensing.dispensed_by))
             .order_by(Dispensing.dispensed_at.asc())
             .limit(limit + 1)
             .all())
