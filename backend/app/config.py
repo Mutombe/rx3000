@@ -45,6 +45,10 @@ def _default_database_url() -> str:
 class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-change-me")
     DATABASE_URL: str = os.getenv("DATABASE_URL") or _default_database_url()
+    # Whether an empty deployment loads the demonstration pharmacy on first boot.
+    # On for the hosted demo, and the first thing a real pharmacy turns off:
+    # nobody wants a hundred and eighty invented patients in their register.
+    SEED_DEMO_DATA: bool = os.getenv("SEED_DEMO_DATA", "1") not in ("0", "false", "False")
 
     PHARMACY_NAME: str = os.getenv("PHARMACY_NAME", "RX5000 Pharmacy")
     PHARMACY_REG_NO: str = os.getenv("PHARMACY_REG_NO", "Y123456")

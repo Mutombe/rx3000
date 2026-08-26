@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import doses, interactions, paging
+from ..services import doses, interactions, paging, willcall
 from ..models import (
     Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product,
     Sale, SaleItem, User,
@@ -307,3 +307,42 @@ def interaction_screen(patient_id: int | None = Body(default=None),
          if patient_id else "No patient selected, so nothing was checked against history")
     )
     return result
+
+
+# ---------------------------------------------------------- the will-call shelf
+
+@router.get("/will-call")
+def will_call(limit: int = 200, db: Session = Depends(get_db)):
+    """Everything dispensed and not yet collected, oldest first."""
+    return willcall.waiting(db, limit=max(1, min(limit, 500)))
+
+
+@router.post("/will-call/{dispensing_id}/collect")
+def will_call_collect(dispensing_id: int,
+                      taken_by: str = Body(default="", embed=False),
+                      id_seen: str = Body(default=""),
+                      db: Session = Depends(get_db),
+                      user: User = Depends(get_current_user)):
+    """Hand a bag over, and record who took it.
+
+    Often not the patient: a relative, a driver, a neighbour going that way. On a
+    Schedule 5 or 6 item the name is required, because the register has to answer
+    "who had it and when" and a blank is not an answer.
+    """
+    try:
+        d = willcall.collect(db, dispensing_id, user_id=user.id,
+                             taken_by=taken_by, id_seen=id_seen)
+    except willcall.CollectionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "collected_at": d.collected_at, "collected_name": d.collected_name}
+
+
+@router.post("/will-call/{dispensing_id}/uncollect")
+def will_call_uncollect(dispensing_id: int, db: Session = Depends(get_db),
+                        _: User = Depends(get_current_user)):
+    """Put a bag back on the shelf, for a collection marked in error."""
+    try:
+        willcall.uncollect(db, dispensing_id)
+    except willcall.CollectionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}

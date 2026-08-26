@@ -494,6 +494,28 @@ class Dispensing(Base):
     prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"), nullable=False)
     quantity = Column(Integer, default=1)
     dispensed_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # --- the will-call shelf ------------------------------------------------
+    #
+    # Dispensed is not collected. Medicine is checked, labelled and bagged, and
+    # then it sits on a shelf behind the counter until somebody comes for it —
+    # sometimes that afternoon, sometimes never. Until now the system treated
+    # the moment of dispensing as the end of the story, so a bag nobody came
+    # back for was indistinguishable from one handed over, and the only way to
+    # find it was to look at the shelf.
+    #
+    # That matters three ways: the patient is not taking their medicine, the
+    # stock is off the shelf and unsellable, and on a scheme script the claim has
+    # been made for medicine the patient never received.
+    #
+    # Collection belongs here rather than on the prescription because a script
+    # can be dispensed in parts — two items today, the third when stock lands —
+    # and each bag is collected separately or not at all.
+    collected_at = Column(DateTime, nullable=True, index=True)
+    collected_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # Who actually took it. Often not the patient: a relative, a driver, a
+    # neighbour going that way. Recorded as typed, because on a controlled item
+    # this is the answer to "who had it".
+    collected_name = Column(String(120), default="")
     dispensed_at = Column(DateTime, default=datetime.utcnow)
     is_repeat = Column(Boolean, default=False)
     sale_id = Column(Integer, ForeignKey("sales.id"), nullable=True)
@@ -520,6 +542,7 @@ class Dispensing(Base):
 
     prescription_item = relationship("PrescriptionItem", back_populates="dispensings")
     dispensed_by = relationship("User", foreign_keys=[dispensed_by_id])
+    collected_by = relationship("User", foreign_keys=[collected_by_id])
     witness = relationship("User", foreign_keys=[witness_id])
 
 
@@ -2071,6 +2094,114 @@ class AiConversation(Base):
     # Which model wrote it. An answer from a different model a year from now is
     # not the same evidence, and the log should say so rather than imply it is.
     model = Column(String(60), default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+
+class SampleReceipt(Base):
+    """Medicine samples received from a manufacturer's representative.
+
+    A rep leaves a box of something on the counter. It is medicine, it is in the
+    pharmacy, and it is not stock: it was not bought, it cannot be sold, and it
+    does not appear on any invoice. Which is exactly why it goes missing from the
+    records — every other medicine in the building arrives through a purchase
+    order and leaves through a till, and a sample does neither.
+
+    MCAZ expects a pharmacy to account for what it holds. A box of samples with
+    no paper trail is the easiest thing in the shop to be wrong about, and
+    "a rep left them, I think in March" is not an answer.
+
+    Modelled as a receipt with movements against it, the same shape as the
+    controlled register, because it is the same question: what came in, what went
+    out, to whom, and what is left.
+    """
+    __tablename__ = "sample_receipts"
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(30), unique=True, nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    # Who left them. A company and a person, because the company is who the
+    # pharmacy deals with and the person is who actually walked in.
+    supplier_name = Column(String(160), default="")
+    representative = Column(String(120), default="")
+    batch_number = Column(String(60), default="")
+    expiry_date = Column(Date, nullable=True, index=True)
+    quantity_received = Column(Integer, default=0)
+    quantity_remaining = Column(Integer, default=0)
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)
+    received_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, default="")
+
+    product = relationship("Product")
+    received_by = relationship("User")
+    movements = relationship("SampleMovement", back_populates="receipt",
+                             cascade="all, delete-orphan")
+
+
+class SampleMovement(Base):
+    """One thing that happened to a sample: issued, returned, destroyed, expired.
+
+    A sample is never sold, so there is no sale to attach it to and no till entry
+    to find it in later. This is the only record that it left, and the balance it
+    carries is the only figure anybody can check against the shelf.
+    """
+    __tablename__ = "sample_movements"
+    id = Column(Integer, primary_key=True)
+    receipt_id = Column(Integer, ForeignKey("sample_receipts.id"), nullable=False, index=True)
+    # issued | returned | destroyed | expired | counted
+    movement = Column(String(20), nullable=False)
+    quantity = Column(Integer, default=0)
+    balance_after = Column(Integer, default=0)
+    # Who got it. A patient where there is one on file, and a name either way,
+    # because a sample is often handed to somebody who is not a patient yet.
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
+    given_to = Column(String(120), default="")
+    # Destroying medicine needs a second person watching, the same as writing off
+    # a controlled item. The field exists so the requirement can be enforced.
+    witness_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    reason = Column(Text, default="")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    receipt = relationship("SampleReceipt", back_populates="movements")
+    patient = relationship("Patient")
+    user = relationship("User", foreign_keys=[user_id])
+    witness = relationship("User", foreign_keys=[witness_id])
+
+
+class ConsentEvent(Base):
+    """Permission given or withdrawn, as an event rather than a flag.
+
+    `marketing_opt_in = True` answers "may we message them" and nothing else. It
+    cannot answer when they agreed, what they were told, through which channel,
+    who recorded it, or whether they have since said stop — and those are the
+    questions asked when somebody complains, which is the only time the answer
+    matters.
+
+    So the boolean stays as a fast read and this is the record behind it. A
+    withdrawal never deletes the grant: the fact that somebody once agreed and
+    later changed their mind is two facts, and erasing the first one leaves a
+    pharmacy unable to say why it ever sent anything.
+    """
+    __tablename__ = "consent_events"
+    id = Column(Integer, primary_key=True)
+    # patient | lead | contact — one table rather than three near-identical ones,
+    # because the question and the evidence are the same whoever it is about.
+    subject_type = Column(String(16), nullable=False, index=True)
+    subject_id = Column(Integer, nullable=False, index=True)
+    # sms | whatsapp | email | phone | post | all
+    channel = Column(String(16), default="all", index=True)
+    # granted | withdrawn
+    state = Column(String(12), nullable=False)
+    # How it was taken: verbal at the counter, a signed form, the patient portal,
+    # a reply of STOP, or imported from whatever came before. "Imported" is not
+    # consent and is recorded as what it is.
+    captured_via = Column(String(24), default="counter")
+    # What they were actually told. Consent to wording nobody kept is not
+    # evidence of anything.
+    wording = Column(Text, default="")
+    note = Column(Text, default="")
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")

@@ -26,7 +26,7 @@ import re
 import sys
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from . import auth, zimdata
@@ -510,8 +510,18 @@ def _trading(db: Session, days: int, products: list[Product],
         if digits:
             seq = max(seq, int(digits[0]) + 1)
 
+    # Which days already have trade, so a run that was interrupted picks up
+    # where it stopped instead of starting again or doubling what is there.
+    # Against a remote database an hour-long seed will be interrupted; assuming
+    # otherwise is how you end up with one day holding four hundred sales.
+    done_days = {d for (d,) in db.query(func.date(Sale.created_at))
+                                 .group_by(func.date(Sale.created_at)).all()}
+    done_days = {str(d) for d in done_days}
+
     for back in range(days, -1, -1):
         day = start - timedelta(days=back)
+        if day.date().isoformat() in done_days:
+            continue
         if day.weekday() == 6:
             count = int(zimdata.SALES_PER_DAY * 0.55)   # Sunday is quieter, not shut
         elif day.weekday() == 5:
@@ -519,6 +529,7 @@ def _trading(db: Session, days: int, products: list[Product],
         else:
             count = zimdata.SALES_PER_DAY + RNG.randint(-14, 14)
 
+        pending: list[tuple[Sale, list]] = []
         for _ in range(count):
             when = day.replace(hour=_hour(), minute=RNG.randint(0, 59),
                                second=RNG.randint(0, 59))
@@ -566,7 +577,7 @@ def _trading(db: Session, days: int, products: list[Product],
             # VAT out of a VAT-inclusive line, the way the till does it.
             # Prescription medicine is zero rated; the front shop is not.
             vat = round(sum(l - l / (1 + (p.vat_rate or 0)) for p, _, l in lines), 2)
-            sale = Sale(
+            pending.append((Sale(
                 sale_number=f"INV{seq}",
                 patient_id=(RNG.choice(patients).id
                             if patients and RNG.random() < 0.34 else None),
@@ -588,10 +599,25 @@ def _trading(db: Session, days: int, products: list[Product],
                 # as good as the set of values something actually queries.
                 status="paid",
                 currency_code="USD",
-            )
+            ), lines))
+            seq += 1
+            made += 1
+
+        # One flush for the day, not one per sale.
+        #
+        # A sale needs its id before its items can point at it, and the obvious
+        # way to get it is `add` then `flush` — which against SQLite on the same
+        # machine costs nothing and against Postgres over the internet is a
+        # network round trip per sale. Eighty round trips a day across sixty days
+        # is what turned a twelve-second seed into a two-hour one, and it was
+        # invisible locally because the local database is a file.
+        #
+        # Flushing the whole day at once assigns every id in one exchange.
+        for sale, _lines in pending:
             db.add(sale)
-            db.flush()
-            for product, qty, line in lines:
+        db.flush()
+        for sale, sale_lines in pending:
+            for product, qty, line in sale_lines:
                 db.add(SaleItem(
                     sale_id=sale.id, product_id=product.id,
                     description=f"{product.name} {product.strength}".strip(),
@@ -599,8 +625,6 @@ def _trading(db: Session, days: int, products: list[Product],
                     vat_rate=product.vat_rate or 0, line_total=line,
                     unit_cost=product.cost_price,
                 ))
-            seq += 1
-            made += 1
         db.commit()
     return made
 
@@ -639,6 +663,17 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
         # 434 scripts in a fortnight at the pharmacy the figures came from, so
         # about thirty a day, and a Sunday is quieter.
         count = 30 if day.weekday() < 5 else (18 if day.weekday() == 5 else 9)
+
+        # Built in three passes, one flush each, instead of two flushes per line.
+        #
+        # A prescription item needs its script's id, and a dispensing needs the
+        # item's id, so the obvious shape is add-flush-add-flush all the way
+        # down. Against SQLite on the same machine a flush costs nothing; against
+        # Postgres over the internet it is a network round trip, and ninety of
+        # them a day across sixty days is what turned a twelve-second seed into a
+        # two-hour one. It was invisible locally because the local database is a
+        # file. Three exchanges a day instead of ninety.
+        planned = []
         for _ in range(count):
             when = day.replace(hour=_hour(), minute=RNG.randint(0, 59))
             if when > datetime.now():
@@ -653,12 +688,19 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                 created_at=when,
                 status="completed",
             )
-            db.add(rx)
-            db.flush()
             rx_seq += 1
-            made["prescriptions"] += 1
+            planned.append({"rx": rx, "when": when, "patient": patient,
+                            "doctor": doctor, "icd": RNG.choice(zimdata.ICD10)[0],
+                            "lines": []})
+        if not planned:
+            continue
 
-            icd = RNG.choice(zimdata.ICD10)[0]
+        for p in planned:
+            db.add(p["rx"])
+        db.flush()
+        made["prescriptions"] += len(planned)
+
+        for p in planned:
             for _ in range(RNG.choice([1, 1, 2, 2, 3])):
                 product = RNG.choice(prescribable)
                 category = product.category or ""
@@ -671,22 +713,26 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                 repeats = RNG.choice([3, 5, 5, 6]) if chronic else 0
                 used = RNG.randint(0, repeats) if repeats else 0
                 item = PrescriptionItem(
-                    prescription_id=rx.id,
+                    prescription_id=p["rx"].id,
                     product_id=product.id,
                     dosage_instructions=sig,
                     quantity=RNG.choice([14, 28, 30, 30, 60]),
                     repeats_allowed=repeats,
                     repeats_used=used,
                     repeat_interval_days=30 if repeats else None,
-                    icd10_code=icd,
+                    icd10_code=p["icd"],
                     supply_days=30 if repeats else 7,
                 )
                 if repeats and used < repeats:
-                    item.next_repeat_date = (when + timedelta(days=30 * (used + 1))).date()
+                    item.next_repeat_date = (p["when"] + timedelta(days=30 * (used + 1))).date()
                 db.add(item)
-                db.flush()
+                p["lines"].append((item, product))
                 made["script lines"] += 1
+        db.flush()
 
+        for p in planned:
+            when, patient, doctor = p["when"], p["patient"], p["doctor"]
+            for item, product in p["lines"]:
                 # About one line in fourteen cannot be filled today. That is the
                 # to-follow, and it is the feature a Zimbabwean pharmacy asks
                 # about first, because the alternative is a note by the till.
@@ -699,8 +745,6 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                         product_id=product.id,
                         quantity_owed=item.quantity,
                         quantity_settled=0,
-                        # The queue filters on "outstanding"; "open" is not in
-                        # the vocabulary and matched nothing.
                         status="outstanding",
                         promised_for=(when + timedelta(days=RNG.choice([1, 2, 3, 7]))).date(),
                         created_at=when,
@@ -711,15 +755,31 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
 
                 pharmacist = RNG.choice(pharmacists)
                 initials = "".join(w[0] for w in (pharmacist.full_name or "P").split()[:2]).upper()
+                # The shelf skews recent, and heavily. An uncollected bag from six
+                # weeks ago is rare not because people are prompt but because
+                # somebody eventually deals with it: it goes back to stock and the
+                # claim comes off. A flat 7% across sixty days produced a shelf
+                # where every bag was over a month old, which is not a will-call
+                # list, it is a museum.
+                stays = 0.55 if back <= 2 else 0.25 if back <= 7 else 0.07 if back <= 30 else 0.01
+                collected_at = None
+                if RNG.random() >= stays:
+                    collected_at = min(when + timedelta(hours=RNG.choice([0, 0, 1, 2, 5, 26, 50])),
+                                       datetime.now())
                 db.add(Dispensing(
                     prescription_item_id=item.id,
                     quantity=item.quantity,
                     dispensed_by_id=pharmacist.id,
                     dispensed_at=when,
-                    is_repeat=bool(used),
+                    is_repeat=bool(item.repeats_used),
                     schedule=product.schedule,
                     script_sighted=True,
                     pharmacist_initial=initials,
+                    collected_at=collected_at,
+                    collected_by_id=pharmacist.id if collected_at else None,
+                    collected_name=("" if not collected_at else
+                                    RNG.choice(["", "", "", "patient",
+                                                "daughter", "husband", "driver"])),
                 ))
                 made["dispensings"] += 1
 
@@ -740,7 +800,7 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                         doctor_id=doctor.id,
                         prescription_item_id=item.id,
                         user_id=pharmacist.id,
-                        reference=rx.rx_number,
+                        reference=p["rx"].rx_number,
                         created_at=when,
                     ))
                     made["register entries"] += 1
@@ -1155,6 +1215,48 @@ def _crm(db: Session, staff) -> dict[str, int]:
     return dict(made)
 
 
+def run_if_thin(db: Session, *, days: int = 60) -> dict[str, int]:
+    """Load the demonstration pharmacy, but only into a database that has none.
+
+    Called at startup so a fresh deployment comes up with something in it. Every
+    seeding run so far has been `python -m app.realseed` on a laptop, which
+    writes to the local SQLite file — and production is Neon Postgres, so none of
+    it ever arrived. The screens were empty there for exactly that reason and no
+    other.
+
+    **Thin, not empty.** A database with the reference data and no trade is what
+    a first boot looks like; one with four thousand sales in it is somebody's
+    pharmacy and is never touched. The test is transactional volume rather than
+    row count anywhere, because the schema seeds itself with schemes, a chart of
+    accounts and a shorthand table before anybody has sold anything.
+
+    Never destructive. `--wipe-all` is a thing a person types, deliberately, at a
+    terminal; it is not something a deploy does on its own.
+    """
+    sales = db.query(Sale).count()
+    if sales >= 200:
+        return {}
+    made: dict[str, int] = {}
+    schemes = _schemes(db)
+    products = _catalogue(db)
+    staff = _staff(db)
+    _prescribers(db)
+    _suppliers(db)
+    _people(db, schemes, target=180)
+
+    patients = db.query(Patient).all()
+    doctors = db.query(Doctor).all()
+    cashiers = [u for u in staff if u.active]
+    made["sales"] = _trading(db, days, products, patients, cashiers)
+    made.update(_dispensary(db, days, products, patients, doctors, cashiers))
+    made.update(_stock_and_supply(db, products, cashiers))
+    made.update(_outreach(db, patients, products, cashiers))
+    made.update(_laybys(db, patients, products, cashiers))
+    made.update(_shifts(db, cashiers, days))
+    made.update(_crm(db, cashiers))
+    return made
+
+
 def run(wipe_all: bool = False, days: int = 60) -> None:
     db = SessionLocal()
     try:
@@ -1224,18 +1326,23 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
                       .filter(User.active.is_(True), User.is_demo.is_(False))
                       .all())
 
-        existing = db.query(Sale).count()
-        if existing > 200 and not wipe_all:
-            print(f"skipping trade: {existing} sales already recorded "
-                  f"(pass --wipe-all to start over)")
-        else:
-            print(f"filling in {days} days of counter trade…")
-            n = _trading(db, days, products, patients, cashiers)
-            print(f"  {n} sales")
+        # `_trading` skips any day that already has sales, so this can be run
+        # again after an interruption and will fill only the gaps. The old guard
+        # counted total sales and refused once there were two hundred, which
+        # blocked exactly the resume it was written to protect.
+        print(f"filling in {days} days of counter trade…")
+        n = _trading(db, days, products, patients, cashiers)
+        print(f"  {n} sales" if n else "  every day already has trade")
 
         doctors = db.query(Doctor).all()
-        if db.query(Prescription).count() < 50:
+        if db.query(Prescription).count() < 50 or db.query(Dispensing).count() < 50:
             print("filling in the dispensary…")
+            # Rebuilding means the old scripts go too, or the next run stacks a
+            # second set of items on prescriptions that already have them.
+            for table in ["register_entries", "owed_items", "dispensings",
+                          "prescription_items", "prescriptions"]:
+                _delete_where_in(db, table, "id",
+                                 [r[0] for r in db.execute(text(f"SELECT id FROM {table}"))])
             for k, v in _dispensary(db, days, products, patients, doctors, cashiers).items():
                 print(f"  {v} {k}")
         else:

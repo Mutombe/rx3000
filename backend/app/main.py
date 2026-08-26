@@ -39,6 +39,7 @@ from .routers import (
     stocktake_router,
     scan_router,
     shifts_router, stock_router, system_router, to_follows_router,
+    samples_router,
 )
 from .seed import (
     seed, seed_claiming_if_empty, seed_crm_if_empty, seed_formulary_if_empty,
@@ -75,6 +76,23 @@ async def lifespan(app: FastAPI):
         from .helpers import ensure_opening_batches
         if ensure_opening_batches(db):
             db.commit()
+
+        # A deployment with nothing in it gets the demonstration pharmacy.
+        #
+        # Until now this only ever ran from a laptop, against the local SQLite
+        # file, while production runs Postgres — so every screen was empty there
+        # and the reason was invisible from either side. It refuses to touch a
+        # database that already has trade in it.
+        if settings.SEED_DEMO_DATA:
+            try:
+                from .realseed import run_if_thin
+                made = run_if_thin(db)
+                if made:
+                    log.info("Seeded the demonstration pharmacy: %s",
+                             ", ".join(f"{v} {k}" for k, v in made.items() if v))
+            except Exception:  # noqa: BLE001 - seed data is never worth the server
+                log.exception("Could not seed demonstration data; starting anyway")
+                db.rollback()
     finally:
         db.close()
     scheduler.start()
@@ -136,6 +154,7 @@ for router_module in (
     settings_router,
 ):
     app.include_router(router_module.router)
+app.include_router(samples_router.router)
 
 app.include_router(portal_router.admin)  # staff-side link issuing
 app.include_router(leads_router.public)  # unauthenticated web-to-lead / web-to-case

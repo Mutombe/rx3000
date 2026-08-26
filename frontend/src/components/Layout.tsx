@@ -1,6 +1,7 @@
 import {
   ArrowsClockwise,
   ArrowsLeftRight,
+  Bag,
   BellRinging,
   Buildings,
   CalendarCheck,
@@ -98,6 +99,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/dispense", label: "Dispensary", icon: Prescription, tier: 1 },
       { to: "/patients", label: "Patients", icon: Users, tier: 1 },
       { to: "/to-follows", label: "To follows", icon: ClockCountdown },
+      { to: "/will-call", label: "Will call", icon: Bag },
       { to: "/repeats", label: "Repeats", icon: ArrowsClockwise },
       { to: "/compounding", label: "Compounding", icon: Flask },
       { to: "/register", label: "Controlled Register", icon: Notebook },

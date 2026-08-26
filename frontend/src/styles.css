@@ -4544,3 +4544,39 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
   margin: var(--s2) 0 0;
 }
+
+/* --- an empty state with something to say --------------------------------- */
+
+/* `.empty` was a centred grey sentence, which is right for "no rows matched"
+   and wrong for a screen somebody has just opened for the first time. Given a
+   heading and a paragraph it becomes a short explanation of what belongs here
+   and what to do about it, without needing a second class at every call site. */
+.empty b {
+  display: block; margin-bottom: 6px;
+  color: var(--ink); font-size: var(--t-base); font-weight: 600;
+}
+.empty p {
+  max-width: 46ch; margin: 0 auto;
+  line-height: 1.55;
+}
+.empty .btn { margin-top: var(--s4); }
+
+/* --- the will-call bands -------------------------------------------------- */
+
+/* Four steps from "nothing to do" to "deal with this". The colours are the
+   status set, not the chart palette: these are states, and a state that borrows
+   a series colour reads as a category. */
+.wc-badge { font-weight: 600; }
+.wc-fresh      { background: var(--tint-weak);  color: var(--ink-soft); border-color: var(--line); }
+.wc-waiting    { background: var(--info-soft);  color: var(--ink);      border-color: var(--line); }
+.wc-stale      { background: var(--warn-soft);  color: var(--warn);     border-color: var(--warn-line); }
+.wc-abandoned  { background: var(--danger-soft); color: var(--danger);  border-color: var(--danger-line); }
+/* On the summary tiles the same four read as a left edge rather than a fill, so
+   a row of them does not look like four warnings. */
+.wl-stat.wc-fresh, .wl-stat.wc-waiting, .wl-stat.wc-stale, .wl-stat.wc-abandoned {
+  background: var(--surface); color: var(--ink); border-left-width: 3px;
+}
+.wl-stat.wc-waiting   { border-left-color: var(--line-strong); }
+.wl-stat.wc-stale     { border-left-color: var(--warn); }
+.wl-stat.wc-abandoned { border-left-color: var(--danger); }
+.wl-stat.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }

@@ -14,12 +14,13 @@ Zero is not reported. A badge is a call to act, and a permanent grey nought on
 fourteen links is furniture — it trains the eye to skip exactly the place a real
 number will one day appear.
 """
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import (
+    Dispensing,
     Authorisation, Claim, LayBy, MedicalAid, Message, OwedItem, Product,
     PurchaseOrder, Ticket, Waybill,
 )
@@ -62,6 +63,14 @@ def for_nav(db: Session) -> dict[str, int]:
     # a new state added later counts as work instead of silently vanishing.
     out["/deliveries"] = _count(
         db.query(Waybill).filter(~Waybill.status.in_(("delivered", "cancelled"))))
+
+    # A bag on the shelf a week or more is somebody's job. Fresh ones are not:
+    # a badge that counts this morning's dispensings is a badge that always shows
+    # a number and therefore means nothing.
+    out["/will-call"] = _count(
+        db.query(Dispensing).filter(
+            Dispensing.collected_at.is_(None),
+            Dispensing.dispensed_at <= datetime.utcnow() - timedelta(days=7)))
 
     # --- front shop ---------------------------------------------------------
     out["/laybys"] = _count(
