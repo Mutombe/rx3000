@@ -10,6 +10,8 @@ import { Ticket, User } from "../types";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import ClaudeIcon from "../components/ClaudeIcon";
+import AiPhase from "../components/AiPhase";
+import { useAiDraft } from "../hooks/useAiStream";
 import { ArrowLeft } from "@phosphor-icons/react";
 
 const PRIORITIES: [string, string][] = [
@@ -37,7 +39,6 @@ export default function CaseDetail() {
   const [users, setUsers] = useState<User[]>([]);
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState("");
 
   function load() {
@@ -64,13 +65,10 @@ export default function CaseDetail() {
     } catch (err: any) { setError(err.message); }
   }
 
-  async function draftReply() {
-    setAiBusy(true);
-    try {
-      const res = await api.post<{ text: string }>(`/api/ai/ticket-reply/${id}`);
-      setReply(res.text);
-    } catch (e: any) { setError(e.message); } finally { setAiBusy(false); }
-  }
+  /* The draft lands in the box as it is written, so the staff member can start
+     reading — and start disagreeing — before it has finished. */
+  const ai = useAiDraft(setReply);
+  const draftReply = () => ai.draft(`/api/ai/ticket-reply/${id}/stream`, undefined);
 
   if (error)
     return (
@@ -171,8 +169,12 @@ export default function CaseDetail() {
                   audience="the customer" placeholder="Type your response to the customer…" />
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>
-              {aiBusy ? "Drafting…" : <><ClaudeIcon size={14} /> Draft reply</>}
+            {/* Stops rather than sits disabled: a draft that is going the wrong
+                way should be interruptible, not waited out. */}
+            {ai.streaming && <AiPhase phase={ai.phase} />}
+            <button type="button" className="secondary"
+                    onClick={ai.streaming ? ai.stop : draftReply}>
+              {ai.streaming ? "Stop" : <><ClaudeIcon size={14} /> Draft reply</>}
             </button>
             <Checkbox checked={internal} onChange={setInternal}>Internal note (not sent to customer)</Checkbox>
             <button type="submit" disabled={!reply.trim()}>Send</button>

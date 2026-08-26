@@ -7,7 +7,10 @@ import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
+import AiPhase from "../components/AiPhase";
 import InteractionPanel from "../components/InteractionPanel";
+import { useAiStream } from "../hooks/useAiStream";
+import { useTypewriter } from "../hooks/useTypewriter";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import Variants from "../components/Variants";
@@ -64,11 +67,21 @@ export default function Dispense() {
   const [productQ, setProductQ] = useState("");
   const [productResults, setProductResults] = useState<Product[]>([]);
   const [items, setItems] = useState<DraftItem[]>([]);
-  const [aiResult, setAiResult] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
   /* Interaction screening runs on every basket change, so its state lives here
      and gates the dispense button. `ixMajor` is how many major findings are
      outstanding; `ixAcknowledged` is whether the pharmacist has accepted them. */
+  /* The wider read, streamed. The deterministic screen above it is the one that
+     runs on every basket change and holds the dispense button; this one sees the
+     whole history, the allergies and the chronic conditions, and is advisory. */
+  const aiCheck = useAiStream();
+  const aiShown = useTypewriter(aiCheck.text, aiCheck.streaming);
+  function checkInteractions() {
+    if (!patient || items.length === 0) return;
+    aiCheck.run("/api/ai/interaction-check/stream", {
+      patient_id: patient.id, product_ids: items.map((i) => i.product.id),
+    });
+  }
+
   const [ixMajor, setIxMajor] = useState(0);
   const [ixAcknowledged, setIxAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -157,7 +170,7 @@ export default function Dispense() {
   }, [patientQ]);
 
   useEffect(() => {
-    setItems([]); setProductQ(""); setProductResults([]); setAiResult("");
+    setItems([]); setProductQ(""); setProductResults([]); aiCheck.reset();
   }, [route]);
 
   useEffect(() => {
@@ -257,7 +270,7 @@ export default function Dispense() {
       disabled: items.length === 0,
       run: () => document.querySelector<HTMLInputElement>("[data-hk='dx']")?.focus() },
     { combo: "F6", label: "Interaction check", group: "Safety",
-      disabled: !patient || items.length === 0 || aiBusy, run: checkInteractions },
+      disabled: !patient || items.length === 0 || aiCheck.streaming, run: checkInteractions },
     { combo: "F8", label: "Repeats due", group: "Lists",
       run: () => setWorklistPanel("due") },
     { combo: "F9", label: "Queue", group: "Lists",
@@ -298,7 +311,7 @@ export default function Dispense() {
       // treats one condition, so re-typing it on every item is wasted keystrokes.
       icd10_code: items.length ? items[items.length - 1].icd10_code : "",
     }]);
-    setProductQ(""); setProductResults([]); setAiResult("");
+    setProductQ(""); setProductResults([]); aiCheck.reset();
   }
 
   const updateItem = (idx: number, patch: Partial<DraftItem>) =>
@@ -310,16 +323,6 @@ export default function Dispense() {
     } catch (e: any) { toast.error(errorText(e)); }
   }
 
-  async function checkInteractions() {
-    if (!patient || items.length === 0) return;
-    setAiBusy(true); setAiResult("");
-    try {
-      const res = await api.post<{ text: string }>("/api/ai/interaction-check", {
-        patient_id: patient.id, product_ids: items.map((i) => i.product.id),
-      });
-      setAiResult(res.text);
-    } catch (e: any) { setAiResult(`Error: ${e.message}`); } finally { setAiBusy(false); }
-  }
 
   function compliancePayload() {
     // The initial is sent whenever there is one, on every route.
@@ -363,7 +366,7 @@ export default function Dispense() {
         item_ids: rx.items.map((i) => i.id), ...compliancePayload(),
       });
       setDoneSale(sale); setDoneRxId(rx.id);
-      setItems([]); setAiResult("");
+      setItems([]); aiCheck.reset();
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
       loadLists();
@@ -806,8 +809,10 @@ export default function Dispense() {
               />
 
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <button className="secondary" onClick={checkInteractions} disabled={!patient || items.length === 0 || aiBusy}>
-                  {aiBusy ? "Checking…" : <><ClaudeIcon size={14} /> AI interaction check</>}
+                <button className="secondary"
+                        onClick={aiCheck.streaming ? aiCheck.stop : checkInteractions}
+                        disabled={!aiCheck.streaming && (!patient || items.length === 0)}>
+                  {aiCheck.streaming ? "Stop" : <><ClaudeIcon size={14} /> AI interaction check</>}
                 </button>
                 <button onClick={createAndDispense} disabled={busy || !patient || items.length === 0 || !complianceReady}>
                   {busy ? "Dispensing…" : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
@@ -834,7 +839,18 @@ export default function Dispense() {
                   Enter the checking pharmacist's initials before dispensing.
                 </div>
               )}
-              {aiResult && <AiOutput text={aiResult} title="Interaction check" />}
+              {(aiCheck.streaming || aiCheck.text) && (
+                <div className="ai-block">
+                  <AiPhase phase={aiCheck.phase} />
+                  {aiCheck.error && <div className="alert error">{aiCheck.error}</div>}
+                  {/* Plain text with a caret while it writes; Markdown only once
+                      it is finished, or headings and lists flicker in and out as
+                      the syntax completes. */}
+                  {aiCheck.streaming
+                    ? aiShown && <p className="ai-live ai-caret">{aiShown}</p>
+                    : <AiOutput text={aiCheck.text} title="Interaction check" />}
+                </div>
+              )}
               <KeyBar keys={hotkeys} />
             </div>
           </div>

@@ -4529,3 +4529,18 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   border-top: 1px solid var(--line-soft);
   color: var(--ink-soft); font-size: var(--t-xs); line-height: 1.5;
 }
+
+/* --- a streamed AI answer ------------------------------------------------- */
+
+/* The block every AI surface uses: the phase line, the text as it arrives, and
+   the control that starts or stops it. */
+.ai-block { margin-top: var(--s3); }
+.ai-block-actions {
+  display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3);
+}
+/* Room for a long answer without the card growing past the fold, and the scroll
+   belongs to this block rather than to the page. */
+.ai-block .ai-live {
+  max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
+  margin: var(--s2) 0 0;
+}

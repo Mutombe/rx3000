@@ -9,6 +9,8 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
+import AiPhase from "../components/AiPhase";
+import { useAiDraft } from "../hooks/useAiStream";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -88,7 +90,6 @@ export default function HelpDesk() {
     channel: "walk_in", patient_id: null as number | null,
   });
   const toast = useToast();
-  const [aiBusy, setAiBusy] = useState(false);
 
   function load() {
     const q = filter === "breached" ? "breached=true" : `status=${filter}`;
@@ -129,14 +130,11 @@ export default function HelpDesk() {
     } catch (err: any) { toast.error(errorText(err)); }
   }
 
-  async function draftReply() {
+  const ai = useAiDraft(setReply);
+  const draftReply = () => {
     if (!selected) return;
-    setAiBusy(true);
-    try {
-      const res = await api.post<{ text: string }>(`/api/ai/ticket-reply/${selected.id}`);
-      setReply(res.text);
-    } catch (e: any) { toast.error(errorText(e)); } finally { setAiBusy(false); }
-  }
+    ai.draft(`/api/ai/ticket-reply/${selected.id}/stream`, undefined);
+  };
 
   async function createTicket(e: FormEvent) {
     e.preventDefault();
@@ -271,8 +269,10 @@ export default function HelpDesk() {
                   audience="the customer" placeholder="Type your response to the customer…" />
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>
-                  {aiBusy ? "Drafting…" : <><ClaudeIcon size={14} /> Draft reply</>}
+                {ai.streaming && <AiPhase phase={ai.phase} />}
+                <button type="button" className="secondary"
+                        onClick={ai.streaming ? ai.stop : draftReply}>
+                  {ai.streaming ? "Stop" : <><ClaudeIcon size={14} /> Draft reply</>}
                 </button>
                 <Checkbox checked={internal} onChange={setInternal}>Internal note (not sent to customer)</Checkbox>
                 <div className="spacer" />

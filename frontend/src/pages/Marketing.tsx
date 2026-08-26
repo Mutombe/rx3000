@@ -9,6 +9,8 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
+import AiPhase from "../components/AiPhase";
+import { useAiDraft } from "../hooks/useAiStream";
 
 type Tab = "compose" | "history";
 
@@ -28,7 +30,6 @@ export default function Marketing() {
   const toast = useToast();
   const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
-  const [aiBusy, setAiBusy] = useState(false);
 
   const TABS: TabDef<Tab>[] = [
     { key: "compose", label: "New campaign" },
@@ -56,17 +57,12 @@ export default function Marketing() {
 
   const chosen = segments.find((s) => s.key === segment);
 
-  async function draftCopy() {
-    setAiBusy(true);
-    try {
-      const res = await api.post<{ text: string }>("/api/ai/campaign-copy", {
-        name: name || "Pharmacy campaign", channel,
-        segment_label: chosen?.label ?? "patients",
-        goal: goal || "Encourage patients to visit the pharmacy",
-      });
-      setBody(res.text);
-    } catch (e: any) { toast.error(errorText(e)); } finally { setAiBusy(false); }
-  }
+  const ai = useAiDraft(setBody);
+  const draftCopy = () => ai.draft("/api/ai/campaign-copy/stream", {
+    name: name || "Pharmacy campaign", channel,
+    segment_label: chosen?.label ?? "patients",
+    goal: goal || "Encourage patients to visit the pharmacy",
+  });
 
   async function createAndSend(e: FormEvent) {
     e.preventDefault();
@@ -177,8 +173,10 @@ export default function Marketing() {
               )}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button type="button" className="secondary" onClick={draftCopy} disabled={aiBusy}>
-                {aiBusy ? "Writing…" : <><ClaudeIcon size={14} /> Draft with AI</>}
+              {ai.streaming && <AiPhase phase={ai.phase} />}
+              <button type="button" className="secondary"
+                      onClick={ai.streaming ? ai.stop : draftCopy}>
+                {ai.streaming ? "Stop" : <><ClaudeIcon size={14} /> Draft with AI</>}
               </button>
               <button type="submit" disabled={busy || !body.trim() || !(chosen?.size)}>
                 {busy ? "Sending…" : `Send to ${chosen?.size ?? 0}`}

@@ -3,7 +3,7 @@ import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
-import AiOutput from "../components/AiOutput";
+import AiStreamBlock from "../components/AiStreamBlock";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
 import { Label, Patient, Prescription, Sale } from "../types";
@@ -25,8 +25,6 @@ export default function PatientDetail() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [history, setHistory] = useState<HistoryLine[]>([]);
   const [tax, setTax] = useState<any>(null);
-  const [aiSummary, setAiSummary] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
   const TABS: TabDef<Tab>[] = [
     { key: "scripts", label: "Prescriptions", count: scripts.length },
     { key: "history", label: "Dispensing history", count: history.length },
@@ -42,18 +40,6 @@ export default function PatientDetail() {
     api.get<HistoryLine[]>(`/api/reports/patient/${id}/history`).then(setHistory);
     api.get(`/api/reports/patient/${id}/tax`).then(setTax);
   }, [id]);
-
-  async function generateSummary() {
-    setAiBusy(true);
-    try {
-      const res = await api.post<{ text: string }>(`/api/ai/patient-summary/${id}`);
-      setAiSummary(res.text);
-    } catch (e: any) {
-      setAiSummary(`Error: ${e.message}`);
-    } finally {
-      setAiBusy(false);
-    }
-  }
 
   if (!patient) return <DetailSkeleton
         trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "This record" }]}
@@ -112,14 +98,13 @@ export default function PatientDetail() {
 
       <div className="card">
         <h3><ClaudeIcon size={16} /> AI clinical summary</h3>
-        {aiSummary ? <AiOutput text={aiSummary} title="Patient summary" context={`Patient #${id}`} /> : (
-          <p className="muted">Generate a Claude-powered hand-over summary of this patient's medication history and counseling points.</p>
-        )}
-        <div style={{ marginTop: 12 }}>
-          <button className="secondary" onClick={generateSummary} disabled={aiBusy}>
-            {aiBusy ? "Thinking…" : aiSummary ? "Regenerate" : "Generate summary"}
-          </button>
-        </div>
+        <AiStreamBlock
+          path={`/api/ai/patient-summary/${id}/stream`}
+          label="Generate summary"
+          title="Patient summary"
+          context={`Patient #${id}`}
+          empty="A hand-over summary of this patient's medication history and counselling points, written as it is thought."
+        />
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

@@ -1,6 +1,7 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiBase, getToken } from "../api";
 import type { Phase } from "../components/AiPhase";
+import { useTypewriter } from "./useTypewriter";
 
 /** Consume the assistant's answer as it is written.
  *
@@ -24,7 +25,12 @@ export function useAiStream() {
     setPhase({ kind: "idle" });
   }, []);
 
-  const ask = useCallback(async (question: string) => {
+  /** Stream any AI endpoint.
+   *
+   *  Was hardcoded to the assistant's path and a `{question}` body, which is why
+   *  it could only ever serve one screen. Every AI surface now takes the same
+   *  path: same frames, same phases, same abort. */
+  const run = useCallback(async (path: string, body: unknown) => {
     stop();
     const controller = new AbortController();
     abort.current = controller;
@@ -34,13 +40,13 @@ export function useAiStream() {
 
     try {
       const token = getToken();
-      const res = await fetch(`${apiBase}/api/ai/ask/stream`, {
+      const res = await fetch(`${apiBase}${path}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ question }),
+        body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`The assistant is not reachable (${res.status}).`);
@@ -88,5 +94,45 @@ export function useAiStream() {
     }
   }, [stop]);
 
-  return { ask, stop, text, phase, error, streaming: phase.kind !== "idle" };
+  /** Forget the last answer as well as stopping.
+   *  `stop` ends the stream and leaves what was written on screen, which is what
+   *  a Stop button should do. Clearing the basket is a different thing: an
+   *  interaction read for a script that is no longer on screen is worse than
+   *  none, because it looks current. */
+  const reset = useCallback(() => {
+    stop();
+    setText("");
+    setError("");
+  }, [stop]);
+
+  /** The assistant's own call, kept so that page reads as it did. */
+  const ask = useCallback(
+    (question: string) => run("/api/ai/ask/stream", { question }),
+    [run]);
+
+  return { ask, run, stop, reset, text, phase, error, streaming: phase.kind !== "idle" };
+}
+
+/** Stream a draft straight into a form field.
+ *
+ *  For the three screens where the answer is not something to read but something
+ *  to edit and send: a ticket reply, campaign copy. The words land in the
+ *  textarea as they arrive, so the staff member can start reading — and start
+ *  disagreeing — before it has finished, which is most of the value of streaming
+ *  a draft rather than presenting one.
+ *
+ *  The field is the single source of truth once the stream ends: whatever they
+ *  typed over the top is what gets sent, and nothing writes to it afterwards.
+ */
+export function useAiDraft(setField: (value: string) => void) {
+  const { run, stop, text, phase, error, streaming } = useAiStream();
+  const shown = useTypewriter(text, streaming);
+
+  useEffect(() => {
+    // Only while it is streaming. Mirroring after the end would overwrite an
+    // edit the moment the component re-rendered for any other reason.
+    if (streaming) setField(shown);
+  }, [shown, streaming]);
+
+  return { draft: run, stop, phase, error, streaming };
 }

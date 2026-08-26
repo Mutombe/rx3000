@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate, errorText  } from "../api";
-import AiOutput from "../components/AiOutput";
+import AiStreamBlock from "../components/AiStreamBlock";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -40,7 +40,6 @@ export default function Accounts() {
   const [coForm, setCoForm] = useState<any>({ ...EMPTY_CO });
   const [ctForm, setCtForm] = useState<any>({ ...EMPTY_CT });
   const [editingCo, setEditingCo] = useState<Company | null>(null);
-  const [summary, setSummary] = useState<{ name: string; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
 
@@ -158,14 +157,13 @@ export default function Accounts() {
     } catch (err: any) { toast.error(errorText(err)); }
   }
 
-  async function aiSummary(company: Company) {
-    setBusy(true); setSummary({ name: company.name, text: "Thinking…" });
-    try {
-      const res = await api.post<{ text: string }>(`/api/ai/account-summary/${company.id}`);
-      setSummary({ name: company.name, text: res.text });
-    } catch (e: any) {
-      setSummary({ name: company.name, text: `Error: ${e.message}` });
-    } finally { setBusy(false); }
+  /* Opens the card first and streams into it, rather than setting the text to
+     the literal word "Thinking…" and replacing it twelve seconds later. That
+     placeholder was indistinguishable from an answer until it changed, and on a
+     slow line it sat there long enough to be read as one. */
+  const [reviewing, setReviewing] = useState<Company | null>(null);
+  function aiSummary(company: Company) {
+    setReviewing(company);
   }
 
   const setCo = (k: string) => (e: any) => setCoForm({ ...coForm, [k]: e.target.value });
@@ -225,12 +223,19 @@ export default function Accounts() {
         />
       )}
 
-      {summary && (
+      {reviewing && (
         <div className="card">
-          <h3><ClaudeIcon size={16} /> AI account review, {summary.name}</h3>
-          <AiOutput text={summary.text} title="Account summary" context={summary.name} />
+          <h3><ClaudeIcon size={16} /> AI account review, {reviewing.name}</h3>
+          <AiStreamBlock
+            key={reviewing.id}
+            path={`/api/ai/account-summary/${reviewing.id}/stream`}
+            label="Write the review"
+            title="Account summary"
+            context={reviewing.name}
+            empty={`Where the relationship with ${reviewing.name} stands, the risks, and the next actions worth taking.`}
+          />
           <div style={{ marginTop: 10 }}>
-            <button className="secondary small" onClick={() => setSummary(null)}>Dismiss</button>
+            <button className="secondary small" onClick={() => setReviewing(null)}>Dismiss</button>
           </div>
         </div>
       )}

@@ -134,7 +134,10 @@ def _patient_medication_context(db: Session, patient: Patient) -> str:
     )
 
 
-def interaction_check(db: Session, patient: Patient, products: list[Product]) -> str:
+def interaction_check_prompt(db: Session, patient: Patient, products: list[Product]) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     new_meds = "\n".join(
         f"- {p.name} {p.strength} ({p.dosage_form}), schedule S{p.schedule}" for p in products
     )
@@ -146,10 +149,17 @@ def interaction_check(db: Session, patient: Patient, products: list[Product]) ->
         "Give a short verdict first (SAFE TO DISPENSE / DISPENSE WITH COUNSELING / REVIEW REQUIRED), "
         "then bullet findings."
     )
-    return _ask_claude(PHARMACIST_SYSTEM, prompt)
+    return PHARMACIST_SYSTEM, prompt
 
 
-def patient_summary(db: Session, patient: Patient) -> str:
+def interaction_check(db: Session, patient: Patient, products: list[Product]) -> str:
+    return _ask_claude(*interaction_check_prompt(db, patient, products))
+
+
+def patient_summary_prompt(db: Session, patient: Patient) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     recent_sales = (
         db.query(Sale).filter(Sale.patient_id == patient.id, Sale.status == "paid")
         .order_by(Sale.created_at.desc()).limit(10).all()
@@ -165,10 +175,17 @@ def patient_summary(db: Session, patient: Patient) -> str:
         "seeing them for the first time: adherence signals, likely counseling points, "
         "and anything to watch for."
     )
-    return _ask_claude(PHARMACIST_SYSTEM, prompt)
+    return PHARMACIST_SYSTEM, prompt
 
 
-def counseling_notes(product: Product) -> str:
+def patient_summary(db: Session, patient: Patient) -> str:
+    return _ask_claude(*patient_summary_prompt(db, patient))
+
+
+def counseling_notes_prompt(product: Product) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     prompt = (
         f"Medication: {product.name} {product.strength} ({product.dosage_form}), "
         f"schedule S{product.schedule}.\n"
@@ -176,7 +193,11 @@ def counseling_notes(product: Product) -> str:
         "how to take it, common side effects, key warnings, storage. Keep it short "
         "and in plain language suitable for reading to a patient."
     )
-    return _ask_claude(PHARMACIST_SYSTEM, prompt)
+    return PHARMACIST_SYSTEM, prompt
+
+
+def counseling_notes(product: Product) -> str:
+    return _ask_claude(*counseling_notes_prompt(product))
 
 
 def crm_system() -> str:
@@ -212,7 +233,10 @@ def _local_context() -> str:
     )
 
 
-def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str:
+def campaign_copy_prompt(name: str, channel: str, segment_label: str, goal: str) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     limit = ("Keep it under 160 characters, it is an SMS."
              if channel == "sms" else "Write a short email: subject line, then 3-5 short lines.")
     prompt = (
@@ -221,10 +245,17 @@ def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str
         f"{limit} You may use the merge fields {{first_name}}, {{points}} and {{pharmacy}}. "
         "Do not make medical claims or guarantee outcomes. Give the copy only, no commentary."
     )
-    return _ask_claude(crm_system(), prompt)
+    return crm_system(), prompt
 
 
-def ticket_reply(ticket, thread: list) -> str:
+def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str:
+    return _ask_claude(*campaign_copy_prompt(name, channel, segment_label, goal))
+
+
+def ticket_reply_prompt(ticket, thread: list) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     lines = [
         f"{'Customer' if m.from_customer else 'Staff'}: {m.body}"
         for m in thread if not m.internal_note
@@ -238,10 +269,17 @@ def ticket_reply(ticket, thread: list) -> str:
         "state what will happen next, and give a realistic timeframe. If clinical judgement "
         "is needed, say a pharmacist will follow up rather than giving clinical advice."
     )
-    return _ask_claude(crm_system(), prompt)
+    return crm_system(), prompt
 
 
-def account_summary(db: Session, company, deals: list, tickets: list, contacts: list) -> str:
+def ticket_reply(ticket, thread: list) -> str:
+    return _ask_claude(*ticket_reply_prompt(ticket, thread))
+
+
+def account_summary_prompt(db: Session, company, deals: list, tickets: list, contacts: list) -> tuple[str, str]:
+    """The system and user prompt. Built once and used by both transports:
+    the blocking call below and the streaming endpoint. Two copies of a
+    prompt drift until the two answers differ."""
     deal_lines = [
         f"- {d.title}: {settings.CURRENCY}{d.value:.2f}, stage {d.stage}, "
         f"{d.probability}% probability, expected {d.expected_close_date or 'unset'}"
@@ -258,7 +296,11 @@ def account_summary(db: Session, company, deals: list, tickets: list, contacts: 
         "Write a short account review for the account owner: where the relationship stands, "
         "what the risks are, and the two or three highest-value next actions."
     )
-    return _ask_claude(crm_system(), prompt)
+    return crm_system(), prompt
+
+
+def account_summary(db: Session, company, deals: list, tickets: list, contacts: list) -> str:
+    return _ask_claude(*account_summary_prompt(db, company, deals, tickets, contacts))
 
 
 def business_prompt(db: Session, question: str) -> tuple[str, str]:
