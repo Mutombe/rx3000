@@ -33,7 +33,7 @@ def currency_state(db: Session = Depends(get_db)):
 
 @router.get("/rates", response_model=list[schemas.ExchangeRateOut])
 def list_rates(currency_code: str = "", limit: int = 100, db: Session = Depends(get_db)):
-    """Rate history — append-only, newest first."""
+    """Rate history, append-only, newest first."""
     query = db.query(ExchangeRate)
     if currency_code:
         query = query.filter(ExchangeRate.currency_code == currency_code.upper())
@@ -43,7 +43,7 @@ def list_rates(currency_code: str = "", limit: int = 100, db: Session = Depends(
 @router.post("/rates", response_model=schemas.ExchangeRateOut)
 def set_rate(body: schemas.ExchangeRateCreate, db: Session = Depends(get_db),
              user: User = Depends(get_current_user)):
-    """Publish a new rate. Rates are never edited — a correction is a new entry."""
+    """Publish a new rate. Rates are never edited, a correction is a new entry."""
     code = body.currency_code.upper()
     if code == currency.base_code():
         raise HTTPException(status_code=400,

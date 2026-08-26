@@ -28,6 +28,7 @@ import { api, errorText  } from "../api";
 import * as catalogue from "../offline/catalogue";
 import { useConnection } from "./Connection";
 import { useToast } from "./Toast";
+import BusyButton from "./BusyButton";
 
 /* ------------------------------------------------------------------ types */
 
@@ -411,10 +412,10 @@ async function resolveLocally(code: string): Promise<ScanResult> {
     };
   }
 
-  const warnings = ["Offline — stock shown is as at the last sync."];
+  const warnings = ["Offline. Stock shown is as at the last sync."];
   if (hit.schedule >= 5) {
     warnings.push(
-      `Schedule ${hit.schedule} — this cannot be sold at the till, and cannot be `
+      `Schedule ${hit.schedule}. This cannot be sold at the till, and cannot be `
       + "dispensed while the server is unreachable.",
     );
   }
@@ -637,7 +638,7 @@ export function ScanBar({
           />
           <div className="scan-teach-list">
             {(hits.length ? hits : miss.suggestions).map((p) => (
-              <button
+              <BusyButton
                 key={p.id}
                 type="button"
                 className="scan-teach-row"
@@ -645,7 +646,7 @@ export function ScanBar({
               >
                 <span>{p.name}</span>
                 <span className="muted">attach code</span>
-              </button>
+              </BusyButton>
             ))}
           </div>
         </div>

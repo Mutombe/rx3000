@@ -153,7 +153,7 @@ def update_deal(deal_id: int, body: schemas.DealBase, db: Session = Depends(get_
 
 @router.post("/deals/{deal_id}/stage", response_model=schemas.DealOut)
 def move_deal(deal_id: int, body: schemas.DealStageUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Move a deal along the pipeline — the kanban drag/drop target."""
+    """Move a deal along the pipeline, the kanban drag/drop target."""
     deal = db.get(Deal, deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -198,7 +198,7 @@ def get_deal(deal_id: int, db: Session = Depends(get_db)):
 
 @router.post("/deals/{deal_id}/items", response_model=schemas.DealOut)
 def add_deal_item(deal_id: int, body: schemas.DealItemIn, db: Session = Depends(get_db)):
-    """Add a product line — the opportunity value is recalculated from its lines."""
+    """Add a product line. The opportunity value is recalculated from its lines."""
     deal = db.get(Deal, deal_id)
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
@@ -362,7 +362,7 @@ def timeline(
     deal_id: int | None = None, patient_id: int | None = None,
     db: Session = Depends(get_db),
 ):
-    """Unified activity feed for a record — the 360 view."""
+    """Unified activity feed for a record, the 360 view."""
     query = db.query(Activity)
     filters = []
     if company_id:
@@ -389,7 +389,7 @@ def timeline(
 
 @router.get("/companies/{company_id}/overview")
 def company_overview(company_id: int, db: Session = Depends(get_db)):
-    """Everything about an account on one call — the Salesforce account page."""
+    """Everything about an account on one call, the Salesforce account page."""
     company = db.get(Company, company_id)
     if not company:
         raise HTTPException(status_code=404, detail="Company not found")

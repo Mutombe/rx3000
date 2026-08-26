@@ -7,6 +7,15 @@ import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights, Path } from "../components/record";
 import { Deal, Product, Quote, TimelineEntry } from "../types";
+import IconButton from "../components/IconButton";
+import {
+  ArrowLeft,
+  CalendarBlank,
+  CheckSquare,
+  PencilSimpleLine,
+  PhoneCall,
+} from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 
 type Tab = "lines" | "quotes" | "activity";
 
@@ -173,7 +182,7 @@ export default function DealDetail() {
             </div>
           </div>
         </div>
-        <Link to="/pipeline" className="btn secondary">← Opportunities</Link>
+        <Link to="/pipeline" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Opportunities</Link>
       </div>
 
       <div className="card record-hero">
@@ -188,7 +197,7 @@ export default function DealDetail() {
         ]} />
         {deal.stage !== "lost" && (
           <div className="record-exit">
-            <button className="secondary small" onClick={() => moveStage("lost")}>Mark closed lost</button>
+            <BusyButton className="secondary small" onClick={() => moveStage("lost")}>Mark closed lost</BusyButton>
             <span className="muted">Closing lost asks for a reason and logs it to the timeline</span>
           </div>
         )}
@@ -200,7 +209,7 @@ export default function DealDetail() {
           <div className="card">
             <h3>Line items</h3>
             <table>
-              <thead><tr><th>Description</th><th className="num">Qty</th><th className="num">Unit</th><th className="num">Disc.</th><th className="num">Total</th><th></th></tr></thead>
+              <thead><tr><th>Description</th><th className="num">Qty</th><th className="num">Unit</th><th className="num">Disc.</th><th className="num">Total</th><th className="actions" /></tr></thead>
               <tbody>
                 {deal.items.map((i) => (
                   <tr key={i.id}>
@@ -209,12 +218,12 @@ export default function DealDetail() {
                     <td className="num">{money(i.unit_price)}</td>
                     <td className="num">{i.discount_percent ? `${i.discount_percent}%` : "—"}</td>
                     <td className="num"><b>{money(i.line_total)}</b></td>
-                    <td className="right"><button className="ghost small" onClick={() => removeLine(i.id)}>✕</button></td>
+                    <td className="right"><IconButton action="remove" danger title="Remove this line" onClick={() => removeLine(i.id)} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {deal.items.length === 0 && <div className="empty">No line items — the deal value is entered manually</div>}
+            {deal.items.length === 0 && <div className="empty">No line items. The deal value is entered manually</div>}
 
             <form onSubmit={addLine} style={{ marginTop: 14, borderTop: "1px solid rgba(28,29,27,0.08)", paddingTop: 14 }}>
               <div className="field">
@@ -259,7 +268,7 @@ export default function DealDetail() {
               {deal.items.length === 0 && <span className="muted">Add line items first</span>}
             </div>
             <table>
-              <thead><tr><th>Quote</th><th>Version</th><th className="num">Total</th><th>Valid until</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Quote</th><th>Version</th><th className="num">Total</th><th>Valid until</th><th>Status</th><th className="actions" /></tr></thead>
               <tbody>
                 {quotes.map((qt) => (
                   <tr key={qt.id}>
@@ -274,11 +283,11 @@ export default function DealDetail() {
                     </td>
                     <td className="right" style={{ whiteSpace: "nowrap" }}>
                       <button className="ghost small" onClick={() => printQuote(qt)}>🖨</button>
-                      {qt.status === "draft" && <button className="ghost small" onClick={() => setQuoteStatus(qt, "sent")}>Send</button>}
+                      {qt.status === "draft" && <BusyButton className="ghost small" onClick={() => setQuoteStatus(qt, "sent")}>Send</BusyButton>}
                       {qt.status === "sent" && (
                         <>
-                          <button className="ghost small" onClick={() => setQuoteStatus(qt, "accepted")}>Accept</button>
-                          <button className="ghost small" onClick={() => setQuoteStatus(qt, "declined")}>Decline</button>
+                          <BusyButton className="ghost small" onClick={() => setQuoteStatus(qt, "accepted")}>Accept</BusyButton>
+                          <BusyButton className="ghost small" onClick={() => setQuoteStatus(qt, "declined")}>Decline</BusyButton>
                         </>
                       )}
                     </td>
@@ -297,7 +306,7 @@ export default function DealDetail() {
             <form onSubmit={addNote} style={{ marginBottom: 14 }}>
               <div className="field"><label>Note</label>
                 <input value={note} onChange={(e) => setNote(e.target.value)}
-                  placeholder="e.g. Called the finance manager — budget confirmed" /></div>
+                  placeholder="e.g. Called the finance manager, budget confirmed" /></div>
               <button className="secondary small" type="submit">Add note</button>
             </form>
             <form onSubmit={addTask}>
@@ -319,7 +328,10 @@ export default function DealDetail() {
                 {timeline.map((t) => (
                   <tr key={t.id}>
                     <td style={{ width: 30 }}>
-                      {t.type === "task" ? "☑" : t.type === "call" ? "☏" : t.type === "meeting" ? "▣" : "✎"}
+                      {t.type === "task" ? <CheckSquare size={14} />
+                      : t.type === "call" ? <PhoneCall size={14} />
+                      : t.type === "meeting" ? <CalendarBlank size={14} />
+                      : <PencilSimpleLine size={14} />}
                     </td>
                     <td>
                       <b>{t.subject}</b>

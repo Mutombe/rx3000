@@ -35,7 +35,19 @@ interface Line {
   reason_code: string; reason: string; status: string;
   written_off: boolean; patient_billed: boolean; resolution_note: string;
 }
-interface Outstanding { count: number; total: number; showing: number; lines: Line[] }
+/** The open shortfalls, a page at a time.
+ *
+ *  `outstanding_count` and `outstanding_total` are over every open line, not over
+ *  this page — they are what the pharmacy is owed, and the pager must never be
+ *  able to change them. They are named apart from the envelope's own `total`
+ *  (which counts rows) because the two were briefly the same key, and a money
+ *  value answering "how many rows" is a wrong number that looks right. */
+interface Outstanding extends Paged<Line> {
+  outstanding_count: number;
+  outstanding_total: number;
+  showing: number;
+  lines: Line[];
+}
 interface Advice {
   id: number; remittance_number: string; funder_id: string;
   payment_date: string | null; payment_reference: string; currency_code: string;
@@ -55,6 +67,7 @@ export default function Remittances() {
     setParams(t === "outstanding" ? {} : { tab: t }, { replace: true });
 
   const [open, setOpen] = useState<Outstanding | null>(null);
+  const [openPage, setOpenPage] = useState(1);
   const [advices, setAdvices] = useState<Advice[]>([]);
   const [adviceMeta, setAdviceMeta] = useState<Paged<Advice> | null>(null);
   const [advicePage, setAdvicePage] = useState(1);
@@ -71,8 +84,13 @@ export default function Remittances() {
   const [content, setContent] = useState("");
 
   const load = useCallback(() => {
-    api.get<Outstanding>("/api/remittances/outstanding?limit=200")
-      .then(setOpen)
+    api.get<Outstanding>(`/api/remittances/outstanding?page=${openPage}&per_page=25`)
+      .then((res) => {
+        setOpen(res);
+        // A page that no longer exists (the last shortfall on it was just
+        // settled) must not leave the table empty with no way back.
+        if (res.page !== openPage) setOpenPage(res.page);
+      })
       .catch((e) => toast.error(errorText(e, "The outstanding shortfalls could not be listed.")));
     api.get<Paged<Advice>>(
       `/api/remittances/paged?page=${advicePage}&per_page=25`
@@ -84,7 +102,7 @@ export default function Remittances() {
       })
       .catch(() => undefined);
     api.get<Reason[]>("/api/remittances/reasons/vocabulary").then(setReasons).catch(() => undefined);
-  }, [toast, advicePage, settledSearch]);
+  }, [toast, advicePage, settledSearch, openPage]);
 
   useEffect(load, [load]);
 
@@ -168,7 +186,7 @@ export default function Remittances() {
       <div className="pill-tabs">
         <button className={tab === "outstanding" ? "active" : ""}
           onClick={() => setTab("outstanding")}>
-          Money in the air{open ? ` (${open.count})` : ""}
+          Money in the air{open ? ` (${open.outstanding_count})` : ""}
         </button>
         <button className={tab === "advices" ? "active" : ""} onClick={() => setTab("advices")}>
           Advices
@@ -181,36 +199,49 @@ export default function Remittances() {
       {tab === "outstanding" && (
         <div className="card">
           <h3>Shortfalls not yet settled</h3>
-          {!open ? <TableSkeleton cols={5} rows={5} /> : open.count === 0 ? (
+          {!open ? <TableSkeleton cols={5} rows={5} /> : open.outstanding_count === 0 ? (
             <p className="st-note is-ok">
               Every shortfall has been billed or written off. Nothing is in the air.
             </p>
           ) : (
             <>
               <p className="muted">
-                {open.count} line(s), {money(open.total)} between what was claimed
+                {open.outstanding_count} line(s), {money(open.outstanding_total)} between what was claimed
                 and what was paid. Each one is owed by the patient, or by nobody.
                 {/* The count and the money are over everything open; the table
                     below is the worst of them. Reporting the cap as the total is
                     how this endpoint said $70,000 when $98,096 was outstanding. */}
-                {open.showing < open.count && (
-                  <> Showing the {open.showing} largest.</>
+                {open.outstanding_count > open.showing && (
+                  <> Largest first, showing {open.showing} of them on this page.</>
                 )}
               </p>
               <div className="cu-scroll">
                 <table>
                   <thead>
                     <tr>
-                      <th>Claim</th><th>Member</th><th>Service</th>
+                      {/* Member folded into the claim cell. It was a column of
+                          em-dashes taking 130px from the scheme's reason, which
+                          was being clipped to "Reduced by…" — the one column on
+                          this table somebody actually has to read before
+                          deciding who pays. */}
+                      <th>Claim</th><th>Service</th>
                       <th className="num">Claimed</th><th className="num">Paid</th>
-                      <th className="num">Short</th><th>Scheme's reason</th><th />
+                      <th className="num">Short</th><th>Scheme's reason</th><th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
                     {open.lines.map((l) => (
                       <tr key={l.id}>
-                        <td className="mono">{l.claim_reference}</td>
-                        <td><span className="clip" title={l.member_name}>{l.member_name || <span className="muted">—</span>}</span></td>
+                        <td>
+                          <span className="clip mono" title={l.claim_reference}>
+                            {l.claim_reference}
+                          </span>
+                          {l.member_name && (
+                            <span className="clip muted small" title={l.member_name}>
+                              {l.member_name}
+                            </span>
+                          )}
+                        </td>
                         <td>{l.service_date ? fmtDate(l.service_date) : "—"}</td>
                         <td className="num">{money(l.amount_claimed)}</td>
                         <td className="num">{money(l.amount_paid)}</td>
@@ -238,6 +269,7 @@ export default function Remittances() {
                   </tbody>
                 </table>
               </div>
+              <Pagination meta={open} onPage={setOpenPage} noun="shortfalls" />
             </>
           )}
         </div>

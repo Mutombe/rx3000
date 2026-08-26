@@ -7,6 +7,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, getToken, money, errorText  } from "../api";
 import { AuditEntry, AutomationRule, Backup, EmailTemplate, PriceImportResult, User } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import BusyButton from "../components/BusyButton";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -131,7 +135,7 @@ export default function Admin() {
     try {
       const r = await api.post<{ rx_number: string; message: string }>(
         `/api/portal-admin/submitted/${id}/accept`);
-      toast.ok(`${r.rx_number} — ${r.message}`);
+      toast.ok(`${r.rx_number}: ${r.message}`);
       // Drop it from the queue immediately; the server has already moved it on.
       setSubmitted((all) => all.filter((s) => s.id !== id));
     } catch (e: any) {
@@ -175,7 +179,7 @@ export default function Admin() {
   }
   async function runEscalations() {
     const res = await api.post<{ escalated: number }>("/api/crm/automation/run-escalations");
-    toast.ok(`Escalation pass complete — ${res.escalated} ticket(s) escalated.`);
+    toast.ok(`Escalation pass complete. ${res.escalated} ticket(s) escalated.`);
   }
 
   function loadAudit() {
@@ -273,14 +277,14 @@ export default function Admin() {
             <h3>Automation rules</h3>
             <p className="muted">
               Rules run automatically when a lead or ticket is created, or when a deal changes stage.
-              They are evaluated in order — the first match wins for assignment; scoring rules all apply.
+              They are evaluated in order. The first match wins for assignment; scoring rules all apply.
             </p>
             <div className="toolbar" style={{ marginTop: 12 }}>
               <button className="secondary" onClick={runEscalations}>Run SLA escalation pass now</button>
               <span className="muted">Also runs automatically with the reminder jobs</span>
             </div>
             <table>
-              <thead><tr><th>Rule</th><th>Type</th><th>When</th><th>Then</th><th className="num">Fired</th><th>Active</th><th></th></tr></thead>
+              <thead><tr><th>Rule</th><th>Type</th><th>When</th><th>Then</th><th className="num">Fired</th><th>Active</th><th className="actions" /></tr></thead>
               <tbody>
                 {rules.map((r) => (
                   <tr key={r.id}>
@@ -294,11 +298,11 @@ export default function Admin() {
                     </td>
                     <td className="num">{r.times_fired}</td>
                     <td>
-                      <button className={`small ${r.active ? "" : "secondary"}`} onClick={() => toggleRule(r)}>
+                      <BusyButton className={`small ${r.active ? "" : "secondary"}`} onClick={() => toggleRule(r)}>
                         {r.active ? "on" : "off"}
-                      </button>
+                      </BusyButton>
                     </td>
-                    <td className="right"><button className="ghost small" onClick={() => deleteRule(r)}>✕</button></td>
+                    <td className="right"><IconButton action="delete" danger title="Delete this rule" onClick={() => deleteRule(r)} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -313,9 +317,11 @@ export default function Admin() {
                 <input value={newRule.name} onChange={(e) => setNewRule({ ...newRule, name: e.target.value })} /></div>
               <div className="field">
                 <label>Type</label>
-                <select value={newRule.rule_type} onChange={(e) => setNewRule({ ...newRule, rule_type: e.target.value })}>
-                  {RULE_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+                <Select
+                  value={String(newRule.rule_type ?? "")}
+                  onChange={(__value) => setNewRule({ ...newRule, rule_type: __value })}
+                  options={[...RULE_TYPES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                />
               </div>
             </div>
             <div className="form-row">
@@ -327,10 +333,11 @@ export default function Admin() {
                   onChange={(e) => setNewRule({ ...newRule, trigger_value: e.target.value })} /></div>
               <div className="field"><label>Then value</label>
                 {newRule.rule_type.includes("assignment") ? (
-                  <select value={newRule.action_value} onChange={(e) => setNewRule({ ...newRule, action_value: e.target.value })}>
-                    <option value="">Choose user…</option>
-                    {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                  </select>
+                  <Select
+                    value={String(newRule.action_value ?? "")}
+                    onChange={(__value) => setNewRule({ ...newRule, action_value: __value })}
+                    options={[{ value: "", label: "Choose user…" }, ...users.map((u) => ({ value: String(u.id), label: u.full_name }))]}
+                  />
                 ) : (
                   <input value={newRule.action_value} placeholder="score delta / priority / task subject"
                     onChange={(e) => setNewRule({ ...newRule, action_value: e.target.value })} />
@@ -375,16 +382,19 @@ export default function Admin() {
                 <input value={newTemplate.name} onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })} /></div>
               <div className="field">
                 <label>Category</label>
-                <select value={newTemplate.category} onChange={(e) => setNewTemplate({ ...newTemplate, category: e.target.value })}>
-                  <option value="campaign">Campaign</option><option value="ticket">Ticket reply</option>
-                  <option value="deal">Deal / proposal</option><option value="general">General</option>
-                </select>
+                <Select
+                  value={String(newTemplate.category ?? "")}
+                  onChange={(__value) => setNewTemplate({ ...newTemplate, category: __value })}
+                  options={[{ value: "campaign", label: "Campaign" }, { value: "ticket", label: "Ticket reply" }, { value: "deal", label: "Deal / proposal" }, { value: "general", label: "General" }]}
+                />
               </div>
               <div className="field">
                 <label>Channel</label>
-                <select value={newTemplate.channel} onChange={(e) => setNewTemplate({ ...newTemplate, channel: e.target.value })}>
-                  <option value="sms">SMS</option><option value="email">Email</option>
-                </select>
+                <Select
+                  value={String(newTemplate.channel ?? "")}
+                  onChange={(__value) => setNewTemplate({ ...newTemplate, channel: __value })}
+                  options={[{ value: "sms", label: "SMS" }, { value: "email", label: "Email" }]}
+                />
               </div>
             </div>
             {newTemplate.channel === "email" && (
@@ -392,7 +402,7 @@ export default function Admin() {
                 <input value={newTemplate.subject} onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })} /></div>
             )}
             <div className="field">
-              <label>Body — merge fields <span className="mono">{"{first_name} {points} {pharmacy}"}</span></label>
+              <label>Body, merge fields <span className="mono">{"{first_name} {points} {pharmacy}"}</span></label>
               <textarea rows={4} value={newTemplate.body}
                 onChange={(e) => setNewTemplate({ ...newTemplate, body: e.target.value })} />
             </div>
@@ -424,14 +434,8 @@ export default function Admin() {
                 hint="From the supplier, or a regulated price list"
                 onFile={(text) => { setCsv(text); setResult(null); }}
               />
-              <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
-                <input type="checkbox" checked={updateCost} onChange={(e) => setUpdateCost(e.target.checked)} />
-                Update cost prices
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
-                <input type="checkbox" checked={updateSelling} onChange={(e) => setUpdateSelling(e.target.checked)} />
-                Update selling prices
-              </label>
+              <Checkbox checked={updateCost} onChange={setUpdateCost}>Update cost prices</Checkbox>
+              <Checkbox checked={updateSelling} onChange={setUpdateSelling}>Update selling prices</Checkbox>
             </div>
             <div className="field">
               <label>CSV content</label>
@@ -450,7 +454,7 @@ export default function Admin() {
 
           {result && (
             <div className="card">
-              <h3>{result.applied ? "Applied" : "Preview"} — {result.matched} matched, {result.unmatched} unmatched</h3>
+              <h3>{result.applied ? "Applied" : "Preview"}: {result.matched} matched, {result.unmatched} unmatched</h3>
               {(showsSep || showsMmap) && (
                 // Said explicitly, because it is the one thing about this import
                 // that is not obvious: a published ceiling is not a price to
@@ -458,7 +462,7 @@ export default function Admin() {
                 // mistake this file used to make.
                 <p className="muted small">
                   SEP and MMAP are recorded as published figures. They do not
-                  change what the pharmacy charges — see the “Prices above the
+                  change what the pharmacy charges, see the “Prices above the
                   published maximum” report for anything now over its ceiling.
                 </p>
               )}
@@ -522,14 +526,14 @@ export default function Admin() {
         <div className="card">
           <p className="muted small">
             Prescriptions sent in by doctors through the prescriber portal. Nothing
-            here can be dispensed until a pharmacist accepts it — the prescriber
+            here can be dispensed until a pharmacist accepts it, the prescriber
             cannot see your stock, the funder rules, or the patient at the counter.
           </p>
           <table>
             <thead>
               <tr>
                 <th>Sent</th><th>Prescriber</th><th>Patient</th>
-                <th>Medicines</th><th />
+                <th>Medicines</th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -549,15 +553,15 @@ export default function Admin() {
                   <td>
                     {r.items.map((i, n) => (
                       <div key={n}>
-                        <b>{i.product}</b> — {i.instructions}{" "}
+                        <b>{i.product}</b>: {i.instructions}{" "}
                         <span className="muted">×{i.quantity}</span>
                       </div>
                     ))}
                   </td>
                   <td className="right">
-                    <button className="btn primary small" onClick={() => acceptScript(r.id)}>
+                    <BusyButton className="btn primary small" onClick={() => acceptScript(r.id)}>
                       Accept
-                    </button>
+                    </BusyButton>
                   </td>
                 </tr>
               ))}
@@ -572,13 +576,11 @@ export default function Admin() {
       {tab === "switch" && (
         <div className="card">
           <div className="toolbar">
-            <select value={txnKind} onChange={(e) => setTxnKind(e.target.value)}>
-              <option value="">All kinds</option>
-              <option value="claim">Claim</option>
-              <option value="eligibility">Eligibility</option>
-              <option value="authorisation">Authorisation</option>
-              <option value="reversal">Reversal</option>
-            </select>
+            <Select
+              value={String(txnKind ?? "")}
+              onChange={(__value) => setTxnKind(__value)}
+              options={[{ value: "", label: "All kinds" }, { value: "claim", label: "Claim" }, { value: "eligibility", label: "Eligibility" }, { value: "authorisation", label: "Authorisation" }, { value: "reversal", label: "Reversal" }]}
+            />
           </div>
           <p className="muted small">
             Every request this pharmacy sent to a switch, and what came back. When a
@@ -626,14 +628,10 @@ export default function Admin() {
       {tab === "notices" && (
         <div className="card">
           <div className="toolbar">
-            <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
-              <input type="checkbox" style={{ width: "auto" }} checked={noticeActive}
-                onChange={(e) => setNoticeActive(e.target.checked)} />
-              Active only
-            </label>
+            <Checkbox checked={noticeActive} onChange={setNoticeActive}>Active only</Checkbox>
           </div>
           <p className="muted small">
-            Notices raised at the counter — the warnings a dispenser sees against a
+            Notices raised at the counter. The warnings a dispenser sees against a
             patient, a product or a funder. Expired ones are kept, because why a
             warning was shown last month is a question that gets asked.
           </p>
@@ -740,7 +738,7 @@ export default function Admin() {
             <thead>
               <tr>
                 <th>File</th><th>Created</th><th className="num">Size</th>
-                <th>Restorable</th><th></th>
+                <th>Restorable</th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -762,18 +760,16 @@ export default function Admin() {
                     )}
                   </td>
                   <td className="right">
-                    <button className="small ghost" onClick={() => recheck(b.filename)}>
+                    <BusyButton className="small ghost" onClick={() => recheck(b.filename)}>
                       Check
-                    </button>
-                    <button className="small secondary" onClick={() => download(b.filename)}>
-                      Download
-                    </button>
+                    </BusyButton>
+                    <IconButton action="download" onClick={() => download(b.filename)} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {backups.length === 0 && <div className="empty">No backups yet — create one now or wait for tonight's run.</div>}
+          {backups.length === 0 && <div className="empty">No backups yet. Create one now or wait for tonight's run.</div>}
         </div>
       )}
     </>

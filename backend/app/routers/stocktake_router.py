@@ -88,7 +88,7 @@ def open_take(body: OpenIn, db: Session = Depends(get_db),
             status_code=409,
             detail=(
                 f"{existing.reference} is already open for this branch. Close or "
-                "abandon it before starting another — two counts over the same "
+                "abandon it before starting another, two counts over the same "
                 "shelves will contradict each other."
             ),
         )

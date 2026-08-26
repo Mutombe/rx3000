@@ -6,6 +6,9 @@ import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, PurchaseOrder } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
+import { useClientPage } from "../hooks/useClientPage";
+import { Lightning } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 
 interface ReceiveLine {
   item_id: number;
@@ -23,6 +26,8 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
   const [lowStock, setLowStock] = useState<Product[]>([]);
+  // A reorder sheet needs every shortfall to decide from; the DOM does not.
+  const lowStockRows = useClientPage<Product>(lowStock, 25);
   const [expanded, setExpanded] = useState<number | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -56,7 +61,7 @@ export default function Orders() {
     setBusy(true);
     try {
       const created = await api.post<PurchaseOrder[]>("/api/orders/suggest");
-      toast.ok(created.length ? `Created ${created.length} draft order(s) from reorder levels.` : "Nothing at reorder level — no orders needed.");
+      toast.ok(created.length ? `Created ${created.length} draft order(s) from reorder levels.` : "Nothing at reorder level, no orders needed.");
       load();
     } catch (e: any) {
       toast.error(errorText(e));
@@ -95,7 +100,7 @@ export default function Orders() {
         })),
       });
       setReceiving(null);
-      toast.ok("Stock received — batches created and quantities updated.");
+      toast.ok("Stock received, batches created and quantities updated.");
       load();
     } catch (e: any) {
       toast.error(errorText(e));
@@ -112,7 +117,7 @@ export default function Orders() {
           <h1>Procurement</h1>
           <div className="sub">Purchase orders fully integrated with stock control</div>
         </div>
-        <button onClick={generate} disabled={busy}>{busy ? "Working…" : "⚡ Generate from reorder levels"}</button>
+        <button onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
@@ -127,7 +132,7 @@ export default function Orders() {
             <table>
               <thead>
                 <tr><th></th><th>Order</th><th>Supplier</th><th>Status</th><th>Raised</th>
-                  <th className="num">Lines</th><th className="num">Value</th><th></th></tr>
+                  <th className="num">Lines</th><th className="num">Value</th><th className="actions" /></tr>
               </thead>
               <tbody>
                 {orders.map((o) => {
@@ -143,11 +148,11 @@ export default function Orders() {
                         <td className="muted">{fmtDateTime(o.created_at)}</td>
                         <td className="num">{o.items.length}</td>
                         <td className="num">{money(value)}</td>
-                        <td className="right" style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
-                          {o.status === "draft" && <button className="small" onClick={() => setStatus(o, "sent")}>Send</button>}
+                        <td className="actions" onClick={(e) => e.stopPropagation()}>
+                          {o.status === "draft" && <BusyButton className="small" onClick={() => setStatus(o, "sent")}>Send</BusyButton>}
                           {o.status === "sent" && <button className="small" onClick={() => openReceive(o)}>Receive</button>}
                           {o.status !== "received" && o.status !== "cancelled" && (
-                            <button className="ghost small" onClick={() => setStatus(o, "cancelled")}>Cancel</button>
+                            <BusyButton className="ghost small" onClick={() => setStatus(o, "cancelled")}>Cancel</BusyButton>
                           )}
                         </td>
                       </tr>
@@ -183,7 +188,7 @@ export default function Orders() {
           )}
         </Refreshable>
           {orders.length === 0 && (
-            <div className="empty">No purchase orders yet — generate them from reorder levels.</div>
+            <div className="empty">No purchase orders yet, generate them from reorder levels.</div>
           )}
         </div>
       )}
@@ -193,7 +198,7 @@ export default function Orders() {
           <table>
             <thead><tr><th>Product</th><th className="num">On hand</th><th className="num">Reorder level</th><th className="num">Suggested qty</th></tr></thead>
             <tbody>
-              {lowStock.map((p) => (
+              {lowStockRows.items.map((p: Product) => (
                 <tr key={p.id}>
                   <td>{p.name} {p.strength}</td>
                   <td className="num"><span className="badge danger">{p.quantity_on_hand}</span></td>
@@ -203,6 +208,7 @@ export default function Orders() {
               ))}
             </tbody>
           </table>
+          <Pagination meta={lowStockRows.meta} onPage={lowStockRows.setPage} noun="products" />
           {lowStock.length === 0 && <div className="empty">Nothing is at or below its reorder level</div>}
         </div>
       )}

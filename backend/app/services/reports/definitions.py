@@ -390,7 +390,7 @@ register(Report(
     key="reorder_suggestions",
     title="Reorder suggestions",
     module="Stock",
-    purpose="What to order, how much, and from whom — everything at or below "
+    purpose="What to order, how much, and from whom, everything at or below "
             "its reorder level.",
     params=[BRANCH],
     columns=[
@@ -3859,7 +3859,7 @@ register(Report(
     title="Held claims",
     module="Claims",
     purpose="Claims not submitted, and why they were held. The switch was "
-            "down, a card was absent — every one is revenue waiting on "
+            "down, a card was absent. Every one is revenue waiting on "
             "somebody to come back to it.",
     params=[],
     columns=[
@@ -4798,7 +4798,7 @@ register(Report(
     title="Stock take variance",
     module="Stock",
     purpose="What the shelves held against what the system believed. This is "
-            "where shrinkage becomes visible — a till can reconcile perfectly "
+            "where shrinkage becomes visible. A till can reconcile perfectly "
             "while stock walks out of the back.",
     params=[DATE_FROM, DATE_TO],
     step_up=True,
@@ -4946,8 +4946,8 @@ register(Report(
     title="Prices above the published maximum",
     module="Stock",
     purpose="Every product being sold for more than its published ceiling. An "
-            "empty list here means one of two things — nothing is overpriced, or "
-            "no ceilings have been imported — so read it next to 'Published "
+            "empty list here means one of two things, nothing is overpriced, or "
+            "no ceilings have been imported. So read it next to 'Published "
             "price coverage'.",
     params=[
         Param("basis", "Compare against", "select", default="sep", options=lambda db: [
@@ -5066,7 +5066,7 @@ register(Report(
     title="Scheme exposure against credit limit",
     module="Claims",
     purpose="What each scheme owes, against what the pharmacy agreed to carry. "
-            "A limit of zero means none has been set — it is not a limit of "
+            "A limit of zero means none has been set, it is not a limit of "
             "nothing, and those rows are marked rather than treated as breaches. "
             "Counted from the claims themselves; 'Who owes us' counts the same "
             "money from the posted ledger, so the two answer slightly differently "

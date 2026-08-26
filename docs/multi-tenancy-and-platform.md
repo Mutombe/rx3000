@@ -1,6 +1,6 @@
-# Running RX3000 for many pharmacies
+# Running RX5000 for many pharmacies
 
-Where this starts from, because it decides everything after it: **RX3000 is
+Where this starts from, because it decides everything after it: **RX5000 is
 single-tenant today.** One deployment is one pharmacy. `Branch` models a chain's
 own branches, `Company` is a CRM customer record, and all 289 routes query
 without any notion of who is asking. Drivers already exist as staff users
@@ -51,10 +51,10 @@ What it costs, honestly:
 Rough shape:
 
     platform            tenants, plans, subscriptions, invoices, identities, grants
-    tenant_greenwood    the whole RX3000 schema
-    tenant_bulawayo     the whole RX3000 schema
+    tenant_greenwood    the whole RX5000 schema
+    tenant_bulawayo     the whole RX5000 schema
 
-Tenant resolution per request, in order: subdomain (greenwood.rx3000.co.zw), then
+Tenant resolution per request, in order: subdomain (greenwood.rx5000.co.zw), then
 the tenant claim in the token. The app then runs exactly as it does now.
 
 ---
@@ -110,7 +110,7 @@ unreachable.
 
 The driver app itself should be small and offline-tolerant: today's runs, proof of
 delivery, a signature, and a queue that syncs when there is signal. It needs
-almost none of RX3000, which is an argument for a separate lightweight app rather
+almost none of RX5000, which is an argument for a separate lightweight app rather
 than a role inside the main one.
 
 ---

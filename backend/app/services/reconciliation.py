@@ -1,7 +1,7 @@
 """Card settlement reconciliation.
 
 An acquirer settles in batches and sends a statement — a CSV listing every
-approved transaction. This matches that file against the card sales RX3000
+approved transaction. This matches that file against the card sales RX5000
 recorded, so the pharmacy can see exactly which takings banked, which are
 missing, and where the amounts disagree.
 
@@ -81,9 +81,9 @@ def parse_statement(csv_text: str) -> tuple[list[dict], list[str]]:
     mapping = {name: _normalise_header(name) for name in reader.fieldnames}
     found = set(mapping.values())
     if "amount" not in found:
-        warnings.append("No amount column found — every line will be unmatched")
+        warnings.append("No amount column found, every line will be unmatched")
     if not ({"auth_code", "reference"} & found):
-        warnings.append("No auth code or reference column — matching falls back to amount only")
+        warnings.append("No auth code or reference column, matching falls back to amount only")
 
     rows: list[dict] = []
     for line_no, raw in enumerate(reader, start=2):

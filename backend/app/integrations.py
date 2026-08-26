@@ -1,6 +1,6 @@
 """The register of external integrations, and the guard that keeps simulators out of production.
 
-RX3000 is sold to pharmacies, not installed once in-house, so two failure modes
+RX5000 is sold to pharmacies, not installed once in-house, so two failure modes
 matter more here than in a bespoke system:
 
 * **A simulator reaching a live counter.** Every simulator in this codebase
@@ -89,7 +89,7 @@ def require_live(key: str) -> None:
     needed = "; ".join(integration.blocked_on) or "a real driver"
     raise NotLiveError(
         f"{integration.name} is {integration.state} and this installation is "
-        f"configured as production (RX3000_ENV={settings.ENVIRONMENT}). It will "
+        f"configured as production (RX5000_ENV={settings.ENVIRONMENT}). It will "
         f"not be used for live transactions. To finish it: {needed}."
     )
 
@@ -176,13 +176,13 @@ register(Integration(
 ))
 
 # ZIMRA publishes no driver. There are three real routes to the same obligation,
-# and a pharmacy picks one before RX3000 is installed — so all three are
+# and a pharmacy picks one before RX5000 is installed — so all three are
 # registered, rather than one being treated as "the" integration.
 register(Integration(
     key="fiscal.external", name="Approved Supplier fiscal device", category="fiscal",
     state="live", module="app/services/fiscal_devices.py:ExternalFiscalDevice",
-    notes="The device fiscalises; RX3000 files nothing and does not pretend to. "
-          "Nothing to implement — but the pharmacy must procure and register the "
+    notes="The device fiscalises; RX5000 files nothing and does not pretend to. "
+          "Nothing to implement, but the pharmacy must procure and register the "
           "device through a ZIMRA Approved Supplier and declare it with "
           "FISCAL_SUPPLIER and FISCAL_DEVICE_SERIAL, or the record cannot say "
           "which device carries the obligation.",
@@ -199,7 +199,7 @@ register(Integration(
              "counter and without a hosted intermediary.",
     notes="The route for an operator large enough to own the integration. "
           "Smaller pharmacies should use fiscal.external or fiscal.cloudesd "
-          "instead — both discharge the same obligation.",
+          "instead, both discharge the same obligation.",
 ))
 
 register(Integration(
@@ -216,11 +216,11 @@ register(Integration(
     key="payment.paynow", name="Paynow (EcoCash / OneMoney)", category="payment",
     state="unproven", module="device-agent/drivers.py:PaynowDriver",
     blocked_on=("A Paynow merchant account, and its integration id and key",
-                "PAYNOW_AUTH_EMAIL — Paynow rejects mobile transactions without one",
+                "PAYNOW_AUTH_EMAIL, Paynow rejects mobile transactions without one",
                 "One real end-to-end transaction: push, approve on the handset, "
                 "poll to paid, and confirm the money arrived"),
     unblocks="EcoCash and OneMoney taken at the till instead of by hand.",
-    notes="Implemented in full from Paynow's published SDK — initiate, poll, "
+    notes="Implemented in full from Paynow's published SDK, initiate, poll, "
           "SHA-512 hashing and reply verification. It has never made a request "
           "to paynow.co.zw. The code is finished; the integration is not.",
 ))
@@ -228,7 +228,7 @@ register(Integration(
 register(Integration(
     key="payment.billpay", name="Paynow BillPay (bill payments at the counter)",
     category="payment", state="blocked",
-    module="device-agent/drivers.py — not started",
+    module="device-agent/drivers.py, not started",
     blocked_on=("A BillPay vendor account, obtained through support@paynow.co.zw",
                 "Their vendor API specification: base URL, endpoints, the List "
                 "Billers call, and the payment request/response fields",
@@ -243,7 +243,7 @@ register(Integration(
           "pays the pharmacy a commission. A pharmacy would be a BillPay "
           "'vendor'. Neither the endpoints nor the field names are published — "
           "there is no public SDK and the developer hub refuses automated "
-          "access — so nothing here is guessed at.",
+          "access. So nothing here is guessed at.",
 ))
 
 register(Integration(

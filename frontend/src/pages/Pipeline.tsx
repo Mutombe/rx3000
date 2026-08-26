@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { api, fmtDate, money, currentCurrency, errorText  } from "../api";
 import { Avatar } from "../components/record";
 import { Company, Contact, CrmDashboard, Deal } from "../types";
+import Select from "../components/Select";
+import { XCircle } from "@phosphor-icons/react";
 
 /** Days since a date, used to flag deals going stale in a stage. */
 function ageDays(iso: string) {
@@ -90,7 +92,7 @@ export default function Pipeline() {
       <div className="page-head">
         <div>
           <h1>Opportunities</h1>
-          <div className="sub">Supply contracts, wellness programmes and corporate opportunities — drag cards to move a deal</div>
+          <div className="sub">Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal</div>
         </div>
         <button onClick={() => setShowForm(true)}>+ New Deal</button>
       </div>
@@ -177,7 +179,7 @@ export default function Pipeline() {
                         : <span className="badge muted">unassigned</span>}
                       {stale && <span className="badge warn">stale</span>}
                     </div>
-                    {d.lost_reason && <div className="muted" style={{ fontSize: 11 }}>✕ {d.lost_reason}</div>}
+                    {d.lost_reason && <div className="muted lost-reason" style={{ fontSize: 11 }}><XCircle size={11} weight="fill" /> {d.lost_reason}</div>}
                   </div>
                 );
               })}
@@ -194,21 +196,23 @@ export default function Pipeline() {
             <form onSubmit={save}>
               <div className="field"><label>Title</label>
                 <input required value={form.title} onChange={set("title")}
-                  placeholder="e.g. Sunrise — monthly blister-pack supply" /></div>
+                  placeholder="e.g. Sunrise, monthly blister-pack supply" /></div>
               <div className="form-row">
                 <div className="field">
                   <label>Company</label>
-                  <select value={form.company_id} onChange={set("company_id")}>
-                    <option value="">None</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.company_id ?? "")}
+                    onChange={(__value) => set("company_id")({ target: { value: __value } } as any)}
+                    options={[{ value: "", label: "None" }, ...companies.map((c) => ({ value: String(c.id), label: c.name }))]}
+                  />
                 </div>
                 <div className="field">
                   <label>Contact</label>
-                  <select value={form.contact_id} onChange={set("contact_id")}>
-                    <option value="">None</option>
-                    {contacts.map((c) => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.contact_id ?? "")}
+                    onChange={(__value) => set("contact_id")({ target: { value: __value } } as any)}
+                    options={[{ value: "", label: "None" }, ...contacts.map((c) => ({ value: String(c.id), label: `${c.first_name} ${c.last_name}` }))]}
+                  />
                 </div>
               </div>
               <div className="form-row">
@@ -216,10 +220,11 @@ export default function Pipeline() {
                   <input type="number" step="0.01" value={form.value} onChange={set("value")} /></div>
                 <div className="field">
                   <label>Stage</label>
-                  <select value={form.stage} onChange={set("stage")}>
-                    {STAGES.filter((s) => s.key !== "won" && s.key !== "lost")
-                      .map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.stage ?? "")}
+                    onChange={(__value) => set("stage")({ target: { value: __value } } as any)}
+                    options={[...STAGES.filter((s) => s.key !== "won" && s.key !== "lost").map((s) => ({ value: String(s.key), label: s.label }))]}
+                  />
                 </div>
                 <div className="field"><label>Expected close</label>
                   <input type="date" value={form.expected_close_date} onChange={set("expected_close_date")} /></div>

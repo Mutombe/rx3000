@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 from .auth import hash_password
 from .models import Doctor, MedicalAid, Patient, Product, Supplier, User
 
-log = logging.getLogger("rx3000.seed")
+log = logging.getLogger("rx5000.seed")
 
 
 def seed_crm_if_empty(db: Session) -> None:
-    """CRM demo data — runs independently so existing databases get it too."""
+    """CRM demo data, runs independently so existing databases get it too."""
     from .models import Company
     if not db.query(Company).count():
         log.info("Seeding CRM data...")
@@ -271,21 +271,21 @@ def _seed_crm(db: Session) -> None:
 
     today = date.today()
     deals = [
-        Deal(title="Sunrise — monthly blister-pack supply renewal", company_id=sunrise.id,
+        Deal(title="Sunrise, monthly blister-pack supply renewal", company_id=sunrise.id,
              contact_id=contacts[0].id, value=48000, stage="negotiation", probability=75,
              expected_close_date=today + timedelta(days=14), owner_id=admin.id, source="renewal",
              notes="12-month renewal. They want a 4% discount for annual prepayment."),
-        Deal(title="Kopano — annual flu vaccination programme", company_id=kopano.id,
+        Deal(title="Kopano, annual flu vaccination programme", company_id=kopano.id,
              contact_id=contacts[1].id, value=126000, stage="proposal", probability=55,
              expected_close_date=today + timedelta(days=30), owner_id=admin.id, source="tender",
              notes="1 400 employees at R90 per vaccination. Tender closes month-end."),
-        Deal(title="Little Steps — courier script delivery contract", company_id=little_steps.id,
+        Deal(title="Little Steps, courier script delivery contract", company_id=little_steps.id,
              contact_id=contacts[2].id, value=18000, stage="qualified", probability=30,
              expected_close_date=today + timedelta(days=45), owner_id=pharmacist.id, source="referral"),
-        Deal(title="CorpWell — corporate wellness day", contact_id=contacts[3].id,
+        Deal(title="CorpWell, corporate wellness day", contact_id=contacts[3].id,
              value=35000, stage="new", probability=10,
              expected_close_date=today + timedelta(days=60), owner_id=admin.id, source="website"),
-        Deal(title="Sunrise — chronic medication review service", company_id=sunrise.id,
+        Deal(title="Sunrise, chronic medication review service", company_id=sunrise.id,
              contact_id=contacts[0].id, value=22000, stage="won", probability=100,
              expected_close_date=today - timedelta(days=10), owner_id=admin.id, source="upsell",
              closed_at=datetime.utcnow() - timedelta(days=10)),
@@ -302,7 +302,7 @@ def _seed_crm(db: Session) -> None:
                  body="Attach BEE certificate, pricing schedule and cold-chain policy.",
                  due_at=datetime.utcnow() + timedelta(days=3), owner_id=admin.id,
                  company_id=kopano.id, deal_id=deals[1].id),
-        Activity(activity_type="meeting", subject="Site visit — Little Steps courier slots",
+        Activity(activity_type="meeting", subject="Site visit, Little Steps courier slots",
                  due_at=datetime.utcnow() + timedelta(days=5), owner_id=pharmacist.id,
                  company_id=little_steps.id, deal_id=deals[2].id),
     ])
@@ -345,7 +345,7 @@ def _seed_crm(db: Session) -> None:
         TicketMessage(ticket_id=tickets[1].id, from_customer=True,
                       body="My scheme says they paid in full but I was charged a levy of R26.78."),
         TicketMessage(ticket_id=tickets[1].id, author_id=admin.id,
-                      body="Thank you for flagging this — I am requesting the remittance advice "
+                      body="Thank you for flagging this, I am requesting the remittance advice "
                            "from the scheme and will confirm within one working day."),
         TicketMessage(ticket_id=tickets[2].id, from_customer=True,
                       body="The Monday blister-pack delivery reached us after 16:00."),
@@ -375,9 +375,9 @@ def seed_claiming_if_empty(db):
         # A single-band model (the common "base plus a percentage" shape) and a
         # tiered one that tapers on expensive lines.
         flat = FeeModel(code="SEP+50", name="Single exit price plus 50%", basis="sep",
-                        apply_mmap=False, notes="Illustrative — replace with gazetted bands.")
+                        apply_mmap=False, notes="Illustrative, replace with gazetted bands.")
         tiered = FeeModel(code="SEP-TIER", name="Single exit price, tapered fee", basis="sep",
-                          apply_mmap=True, notes="Illustrative — replace with gazetted bands.")
+                          apply_mmap=True, notes="Illustrative, replace with gazetted bands.")
         db.add_all([flat, tiered])
         db.flush()
         db.add_all([
@@ -468,7 +468,7 @@ def seed_formulary_if_empty(db):
 
     formulary = Formulary(
         code="STD", name="Standard benefit formulary", default_rule="covered",
-        notes="Open formulary — anything not listed is paid. Listed items carry a rule.",
+        notes="Open formulary, anything not listed is paid. Listed items carry a rule.",
     )
     db.add(formulary)
     db.flush()
@@ -478,7 +478,7 @@ def seed_formulary_if_empty(db):
 
     rules = [
         ("Atorvastatin", "reference", "Paid to the reference price for statins."),
-        ("Tramadol", "authorisation", "Controlled analgesic — authorisation required."),
+        ("Tramadol", "authorisation", "Controlled analgesic, authorisation required."),
         ("Methylphenidate", "authorisation", "Requires scheme authorisation."),
     ]
     for prefix, status, note in rules:
@@ -497,7 +497,7 @@ def seed_formulary_if_empty(db):
     if excluded:
         db.add(FormularyEntry(
             formulary_id=formulary.id, product_id=excluded.id, status="excluded",
-            note="Combination antibiotic not on benefit — use plain amoxicillin.",
+            note="Combination antibiotic not on benefit, use plain amoxicillin.",
         ))
 
     # A cheaper generic of the reference-priced statin. Same molecule, so it is
@@ -537,7 +537,7 @@ def seed_gateway_if_empty(db):
     from .models import Funder, MedicalAid, Tariff
 
     # Funders are added by identifier rather than all-or-nothing, so a pharmacy
-    # already running RX3000 picks up a newly registered funder on upgrade
+    # already running RX5000 picks up a newly registered funder on upgrade
     # instead of only on a fresh database.
     known = {f.funder_id for f in db.query(Funder).all()}
     aids = {a.name.upper(): a for a in db.query(MedicalAid).all()}

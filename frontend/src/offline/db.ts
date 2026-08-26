@@ -9,6 +9,13 @@
  *  and a dependency for that would cost more than it saves.
  */
 
+//  Deliberately still "rx3000-offline" after the rename to RX5000. This database
+//  holds sales a till took while the line was down and has not posted yet.
+//  Opening a differently-named database does not migrate anything — it creates a
+//  new empty one, and the queued sales are still on disk but unreachable by any
+//  code that looks. A pharmacy would find that out as missing takings. The name
+//  is invisible to everyone except a developer with devtools open; leaving it is
+//  free, and changing it costs real money the first time it happens.
 const DB_NAME = "rx3000-offline";
 const DB_VERSION = 1;
 

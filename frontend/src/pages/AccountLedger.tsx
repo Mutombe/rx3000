@@ -77,63 +77,65 @@ export default function AccountLedger() {
             widths={["12ch", "10ch", "24ch", "12ch", "9ch", "9ch", "10ch"]} />
         }
       >
-        <table className="dt">
-          <thead>
-            <tr>
-              <th>Entry</th><th>Date</th><th>Description</th><th>Party</th>
-              <th className="num">Debit</th><th className="num">Credit</th>
-              <th className="num">Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {view && view.truncated && (
-              /* The window is the latest movements, carried on an opening
-                 balance. Saying so is what stops the first figure looking
-                 unexplained. */
-              <tr className="total-row">
-                <td colSpan={6}>
-                  Balance brought forward — showing the most recent {view.line_count}{" "}
-                  movements
-                </td>
-                <td className="num">{money(view.opening_balance)}</td>
-              </tr>
-            )}
-            {view?.lines.map((l, i) => (
-              <RowLink
-                key={`${l.entry_id}-${i}`}
-                to={`/ledger/entries/${l.entry_id}`}
-                prefetch={prefetchRoute}
-                className={l.status === "reversed" ? "row-flag" : ""}
-              >
-                <td className="mono">{l.reference}</td>
-                <td>{fmtDate(l.entry_date)}</td>
-                <td>
-                  {l.description}
-                  {l.status === "reversed" && <span className="badge warn">reversed</span>}
-                </td>
-                <td>
-                  {l.party_type ? (
-                    `${l.party_type}${l.party_id ? ` #${l.party_id}` : ""}`
-                  ) : (
-                    /* On a control account this is the line that will stop the
-                       subledger reconciling, so it is named rather than blank. */
-                    <span className="muted">unattributed</span>
-                  )}
-                </td>
-                <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-                <td className="num">{l.credit ? money(l.credit) : "—"}</td>
-                <td className="num">{money(l.balance)}</td>
-              </RowLink>
-            ))}
-            {view && !view.lines.length && (
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
               <tr>
-                <td colSpan={7} className="muted pad">
-                  Nothing has moved this account yet.
-                </td>
+                <th>Entry</th><th>Date</th><th>Description</th><th>Party</th>
+                <th className="num">Debit</th><th className="num">Credit</th>
+                <th className="num">Balance</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {view && view.truncated && (
+                /* The window is the latest movements, carried on an opening
+                   balance. Saying so is what stops the first figure looking
+                   unexplained. */
+                <tr className="total-row">
+                  <td colSpan={6}>
+                    Balance brought forward, showing the most recent {view.line_count}{" "}
+                    movements
+                  </td>
+                  <td className="num">{money(view.opening_balance)}</td>
+                </tr>
+              )}
+              {view?.lines.map((l, i) => (
+                <RowLink
+                  key={`${l.entry_id}-${i}`}
+                  to={`/ledger/entries/${l.entry_id}`}
+                  prefetch={prefetchRoute}
+                  className={l.status === "reversed" ? "row-flag" : ""}
+                >
+                  <td className="mono">{l.reference}</td>
+                  <td>{fmtDate(l.entry_date)}</td>
+                  <td>
+                    {l.description}
+                    {l.status === "reversed" && <span className="badge warn">reversed</span>}
+                  </td>
+                  <td>
+                    {l.party_type ? (
+                      `${l.party_type}${l.party_id ? ` #${l.party_id}` : ""}`
+                    ) : (
+                      /* On a control account this is the line that will stop the
+                         subledger reconciling, so it is named rather than blank. */
+                      <span className="muted">unattributed</span>
+                    )}
+                  </td>
+                  <td className="num">{l.debit ? money(l.debit) : "—"}</td>
+                  <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+                  <td className="num">{money(l.balance)}</td>
+                </RowLink>
+              ))}
+              {view && !view.lines.length && (
+                <tr>
+                  <td colSpan={7} className="muted pad">
+                    Nothing has moved this account yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Refreshable>
     </div>
   );

@@ -1,6 +1,6 @@
 """Jurisdiction packs.
 
-RX3000 is sold into more than one country, and almost everything that differs
+RX5000 is sold into more than one country, and almost everything that differs
 between them is regulatory rather than functional: which schedules a medicine
 falls into, what a drug code is called, which privacy statute governs marketing
 consent, when the tax year starts, which currency the till trades in, and
@@ -103,39 +103,39 @@ def _sched(n, label, route, *, code="", script=False, pharmacist=False, register
 # South Africa — Medicines and Related Substances Act
 # --------------------------------------------------------------------------
 ZA_SCHEDULES = {
-    0: _sched(0, "Schedule 0 — general sale", "otc",
+    0: _sched(0, "Schedule 0, general sale", "otc",
               notes="May be sold without pharmacist involvement."),
-    1: _sched(1, "Schedule 1 — pharmacy medicine", "otc", pharmacist=True, counsel=True,
+    1: _sched(1, "Schedule 1, pharmacy medicine", "otc", pharmacist=True, counsel=True,
               notes="Sold under pharmacist supervision. Record the sale and counsel the patient."),
-    2: _sched(2, "Schedule 2 — pharmacy medicine", "otc", pharmacist=True, counsel=True,
+    2: _sched(2, "Schedule 2, pharmacy medicine", "otc", pharmacist=True, counsel=True,
               notes="Pharmacist must personally hand over and counsel. Record every sale."),
-    3: _sched(3, "Schedule 3 — prescription medicine", "prescription",
+    3: _sched(3, "Schedule 3, prescription medicine", "prescription",
               script=True, pharmacist=True, months=6, sight_script=True, counsel=True,
               notes="Valid prescription required. Repeats permitted for up to 6 months."),
-    4: _sched(4, "Schedule 4 — prescription medicine", "prescription",
+    4: _sched(4, "Schedule 4, prescription medicine", "prescription",
               script=True, pharmacist=True, months=6, sight_script=True, counsel=True,
               notes="Valid prescription required. Repeats permitted for up to 6 months."),
-    5: _sched(5, "Schedule 5 — controlled substance", "controlled",
+    5: _sched(5, "Schedule 5, controlled substance", "controlled",
               script=True, pharmacist=True, register=True, max_repeats=5, months=6,
               verify_id=True, sight_script=True, verify_prescriber=True, counsel=True,
               notes="Dangerous drug. Register entry mandatory, patient identity must be "
                     "verified, and the original script must be sighted and retained."),
-    6: _sched(6, "Schedule 6 — controlled substance", "controlled",
+    6: _sched(6, "Schedule 6, controlled substance", "controlled",
               script=True, pharmacist=True, register=True, max_repeats=0,
               verify_id=True, sight_script=True, verify_prescriber=True, witness=True,
               counsel=True,
-              notes="Dangerous drug. No repeats — a fresh prescription is required each "
+              notes="Dangerous drug. No repeats. A fresh prescription is required each "
                     "time. Requires an independent witness to co-sign the dispensing."),
-    7: _sched(7, "Schedule 7 — restricted", "prohibited",
+    7: _sched(7, "Schedule 7, restricted", "prohibited",
               script=True, pharmacist=True, register=True, max_repeats=0,
               verify_id=True, sight_script=True, verify_prescriber=True, witness=True,
               counsel=True,
-              notes="Not dispensable in a retail pharmacy — requires a departmental permit."),
-    8: _sched(8, "Schedule 8 — restricted", "prohibited",
+              notes="Not dispensable in a retail pharmacy, requires a departmental permit."),
+    8: _sched(8, "Schedule 8, restricted", "prohibited",
               script=True, pharmacist=True, register=True, max_repeats=0,
               verify_id=True, sight_script=True, verify_prescriber=True, witness=True,
               counsel=True,
-              notes="Not dispensable in a retail pharmacy — requires a departmental permit."),
+              notes="Not dispensable in a retail pharmacy, requires a departmental permit."),
 }
 
 SOUTH_AFRICA = Jurisdiction(

@@ -57,7 +57,7 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
         "send_to": patient.phone,
         "expires_in_days": portal_tokens.DEFAULT_TTL // 86400,
         "message": "Link created. Send it to the patient's own number, not a "
-                   "shared one — it opens their record.",
+                   "shared one, it opens their record.",
     }
 
 

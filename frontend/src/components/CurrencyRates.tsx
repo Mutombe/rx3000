@@ -14,6 +14,7 @@ import { useEffect, useState } from "react";
 import { api, fmtDateTime, errorText  } from "../api";
 import { useToast } from "./Toast";
 import { TableSkeleton } from "./Skeleton";
+import Select from "./Select";
 
 interface Currency {
   code: string; symbol: string; decimals: number; rate: number; is_base: boolean;
@@ -106,17 +107,17 @@ export default function CurrencyRates() {
           <h3>Publish a rate</h3>
           <p className="muted" style={{ marginTop: 0 }}>
             How many units of the currency one {state?.base} buys. Rates are never
-            edited — publishing a correction adds an entry, so what a past sale was
+            edited, publishing a correction adds an entry, so what a past sale was
             settled at stays true.
           </p>
           <div className="form-row">
             <div className="field">
               <label>Currency</label>
-              <select value={code} onChange={(e) => setCode(e.target.value)}>
-                {others.map((c) => (
-                  <option key={c.code} value={c.code}>{c.code} — {c.symbol}</option>
-                ))}
-              </select>
+              <Select
+                value={String(code ?? "")}
+                onChange={(__value) => setCode(__value)}
+                options={others.map((c) => ({ value: String(c.code), label: `${c.code} (${c.symbol})` }))}
+              />
             </div>
             <div className="field">
               <label>Units per 1 {state?.base}</label>

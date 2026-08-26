@@ -1,4 +1,4 @@
-/* RX3000 design system — "quiet precision".
+/* RX5000 design system — "quiet precision".
  *
  * Restraint is what reads as expensive. Surfaces are near-opaque with hairline
  * borders rather than glow; hierarchy is carried by type and spacing rather
@@ -10,13 +10,35 @@
 
 :root {
   /* ---- surface & ink ---- */
-  --canvas: #f4f4f6;
+  /* Measured against WCAG rather than chosen by eye. The old scale looked
+     considered and failed where it mattered: --ink-soft came to 4.29 on the
+     canvas (AA wants 4.5) and --ink-faint to 2.73, below even the 3:1 floor for
+     large text — and --ink-faint carries hints, meta lines and placeholders all
+     over the product. "Some of it is not even visible" was not a matter of
+     taste; it was a number.
+
+     Every step now passes AA on both the canvas and a white card:
+
+         --ink        16.3 / 18.4
+         --ink-mid     9.8 / 11.0
+         --ink-soft    6.5 /  7.3
+         --ink-faint   4.8 /  5.4
+
+     The hierarchy survives because it never depended on contrast alone — size,
+     weight and position carry it too. */
+  --canvas: #f1f1f4;
   --surface: #ffffff;
-  --surface-sunk: #fafafb;
-  --ink: #16161d;
-  --ink-mid: #4a4956;
-  --ink-soft: #74727f;
-  --ink-faint: #9d9baa;
+  --surface-sunk: #f7f7f9;
+  /* What a row, a menu item or a ghost button turns when the pointer is over it.
+     Its own token, because "recessed" and "hovered" are the same colour only by
+     coincidence, and only on a light theme. On light both are a step darker than
+     the panel; on dark a recessed track goes darker and a hover goes lighter, so
+     one token doing both jobs gets one of them backwards. */
+  --hover: #f0f0f3;
+  --ink: #14141a;
+  --ink-mid: #3c3b47;
+  --ink-soft: #57555f;
+  --ink-faint: #6b6975;
   /* Three weights, and the discipline is in using the lightest that works.
    *
    * 9% was a line you had to hunt for; 20% everywhere was legible but loud —
@@ -26,9 +48,12 @@
    * only need to exist, and --line-strong is spent sparingly on the one
    * boundary in a component that carries meaning — the foot of a table header.
    */
-  --line-soft: rgba(22, 22, 29, 0.07);   /* an edge, barely stated */
-  --line: rgba(22, 22, 29, 0.11);        /* separates one row from the next */
-  --line-strong: rgba(22, 22, 29, 0.18); /* used once per component, at most */
+  /* Lifted with the ink. At 7% an edge was a rumour: on a laptop in a lit
+     dispensary the card boundaries and table rules simply were not there, which
+     is a large part of why the whole thing read as washed out. */
+  --line-soft: rgba(20, 20, 26, 0.10);   /* an edge, barely stated */
+  --line: rgba(20, 20, 26, 0.16);        /* separates one row from the next */
+  --line-strong: rgba(20, 20, 26, 0.26); /* used once per component, at most */
 
   /* ---- brand ----
    * The purple is the mark. It belongs on the logo, the wordmark and the sign-in
@@ -52,6 +77,50 @@
    */
   --accent: #1b1b22;
   --accent-hover: #000000;
+  /* What text on the accent is coloured.
+     Hardcoded `#fff` works only while the accent is dark. In the dark theme the
+     accent becomes near-white, and every primary button would have rendered
+     white on white. */
+  --accent-ink: #ffffff;
+  /* Likewise for anything painted on solid ink: tooltips, the staff message
+     bubble, the lock card. */
+  --on-ink: #ffffff;
+  /* Text on a solid danger fill. Separate from `--danger`, which is the colour
+     danger TEXT is drawn in: on a dark theme those two want opposite lightness,
+     and one token cannot do both jobs. */
+  --on-danger: #ffffff;
+
+  /* Subtle fills: progress tracks, hover chips, grid gutters, count badges.
+     These were written as ink at low alpha, which is correct on a light ground
+     and exactly backwards on a dark one — a dark tint over a dark panel digs a
+     pit where the design wanted a raised chip. As a token the tint flips to
+     white-alpha in dark, so the same rule keeps meaning "one step forward". */
+  --tint-weak: rgba(20, 20, 26, 0.05);
+  --tint: rgba(20, 20, 26, 0.08);
+  --tint-strong: rgba(20, 20, 26, 0.12);
+  /* What a modal dims the page behind it with. */
+  --scrim: rgba(22, 22, 29, 0.38);
+  /* The far end of a gradient that starts at the accent. Kept as its own token
+     because the accent inverts: a fixed dark second stop would ramp a near-white
+     dark-mode bar into near-black. */
+  --accent-fade: rgba(22, 22, 29, 0.72);
+  /* The wash behind the sign-in screen. Three overlapping fields of colour that
+     bleed into each other, which is the one place in this product where colour
+     is decoration rather than meaning.
+     Tokenised because it has to be re-chosen for a dark ground, not dimmed: the
+     same pastels over near-black read as fog, and the same alphas over near-black
+     read as nothing at all. */
+  --wash-1: rgba(250, 205, 208, 0.85);
+  --wash-2: rgba(151, 130, 156, 0.55);
+  --wash-3: rgba(59, 62, 86, 0.38);
+  /* Slot one of the chart palette, mirrored into CSS so a bar drawn in plain
+     markup wears the same blue as a bar drawn by ReportChart. Kept in step with
+     chartPalette.ts by hand; both sets are validated against their surface. */
+  --chart-1: #2a78d6;
+  --chart-1-fade: rgba(42, 120, 214, 0.55);
+  /* Danger on hover moves away from the surface, which means darker on light and
+     lighter on dark. One value cannot do both. */
+  --danger-hover: #8d2b19;
   --accent-soft: rgba(22, 22, 29, 0.06);
   --accent-ring: rgba(22, 22, 29, 0.30);
 
@@ -67,6 +136,10 @@
   --danger-line: rgba(168, 52, 31, 0.22);
   --info-soft: #e9ecf5;
   --sched-soft: #f7e7ef;
+  /* The ink on a schedule badge. It used to be written straight into the rule as
+     #8d2f5c, which on the dark tint measures 1.8:1 — a controlled-drug marker
+     nobody could read is worse than no marker. */
+  --sched: #8d2f5c;
   --green: #7fc86d;
   --orange: #f0a04b;
   --pink: #f06ba8;
@@ -160,7 +233,14 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; margin: 0; }
+/* The document is only pinned to the viewport when the application shell is on
+   the page. Inside the product that is what makes the main pane the thing that
+   scrolls; outside it — the landing page, the training index, sign in — a
+   hard 100% height is a 700px box holding 1700px of content, with the rest
+   simply unreachable. `min-height` gives those pages a full-height canvas
+   without capping them. */
+html, body, #root { margin: 0; min-height: 100%; }
+html:has(.shell), body:has(.shell), #root:has(.shell) { height: 100%; }
 
 body {
   font-family: var(--font-body);
@@ -201,14 +281,26 @@ a:hover { opacity: 0.75; }
   display: flex; flex-direction: column;
   position: sticky; top: 0; height: 100vh;
 }
+/* The brand block and the top bar are one horizontal band across the top of the
+   application, so they are given one height rather than two paddings that
+   happened to differ. They did differ — 77px against 65px — and the two bottom
+   borders met the sidebar's edge twelve pixels apart, which is the kind of thing
+   that reads as "unfinished" without the eye being able to say why. */
+/* 56px, not 68. The bar holds one avatar and a name; the height was paying for
+   air above a 32px control. Twelve pixels back on every page, and the first row
+   of a table sits that much closer to the top of the screen. */
+:root { --topbar-h: 56px; }
+
 .brand {
-  padding: var(--s5) var(--s5) var(--s4); font-family: var(--font-display);
+  height: var(--topbar-h);
+  box-sizing: border-box;
+  padding: 0 var(--s5); font-family: var(--font-display);
   font-weight: 700; font-size: 17px; letter-spacing: -0.02em; color: var(--ink);
   display: flex; align-items: center; gap: var(--s3);
   border-bottom: 1px solid var(--line);
 }
 .brand .logo {
-  width: 40px; height: 40px; flex-shrink: 0;
+  width: 28px; height: 28px; flex-shrink: 0;
   object-fit: contain;
   filter: drop-shadow(0 3px 8px rgba(59, 62, 86, 0.22));
 }
@@ -226,7 +318,7 @@ a:hover { opacity: 0.75; }
   border: 1px solid transparent;
   transition: background 0.12s, color 0.12s;
 }
-.nav a:hover { opacity: 1; background: var(--surface-sunk); color: var(--ink); }
+.nav a:hover { opacity: 1; background: var(--hover); color: var(--ink); }
 .nav a.active { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
 
 /* The three or four screens someone lives in all day sit slightly darker than
@@ -244,9 +336,12 @@ a:hover { opacity: 0.75; }
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 .topbar {
+  height: var(--topbar-h);
+  box-sizing: border-box;
   display: flex; align-items: center; justify-content: flex-end;
-  gap: var(--s3); padding: var(--s3) var(--s8);
-  border-bottom: 1px solid var(--line-soft);
+  gap: var(--s3); padding: 0 var(--s8);
+  /* The same line as the brand block's, so the band reads as one edge. */
+  border-bottom: 1px solid var(--line);
   background: var(--surface);
   position: sticky; top: 0; z-index: 30;
 }
@@ -258,33 +353,81 @@ a:hover { opacity: 0.75; }
   background: none; border: 1px solid transparent; border-radius: var(--r-md);
   color: inherit; font: inherit; cursor: pointer; white-space: nowrap;
 }
-.me:hover { background: var(--surface-sunk); border-color: var(--line); }
+.me:hover { background: var(--hover); border-color: var(--line); }
 .me-avatar {
   display: grid; place-items: center; flex: 0 0 auto;
-  width: 30px; height: 30px; border-radius: 50%;
+  width: 32px; height: 32px; border-radius: 50%;
   background: var(--accent-soft); color: var(--ink);
-  font-size: .72rem; font-weight: 700; letter-spacing: .02em;
+  font-size: .74rem; font-weight: 700; letter-spacing: .02em;
+  /* A stated ring rather than a tinted disc.
+     Two pixels of the working ink, with a hairline of the surface inside it so
+     the ring reads as a deliberate edge and not as the avatar having grown.
+     A soft tinted circle behind two initials looks like a placeholder; this is
+     the one element on the screen that says whose shift it is, and on a shared
+     till that is worth stating. */
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--surface) inset;
+  overflow: hidden;
 }
+/* A photograph, when there is one. Sized to the ring rather than the box, so it
+   sits inside the border instead of under it. */
+.me-avatar img {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block;
+}
+/* In the open menu the same mark is larger, because there it is a heading and
+   not a control. */
+.me-menu-head .me-avatar { width: 38px; height: 38px; font-size: .84rem; }
 .me-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
 .me-text .who { font-size: .84rem; font-weight: 600; color: var(--ink); }
 .me-text .role { font-size: .68rem; color: var(--ink-soft); text-transform: capitalize; }
 .me-caret { color: var(--ink-faint); }
 
 .me-menu {
-  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
-  min-width: 12rem; padding: var(--s1);
-  background: var(--surface); border: 1px solid var(--line-strong);
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40;
+  min-width: 15rem; padding: var(--s2);
+  background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-md); box-shadow: var(--e2);
-  display: flex; flex-direction: column;
+  display: flex; flex-direction: column; gap: 1px;
 }
+
+/* Who is signed in, said inside the menu rather than only on the button that
+   opens it — the trigger is a 32px avatar on a shared till, and "am I still
+   logged in as the locum?" is a question worth answering where the actions are. */
+.me-menu-head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s2) var(--s3);
+  margin-bottom: var(--s1); border-bottom: 1px solid var(--line-soft);
+}
+.me-menu-head .who { font-weight: 650; color: var(--ink); font-size: .88rem; }
+.me-menu-head .role {
+  font-size: .7rem; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+
 .me-menu a, .me-menu button {
-  display: flex; align-items: center; gap: var(--s2);
-  padding: var(--s2); width: 100%; height: auto;
+  display: flex; align-items: center; gap: var(--s3);
+  /* `flex-start`, explicitly. Every button in this stylesheet centres its
+     contents, and that rule reached in here — so the anchor's label sat at the
+     icon's edge and the button's label sat 45px further right, on two rows of
+     the same menu. A menu whose items do not share a left edge reads as broken
+     before anybody can say why. */
+  justify-content: flex-start;
+  padding: var(--s2) var(--s3); width: 100%; height: auto;
   background: none; border: 0; border-radius: var(--r-sm);
-  font: inherit; font-size: .86rem; color: var(--ink-mid);
+  font: inherit; font-size: .86rem; font-weight: 500; color: var(--ink-mid);
   text-align: left; text-decoration: none; cursor: pointer; white-space: nowrap;
 }
-.me-menu a:hover, .me-menu button:hover { background: var(--surface-sunk); color: var(--ink); }
+/* One icon column, so labels align even when the glyphs differ in width. */
+.me-menu a svg, .me-menu button svg { flex: 0 0 16px; }
+.me-menu a:hover, .me-menu button:hover { background: var(--hover); color: var(--ink); }
+.me-menu a:focus-visible, .me-menu button:focus-visible {
+  outline: none; box-shadow: 0 0 0 2px var(--accent-ring); color: var(--ink);
+}
+
+/* Leaving is separated from everything else and reads as what it is. */
+.me-menu-sep { height: 1px; background: var(--line-soft); margin: var(--s1) 0; }
+.me-menu button.is-leave { color: var(--danger); }
+.me-menu button.is-leave:hover { background: var(--danger-soft); color: var(--danger); }
 
 .main { flex: 1; padding: var(--s8) var(--s8) var(--s12); max-width: 1400px; width: 100%; }
 @media (max-width: 640px) { .topbar { padding: var(--s2) var(--s4); } }
@@ -346,7 +489,7 @@ td {
 }
 td b, td strong { color: var(--ink); font-weight: 600; }
 tr:last-child td { border-bottom: none; }
-tbody tr:hover td { background: var(--surface-sunk); }
+tbody tr:hover td { background: var(--hover); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- badges ---------- */
@@ -362,7 +505,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
 .badge.danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
 .badge.muted { background: var(--surface-sunk); color: var(--ink-soft); border-color: var(--line); }
-.badge.sched { background: var(--sched-soft); color: #8d2f5c; border-color: rgba(141, 47, 92, 0.2); }
+.badge.sched { background: var(--sched-soft); color: var(--sched); border-color: color-mix(in srgb, var(--sched) 32%, transparent); }
 
 /* ---------- buttons ----------
    Every button lands on a control height. Pills are reserved for tags, not
@@ -372,12 +515,20 @@ button, .btn {
   letter-spacing: -0.005em;
   height: var(--control); padding: 0 var(--s4);
   border: 1px solid transparent; border-radius: var(--r-md); cursor: pointer;
-  background: var(--accent); color: #fff;
+  background: var(--accent); color: var(--accent-ink);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   white-space: nowrap;
   transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
 }
-button:hover, .btn:hover { background: var(--accent-hover); opacity: 1; }
+/* Wrapped in :where(), so this hover carries the specificity of `button` alone
+   and any variant that sets its own background keeps it.
+   Before this it was `button:hover`, which outranks a plain class — so every
+   button that styled itself light and did not also write a :hover rule was
+   repainted #000 on hover while its text stayed dark ink. The worklist's stat
+   buttons measured 1.14:1 that way: the number a pharmacist is reading vanished
+   the moment they pointed at it. Opting out one control at a time would have
+   meant remembering, forever, on every new button. */
+button:where(:hover), .btn:where(:hover) { background: var(--accent-hover); opacity: 1; }
 button:focus-visible, .btn:focus-visible,
 input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: none; box-shadow: 0 0 0 3px var(--accent-ring);
@@ -385,18 +536,31 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button:disabled:hover { background: var(--accent); }
 
-button.secondary {
+/* Every variant matches `.btn` as well as `button`.
+   The base rule above has always been `button, .btn`, and every variant below
+   was `button.x` alone — so an anchor styled `.btn secondary` picked up the
+   primary fill and nothing else. Seven "back to the list" links across the
+   detail pages have been rendering as solid accent buttons because of it,
+   sitting beside the page title looking like the main action on the screen. */
+button.secondary, .btn.secondary {
   background: var(--surface); color: var(--ink); border-color: var(--line-strong);
 }
-button.secondary:hover { background: var(--surface-sunk); border-color: var(--ink-faint); }
-button.danger { background: var(--danger); }
-button.danger:hover { background: #8d2b19; }
-button.ghost {
+button.secondary:hover, .btn.secondary:hover { background: var(--hover); border-color: var(--ink-faint); }
+button.danger, .btn.danger { background: var(--danger); color: var(--on-danger); }
+button.danger:hover, .btn.danger:hover { background: var(--danger-hover); border-color: var(--danger-hover); }
+button.ghost, .btn.ghost {
   background: transparent; color: var(--ink-mid); border-color: transparent;
   height: var(--control-sm); padding: 0 var(--s2);
 }
-button.ghost:hover { background: var(--surface-sunk); color: var(--ink); }
-button.small { height: var(--control-sm); padding: 0 var(--s3); font-size: var(--t-sm); }
+button.ghost:hover, .btn.ghost:hover { background: var(--hover); color: var(--ink); }
+/* `sm` is accepted alongside `small`.
+   Sixteen call sites ask for `sm`, which was never defined, so those buttons
+   quietly rendered at the full control height next to the ones that asked for
+   `small`. `small` is the canonical name; this makes the other one work rather
+   than leaving a dead class in the markup. */
+button.small, .btn.small, button.sm, .btn.sm {
+  height: var(--control-sm); padding: 0 var(--s3); font-size: var(--t-sm);
+}
 
 /* ---------- inputs ----------
    Controls are sized by the system, never by the page. Anything that needs a
@@ -486,12 +650,12 @@ label {
 
 /* ---------- modal ---------- */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(28, 29, 27, 0.30); z-index: 50;
+  position: fixed; inset: 0; background: var(--scrim); z-index: 50;
   display: grid; place-items: center; padding: 20px;
   backdrop-filter: blur(6px);
 }
 .modal {
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface);
   backdrop-filter: blur(30px);
   border: 1px solid #fff;
   border-radius: var(--r-2xl); padding: var(--s6); width: 100%; max-width: 660px;
@@ -503,53 +667,198 @@ label {
 
 /* ---------- login ---------- */
 .login-wrap {
-  min-height: 100vh; display: grid; place-items: center;
+  min-height: 100vh; display: grid;
+  place-items: safe center;
   /* Breathing room on every side, so the card never sits against the edge of a
      phone screen. Vertical padding too: on a short landscape screen the card is
      taller than the viewport and would otherwise be clipped rather than
      scrolled. */
   padding: var(--s6) var(--s5);
+  /* The colour fusion. Three radial fields at different sizes and different
+     corners, overlapping in the middle, over the canvas.
+     The colours are tokens rather than literals so the dark theme gets its own
+     set: the light pastels over a near-black ground turn to grey fog, which is
+     what happens when a wash is dimmed instead of re-chosen. */
   background:
-    radial-gradient(700px 520px at 20% 10%, rgba(250, 205, 208, 0.85), transparent 60%),
-    radial-gradient(760px 560px at 85% 20%, rgba(151, 130, 156, 0.55), transparent 60%),
-    radial-gradient(640px 520px at 70% 95%, rgba(59, 62, 86, 0.38), transparent 60%),
+    radial-gradient(700px 520px at 20% 10%, var(--wash-1), transparent 60%),
+    radial-gradient(760px 560px at 85% 20%, var(--wash-2), transparent 60%),
+    radial-gradient(640px 520px at 70% 95%, var(--wash-3), transparent 60%),
     var(--canvas);
 }
 .login-card {
-  background: rgba(255, 255, 255, 0.65);
+  background: var(--surface);
   backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 32px; padding: 42px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-lg); padding: 26px 30px;
   /* Was a fixed 400px, which overflowed any screen narrower than that and
      pushed the whole page sideways. It now shrinks to fit. */
-  width: min(400px, 100%);
+  width: min(420px, 100%);
+  /* One height for all three panels, and no scrollbar in any of them.
+     A card that resizes as you move between sign in, reset and demo makes the
+     page jump under the pointer, and a card that scrolls hides the thing you
+     came for below a fold nobody expects on a login screen. So the height is
+     fixed at what the tallest panel needs, the panels are laid out as a column,
+     and the footer is pushed to the bottom — every panel then ends on the same
+     line whatever it contains.
+     `--login-h` is a content measurement, not a share of the screen. Sizing it
+     in `vh` looked reasonable and was wrong: browser zoom shrinks the CSS
+     viewport, so a card set to 92vh ran off the top and bottom of a perfectly
+     large monitor at 150%.
+     The number is the tallest panel measured, plus a little: reset 534 with its
+     PIN row, sign in 526, demo 403. Anything under 534 clips the reset panel;
+     much over it and the demo panel is mostly air. Checked by qa/login-fit.mjs,
+     which fails on a single pixel of overflow at any screen height, so this
+     number cannot drift away from the content without the check saying so. */
+  --login-h: 540px;
+  height: var(--login-h);
+  display: flex; flex-direction: column;
   box-shadow: var(--shadow);
+}
+/* The sign-in card runs tighter than the rest of the application.
+   Everywhere else a control is sized for somebody working at it all day with a
+   scanner in one hand. This card is used once a shift, by somebody who is
+   looking at it rather than working in it, and its height is set by whichever
+   panel is tallest — so every row it saves comes off all three. Scoped to
+   .login-card so the till lock and the PIN dialogs keep their full targets. */
+.login-card .field { margin-bottom: var(--s3); }
+.login-card .pin-box { width: 40px; height: 42px; font-size: 1.15rem; }
+.login-card .brand-lg { font-size: 23px; }
+.login-card .brand-lg img { width: 36px; height: 36px; }
+.login-card p.tag { margin: 4px 0 14px; }
+.login-card .login-lead { margin-bottom: var(--s3); }
+.login-card .login-go { margin-top: 6px; }
+.login-card .login-small { margin-top: 10px; }
+.login-card .link-btn { margin-top: 8px; padding: 6px; }
+.login-card .login-foot { padding-top: 10px; }
+.login-card .field-hint { margin-top: 4px; }
+
+/* --- a side drawer -------------------------------------------------------- */
+
+/* Used for the assistant's history. A drawer rather than a page, because looking
+   something up is not leaving what you are doing, and a route change would lose
+   the half-typed question in the box. */
+.drawer-scrim {
+  position: fixed; inset: 0; z-index: 210;
+  background: var(--scrim);
+  backdrop-filter: blur(1px);
+}
+.drawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 211;
+  width: min(420px, 100vw);
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+  box-shadow: var(--e3);
+}
+.drawer-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3); padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head b { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
+.drawer-head .muted { display: block; margin-top: 2px; font-size: var(--t-xs); }
+.drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s4) var(--s5); }
+.drawer-foot { padding: var(--s3) var(--s5); border-top: 1px solid var(--line); }
+
+.ai-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.ai-log li { display: flex; align-items: center; gap: var(--s2); }
+.ai-log-item {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  height: auto; padding: var(--s2) var(--s3); text-align: left;
+  background: transparent; color: var(--ink);
+  border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none;
+  cursor: pointer;
+}
+.ai-log-item:where(:hover) { background: var(--hover); border-color: var(--line-soft); color: var(--ink); }
+/* The question is the thing being scanned, so it wraps to two lines and then
+   stops rather than being cut to one. A truncated question is often the half
+   that says which one it was. */
+.ai-log-item b {
+  font-size: var(--t-sm); font-weight: 600; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ai-log-item .muted { font-size: var(--t-xs); font-weight: 400; }
+
+/* --- a control that is working ------------------------------------------- */
+
+/* The icon turns while the request is in flight.
+   One turn a second: fast enough to read as activity, slow enough that it is not
+   the loudest thing on a screen where something else may be genuinely urgent. */
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+.is-busy svg { animation: busy-spin 1s linear infinite; transform-origin: 50% 50%; }
+/* The label dims rather than disappearing, so the button keeps its width and the
+   row does not jump under a hand already moving to the next control. */
+.is-busy { cursor: progress; }
+.is-busy > :not(svg) { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) {
+  /* A steady half-tone instead of a turning glyph. The state still reads; it
+     just stops moving for somebody who asked for that. */
+  .is-busy svg { animation: none; opacity: 0.55; }
+}
+
+/* The panel body takes the leftover room and centres its content in it.
+   `min-height: 0` because a flex child defaults to min-content and would refuse
+   to shrink below its natural height, which is how a "fits exactly" card ends
+   up one pixel past the bottom of the screen. */
+.login-body {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; justify-content: center;
+}
+/* Pushed to the foot of the card, so all three panels end level.
+   Qualified with .login-foot on purpose: that rule sets its own margin-top
+   further down the file, and at equal specificity the later one wins. */
+.login-foot.login-push { margin-top: auto; }
+
+/* Short screens: tighter, never taller.
+   This used to set `--login-h: 92vh`, which was exactly backwards. The card is
+   sized by its content, so on a short viewport stretching it to 92% of the
+   screen did two things at once: it pushed the card past the wrap's own padding
+   and off the top and bottom edges, and it opened a band of empty space in the
+   middle where the centred body had nothing left to do. Browser zoom shrinks the
+   CSS viewport, so anybody running at 150% hit it on a perfectly large monitor.
+   The height stays at its content size; only the spacing tightens. */
+@media (max-height: 700px) {
+  /* Still a content measurement: the tightened spacing below takes about forty
+     pixels off the tallest panel, so the card is told the smaller number rather
+     than being asked to fill a share of the screen. */
+  .login-wrap { padding: var(--s3) var(--s4); }
+  .login-card { --login-h: 498px; padding: 18px 22px; }
+  .login-card .brand-lg { font-size: 21px; }
+  .login-card .brand-lg img { width: 32px; height: 32px; }
+  .login-card p.tag { margin: 4px 0 10px; }
+  .login-card .login-lead { margin-bottom: 10px; }
+  .login-card .field { margin-bottom: 10px; }
 }
 /* On a small phone, 42px of inner padding costs more than it buys: the card
    already has room around it, and the form is what people came for. */
 @media (max-width: 420px) {
   .login-wrap { padding: var(--s5) var(--s4); }
-  .login-card { padding: 28px 22px; border-radius: 24px; }
+  .login-card { padding: 18px 16px; border-radius: var(--r-md); }
 }
 
 .login-card .brand-lg {
-  font-family: var(--font-display); font-size: 30px; font-weight: 700; letter-spacing: -0.03em;
-  display: flex; align-items: center; gap: 12px;
+  font-family: var(--font-display); font-size: 25px; font-weight: 700; letter-spacing: -0.03em;
+  display: flex; align-items: center; gap: 10px;
 }
 .login-card .brand-lg img {
-  width: 52px; height: 52px; object-fit: contain;
+  width: 40px; height: 40px; object-fit: contain;
   filter: drop-shadow(0 4px 12px rgba(59, 62, 86, 0.25));
 }
 .login-card .brand-lg span {
   background: linear-gradient(120deg, #c98d95, var(--indigo));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
-.login-card p.tag { color: var(--ink-soft); margin: 6px 0 26px; font-size: 13px; }
+.login-card p.tag { color: var(--ink-soft); margin: 5px 0 18px; font-size: 12.5px; }
+/* The seeded logins, as a line of text.
+   It used to be a bordered, tinted panel, which gave a development convenience
+   the same weight as the sign-in form above it and cost forty pixels of a card
+   whose height every panel shares. */
 .demo-creds {
-  margin-top: 18px; font-size: 12px; color: var(--ink-soft);
-  background: rgba(255, 255, 255, 0.55); padding: 11px 14px; border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  margin: 10px 0 0; font-size: 11px; color: var(--ink-faint); line-height: 1.5;
 }
+.demo-creds b { color: var(--ink-soft); font-weight: 600; }
 
 /* ---------- POS ---------- */
 .pos-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
@@ -558,18 +867,18 @@ label {
 .product-pick {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 14px; margin-top: 8px; cursor: pointer;
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
   border-radius: 999px;
   transition: transform 0.12s, box-shadow 0.12s;
 }
-.product-pick:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); background: #fff; }
+.product-pick:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); background: var(--surface); }
 
 /* ---------- misc ---------- */
 .ai-box {
   white-space: pre-wrap;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm); padding: 16px 18px;
   font-size: 13.5px; max-height: 480px; overflow-y: auto;
   position: relative;
@@ -578,8 +887,8 @@ label {
   content: "";
   position: absolute; inset: 0; z-index: -1; border-radius: inherit;
   background:
-    radial-gradient(300px 120px at 0% 0%, rgba(240, 180, 182, 0.35), transparent 70%),
-    radial-gradient(300px 120px at 100% 100%, rgba(106, 100, 133, 0.20), transparent 70%);
+    radial-gradient(300px 120px at 0% 0%, var(--tint), transparent 70%),
+    radial-gradient(300px 120px at 100% 100%, var(--tint-weak), transparent 70%);
 }
 .chart-bars {
   display: flex; align-items: flex-end; justify-content: center;
@@ -597,7 +906,12 @@ label {
   /* Solid near-black was heavy enough to be the loudest thing on the dashboard.
      Same ink, lighter at the foot, so the bar reads as a quantity rather than a
      block. */
-  background: linear-gradient(180deg, var(--accent) 0%, rgba(22, 22, 29, 0.72) 100%);
+  /* The chart hue, not the accent.
+     The accent inverts with the theme, so a bar painted in it went from near-black
+     to a near-white slab that dominated a dark dashboard and matched nothing else
+     on the page. Slot one of the chart palette is the same blue ReportChart draws
+     a single series in, which also makes the dashboard and the reports agree. */
+  background: linear-gradient(180deg, var(--chart-1) 0%, var(--chart-1-fade) 100%);
   transition: filter 0.12s, transform 0.12s;
 }
 .chart-bars .bar:hover { filter: brightness(1.35); }
@@ -621,14 +935,14 @@ label {
   height: var(--control-sm); padding: 0 var(--s4);
   font-size: var(--t-base); font-weight: 500;
 }
-.pill-tabs button:hover { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
+.pill-tabs button:hover { background: var(--surface); color: var(--ink); }
 .pill-tabs button.active {
   background: var(--surface); color: var(--ink); font-weight: 600;
   border-color: var(--line); box-shadow: var(--e1);
 }
 .tab-count {
   display: inline-block; margin-left: var(--s2); padding: 0 var(--s2);
-  border-radius: var(--r-sm); background: rgba(22, 22, 29, 0.07);
+  border-radius: var(--r-sm); background: var(--tint-weak);
   font-size: var(--t-xs); font-variant-numeric: tabular-nums; color: var(--ink-soft);
 }
 .pill-tabs button.active .tab-count { background: var(--accent-soft); color: var(--accent); }
@@ -640,7 +954,7 @@ label {
 @media (max-width: 1250px) { .kanban { grid-template-columns: repeat(3, minmax(190px, 1fr)); } }
 @media (max-width: 720px) { .kanban { grid-template-columns: 1fr; } }
 .kanban-col {
-  background: rgba(255, 255, 255, 0.42);
+  background: var(--surface);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius); padding: 14px; min-height: 180px;
   backdrop-filter: blur(18px); transition: background 0.15s, border-color 0.15s;
@@ -652,7 +966,7 @@ label {
 }
 .kanban-total { font-size: 11.5px; color: var(--ink-soft); margin: 2px 0 10px; }
 .deal-card {
-  background: rgba(255, 255, 255, 0.92); border: 1px solid rgba(255, 255, 255, 0.9);
+  background: var(--surface); border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm); padding: 11px 13px; margin-bottom: 9px;
   cursor: grab; box-shadow: 0 1px 3px rgba(30, 32, 28, 0.06);
   transition: transform 0.12s, box-shadow 0.12s; font-size: 13px;
@@ -662,20 +976,20 @@ label {
 .deal-value { font-family: var(--font-dots); font-weight: 900; font-size: 17px; margin: 3px 0; }
 .deal-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); margin-top: 5px; }
 .deal-card.stale { border-color: rgba(240, 160, 75, 0.55); }
-.deal-prob { height: 3px; border-radius: 999px; background: rgba(31, 30, 38, 0.09); overflow: hidden; margin-top: 7px; }
+.deal-prob { height: 3px; border-radius: 999px; background: var(--tint); overflow: hidden; margin-top: 7px; }
 .deal-prob > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--rose), var(--accent)); }
 .deal-foot { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-top: 8px; }
-.kanban-share { height: 3px; border-radius: 999px; background: rgba(31, 30, 38, 0.08); overflow: hidden; margin-bottom: 10px; }
+.kanban-share { height: 3px; border-radius: 999px; background: var(--tint); overflow: hidden; margin-bottom: 10px; }
 .kanban-share > div { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--indigo), var(--mauve)); }
 
 /* ---------- help desk thread ---------- */
 .thread { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; }
 .msg {
   padding: 11px 15px; border-radius: 16px; max-width: 78%; font-size: 13.5px;
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line-soft);
 }
-.msg.customer { background: rgba(255, 255, 255, 0.8); align-self: flex-start; border-bottom-left-radius: 5px; }
-.msg.staff { background: var(--ink); color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; border-color: var(--ink); }
+.msg.customer { background: var(--surface); align-self: flex-start; border-bottom-left-radius: 5px; }
+.msg.staff { background: var(--ink); color: var(--on-ink); align-self: flex-end; border-bottom-right-radius: 5px; border-color: var(--ink); }
 .msg.note { background: var(--warn-soft); align-self: center; max-width: 92%; font-style: italic; }
 .msg .who { font-size: 10.5px; opacity: 0.7; margin-bottom: 3px; }
 
@@ -683,7 +997,7 @@ label {
 .avatar {
   display: inline-grid; place-items: center; flex-shrink: 0;
   border-radius: 50%; font-weight: 700; color: #fff; letter-spacing: 0.02em;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 0 0 1px var(--line-soft);
 }
 .score-ring { position: relative; display: inline-grid; place-items: center; flex-shrink: 0; }
 .score-ring b {
@@ -694,8 +1008,8 @@ label {
 .path { display: flex; gap: 3px; margin: 14px 0; overflow-x: auto; padding-bottom: 2px; }
 .path-step {
   flex: 1; min-width: 92px; position: relative;
-  background: rgba(255, 255, 255, 0.6); color: var(--ink-soft);
-  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: var(--surface); color: var(--ink-soft);
+  border: 1px solid var(--line-soft);
   border-radius: 0; padding: 8px 14px 8px 22px;
   font-size: 12px; font-weight: 600; text-align: left;
   clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 50%, calc(100% - 11px) 100%, 0 100%, 11px 50%);
@@ -704,13 +1018,13 @@ label {
 .path-step:last-child { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%); border-radius: 0 10px 10px 0; }
 .path-step:hover { transform: none; box-shadow: none; }
 .path-step.done { background: rgba(151, 130, 156, 0.30); color: var(--indigo); }
-.path-step.active { background: var(--accent); color: #fff; }
+.path-step.active { background: var(--accent); color: var(--accent-ink); }
 .path-step.active.lost { background: linear-gradient(135deg, #8d3f2c, var(--danger)); }
 .path-step:disabled { opacity: 1; cursor: default; }
 
 .highlights {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1px; background: rgba(31, 30, 38, 0.08);
+  gap: 1px; background: var(--tint);
   border-radius: var(--radius-sm); overflow: hidden; margin: 14px 0;
 }
 .highlight { background: var(--glass-strong); padding: 12px 16px; }
@@ -741,7 +1055,7 @@ label {
 .funnel { display: flex; flex-direction: column; gap: 12px; }
 .funnel-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 130px; gap: 14px; align-items: center; }
 .funnel-label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
-.funnel-track { height: 30px; background: rgba(31, 30, 38, 0.06); border-radius: 8px; overflow: hidden; }
+.funnel-track { height: 30px; background: var(--tint-weak); border-radius: 8px; overflow: hidden; }
 .funnel-bar { height: 100%; border-radius: 8px; transition: width 0.3s ease; }
 .funnel-side { text-align: right; font-size: 12px; }
 .funnel-side b { font-variant-numeric: tabular-nums; }
@@ -778,7 +1092,7 @@ label {
 .record-hero .path { margin-top: 0; }
 .record-exit {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  margin-top: 14px; padding-top: 13px; border-top: 1px solid rgba(31, 30, 38, 0.08);
+  margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--line-soft);
   font-size: 12px;
 }
 
@@ -803,8 +1117,8 @@ label {
   background: transparent; color: var(--ink); border: none; border-radius: 10px;
   font-size: 13px; font-weight: 500;
 }
-.rail-item:hover { background: rgba(255, 255, 255, 0.75); transform: none; box-shadow: none; }
-.rail-item.active { background: var(--accent); color: #fff; font-weight: 600; }
+.rail-item:hover { background: var(--surface); transform: none; box-shadow: none; }
+.rail-item.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .rail-count { font-size: 11.5px; opacity: 0.7; font-variant-numeric: tabular-nums; }
 
 .console-list { padding: 14px 16px 8px; min-height: 320px; }
@@ -819,7 +1133,7 @@ label {
   height: var(--control-sm); padding: 0 var(--s3);
   font-size: var(--t-sm); border-radius: var(--r-sm);
 }
-.seg button:hover { background: rgba(255, 255, 255, 0.7); color: var(--ink); }
+.seg button:hover { background: var(--surface); color: var(--ink); }
 .seg button.on { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: var(--e1); }
 
 .bulk-bar {
@@ -836,8 +1150,8 @@ label {
   padding: 10px 12px; border-radius: 14px; cursor: pointer;
   border: 1px solid transparent;
 }
-.lead-row:hover { background: rgba(255, 255, 255, 0.7); }
-.lead-row.active { background: #fff; border-color: rgba(106, 100, 133, 0.30); box-shadow: var(--shadow-soft); }
+.lead-row:hover { background: var(--surface); }
+.lead-row.active { background: var(--surface); border-color: rgba(106, 100, 133, 0.30); box-shadow: var(--shadow-soft); }
 .lead-main { min-width: 0; }
 .lead-main b { display: block; font-size: 13.5px; }
 .lead-main .muted { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -845,11 +1159,11 @@ label {
 .lead-value { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 92px; text-align: right; }
 
 .lead-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.board-col { background: rgba(255, 255, 255, 0.42); border-radius: 18px; padding: 12px; min-height: 160px; }
+.board-col { background: var(--tint-weak); border-radius: 18px; padding: 12px; min-height: 160px; }
 .board-head { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 12.5px; }
 .board-total { font-family: var(--font-dots); font-size: 14px; margin: 4px 0 10px; color: var(--ink-soft); }
 .board-card {
-  background: #fff; border: 1px solid rgba(255, 255, 255, 0.9); border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: 14px;
   padding: 10px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow-soft);
 }
 .board-card.active { border-color: rgba(106, 100, 133, 0.45); }
@@ -861,8 +1175,8 @@ label {
 .detail-head h3 { font-size: 17px; }
 .detail-head .muted { font-size: 12.5px; }
 .detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-.detail-fields { display: grid; gap: 1px; margin: 0 0 16px; background: rgba(31, 30, 38, 0.07); border-radius: 14px; overflow: hidden; }
-.detail-fields > div { display: flex; justify-content: space-between; gap: 12px; background: rgba(255, 255, 255, 0.72); padding: 8px 13px; }
+.detail-fields { display: grid; gap: 1px; margin: 0 0 16px; background: var(--tint-weak); border-radius: 14px; overflow: hidden; }
+.detail-fields > div { display: flex; justify-content: space-between; gap: 12px; background: var(--surface); padding: 8px 13px; }
 .detail-fields dt { font-size: 11.5px; color: var(--ink-soft); margin: 0; }
 .detail-fields dd { margin: 0; font-size: 12.5px; text-align: right; font-weight: 500; }
 .detail-block { margin-bottom: 16px; }
@@ -875,14 +1189,14 @@ label {
 .factor { margin-bottom: 9px; }
 .factor-top { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
 .factor-top b { font-variant-numeric: tabular-nums; }
-.factor-track { height: 4px; border-radius: 999px; background: rgba(31, 30, 38, 0.09); margin-top: 4px; overflow: hidden; }
+.factor-track { height: 4px; border-radius: 999px; background: var(--tint); margin-top: 4px; overflow: hidden; }
 .factor-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--rose), var(--accent)); }
 .factor-group {
   display: flex; align-items: center; gap: 8px;
   font-size: 10px; text-transform: uppercase; letter-spacing: 1.1px;
   color: var(--ink-soft); font-weight: 600; margin: 14px 0 7px;
 }
-.factor-group::after { content: ""; flex: 1; height: 1px; background: rgba(31, 30, 38, 0.10); }
+.factor-group::after { content: ""; flex: 1; height: 1px; background: var(--tint); }
 .factor-group:first-child { margin-top: 2px; }
 
 /* the path has to survive the narrow detail pane */
@@ -893,7 +1207,7 @@ label {
 .datatable { padding: 0; overflow: hidden; }
 .dt-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid rgba(31, 30, 38, 0.07);
+  flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line-soft);
 }
 .dt-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
 .dt-tools { display: flex; align-items: center; gap: 10px; }
@@ -903,6 +1217,14 @@ label {
 .dt-filters input, .dt-filters select { padding: 7px 14px; font-size: 13px; width: auto; }
 .dt-filters select { max-width: 190px; }
 .dt-filters input[type="checkbox"] { padding: 0; }
+/* A label in a filter bar wraps its control rather than sitting above it, and
+   without this the two overlap: "Within" was printed underneath the dropdown
+   that belongs to it, and the next filter sat on top of both. */
+.dt-filters label {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  margin: 0; white-space: nowrap; font-weight: 400;
+}
+.dt-filters label + label { margin-left: var(--s3); }
 .filter-search { min-width: 200px; flex: 1 1 200px; max-width: 320px; }
 .filter-range { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .filter-range input { max-width: 150px; }
@@ -924,12 +1246,12 @@ label {
 .dt-comfortable td { padding: 10px 12px; }
 .dt-spacious td { padding: 15px 14px; }
 .dt tfoot td {
-  background: rgba(31, 30, 38, 0.045); font-weight: 700;
-  border-top: 2px solid rgba(31, 30, 38, 0.12); border-bottom: none;
+  background: var(--tint-weak); font-weight: 700;
+  border-top: 2px solid var(--line); border-bottom: none;
 }
 .dt-pager {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  flex-wrap: wrap; padding: 11px 18px; border-top: 1px solid rgba(31, 30, 38, 0.07);
+  flex-wrap: wrap; padding: 11px 18px; border-top: 1px solid var(--line-soft);
   font-size: 12.5px;
 }
 .dt-pager-controls { display: flex; align-items: center; gap: 8px; }
@@ -945,18 +1267,102 @@ label {
 
 /* expandable table rows — keeps detail in place without a second table */
 .row-click { cursor: pointer; }
-.row-click:hover td { background: rgba(255, 255, 255, 0.75); }
-.detail-row > td { background: rgba(255, 255, 255, 0.55); padding: 12px 16px 14px 34px; }
+.row-click:hover td { background: var(--surface); }
+.detail-row > td { background: var(--surface); padding: 12px 16px 14px 34px; }
 .line-list { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
 .line-list > div {
   display: grid; grid-template-columns: minmax(0, 1fr) 140px 110px 110px;
   gap: 12px; align-items: center;
-  padding-bottom: 6px; border-bottom: 1px solid rgba(31, 30, 38, 0.06);
+  padding-bottom: 6px; border-bottom: 1px solid var(--line-soft);
 }
 .line-list > div:last-child { border-bottom: none; padding-bottom: 0; }
 @media (max-width: 760px) { .line-list > div { grid-template-columns: 1fr; gap: 2px; } }
 
 .mono { font-family: ui-monospace, monospace; font-size: 12.5px; }
+
+/* A reference is not prose, and must never be elided.
+   Batch numbers, claim references and invoice numbers differ from each other in
+   their last characters, so clipping "BAT260800069" to "BAT26080006…" removes the
+   only part that identifies which one it is — and by four pixels, which reads as
+   a rendering accident rather than as information withheld. A monospace cell in
+   a fixed-layout table is sized from content and never truncated; whatever room
+   it needs comes out of the prose columns beside it, which survive an ellipsis. */
+/* `width: 1%` is NOT used here, though it is the usual idiom for "shrink this
+   column to its contents". That idiom relies on `table-layout: auto`; under the
+   fixed layout these tables use, 1% means one per cent, and this column
+   collapsed to nine pixels for a seventeen-character reference. The width is
+   declared on the header below, in rem, because fixed layout reads the first
+   row and nothing else. */
+td.mono, th.mono {
+  white-space: nowrap;
+  /* Clipped at the cell edge like everything else — a reference that paints over
+     the column beside it is not "not truncated", it is two values on top of each
+     other. The width below is what keeps it whole. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Row actions need room allocated, not borrowed.
+   Under `table-layout: fixed` a `width: 1%` column is given almost nothing and
+   its buttons spill out under `overflow: hidden` — which is how "Close" and
+   "VAT return" rendered as the single run-together string "CloseVAT return",
+   and how a three-button cell lost 110 pixels of itself.
+   Percentages and lengths are all fixed layout understands, so the width is
+   claimed from how many buttons the cell actually contains rather than hoped
+   for. Ordered widest-last: at equal specificity the later rule wins, so a
+   three-button cell is not caught by the one-button rule above it. */
+td.actions, th.actions {
+  white-space: nowrap;
+  overflow: hidden;
+  /* `clip`, not `ellipsis`. An ellipsis in a column of buttons renders as three
+     dots at the end of the row that look like a "more actions" menu and do
+     nothing when clicked — which is exactly how it was read. The dots were never
+     the bug; they were the symptom of a column too narrow for its buttons, and
+     hiding the symptom would have left the button unreachable and unexplained.
+     With `clip` a column that is too narrow looks wrong, and the audit fails it. */
+  text-overflow: clip;
+}
+
+/* The width has to be declared on the HEADER cell, not the body cell.
+   `table-layout: fixed` sizes every column from the first row alone, so a rule
+   on `td.actions` is read and then ignored — which is why sizing the body cell
+   changed nothing at all and the buttons went on overflowing by 41 pixels.
+   The header is empty, though, and knows nothing about what the rows contain.
+   So the table is asked: `:has()` reaches down from the table into its own body
+   and picks the width from the most crowded action cell in it. Widest last, so
+   a three-button table is not caught by the two-button rule above it. */
+/* A reference column is sized for its reference. Same reason as the action
+   columns: the width has to be on the header or fixed layout never reads it. */
+th.mono { width: 10.5rem; }
+
+/* An action column is sized for what it holds, and clips whatever exceeds that.
+   It must never paint outside the table: on Deliveries the last column carries a
+   button on rows still out and the failure reason on rows that came back, and
+   with `overflow: visible` "Nobody home, gate locked" ran straight off the white
+   and onto the page background. Buttons are safe from the clip because the
+   column is sized for them below, not because the cell refuses to clip. */
+/* Sized from the buttons the column actually holds — and matching BOTH names
+   the action cell goes by. These selectors said `td.actions` only, while the
+   lay-by and remittance tables mark their cells `lb-actions`, so those columns
+   were given the one-button width and "Bill patient" + "Write off" hung 66px
+   out of the table. A column whose contents do not fit is the whole reason a
+   table starts scrolling sideways. */
+th.actions { width: 11rem; }
+table:has(td.actions button + button),
+table:has(td.lb-actions button + button) { --actions-w: 15.5rem; }
+table:has(td.actions button + button + button),
+table:has(td.lb-actions button + button + button) { --actions-w: 19rem; }
+table:has(td.actions > span),
+table:has(td.lb-actions > span) { --actions-w: 17rem; }
+table th.actions { width: var(--actions-w, 11rem); }
+/* No `.dt` exception here. DataTable states its column widths as inline styles
+   on the header cells, which outrank any stylesheet rule, so its own tables are
+   already governed and never needed one. The exception only ever applied to the
+   hand-written tables that borrow the `.dt` class for styling — and there, by
+   winning on specificity, it was the thing preventing them from being sized. */
+
+/* The buttons inside an action cell are laid out, not left to collide. */
+td.actions > * + * { margin-left: var(--s2); }
 .muted { color: var(--ink-soft); }
 .right { text-align: right; }
 
@@ -980,7 +1386,7 @@ label {
 .tender-line select, .tender-line input { padding: 7px 12px; font-size: 13px; width: 100%; }
 .tender-summary {
   margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.85);
+  background: var(--surface); border: 1px solid var(--line-soft);
   font-size: 13px;
 }
 .tender-summary > div { display: flex; justify-content: space-between; padding: 2px 0; }
@@ -1008,7 +1414,7 @@ label {
   color: var(--ink-faint); font-size: 11px; padding: 0 var(--s1);
   border-radius: var(--r-sm); flex-shrink: 0;
 }
-.sel-clear:hover { color: var(--ink); background: var(--surface-sunk); }
+.sel-clear:hover { color: var(--ink); background: var(--hover); }
 
 .sel-panel {
   position: fixed; z-index: 400;
@@ -1029,7 +1435,7 @@ label {
   padding: var(--s2) var(--s3); border-radius: var(--r-sm);
   font-size: var(--t-base); color: var(--ink-mid); cursor: pointer;
 }
-.sel-option.active { background: var(--surface-sunk); color: var(--ink); }
+.sel-option.active { background: var(--hover); color: var(--ink); }
 .sel-option.selected { color: var(--ink); font-weight: 500; }
 .sel-option.disabled { opacity: 0.4; cursor: not-allowed; }
 .sel-option-main { flex: 1; min-width: 0; }
@@ -1079,7 +1485,7 @@ select:disabled { background-color: var(--surface-sunk); opacity: 0.6; }
   background: transparent; border: 1px solid transparent; border-radius: var(--r-sm);
   color: var(--ink-mid); font-size: var(--t-sm); font-weight: 500;
 }
-.keybar-item:hover:not(:disabled) { background: var(--surface-sunk); color: var(--ink); }
+.keybar-item:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
 .keybar-item:disabled { opacity: 0.38; }
 .keybar-label { white-space: nowrap; }
 
@@ -1120,7 +1526,7 @@ select:disabled { background-color: var(--surface-sunk); opacity: 0.6; }
   display: flex; gap: var(--s3); align-items: baseline;
   padding: var(--s2) var(--s3); border-radius: var(--r-sm); cursor: pointer;
 }
-.dx-option.active { background: var(--surface-sunk); }
+.dx-option.active { background: var(--hover); }
 .dx-option .dx-code { min-width: 56px; }
 .dx-empty { padding: var(--s4); text-align: center; font-size: var(--t-sm); color: var(--ink-faint); }
 
@@ -1311,7 +1717,7 @@ tr.is-new { animation: row-in 180ms ease-out; }
  * the user that before they try it.
  */
 tr.row-link { cursor: pointer; }
-tr.row-link:hover > td { background: var(--surface-sunk); }
+tr.row-link:hover > td { background: var(--hover); }
 tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* ---- toasts ---------------------------------------------------------------
@@ -1445,9 +1851,16 @@ tr.is-leaving { animation: row-out 140ms ease-in forwards; pointer-events: none;
   border-spacing: 0;
   border: 1px solid var(--line-soft);
   border-radius: var(--r-md);
-  overflow: hidden;
+  /* No `overflow: hidden` here, though it is the obvious way to make the corners
+     clip the header background. An ancestor that clips, sitting between a
+     sticky cell and the scroll container it sticks to, silently cancels the
+     stickiness — so this one line kept every pinned action column from pinning,
+     with no error anywhere and `position: sticky` reported correctly in the
+     computed styles. The clipping belongs to `.dt-scroll`, which is the element
+     that actually scrolls. */
   background: var(--surface);
 }
+.dt-scroll { border-radius: var(--r-md); }
 /* The one place a stronger rule earns itself: the boundary between the column
  * names and the data. Everything below it is a record; nothing above it is. */
 .dt thead th {
@@ -1463,7 +1876,7 @@ tr.is-leaving { animation: row-out 140ms ease-in forwards; pointer-events: none;
 .dt tbody tr:last-child td { border-bottom: none; }
 /* Hover does the work the vertical rules were doing: it ties a figure to its
  * row across the full width, and only when you are actually looking there. */
-.dt tbody tr:hover td { background: var(--surface-sunk); }
+.dt tbody tr:hover td { background: var(--hover); }
 
 .card {
   border: 1px solid var(--line-soft);
@@ -1503,19 +1916,40 @@ input:disabled, select:disabled, textarea:disabled {
    transition is on width alone — animating anything else here makes the whole
    application feel like it is sliding about. */
 
-:root { --rail: 248px; --rail-collapsed: 62px; }
+/* Back to 248px, and adjustable.
+   212px did buy the tables 36px, and it cost "Controlled Register" and
+   "Revenue Intelligence" a second line each — a nav label that wraps is worse
+   than a table column that truncates, because the label is the thing you read
+   to find your way and it is on every screen at once. The width is a preference
+   now: drag the sidebar's edge. It resets to this default when the session ends,
+   so a shared till never inherits the last person's dragging. */
+:root { --rail: 248px; --rail-collapsed: 56px; }
 
-.shell > .sidebar { width: var(--rail); transition: width 140ms ease; }
+/* `--rail-user` is set by dragging; `--rail` is the default it falls back to.
+   No transition while dragging, or the edge lags behind the pointer. */
+.shell > .sidebar { width: var(--rail-user, var(--rail)); transition: width 140ms ease; }
+.shell.is-resizing > .sidebar { transition: none; }
 .shell.is-collapsed > .sidebar { width: var(--rail-collapsed); }
 
+/* Collapsed to a rail, everything that is words goes: the wordmark's second
+   line, the link labels, and the section headings. Only icons remain, which is
+   the entire point of collapsing it.
+
+   This rule had lost its `display: none` in an edit — the selectors below were
+   left dangling onto the border rule that follows, so collapsing the sidebar
+   stopped hiding anything and merely drew lines around the text it should have
+   removed. */
 .shell.is-collapsed .brand-text,
 .shell.is-collapsed .nav-label,
-.shell.is-collapsed .nav-section,
+.shell.is-collapsed .nav-section { display: none; }
 
-.shell.is-collapsed .nav a,
+/* The icon is now the whole link, so it centres rather than sitting where a
+   label used to start. */
+.shell.is-collapsed .nav a { justify-content: center; padding: 0; }
+.shell.is-collapsed .brand { justify-content: center; gap: 0; }
 
-/* Collapsed, the section headings are gone, so a rule takes their place —
- * otherwise the groups run together into one undifferentiated column. */
+/* With the headings gone the groups would run together into one undifferentiated
+   column, so a rule takes their place. */
 .shell.is-collapsed .nav > div + div {
   border-top: 1px solid var(--line-soft);
   margin-top: var(--s3); padding-top: var(--s3);
@@ -1535,9 +1969,25 @@ input:disabled, select:disabled, textarea:disabled {
 .sidebar { position: relative; }
 .rail-toggle {
   position: absolute;
-  top: 74px;                    /* level with the first nav group, not the logo */
+  /* On the seam, level with the wordmark. It sat 74px down, beside the first
+     nav group, where it read as belonging to "Dispensary" rather than to the
+     rail itself — and on a shorter header that put it adrift in the middle of
+     nothing. Centred on the brand row it lands on the one horizontal line the
+     eye already follows across the whole application: the bottom edge of the
+     header band. */
+  top: calc(var(--topbar-h) / 2);
+  transform: translateY(-50%);
   right: -12px;                 /* straddling the sidebar's right border */
-  z-index: 5;
+  /* Above the top bar, which is 30.
+     The control deliberately hangs over the sidebar's right edge, and moving it
+     up to the seam put that overhanging half directly underneath the sticky top
+     bar — so the button rendered as a half-disc, sliced down the middle. It is
+     not a clipping problem: `.sidebar` sets no z-index, so it creates no
+     stacking context and this button competes with the top bar directly. It has
+     to win, because it is the thing sitting on top of the seam.
+     41 rather than 40, so it also clears the rail's drag handle, which shares
+     this corner. */
+  z-index: 41;
   display: inline-flex; align-items: center; justify-content: center;
   width: 24px; height: 24px; padding: 0;
   border: 1px solid var(--line-strong); border-radius: var(--r-pill);
@@ -1547,7 +1997,7 @@ input:disabled, select:disabled, textarea:disabled {
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .rail-toggle:hover {
-  background: var(--accent); color: #fff; border-color: var(--accent);
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
 }
 .rail-toggle:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
 /* The icon is the whole content, so it must never inherit a zero size. */
@@ -1678,7 +2128,14 @@ html, body { max-width: 100%; overflow-x: hidden; }
    break momentum scrolling and hide content behind mobile browser chrome. */
 
 @media (min-width: 861px) {
-  html, body { height: 100%; overflow: hidden; }
+  /* Only when the application shell is actually on the page.
+     This was `html, body { overflow: hidden }` unconditionally, which is right
+     for the shell — it scrolls its own main pane — and wrong for everything
+     rendered outside it. The landing page, the training index and the sign-in
+     screen all live above the Protected route, so on those the rule simply
+     clipped whatever did not fit in one viewport and left no way to reach it.
+     `:has(.shell)` makes the lock follow the thing that needs it. */
+  html:has(.shell), body:has(.shell) { height: 100%; overflow: hidden; }
 
   .shell { height: 100vh; min-height: 0; overflow: hidden; }
 
@@ -1703,8 +2160,26 @@ html, body { max-width: 100%; overflow-x: hidden; }
      containers that genuinely declare an overflow in this stylesheet — the
      first list I wrote was invented, and a selector matching nothing is a fix
      that silently does not apply. */
-  .modal, .ai-box, .kanban, .console-detail, .dt-scroll, .sel-list, .dx-list {
+  /* Panes that genuinely scroll vertically keep their scroll to themselves. */
+  .modal, .ai-box, .sel-list, .dx-list {
     overscroll-behavior: contain;
+  }
+
+  /* Horizontal scrollers contain only the axis they actually scroll.
+     A wide table sits in a box with `overflow-x: auto`, and CSS computes the
+     other axis to `auto` as well — so the box is a scroll container in both
+     directions even though it has nothing to scroll vertically. Blanket
+     `overscroll-behavior: contain` then told the browser not to hand vertical
+     scroll to the page, and the wheel did nothing at all while the pointer was
+     over a table. On a screen where the table fills the window that reads as
+     "the application will not scroll".
+     `-x: contain` still stops a sideways flick dragging the whole app;
+     `-y: auto` lets the page scroll under the pointer, which is what a wheel
+     over a long list is asking for. */
+  .dt-scroll, .cu-scroll, .kanban, .console-detail, .path,
+  main :where(div, section, form):has(> table) {
+    overscroll-behavior-x: contain;
+    overscroll-behavior-y: auto;
   }
 
   /* A scrollbar that appears only when the pane overflows shifts the layout by
@@ -1756,12 +2231,17 @@ img { -webkit-user-drag: none; user-select: none; }
    drove the row, so a long list either padded the entry column with dead space
    or dragged the page past the viewport. */
 
-.rx-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: var(--s5);
-  align-items: start;   /* not stretch: the short side must not inherit the tall side's height */
-}
+/* One column, since the aside it was splitting against is gone.
+   The dispensing form is a sequence — patient, then items, then the safety
+   check — and a sequence wants width, not a second column beside it competing
+   for the same eye. The queue is still in view on the right of the page; this
+   grid was a third pane inside a two-pane layout. */
+.rx-split { display: block; }
+
+/* The work column, whichever route is being dispensed. Capped: a form line
+   stretched across 1400px is harder to read than one that stops, and the
+   measure matters more here than filling the space. */
+.disp-work, .rx-split { max-width: 78rem; }
 
 .rx-aside {
   position: sticky;
@@ -1844,7 +2324,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .cf-backdrop {
   position: fixed; inset: 0; z-index: 200;
   display: grid; place-items: center; padding: var(--s5);
-  background: rgba(22, 22, 29, 0.38);
+  background: var(--scrim);
   backdrop-filter: blur(2px);
 }
 .cf-box {
@@ -1861,7 +2341,7 @@ img { -webkit-user-drag: none; user-select: none; }
 /* Cancel first in the DOM so it takes focus, but the confirming verb sits on
  * the right where the eye finishes reading. */
 .cf-actions .btn { min-width: 96px; }
-.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
 .btn.danger:hover { filter: brightness(0.94); }
 
 /* ---------------------------------------------------------------- scanning
@@ -2407,7 +2887,11 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .wl-stat b { font-size: 1.15rem; line-height: 1.1; }
 .wl-stat span { font-size: .68rem; color: var(--ink-soft); line-height: 1.2; }
-.wl-stat.is-on { border-color: var(--accent); }
+/* Hover states the rail was missing. A control that does not respond to the
+   pointer reads as decoration, and these are the filters for the whole queue. */
+.wl-stat:hover { background: var(--surface); border-color: var(--ink-faint); }
+.wl-stat.is-on { border-color: var(--accent); background: var(--surface); }
+.wl-stat.is-on:hover { border-color: var(--accent); }
 /* Only a non-zero urgent count is loud. A permanent red zero is furniture. */
 .wl-stat.is-urgent b { color: var(--danger); }
 .wl-tabs { display: flex; gap: 2px; }
@@ -2416,7 +2900,8 @@ img { -webkit-user-drag: none; user-select: none; }
   font-size: .72rem; background: transparent; color: var(--ink-soft);
   border: 1px solid var(--line); border-radius: var(--r-sm); white-space: nowrap;
 }
-.wl-tabs button.on { background: var(--surface-sunk); color: var(--ink); border-color: var(--line-strong); }
+.wl-tabs button:hover { background: var(--hover); color: var(--ink); border-color: var(--line-strong); }
+.wl-tabs button.on { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
 .wl-list {
   display: flex; flex-direction: column; gap: var(--s2);
   overflow-y: auto; overscroll-behavior: contain; padding-right: 2px;
@@ -2441,6 +2926,10 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--accent-soft); color: var(--ink-mid);
 }
 .wl-tag-sched { background: var(--danger-soft); color: var(--danger); }
+/* Repeats read as ordinary work, not as a warning — they are the common case.
+   A distinct but quiet tint, so the eye can sort the queue without the panel
+   turning into a colour chart. */
+.wl-tag-repeat { background: var(--indigo-soft, rgba(90, 90, 160, 0.14)); color: var(--ink-mid); }
 .wl-wait { font-size: .7rem; color: var(--ink-faint); margin-left: auto; }
 .wl-call { font-size: .72rem; color: var(--brand-deep); text-decoration: none; }
 .wl-call:hover { text-decoration: underline; }
@@ -2500,7 +2989,9 @@ img { -webkit-user-drag: none; user-select: none; }
 .gs-flag {
   font-size: .64rem; text-transform: uppercase; letter-spacing: .04em;
   padding: 1px 5px; border-radius: var(--r-xs);
-  background: var(--accent-soft); color: var(--ink-faint); font-weight: 500;
+  /* --ink-soft, not --ink-faint: on the dark accent tint the faint step lands at
+     3.85:1, and this is 10px uppercase. */
+  background: var(--accent-soft); color: var(--ink-soft); font-weight: 500;
 }
 .gs-effect {
   margin: 3px 0 0; font-size: .82rem; color: var(--ink-soft);
@@ -2537,28 +3028,11 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-md);
 }
-.lbl {
-  width: 70mm; min-height: 40mm;
-  display: flex; flex-direction: column; gap: 0.8mm;
-  padding: 2mm;
-  background: #fff; color: #000;
-  border: 1px dashed rgba(0, 0, 0, 0.35); border-radius: 1mm;
-  font-family: Arial, Helvetica, sans-serif;
-}
-.lbl-pharmacy { font-size: 2.1mm; font-weight: 700; text-transform: uppercase; letter-spacing: .1mm; }
-.lbl-patient { font-size: 2.9mm; font-weight: 700; }
-.lbl-med { font-size: 2.5mm; font-weight: 700; }
-/* The directions, and deliberately the largest thing on the sticker — matching
-   the print stylesheet, which is what actually reaches the patient. */
-.lbl-dose { font-size: 3.1mm; font-weight: 700; line-height: 1.25; }
-.lbl-warn {
-  font-size: 2mm; font-style: italic;
-  border-top: 0.3mm solid #000; padding-top: 0.5mm;
-}
-.lbl-meta {
-  margin-top: auto; display: flex; justify-content: space-between; gap: 2mm;
-  font-size: 1.9mm; border-top: 0.3mm solid rgba(0, 0, 0, 0.4); padding-top: 0.7mm;
-}
+/* The sticker's own styles live further down, written against the printed
+   layout. What stood here was the previous label and it was still winning on
+   some properties: a border-top on the warning drew a second rule above the one
+   the layout puts below it, so the preview showed two lines where the printer
+   puts one. */
 .lbl-copies { display: flex; align-items: center; gap: var(--s2); font-size: .82rem; }
 .lbl-copies input { width: 64px; }
 
@@ -2622,7 +3096,7 @@ img { -webkit-user-drag: none; user-select: none; }
   height: auto; white-space: normal; font: inherit; color: inherit;
   border-radius: var(--r-sm); cursor: pointer;
 }
-.st-results button:hover { background: var(--surface-sunk); }
+.st-results button:hover { background: var(--hover); }
 .st-picked {
   display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
   padding: var(--s2) var(--s3); margin-bottom: var(--s3);
@@ -2685,7 +3159,7 @@ img { -webkit-user-drag: none; user-select: none; }
   font: inherit; font-size: .8rem; color: inherit; border-radius: var(--r-xs);
   cursor: pointer;
 }
-.sig-book button:hover { background: var(--surface-sunk); }
+.sig-book button:hover { background: var(--hover); }
 
 /* --------------------------------------------------------------- petty cash */
 .pc-form {
@@ -2770,9 +3244,57 @@ img { -webkit-user-drag: none; user-select: none; }
    elsewhere, whose columns would be redistributed for no reason. */
 .dt { table-layout: fixed; width: 100%; }
 /* With fixed layout a cell can no longer be sized by its content, so every cell
-   clips unless its column opts out. */
-.dt td, .dt th { overflow: hidden; }
+   clips unless its column opts out.
+
+   The ellipsis matters as much as the clipping. `overflow: hidden` on its own
+   severs a word wherever the column happens to end — "Tendering for annual fl"
+   — which reads as a broken renderer rather than as text that continues. */
+/* A data table has a floor, and clips rather than wraps.
+ *
+ *  Two faults, one cause. `text-overflow: ellipsis` does nothing to text that is
+ *  allowed to wrap — it only ever truncates a single line — so cells stated they
+ *  would clip and then quietly stacked instead. And a fixed-layout table with no
+ *  minimum squeezes to whatever it is given: at a 900px viewport one of these
+ *  compressed to 578px, handing every column 60px, and "TOFOLLOW Probe Syrup"
+ *  became a five-line tower. Neither shows up at 1280px, which is why measuring
+ *  one width proved nothing.
+ *
+ *  Below the floor the container scrolls, which is the guard the rest of the app
+ *  already uses. `td.wrap` opts a column back into wrapping where prose belongs. */
+/* No minimum width, and therefore no sideways scrolling.
+   A blanket floor was the wrong instrument. Measured against real rows, the
+   patients table needs 829px and had 1076; remittances needs 891 and had 1076 —
+   and both scrolled anyway, because a 66rem floor is 1056px whatever the content
+   is. A scrollbar was being produced to protect columns that already fitted with
+   two hundred pixels to spare.
+   What actually keeps a column readable is a sensible share of the width and an
+   honest truncation with the full value on hover, which the cells already do.
+   The container keeps `overflow-x: auto` as a safety net for a genuinely
+   extreme row — it just no longer has anything to scroll on an ordinary one. */
+.dt { min-width: 0; }
+.dt td, .dt th {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dt td.wrap, .dt th.wrap { white-space: normal; }
+/* A cell that renders its own stacked block (a name above a subtitle) keeps it —
+   nowrap governs inline text, not block children, so those are unaffected. */
 .dt td .clip { max-width: 100%; }
+
+/* A cell holding buttons is not text and must never be squeezed: its contents
+   were being sliced in half at the table edge. It keeps its controls on one line
+   and takes an allocated width from the header rules, so nothing needs to escape
+   the cell to stay whole.
+   `overflow: visible` was the first attempt at that and it was the wrong tool:
+   it stopped buttons being clipped by letting the cell paint outside the table
+   entirely, so a failure reason in the same column ran off the white background
+   and onto the page. Clip here; earn the room in the header. */
+.dt td.actions, .dt th.actions,
+.cu-scroll > table td.actions {
+  overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; text-align: right;
+}
 
 /* One line, clipped, with the full value on the element's title so nothing is
    lost — only deferred to a hover. Applied per cell rather than to every td,
@@ -2806,9 +3328,38 @@ img { -webkit-user-drag: none; user-select: none; }
    in the in-transit table still wrapped to four lines with the clip applied.
    Fixed layout gives the clip a width to work against; the floor below stops the
    columns being squeezed instead, and the box scrolls. */
-.cu-scroll > table { table-layout: fixed; width: 100%; min-width: 52rem; }
-.cu-scroll > table td, .cu-scroll > table th { overflow: hidden; }
+/* Same reasoning as `.dt`: share the width, truncate the anomaly, do not force
+   a scrollbar onto every row because one value might one day be long. */
+.cu-scroll > table { table-layout: fixed; width: 100%; min-width: 0; }
+.cu-scroll > table td, .cu-scroll > table th {
+  overflow: hidden; text-overflow: ellipsis;
+}
+/* Row actions keep their width; the box scrolls rather than the buttons being
+   cut. Both forms are covered deliberately: `lb-actions` is sometimes the cell
+   itself and sometimes a cluster inside one, and matching only the container
+   left every table of the first kind still slicing its buttons in half. */
+.cu-scroll > table td.lb-actions,
+.cu-scroll > table td:has(.lb-actions),
+td.lb-actions {
+  /* An allocated width, not `1%`. Under fixed layout a 1% column is given almost
+     nothing and then overflows its cell, which pushes the whole table wider than
+     its box and puts the second action off-screen. Asking for the room the
+     buttons need keeps them where they can be clicked. */
+  /* Width comes from the header, like every other column under fixed layout. */
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lb-actions { min-width: max-content; }
 .cu-scroll > table td .clip { max-width: 100%; }
+
+/* References inside a scrolling table, at the specificity needed to actually
+   win. `td.mono` alone loses to `.cu-scroll > table td` above — one class and
+   two elements beats one class and one — so the batch and transfer references
+   went on being elided by a rule written specifically to stop that. Specificity
+   is not a detail you can leave to intuition; it has to be counted. */
+.cu-scroll > table td.mono, .cu-scroll > table th.mono {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cu-scroll > table th.mono { width: 10.5rem; }
 
 /* Numbers line up column to column whatever their magnitude. Already true of
    `.num`; stated here as well so a new table gets it by using the class. */
@@ -2829,3 +3380,1069 @@ img { -webkit-user-drag: none; user-select: none; }
   font-size: .84rem;
 }
 @media (max-width: 640px) { .stale-api { padding: var(--s2) var(--s4); } }
+
+/* A chosen option has to look chosen from across a counter. The previous
+   treatment — white on near-white with a hairline border — was invisible in a
+   screenshot and worse in daylight, and the cost of misreading it is a campaign
+   sent to the wrong list. A filled edge, a tinted ground and the label in full
+   ink, so the answer is legible at a glance rather than on inspection. */
+.product-pick.is-chosen {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.product-pick.is-chosen b { color: var(--ink); }
+
+/* ------------------------------------------------------------------ *
+   Row actions are no longer pinned, because nothing scrolls under them.
+
+   They were made `position: sticky; right: 0` so a wide table could be scrolled
+   without the buttons leaving the screen. Once the tables were sized to fit,
+   that stopped being a rescue and became the cause: a sticky cell contributes
+   its offset to the container's scroll extent, so the box reported 1178px of
+   content in 1112px and grew a scrollbar with nothing to scroll — which pinned
+   the actions against a scrollbar the pinning had invented.
+
+   Kept only where a table genuinely still overflows, which it now signals for
+   itself by having something to scroll.
+ * ------------------------------------------------------------------ */
+.dt-scroll:has(> table):not(:has(> table[style*="min-width"])) td.actions,
+.cu-scroll > table td.actions { position: static; }
+
+
+/* ================================================================== *
+   Responsive behaviour, from measuring at widths other than 1280px.
+
+   Everything below was invisible at 1280 and broken at 900–1230, which is
+   where this actually gets used: a laptop at a high device-pixel ratio has far
+   fewer CSS pixels than its screenshot suggests.
+ * ================================================================== */
+
+/* 1 — Below a laptop width the sidebar becomes its own rail automatically.
+   232px of navigation out of a 900px viewport left the work with 652px, which
+   is what truncated every value in a table to "TOFOL…". The user's own
+   collapse preference still governs above this width; below it there is no
+   width to spend on a preference. */
+/* 1320px, not 1200. A 1225px laptop kept the full 248px sidebar and left 905px
+   for a table that needs 1056px, so the values truncated instead. Navigation is
+   the thing to spend width on last. */
+@media (max-width: 1320px) {
+  .shell > .sidebar { width: var(--rail-collapsed); }
+  .shell .brand-text,
+  .shell .nav-label,
+  .shell .nav-section { display: none; }
+  .shell .nav a { justify-content: center; padding: 0; }
+  .shell .brand { justify-content: center; gap: 0; }
+  .shell .nav > div + div {
+    border-top: 1px solid var(--line-soft);
+    margin-top: var(--s3); padding-top: var(--s3);
+  }
+}
+
+/* 2 — The dispensary's work area stops being two columns long before the
+   viewport does, because it is not competing with the viewport: it sits beside
+   a 320px worklist and keeps only what is left. Splitting that remainder in two
+   gave the middle panel about 215px, which is how a repeat line came out as
+   "Tramadol / 50mg" over "02 / Sept, / 2026" with the Dispense button sliced
+   off the end. One column until there is genuinely room for two. */
+@media (max-width: 1500px) {
+  .disp-with-worklist .cols-2 { grid-template-columns: 1fr; }
+}
+
+/* ------------------------------------------------------------------ *
+   Every data table clips, not just the ones wearing the `.dt` class.
+
+   The rules above were written for `.dt` and missed every hand-written table in
+   the app — which at 900px meant 400 cells on one page wrapped into towers up to
+   five lines tall. A guard that only covers the components you remembered is not
+   a guard. This is the base behaviour; `.wrap` opts a column back into prose.
+
+   Paired with the rule below it: once cells stop wrapping the table takes the
+   width its content needs, and the box around it scrolls instead of the columns
+   collapsing. That is the same bargain the rest of the app already makes —
+   bound the value, and let the container carry the overflow.
+ * ------------------------------------------------------------------ */
+main td, main th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+main td.wrap, main th.wrap, main td .wrap { white-space: normal; }
+
+/* The element that directly holds a table becomes that table's scroll box. */
+main :where(div, section, form):has(> table) { overflow-x: auto; }
+
+/* A status chip beside a value takes its own line, and does so without undoing
+   the clip on the value next to it.
+   `white-space: nowrap` keeps a date whole, but it also kept the "overdue" chip
+   on the same line as the date, where it was the part that got clipped away —
+   the table stopped saying which of these were late. `display: block` breaks the
+   line regardless of nowrap, so the value stays intact on one line and the chip
+   sits under it, which is the layout that was there before. */
+main td > .badge { display: block; width: fit-content; margin-top: 3px; }
+main td > .badge:only-child { margin-top: 0; }
+
+/* ---------- checkbox ----------
+   The native box is kept for behaviour and hidden from view; the drawn box is a
+   span that follows the palette. `appearance: none` alone was not enough — a
+   zero-size input is unfocusable in some browsers, so it keeps its size and sits
+   under the drawn box instead. */
+.cbx {
+  display: inline-flex; align-items: flex-start; gap: var(--s3);
+  margin: 0; cursor: pointer; position: relative;
+  font-size: var(--t-base); font-weight: 400; color: var(--ink);
+  line-height: 1.35;
+}
+.cbx.is-disabled { cursor: not-allowed; opacity: 0.55; }
+.cbx-input {
+  position: absolute; width: 18px; height: 18px; margin: 0;
+  opacity: 0; cursor: inherit;
+}
+.cbx-box {
+  flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-xs);
+  background: var(--surface);
+  display: grid; place-items: center;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.cbx-tick { width: 12px; height: 12px; color: var(--accent-ink); opacity: 0; transform: scale(0.7); transition: opacity 0.1s, transform 0.1s; }
+.cbx:hover .cbx-box { border-color: var(--ink-faint); }
+.cbx-input:checked + .cbx-box { background: var(--accent); border-color: var(--accent); }
+.cbx-input:checked + .cbx-box .cbx-tick { opacity: 1; transform: scale(1); }
+/* Focus is shown on the drawn box, since the real one is invisible. */
+.cbx-input:focus-visible + .cbx-box { box-shadow: 0 0 0 3px var(--accent-ring); }
+.cbx-text { display: flex; flex-direction: column; gap: 1px; }
+.cbx-hint { font-size: var(--t-sm); color: var(--ink-soft); }
+/* Stacked checkboxes in a form need the same rhythm as fields do. */
+.cbx-spaced { margin-bottom: var(--s3); }
+/* The shared check row no longer nests a label inside a label. */
+.check-row { display: flex; align-items: flex-start; gap: var(--s3); }
+.check-row label { margin: 0; font-weight: 400; }
+
+/* ---------- numeric columns keep their header ----------
+   A numeric column is right-aligned so the digits line up under each other; its
+   header has to travel with it, or the word sits at one edge of the column and
+   every value at the other. On the patients table "Loyalty" was 97px away from
+   the points it labels.
+
+   It was not that nobody wrote the rule — `th.num { text-align: right }` is
+   declared with the cells. It lost. `.dt thead th { text-align: left }` further
+   down is one class and two elements against one class and one, so the blanket
+   heading style outranked the explicit modifier, in every table using the
+   component. Stated here, last and specific enough to hold, for the plain
+   tables and the scrolling ones as well. */
+th.num,
+.dt thead th.num,
+.cu-scroll > table thead th.num,
+.rr-table thead th.num { text-align: right; }
+
+/* Centred columns have the same problem and the same answer. */
+th.center,
+.dt thead th.center,
+.cu-scroll > table thead th.center { text-align: center; }
+
+/* ---------- icon buttons ----------
+   Square, quiet at rest, and a real hit target: 30px, because a 16px glyph is a
+   target only for somebody with a mouse and time. The tint arrives on hover so a
+   row of them does not read as a row of coloured furniture. */
+.icon-btn {
+  width: var(--control-sm); height: var(--control-sm); padding: 0;
+  display: inline-grid; place-items: center;
+  background: transparent; color: var(--ink-soft);
+  border: 1px solid transparent; border-radius: var(--r-sm);
+}
+.icon-btn:hover { background: var(--hover); color: var(--ink); border-color: var(--line); }
+.icon-btn:focus-visible { box-shadow: 0 0 0 3px var(--accent-ring); }
+.icon-btn.is-danger:hover { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-soft); }
+.icon-btn:disabled { opacity: 0.4; }
+.icon-btn:disabled:hover { background: transparent; border-color: transparent; color: var(--ink-soft); }
+/* Sat together in an action cell they need air, not a gap the size of a word. */
+td.actions .icon-btn + .icon-btn,
+td.lb-actions .icon-btn + .icon-btn { margin-left: 2px; }
+
+/* An icon-only action column is sized for icons, not for the words they
+   replaced. The width rules above count buttons and assume each holds a label —
+   correct while the button said "Edit", and 128px of empty cell once it became a
+   30px pencil.
+   Guarded with :not(...) so a column mixing an icon with a worded action —
+   "Write off", which stays words on purpose — keeps the wider measure. */
+table:has(td.actions .icon-btn):not(:has(td.actions button:not(.icon-btn))) {
+  --actions-w: 4.5rem;
+}
+table:has(td.actions .icon-btn + .icon-btn):not(:has(td.actions button:not(.icon-btn))) {
+  --actions-w: 7rem;
+}
+table:has(td.actions .icon-btn + .icon-btn + .icon-btn):not(:has(td.actions button:not(.icon-btn))) {
+  --actions-w: 9.5rem;
+}
+
+/* ---------- what needs doing, in the rail ----------
+   A count sits at the end of its own nav row, not floating over the icon: the
+   row is the target and the number describes it. Quiet by default — this is a
+   backlog, not an alarm — and only loud where the work is genuinely time-bound.
+
+   Never rendered as zero. A row of grey noughts trains the eye to skip the exact
+   place a real number will appear. */
+.nav a { position: relative; }
+.nav-count {
+  margin-left: auto;
+  min-width: 1.6rem; height: 1.15rem; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: .66rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  color: var(--ink-mid); background: var(--tint-weak);
+  border-radius: 999px;
+}
+/* Three states, each defined against the row it actually sits on.
+   The active-row rule was `rgba(255,255,255,0.16)` with white text — written as
+   though the selected row were dark. It is not: `.nav a.active` is a pale accent
+   tint with dark text, so the badge was near-white on near-white and disappeared
+   on precisely the row the operator was looking at.
+   Solid accent here instead: it is the one row already carrying emphasis, so its
+   count can carry the most too, and it holds up whatever the tint is changed to
+   later — the badge no longer assumes anything about the row's brightness. */
+.nav a:hover .nav-count { background: var(--tint-strong); color: var(--ink); }
+.nav a.active .nav-count { background: var(--accent); color: var(--accent-ink); }
+.nav a.active:hover .nav-count { background: var(--accent-hover); color: var(--accent-ink); }
+
+/* Scales with the number rather than with the rail. Four figures become "1.3k"
+   in the badge and stay exact in the row's title, so a large backlog cannot
+   widen the navigation or wrap a label. */
+.nav-count { max-width: 3.4rem; overflow: hidden; }
+
+/* Collapsed, a dot rather than digits — see the note at the call site. */
+.nav-dot {
+  position: absolute; top: -1px; right: -1px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.shell.is-collapsed .nav a { position: relative; }
+.shell.is-collapsed .icon { position: relative; }
+
+/* ---------- the sidebar's drag edge ----------
+   A four-pixel target is a target for nobody, so the grab area is wider than the
+   line it draws. It only shows itself on hover: a permanent handle on a border
+   reads as a seam in the layout. */
+.rail-resize {
+  position: absolute; top: 0; right: -3px; bottom: 0; width: 7px;
+  /* `height: auto` on purpose. Every button in this stylesheet lands on a
+     control height, and that rule applied here too — so the grab area was the
+     top 38 pixels of a 950-pixel edge and a drag anywhere below the brand did
+     nothing at all. `top`/`bottom` only size an element whose height is auto. */
+  height: auto;
+  cursor: col-resize; z-index: 40;
+  background: transparent; border: 0; padding: 0;
+  touch-action: none;
+}
+.rail-resize:hover, .rail-resize:focus-visible, .shell.is-resizing .rail-resize {
+  background: linear-gradient(to right, transparent, var(--accent-soft) 40%, transparent);
+}
+.rail-resize:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-ring); }
+/* Collapsed there is nothing to size — the rail is the icons' width. */
+.shell.is-collapsed .rail-resize { display: none; }
+/* While dragging, stop the pointer selecting labels across the whole app. */
+.shell.is-resizing, .shell.is-resizing * { user-select: none; cursor: col-resize !important; }
+
+/* A cluster of row actions. Replaces the inline `white-space: nowrap` span that
+   was copied at each call site, and gives the icons a consistent gap. */
+.row-actions { display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; }
+
+/* ---------- a quantity inside a button ----------
+   The verb stays put and the number sits in its own chip, so a column of
+   actions lines up on the word and the figure is the thing that varies.
+   Tinted from the button it sits in rather than a fixed colour: on the solid
+   primary it lifts out of the fill, on a light button it sinks into it. */
+.btn-count {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 6px; padding: 0 6px; height: 17px;
+  border-radius: 999px;
+  font-size: .7rem; font-weight: 700; font-variant-numeric: tabular-nums;
+  /* Mixed from the button's own text colour rather than fixed white. A solid
+     accent button is near-black on light and near-white on dark, so a hardcoded
+     white chip is invisible in exactly one of the two themes. */
+  background: color-mix(in srgb, var(--accent-ink) 22%, transparent);
+  color: inherit;
+}
+/* On a light button the chip would be invisible, so it inverts. */
+.btn:not(.primary):not(.danger) .btn-count,
+button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
+  background: var(--tint);
+}
+/* "of" is a joiner, not a number — quieter, and it never carries the emphasis. */
+.btn-count i { font-style: normal; font-weight: 500; opacity: 0.7; font-size: .62rem; }
+
+/* ---------- the tooltip ----------
+   Painted in solid ink with `--on-ink` text, so it inverts with the theme: dark
+   over a light page, light over a dark one. Either way it reads as a layer above
+   the page rather than another panel on it, which is the point.
+
+   `transform` does the centring so the element only needs its anchor point in
+   `left`/`top`, and `max-width` with wrapping is deliberate: the values this
+   most often shows are the long ones that would not fit in a column, and a
+   tooltip that truncates is a tooltip that has failed at its one job. */
+.tip {
+  position: fixed; z-index: 200;
+  max-width: 30rem; padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--ink); color: var(--on-ink);
+  font-size: var(--t-sm); font-weight: 500; line-height: 1.35;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  box-shadow: 0 6px 18px rgba(22, 22, 29, 0.22);
+  pointer-events: none;                 /* never stands between pointer and row */
+  animation: tip-in 90ms ease-out;
+}
+.tip.is-below { transform: translate(-50%, 0); }
+.tip.is-above { transform: translate(-50%, -100%); }
+@keyframes tip-in { from { opacity: 0; transform-box: fill-box; } to { opacity: 1; } }
+.tip.is-below { animation-name: tip-in-below; }
+.tip.is-above { animation-name: tip-in-above; }
+@keyframes tip-in-below {
+  from { opacity: 0; transform: translate(-50%, -3px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes tip-in-above {
+  from { opacity: 0; transform: translate(-50%, calc(-100% + 3px)); }
+  to   { opacity: 1; transform: translate(-50%, -100%); }
+}
+/* Somebody who has asked their system not to animate does not want this either. */
+@media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
+
+/* ---------- table / chart switch ----------
+   A segmented pair rather than a dropdown: there are two of them, both worth
+   seeing at a glance, and a menu would hide the fact that a chart exists at all. */
+.view-switch {
+  display: inline-flex; gap: 2px; margin-bottom: var(--s4);
+  padding: 2px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+.view-switch button {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  height: var(--control-sm); padding: 0 var(--s3);
+  background: transparent; color: var(--ink-soft);
+  border: 0; border-radius: var(--r-sm);
+  font-size: var(--t-sm); font-weight: 600;
+}
+.view-switch button:hover { background: var(--surface); color: var(--ink); }
+.view-switch button.on { background: var(--surface); color: var(--ink); box-shadow: var(--e1); }
+
+/* ---------- a report drawn ----------
+   The data is the only thing allowed to be loud: gridlines and axis text recede,
+   marks are thin, and nothing carries a border it does not need. */
+.rc { display: flex; flex-direction: column; gap: var(--s4); margin-bottom: var(--s5); }
+
+.rc-controls {
+  display: flex; align-items: flex-end; gap: var(--s4); flex-wrap: wrap;
+  padding-bottom: var(--s3); border-bottom: 1px solid var(--line-soft);
+}
+.rc-ctl { display: flex; flex-direction: column; gap: 3px; margin: 0; font-weight: 400; }
+.rc-ctl > span { font-size: .7rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .05em; }
+.rc-ctl .sel-trigger { min-width: 11rem; }
+
+/* The figures the plot cannot state precisely, stated. */
+.rc-summary { display: flex; gap: var(--s6); flex-wrap: wrap; font-size: var(--t-sm); color: var(--ink-soft); }
+.rc-summary b {
+  display: block; font-family: var(--font-display); font-size: 1.15rem;
+  font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums;
+}
+
+.rc-plot { position: relative; }
+.rc-axis { font-size: 10.5px; fill: var(--ink-faint); font-variant-numeric: tabular-nums; }
+/* `overflow: hidden` because a label wider than its band must be clipped by the
+   axis, not allowed to run out of the card — which is what it did. */
+.rc-xaxis { display: flex; margin-top: 4px; overflow: hidden; }
+.rc-xaxis.is-dense { justify-content: space-between; gap: var(--s3); }
+.rc-xaxis.is-dense span { width: auto; flex: 0 1 auto; }
+.rc-xaxis span {
+  font-size: 10.5px; color: var(--ink-soft); text-align: center;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px;
+}
+
+/* Values lead, labels follow — the reader already knows the series and wants
+   the number. Series identity is a short stroke of colour, not a filled box. */
+.rc-tip {
+  position: absolute; z-index: 5; transform: translate(-50%, -100%);
+  min-width: 9rem; padding: 7px 10px; border-radius: var(--r-sm);
+  background: var(--ink); color: var(--on-ink); pointer-events: none;
+  box-shadow: 0 6px 18px rgba(22, 22, 29, 0.24);
+}
+.rc-tip-cat { font-size: .68rem; opacity: .75; margin-bottom: 3px; letter-spacing: .03em; }
+.rc-tip-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; line-height: 1.5; }
+.rc-tip-row i { width: 10px; height: 2px; border-radius: 1px; flex: 0 0 10px; }
+.rc-tip-row b { font-variant-numeric: tabular-nums; }
+.rc-tip-row span { opacity: .8; }
+
+.rc-legend { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.rc-key {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: var(--control-sm); padding: 0 var(--s3);
+  background: transparent; border: 1px solid var(--line); border-radius: var(--r-pill);
+  font-size: var(--t-sm); font-weight: 500; color: var(--ink-mid);
+}
+.rc-key:hover { background: var(--hover); color: var(--ink); }
+.rc-key i { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 10px; }
+/* A hidden series stays listed and stays its own colour — it is switched off,
+   not gone, and a reader who turned it off needs to find it again. */
+.rc-key.is-off { color: var(--ink-faint); }
+.rc-key.is-off i { opacity: .3; }
+
+.rc-note, .rc-none { font-size: var(--t-sm); margin: 0; }
+
+/* ---------- zoom ----------
+   The window over the categories, said twice: as controls, and as a strip that
+   shows where you are in the whole run. A chart zoomed into 12 of 433 rows has
+   to answer "where am I" without being asked. */
+.rc-zoom { min-width: 18rem; }
+.rc-zoom-row { display: flex; align-items: center; gap: var(--s2); }
+.rc-zoom-row button { min-width: 2rem; font-weight: 700; }
+.rc-zoom-state { font-size: .72rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Panning is a drag, so the plot says so before the pointer goes down. */
+.rc-plot.is-zoomed { cursor: grab; }
+.rc-plot.is-zoomed:active { cursor: grabbing; }
+
+.rc-overview {
+  position: relative; height: 22px; border-radius: var(--r-sm);
+  background: var(--surface-sunk); border: 1px solid var(--line-soft);
+  cursor: ew-resize; touch-action: none;
+}
+.rc-overview:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-ring); }
+.rc-overview-window {
+  position: absolute; top: -1px; bottom: -1px; min-width: 10px;
+  background: var(--accent-soft); border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+}
+
+
+/* ---------- the dispensing sticker ----------
+   A label is read three times by three people, and the design is that ranking.
+   The patient checks the name on the bag. Somebody at home reads the directions,
+   often without their glasses, sometimes in poor light. A pharmacist or an
+   inspector reads the audit block, and only ever deliberately.
+
+   So: the directions carry the most weight on the sticker, the name is
+   unmissable above them, and everything procedural is set small, tabular and
+   quiet. Sans for anything a patient reads, monospace only for codes, where
+   telling 0 from O and 1 from l is the whole job.
+
+   58mm because that is the common thermal roll; the layout holds at 50mm and
+   70mm because nothing here is positioned absolutely. */
+.lbl {
+  width: 58mm; min-height: 42mm;
+  display: flex; flex-direction: column;
+  padding: 3.4mm 3.6mm;
+  background: #fff; color: #111;
+  border: 1px solid rgba(17, 17, 17, 0.55);
+  border-radius: 1.5mm;
+  font-family: var(--font-body);
+  font-size: 7.6pt; line-height: 1.3;
+}
+
+/* Who it is for, and what it cost. */
+.lbl-top {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 2mm;
+  padding-bottom: 1.2mm;
+}
+.lbl-patient {
+  font-weight: 700; font-size: 9pt; letter-spacing: -0.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lbl-price { font-size: 7.6pt; font-variant-numeric: tabular-nums; color: #444; white-space: nowrap; }
+
+.lbl-drug { display: flex; flex-direction: column; gap: 0.2mm; padding-bottom: 1.4mm; }
+.lbl-med { font-weight: 700; font-size: 10.5pt; line-height: 1.15; letter-spacing: -0.015em; }
+.lbl-form { font-size: 7pt; color: #555; }
+
+/* The line the sticker exists for. Largest, loosest, and given room above and
+   below so the eye lands on it before anything else. */
+.lbl-dose {
+  margin: 0; padding: 1.8mm 0;
+  font-size: 11pt; font-weight: 600; line-height: 1.32;
+  letter-spacing: -0.01em;
+  border-top: 0.35mm solid #111; border-bottom: 0.35mm solid #111;
+}
+
+/* Cautionary wording is a different kind of sentence and gets a different
+   voice: a tinted band, not another line of body text. */
+.lbl-warn {
+  margin: 1.4mm 0 0; padding: 1.1mm 1.4mm;
+  background: #f3efe4; border-left: 0.7mm solid #a8873f;
+  border-radius: 0.6mm;
+  font-size: 6.9pt; font-weight: 600; line-height: 1.28; color: #4a3c17;
+  text-transform: uppercase; letter-spacing: 0.01em;
+}
+
+/* The procedural block. Label and value on one line, hairline between rows, so
+   it reads as a record rather than as more sentences. */
+.lbl-audit {
+  margin: 1.8mm 0 0; padding-top: 1.4mm;
+  border-top: 0.2mm solid rgba(17, 17, 17, 0.28);
+  display: flex; flex-direction: column; gap: 0.5mm;
+  font-size: 6.6pt; color: #333;
+}
+.lbl-row { display: flex; align-items: baseline; gap: 2.2mm; flex-wrap: wrap; }
+/* A label and its value travel together or not at all. */
+.lbl-pair { display: inline-flex; align-items: baseline; gap: 1.1mm; white-space: nowrap; }
+.lbl-audit dt {
+  font-size: 5.9pt; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #777; font-weight: 600;
+}
+.lbl-audit dd { margin: 0; font-weight: 500; }
+.lbl-audit .mono { font-family: var(--font-mono); font-size: 6.4pt; letter-spacing: -0.02em; }
+
+.lbl-foot {
+  margin-top: auto; padding-top: 1.6mm;
+  border-top: 0.2mm solid rgba(17, 17, 17, 0.28);
+  display: flex; flex-direction: column; gap: 0.2mm;
+  font-size: 6.4pt; color: #444;
+}
+.lbl-foot b { font-size: 7.4pt; color: #111; letter-spacing: 0.02em; text-transform: uppercase; }
+
+.lbl-preview { display: flex; flex-wrap: wrap; gap: var(--s4); }
+
+/* ---------- PIN entry ----------
+   Large boxes on purpose. This is read and typed at a counter, sometimes by
+   somebody standing rather than sitting, and a four-digit code in a 32px field
+   is a code people mistype. */
+.pin { display: inline-flex; gap: var(--s2); }
+.pin-box {
+  width: 46px; height: 54px; padding: 0;
+  text-align: center; font-size: 1.5rem; font-weight: 700;
+  font-family: var(--font-mono);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink);
+  caret-color: var(--accent);
+}
+.pin-box:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.pin.is-invalid .pin-box { border-color: var(--danger); }
+/* A refusal is felt as well as read. */
+.pin.is-wrong { animation: pin-shake 380ms ease; }
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+@media (prefers-reduced-motion: reduce) { .pin.is-wrong { animation: none; } }
+
+/* The PIN inside an authorisation prompt, and the way back to a password. */
+.su-pin { display: flex; flex-direction: column; gap: var(--s2); margin: var(--s3) 0; }
+.su-pin-label { font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid); }
+.su-swap { align-self: flex-start; margin-bottom: var(--s2); text-decoration: underline; }
+
+/* ---------- the till lock ----------
+   Covers everything, including the navigation: a locked till that still lets
+   somebody read the sidebar counts is not locked. Deliberately calm rather than
+   alarming, because this fires several times a day and nothing is wrong. */
+.lock {
+  position: fixed; inset: 0; z-index: 300;
+  display: grid; place-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.lock-card {
+  width: min(26rem, calc(100vw - 2rem));
+  display: flex; flex-direction: column; gap: var(--s4);
+  padding: var(--s6);
+  background: var(--surface); border-radius: var(--r-lg);
+  box-shadow: 0 24px 60px rgba(22, 22, 29, 0.32);
+}
+.lock-head { display: flex; align-items: flex-start; gap: var(--s3); }
+.lock-head h2 { margin: 0 0 2px; font-size: 1.15rem; }
+.lock-head p { margin: 0; font-size: var(--t-sm); }
+.lock-dot {
+  width: 10px; height: 10px; margin-top: 7px; border-radius: 50%;
+  background: var(--warn); flex: 0 0 10px;
+}
+.lock-who { display: flex; align-items: baseline; gap: var(--s3); margin: 0; }
+.lock-who .muted { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
+.lock-field { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.lock-actions { display: flex; justify-content: flex-start; }
+.lock-note { margin: 0; }
+
+/* Setting a PIN: two codes and a password, side by side where there is room. */
+.pin-setup { display: flex; gap: var(--s5); flex-wrap: wrap; align-items: flex-end; }
+.pin-setup .lock-field input[type="password"] { min-width: 14rem; height: 54px; }
+
+/* ---------- the assistant's state, while it is in it ----------
+   A label that shimmers rather than a spinner that turns. The reader is waiting
+   for a sentence, so the waiting indicator is shaped like one. */
+.ai-phase { display: inline-flex; align-items: center; gap: var(--s2); padding: 2px 0; }
+.ai-phase-mark { color: var(--accent); animation: ai-pulse 1.6s ease-in-out infinite; }
+@keyframes ai-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+.ai-shimmer {
+  font-size: var(--t-sm); font-weight: 500;
+  color: transparent;
+  background: linear-gradient(90deg,
+    var(--ink-faint) 35%, var(--ink) 50%, var(--ink-faint) 65%);
+  background-size: 200% 100%;
+  background-clip: text; -webkit-background-clip: text;
+  animation: ai-shimmer-slide 2s linear infinite;
+}
+@keyframes ai-shimmer-slide {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* A caret while the answer is arriving, so a pause between bursts still looks
+   like something is happening. */
+.ai-caret::after {
+  content: ""; display: inline-block;
+  width: 2px; height: 1em; margin-left: 2px;
+  vertical-align: text-bottom; background: var(--accent);
+  animation: ai-blink 1s steps(2, start) infinite;
+}
+@keyframes ai-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-phase-mark, .ai-shimmer, .ai-caret::after { animation: none; }
+  .ai-shimmer { color: var(--ink-mid); background: none; -webkit-text-fill-color: currentColor; }
+}
+
+/* The answer as it is written. Generous measure and leading, because this is
+   read as prose rather than scanned as data. */
+.ai-live {
+  margin: var(--s3) 0 0; max-width: 70ch;
+  font-size: var(--t-base); line-height: 1.62; white-space: pre-wrap;
+}
+
+/* Locked but pushed aside. A strip rather than a modal, because the operator
+   deliberately chose to keep reading and should not be nagged, only reminded. */
+.lock-bar {
+  position: fixed; left: 50%; bottom: var(--s5); transform: translateX(-50%);
+  z-index: 120; display: inline-flex; align-items: center; gap: var(--s3);
+  height: auto; padding: var(--s3) var(--s5);
+  background: var(--ink); color: var(--on-ink);
+  border: 0; border-radius: var(--r-pill);
+  font-size: var(--t-sm); font-weight: 500;
+  box-shadow: 0 8px 24px rgba(22, 22, 29, 0.28);
+}
+.lock-bar:hover { background: var(--accent-hover); }
+.lock-bar b { font-weight: 700; text-decoration: underline; }
+.lock-bar .lock-dot { margin: 0; }
+.lock-actions { gap: var(--s3); }
+
+/* ---------- mobile wallet at the till ----------
+   Tiles rather than a dropdown: three options, all worth seeing, and a till is
+   often a touchscreen with somebody's hand hovering over it. */
+.mm { display: flex; flex-direction: column; gap: var(--s3); }
+.mm-wallets { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); }
+.mm-wallet {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  height: auto; padding: var(--s3);
+  background: var(--surface); color: var(--ink-mid);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  text-align: left;
+}
+.mm-wallet b { font-size: var(--t-base); color: var(--ink); }
+.mm-wallet span { font-size: .68rem; letter-spacing: .04em; color: var(--ink-faint); }
+.mm-wallet:hover { border-color: var(--ink-faint); background: var(--hover); }
+.mm-wallet.is-on {
+  border-color: var(--accent); background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.mm-row { display: flex; gap: var(--s4); flex-wrap: wrap; align-items: flex-end; }
+.mm-field { display: flex; flex-direction: column; gap: 4px; margin: 0; flex: 1 1 12rem; }
+.mm-field > span {
+  font-size: .7rem; font-weight: 600; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.mm-currencies { display: inline-flex; gap: 2px; padding: 2px; background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md); }
+.mm-cur {
+  height: var(--control-sm); padding: 0 var(--s4);
+  background: transparent; color: var(--ink-soft);
+  border: 0; border-radius: var(--r-sm); font-weight: 700; font-size: var(--t-sm);
+}
+.mm-cur.is-on { background: var(--surface); color: var(--ink); box-shadow: var(--e1); }
+
+.mm-hint { margin: 0; font-size: var(--t-sm); color: var(--warn-ink, var(--ink-mid)); }
+.mm-charge { margin: 0; font-size: var(--t-base); }
+.mm-charge b { font-variant-numeric: tabular-nums; }
+.mm-norate { color: var(--danger); }
+.mm-note { margin: 0; font-size: var(--t-sm); color: var(--ink-soft); }
+
+/* An icon sitting inside a line of text needs to ride the baseline rather than
+   the box, or it lifts the whole line by a pixel or two. */
+.btn svg, .hint svg, .wl-call svg, .lost-reason svg, .badge svg {
+  vertical-align: -0.12em; flex: 0 0 auto;
+}
+.hint a, .wl-call, .lost-reason { display: inline-flex; align-items: center; gap: 4px; }
+
+
+/* --- The theme control ---------------------------------------------------- */
+
+/* Available to any label that must be read but not seen. Clipped rather than
+   `display: none`, which would take it out of the accessibility tree too. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+
+.topbar-sep {
+  width: 1px; height: 18px; background: var(--line);
+  margin: 0 var(--s1); flex: none;
+}
+
+.theme-seg {
+  /* Built to match .pill-tabs, which is how this application already shows a
+     one-of-three choice. Copying that rather than inventing a second segmented
+     control is the whole reason it looks like it belongs here. */
+  display: inline-flex; align-items: center;
+  padding: 2px; gap: 1px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+.theme-opt {
+  /* Not a `.btn`: this is a segment, and inheriting the button chrome would give
+     each one its own fill and border inside an already bordered track. Every
+     property the global button rule sets is therefore reset here. */
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 20px; min-width: 0; padding: 0 7px; margin: 0;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--r-xs);
+  box-shadow: none;
+  /* Deliberately below the body size. This is a setting, not a task: it should
+     be findable at a glance and never compete with the page. */
+  font-size: .72rem; font-weight: 500; line-height: 1;
+  color: var(--ink-soft); cursor: pointer;
+  transition: background var(--fast), color var(--fast);
+}
+.theme-opt:where(:hover) { background: var(--accent-soft); color: var(--ink-mid); }
+.theme-opt.is-on {
+  /* The selected segment is a raised chip on the sunk track, which is how
+     selection is shown everywhere else in the application. */
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  border-color: var(--line); box-shadow: var(--e1);
+}
+.theme-opt:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+.theme-opt svg { display: block; }
+
+@media (max-width: 900px) {
+  /* On a narrow till the words are the first thing to go, not the control. The
+     icons stay, and each one keeps its tooltip. */
+  .theme-opt span { display: none; }
+  .theme-opt { padding: 0 7px; }
+  .topbar-sep { display: none; }
+}
+
+
+/* --- sign in, reset, demo ------------------------------------------------- */
+
+/* The card lost its 32px radius. At that size a form reads as a card floating in
+   a photograph; at 14 it reads as software, which is what a pharmacy is buying.
+   The corner still exists, it just stops being the loudest thing on the screen. */
+
+.login-lead {
+  margin: 0 0 var(--s5); color: var(--ink-mid);
+  font-size: var(--t-sm); line-height: 1.5;
+}
+.login-small {
+  margin: var(--s4) 0 0; color: var(--ink-soft);
+  font-size: var(--t-xs); line-height: 1.5;
+}
+.login-note {
+  margin-bottom: var(--s5); padding: var(--s3) var(--s4);
+  border: 1px solid var(--warn-line); border-left: 3px solid var(--warn);
+  border-radius: var(--r-sm); background: var(--warn-soft);
+  color: var(--ink); font-size: var(--t-sm); line-height: 1.5;
+}
+.login-go { width: 100%; margin-top: var(--s2); }
+
+/* A password box you can read.
+   The button sits inside the field rather than after it, because the eye belongs
+   to the box: put beside it and the field shrinks by 34px on every screen that
+   has one, and the two stop looking like one control. */
+.pw { position: relative; display: block; }
+.pw > input { width: 100%; padding-right: 38px; }
+.pw-eye {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; padding: 0; margin: 0;
+  background: transparent; border: 0; border-radius: var(--r-xs);
+  color: var(--ink-soft); cursor: pointer; box-shadow: none;
+}
+.pw-eye:where(:hover) { background: var(--accent-soft); color: var(--ink); }
+.pw-eye:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 1px; }
+.pw-eye svg { display: block; }
+
+.field-hint {
+  display: block; margin-top: 5px;
+  color: var(--ink-soft); font-size: var(--t-xs);
+}
+
+/* A button that is a link. Written out rather than reusing `.ghost`, which
+   carries a border and a height this does not want. */
+.link-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  width: 100%; justify-content: center;
+  margin-top: var(--s3); padding: var(--s2);
+  background: transparent; border: 0; box-shadow: none;
+  color: var(--ink-soft); font-size: var(--t-sm); font-weight: 500;
+  cursor: pointer; text-decoration: none;
+}
+.link-btn:where(:hover) { background: transparent; color: var(--ink); text-decoration: underline; }
+.link-btn:focus-visible { outline: 2px solid var(--accent-ring); outline-offset: 2px; }
+
+/* The demo offer. A card rather than a link, because it is a second way in and
+   not a footnote, and it sits under a rule so it never reads as part of the
+   sign-in form above it. */
+.login-alts { margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--line-soft); }
+.alt-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  width: 100%; height: auto; padding: 9px 12px; margin: 0;
+  text-align: left; cursor: pointer;
+  /* A tinted panel rather than the sunk surface. On dark the sunk step is
+     *below* the card, so an offer painted in it receded into the page; a tint
+     lifts in both themes because it is a step of the theme's own ink. */
+  background: var(--tint-weak); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: none;
+}
+.alt-card:where(:hover) {
+  background: var(--hover); color: var(--ink); border-color: var(--line-strong);
+}
+.alt-card b { font-size: var(--t-sm); font-weight: 600; }
+.alt-card span { color: var(--ink-soft); font-size: var(--t-xs); font-weight: 400; line-height: 1.4; }
+
+.login-foot {
+  display: flex; flex-wrap: wrap; gap: var(--s4);
+  margin-top: var(--s4); padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+}
+.login-foot a {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--ink-soft); font-size: var(--t-xs); text-decoration: none;
+}
+.login-foot a:hover { color: var(--ink); text-decoration: underline; }
+.login-foot svg { flex: none; }
+
+/* --- the demo countdown --------------------------------------------------- */
+
+/* Above the page, not inside it. A prospect must never be able to scroll the
+   clock out of sight and then be surprised by the end of it. */
+.demo-bar {
+  position: sticky; top: 0; z-index: 45;
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s5);
+  background: var(--info-soft); color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--t-sm);
+}
+/* Ten minutes out it changes colour once, and two minutes out again. Two steps,
+   not a gradient: a bar that shifts every minute is decoration, and decoration
+   is what people stop reading. */
+.demo-bar.is-urgent { background: var(--warn-soft); border-bottom-color: var(--warn-line); }
+.demo-bar.is-critical { background: var(--danger-soft); border-bottom-color: var(--danger-line); }
+.demo-clock {
+  font-family: var(--font-dots); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* Fixed digits, so the bar does not twitch on every tick. */
+}
+.demo-bar .demo-why { color: var(--ink-soft); }
+.demo-bar .demo-act { margin-left: auto; }
+
+
+/* --- the two public pages ------------------------------------------------- */
+
+/* Deliberately narrower than the application. These are read, not worked in,
+   and a paragraph seventeen hundred pixels wide is a paragraph nobody finishes. */
+.pub {
+  max-width: 1040px; margin: 0 auto;
+  padding: var(--s6) var(--s5) var(--s12);
+  color: var(--ink);
+}
+.pub-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); margin-bottom: var(--s12);
+}
+.pub-head .brand-lg {
+  font-family: var(--font-display); font-size: 24px; font-weight: 700;
+  letter-spacing: -0.03em; display: flex; align-items: center; gap: 10px;
+}
+.pub-head .brand-lg img { width: 34px; height: 34px; object-fit: contain; }
+.pub-head .brand-lg span { color: var(--ink-soft); }
+
+.pub-hero { max-width: 68ch; margin-bottom: var(--s12); }
+.pub-hero h1 {
+  margin: 0 0 var(--s4);
+  font-family: var(--font-display);
+  font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.12;
+  letter-spacing: -0.03em; font-weight: 700;
+}
+.pub-hero p { margin: 0 0 var(--s4); color: var(--ink-mid); font-size: 1.02rem; line-height: 1.6; }
+.pub-fine { color: var(--ink-soft); font-size: var(--t-sm); }
+.pub-cta { display: flex; flex-wrap: wrap; gap: var(--s3); margin: var(--s6) 0 var(--s4); }
+.pub-cta .btn { gap: 6px; }
+
+.pub-grid {
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.pub-card {
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.pub-card svg { color: var(--ink-soft); margin-bottom: var(--s3); display: block; }
+.pub-card h2 { margin: 0 0 6px; font-size: 1rem; font-weight: 600; }
+.pub-card p { margin: 0; color: var(--ink-soft); font-size: var(--t-sm); line-height: 1.55; }
+
+.pub-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); margin-top: var(--s12); padding-top: var(--s5);
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-faint); font-size: var(--t-xs);
+}
+.pub-foot a { color: var(--ink-soft); text-decoration: none; }
+.pub-foot a:hover { color: var(--ink); text-decoration: underline; }
+
+/* --- the training index --------------------------------------------------- */
+
+.tr-course { margin-bottom: var(--s10); }
+.tr-course-head {
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+  padding-bottom: var(--s3); margin-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+.tr-course-head h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+
+.tr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.tr-list li {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+}
+.tr-list li:hover { background: var(--hover); border-color: var(--line); }
+.tr-no {
+  flex: none; width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill); background: var(--surface-sunk);
+  color: var(--ink-soft); font-size: var(--t-xs); font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tr-body { flex: 1; min-width: 0; }
+.tr-body b { display: block; font-size: var(--t-sm); font-weight: 600; }
+.tr-body p { margin: 2px 0 0; color: var(--ink-soft); font-size: var(--t-xs); line-height: 1.5; }
+.tr-mins {
+  flex: none; display: inline-flex; align-items: center; gap: 4px;
+  color: var(--ink-faint); font-size: var(--t-xs); white-space: nowrap;
+}
+.tr-go {
+  flex: none; width: 28px; height: 28px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunk); color: var(--ink-soft); text-decoration: none;
+}
+.tr-go:hover { background: var(--accent); color: var(--accent-ink); }
+
+@media (max-width: 620px) {
+  /* The minutes drop before the title does: on a phone the row has to hold the
+     lesson name, and the estimate is the least of the three things on it. */
+  .tr-mins { display: none; }
+}
+
+/* ==========================================================================
+   Dark theme
+   ==========================================================================
+   Selected, not flipped. An inverted light palette produces grey text on grey
+   panels and pure black behind everything, which is where dark mode usually goes
+   wrong. Each value here was chosen for a dark surface and then measured against
+   it: the layout audit runs the whole application in both themes and its contrast
+   check composites alpha and gradients, so what is checked is what is painted.
+
+   Three things decide the result:
+
+   1. **The ground is not black.** #101014 rather than #000, with panels a step
+      lighter. On a till screen pure black makes every edge a hard seam and the
+      eye has nothing to rest against.
+   2. **Elevation reverses.** On light, a raised surface casts a shadow. On dark,
+      a raised surface is *lighter* than its ground, because there is no light
+      source to cast anything. That is why the tint tokens flip to white-alpha:
+      the same rule has to keep meaning "one step forward", not "one step back".
+   3. **The accent inverts, and so does what sits on it.** The working colour is
+      near-black on light and near-white on dark, and `--accent-ink` follows it,
+      so a primary button stays legible in both.
+
+   **One block, and one only.** The device preference is resolved in JavaScript
+   and written to `data-theme`, so this never had to be duplicated into a
+   `prefers-color-scheme` copy. The first version of this file did duplicate it,
+   and the two copies had already drifted by four tokens before anything shipped:
+   the same edit has to land twice, and the second one is the one you forget.
+ * ========================================================================== */
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --canvas: #101014;
+  --surface: #191920;
+  /* Below the panel, not above it: a sunk track is nearer the canvas. On light
+     the same relationship holds, one step toward the canvas from the surface. */
+  --surface-sunk: #131318;
+  /* Hover goes the other way, because on a dark ground the only way to raise
+     something is to lighten it. */
+  --hover: #24242c;
+
+  --ink: #f3f3f6;
+  --ink-mid: #cbcad4;
+  --ink-soft: #a6a5b1;
+  --ink-faint: #8b8a96;
+
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 255, 255, 0.13);
+  --line-strong: rgba(255, 255, 255, 0.24);
+
+  --accent: #ebebf1;
+  --accent-hover: #ffffff;
+  --accent-ink: #15151b;
+  --accent-soft: rgba(255, 255, 255, 0.10);
+  --accent-ring: rgba(255, 255, 255, 0.38);
+  --accent-fade: rgba(235, 235, 241, 0.62);
+  --on-ink: #15151b;
+  --on-danger: #2a0d08;
+
+  --tint-weak: rgba(255, 255, 255, 0.05);
+  --tint: rgba(255, 255, 255, 0.08);
+  --tint-strong: rgba(255, 255, 255, 0.14);
+  /* Deeper than the light scrim: dimming a dark page by 38% is barely visible,
+     and the dialog stops reading as the only live thing on screen. */
+  --scrim: rgba(0, 0, 0, 0.62);
+
+  --ok: #6ed08d;
+  --ok-soft: rgba(110, 208, 141, 0.13);
+  --ok-line: rgba(110, 208, 141, 0.28);
+  --warn: #e3b45c;
+  --warn-soft: rgba(227, 180, 92, 0.13);
+  --warn-line: rgba(227, 180, 92, 0.28);
+  --danger: #f18d7d;
+  --danger-hover: #f7a89a;
+  --danger-soft: rgba(241, 141, 125, 0.14);
+  --danger-line: rgba(241, 141, 125, 0.30);
+  --info-soft: rgba(120, 145, 220, 0.13);
+  --sched: #e893bd;
+  --sched-soft: rgba(216, 130, 175, 0.14);
+
+  --chart-1: #3987e5;
+  --chart-1-fade: rgba(57, 135, 229, 0.50);
+
+  /* Deeper and more saturated than the light wash, and carried at a higher alpha.
+     A pastel is defined by how much white is in it, and there is no white here to
+     lift it, so the light values would have gone grey. */
+  --wash-1: rgba(196, 96, 116, 0.34);
+  --wash-2: rgba(120, 98, 186, 0.32);
+  --wash-3: rgba(48, 86, 168, 0.30);
+
+  --brand-deep: #b9b3e8;
+  --indigo: #b9b3e8;
+
+  /* Shadows do almost nothing on a dark ground; the lighter panel is the
+     elevation. Kept faint so a card still has a soft edge. */
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --e2: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --e3: 0 12px 40px rgba(0, 0, 0, 0.65);
+}

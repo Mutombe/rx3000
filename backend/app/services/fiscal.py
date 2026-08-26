@@ -28,7 +28,7 @@ from ..config import settings
 from ..models import FiscalDay, FiscalReceipt, Sale
 from . import fiscal_devices
 
-log = logging.getLogger("rx3000.fiscal")
+log = logging.getLogger("rx5000.fiscal")
 
 MAX_ATTEMPTS = 10
 
@@ -272,7 +272,7 @@ def receipt_for(db: Session, sale_id: int) -> FiscalReceipt | None:
 
 
 def is_locked(db: Session, sale: Sale) -> bool:
-    """A filed sale cannot be voided — it must be credit-noted instead."""
+    """A filed sale cannot be voided. It must be credit-noted instead."""
     receipt = receipt_for(db, sale.id)
     return bool(receipt and receipt.status in ("accepted", "submitted"))
 
@@ -296,7 +296,7 @@ def verify_chain(db: Session, limit: int = 5000) -> dict:
         if receipt.global_counter != expected_counter:
             return {"ok": False, "checked": len(receipts),
                     "broken_at": receipt.global_counter,
-                    "reason": f"counter gap — expected {expected_counter}"}
+                    "reason": f"counter gap, expected {expected_counter}"}
         if receipt.previous_hash != previous_hash:
             return {"ok": False, "checked": len(receipts),
                     "broken_at": receipt.global_counter,

@@ -1,8 +1,11 @@
+import json
+from fastapi.responses import StreamingResponse
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import schemas
 from ..auth import get_current_user
+from ..models import AiConversation, User
 from ..database import get_db
 from ..models import Company, Deal, Patient, Product, Ticket
 from ..services import ai_service
@@ -96,3 +99,102 @@ def ask(body: schemas.AIAskRequest, db: Session = Depends(get_db)):
         text=ai_service.business_answer(db, body.question),
         enabled=ai_service.ai_enabled(),
     )
+
+
+@router.post("/ask/stream")
+def ask_stream(body: schemas.AIAskRequest, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)):
+    """The same answer as `/ask`, sent as it is written.
+
+    Server-sent events rather than a websocket: this is one-way, short-lived and
+    survives a proxy that would drop an upgrade. Each frame is a JSON object so a
+    delta containing a newline cannot be mistaken for the end of an event, which
+    is exactly what happens when deltas are written as bare text.
+    """
+    def frames():
+        # `phase` first, so the screen can say what is happening before there is
+        # anything to show. Building the data snapshot is the slow part and it
+        # happens before the model is even called.
+        yield "data: " + json.dumps({"type": "phase", "phase": "reading"}) + "\n\n"
+        try:
+            system, user = ai_service.business_prompt(db, body.question)
+            yield "data: " + json.dumps({"type": "phase", "phase": "thinking"}) + "\n\n"
+            for delta in ai_service.stream_claude(system, user):
+                yield "data: " + json.dumps({"type": "delta", "text": delta}) + "\n\n"
+        except Exception as exc:  # noqa: BLE001 - the client needs the reason
+            yield "data: " + json.dumps({"type": "error", "message": str(exc)}) + "\n\n"
+        yield "data: " + json.dumps({"type": "done"}) + "\n\n"
+
+    return StreamingResponse(
+        frames(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            # Nginx buffers proxied responses by default, which turns a stream
+            # back into one long wait and makes this whole endpoint pointless.
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/history")
+def ai_history(limit: int = 50, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)):
+    """Your own past questions, newest first.
+
+    Yours only. The questions somebody puts to an assistant are working notes,
+    often half-formed, and a shared log of everybody's is something staff learn
+    to work around rather than use.
+    """
+    limit = max(1, min(limit, 200))
+    rows = (db.query(AiConversation)
+              .filter(AiConversation.user_id == user.id)
+              .order_by(AiConversation.created_at.desc())
+              .limit(limit + 1)
+              .all())
+    # Asked for one more than the limit, so "there are older ones" is a fact
+    # rather than a guess. Reporting a capped list as the whole history is how a
+    # screen ends up quietly telling somebody they have asked fifty questions
+    # when they have asked four hundred.
+    more = len(rows) > limit
+    rows = rows[:limit]
+    return {
+        "items": [
+            {
+                "id": r.id,
+                "question": r.question,
+                "answer": r.answer,
+                "model": r.model,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ],
+        "more": more,
+        "total": db.query(AiConversation).filter(AiConversation.user_id == user.id).count(),
+    }
+
+
+@router.delete("/history/{entry_id}")
+def delete_ai_entry(entry_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)):
+    """Remove one exchange from your log."""
+    row = (db.query(AiConversation)
+             .filter(AiConversation.id == entry_id,
+                     AiConversation.user_id == user.id)
+             .first())
+    if not row:
+        raise HTTPException(status_code=404, detail="That entry is not in your history.")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/history")
+def clear_ai_history(db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Empty your log. Yours alone, and it does not touch anybody else's."""
+    removed = (db.query(AiConversation)
+                 .filter(AiConversation.user_id == user.id)
+                 .delete(synchronize_session=False))
+    db.commit()
+    return {"ok": True, "removed": removed}

@@ -13,7 +13,7 @@ from email.mime.text import MIMEText
 from ..config import settings
 from ..models import Message
 
-log = logging.getLogger("rx3000.messaging")
+log = logging.getLogger("rx5000.messaging")
 
 
 def _send_email(to_addr: str, subject: str, body: str) -> tuple[bool, str]:

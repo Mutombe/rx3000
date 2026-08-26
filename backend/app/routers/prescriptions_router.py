@@ -10,7 +10,14 @@ from ..database import get_db
 from ..models import (
     Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem, User,
 )
-from ..services import messages, to_follows
+# `sig` is imported here, at module level, and not inside one function.
+# It was imported inside the shorthand-expansion endpoint only, while three
+# other places in this file called `sig.expand(...)` — including
+# `create_prescription`, which is the first step of every dispensing. Every
+# attempt to create a prescription raised NameError and returned 500. A local
+# import satisfies the function it sits in and quietly leaves the rest of the
+# module referring to a name that does not exist.
+from ..services import messages, sig, to_follows
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
@@ -137,7 +144,7 @@ def dispense(
         raise HTTPException(
             status_code=400,
             detail=f"{rx.draft_ref} is an unfinished script. Finish capturing it "
-                   "before dispensing — a draft has no Rx number and cannot be "
+                   "before dispensing. A draft has no Rx number and cannot be "
                    "entered in the register.")
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
@@ -216,7 +223,7 @@ def dispense(
             if allowed == 0 and (item.repeats_used > 0 or item.dispensings):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"{item.product.name} is Schedule {item.product.schedule} — no repeats are "
+                    detail=f"{item.product.name} is Schedule {item.product.schedule}, no repeats are "
                            "permitted. A fresh prescription is required.",
                 )
 
@@ -231,7 +238,7 @@ def dispense(
     db.flush()
 
     subtotal = vat_total = 0.0
-    for item in items:
+    for position, item in enumerate(items, start=1):
         product = item.product
         is_repeat = item.repeats_used > 0 or bool(item.dispensings)
         if is_repeat and item.repeats_used >= item.repeats_allowed and item.dispensings:
@@ -368,8 +375,6 @@ def prescription_labels(
     reads what to do. The shorthand belongs in the input; the words belong on
     the box.
     """
-    from ..services import sig
-
     sig.seed_if_empty(db)
     rx = db.get(Prescription, rx_id)
     if not rx:
@@ -378,7 +383,7 @@ def prescription_labels(
     items = [i for i in rx.items if not wanted or i.id in wanted]
 
     labels = []
-    for item in items:
+    for position, item in enumerate(items, start=1):
         product = item.product
         dispensing = item.dispensings[-1] if item.dispensings else None
         batch_number = expiry = None
@@ -421,6 +426,13 @@ def prescription_labels(
             dispensed_at=(dispensing.dispensed_at if dispensing else datetime.utcnow()),
             pharmacy_name=settings.PHARMACY_NAME,
             pharmacy_reg_no=settings.PHARMACY_REG_NO,
+            pharmacy_address=settings.PHARMACY_ADDRESS,
+            pharmacy_phone=settings.PHARMACY_PHONE,
+            item_number=position,
+            item_count=len(items),
+            doctor_practice_no=(rx.doctor.practice_number or "") if rx.doctor else "",
+            unit_price=round(product.unit_price or 0.0, 2),
+            line_total=round((product.unit_price or 0.0) * (item.quantity or 0), 2),
         ))
     return labels
 
@@ -455,7 +467,7 @@ def repeats_due(days: int = 7, db: Session = Depends(get_db), _: User = Depends(
 def unfinished(mine_only: bool = False, limit: int = 100,
                db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
-    """Scripts started and not finished. Oldest first — the stalest is the risk."""
+    """Scripts started and not finished. Oldest first, the stalest is the risk."""
     query = db.query(Prescription).filter(Prescription.status == "draft")
     if mine_only:
         query = query.filter(Prescription.started_by_id == user.id)
@@ -554,7 +566,7 @@ def finalise(rx_id: int, db: Session = Depends(get_db),
 
 @router.delete("/prescriptions/{rx_id}/draft")
 def discard_draft(rx_id: int, db: Session = Depends(get_db)):
-    """Throw a draft away. Only ever a draft — a real script is cancelled, not deleted."""
+    """Throw a draft away. Only ever a draft. A real script is cancelled, not deleted."""
     rx = db.get(Prescription, rx_id)
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")

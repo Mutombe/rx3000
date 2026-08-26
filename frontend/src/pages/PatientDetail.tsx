@@ -8,6 +8,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
 import { Label, Patient, Prescription, Sale } from "../types";
 import { useToast } from "../components/Toast";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 type Tab = "scripts" | "history" | "sales" | "tax";
 
@@ -73,7 +74,7 @@ export default function PatientDetail() {
       const url = `${window.location.origin}${r.path}`;
       await navigator.clipboard?.writeText(url).catch(() => undefined);
       toast.ok(
-        `Link copied — send it to ${r.send_to}. It works for ${r.expires_in_days} days.`);
+        `Link copied, send it to ${r.send_to}. It works for ${r.expires_in_days} days.`);
     } catch (e: any) {
       toast.error(errorText(e));
     }
@@ -110,7 +111,7 @@ export default function PatientDetail() {
       )}
 
       <div className="card">
-        <h3>✦ AI clinical summary</h3>
+        <h3><ClaudeIcon size={16} /> AI clinical summary</h3>
         {aiSummary ? <AiOutput text={aiSummary} title="Patient summary" context={`Patient #${id}`} /> : (
           <p className="muted">Generate a Claude-powered hand-over summary of this patient's medication history and counseling points.</p>
         )}
@@ -198,7 +199,7 @@ export default function PatientDetail() {
 
       {tab === "tax" && tax && (
         <div className="card">
-          <h3>Medical expense statement — tax year {tax.tax_year}</h3>
+          <h3>Medical expense statement, tax year {tax.tax_year}</h3>
           <div className="grid cols-3" style={{ margin: "14px 0" }}>
             <div className="card stat"><div className="label">Total spent</div><div className="value">{money(tax.total_spent)}</div></div>
             <div className="card stat"><div className="label">Medical aid paid</div><div className="value">{money(tax.total_medical_aid_paid)}</div></div>

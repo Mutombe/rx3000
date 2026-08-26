@@ -88,7 +88,7 @@ export default function CounterMessages({
       // Acknowledgement is recorded against a script. Before one exists there
       // is nothing to attach it to, and pretending otherwise would lose it.
       setError(
-        "Capture the script first — an acknowledgement is recorded against it, " +
+        "Capture the script first. An acknowledgement is recorded against it, " +
           "not against the screen.",
       );
       return;

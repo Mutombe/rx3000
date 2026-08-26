@@ -8,6 +8,8 @@ import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
 import ReceiveByScan from "../components/ReceiveByScan";
 import { POItem, PurchaseOrder } from "../types";
+import { ArrowLeft } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 
 const PATH_STAGES = [
   { key: "draft", label: "Draft" },
@@ -89,7 +91,7 @@ export default function OrderDetail() {
             </div>
           </div>
         </div>
-        <Link to="/orders" className="btn secondary">← Procurement</Link>
+        <Link to="/orders" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Procurement</Link>
       </div>
 
       <div className="card record-hero">
@@ -103,12 +105,12 @@ export default function OrderDetail() {
           { label: "Status", value: order.status, hint: order.notes || "—" },
         ]} />
         <div className="record-exit">
-          {order.status === "draft" && <button className="small" onClick={() => setStatus("sent")}>Send to supplier</button>}
+          {order.status === "draft" && <BusyButton className="small" onClick={() => setStatus("sent")}>Send to supplier</BusyButton>}
           {order.status === "sent" && (
             <span className="muted">Receive stock from the Procurement list so batch numbers and expiry dates can be captured</span>
           )}
           {order.status !== "received" && order.status !== "cancelled" && (
-            <button className="secondary small" onClick={() => setStatus("cancelled")}>Cancel order</button>
+            <BusyButton className="secondary small" onClick={() => setStatus("cancelled")}>Cancel order</BusyButton>
           )}
         </div>
       </div>

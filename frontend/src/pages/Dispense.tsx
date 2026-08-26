@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import DispensaryWorklist from "../components/DispensaryWorklist";
+import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
@@ -16,9 +16,18 @@ import {
   ControlledDispensing, CoverageReport, Doctor, Label, OTCSale, Patient,
   Prescription, PrescriptionItem, Product, Sale, SchedulePolicy, User,
 } from "../types";
+import Pagination, { Paged } from "../components/Pagination";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import ClaudeIcon from "../components/ClaudeIcon";
+import {
+  ArrowRight,
+  Printer,
+  Warning,
+} from "@phosphor-icons/react";
 
 type Route = "prescription" | "controlled" | "otc";
-type RailKey = "due" | "recent" | "log" | "rules";
 
 interface DraftItem {
   product: Product;
@@ -33,7 +42,7 @@ interface DraftItem {
 
 const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
   { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine" },
-  { key: "controlled", label: "⚠ Dangerous Drugs (S5–S6)", hint: "Controlled substances — full compliance record required" },
+  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required" },
   { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription" },
 ];
 
@@ -90,6 +99,10 @@ export default function Dispense() {
   const [initials, setInitials] = useState("");
   const [complianceNotes, setComplianceNotes] = useState("");
   const [controlledLog, setControlledLog] = useState<ControlledDispensing[]>([]);
+  const [controlledMeta, setControlledMeta] = useState<Paged<ControlledDispensing> | null>(null);
+  const [controlledPage, setControlledPage] = useState(1);
+  const [otcMeta, setOtcMeta] = useState<Paged<OTCSale> | null>(null);
+  const [otcPage, setOtcPage] = useState(1);
 
   // OTC
   const [otcProduct, setOtcProduct] = useState<Product | null>(null);
@@ -102,24 +115,14 @@ export default function Dispense() {
   const [tendered, setTendered] = useState("");
   const [otcLog, setOtcLog] = useState<OTCSale[]>([]);
 
-  const [recent, setRecent] = useState<Prescription[]>([]);
-  const [moreRecent, setMoreRecent] = useState(false);
-  const [repeatsDue, setRepeatsDue] = useState<PrescriptionItem[]>([]);
+  // `recent`, `moreRecent` and `repeatsDue` used to live here to feed the middle
+  // column. They are gone with it — including the two requests they made on
+  // every load, which were fetching lists nothing rendered.
 
-  // The side rail shows one list at a time; which lists are offered depends on
-  // the dispensing route, so the selection resets whenever the route changes.
-  const [rail, setRail] = useState<RailKey>("due");
-  const railTabs: { key: RailKey; label: string; count?: number }[] =
-    route === "controlled"
-      ? [{ key: "log", label: "Hand-over log", count: controlledLog.length },
-         { key: "rules", label: "Schedule rules" }]
-      : [{ key: "due", label: "Repeats due", count: repeatsDue.length },
-         { key: "recent", label: "Recent scripts", count: recent.length },
-         { key: "rules", label: "Schedule rules" }];
-
-  useEffect(() => {
-    setRail(route === "controlled" ? "log" : "due");
-  }, [route]);
+  // Which segment of the worklist is open. Held here so F8 can reach it: the
+  // rail that used to sit in the middle of this page is gone, and the shortcut
+  // that opened it now opens the one queue instead of a second copy of it.
+  const [worklistPanel, setWorklistPanel] = useState<WorklistPanel>("queue");
 
   useEffect(() => {
     api.get<SchedulePolicy[]>("/api/dispensing/policy").then(setPolicies);
@@ -129,15 +132,17 @@ export default function Dispense() {
   }, []);
 
   function loadLists() {
-    api.get<Prescription[]>("/api/prescriptions?limit=12").then(setRecent);
     // Ask for one more than is shown. If it comes back there are more, which
     // is all the screen needs to say — a truthful "there is more" beats a
     // precise total that costs another endpoint, and beats silence entirely.
-    api.get<Prescription[]>("/api/prescriptions?limit=13")
-      .then((all) => setMoreRecent(all.length > 12)).catch(() => setMoreRecent(false));
-    api.get<PrescriptionItem[]>("/api/repeats/due?days=14").then(setRepeatsDue);
-    api.get<ControlledDispensing[]>("/api/dispensing/controlled/log?days=90").then(setControlledLog);
-    api.get<OTCSale[]>("/api/dispensing/otc?days=30").then(setOtcLog);
+    api.get<Paged<ControlledDispensing>>(
+      `/api/dispensing/controlled/log/paged?days=90&page=${controlledPage}&per_page=25`)
+      .then((res) => {
+        setControlledLog(res.items); setControlledMeta(res);
+        if (res.page !== controlledPage) setControlledPage(res.page);
+      });
+    api.get<Paged<OTCSale>>(`/api/dispensing/otc/paged?days=30&page=${otcPage}&per_page=25`)
+      .then((res) => { setOtcLog(res.items); setOtcMeta(res); if (res.page !== otcPage) setOtcPage(res.page); });
   }
 
   useEffect(() => {
@@ -166,7 +171,36 @@ export default function Dispense() {
   // The policy field is still called requires_witness — it is the jurisdiction
   // pack's name for "this needs a second signature". What satisfies it is now
   // the checking pharmacist's initials.
-  const needsInitials = items.some((i) => policyFor(i.product.schedule)?.requires_witness);
+  // Whether an initial is required is a *setting* on the server —
+  // `dispensing.require_pharmacist_initial` — and when it is on it applies to
+  // every dispensing, not only to controlled schedules. This screen used to
+  // decide for itself from the schedule alone, so on an ordinary prescription it
+  // enabled the button, never asked for initials, and the server refused the
+  // dispensing with a 400 that the dispenser could do nothing about. Two rules
+  // for one question, and the one the user could see was the wrong one.
+  const [initialAlwaysRequired, setInitialAlwaysRequired] = useState(false);
+  useEffect(() => {
+    // `groups` is an object keyed by group name, each holding a list of
+    // settings — not a list of groups with a `settings` field, which is what I
+    // assumed first and what made this read `undefined` and quietly decide no
+    // initials were needed. Written against the shape the endpoint actually
+    // returns, and tolerant of either, because a wrong guess here fails silently
+    // and shows up as a 400 the dispenser cannot act on.
+    api.get<{ groups: Record<string, { key: string; value: unknown }[]> }>("/api/settings")
+      .then((d) => {
+        const groups = d.groups ?? {};
+        const all = Array.isArray(groups)
+          ? (groups as any[]).flatMap((g) => g?.settings ?? g ?? [])
+          : Object.values(groups).flat();
+        const rule = all.find((x: any) => x?.key === "dispensing.require_pharmacist_initial");
+        setInitialAlwaysRequired(rule?.value === true || rule?.value === "true");
+      })
+      .catch(() => undefined);   // the server enforces it regardless
+  }, []);
+
+  const needsInitials =
+    initialAlwaysRequired ||
+    items.some((i) => policyFor(i.product.schedule)?.requires_witness);
 
   const [showKeys, setShowKeys] = useState(false);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
@@ -201,9 +235,10 @@ export default function Dispense() {
   // Declared below; read lazily so the binding always sees the current value.
   const complianceReadyRef = () =>
     !blocked &&
+    // Initials gate every route when the setting demands them.
+    (!needsInitials || initials.trim() !== "") &&
     (route !== "controlled" ||
-    (items.length > 0 && idVerified && scriptSighted && prescriberVerified &&
-      (!needsInitials || initials.trim() !== "")));
+    (items.length > 0 && idVerified && scriptSighted && prescriberVerified));
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -218,9 +253,9 @@ export default function Dispense() {
     { combo: "F6", label: "Interaction check", group: "Safety",
       disabled: !patient || items.length === 0 || aiBusy, run: checkInteractions },
     { combo: "F8", label: "Repeats due", group: "Lists",
-      disabled: route === "controlled", run: () => setRail("due") },
-    { combo: "F9", label: "Recent scripts", group: "Lists",
-      disabled: route === "controlled", run: () => setRail("recent") },
+      run: () => setWorklistPanel("due") },
+    { combo: "F9", label: "Queue", group: "Lists",
+      run: () => setWorklistPanel("queue") },
     { combo: "F12", label: "Dispense", group: "Finish",
       disabled: busy || !patient || items.length === 0 || !complianceReadyRef(),
       run: () => { if (!busy && patient && items.length && complianceReadyRef()) createAndDispense(); } },
@@ -231,9 +266,9 @@ export default function Dispense() {
   useHotkeys(hotkeys);
 
   const complianceReady =
-    route !== "controlled" ||
-    (items.length > 0 && idVerified && scriptSighted && prescriberVerified &&
-      (!needsInitials || initials.trim() !== ""));
+    (!needsInitials || initials.trim() !== "") &&
+    (route !== "controlled" ||
+    (items.length > 0 && idVerified && scriptSighted && prescriberVerified));
 
   function addItem(p: Product) {
     if (items.some((i) => i.product.id === p.id)) return;
@@ -270,14 +305,25 @@ export default function Dispense() {
   }
 
   function compliancePayload() {
-    return route === "controlled"
-      ? {
-          id_verified: idVerified, id_number_seen: idNumber, script_sighted: scriptSighted,
-          prescriber_verified: prescriberVerified,
-          pharmacist_initial: initials.trim(),
-          compliance_notes: complianceNotes,
-        }
-      : {};
+    // The initial is sent whenever there is one, on every route.
+    //
+    // It used to belong to the controlled-substance block and nothing else, so
+    // on an ordinary prescription a pharmacist could type their initials into a
+    // field that existed and still have the dispensing refused for not having
+    // them — the value was collected and then dropped. Three places held an
+    // opinion about when an initial is needed: this function, the field's
+    // visibility, and a server setting. Only the server's counted.
+    const initial = initials.trim();
+    return {
+      ...(initial ? { pharmacist_initial: initial } : {}),
+      ...(route === "controlled"
+        ? {
+            id_verified: idVerified, id_number_seen: idNumber, script_sighted: scriptSighted,
+            prescriber_verified: prescriberVerified,
+            compliance_notes: complianceNotes,
+          }
+        : {}),
+    };
   }
 
   async function createAndDispense() {
@@ -308,18 +354,6 @@ export default function Dispense() {
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
-  async function dispenseRepeat(item: PrescriptionItem) {
-    if (!item.prescription) return;
-    try {
-      const sale = await api.post<Sale>(`/api/prescriptions/${item.prescription.id}/dispense`, {
-        item_ids: [item.id],
-      });
-      setDoneSale(sale); setDoneRxId(item.prescription.id);
-      loadLists();
-      printRxLabels(item.prescription.id);
-    } catch (e: any) { toast.error(errorText(e)); }
-  }
-
   async function sellOtc() {
     if (!otcProduct) return;
     setBusy(true);
@@ -333,7 +367,7 @@ export default function Dispense() {
       setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
       setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
       loadLists();
-      alert(`Sold — ${record.quantity} × ${record.product?.name}. Recorded in the pharmacy-medicine register.`);
+      alert(`Sold ${record.quantity} × ${record.product?.name}. Recorded in the pharmacy-medicine register.`);
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
@@ -364,13 +398,13 @@ export default function Dispense() {
 
       {doneSale && (
         <div className="success-banner">
-          Dispensed — invoice <b>{doneSale.sale_number}</b> for {money(doneSale.total)} is pending payment.
+          Dispensed, invoice <b>{doneSale.sale_number}</b> for {money(doneSale.total)} is pending payment.
           Labels sent to the printer.{" "}
           {/* A reprint gets the preview: whoever is asking for one already had a
               set come out, so the question now is how many and for which item —
               not "print immediately", which is what already happened. */}
-          {doneRxId && <button className="ghost small" onClick={() => setReprintRx(doneRxId)}>🖨 Reprint labels</button>}
-          {" "}<Link to="/pos">Settle at Point of Sale →</Link>
+          {doneRxId && <button className="ghost small" onClick={() => setReprintRx(doneRxId)}><Printer size={14} /> Reprint labels</button>}
+          {" "}<Link to="/pos">Settle at Point of Sale <ArrowRight size={12} weight="bold" /></Link>
         </div>
       )}
 
@@ -383,7 +417,10 @@ export default function Dispense() {
       </div>
 
       {route === "otc" ? (
-        <div className="grid cols-2">
+        <div className="disp-work">
+          {/* One column. It was a two-column grid because there was a second
+              column to hold; with the work alone, splitting it only made the
+              work narrower. */}
           <div>
             <div className="card">
               <h3>1 · Choose a pharmacy medicine</h3>
@@ -425,8 +462,8 @@ export default function Dispense() {
                 {patient ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <b>{patient.first_name} {patient.last_name}</b>
-                    {patient.allergies && <span className="badge danger">⚠ {patient.allergies}</span>}
-                    <button className="ghost small" onClick={() => setPatient(null)}>Remove</button>
+                    {patient.allergies && <span className="badge danger"><Warning size={11} weight="fill" /> {patient.allergies}</span>}
+                    <IconButton action="remove" onClick={() => setPatient(null)} />
                   </div>
                 ) : (
                   <>
@@ -447,25 +484,19 @@ export default function Dispense() {
                 <input value={indication} onChange={(e) => setIndication(e.target.value)}
                   placeholder="e.g. Headache for 2 days, no red flags" />
               </div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <input type="checkbox" checked={counselled} onChange={(e) => setCounselled(e.target.checked)} />
-                Patient counselled on dose, duration and side effects
-              </label>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <input type="checkbox" checked={referred} onChange={(e) => setReferred(e.target.checked)} />
-                Referred to a doctor
-              </label>
+              <Checkbox checked={counselled} onChange={setCounselled}>Patient counselled on dose, duration and side effects</Checkbox>
+              <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
               <div className="field"><label>Notes</label>
                 <textarea rows={2} value={otcNotes} onChange={(e) => setOtcNotes(e.target.value)} /></div>
               <div className="form-row">
                 <div className="field">
-                  <label>Cash tendered — total {money(otcTotal)}</label>
+                  <label>Cash tendered, total {money(otcTotal)}</label>
                   <input type="number" step="0.01" value={tendered} onChange={(e) => setTendered(e.target.value)} />
                 </div>
               </div>
               <button onClick={sellOtc}
                 disabled={busy || !otcProduct || (otcPolicy?.counselling_required && !counselled)}>
-                {busy ? "Selling…" : `Sell & record${otcProduct ? ` — ${money(otcTotal)}` : ""}`}
+                {busy ? "Selling…" : `Sell & record${otcProduct ? ` for ${money(otcTotal)}` : ""}`}
               </button>
               {otcPolicy?.counselling_required && !counselled && (
                 <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
@@ -497,6 +528,7 @@ export default function Dispense() {
                 ))}
               </tbody>
             </table>
+            {otcMeta && <Pagination meta={otcMeta} onPage={setOtcPage} noun="sales" />}
             {otcLog.length === 0 && <div className="empty">No pharmacy-medicine sales recorded yet</div>}
           </div>
         </div>
@@ -505,7 +537,7 @@ export default function Dispense() {
           <div>
             {route === "controlled" && (
               <div className="card" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
-                <h3>⚠ Controlled substance — dangerous drugs protocol</h3>
+                <h3><Warning size={17} weight="fill" /> Controlled substance, dangerous drugs protocol</h3>
                 <p className="muted" style={{ fontSize: 13 }}>
                   Schedule 5 and 6 medicines must be dispensed by a pharmacist, entered in the
                   electronic schedule register, and supported by a full compliance record.
@@ -520,7 +552,7 @@ export default function Dispense() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <b>{patient.first_name} {patient.last_name}</b>
-                    {patient.allergies && <span className="badge danger" style={{ marginLeft: 8 }}>⚠ {patient.allergies}</span>}
+                    {patient.allergies && <span className="badge danger" style={{ marginLeft: 8 }}><Warning size={11} weight="fill" /> {patient.allergies}</span>}
                     <div className="muted">
                       ID {patient.id_number || "not on file"} ·{" "}
                       {patient.medical_aid ? `${patient.medical_aid.name} #${patient.medical_aid_number}` : "Private patient"}
@@ -543,10 +575,11 @@ export default function Dispense() {
               )}
               <div className="field" style={{ marginTop: 14 }}>
                 <label>Prescribing doctor</label>
-                <select value={doctorId} onChange={(e) => setDoctorId(e.target.value === "" ? "" : Number(e.target.value))}>
-                  <option value="">Select doctor…</option>
-                  {doctors.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.practice_number})</option>)}
-                </select>
+                <Select
+                  value={String(doctorId ?? "")}
+                  onChange={(__value) => setDoctorId(__value === "" ? "" : Number(__value))}
+                  options={[{ value: "", label: "Select doctor…" }, ...doctors.map((d) => ({ value: String(d.id), label: `${d.name} (${d.practice_number})` }))]}
+                />
               </div>
             </div>
 
@@ -576,7 +609,7 @@ export default function Dispense() {
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
                       </b>
-                      <button className="ghost small" onClick={() => setItems(items.filter((_, i) => i !== idx))}>Remove</button>
+                      <IconButton action="remove" onClick={() => setItems(items.filter((_, i) => i !== idx))} />
                     </div>
                     {/* Whether the same medicine is on the shelf under another
                         name, and what it costs. The substitution conversation
@@ -656,16 +689,16 @@ export default function Dispense() {
                       </div>
                       <div className="field">
                         <label>Auto-refill</label>
-                        <select value={it.auto_refill ? "yes" : "no"} disabled={maxRepeats === 0}
-                          onChange={(e) => updateItem(idx, { auto_refill: e.target.value === "yes" })}>
-                          <option value="no">No — remind patient</option>
-                          <option value="yes">Yes — prepare automatically</option>
-                        </select>
+                        <Select
+                          value={String(it.auto_refill ? "yes" : "no")}
+                          onChange={(__value) => updateItem(idx, { auto_refill: __value === "yes" })}
+                          options={[{ value: "no", label: "No, remind patient" }, { value: "yes", label: "Yes, prepare automatically" }]} disabled={maxRepeats === 0}
+                        />
                       </div>
                     </div>
                     {maxRepeats === 0 && (
                       <div className="muted" style={{ fontSize: 12 }}>
-                        Schedule {it.product.schedule}: no repeats permitted — a fresh script is required each time.
+                        Schedule {it.product.schedule}: no repeats permitted. A fresh script is required each time.
                       </div>
                     )}
                   </div>
@@ -677,18 +710,9 @@ export default function Dispense() {
             {route === "controlled" && items.length > 0 && (
               <div className="card" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
                 <h3>3 · Compliance record {activePolicy && <span className="badge danger">{activePolicy.label}</span>}</h3>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <input type="checkbox" checked={scriptSighted} onChange={(e) => setScriptSighted(e.target.checked)} />
-                  Original prescription sighted and retained
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <input type="checkbox" checked={prescriberVerified} onChange={(e) => setPrescriberVerified(e.target.checked)} />
-                  Prescriber and practice number verified
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                  <input type="checkbox" checked={idVerified} onChange={(e) => setIdVerified(e.target.checked)} />
-                  Patient identity document verified
-                </label>
+                <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
+                <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
+                <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
                 <div className="field">
                   <label>ID number sighted</label>
                   <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="As per identity document" />
@@ -696,7 +720,7 @@ export default function Dispense() {
                 <div className="field">
                   <label>
                     Checked by (pharmacist initials)
-                    {needsInitials && <span className="muted"> — required for this schedule</span>}
+                    {needsInitials && <span className="muted">, required for this schedule</span>}
                   </label>
                   <input
                     value={initials} maxLength={8}
@@ -723,11 +747,28 @@ export default function Dispense() {
 
             <div className="card">
               <h3>{route === "controlled" ? "4" : "3"} · Safety check &amp; dispense</h3>
+              {/* Asked wherever it is required. The controlled route has its own
+                  copy inside the compliance record; on an ordinary prescription
+                  this was the missing step — the server wanted initials and the
+                  screen never offered anywhere to put them. */}
+              {needsInitials && route !== "controlled" && (
+                <div className="field" style={{ maxWidth: 260 }}>
+                  <label>
+                    Checked by (pharmacist initials)
+                    <span className="muted">, required</span>
+                  </label>
+                  <input
+                    value={initials} maxLength={8}
+                    onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                    placeholder="e.g. TM"
+                  />
+                </div>
+              )}
               {coverage && !coverage.all_claimable && (
                 <div className="error-banner">
                   {coverage.blocked_count} line{coverage.blocked_count === 1 ? "" : "s"} not covered
-                  by {coverage.formulary}. Dispensing is allowed — the patient pays for
-                  {coverage.blocked_count === 1 ? " it" : " them"} — but the scheme will not.
+                  by {coverage.formulary}. Dispensing is allowed, the patient pays for
+                  {coverage.blocked_count === 1 ? " it" : " them"}, but the scheme will not.
                 </div>
               )}
               {coverage?.authorisation_required && coverage.all_claimable && (
@@ -738,7 +779,7 @@ export default function Dispense() {
               )}
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
                 <button className="secondary" onClick={checkInteractions} disabled={!patient || items.length === 0 || aiBusy}>
-                  {aiBusy ? "Checking…" : "✦ AI interaction check"}
+                  {aiBusy ? "Checking…" : <><ClaudeIcon size={14} /> AI interaction check</>}
                 </button>
                 <button onClick={createAndDispense} disabled={busy || !patient || items.length === 0 || !complianceReady}>
                   {busy ? "Dispensing…" : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
@@ -754,118 +795,60 @@ export default function Dispense() {
             </div>
           </div>
 
-          <div className="rx-aside">
-            <div className="pill-tabs">
-              {railTabs.map((t) => (
-                <button key={t.key} className={rail === t.key ? "active" : ""} onClick={() => setRail(t.key)}>
-                  {t.label}
-                  {t.count !== undefined && <span className="tab-count">{t.count}</span>}
-                </button>
-              ))}
-            </div>
+          {/* The third column is gone.
+              It held three unrelated things because there was space for them: a
+              second repeats list that asked the same question as the worklist
+              and answered it differently (53 against 0, from a 14-day horizon
+              against a 7-day one), a recent-scripts list whose "See all" linked
+              to a route that does not exist, and a page of schedule rules —
+              reference material occupying a third of a console.
 
-            {rail === "log" && (
-              <div className="card">
-                <table>
-                  <thead><tr><th>When</th><th>Sched.</th><th>Qty</th><th>Compliance</th><th>Dispensed by</th><th>Checked by</th></tr></thead>
-                  <tbody>
-                    {controlledLog.map((d) => (
-                      <tr key={d.id}>
-                        <td>{fmtDateTime(d.dispensed_at)}</td>
-                        <td><span className="badge sched">S{d.schedule}</span></td>
-                        <td className="num">{d.quantity}</td>
-                        <td>
-                          <span className={`badge ${d.id_verified ? "ok" : "danger"}`}>ID</span>{" "}
-                          <span className={`badge ${d.script_sighted ? "ok" : "danger"}`}>script</span>{" "}
-                          <span className={`badge ${d.prescriber_verified ? "ok" : "danger"}`}>prescriber</span>
-                          {d.id_number_seen && <div className="muted mono">{d.id_number_seen}</div>}
-                        </td>
-                        <td className="muted">{d.dispensed_by?.full_name}</td>
-                        <td className="mono">{d.pharmacist_initial || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {controlledLog.length === 0 && <div className="empty">No controlled substances dispensed in the last 90 days</div>}
-              </div>
-            )}
+              None of it was actionable. Its one button posted a dispensing
+              without the checking pharmacist's initials, which the server
+              requires, so it returned 400 every single time it was pressed.
 
-            {rail === "due" && (
-                <div className="card">
-                  {repeatsDue.length === 0 && <div className="empty">No repeats due in the next 14 days</div>}
-                  <table>
-                    <tbody>
-                      {repeatsDue.map((r) => (
-                        <tr key={r.id}>
-                          <td>
-                            <b>{r.product?.name} {r.product?.strength}</b>
-                            <div className="muted">
-                              {r.prescription?.patient ? `${r.prescription.patient.first_name} ${r.prescription.patient.last_name}` : ""} · {r.prescription?.rx_number}
-                            </div>
-                          </td>
-                          <td>{fmtDate(r.next_repeat_date)}<div className="muted">{r.repeats_used}/{r.repeats_allowed} used</div></td>
-                          <td className="right"><button className="small" onClick={() => dispenseRepeat(r)}>Dispense</button></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-            )}
-
-            {rail === "recent" && (
-                <div className="card">
-                  <table>
-                    <tbody>
-                      {recent.map((rx) => (
-                        <tr key={rx.id}>
-                          <td>
-                            <b className="mono">{rx.rx_number}</b>
-                            <div className="muted">{rx.patient ? `${rx.patient.first_name} ${rx.patient.last_name}` : ""}</div>
-                          </td>
-                          <td>{rx.items.map((i) => i.product?.name).join(", ")}</td>
-                          <td className="muted">{fmtDate(rx.date_prescribed)}</td>
-                        </tr>
-                      ))}
-                      {moreRecent && (
-                        <div className="rx-capped">
-                          <span>Showing the {recent.length} most recent</span>
-                          <Link to="/prescriptions">See all</Link>
-                        </div>
-                      )}
-                    </tbody>
-                  </table>
-                  {recent.length === 0 && <div className="empty">No prescriptions yet</div>}
-                </div>
-            )}
-
-            {rail === "rules" && (
-            <div className="card">
-              <table>
-                <thead><tr><th>Schedule</th><th>Route</th><th>Requirements</th></tr></thead>
-                <tbody>
-                  {policies.map((p) => (
-                    <tr key={p.schedule}>
-                      <td><b>S{p.schedule}</b></td>
-                      <td>
-                        <span className={`badge ${p.route === "controlled" ? "danger"
-                          : p.route === "prohibited" ? "danger"
-                          : p.route === "prescription" ? "warn" : "ok"}`}>
-                          {p.route}
-                        </span>
-                      </td>
-                      <td style={{ fontSize: 12 }}>{p.notes}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            )}
-          </div>
+              Repeats now live in the worklist, which is where "what needs doing"
+              already lived, and clicking one loads it into the form on the left
+              — through the safety check, where the initials are captured. */}
         </div>
       )}
       </div>
 
       <DispensaryWorklist
+        panel={worklistPanel}
+        onPanelChange={setWorklistPanel}
+        onPickRepeat={(row) => {
+          // Load the repeat into the form rather than dispensing it behind the
+          // dispenser's back. A repeat still needs a safety check and a
+          // pharmacist's initials; the shortcut this replaces skipped both and
+          // was rejected by the server for exactly that reason.
+          setRoute(row.schedule >= 5 ? "controlled" : "prescription");
+          if (row.doctor_id) setDoctorId(row.doctor_id);
+          api.get<Patient>(`/api/patients/${row.patient_id}`)
+            .then((p) => { setPatient(p); setPatientQ(""); })
+            .catch(() => toast.warn("That patient's record could not be opened."));
+          // The detail endpoint answers with an envelope — {product, batches,
+          // movements, …} — not a bare product. Declaring `api.get<Product>`
+          // made TypeScript agree with the wrong shape, and the item went into
+          // the basket with `id: undefined`, which then asked the server for
+          // /api/products/undefined/variants.
+          api.get<{ product: Product }>(`/api/products/${row.product_id}`)
+            .then(({ product }) => {
+              setItems((current) =>
+                current.some((it) => it.product.id === product.id)
+                  ? current
+                  : [...current, {
+                      product,
+                      quantity: row.quantity || 1,
+                      dosage_instructions: row.dosage_instructions,
+                      repeats_allowed: 0, repeat_interval_days: 30,
+                      auto_refill: false, icd10_code: "",
+                    }]);
+              toast.ok(`${product.name} loaded. Check it and record your initials to dispense.`);
+            })
+            .catch(() => toast.warn("That medicine could not be loaded."));
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
         onPick={(row) => {
           // Load the patient the queued line belongs to. This screen captures
           // and dispenses against a patient rather than looking a script up by

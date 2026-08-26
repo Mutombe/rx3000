@@ -9,6 +9,7 @@
  *  and the buttons are secondary to it.
  */
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import Select from "./Select";
 
 export interface Paged<T> {
   items: T[];
@@ -56,14 +57,11 @@ export default function Pagination({
         {onPerPage && (
           <label className="pager-size">
             Rows
-            <select
-              value={meta.per_page}
-              onChange={(e) => onPerPage(Number(e.target.value))}
-            >
-              {SIZES.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
+            <Select
+              value={String(meta.per_page ?? "")}
+              onChange={(__value) => onPerPage(Number(__value))}
+              options={SIZES.map((n) => ({ value: String(n), label: String(n) }))}
+            />
           </label>
         )}
         {!single && (

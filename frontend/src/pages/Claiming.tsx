@@ -23,6 +23,7 @@ import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Checkbox from "../components/Checkbox";
 
 type Tab = "batches" | "models";
 
@@ -229,7 +230,7 @@ export default function Claiming() {
                   <thead>
                     <tr>
                       <th>Pay office</th><th className="num">Claims</th>
-                      <th className="num">Value</th><th />
+                      <th className="num">Value</th><th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
@@ -265,7 +266,7 @@ export default function Claiming() {
                   <tr>
                     <th>Batch</th><th>Pay office</th><th>Period</th><th>Status</th>
                     <th className="num">Claims</th><th className="num">Claimed</th>
-                    <th className="num">Settled</th><th className="num">Short</th><th />
+                    <th className="num">Settled</th><th className="num">Short</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -273,7 +274,7 @@ export default function Claiming() {
                     const short = round2(b.total_claimed - b.total_settled);
                     return (
                       <tr key={b.id}>
-                        <td className="mono">{b.batch_number}</td>
+                        <td className="mono" title={b.batch_number}>{b.batch_number}</td>
                         <td>{officeName(b.pay_office_id)}</td>
                         <td className="muted">
                           {b.period_from ? fmtDate(b.period_from) : "—"}
@@ -323,7 +324,7 @@ export default function Claiming() {
             <p className="muted">
               {officeName(settling.pay_office_id)} was claimed{" "}
               {money(settling.total_claimed)} for {settling.claim_count} claim(s).
-              Enter what actually arrived — a scheme paying exactly what was
+              Enter what actually arrived. A scheme paying exactly what was
               claimed is the exception, and a settlement typed as the claimed
               figure hides every short payment.
             </p>
@@ -403,8 +404,8 @@ export default function Claiming() {
               </table>
 
               <div className="check-row fm-mmap">
-                <input
-                  type="checkbox" id={`mmap-${m.id}`} checked={m.apply_mmap}
+                <Checkbox
+                  id={`mmap-${m.id}`} checked={m.apply_mmap}
                   disabled={busy === `mmap-${m.id}`}
                   onChange={() => toggleMmap(m)}
                 />

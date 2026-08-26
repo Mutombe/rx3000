@@ -8,6 +8,10 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
 import { Paged } from "../components/Pagination";
 import { ScanBar, ScanResult } from "../components/Scanner";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import BusyButton from "../components/BusyButton";
 
 type Tab = "products" | "batches" | "movements";
 
@@ -101,34 +105,44 @@ export default function Stock() {
         <>
           <b>{p.name}</b> {p.strength}
           <div className="muted" style={{ fontSize: 11.5 }}>
-            {[p.dosage_form, p.pack_size, p.category.replace(/_/g, " ")].filter(Boolean).join(" · ")}
+            {[p.dosage_form, p.pack_size, p.category.replace(/_/g, " "), p.barcode]
+              .filter(Boolean).join(" · ")}
           </div>
         </>
       ) },
-    { key: "schedule", header: "Sched.", sortable: true,
+    /* Explicit widths from here on. Left to share the table by weight these six
+       columns wanted 1054px in a 956px box, so the rightmost one was always
+       behind the pinned actions — first "On hand", then "Stock value". A money
+       column does not need 136px to show $20.00, and the product name can give
+       back what it does not use. Sized so the whole table fits without scrolling
+       at 1280px, which is the width of the tills this runs on. */
+    { key: "schedule", header: "Sched.", sortable: true, width: 84,
       render: (p) => (p.schedule > 0
         ? <span className={`badge ${p.schedule >= 5 ? "sched" : "muted"}`}>S{p.schedule}</span>
         : <span className="muted">—</span>) },
-    { key: "barcode", header: "Barcode", truncate: 16,
-      render: (p) => <span className="mono">{p.barcode || "—"}</span> },
-    { key: "unit_price", header: "Price", align: "right", sortable: true, render: (p) => money(p.unit_price) },
-    { key: "cost_price", header: "Cost", align: "right", sortable: true, render: (p) => money(p.cost_price) },
-    { key: "quantity_on_hand", header: "On hand", align: "right", sortable: true,
+    /* Barcode folded into the product cell rather than given a column of its
+       own. It is a lookup key, not something anyone reads down a list — the
+       search box above already matches on it — and as a column it took 130px
+       from a table that did not have 130px to spare, pushing "On hand" off the
+       screen entirely on a 1280px till. */
+    { key: "unit_price", width: 104, header: "Price", align: "right", sortable: true, render: (p) => money(p.unit_price) },
+    { key: "cost_price", width: 104, header: "Cost", align: "right", sortable: true, render: (p) => money(p.cost_price) },
+    { key: "quantity_on_hand", width: 104, header: "On hand", align: "right", sortable: true,
       render: (p) => (
         <span className={`badge ${p.category === "airtime" ? "muted"
           : p.quantity_on_hand <= p.reorder_level ? "danger" : "ok"}`}>
           {p.quantity_on_hand}
         </span>
       ) },
-    { key: "stock_value", header: "Stock value", align: "right",
+    { key: "stock_value", width: 128, header: "Stock value", align: "right",
       value: (p) => p.quantity_on_hand * p.cost_price,
       render: (p) => money(p.quantity_on_hand * p.cost_price),
       total: (p) => p.quantity_on_hand * p.cost_price, totalRender: (n) => money(n) },
     { key: "actions", header: "", align: "right",
       render: (p) => (
         <span style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
-          <button className="ghost small" onClick={() => openEdit(p)}>Edit</button>
-          <button className="ghost small" onClick={() => setAdjusting(p)}>Adjust</button>
+          <IconButton action="edit" onClick={() => openEdit(p)} />
+          <IconButton action="adjust" onClick={() => setAdjusting(p)} />
         </span>
       ) },
   ];
@@ -150,7 +164,7 @@ export default function Stock() {
         const expired = b.expiry_date && new Date(b.expiry_date).getTime() < Date.now();
         return expired && b.quantity_remaining > 0
           ? <span onClick={(e) => e.stopPropagation()}>
-              <button className="small danger" onClick={() => writeOff(b)}>Write off</button>
+              <BusyButton className="small danger" onClick={() => writeOff(b)}>Write off</BusyButton>
             </span>
           : null;
       } },
@@ -170,7 +184,7 @@ export default function Stock() {
       render: (m) => (m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta) },
     { key: "balance_after", header: "Balance", align: "right", sortable: true },
     { key: "reference", header: "Reference", truncate: 34,
-      render: (m) => <span className="mono">{m.reference}{m.notes && <span className="muted"> — {m.notes}</span>}</span> },
+      render: (m) => <span className="mono">{m.reference}{m.notes && <span className="muted">, {m.notes}</span>}</span> },
   ];
 
   function load() {
@@ -298,11 +312,7 @@ export default function Stock() {
               : undefined
           }
           toolbar={
-            <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0, fontSize: 13 }}>
-              <input type="checkbox" style={{ width: "auto" }} checked={expiringOnly}
-                onChange={(e) => setExpiringOnly(e.target.checked)} />
-              Expiring within 90 days only
-            </label>
+            <Checkbox checked={expiringOnly} onChange={setExpiringOnly}>Expiring within 90 days only</Checkbox>
           }
         />
       )}
@@ -333,17 +343,19 @@ export default function Stock() {
                 onChange={setFilters}
                 placeholder="Search name / NAPPI / barcode…"
                 dimensions={[
+                  // Titled, not the raw column value. `front_shop` became
+                  // "front shop" in the filter while the form beside it offered
+                  // "Front shop" — the same choice spelled two ways on one page.
                   { key: "category", label: "Category",
-                    options: CATEGORIES.map((c) => [c, c.replace(/_/g, " ")] as [string, string]) },
+                    options: CATEGORIES.map((c) => [
+                      c,
+                      c.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase()),
+                    ] as [string, string]) },
                   { key: "schedule", label: "Schedule",
                     options: [0, 1, 2, 3, 4, 5, 6].map((n) => [String(n), `S${n}`] as [string, string]) },
                 ]}
               />
-              <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0, fontSize: 13 }}>
-                <input type="checkbox" style={{ width: "auto" }} checked={lowOnly}
-                  onChange={(e) => setLowOnly(e.target.checked)} />
-                Low stock only
-              </label>
+              <Checkbox checked={lowOnly} onChange={setLowOnly}>Low stock only</Checkbox>
             </>
           }
         />
@@ -396,24 +408,40 @@ export default function Stock() {
               <div className="form-row">
                 <div className="field">
                   <label>Category</label>
-                  <select value={form.category} onChange={set("category")}>
-                    <option value="medicine">Medicine</option>
-                    <option value="front_shop">Front shop</option>
-                    <option value="airtime">Airtime</option>
-                  </select>
+                  <Select
+                    value={form.category}
+                    onChange={(v) => set("category")({ target: { value: v } } as any)}
+                    options={[
+                      { value: "medicine", label: "Medicine" },
+                      { value: "front_shop", label: "Front shop" },
+                      { value: "airtime", label: "Airtime" },
+                    ]}
+                  />
                 </div>
                 <div className="field">
                   <label>Schedule</label>
-                  <select value={form.schedule} onChange={(e) => setForm({ ...form, schedule: Number(e.target.value) })}>
-                    {[0, 1, 2, 3, 4, 5, 6].map((s) => <option key={s} value={s}>S{s}{s >= 5 ? " (register)" : ""}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.schedule)}
+                    onChange={(v) => setForm({ ...form, schedule: Number(v) })}
+                    options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({
+                      value: String(n),
+                      label: `S${n}`,
+                      // The register requirement belongs beside the schedule, not
+                      // in the head of whoever is filling the form in.
+                      hint: n >= 5 ? "controlled, register entry required" : undefined,
+                    }))}
+                  />
                 </div>
                 <div className="field">
                   <label>Supplier</label>
-                  <select value={form.supplier_id} onChange={set("supplier_id")}>
-                    <option value="">None</option>
-                    {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.supplier_id ?? "")}
+                    onChange={(v) => set("supplier_id")({ target: { value: v } } as any)}
+                    placeholder="None"
+                    clearable
+                    searchable
+                    options={suppliers.map((sup) => ({ value: String(sup.id), label: sup.name }))}
+                  />
                 </div>
               </div>
               <div className="form-row">
@@ -451,16 +479,20 @@ export default function Stock() {
       {adjusting && (
         <div className="modal-backdrop" onClick={() => setAdjusting(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2>Adjust stock — {adjusting.name}</h2>
+            <h2>Adjust stock for {adjusting.name}</h2>
             <p className="muted">Currently {adjusting.quantity_on_hand} on hand{adjusting.schedule >= 5 && " · S-register entry will be recorded"}</p>
             <form onSubmit={applyAdjust}>
               <div className="field">
                 <label>Type</label>
-                <select value={adjType} onChange={(e) => setAdjType(e.target.value)}>
-                  <option value="receive">Receive stock (+)</option>
-                  <option value="adjustment">Adjustment (+/−)</option>
-                  <option value="return">Customer return (+)</option>
-                </select>
+                <Select
+                  value={adjType}
+                  onChange={setAdjType}
+                  options={[
+                    { value: "receive", label: "Receive stock (+)" },
+                    { value: "adjustment", label: "Adjustment (+/−)" },
+                    { value: "return", label: "Customer return (+)" },
+                  ]}
+                />
               </div>
               <div className="field">
                 <label>Quantity {adjType === "adjustment" ? "(use negative to write off)" : ""}</label>

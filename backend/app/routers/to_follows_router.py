@@ -1,4 +1,4 @@
-"""To follows — the medicine the pharmacy still owes."""
+"""To follows. The medicine the pharmacy still owes."""
 from datetime import date
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -45,7 +45,7 @@ def create(product_id: int = Body(...), quantity: int = Body(...),
            promised_for: date | None = Body(default=None),
            notes: str = Body(default=""),
            db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Record a debt raised outside the dispensing flow — an OTC short supply."""
+    """Record a debt raised outside the dispensing flow, an OTC short supply."""
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -86,7 +86,7 @@ def settle(owed_id: int, quantity: int = Body(default=0, embed=True),
 @router.post("/{owed_id}/cancel")
 def cancel(owed_id: int, reason: str = Body(..., embed=True),
            db: Session = Depends(get_db)):
-    """Write the debt off — the patient got it elsewhere or no longer needs it."""
+    """Write the debt off. The patient got it elsewhere or no longer needs it."""
     owed = db.get(OwedItem, owed_id)
     if not owed:
         raise HTTPException(status_code=404, detail="To-follow not found")

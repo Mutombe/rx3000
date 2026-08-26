@@ -47,7 +47,7 @@ export const SCRIPT_KEYS: KeyBinding[] = [
     divergent: true,
     note:
       "Same key, but this asks before committing. Finishing is irreversible once " +
-      "the receipt is fiscalised — in Zimbabwe it can then only be reversed by a " +
+      "the receipt is fiscalised. In Zimbabwe it can then only be reversed by a " +
       "credit note.",
   },
   { combo: "Ctrl+R", label: "Realtime response", incumbent: "RT Resp[Ctrl+R]", group: "Claim" },
@@ -66,14 +66,14 @@ export const NAV_KEYS: KeyBinding[] = [
 ];
 
 /** Ours. Chosen on keys the incumbent leaves free, so nothing is displaced. */
-export const RX3000_KEYS: KeyBinding[] = [
+export const RX5000_KEYS: KeyBinding[] = [
   { combo: "F7", label: "Counter messages for this patient", group: "Patient" },
   { combo: "Ctrl+K", label: "Search anything", group: "Global" },
   { combo: "?", label: "Show this key map", group: "Global" },
   { combo: "Escape", label: "Close / cancel", group: "Global" },
 ];
 
-export const ALL_KEYS: KeyBinding[] = [...NAV_KEYS, ...SCRIPT_KEYS, ...RX3000_KEYS];
+export const ALL_KEYS: KeyBinding[] = [...NAV_KEYS, ...SCRIPT_KEYS, ...RX5000_KEYS];
 
 /** Guards against two features silently claiming one key. */
 export function conflicts(bindings: KeyBinding[] = ALL_KEYS): string[] {

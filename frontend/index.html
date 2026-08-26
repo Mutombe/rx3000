@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RX3000 — Pharmacy Management</title>
+    <title>RX5000 — Pharmacy Management</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#3b3e56" />
@@ -25,6 +25,33 @@
       rel="stylesheet" media="print" onload="this.media='all'" />
   </head>
   <body>
+    <!-- The theme is painted before the first frame, not after React mounts.
+
+         A module script is deferred, so anything it does happens after the page
+         has already been painted once. For someone who chose Dark on a device
+         set to light, that is a full white flash of the whole application on
+         every load, which on a dispensary screen at night is genuinely
+         unpleasant. This is the one thing that has to be inline and blocking.
+
+         It reads the same key as src/theme.ts, including the RX3000 fallback,
+         and writes nothing. Under System no attribute is set at all, so the
+         media query in styles.css decides on its own. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("rx5000_theme")
+               || localStorage.getItem("rx3000_theme");
+          if (t !== "light" && t !== "dark") {
+            // No stored choice means System, which is resolved here rather than
+            // left to a media query, because the stylesheet defines the dark
+            // tokens once under [data-theme="dark"] and nowhere else.
+            t = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark" : "light";
+          }
+          document.documentElement.setAttribute("data-theme", t);
+        } catch (e) { /* private mode: fall through to the device setting */ }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

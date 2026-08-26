@@ -21,6 +21,7 @@
  */
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import PinInput from "./PinInput";
 
 export interface StepUpAction {
   key: string;
@@ -45,6 +46,16 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   const [spec, setSpec] = useState<StepUpAction | null>(null);
   const [approver, setApprover] = useState("");
   const [password, setPassword] = useState("");
+  /* PIN first, password as the way out.
+     This prompt interrupts a transaction with a patient at the counter. A
+     password typed there is a password read over a shoulder, and one long
+     enough to be worth having is long enough that people start picking bad
+     ones. Four digits, rate limited and locked after five failures, is the
+     trade this particular prompt is for. Anyone without a PIN set, and anyone
+     who would rather, still uses a password. */
+  const [pin, setPin] = useState("");
+  const [usePassword, setUsePassword] = useState(false);
+  const [pinRefused, setPinRefused] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -62,13 +73,14 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     try {
       const res = await api.post<{ token: string }>("/api/step-up", {
         action,
-        password,
+        ...(usePassword ? { password } : { pin }),
         approver: approver.trim(),
         context,
       });
       onGranted(res.token);
     } catch (err: any) {
       // The server's refusal is the useful message — "not permitted to approve",
+      setPinRefused(!usePassword);
       // "needs a second person", "that password was not accepted" — so it is
       // shown as written rather than replaced with something generic.
       setError(err.message);
@@ -90,10 +102,14 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
         {needsSecondPerson ? (
           <p className="alert warn">
             This needs a second person. Ask a {spec!.approvers.join(" or ")} to enter
-            their own username and password — not yours.
+            their own username and password, not yours.
           </p>
         ) : (
-          <p className="muted">Re-enter your password to confirm.</p>
+          <p className="muted">
+            {usePassword
+              ? "Re-enter your password to confirm."
+              : "Enter your till PIN to confirm."}
+          </p>
         )}
 
         {error && <div className="alert error">{error}</div>}
@@ -111,16 +127,39 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           </label>
         )}
 
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            autoFocus={!needsSecondPerson}
-            autoComplete="off"
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
+        {usePassword ? (
+          <label>
+            Password
+            <input
+              type="password"
+              value={password}
+              autoFocus={!needsSecondPerson}
+              autoComplete="off"
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+        ) : (
+          <div className="su-pin">
+            <span className="su-pin-label">
+              {needsSecondPerson ? "Approver's PIN" : "Your PIN"}
+            </span>
+            <PinInput
+              value={pin}
+              onChange={(v) => { setPin(v); setPinRefused(false); }}
+              autoFocus={!needsSecondPerson}
+              invalid={pinRefused}
+              disabled={busy}
+            />
+          </div>
+        )}
+
+        <button
+          type="button"
+          className="ghost small su-swap"
+          onClick={() => { setUsePassword((p) => !p); setPin(""); setPassword(""); }}
+        >
+          {usePassword ? "Use a PIN instead" : "Use a password instead"}
+        </button>
 
         {spec && (
           <p className="muted small">

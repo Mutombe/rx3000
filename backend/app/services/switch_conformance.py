@@ -112,7 +112,7 @@ def run(switch_id: str) -> dict:
             "switch_id": adapter.switch_id, "ran": True, "implemented": False,
             "ready": False,
             "message": ("This adapter is declared but not implemented. It fails "
-                        "cleanly, which is correct — it is simply not usable yet."),
+                        "cleanly, which is correct, it is simply not usable yet."),
             "checks": [c.__dict__ for c in checks],
             "passed": passed, "failed": len(checks) - passed,
         }

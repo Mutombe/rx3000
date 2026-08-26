@@ -9,19 +9,20 @@ import {
   CaretRight,
   ChartLineUp,
   ClipboardText,
-  Coins,
   ClockCountdown,
+  Coins,
   Desktop,
   Flask,
   Funnel,
+  Gear,
   HandCoins,
   Headset,
   Megaphone,
   Notebook,
   Package,
+  PaperPlaneTilt,
   PauseCircle,
   Prescription,
-  PaperPlaneTilt,
   Presentation,
   Receipt,
   Scales,
@@ -32,16 +33,24 @@ import {
   SquaresFour,
   Storefront,
   Truck,
-  UserPlus,
   UserCircle,
+  UserPlus,
   Users,
   Van,
   Vault,
 } from "@phosphor-icons/react";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { api, configureLocale, fmtDateTime, setToken } from "../api";
 import { User } from "../types";
+import { readStored, writeStored } from "../storage";
+import { shortCount, useNavCounts } from "../hooks/useNavCounts";
+import { useRailWidth } from "../hooks/useRailWidth";
+import DemoBar from "./DemoBar";
+import ThemeToggle from "./ThemeToggle";
+import Tooltips from "./Tooltips";
+import TillLock from "./TillLock";
+import ClaudeIcon from "./ClaudeIcon";
 
 /** The navigation, ordered by how often a pharmacy actually touches each screen.
  *
@@ -69,7 +78,21 @@ function initials(name?: string | null): string {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-const NAV = [
+/** A navigation entry. Stated rather than inferred: the icons are a mix of
+ *  Phosphor components and our own Claude mark, and left to inference the array
+ *  collapses into a union where `tier` exists on only some members. */
+interface NavLinkDef {
+  to: string;
+  label: string;
+  // A component, without pinning its props. Phosphor types `weight` as its own
+  // union and returns ReactNode; our Claude mark takes a plain string and
+  // returns an Element. Narrowing to either shape excludes the other, and the
+  // nav only ever passes a size and a weight through.
+  icon: React.ComponentType<any>;
+  tier?: number;
+}
+
+const NAV: { section: string; links: NavLinkDef[] }[] = [
   {
     section: "Dispensary",
     links: [
@@ -122,7 +145,7 @@ const NAV = [
     links: [
       { to: "/", label: "Command Centre", icon: SquaresFour },
       { to: "/reports", label: "Analytics", icon: ChartLineUp },
-      { to: "/assistant", label: "Pulse AI", icon: Sparkle },
+      { to: "/assistant", label: "Pulse AI", icon: ClaudeIcon },
     ],
   },
   {
@@ -146,6 +169,8 @@ const NAV = [
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
+  // Live counts of what needs doing, keyed by route.
+  const counts = useNavCounts();
   const [user, setUser] = useState<User | null>(null);
   const [, setReady] = useState(0);
   const navigate = useNavigate();
@@ -196,11 +221,14 @@ export default function Layout({ children }: { children: ReactNode }) {
     if (typeof window !== "undefined" && window.matchMedia("(max-width: 860px)").matches) {
       return true;
     }
-    return localStorage.getItem("rx3000_rail") === "1";
+    return readStored("rail") === "1";
   });
   useEffect(() => {
-    localStorage.setItem("rx3000_rail", collapsed ? "1" : "0");
+    writeStored("rail", collapsed ? "1" : "0");
   }, [collapsed]);
+
+  // Declared after `collapsed`, because a collapsed rail has no width to drag.
+  const rail = useRailWidth(collapsed);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -229,14 +257,34 @@ export default function Layout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className={`shell${collapsed ? " is-collapsed" : ""}`}>
+    <div className={`shell${collapsed ? " is-collapsed" : ""}${rail.dragging ? " is-resizing" : ""}`}>
+      {/* One tooltip for the whole application. See the note in Tooltips. */}
+      <Tooltips />
+      {/* The shared-till lock. It keeps the session and asks who is at the
+          keyboard, rather than logging anybody out and losing their work. */}
+      <TillLock user={user} onActorChange={setUser} />
       <aside className="sidebar">
+        {/* The rail's own edge is the control. `separator` with an orientation
+            and a value is what a screen reader needs to announce it as
+            something adjustable rather than as a stray button. */}
+        <button
+          className="rail-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize the navigation. Arrow keys adjust, Home restores the default."
+          aria-valuenow={rail.width ?? 248}
+          aria-valuemin={rail.min}
+          aria-valuemax={rail.max}
+          onPointerDown={rail.start}
+          onKeyDown={rail.nudge}
+          onDoubleClick={() => rail.nudge({ key: "Home", preventDefault() {}, shiftKey: false } as any)}
+        />
         <div className="brand">
-          <img className="logo" src="/logo.png" alt="RX3000" />
+          <img className="logo" src="/logo.png" alt="RX5000" />
           {/* The wordmark is what collapses; the logo stays, so the rail keeps
               an anchor and the eye has something to land on. */}
           <div className="brand-text">
-            RX3000
+            RX5000
             <small>PHARMACY SUITE</small>
           </div>
           <button
@@ -256,7 +304,14 @@ export default function Layout({ children }: { children: ReactNode }) {
                 <NavLink key={l.to} to={l.to} end={l.to === "/"}
                   // Collapsed, the label is gone, so the title attribute is the
                   // only thing naming the destination. It is not optional.
-                  title={collapsed ? l.label : undefined}
+                  // Collapsed there is no label and no room for a badge, so the
+                  // count goes into the title — otherwise the rail would say a
+                  // number belonged to an icon without saying which number.
+                  title={
+                    collapsed
+                      ? counts[l.to] ? `${l.label}: ${counts[l.to].toLocaleString()} need attention` : l.label
+                      : counts[l.to] ? `${counts[l.to].toLocaleString()} need attention` : undefined
+                  }
                   onClick={() => {
                     if (window.matchMedia("(max-width: 860px)").matches) setCollapsed(true);
                   }}
@@ -264,8 +319,20 @@ export default function Layout({ children }: { children: ReactNode }) {
                     [isActive ? "active" : "", l.tier === 1 ? "nav-primary" : ""]
                       .filter(Boolean).join(" ")}
                 >
-                  <span className="icon"><l.icon size={18} weight={l.tier === 1 ? "fill" : "regular"} /></span>
+                  <span className="icon">
+                    <l.icon size={18} weight={l.tier === 1 ? "fill" : "regular"} />
+                    {/* Collapsed to a rail there is no room for a number, but
+                        hiding it entirely would mean the one view that shows
+                        only icons is also the one that says nothing is waiting.
+                        A dot keeps the signal without the digits. */}
+                    {collapsed && counts[l.to] > 0 && <span className="nav-dot" aria-hidden="true" />}
+                  </span>
                   <span className="nav-label">{l.label}</span>
+                  {!collapsed && counts[l.to] > 0 && (
+                    <span className="nav-count" aria-hidden="true">
+                      {shortCount(counts[l.to])}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </div>
@@ -278,7 +345,18 @@ export default function Layout({ children }: { children: ReactNode }) {
             rather than at the foot of a rail that collapses to icons. It also
             takes sign-out out of the navigation, where it sat one careless click
             below the last menu item. */}
+        {/* Above the top bar, so the clock cannot be scrolled out of sight.
+            Renders nothing at all for an ordinary account. */}
+        <DemoBar user={user} />
+
         <header className="topbar">
+          {/* Beside the profile, not inside it. Appearance is changed far more
+              often than a profile is opened — a till by a window is squinted at
+              twice a day — and burying it under a caret makes people live with
+              the wrong one. Outside the menu's ref on purpose, so using it also
+              closes an open profile menu. */}
+          <ThemeToggle />
+          <span className="topbar-sep" aria-hidden="true" />
           <div className="topbar-right" ref={menuRef}>
             <button
               className="me"
@@ -296,10 +374,21 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             {menuOpen && (
               <div className="me-menu" role="menu">
+                <div className="me-menu-head">
+                  <span className="me-avatar">{initials(user?.full_name)}</span>
+                  <span className="me-text">
+                    <span className="who">{user?.full_name ?? "…"}</span>
+                    <span className="role">{user?.role}</span>
+                  </span>
+                </div>
                 <NavLink to="/profile" role="menuitem" onClick={() => setMenuOpen(false)}>
                   <UserCircle size={16} /> Your profile
                 </NavLink>
-                <button role="menuitem" onClick={logout}>
+                <NavLink to="/system" role="menuitem" onClick={() => setMenuOpen(false)}>
+                  <Gear size={16} /> Settings
+                </NavLink>
+                <div className="me-menu-sep" role="separator" />
+                <button role="menuitem" className="is-leave" onClick={logout}>
                   <SignOut size={16} /> Sign out
                 </button>
               </div>

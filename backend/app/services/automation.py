@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Activity, AutomationRule, Lead, Ticket
 
-log = logging.getLogger("rx3000.automation")
+log = logging.getLogger("rx5000.automation")
 
 RULE_TYPES = [
     "lead_assignment", "lead_scoring", "ticket_assignment", "ticket_escalation", "deal_task",
@@ -106,13 +106,13 @@ def explain_lead_score(db: Session, lead: Lead) -> dict:
     ]
 
     if lead.estimated_value >= 50000:
-        value_points, value_label = 25, "Deal size — R50k or above"
+        value_points, value_label = 25, "Deal size, R50k or above"
     elif lead.estimated_value >= 10000:
-        value_points, value_label = 15, "Deal size — R10k to R50k"
+        value_points, value_label = 15, "Deal size, R10k to R50k"
     elif lead.estimated_value > 0:
-        value_points, value_label = 5, "Deal size — under R10k"
+        value_points, value_label = 5, "Deal size, under R10k"
     else:
-        value_points, value_label = 0, "Deal size — not estimated"
+        value_points, value_label = 0, "Deal size, not estimated"
     factors.append({"label": value_label, "points": value_points, "max": 25, "group": "Value"})
     factors.append({
         "label": "Consented to marketing (POPIA)",
@@ -211,7 +211,7 @@ def escalate_overdue_tickets(db: Session) -> int:
         if target and target != ticket.priority:
             db.add(Activity(
                 activity_type="note",
-                subject=f"SLA breached — escalated {ticket.priority} → {target}",
+                subject=f"SLA breached, escalated {ticket.priority} → {target}",
                 body=f"Ticket {ticket.ticket_number} passed its response target with no reply.",
                 ticket_id=ticket.id, owner_id=ticket.assigned_to_id,
                 completed_at=now,

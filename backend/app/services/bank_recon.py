@@ -165,10 +165,10 @@ def reconcile(db: Session, *, account_code: str, lines: list[dict]) -> dict:
                 # Proposed, never posted. A bank charge is a real transaction,
                 # but a ledger that invents entries acquires figures nobody can
                 # explain.
-                "suggestion": ("A receipt the ledger has not seen — a deposit, "
+                "suggestion": ("A receipt the ledger has not seen, a deposit, "
                                "or a settlement that arrived net of fees."
                                if movement > 0 else
-                               "A payment the ledger has not seen — a bank "
+                               "A payment the ledger has not seen, a bank "
                                "charge, a debit order, or a supplier paid "
                                "outside the system."),
             })

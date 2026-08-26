@@ -56,7 +56,8 @@ def protected_actions():
 
 
 @router.post("/step-up")
-def request_step_up(action: str = Body(...), password: str = Body(...),
+def request_step_up(action: str = Body(...), password: str = Body(default=""),
+                    pin: str = Body(default=""),
                     approver: str = Body(default=""), context: str = Body(default=""),
                     db: Session = Depends(get_db),
                     user: User = Depends(get_current_user)):
@@ -67,7 +68,7 @@ def request_step_up(action: str = Body(...), password: str = Body(...),
     """
     try:
         grant = stepup.request(db, action_key=action, actor=user, password=password,
-                               approver_username=approver, context=context)
+                               pin=pin, approver_username=approver, context=context)
     except stepup.StepUpError as exc:
         raise HTTPException(status_code=403, detail={
             "error_code": "STEP_UP_REFUSED", "message": str(exc)}) from exc
@@ -140,7 +141,7 @@ def check_postable(on: date | None = None, db: Session = Depends(get_db)):
 @router.post("/periods/{code}/open")
 def open_period(code: str, db: Session = Depends(get_db),
                 user: User = Depends(get_current_user)):
-    """Create or reopen a period by code — for a pharmacy loading its history."""
+    """Create or reopen a period by code, for a pharmacy loading its history."""
     try:
         period = periods.open_code(db, code, user.id)
     except periods.PeriodError as exc:

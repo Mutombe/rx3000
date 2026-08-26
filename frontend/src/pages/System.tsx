@@ -62,7 +62,7 @@ export default function System() {
     try {
       const res = await api.post<{ name: string; size_mb: number; tables: number }>(
         "/api/system/backups", { note });
-      toast.ok(`${res.name} taken and verified — ${res.size_mb} MB, ${res.tables} tables.`);
+      toast.ok(`${res.name} taken and verified. ${res.size_mb} MB, ${res.tables} tables.`);
       setNote("");
       load();
     } catch (e: any) {
@@ -115,28 +115,30 @@ export default function System() {
           hasData={!!backups?.files.length}
           skeleton={<TableSkeleton cols={3} rows={4} widths={["26ch", "10ch", "22ch"]} />}
         >
-          <table className="dt">
-            <thead>
-              <tr><th>File</th><th className="num">Size</th><th>Taken</th></tr>
-            </thead>
-            <tbody>
-              {backups?.files.map((f) => (
-                <tr key={f.name}>
-                  <td className="mono">
-                    {f.name}
-                    {f.note && <div className="muted small">{f.note}</div>}
-                  </td>
-                  <td className="num">{f.size_mb} MB</td>
-                  <td>{fmtDateTime(f.taken_at)}</td>
-                </tr>
-              ))}
-              {!backups?.files.length && !loading && (
-                <tr><td colSpan={3} className="muted pad">
-                  No backup has ever been taken.
-                </td></tr>
-              )}
-            </tbody>
-          </table>
+          <div className="dt-scroll">
+            <table className="dt">
+              <thead>
+                <tr><th>File</th><th className="num">Size</th><th>Taken</th></tr>
+              </thead>
+              <tbody>
+                {backups?.files.map((f) => (
+                  <tr key={f.name}>
+                    <td className="mono">
+                      {f.name}
+                      {f.note && <div className="muted small">{f.note}</div>}
+                    </td>
+                    <td className="num">{f.size_mb} MB</td>
+                    <td>{fmtDateTime(f.taken_at)}</td>
+                  </tr>
+                ))}
+                {!backups?.files.length && !loading && (
+                  <tr><td colSpan={3} className="muted pad">
+                    No backup has ever been taken.
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </Refreshable>
       </section>
 
@@ -146,7 +148,7 @@ export default function System() {
           <>
             <p className={`alert ${LICENCE_TONE[lic.state] ?? ""}`}>
               <strong>{lic.state}</strong>
-              {lic.message ? ` — ${lic.message}` : " — nothing to do."}
+              {lic.message ? `. ${lic.message}` : ", nothing to do."}
             </p>
             <dl className="kv">
               <dt>Licensed to</dt><dd>{lic.licensed_to}</dd>

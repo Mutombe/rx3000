@@ -17,6 +17,27 @@ class User(Base):
     full_name = Column(String(120), nullable=False)
     role = Column(String(20), nullable=False, default="assistant")  # admin | pharmacist | assistant | cashier
     active = Column(Boolean, default=True)
+    # A short code for the till, hashed like any other secret.
+    #
+    # Not a replacement for the password: the password starts a session, the PIN
+    # says who is standing at a machine that is already signed in. On a shared
+    # till that is the only honest way to attribute an action — logging out
+    # between customers loses the basket, so nobody does it, and every action
+    # then belongs to whoever opened the shop.
+    pin_hash = Column(String(255), nullable=True)
+    pin_set_at = Column(DateTime, nullable=True)
+    # Consecutive failures, and the lock that follows them. Four digits is ten
+    # thousand combinations; without a lockout that is an afternoon's work.
+    pin_failures = Column(Integer, default=0)
+    pin_locked_until = Column(DateTime, nullable=True)
+    # A demo account, and when it stops working.
+    #
+    # Kept on the user rather than only in the token because a token is a copy:
+    # once issued it says what it said, and a demo that could be extended by
+    # holding on to an old one is not a demo. Every request re-reads this, so
+    # revoking a demo early is a single UPDATE.
+    is_demo = Column(Boolean, default=False)
+    demo_expires_at = Column(DateTime, nullable=True)
 
 
 class PayOffice(Base):
@@ -739,7 +760,7 @@ class PurchaseOrderItem(Base):
 
 
 class RegisterEntry(Base):
-    """Electronic schedule register — immutable log for S5/S6 substances."""
+    """Electronic schedule register, immutable log for S5/S6 substances."""
     __tablename__ = "register_entries"
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
@@ -763,7 +784,7 @@ class RegisterEntry(Base):
 # ==================== CRM ====================
 
 class Company(Base):
-    """A corporate account — clinic, old-age home, employer, wholesale buyer."""
+    """A corporate account, clinic, old-age home, employer, wholesale buyer."""
     __tablename__ = "companies"
     id = Column(Integer, primary_key=True)
     name = Column(String(160), nullable=False, index=True)
@@ -783,7 +804,7 @@ class Company(Base):
 
 
 class Contact(Base):
-    """A person in the CRM — a lead, a corporate contact, or a linked patient."""
+    """A person in the CRM. A lead, a corporate contact, or a linked patient."""
     __tablename__ = "contacts"
     id = Column(Integer, primary_key=True)
     first_name = Column(String(80), nullable=False)
@@ -806,7 +827,7 @@ class Contact(Base):
 
 
 class Lead(Base):
-    """An unqualified enquiry — converts into Account + Contact + Opportunity."""
+    """An unqualified enquiry, converts into Account + Contact + Opportunity."""
     __tablename__ = "leads"
     id = Column(Integer, primary_key=True)
     first_name = Column(String(80), nullable=False)
@@ -836,7 +857,7 @@ class Lead(Base):
 
 
 class DealItem(Base):
-    """A product line on an opportunity — the deal value is the sum of its lines."""
+    """A product line on an opportunity. The deal value is the sum of its lines."""
     __tablename__ = "deal_items"
     id = Column(Integer, primary_key=True)
     deal_id = Column(Integer, ForeignKey("deals.id"), nullable=False)
@@ -889,7 +910,7 @@ class EmailTemplate(Base):
 
 
 class AutomationRule(Base):
-    """Declarative CRM automation — assignment, escalation and lead scoring."""
+    """Declarative CRM automation, assignment, escalation and lead scoring."""
     __tablename__ = "automation_rules"
     id = Column(Integer, primary_key=True)
     name = Column(String(160), nullable=False)
@@ -905,7 +926,7 @@ class AutomationRule(Base):
 
 
 class Deal(Base):
-    """A sales opportunity — supply contract, wellness programme, chronic delivery."""
+    """A sales opportunity, supply contract, wellness programme, chronic delivery."""
     __tablename__ = "deals"
     id = Column(Integer, primary_key=True)
     title = Column(String(180), nullable=False)
@@ -1196,7 +1217,7 @@ class StockBatch(Base):
 
 
 class BatchAllocation(Base):
-    """Which batch(es) a stock-out drew from — enables exact void restoration."""
+    """Which batch(es) a stock-out drew from, enables exact void restoration."""
     __tablename__ = "batch_allocations"
     id = Column(Integer, primary_key=True)
     batch_id = Column(Integer, ForeignKey("stock_batches.id"), nullable=False)
@@ -2024,3 +2045,32 @@ class MedicalAidDueDate(Base):
 from sqlalchemy.orm import configure_mappers as _configure_mappers  # noqa: E402
 
 _configure_mappers()
+
+
+class AiConversation(Base):
+    """One question put to the assistant, and what it answered.
+
+    Kept because the useful ones are asked once and wanted again a week later:
+    "what did it say about the slow-moving lines". Holding them only in the tab
+    means the answer to a question worth twelve seconds of a model's time is
+    thrown away by a page refresh.
+
+    Stored per user rather than per pharmacy. The questions people ask an
+    assistant are working notes, and a shared log of everybody's half-formed
+    queries is something staff learn to avoid rather than use.
+
+    The answer is kept verbatim, including the figures it quoted. Re-running the
+    question later would answer about today, which is a different question, and
+    silently substituting one for the other is how a record stops being one.
+    """
+    __tablename__ = "ai_conversations"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    question = Column(Text, nullable=False)
+    answer = Column(Text, nullable=False, default="")
+    # Which model wrote it. An answer from a different model a year from now is
+    # not the same evidence, and the log should say so rather than imply it is.
+    model = Column(String(60), default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")

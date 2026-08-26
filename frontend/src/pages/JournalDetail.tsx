@@ -115,41 +115,43 @@ export default function JournalDetail() {
         </p>
       )}
 
-      <table className="dt">
-        <thead>
-          <tr>
-            <th>Account</th><th>Description</th><th>Party</th>
-            <th className="num">Debit</th><th className="num">Credit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entry.lines.map((l, i) => (
-            <tr key={i}>
-              <td className="mono">{l.account_code}</td>
-              <td>{l.description || <span className="muted">—</span>}</td>
-              <td>
-                {l.party_type ? (
-                  <>
-                    {l.party_type}
-                    {l.party_id ? ` #${l.party_id}` : ""}
-                  </>
-                ) : (
-                  /* An unattributed line on a control account is what makes a
-                     subledger stop reconciling — worth naming, not blanking. */
-                  <span className="muted">unattributed</span>
-                )}
-              </td>
-              <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-              <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+      <div className="dt-scroll">
+        <table className="dt">
+          <thead>
+            <tr>
+              <th>Account</th><th>Description</th><th>Party</th>
+              <th className="num">Debit</th><th className="num">Credit</th>
             </tr>
-          ))}
-          <tr className="total-row">
-            <td colSpan={3}>Totals</td>
-            <td className="num">{money(debits)}</td>
-            <td className="num">{money(credits)}</td>
-          </tr>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {entry.lines.map((l, i) => (
+              <tr key={i}>
+                <td className="mono">{l.account_code}</td>
+                <td>{l.description || <span className="muted">—</span>}</td>
+                <td>
+                  {l.party_type ? (
+                    <>
+                      {l.party_type}
+                      {l.party_id ? ` #${l.party_id}` : ""}
+                    </>
+                  ) : (
+                    /* An unattributed line on a control account is what makes a
+                       subledger stop reconciling — worth naming, not blanking. */
+                    <span className="muted">unattributed</span>
+                  )}
+                </td>
+                <td className="num">{l.debit ? money(l.debit) : "—"}</td>
+                <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+              </tr>
+            ))}
+            <tr className="total-row">
+              <td colSpan={3}>Totals</td>
+              <td className="num">{money(debits)}</td>
+              <td className="num">{money(credits)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       {reversing && (
         <div className="modal-backdrop" onClick={() => setReversing(false)}>

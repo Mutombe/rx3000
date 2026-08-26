@@ -21,7 +21,13 @@ export function Avatar({ first, last, size = 34, label }: {
       title={label}
       style={{
         width: size, height: size, fontSize: size * 0.36,
-        background: `linear-gradient(140deg, hsl(${hash} 42% 78%), hsl(${(hash + 40) % 360} 30% 58%))`,
+        // Lightness 34%/28%, not 78%/58%. The label is white, and white on
+        // hsl(h 42% 78%) is about 1.7:1 — the initials were a pale suggestion on
+        // a pale disc. 34% clears 4.5:1 for every hue including yellow, which is
+        // the brightest at any given lightness and therefore the one to size
+        // against; picking a value that worked for blue would have failed
+        // silently for a third of the alphabet.
+        background: `linear-gradient(140deg, hsl(${hash} 45% 34%), hsl(${(hash + 40) % 360} 42% 28%))`,
       }}
     >
       {initials(first, last)}

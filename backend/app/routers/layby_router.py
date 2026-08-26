@@ -95,7 +95,7 @@ def create(body: LayByIn, db: Session = Depends(get_db),
         # held over weeks. There is nobody to call about an anonymous one.
         raise HTTPException(
             status_code=400,
-            detail="A lay-by has to be in a customer's name — it is an agreement, not a sale.",
+            detail="A lay-by has to be in a customer's name. It is an agreement, not a sale.",
         )
 
     total = 0.0
@@ -203,7 +203,7 @@ def pay(layby_id: int, body: PaymentIn, db: Session = Depends(get_db),
         **_out(layby),
         "settled": settled,
         "message": (
-            f"{body.amount:.2f} received. Balance settled — the goods can be collected."
+            f"{body.amount:.2f} received. Balance settled, the goods can be collected."
             if settled else
             f"{body.amount:.2f} received. {layby.balance:.2f} still outstanding."
         ),
@@ -304,7 +304,7 @@ def cancel(layby_id: int, fee: float = 0.0, db: Session = Depends(get_db),
         "message": (
             f"{layby.layby_number} cancelled. Stock returned to the shelf. "
             f"{refund:.2f} refundable"
-            + (f" after a {fee:.2f} fee." if fee else " — no fee charged.")
+            + (f" after a {fee:.2f} fee." if fee else ", no fee charged.")
         ),
     }
 

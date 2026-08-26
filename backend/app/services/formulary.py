@@ -101,7 +101,7 @@ def check(db: Session, scheme: MedicalAid | None, product: Product,
             product_id=product.id,
             product=f"{product.name} {product.strength}".strip(),
             status="unknown", claimable=bool(scheme),
-            reason="No formulary is attached to this scheme — nothing is enforced.",
+            reason="No formulary is attached to this scheme, nothing is enforced.",
         )
 
     formulary: Formulary | None = scheme.formulary
@@ -110,7 +110,7 @@ def check(db: Session, scheme: MedicalAid | None, product: Product,
             product_id=product.id,
             product=f"{product.name} {product.strength}".strip(),
             status="unknown", claimable=True,
-            reason="The scheme's formulary is inactive — nothing is enforced.",
+            reason="The scheme's formulary is inactive, nothing is enforced.",
         )
 
     entry = (
@@ -127,16 +127,16 @@ def check(db: Session, scheme: MedicalAid | None, product: Product,
     if not entry:
         reason = (f"Not listed on {formulary.name}; the formulary is open, so it is paid."
                   if formulary.default_rule == "covered"
-                  else f"Not listed on {formulary.name}, which is a closed formulary — "
+                  else f"Not listed on {formulary.name}, which is a closed formulary, so "
                        "the scheme will not pay for it.")
     elif status == "covered":
         reason = f"Covered by {formulary.name}."
     elif status == "reference":
-        reason = ("Paid up to the reference price — the patient pays anything above it.")
+        reason = ("Paid up to the reference price. The patient pays anything above it.")
     elif status == "authorisation":
         reason = "Paid only against an authorisation number from the scheme."
     else:
-        reason = entry.note or f"Excluded from {formulary.name} — the scheme will not pay."
+        reason = entry.note or f"Excluded from {formulary.name}, the scheme will not pay."
 
     if over_limit:
         reason += (f" Quantity {quantity} exceeds the {entry.max_quantity} "

@@ -73,7 +73,7 @@ def open_code(db: Session, code: str, user_id: int | None = None) -> TradingPeri
     """
     code = (code or "").strip()
     if len(code) != 6 or not code.isdigit():
-        raise PeriodError(f"'{code}' is not a period code — expected YYYYMM, as in 202608.")
+        raise PeriodError(f"'{code}' is not a period code, expected YYYYMM, as in 202608.")
     year, month = int(code[:4]), int(code[4:])
     if not 1 <= month <= 12:
         raise PeriodError(f"'{code}' has no month {month}.")
@@ -99,7 +99,7 @@ def is_postable(db: Session, day: date | None = None) -> tuple[bool, str]:
         return True, ""
     if period.status == LOCKED:
         return False, (f"{period.name} is locked and cannot be posted into. A locked "
-                       "period has been sealed after a return or an audit — a "
+                       "period has been sealed after a return or an audit, a "
                        "correction belongs in the current period as an adjustment.")
     return False, (f"{period.name} is closed. Post this into the current period, or "
                    "ask an administrator to reopen it if it genuinely belongs there.")
@@ -163,7 +163,7 @@ def close(db: Session, period: TradingPeriod, user_id: int, notes: str = "") -> 
         raise PeriodError(f"{period.name} is already closed.")
     if period.end_date >= date.today():
         raise PeriodError(
-            f"{period.name} has not finished yet — it runs to {period.end_date:%d %b %Y}. "
+            f"{period.name} has not finished yet. It runs to {period.end_date:%d %b %Y}. "
             "Closing a period still being traded in would strand today's sales.")
 
     figures = totals(db, period)
@@ -185,7 +185,7 @@ def reopen(db: Session, period: TradingPeriod, user_id: int, reason: str) -> Tra
     """Reopen a closed period. Requires a reason, because someone will ask."""
     if period.status == LOCKED:
         raise PeriodError(
-            f"{period.name} is locked. A locked period cannot be reopened — put the "
+            f"{period.name} is locked. A locked period cannot be reopened, put the "
             "correction in the current period as an adjustment instead.")
     if period.status == OPEN:
         raise PeriodError(f"{period.name} is already open.")
@@ -200,7 +200,7 @@ def reopen(db: Session, period: TradingPeriod, user_id: int, reason: str) -> Tra
 
 
 def lock(db: Session, period: TradingPeriod, user_id: int, reason: str = "") -> TradingPeriod:
-    """Seal a period permanently — after a tax return or an audit."""
+    """Seal a period permanently, after a tax return or an audit."""
     if period.status == OPEN:
         raise PeriodError(f"{period.name} must be closed before it can be locked.")
     if period.status == LOCKED:

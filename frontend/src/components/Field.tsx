@@ -5,6 +5,7 @@
  *  which is what let control sizing drift in the first place.
  */
 import { ReactNode, useId } from "react";
+import Checkbox from "./Checkbox";
 
 export type Span = 2 | 3 | 4 | 6 | 8 | 12;
 
@@ -48,11 +49,14 @@ export function CheckRow({ checked, onChange, children, disabled }: {
   disabled?: boolean;
 }) {
   const id = useId();
+  // Renders the design system's checkbox rather than a second, native one.
+  // This component is the shared row, so every page using it was drawing an
+  // operating-system tick box no matter what the rest of the form looked like.
   return (
     <div className="check-row">
-      <input id={id} type="checkbox" checked={checked} disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)} />
-      <label htmlFor={id}>{children}</label>
+      <Checkbox id={id} checked={checked} disabled={disabled} onChange={onChange}>
+        {children}
+      </Checkbox>
     </div>
   );
 }

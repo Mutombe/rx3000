@@ -7,6 +7,7 @@ import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights } from "../components/record";
 import { Contact, Deal } from "../types";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 export default function ContactDetail() {
   const { id } = useParams();
@@ -67,7 +68,7 @@ export default function ContactDetail() {
             </div>
           </div>
         </div>
-        <Link to="/accounts?tab=contacts" className="btn secondary">← Contacts</Link>
+        <Link to="/accounts?tab=contacts" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Contacts</Link>
       </div>
 
       <div className="card record-hero">

@@ -11,6 +11,7 @@
  */
 import { useState } from "react";
 import Markdown from "./Markdown";
+import IconButton from "./IconButton";
 
 interface Props {
   value: string;
@@ -35,13 +36,7 @@ export default function DraftEditor({
             reveals identical text teaches people it does nothing. */}
         {hasMarkup ? (
           <>
-            <button
-              type="button"
-              className={`btn ghost small${preview ? "" : " is-on"}`}
-              onClick={() => setPreview(false)}
-            >
-              Edit
-            </button>
+            <IconButton action="edit" onClick={() => setPreview(false)} type="button" />
             <button
               type="button"
               className={`btn ghost small${preview ? " is-on" : ""}`}

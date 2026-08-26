@@ -22,7 +22,9 @@ from ..models import AuditLog, Product, User
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-BACKUP_DIR = Path(__file__).resolve().parent.parent.parent / "backups"
+# One backup folder and one definition of what a backup file is, shared with
+# the /api/system/backup route. They used to disagree on both.
+from ..services.backup import BACKUP_DIR, existing_backups
 BACKUP_KEEP = 20
 
 # Accepted CSV header aliases -> canonical field
@@ -265,7 +267,7 @@ def _db_path() -> Path:
 def create_backup() -> Path:
     """Consistent online backup via the SQLite backup API (safe while running)."""
     BACKUP_DIR.mkdir(exist_ok=True)
-    target = BACKUP_DIR / f"rx3000_{datetime.now():%Y%m%d_%H%M%S}.db"
+    target = BACKUP_DIR / f"rx5000_{datetime.now():%Y%m%d_%H%M%S}.db"
     source = sqlite3.connect(str(_db_path()))
     try:
         dest = sqlite3.connect(str(target))
@@ -295,7 +297,7 @@ def _prune() -> None:
     ones, and only then by age.
     """
     backups = sorted(
-        BACKUP_DIR.glob("rx3000_*.db"),
+        existing_backups(),
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )
@@ -332,7 +334,7 @@ def list_backups(_: User = Depends(require_role("admin"))):
     if not BACKUP_DIR.exists():
         return []
     out = []
-    for path in sorted(BACKUP_DIR.glob("rx3000_*.db"), key=lambda p: p.stat().st_mtime, reverse=True):
+    for path in sorted(existing_backups(), key=lambda p: p.stat().st_mtime, reverse=True):
         stat = path.stat()
         verdict = backup_verify.read_verdict(path)
         out.append(schemas.BackupOut(

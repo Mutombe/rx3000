@@ -1,4 +1,4 @@
-# RX3000 — Pharmacy Management System
+# RX5000 — Pharmacy Management System
 
 Full pharmacy suite: dispensing, point of sale, stock control, electronic
 schedule register, repeat/reminder automation, medical aid claiming, reporting,
@@ -47,7 +47,7 @@ selects not yet converted are styled to match as a fallback.
 
 ## Brand
 
-The RX3000 mark lives in `frontend/public/logo.png` (with `favicon.png` and
+The RX5000 mark lives in `frontend/public/logo.png` (with `favicon.png` and
 `apple-touch-icon.png` derived from it) and appears in the sidebar, on the login
 card, as the browser favicon and on printed tax-invoice receipts.
 
@@ -88,7 +88,8 @@ Open **http://localhost:5180** and sign in:
 | `pharmacist` | pharm123  | Pharmacist  |
 | `cashier`    | cash123   | Cashier     |
 
-The database (`backend/rx3000.db`) is created and seeded automatically on
+The database (`backend/rx5000.db`, or an existing `rx3000.db` if one is already
+there) is created and seeded automatically on
 first run: demo users, medical aids, doctors, suppliers, a product catalogue
 across schedules S0–S6, and three patients.
 
@@ -107,7 +108,7 @@ Route paths are unchanged, so the mapping is only skin-deep:
 
 ## Jurisdiction packs
 
-RX3000 is sold into more than one country, and nearly everything that differs
+RX5000 is sold into more than one country, and nearly everything that differs
 between them is regulatory rather than functional. Each country is a pack in
 `backend/app/jurisdictions.py`, selected with one setting:
 

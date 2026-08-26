@@ -6,6 +6,9 @@ import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
 import { api, fmtDate, prefetchRoute, errorText  } from "../api";
 import { MedicalAid, Patient } from "../types";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -112,59 +115,59 @@ export default function Patients() {
               widths={["22ch", "14ch", "16ch", "16ch", "14ch", "8ch", "10ch"]} />
           }
         >
-        <table className="dt">
-          <thead>
-            <tr>
-              <th>Patient</th><th>ID Number</th><th>Contact</th><th>Medical Aid</th>
-              <th>Allergies</th><th className="num">Loyalty</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {patients.map((p) => (
-              <RowLink key={p.id} to={`/patients/${p.id}`} prefetch={prefetchRoute}>
-                {/* The name was the cell making rows ragged: "Probe 02872A,
-                    Allergy…" wrapped to four lines and took its row from 66px to
-                    86px. Two clipped lines, each with the full value on hover. */}
-                <td>
-                  <Link to={`/patients/${p.id}`} className="clip"
-                    title={`${p.last_name}, ${p.first_name}`}>
-                    <b>{p.last_name}, {p.first_name}</b>
-                  </Link>
-                  <div className="muted clip">{fmtDate(p.date_of_birth)}</div>
-                </td>
-                <td className="mono">{p.id_number || "—"}</td>
-                <td>
-                  <span className="clip" title={p.phone}>{p.phone}</span>
-                  <span className="clip muted" title={p.email}>{p.email}</span>
-                </td>
-                <td>
-                  {p.medical_aid ? (
-                    <>
-                      <span className="badge clip" title={p.medical_aid.name}
-                        style={{ maxWidth: "10rem" }}>{p.medical_aid.name}</span>
-                      <div className="muted mono clip">{p.medical_aid_number}</div>
-                    </>
-                  ) : <span className="badge muted">Private</span>}
-                </td>
-                {/* Free text in a badge: "penicillin, sulfa, aspirin, latex,
-                    iodine…" grew the row past its neighbours. Clipped, with the
-                    full list on hover — and the badge keeps its shape. */}
-                <td>
-                  {p.allergies
-                    ? <span className="badge danger clip" title={p.allergies}
-                        style={{ maxWidth: "12rem" }}>{p.allergies}</span>
-                    : "—"}
-                </td>
-                <td className="num">{p.loyalty_points} pts</td>
-                <RowActions>
-                  <button className="ghost small" onClick={() => openEdit(p)}>
-                    Edit
-                  </button>
-                </RowActions>
-              </RowLink>
-            ))}
-          </tbody>
-        </table>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Patient</th><th>ID Number</th><th>Contact</th><th>Medical Aid</th>
+                <th>Allergies</th><th className="num">Loyalty</th><th className="actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {patients.map((p) => (
+                <RowLink key={p.id} to={`/patients/${p.id}`} prefetch={prefetchRoute}>
+                  {/* The name was the cell making rows ragged: "Probe 02872A,
+                      Allergy…" wrapped to four lines and took its row from 66px to
+                      86px. Two clipped lines, each with the full value on hover. */}
+                  <td>
+                    <Link to={`/patients/${p.id}`} className="clip"
+                      title={`${p.last_name}, ${p.first_name}`}>
+                      <b>{p.last_name}, {p.first_name}</b>
+                    </Link>
+                    <div className="muted clip">{fmtDate(p.date_of_birth)}</div>
+                  </td>
+                  <td className="mono">{p.id_number || "—"}</td>
+                  <td>
+                    <span className="clip" title={p.phone}>{p.phone}</span>
+                    <span className="clip muted" title={p.email}>{p.email}</span>
+                  </td>
+                  <td>
+                    {p.medical_aid ? (
+                      <>
+                        <span className="badge clip" title={p.medical_aid.name}
+                          style={{ maxWidth: "10rem" }}>{p.medical_aid.name}</span>
+                        <div className="muted mono clip">{p.medical_aid_number}</div>
+                      </>
+                    ) : <span className="badge muted">Private</span>}
+                  </td>
+                  {/* Free text in a badge: "penicillin, sulfa, aspirin, latex,
+                      iodine…" grew the row past its neighbours. Clipped, with the
+                      full list on hover — and the badge keeps its shape. */}
+                  <td>
+                    {p.allergies
+                      ? <span className="badge danger clip" title={p.allergies}
+                          style={{ maxWidth: "12rem" }}>{p.allergies}</span>
+                      : "—"}
+                  </td>
+                  <td className="num">{p.loyalty_points} pts</td>
+                  <RowActions>
+                    <IconButton action="edit" onClick={() => openEdit(p)} />
+                  </RowActions>
+                </RowLink>
+              ))}
+            </tbody>
+          </table>
+        </div>
           {meta && (
             <Pagination
               meta={meta}
@@ -202,10 +205,11 @@ export default function Patients() {
               <div className="form-row">
                 <div className="field">
                   <label>Medical aid</label>
-                  <select value={form.medical_aid_id} onChange={set("medical_aid_id")}>
-                    <option value="">Private (none)</option>
-                    {aids.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.medical_aid_id ?? "")}
+                    onChange={(__value) => set("medical_aid_id")({ target: { value: __value } } as any)}
+                    options={[{ value: "", label: "Private (none)" }, ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
+                  />
                 </div>
                 <div className="field"><label>Member number</label><input value={form.medical_aid_number} onChange={set("medical_aid_number")} /></div>
                 <div className="field" style={{ maxWidth: 90 }}><label>Dep.</label><input value={form.dependent_code} onChange={set("dependent_code")} /></div>
@@ -222,19 +226,20 @@ export default function Patients() {
                 <div className="field"><label>Phone</label><input value={form.caregiver_phone} onChange={set("caregiver_phone")} placeholder="+263…" /></div>
                 <div className="field"><label>Relationship</label><input value={form.caregiver_relationship} onChange={set("caregiver_relationship")} placeholder="e.g. daughter" /></div>
               </div>
-              <label className="check-row">
-                <input
-                  type="checkbox" checked={form.contact_caregiver_first}
-                  onChange={(e) => setForm({ ...form, contact_caregiver_first: e.target.checked })}
+              <div className="check-row">
+                <Checkbox
+                  checked={form.contact_caregiver_first}
+                  onChange={(v) => setForm({ ...form, contact_caregiver_first: v })}
                   disabled={!form.caregiver_phone.trim()}
-                />
+                >
                 Contact the caregiver first
                 {/* Meaningless without a number to ring, so it cannot be ticked
                     until there is one. */}
                 {!form.caregiver_phone.trim() && (
-                  <span className="muted"> — needs a caregiver phone number</span>
+                  <span className="muted">, needs a caregiver phone number</span>
                 )}
-              </label>
+                </Checkbox>
+              </div>
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit">Save patient</button>

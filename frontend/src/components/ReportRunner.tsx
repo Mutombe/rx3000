@@ -17,6 +17,16 @@ import { api, fmtDate, money, errorText  } from "../api";
 import { TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import Pagination from "./Pagination";
+import Checkbox from "./Checkbox";
+import Select from "./Select";
+import IconButton from "./IconButton";
+import {
+  ArrowLeft,
+  ChartBar,
+  Table,
+} from "@phosphor-icons/react";
+import ReportChart from "./ReportChart";
+import BusyButton from "./BusyButton";
 
 export interface ParamDef {
   key: string; label: string; kind: string;
@@ -40,6 +50,12 @@ interface RunResult {
 
 /** Format by declared type, so a figure looks the same here, in the
  *  spreadsheet and on paper. */
+/** Money if any charted column is money, otherwise plain numbers — so the axis
+ *  and the total under it are written the way the report writes them. */
+function moneyKind(columns: { kind: string }[]): string {
+  return columns.some((c) => c.kind === "money") ? "money" : "number";
+}
+
 function render(value: any, kind: string) {
   if (value === null || value === undefined || value === "") return "—";
   switch (kind) {
@@ -60,6 +76,7 @@ export default function ReportRunner({
   const [options, setOptions] = useState<Record<string, { value: any; label: string }[]>>({});
   const [result, setResult] = useState<RunResult | null>(null);
   const [page, setPage] = useState(1);
+  const [view, setView] = useState<"table" | "chart">("table");
   const [sort, setSort] = useState("");
   const [desc, setDesc] = useState(false);
   const [running, setRunning] = useState(false);
@@ -151,20 +168,18 @@ export default function ReportRunner({
     <div className="card">
       <div className="rr-head">
         <div>
-          <button className="btn ghost small" onClick={onBack}>← All reports</button>
+          <button className="btn ghost small" onClick={onBack}><ArrowLeft size={13} weight="bold" /> All reports</button>
           <h3 className="rr-title">{report.title}</h3>
           {report.purpose && <p className="muted rr-purpose">{report.purpose}</p>}
         </div>
         <div className="rr-actions">
-          <button className="secondary small" onClick={() => exportAs("csv")} disabled={!result}>
+          <BusyButton className="secondary small" onClick={() => exportAs("csv")} disabled={!result}>
             CSV
-          </button>
-          <button className="small" onClick={() => exportAs("xlsx")} disabled={!result}>
+          </BusyButton>
+          <BusyButton className="small" onClick={() => exportAs("xlsx")} disabled={!result}>
             Excel
-          </button>
-          <button className="secondary small" onClick={() => window.print()} disabled={!result}>
-            Print
-          </button>
+          </BusyButton>
+          <IconButton action="print" onClick={() => window.print()} disabled={!result} />
         </div>
       </div>
 
@@ -180,19 +195,15 @@ export default function ReportRunner({
                   onChange={(e) => { setValues((v) => ({ ...v, [p.key]: e.target.value })); setPage(1); }}
                 />
               ) : p.kind === "select" ? (
-                <select
-                  value={values[p.key] ?? ""}
-                  onChange={(e) => { setValues((v) => ({ ...v, [p.key]: e.target.value })); setPage(1); }}
-                >
-                  {(options[p.key] ?? [{ value: "", label: "All" }]).map((o) => (
-                    <option key={String(o.value)} value={String(o.value)}>{o.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={String(values[p.key])}
+                  onChange={(__value) => { setValues((v) => ({ ...v, [p.key]: __value })); setPage(1); }}
+                  options={[...(options[p.key] ?? [{ value: "", label: "All" }]).map((o) => ({ value: String(String(o.value)), label: o.label }))]}
+                />
               ) : p.kind === "bool" ? (
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={values[p.key] === "true"}
-                  onChange={(e) => setValues((v) => ({ ...v, [p.key]: String(e.target.checked) }))}
+                  onChange={(v) => setValues((cur) => ({ ...cur, [p.key]: String(v) }))}
                 />
               ) : (
                 <input
@@ -214,7 +225,33 @@ export default function ReportRunner({
         </div>
       ) : (
         <>
-          <div className="rr-scroll">
+          {/* Same rows, two readings. The table answers "what exactly", the
+              chart answers "what shape" — and a report that can only be read one
+              way makes somebody export it to find out the other. */}
+          <div className="view-switch" role="tablist" aria-label="How to read this report">
+            {(["table", "chart"] as const).map((v) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={view === v}
+                className={view === v ? "on" : ""}
+                onClick={() => setView(v)}
+              >
+                {v === "table" ? <Table size={14} weight="bold" /> : <ChartBar size={14} weight="bold" />}
+                {v === "table" ? "Table" : "Chart"}
+              </button>
+            ))}
+          </div>
+
+          {view === "chart" && (
+            <ReportChart
+              columns={result.columns}
+              rows={result.rows}
+              format={(n) => render(n, moneyKind(result.columns)) as string}
+            />
+          )}
+
+          <div className="rr-scroll" hidden={view === "chart"}>
             <table className="rr-table">
               <thead>
                 <tr>

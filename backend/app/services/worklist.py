@@ -21,6 +21,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Dispensing, Patient, Prescription, PrescriptionItem, Product
@@ -84,6 +85,43 @@ BAND_LABELS = {
 }
 
 
+def _pending_base(db: Session):
+    """The filter that defines "waiting to be dispensed".
+
+    One expression, used by the list and by the count, so the sidebar badge and
+    the worklist panel cannot answer the same question differently.
+    """
+    return (db.query(PrescriptionItem)
+            .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+            .filter(Prescription.status.notin_(("draft", "cancelled")))
+            .filter(PrescriptionItem.not_dispensed.is_(False)))
+
+
+def pending_count(db: Session) -> int:
+    """How many lines are waiting, counted in SQL.
+
+    `pending()` loads every row to build the panel and then measures the list,
+    which costs 2.2 seconds here — fine once for a panel somebody is reading,
+    far too slow for a badge that refreshes on every navigation. The
+    "not fully dispensed" test is the one piece of that function's logic done in
+    Python, so it is expressed here as a correlated subquery rather than
+    reimplemented as a different rule.
+    """
+    dispensed = (
+        select(func.coalesce(func.sum(Dispensing.quantity), 0))
+        .where(Dispensing.prescription_item_id == PrescriptionItem.id)
+        .correlate(PrescriptionItem)
+        .scalar_subquery()
+    )
+    return int(
+        _pending_base(db)
+        .filter(func.coalesce(PrescriptionItem.quantity, 0) - dispensed > 0)
+        .with_entities(func.count())
+        .order_by(None)
+        .scalar() or 0
+    )
+
+
 def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dict]]:
     """Everything captured and not yet dispensed, worst first then oldest first.
 
@@ -138,6 +176,13 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             "waiting_days": (date.today() - booked).days,
             "schedule": product.schedule or 0,
             "chronic": bool(patient and _is_chronic(patient)),
+            # Is this the first time this line goes out, or a repeat of it?
+            # The queue could not say, so a dispenser had to open the script to
+            # find out — and a repeat is checked differently from a new script.
+            "is_repeat": (item.repeats_used or 0) > 0,
+            "repeats_used": item.repeats_used or 0,
+            "repeats_allowed": item.repeats_allowed or 0,
+            "repeats_left": max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0)),
         })
     # Severity band first, then how long it has been waiting. Within a band the
     # oldest booking goes first, which is the only fair reading of a queue.
@@ -227,7 +272,16 @@ def chronic_patients(db: Session, *, limit: int = 50) -> list[dict]:
     return out[:limit]
 
 
-def due_reminders(db: Session, *, within_days: int = 7) -> list[dict]:
+#: How far ahead the dispensary counts a repeat as "due".
+#:
+#: This used to be 7 here and 14 in the panel beside it, which put "Repeats due
+#: 53" next to "Due 0" on the same screen — two lists asking an identical
+#: question and answering it differently. Identical filters, different horizons.
+#: One number, defined once.
+REPEAT_HORIZON_DAYS = 14
+
+
+def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> list[dict]:
     """Repeats due soon or already past, with who to contact."""
     horizon = date.today() + timedelta(days=within_days)
     rows = (
@@ -252,6 +306,16 @@ def due_reminders(db: Session, *, within_days: int = 7) -> list[dict]:
         patient = patients.get(script.patient_id)
         days = (item.next_repeat_date - today_).days
         out.append({
+            # Enough to open the line, not just read it. Without these the row
+            # was a notice: it told a dispenser something was due and gave them
+            # no way to act on it, so they had to find the patient by hand.
+            "item_id": item.id,
+            "prescription_id": script.id,
+            "product_id": product.id,
+            "doctor_id": script.doctor_id,
+            "quantity": item.quantity,
+            "dosage_instructions": item.dosage_instructions or "",
+            "schedule": product.schedule or 0,
             "patient_id": script.patient_id,
             "patient": _clip(
                 f"{patient.first_name} {patient.last_name}".strip() if patient else "—", 22),

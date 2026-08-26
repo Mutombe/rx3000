@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import auth, schemas
+from ..auth import get_current_user, verify_password
 from ..database import get_db
+from ..services import auth_rules, demo, pins
 from ..models import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -15,6 +17,12 @@ def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     if not user.active:
         raise HTTPException(status_code=403, detail="Account disabled")
+    if demo.is_expired(user):
+        raise HTTPException(
+            status_code=403,
+            detail="This demo has ended. Everything you entered has been kept, "
+                   "so ask us for an account and you can carry on from where you stopped.",
+        )
     return schemas.TokenResponse(access_token=auth.create_token(user), user=user)
 
 
@@ -46,3 +54,153 @@ def create_user(
 @router.get("/users", response_model=list[schemas.UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(auth.require_role("admin"))):
     return db.query(User).all()
+
+
+# ---------------------------------------------------------------- shared tills
+@router.post("/pin")
+def set_own_pin(pin: str = Body(...), password: str = Body(...),
+                db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)):
+    """Set or change your own till PIN. Proved with your password.
+
+    Deliberately not something an administrator can do for somebody: a PIN that
+    another person chose, or knows, attributes an action to the wrong human, and
+    the whole point of the code is the attribution.
+    """
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=403, detail="That password was not accepted.")
+    try:
+        pins.set_pin(db, user, pin)
+    except pins.PinError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "pin_set": True}
+
+
+@router.get("/pin")
+def own_pin_state(user: User = Depends(get_current_user)):
+    """Whether a PIN is set, and whether it is locked. Never the PIN."""
+    return {
+        "pin_set": bool(user.pin_hash),
+        "locked_for_seconds": pins.locked_for(user),
+        "length": pins.PIN_LENGTH,
+    }
+
+
+@router.post("/unlock")
+def unlock_till(pin: str = Body(...), username: str = Body(default=""),
+                db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)):
+    """Unlock a locked screen with a PIN, without ending the session.
+
+    A till locks rather than logs out on purpose. Logging out loses the basket
+    and the open script, so staff turn the lock off and the machine then sits
+    signed in all day with nothing attributable to anybody. Locking keeps the
+    work and asks only who is back at the keyboard.
+
+    `username` lets a different person take the till over mid-shift: the session
+    continues, and the actor recorded against what happens next is them.
+    """
+    who = user
+    if username and username != user.username:
+        who = db.query(User).filter(User.username == username, User.active).first()
+        if not who:
+            raise HTTPException(status_code=403, detail=f"No active user is called '{username}'.")
+    try:
+        pins.check(db, who, pin)
+    except pins.PinError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    return {
+        "ok": True,
+        "user": {"id": who.id, "username": who.username,
+                 "full_name": who.full_name, "role": who.role},
+        "took_over": who.id != user.id,
+    }
+
+
+@router.post("/demo", response_model=schemas.TokenResponse)
+def start_demo(full_name: str = Body(default="", embed=True),
+               db: Session = Depends(get_db)):
+    """Start a demo session that stops working after four hours.
+
+    No password is issued and none is needed: the visitor gets a session, not
+    credentials, so there is nothing to write down and nothing that could later
+    be tried against a live install.
+
+    Deliberately not rate-limited by IP here. A pharmacy evaluating this is
+    usually behind one address with several people on it, and locking the second
+    person out of a demo is a worse failure than a handful of extra rows.
+    """
+    user, expires = demo.start(db, full_name)
+    return schemas.TokenResponse(access_token=auth.create_token(user), user=user)
+
+
+@router.get("/demo/length")
+def demo_length():
+    """How long a demo lasts, for the sign-in screen.
+
+    Public, because the screen that quotes it has nobody signed in yet. It is
+    read rather than written into the frontend so the number lives in one place;
+    the alternative is "four hours" hardcoded across a login form, a banner, two
+    emails and a landing page, and wrong in most of them the day it changes.
+    """
+    return {"hours": demo.DEMO_HOURS}
+
+
+@router.get("/demo/state")
+def demo_state(user: User = Depends(get_current_user)):
+    """How long is left, for the banner. Silent for a normal account."""
+    left = demo.seconds_left(user)
+    return {
+        "is_demo": bool(user.is_demo),
+        "seconds_left": left,
+        "hours": demo.DEMO_HOURS,
+    }
+
+
+@router.post("/reset-with-pin", response_model=schemas.TokenResponse)
+def reset_with_pin(username: str = Body(...), pin: str = Body(...),
+                   new_password: str = Body(...), db: Session = Depends(get_db)):
+    """Set a new password using the till PIN, without an administrator.
+
+    There is no email on a user here, and there should not be: this runs on a
+    pharmacy's own machines, often without a mail server, and inventing an SMTP
+    dependency to recover a password would make the product harder to install
+    for the one week a year anybody needs it.
+
+    The PIN is the second factor that already exists. It is hashed, it has a
+    five-failure lockout, and its whole purpose is proving who is at the
+    keyboard. Proving that is exactly what a password reset needs.
+
+    Somebody with no PIN set cannot use this, and is told to ask an
+    administrator rather than being left guessing.
+    """
+    user = db.query(User).filter(User.username == username.strip()).first()
+    # The same answer whether the name is wrong or the PIN is: a reset form that
+    # distinguishes them is a list of valid usernames.
+    generic = "That username and PIN were not accepted."
+    if not user or not user.active:
+        raise HTTPException(status_code=403, detail=generic)
+    if not user.pin_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="No till PIN is set for this account, so it cannot be reset here. "
+                   "Ask an administrator to set a new password for you.",
+        )
+    try:
+        pins.check(db, user, pin)
+    except pins.PinError as exc:
+        # A lockout is worth saying out loud: it is the one refusal that goes
+        # away on its own, and silence sends somebody looking for an admin.
+        detail = str(exc) if "locked" in str(exc).lower() else generic
+        raise HTTPException(status_code=403, detail=detail) from exc
+
+    problem = auth_rules.password_problem(new_password)
+    if problem:
+        raise HTTPException(status_code=400, detail=problem)
+
+    user.password_hash = auth.hash_password(new_password)
+    db.commit()
+    db.refresh(user)
+    # Signed in on the spot. Being bounced back to a login form to retype a
+    # password chosen four seconds ago is friction with no security in it.
+    return schemas.TokenResponse(access_token=auth.create_token(user), user=user)

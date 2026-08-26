@@ -56,7 +56,9 @@ const RECEIPT_CSS = `
 
 export function printReceipt(
   sale: Sale,
-  pharmacyName = "RX3000 Pharmacy",
+  // No default. This used to read "RX3000 Pharmacy", which printed the name of
+  // the software on the receipt of every pharmacy that bought it.
+  pharmacyName: string,
   regNo = "",
   branchName = "",
 ) {
@@ -114,22 +116,61 @@ export function printReceipt(
 }
 
 const LABEL_CSS = `
-  @page { size: 70mm 40mm; margin: 2mm; }
-  body { font-family: Arial, Helvetica, sans-serif; font-size: 8.5px; margin: 0; color: #000; }
-  .label { width: 66mm; height: 36mm; padding: 2mm; border: 1px solid #000; box-sizing: border-box;
-           page-break-after: always; overflow: hidden; }
+  /* The printed sticker. Kept in step with the preview in styles.css on purpose:
+     a preview that does not match what the printer produces is worse than no
+     preview, because somebody signs off on the screen and the roll disagrees.
+
+     Millimetres throughout. A thermal label is a physical object and points
+     drift between browsers; millimetres do not. */
+  @page { size: 58mm 42mm; margin: 0; }
+  body { margin: 0; color: #111; font-family: Arial, Helvetica, sans-serif; }
+
+  .label {
+    width: 58mm; height: 42mm; padding: 3.4mm 3.6mm; box-sizing: border-box;
+    display: flex; flex-direction: column;
+    font-size: 7.6pt; line-height: 1.3;
+    page-break-after: always; overflow: hidden;
+  }
   .label:last-child { page-break-after: auto; }
-  .pharmacy { font-size: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; }
-  .patient { font-size: 11px; font-weight: bold; margin: 1mm 0 0.5mm; }
-  .med { font-size: 9.5px; font-weight: bold; }
-  /* The directions are the largest thing on the sticker, because they are the
-     only line the patient has to act on. The medicine name was set larger than
-     them, which put the emphasis on what a pharmacist reads for identification
-     rather than on what the person taking it needs. */
-  .dose { font-size: 11.5px; font-weight: bold; margin: 0.7mm 0; line-height: 1.25; }
-  .warn { font-size: 7.5px; font-style: italic; border-top: 1px solid #000; padding-top: 0.6mm; margin-top: 0.6mm; }
-  .meta { font-size: 7px; display: flex; justify-content: space-between; margin-top: 0.6mm; }
-  .sched { font-size: 7.5px; font-weight: bold; }
+
+  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; padding-bottom: 1.2mm; }
+  .patient { font-weight: bold; font-size: 9pt; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .price { font-size: 7.6pt; color: #444; white-space: nowrap; }
+
+  .drug { display: flex; flex-direction: column; padding-bottom: 1.4mm; }
+  .med { font-weight: bold; font-size: 10.5pt; line-height: 1.15; }
+  .form { font-size: 7pt; color: #555; }
+
+  /* The line the sticker exists for. */
+  .dose {
+    padding: 1.8mm 0; font-size: 11pt; font-weight: bold; line-height: 1.32;
+    border-top: 0.35mm solid #111; border-bottom: 0.35mm solid #111;
+  }
+
+  /* Printed on a monochrome thermal head the tint renders as a light stipple,
+     which still reads as a band rather than as another paragraph. */
+  .warn {
+    margin-top: 1.4mm; padding: 1.1mm 1.4mm;
+    background: #f3efe4; border-left: 0.7mm solid #a8873f;
+    font-size: 6.9pt; font-weight: bold; line-height: 1.28; color: #4a3c17;
+    text-transform: uppercase;
+  }
+
+  .audit {
+    margin-top: 1.8mm; padding-top: 1.4mm; border-top: 0.2mm solid rgba(17,17,17,0.28);
+    font-size: 6.6pt; color: #333;
+  }
+  .audit .row { display: flex; gap: 2.2mm; flex-wrap: wrap; margin-bottom: 0.5mm; }
+  .audit .pair { display: inline-flex; align-items: baseline; gap: 1.1mm; white-space: nowrap; }
+  .audit i { font-style: normal; font-size: 5.9pt; text-transform: uppercase; letter-spacing: 0.06em; color: #777; font-weight: bold; }
+  .audit b { font-weight: 500; }
+  .audit .mono { font-family: "Courier New", monospace; font-size: 6.4pt; }
+
+  .foot {
+    margin-top: auto; padding-top: 1.6mm; border-top: 0.2mm solid rgba(17,17,17,0.28);
+    display: flex; flex-direction: column; font-size: 6.4pt; color: #444;
+  }
+  .foot b { font-size: 7.4pt; color: #111; text-transform: uppercase; }
 `;
 
 /** Escape anything that came from the database before it becomes markup.
@@ -159,18 +200,36 @@ export function printLabels(labels: Label[], copies = 1) {
     .map(
       (l) => `
       <div class="label">
-        <div class="pharmacy">${esc(l.pharmacy_name)}${l.pharmacy_reg_no ? ` &nbsp;·&nbsp; Reg ${esc(l.pharmacy_reg_no)}` : ""}</div>
-        <div class="patient">${esc(l.patient_name)}</div>
-        <div class="med">${esc(l.product_name)} ${esc(l.strength)} ${l.dosage_form ? `(${esc(l.dosage_form)})` : ""} &nbsp;— &nbsp;Qty ${l.quantity}</div>
+        <div class="top">
+          <span class="patient">${esc(l.patient_name)}</span>
+          ${l.line_total > 0 ? `<span class="price">${esc(l.line_total.toFixed(2))}</span>` : ""}
+        </div>
+        <div class="drug">
+          <span class="med">${esc(l.product_name)} ${esc(l.strength)}</span>
+          <span class="form">${esc([l.dosage_form, l.quantity ? `Qty ${l.quantity}` : ""].filter(Boolean).join(" · "))}</span>
+        </div>
         <div class="dose">${esc(l.dosage_instructions)}</div>
         ${l.warnings ? `<div class="warn">${esc(l.warnings)}</div>` : ""}
-        <div class="meta">
-          <span>${esc(l.rx_number)} · ${new Date(l.dispensed_at).toLocaleDateString("en-ZA")}</span>
-          <span>${esc(l.dispensed_by)}</span>
+        <div class="audit">
+          <div class="row">
+            <span class="pair"><i>Batch</i> <b class="mono">${esc(l.batch_number || "not recorded")}</b></span>
+            ${l.expiry_date ? `<span class="pair"><i>Exp</i> <b class="mono">${esc(String(l.expiry_date))}</b></span>` : ""}
+          </div>
+          <div class="row">
+            <span class="pair"><i>Script</i> <b class="mono">${esc(l.rx_number)}</b></span>
+            <span class="pair"><i>Item</i> <b>${l.item_number} of ${l.item_count}</b></span>
+          </div>
+          <div class="row">
+            <span class="pair"><i>Checked</i> <b>${esc(l.dispensed_by || "not recorded")}</b></span>
+            <span class="pair"><i>On</i> <b>${new Date(l.dispensed_at).toLocaleString("en-ZA")}</b></span>
+          </div>
+          ${l.doctor_name ? `<div class="row"><span class="pair"><i>Prescriber</i> <b>${esc(l.doctor_name)}${l.doctor_practice_no ? ` ${esc(l.doctor_practice_no)}` : ""}</b></span></div>` : ""}
+          ${l.repeats_remaining > 0 ? `<div class="row"><span class="pair"><i>Repeats</i> <b>${l.repeats_remaining} left</b></span></div>` : ""}
         </div>
-        <div class="meta">
-          <span>${l.batch_number ? `Batch ${esc(l.batch_number)}` : ""}${l.expiry_date ? ` · Exp ${esc(l.expiry_date)}` : ""}</span>
-          <span class="sched">${l.schedule > 0 ? `S${l.schedule}` : ""}${l.repeats_remaining > 0 ? ` · ${l.repeats_remaining} repeat(s) left` : ""}</span>
+        <div class="foot">
+          <b>${esc(l.pharmacy_name)}</b>
+          <span>${esc([l.pharmacy_address, l.pharmacy_phone].filter(Boolean).join("  ·  ")
+            || (l.pharmacy_reg_no ? `Reg ${l.pharmacy_reg_no}` : ""))}</span>
         </div>
       </div>`,
     )

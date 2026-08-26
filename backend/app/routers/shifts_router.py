@@ -164,7 +164,7 @@ def _next_run_number(db: Session, till_no: str) -> int:
 @router.post("/open", response_model=schemas.ShiftOut)
 def open_shift(body: schemas.ShiftOpen, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     if current_open_shift(db, user.id):
-        raise HTTPException(status_code=400, detail="You already have an open shift — close it first")
+        raise HTTPException(status_code=400, detail="You already have an open shift, close it first")
     shift = Shift(
         user_id=user.id, opening_float=body.opening_float, status="open",
         till_no=body.till_no.strip(), draw_no=body.draw_no.strip(),
@@ -435,7 +435,7 @@ def add_petty_cash(
         # a number beside it.
         raise HTTPException(
             status_code=400,
-            detail="Say what the money was for — that is the point of the record.",
+            detail="Say what the money was for. That is the point of the record.",
         )
 
     shift = current_open_shift(db, user.id)

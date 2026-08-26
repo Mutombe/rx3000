@@ -322,7 +322,7 @@ def resolve_line(db: Session, line: RemittanceLine, action: str,
         line.written_off = line.patient_billed = False
     else:
         raise RemittanceError(
-            f"'{action}' is not a resolution — use bill_patient, write_off or reopen.")
+            f"'{action}' is not a resolution. Use bill_patient, write_off or reopen.")
     if note:
         # Into our own field. Appending to `reason` overwrote the funder's
         # stated reason with our working notes, and did it again on every
@@ -333,8 +333,10 @@ def resolve_line(db: Session, line: RemittanceLine, action: str,
     return line
 
 
-def outstanding_lines(db: Session, funder_id: str = "", limit: int = 200) -> list[RemittanceLine]:
-    """Every shortfall still owed to nobody — the working list."""
+def outstanding_query(db: Session, funder_id: str = ""):
+    """The open-shortfall query itself, so the list, the page and the totals all
+    ask the same question. They used to each build their own filter, which is how
+    a list and its total drift apart."""
     query = (db.query(RemittanceLine)
              .filter(RemittanceLine.status.in_(("short_paid", "rejected")),
                      RemittanceLine.written_off.is_(False),
@@ -346,7 +348,12 @@ def outstanding_lines(db: Session, funder_id: str = "", limit: int = 200) -> lis
     # funder, which lazily cost one query per line. Joined here because it is a
     # many-to-one: one join beats a second round trip.
     return (query.options(joinedload(RemittanceLine.remittance))
-            .order_by(RemittanceLine.variance.desc()).limit(limit).all())
+            .order_by(RemittanceLine.variance.desc()))
+
+
+def outstanding_lines(db: Session, funder_id: str = "", limit: int = 200) -> list[RemittanceLine]:
+    """The worst `limit` shortfalls. Callers that page use `outstanding_query`."""
+    return outstanding_query(db, funder_id).limit(limit).all()
 
 
 def outstanding_totals(db: Session, funder_id: str = "") -> tuple[int, float]:

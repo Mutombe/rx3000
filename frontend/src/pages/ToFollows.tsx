@@ -18,6 +18,7 @@ import { useToast } from "../components/Toast";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import BusyButton from "../components/BusyButton";
 
 interface Owed {
   id: number;
@@ -67,7 +68,7 @@ export default function ToFollows() {
       key: "ready",
       label: "Ready to hand over",
       count: ready.length,
-      hint: "Owed, and now in stock — the patients to telephone",
+      hint: "Owed, and now in stock, the patients to telephone",
     },
     { key: "all", label: "Everything owed", count: all.length },
     { key: "settled", label: "Settled", count: settled.length },
@@ -178,79 +179,93 @@ export default function ToFollows() {
             widths={["10ch", "14ch", "18ch", "5ch", "5ch", "10ch", "16ch"]} />
         }
       >
-      <table className="dt">
-        <thead>
-          <tr>
-            <th>Reference</th>
-            <th>Patient</th>
-            <th>Medicine</th>
-            <th className="num">Owed</th>
-            <th className="num">In stock</th>
-            <th>Promised</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((o) => (
-            <RowLink
-              key={o.id}
-              /* A walk-in has no patient record, so the row leads to the
-                 medicine instead. Fabricating /patients/ for a missing id
-                 would land on a page that cannot exist. */
-              to={o.patient_id ? `/patients/${o.patient_id}` : `/products/${o.product_id}`}
-              prefetch={prefetchRoute}
-              className={[o.overdue ? "row-flag" : "",
-                          saving.has(o.id) ? "is-saving" : ""].filter(Boolean).join(" ")}
-            >
-              <td className="mono">{o.reference}</td>
-              <td>
-                {o.patient_id ? (
-                  <EntityLink to={`/patients/${o.patient_id}`}>{o.patient_name}</EntityLink>
-                ) : (
-                  <span className="muted">Walk-in</span>
-                )}
-                {o.patient_phone && <div className="muted small">{o.patient_phone}</div>}
-              </td>
-              <td>
-                <EntityLink to={`/products/${o.product_id}`}>{o.product_name}</EntityLink>
-              </td>
-              <td className="num">{o.quantity_outstanding}</td>
-              <td className="num">{o.quantity_on_hand}</td>
-              <td>
-                {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">—</span>}
-                {o.overdue && <span className="badge warn">overdue</span>}
-              </td>
-              <RowActions>
-                {o.status === "outstanding" && o.can_settle_now && (
-                  <button className="btn primary sm" onClick={() => settle(o)}>
-                    Hand over {o.quantity_outstanding}
-                  </button>
-                )}
-                {o.status === "outstanding" && o.can_settle_partially && (
-                  <button className="btn sm" onClick={() => settle(o, o.quantity_on_hand)}>
-                    Hand over {o.quantity_on_hand} of {o.quantity_outstanding}
-                  </button>
-                )}
-                {o.status === "outstanding" && (
-                  <button className="btn ghost sm" onClick={() => setCancelling(o)}>
-                    Write off
-                  </button>
-                )}
-                {o.status !== "outstanding" && (
-                  <span className="badge">{o.status}</span>
-                )}
-              </RowActions>
-            </RowLink>
-          ))}
-          {!rows.length && tab !== "ready" && (
+      <div className="dt-scroll">
+        <table className="dt">
+          <thead>
             <tr>
-              <td colSpan={7} className="muted pad">
-                Nothing here.
-              </td>
+              <th>Reference</th>
+              <th>Patient</th>
+              <th>Medicine</th>
+              <th className="num">Owed</th>
+              <th className="num">In stock</th>
+              <th>Promised</th>
+              <th className="actions" />
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((o) => (
+              <RowLink
+                key={o.id}
+                /* A walk-in has no patient record, so the row leads to the
+                   medicine instead. Fabricating /patients/ for a missing id
+                   would land on a page that cannot exist. */
+                to={o.patient_id ? `/patients/${o.patient_id}` : `/products/${o.product_id}`}
+                prefetch={prefetchRoute}
+                className={[o.overdue ? "row-flag" : "",
+                            saving.has(o.id) ? "is-saving" : ""].filter(Boolean).join(" ")}
+              >
+                <td className="mono">{o.reference}</td>
+                <td>
+                  {o.patient_id ? (
+                    <EntityLink to={`/patients/${o.patient_id}`}>{o.patient_name}</EntityLink>
+                  ) : (
+                    <span className="muted">Walk-in</span>
+                  )}
+                  {o.patient_phone && <div className="muted small">{o.patient_phone}</div>}
+                </td>
+                <td>
+                  <EntityLink to={`/products/${o.product_id}`}>{o.product_name}</EntityLink>
+                </td>
+                <td className="num">{o.quantity_outstanding}</td>
+                <td className="num">{o.quantity_on_hand}</td>
+                <td>
+                  {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">—</span>}
+                  {o.overdue && <span className="badge warn">overdue</span>}
+                </td>
+                <RowActions>
+                  {/* The verb is constant and the quantity is a chip beside it.
+                      Written as one sentence — "Hand over 2" — the label changed
+                      width on every row, so the column read as a ragged
+                      paragraph and the number, which is the part being checked
+                      against what is in your hand, was the least distinct thing
+                      in it. */}
+                  {o.status === "outstanding" && o.can_settle_now && (
+                    <BusyButton className="btn primary sm" onClick={() => settle(o)}>
+                      Hand over
+                      <span className="btn-count">{o.quantity_outstanding}</span>
+                    </BusyButton>
+                  )}
+                  {o.status === "outstanding" && o.can_settle_partially && (
+                    <BusyButton className="btn sm" onClick={() => settle(o, o.quantity_on_hand)}>
+                      Hand over
+                      {/* A part-settlement says what it is against what is owed,
+                          which is the whole reason to offer it. */}
+                      <span className="btn-count">
+                        {o.quantity_on_hand}<i>of</i>{o.quantity_outstanding}
+                      </span>
+                    </BusyButton>
+                  )}
+                  {o.status === "outstanding" && (
+                    <button className="btn ghost sm" onClick={() => setCancelling(o)}>
+                      Write off
+                    </button>
+                  )}
+                  {o.status !== "outstanding" && (
+                    <span className="badge">{o.status}</span>
+                  )}
+                </RowActions>
+              </RowLink>
+            ))}
+            {!rows.length && tab !== "ready" && (
+              <tr>
+                <td colSpan={7} className="muted pad">
+                  Nothing here.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
       </Refreshable>
 
       {cancelling && (
@@ -260,7 +275,7 @@ export default function ToFollows() {
             <p className="muted">
               {cancelling.quantity_outstanding} × {cancelling.product_name} owed to{" "}
               {cancelling.patient_name || "a walk-in customer"}. Writing it off says the
-              pharmacy no longer owes it — the patient got it elsewhere, or no longer
+              pharmacy no longer owes it. The patient got it elsewhere, or no longer
               needs it.
             </p>
             <label>

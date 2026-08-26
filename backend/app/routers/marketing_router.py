@@ -14,7 +14,7 @@ from .. import schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import Campaign, Message, Patient, PrescriptionItem, Sale, User
-from ..services import messaging
+from ..services import messaging, paging
 
 router = APIRouter(prefix="/api/marketing", tags=["marketing"], dependencies=[Depends(get_current_user)])
 
@@ -84,9 +84,21 @@ def preview_segment(key: str, channel: str = "sms", limit: int = 25, db: Session
     return segment_query(db, key, channel).limit(limit).all()
 
 
+def _campaign_query(db: Session):
+    return db.query(Campaign).order_by(Campaign.created_at.desc())
+
+
 @router.get("/campaigns", response_model=list[schemas.CampaignOut])
 def list_campaigns(limit: int = 100, db: Session = Depends(get_db)):
-    return db.query(Campaign).order_by(Campaign.created_at.desc()).limit(limit).all()
+    return _campaign_query(db).limit(limit).all()
+
+
+@router.get("/campaigns/paged")
+def list_campaigns_paged(page: int = 1, per_page: int = paging.DEFAULT_PER_PAGE,
+                         db: Session = Depends(get_db)):
+    """Campaign history, a page at a time, with the true total."""
+    result = paging.page(_campaign_query(db), page=page, per_page=per_page)
+    return result.envelope(lambda c: schemas.CampaignOut.model_validate(c, from_attributes=True).model_dump())
 
 
 @router.post("/campaigns", response_model=schemas.CampaignOut)

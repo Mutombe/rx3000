@@ -15,7 +15,12 @@ function resolveBase(): string {
   // runs. It wins over the build-time value, because a till on the premises
   // talks to the box in the back office, not to whatever host this bundle was
   // built against.
-  const fromShell = (globalThis as any).__RX3000_SERVER__;
+  // Either spelling: the Rust shell and this bundle ship together in an
+  // installer, but a desktop build from before the RX5000 rename still injects
+  // the old global, and reading only the new name would drop that machine back
+  // to a localhost default it was explicitly configured away from.
+  const shell = globalThis as any;
+  const fromShell = shell.__RX5000_SERVER__ ?? shell.__RX3000_SERVER__;
   if (typeof fromShell === "string" && fromShell.trim()) {
     return fromShell.trim().replace(/\/$/, "");
   }
@@ -23,18 +28,30 @@ function resolveBase(): string {
 }
 
 /** True when running inside the desktop shell rather than a browser tab. */
-export const isDesktop = typeof (globalThis as any).__RX3000_SERVER__ === "string";
+export const isDesktop =
+  typeof (globalThis as any).__RX5000_SERVER__ === "string" ||
+  typeof (globalThis as any).__RX3000_SERVER__ === "string";
 
 /** The same base, for code that does not go through `request` — the portals
  *  deliberately use bare fetch so they carry none of the staff session logic. */
 export const apiBase = BASE;
 
-let token: string | null = localStorage.getItem("rx3000_token");
+import { readStored, writeStored } from "./storage";
+import { lockGate } from "./lockGate";
+
+let token: string | null = readStored("token");
 
 export function setToken(t: string | null) {
   token = t;
-  if (t) localStorage.setItem("rx3000_token", t);
-  else localStorage.removeItem("rx3000_token");
+  writeStored("token", t);
+  if (t === null) {
+    // The session is over — by logging out or by the token expiring — so the
+    // per-session layout goes with it. A shared till must not hand the next
+    // person a sidebar the last one dragged, and "until the tab closes" is not
+    // the same thing as "until this session ends".
+    try { sessionStorage.removeItem("rx5000_rail_width"); } catch { /* private mode */ }
+    document.documentElement.style.removeProperty("--rail-user");
+  }
 }
 
 export function getToken() {
@@ -143,7 +160,7 @@ function statusWording(status: number, path = ""): string {
     return looksLikeARecord
       ? "That record no longer exists."
       : "That part of the system could not be reached. This is a fault on our "
-        + "side rather than anything you did — please report it.";
+        + "side rather than anything you did, so please report it.";
   }
   if (status === 405) {
     return "That action is not allowed here. This is a fault on our side; please report it.";
@@ -153,7 +170,7 @@ function statusWording(status: number, path = ""): string {
   if (status === 422) return "Some of the details were not accepted. Check the highlighted fields.";
   if (status === 429) return "Too many requests just now. Wait a moment and retry.";
   if (status === 502 || status === 503 || status === 504)
-    return "The server is not responding. It may be starting up — try again shortly.";
+    return "The server is not responding. It may be starting up, so try again shortly.";
   if (status >= 500) return "Something went wrong at the server. Please try again.";
   return `The request was refused (${status}).`;
 }
@@ -183,7 +200,7 @@ function logFailure(
     ? raw
     : (() => { try { return JSON.stringify(raw); } catch { return String(raw); } })();
   console.error(
-    `[RX3000] ${method} ${path} -> ${status}`
+    `[RX5000] ${method} ${path} -> ${status}`
     + ` | server said: ${(detail ?? "").slice(0, 300) || "(nothing)"}`
     + ` | user saw: ${shown}`,
     { status, method, path, serverSaid: raw, shownToUser: shown },
@@ -204,6 +221,15 @@ async function request<T>(
   body?: unknown,
   stepUp?: string,
 ): Promise<T> {
+  /* A locked till may be read from but not written to.
+     Held here rather than at each call site, because there are hundreds of call
+     sites and one of them would always be the one that forgot. The request is
+     paused, not refused: when the PIN lands it continues, so nobody loses the
+     basket they were halfway through. */
+  if (method !== "GET" && !path.startsWith("/api/auth/")) {
+    await lockGate.ensureUnlocked();
+  }
+
   let res: Response;
   try {
     res = await fetch(BASE + path, {
@@ -277,7 +303,7 @@ export function errorText(cause: unknown, fallback = "That did not work. Please 
   if (cause instanceof ApiError) return cause.message;
   if (typeof cause === "string" && cause.trim()) return cause;
   // Anything else is ours, and is a defect rather than a condition.
-  console.error("[RX3000] unhandled failure:", cause);
+  console.error("[RX5000] unhandled failure:", cause);
   return fallback;
 }
 

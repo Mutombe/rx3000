@@ -332,7 +332,7 @@ def cash_flow(db: Session, *, start: date, upto: date) -> dict:
         "note": (
             "This ties back to the movement on the cash accounts."
             if difference == 0
-            else f"Does not tie back to the cash accounts — out by {difference:.2f}. "
+            else f"Does not tie back to the cash accounts, out by {difference:.2f}. "
                  "An account is missing a section, or is not flagged as cash."
         )
         if cash_codes

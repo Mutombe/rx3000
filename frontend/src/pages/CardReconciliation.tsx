@@ -23,7 +23,7 @@ export default function CardReconciliation() {
   const TABS: TabDef<Tab>[] = [
     { key: "matched", label: "Matched", count: report?.matched.length },
     { key: "mismatched", label: "Amount differs", count: report?.mismatched.length },
-    { key: "missing_system", label: "Not in RX3000", count: report?.missing_in_system.length },
+    { key: "missing_system", label: "Not in RX5000", count: report?.missing_in_system.length },
     { key: "missing_statement", label: "Not banked", count: report?.missing_in_statement.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "matched");
@@ -155,7 +155,7 @@ export default function CardReconciliation() {
               </div>
             </div>
             <div className="card stat">
-              <div className="label">Not in RX3000</div>
+              <div className="label">Not in RX5000</div>
               <div className="value">{report.missing_in_system.length}</div>
               <div className="hint">banked but never rung up</div>
             </div>
@@ -171,7 +171,7 @@ export default function CardReconciliation() {
           {tab === "matched" && (
             <DataTable columns={matchCols} rows={report.matched} rowKey={(r) => r.sale_id} totals
               initialSort={{ key: "created_at", dir: "desc" }}
-              empty="Nothing matched — check the date range and the column names" />
+              empty="Nothing matched. Check the date range and the column names" />
           )}
           {tab === "mismatched" && (
             <DataTable columns={matchCols} rows={report.mismatched} rowKey={(r) => r.sale_id} totals

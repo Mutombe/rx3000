@@ -64,7 +64,7 @@ export default function DeferredClaims() {
         try {
       const sent = await api.post<Deferred>(`/api/claims/${claim.id}/submit`);
       toast.ok(
-        `${claim.claim_number} sent — ${sent.status}, ${money(sent.amount_claimed)} claimed.`,
+        `${claim.claim_number} sent. ${sent.status}, ${money(sent.amount_claimed)} claimed.`,
       );
       load();
     } catch (e: any) {
@@ -120,7 +120,7 @@ export default function DeferredClaims() {
           <ul>
             {failures.map((f) => (
               <li key={f.claim_number}>
-                {f.claim_number} — {f.reason}
+                {f.claim_number}: {f.reason}
               </li>
             ))}
           </ul>
@@ -130,58 +130,60 @@ export default function DeferredClaims() {
       {!rows.length ? (
         <p className="muted pad">
           Nothing held. Claims land here when the switch is unreachable or a member's
-          card is not present — the medicine goes out, and the claim waits.
+          card is not present. The medicine goes out, and the claim waits.
         </p>
       ) : (
-        <table className="dt">
-          <thead>
-            <tr>
-              <th>Claim</th>
-              <th>Sale</th>
-              <th>Patient</th>
-              <th>Scheme</th>
-              <th className="num">Value</th>
-              <th>Why it is held</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((c) => (
-              <tr key={c.id}>
-                <td className="mono">{c.claim_number}</td>
-                <td>
-                  <EntityLink to={`/sales/${c.sale_id}`}>{c.sale_number}</EntityLink>
-                </td>
-                <td>
-                  {c.patient_id ? (
-                    <EntityLink to={`/patients/${c.patient_id}`}>
-                      {c.patient_name}
-                    </EntityLink>
-                  ) : (
-                    <span className="muted">—</span>
-                  )}
-                </td>
-                <td>{c.medical_aid || <span className="muted">—</span>}</td>
-                <td className="num">{money(c.amount_claimed)}</td>
-                <td>
-                  {c.deferred_reason}
-                  {c.deferred_at && (
-                    <div className="muted small">held {fmtDateTime(c.deferred_at)}</div>
-                  )}
-                </td>
-                <td className="actions">
-                  <button
-                    className="btn sm"
-                    disabled={busy !== null}
-                    onClick={() => submit(c)}
-                  >
-                    {busy === c.id ? "Sending…" : "Send now"}
-                  </button>
-                </td>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Sale</th>
+                <th>Patient</th>
+                <th>Scheme</th>
+                <th className="num">Value</th>
+                <th>Why it is held</th>
+                <th className="actions" />
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((c) => (
+                <tr key={c.id}>
+                  <td className="mono">{c.claim_number}</td>
+                  <td>
+                    <EntityLink to={`/sales/${c.sale_id}`}>{c.sale_number}</EntityLink>
+                  </td>
+                  <td>
+                    {c.patient_id ? (
+                      <EntityLink to={`/patients/${c.patient_id}`}>
+                        {c.patient_name}
+                      </EntityLink>
+                    ) : (
+                      <span className="muted">—</span>
+                    )}
+                  </td>
+                  <td>{c.medical_aid || <span className="muted">—</span>}</td>
+                  <td className="num">{money(c.amount_claimed)}</td>
+                  <td>
+                    {c.deferred_reason}
+                    {c.deferred_at && (
+                      <div className="muted small">held {fmtDateTime(c.deferred_at)}</div>
+                    )}
+                  </td>
+                  <td className="actions">
+                    <button
+                      className="btn sm"
+                      disabled={busy !== null}
+                      onClick={() => submit(c)}
+                    >
+                      {busy === c.id ? "Sending…" : "Send now"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

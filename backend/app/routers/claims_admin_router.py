@@ -263,7 +263,7 @@ def import_remittance(body: schemas.RemittanceImport, db: Session = Depends(get_
 
 @router.post("/remittances/import-csv")
 def import_remittance_csv(body: schemas.RemittanceCsvImport, db: Session = Depends(get_db)):
-    """Import an advice supplied as a spreadsheet export — the common case."""
+    """Import an advice supplied as a spreadsheet export, the common case."""
     try:
         lines = era.parse_csv(body.content)
         advice = era.import_advice(
@@ -318,14 +318,23 @@ def list_remittances(funder_id: str = "", status: str = "", limit: int = 100,
 
 
 @router.get("/remittances/outstanding")
-def outstanding(funder_id: str = "", limit: int = 200, db: Session = Depends(get_db)):
-    """Every shortfall not yet billed or written off — the money still in the air."""
-    lines = era.outstanding_lines(db, funder_id, limit)
+def outstanding(funder_id: str = "", page: int = 1,
+                per_page: int = paging.DEFAULT_PER_PAGE,
+                db: Session = Depends(get_db)):
+    """Every shortfall not yet billed or written off, the money still in the air."""
+    result = paging.page(era.outstanding_query(db, funder_id),
+                         page=page, per_page=per_page)
+    lines = result.items
     count, total = era.outstanding_totals(db, funder_id)
     return {
-        # Over everything open, not over the page. The list below is capped.
-        "count": count,
-        "total": total,
+        **result.envelope(),
+        # Deliberately NOT called "total". The paging envelope already uses that
+        # key for the number of rows, and spreading a money value over it made
+        # the endpoint answer 97704 to the question "how many lines are there",
+        # which the pager would have rendered as ninety-seven thousand pages.
+        # Two different quantities need two different names.
+        "outstanding_count": count,
+        "outstanding_total": total,
         "showing": len(lines),
         "lines": [{
             "id": l.id, "remittance_id": l.remittance_id,

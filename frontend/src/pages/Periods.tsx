@@ -13,6 +13,8 @@ import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { useStepUp, CANCELLED } from "../components/StepUp";
+import IconButton from "../components/IconButton";
+import BusyButton from "../components/BusyButton";
 
 interface VatReturn {
   period_code: string; period_name: string; period_status: string;
@@ -113,95 +115,97 @@ export default function Periods() {
         </div>
       </header>
 
-      <table className="dt">
-        <thead>
-          <tr>
-            <th>Period</th>
-            <th>Runs</th>
-            <th>Status</th>
-            <th className="num">Signed off at</th>
-            <th className="num">Transactions</th>
-            <th>Closed by</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {periods.map((p) => (
-            <tr key={p.code} className={p.drift ? "row-flag" : undefined}>
-              <td className="mono">
-                {p.code}
-                <div className="muted small">{p.name}</div>
-              </td>
-              <td>
-                {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
-              </td>
-              <td>
-                <span className={`badge ${p.status === "open" ? "ok" : p.status === "locked" ? "warn" : ""}`}>
-                  {p.status}
-                </span>
-                <div className="muted small">{STATUS_HINT[p.status]}</div>
-                {p.drift_warning && (
-                  <div className="alert error small">{p.drift_warning}</div>
-                )}
-              </td>
-              <td className="num">
-                {p.status === "open" ? (
-                  <span className="muted">—</span>
-                ) : (
-                  money(p.closing_sales)
-                )}
-              </td>
-              <td className="num">
-                {p.status === "open" ? (
-                  <span className="muted">—</span>
-                ) : (
-                  p.closing_transactions
-                )}
-              </td>
-              <td>
-                {p.closed_by || <span className="muted">—</span>}
-                {p.closed_at && (
-                  <div className="muted small">{fmtDateTime(p.closed_at)}</div>
-                )}
-              </td>
-              <td className="actions">
-                {p.status === "open" && (
-                  <button className="btn sm" onClick={() => act(p, "close")}>
-                    Close
-                  </button>
-                )}
-                <button
-                  className="btn ghost sm"
-                  disabled={vatBusy === p.code}
-                  onClick={async () => {
-                    setVatBusy(p.code);
-                    try {
-                      setVat(await api.get<VatReturn>(`/api/ledger/vat-return/${p.code}`));
-                    } catch (e) {
-                      toast.error(errorText(e, "That VAT return could not be worked out."));
-                    } finally {
-                      setVatBusy("");
-                    }
-                  }}
-                >
-                  {vatBusy === p.code ? "Working…" : "VAT return"}
-                </button>
-                {p.status === "closed" && (
-                  <>
-                    <button className="btn ghost sm" onClick={() => setReopening(p)}>
-                      Reopen
-                    </button>
-                    <button className="btn sm" onClick={() => act(p, "lock")}>
-                      Lock
-                    </button>
-                  </>
-                )}
-                {p.status === "locked" && <span className="muted small">Sealed</span>}
-              </td>
+      <div className="dt-scroll">
+        <table className="dt">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Runs</th>
+              <th>Status</th>
+              <th className="num">Signed off at</th>
+              <th className="num">Transactions</th>
+              <th>Closed by</th>
+              <th className="actions" />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {periods.map((p) => (
+              <tr key={p.code} className={p.drift ? "row-flag" : undefined}>
+                <td className="mono">
+                  {p.code}
+                  <div className="muted small">{p.name}</div>
+                </td>
+                <td>
+                  {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
+                </td>
+                <td>
+                  <span className={`badge ${p.status === "open" ? "ok" : p.status === "locked" ? "warn" : ""}`}>
+                    {p.status}
+                  </span>
+                  <div className="muted small clip-2" title={STATUS_HINT[p.status]}>{STATUS_HINT[p.status]}</div>
+                  {p.drift_warning && (
+                    <div className="alert error small">{p.drift_warning}</div>
+                  )}
+                </td>
+                <td className="num">
+                  {p.status === "open" ? (
+                    <span className="muted">—</span>
+                  ) : (
+                    money(p.closing_sales)
+                  )}
+                </td>
+                <td className="num">
+                  {p.status === "open" ? (
+                    <span className="muted">—</span>
+                  ) : (
+                    p.closing_transactions
+                  )}
+                </td>
+                <td>
+                  {p.closed_by || <span className="muted">—</span>}
+                  {p.closed_at && (
+                    <div className="muted small">{fmtDateTime(p.closed_at)}</div>
+                  )}
+                </td>
+                <td className="actions">
+                  {p.status === "open" && (
+                    <BusyButton className="btn sm" onClick={() => act(p, "close")}>
+                      Close
+                    </BusyButton>
+                  )}
+                  <button
+                    className="btn ghost sm"
+                    disabled={vatBusy === p.code}
+                    onClick={async () => {
+                      setVatBusy(p.code);
+                      try {
+                        setVat(await api.get<VatReturn>(`/api/ledger/vat-return/${p.code}`));
+                      } catch (e) {
+                        toast.error(errorText(e, "That VAT return could not be worked out."));
+                      } finally {
+                        setVatBusy("");
+                      }
+                    }}
+                  >
+                    {vatBusy === p.code ? "Working…" : "VAT return"}
+                  </button>
+                  {p.status === "closed" && (
+                    <>
+                      <button className="btn ghost sm" onClick={() => setReopening(p)}>
+                        Reopen
+                      </button>
+                      <BusyButton className="btn sm" onClick={() => act(p, "lock")}>
+                        Lock
+                      </BusyButton>
+                    </>
+                  )}
+                  {p.status === "locked" && <span className="muted small">Sealed</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {reopening && (
         <div className="modal-backdrop" onClick={() => setReopening(null)}>
@@ -243,7 +247,7 @@ export default function Periods() {
       {vat && (
         <div className="modal-backdrop" onClick={() => setVat(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>VAT return — {vat.period_name}</h2>
+            <h2>VAT return for {vat.period_name}</h2>
             <p className="muted">
               {fmtDate(vat.from)} to {fmtDate(vat.to)}, at {(vat.vat_rate * 100).toFixed(0)}%.
             </p>
@@ -287,7 +291,7 @@ export default function Periods() {
             </table>
 
             <div className="modal-actions">
-              <button className="btn ghost" onClick={() => window.print()}>Print</button>
+              <IconButton action="print" onClick={() => window.print()} />
               <button className="btn primary" onClick={() => setVat(null)}>Close</button>
             </div>
           </div>

@@ -18,10 +18,10 @@ import socket
 import uuid
 from datetime import date, datetime
 
-from ..config import settings
+from ..config import settings, env
 
 VERSION = "1.0.0"
-BUILD = os.getenv("RX3000_BUILD", "dev")
+BUILD = env("BUILD", "dev")
 
 # Grace after expiry during which the product complains but behaves normally.
 GRACE_DAYS = 30
@@ -35,7 +35,7 @@ def station_id() -> str:
     how two tills end up claiming to be the same station and a support call goes
     round in circles.
     """
-    explicit = os.getenv("RX3000_STATION_ID", "").strip()
+    explicit = env("STATION_ID", "").strip()
     if explicit:
         return explicit
     host = socket.gethostname()
@@ -51,10 +51,10 @@ def _parse(value: str) -> date | None:
 
 def licence() -> dict:
     """What this installation is entitled to, and for how much longer."""
-    expires = _parse(os.getenv("RX3000_LICENCE_EXPIRES", ""))
-    key = os.getenv("RX3000_LICENCE_KEY", "").strip()
-    licensed_to = os.getenv("RX3000_LICENSED_TO", "").strip() or settings.PHARMACY_NAME
-    tills = int(os.getenv("RX3000_LICENCE_TILLS", "0") or 0)
+    expires = _parse(env("LICENCE_EXPIRES", ""))
+    key = env("LICENCE_KEY", "").strip()
+    licensed_to = env("LICENSED_TO", "").strip() or settings.PHARMACY_NAME
+    tills = int(env("LICENCE_TILLS", "0") or 0)
 
     if not key:
         return {
@@ -78,7 +78,7 @@ def licence() -> dict:
             state, message = "active", ""
         elif remaining >= 0:
             state = "expiring"
-            message = (f"The licence expires on {expires:%d %b %Y} — "
+            message = (f"The licence expires on {expires:%d %b %Y}, "
                        f"{remaining} day{'s' if remaining != 1 else ''} left.")
         elif remaining >= -GRACE_DAYS:
             state = "grace"
@@ -89,8 +89,8 @@ def licence() -> dict:
         else:
             state = "expired"
             message = (f"The licence expired on {expires:%d %b %Y}. Nothing has "
-                       "been switched off — a lapsed invoice is not a reason to "
-                       "stop a pharmacy dispensing — but this needs settling.")
+                       "been switched off. A lapsed invoice is not a reason to "
+                       "stop a pharmacy dispensing, but this needs settling.")
 
     return {
         "state": state,
@@ -119,7 +119,7 @@ def info(db=None) -> dict:
         period = periods.current(db).code
 
     return {
-        "product": "RX3000",
+        "product": "RX5000",
         "version": VERSION,
         "build": BUILD,
         "station_id": station_id(),

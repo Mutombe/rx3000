@@ -19,6 +19,7 @@
 import { useEffect, useState } from "react";
 import { api, money } from "../api";
 import { TableSkeleton } from "./Skeleton";
+import Checkbox from "./Checkbox";
 
 interface Line {
   code: string; name: string; amount: number; subledger?: string; computed?: boolean;
@@ -108,14 +109,11 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
           <span>{kind === "income" ? "Up to" : "As at"}</span>
           <input type="date" value={upto} onChange={(e) => setUpto(e.target.value)} />
         </label>
-        <label className="st-control st-check">
-          <input
-            type="checkbox"
-            checked={hideZero}
-            onChange={(e) => setHideZero(e.target.checked)}
-          />
-          <span>Hide empty sections</span>
-        </label>
+        <div className="st-control st-check">
+          <Checkbox checked={hideZero} onChange={setHideZero}>
+            Hide empty sections
+          </Checkbox>
+        </div>
         {kind === "income" && income && (
           <span className="muted">
             {income.from} to {income.to}

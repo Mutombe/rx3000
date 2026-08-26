@@ -14,7 +14,7 @@ from .config import settings
 from .database import SessionLocal
 from .models import AuditLog
 
-log = logging.getLogger("rx3000.audit")
+log = logging.getLogger("rx5000.audit")
 
 # Never log these (credentials in body, or pure noise)
 SKIP_PATHS = {"/api/auth/login"}

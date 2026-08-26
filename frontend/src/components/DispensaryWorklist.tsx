@@ -12,22 +12,32 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../api";
 import { useToast } from "./Toast";
+import { ArrowsClockwise, Phone } from "@phosphor-icons/react";
+import BusyButton from "./BusyButton";
 
 interface QueueRow {
   item_id: number; prescription_id: number; rx_number: string;
   patient_id: number | null; patient: string; product: string;
   quantity: number; band: number; band_label: string; reason: string;
   booked_for: string; waiting_days: number; schedule: number; chronic: boolean;
+  /** Whether this line has gone out before, and how much of the script is left.
+   *  A repeat is checked differently from a first dispensing, and the queue used
+   *  to say nothing — you had to open the script to find out. */
+  is_repeat: boolean; repeats_used: number; repeats_allowed: number; repeats_left: number;
 }
 interface ChronicRow {
   patient_id: number; patient: string; conditions: string;
   next_due: string; days_to_due: number | null; state: string;
   call: string; phone: string;
 }
-interface ReminderRow {
+export interface ReminderRow {
   patient_id: number; patient: string; product: string; due: string;
   days: number; overdue: boolean; call: string; phone: string;
   repeats_left: number;
+  /** Enough to open the line rather than only read it. */
+  item_id: number; prescription_id: number; product_id: number;
+  doctor_id: number | null; quantity: number; dosage_instructions: string;
+  schedule: number;
 }
 interface Worklist {
   queue: QueueRow[];
@@ -37,7 +47,8 @@ interface Worklist {
   counts: { waiting: number; showing: number; time_critical: number; overdue_repeats: number };
 }
 
-type Panel = "queue" | "chronics" | "due";
+export type WorklistPanel = "queue" | "chronics" | "due";
+type Panel = WorklistPanel;
 
 /** Band colour. Only the top band is loud — if everything is red, nothing is. */
 const BAND_CLASS: Record<number, string> = {
@@ -46,20 +57,37 @@ const BAND_CLASS: Record<number, string> = {
 
 export default function DispensaryWorklist({
   onPick,
+  onPickRepeat,
+  panel: panelProp,
+  onPanelChange,
 }: {
+  /** Segment to show. Optional: the rail governs itself unless told otherwise,
+   *  which is what lets a keyboard shortcut on the page open "Due". */
+  panel?: Panel;
+  onPanelChange?: (panel: Panel) => void;
   /** Called when a dispenser clicks a queued line, so the page can open it. */
   onPick?: (row: QueueRow) => void;
+  /** Called when a dispenser clicks a repeat that is due. */
+  onPickRepeat?: (row: ReminderRow) => void;
 }) {
   const toast = useToast();
   const [data, setData] = useState<Worklist | null>(null);
-  const [panel, setPanel] = useState<Panel>("queue");
+  const [ownPanel, setOwnPanel] = useState<Panel>("queue");
+  const panel = panelProp ?? ownPanel;
+  const setPanel = (next: Panel) => { setOwnPanel(next); onPanelChange?.(next); };
   const [failed, setFailed] = useState("");
 
-  const load = useCallback(() => {
+  /* Returns the promise rather than dropping it.
+     Without the `return` the refresh button had nothing to wait on: it resolved
+     the instant it was pressed, so the spin lasted one frame and the control was
+     back to looking idle while the request was still in flight. Anything that
+     wants to know when a load has finished — a busy control, a test — needs the
+     promise handed back, not started and forgotten. */
+  const load = useCallback(() =>
     api.get<Worklist>("/api/dispensary/worklist")
       .then((w) => { setData(w); setFailed(""); })
-      .catch((e) => setFailed(errorText(e, "The worklist could not be loaded.")));
-  }, []);
+      .catch((e) => setFailed(errorText(e, "The worklist could not be loaded."))),
+  []);
 
   useEffect(() => {
     load();
@@ -74,7 +102,9 @@ export default function DispensaryWorklist({
       <aside className="wl">
         <div className="wl-head"><span>Worklist</span></div>
         <p className="wl-empty">{failed}</p>
-        <button className="btn ghost small" onClick={load}>Try again</button>
+        <BusyButton className="btn ghost small" onClick={load} icon={ArrowsClockwise} busyLabel="Trying…">
+          Try again
+        </BusyButton>
       </aside>
     );
   }
@@ -96,7 +126,15 @@ export default function DispensaryWorklist({
     <aside className="wl">
       <div className="wl-head">
         <span>Worklist</span>
-        <button className="btn ghost small" onClick={load} title="Refresh">↻</button>
+        {/* Turns while it is loading. A refresh that looks identical before and
+            after the press is why people press it four times. */}
+        <BusyButton
+          className="btn ghost small"
+          onClick={load}
+          icon={ArrowsClockwise}
+          title="Refresh"
+          aria-label="Refresh the worklist"
+        />
       </div>
 
       {/* The three numbers a dispenser acts on, before any list. */}
@@ -155,6 +193,12 @@ export default function DispensaryWorklist({
               <span className="wl-row-mid">{row.product}</span>
               <span className="wl-row-foot">
                 <span className="wl-tag">{row.band_label}</span>
+                {row.is_repeat && (
+                  <span className="wl-tag wl-tag-repeat"
+                        title={`Repeat ${row.repeats_used} of ${row.repeats_allowed}`}>
+                    repeat {row.repeats_used}/{row.repeats_allowed}
+                  </span>
+                )}
                 {row.schedule >= 5 && <span className="wl-tag wl-tag-sched">S{row.schedule}</span>}
                 {/* Days waiting, not the date. "8 days" is actionable; a date
                     means arithmetic. */}
@@ -187,7 +231,7 @@ export default function DispensaryWorklist({
               <span className="wl-row-foot">
                 {/* Who to ring, which for a chronic patient is often not them. */}
                 {row.phone
-                  ? <a href={`tel:${row.phone}`} className="wl-call">☎ {row.call}</a>
+                  ? <a href={`tel:${row.phone}`} className="wl-call"><Phone size={11} weight="fill" /> {row.call}</a>
                   : <span className="wl-wait">no number on file</span>}
                 {row.next_due && <span className="wl-wait">due {row.next_due}</span>}
               </span>
@@ -199,24 +243,46 @@ export default function DispensaryWorklist({
       {panel === "due" && (
         <div className="wl-list">
           {data.reminders.length === 0 && (
-            <p className="wl-empty">No repeats due in the next week.</p>
+            <p className="wl-empty">No repeats due in the next fortnight.</p>
           )}
+          {/* A button, like every other row in this rail. These were <div>s: the
+              panel told a dispenser a repeat was due and then gave them no way
+              to act on it, so the only route to the work was to go and find the
+              patient by hand. Clicking now loads the line into the form, where
+              the checking pharmacist's initials are captured — which is why the
+              old shortcut button could never have worked. */}
           {data.reminders.map((row, i) => (
-            <div key={`${row.patient_id}-${i}`} className={`wl-row${row.overdue ? " wl-band-1" : ""}`}>
+            <button
+              key={`${row.patient_id}-${i}`}
+              className={`wl-row${row.overdue ? " wl-band-1" : ""}`}
+              onClick={() => onPickRepeat?.(row)}
+              title={`Open ${row.product} for ${row.patient}`}
+            >
               <span className="wl-row-top">
                 <span className="wl-patient">{row.patient}</span>
                 <span className="wl-qty">{row.repeats_left} left</span>
               </span>
               <span className="wl-row-mid">{row.product}</span>
               <span className="wl-row-foot">
+                {/* Named with the same word the queue uses. A panel headed "Due"
+                    and a tag reading "repeat" are the same thing said twice in
+                    two vocabularies; one word, used everywhere, is how somebody
+                    learns the screen once. */}
+                <span className="wl-tag wl-tag-repeat">repeat</span>
                 {row.phone
-                  ? <a href={`tel:${row.phone}`} className="wl-call">☎ {row.call}</a>
+                  ? (
+                    // The row opens the work; the number rings the patient.
+                    // Two destinations in one row, so the call must not also
+                    // navigate.
+                    <a href={`tel:${row.phone}`} className="wl-call"
+                       onClick={(e) => e.stopPropagation()}><Phone size={11} weight="fill" /> {row.call}</a>
+                  )
                   : <span className="wl-wait">no number on file</span>}
                 <span className={row.overdue ? "wl-tag" : "wl-wait"}>
                   {row.overdue ? `${Math.abs(row.days)}d overdue` : `in ${row.days}d`}
                 </span>
               </span>
-            </div>
+            </button>
           ))}
         </div>
       )}

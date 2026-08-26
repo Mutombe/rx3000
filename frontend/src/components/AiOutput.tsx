@@ -43,7 +43,7 @@ function download(name: string, body: BlobPart, mime: string) {
 }
 
 function safeName(title: string) {
-  return (title || "rx3000-note").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
+  return (title || "rx5000-note").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 60);
 }
 
 /** Print styling, shared by the Word file and the PDF window. */
@@ -67,7 +67,7 @@ function documentHtml(title: string, context: string, bodyHtml: string) {
           border-bottom: 1px solid #ddd; padding-bottom: 6pt; }
 </style></head><body>
 <h1>${title}</h1>
-<div class="meta">${context ? context + " &middot; " : ""}Generated ${stamp} &middot; RX3000</div>
+<div class="meta">${context ? context + " &middot; " : ""}Generated ${stamp} &middot; RX5000</div>
 ${bodyHtml}
 </body></html>`;
 }

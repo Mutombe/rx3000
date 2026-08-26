@@ -3,6 +3,7 @@ import { useToast } from "../components/Toast";
 import { api, fmtDateTime, errorText  } from "../api";
 import { RegisterEntry } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
+import Select from "../components/Select";
 
 export default function Register() {
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
@@ -40,18 +41,18 @@ export default function Register() {
       <div className="page-head">
         <div>
           <h1>Controlled Register</h1>
-          <div className="sub">Fully electronic S5 / S6 controlled-substance register — immutable audit trail</div>
+          <div className="sub">Fully electronic S5 / S6 controlled-substance register, immutable audit trail</div>
         </div>
         <button className="secondary" onClick={() => window.print()}>Print register</button>
       </div>
 
       <div className="card">
         <div className="toolbar">
-          <select value={schedule} onChange={(e) => setSchedule(e.target.value)}>
-            <option value="">All schedules</option>
-            <option value="5">Schedule 5</option>
-            <option value="6">Schedule 6</option>
-          </select>
+          <Select
+            value={String(schedule ?? "")}
+            onChange={(__value) => setSchedule(__value)}
+            options={[{ value: "", label: "All schedules" }, { value: "5", label: "Schedule 5" }, { value: "6", label: "Schedule 6" }]}
+          />
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ maxWidth: 180 }} />
           <span className="muted">to</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ maxWidth: 180 }} />

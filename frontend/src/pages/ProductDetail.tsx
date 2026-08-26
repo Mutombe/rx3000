@@ -8,6 +8,7 @@ import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
 import { ProductDetail as Detail, StockBatch, StockMovement } from "../types";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 type Tab = "batches" | "movements";
 
@@ -93,7 +94,7 @@ export default function ProductDetail() {
             </div>
           </div>
         </div>
-        <Link to="/stock" className="btn secondary">← Inventory</Link>
+        <Link to="/stock" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Inventory</Link>
       </div>
 
       <div className="card record-hero">
@@ -127,7 +128,7 @@ export default function ProductDetail() {
           rowKey={(b) => b.id}
           totals
           initialSort={{ key: "expiry_date", dir: "asc" }}
-          empty="No stock on hand — nothing has been received for this product"
+          empty="No stock on hand, nothing has been received for this product"
         />
       )}
 

@@ -3,6 +3,10 @@ export interface User {
   username: string;
   full_name: string;
   role: string;
+  /** A time-limited demo account. Absent on every account in a real pharmacy. */
+  is_demo?: boolean;
+  /** When the demo stops working, as naive UTC from the server. */
+  demo_expires_at?: string | null;
 }
 
 export interface MedicalAid {
@@ -318,6 +322,15 @@ export interface Label {
   dispensed_at: string;
   pharmacy_name: string;
   pharmacy_reg_no: string;
+  /** Printed at the foot of the sticker and in the audit block, so a patient
+   *  holding the box has the shop, the script and which item of how many. */
+  pharmacy_address: string;
+  pharmacy_phone: string;
+  item_number: number;
+  item_count: number;
+  doctor_practice_no: string;
+  unit_price: number;
+  line_total: number;
 }
 
 export interface SchedulePolicy {

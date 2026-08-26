@@ -1,11 +1,22 @@
-/** Small dependency-free SVG chart set, styled to the RX3000 palette. */
+/** Small dependency-free SVG chart set, styled to the RX5000 palette.
+ *
+ *  The colours come from chartPalette.ts rather than being declared here. The
+ *  set that used to live in this file was four near-grey violets and two muted
+ *  earth tones; run through the validator it failed the lightness band, the
+ *  chroma floor and the normal-vision separation floor, which in practice meant
+ *  two adjacent slices of a donut that nobody could tell apart. It also had no
+ *  dark variant, so on a dark surface the indigo slot all but vanished. */
 import { ReactNode } from "react";
+import { useChartPalette } from "../chartPalette";
 
-const ROSE = "#f0b4b6";
-const MAUVE = "#97829c";
-const ACCENT = "#6a6485";
-const INDIGO = "#3b3e56";
-export const SERIES = [INDIGO, MAUVE, ROSE, ACCENT, "#c98a3e", "#7fa9a0"];
+/** The palette, for pages that assign colours to their own series.
+ *
+ *  A hook rather than a constant, because the answer changes with the theme.
+ *  Assign these in order and never cycle: a seventh series folds into "Other".
+ */
+export function useSeries(): string[] {
+  return useChartPalette().slots;
+}
 
 /** Round an axis maximum up to a readable tick interval. */
 function niceScale(max: number, ticks = 4) {
@@ -35,6 +46,7 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
   height?: number;
   markerLabel?: string;
 }) {
+  const palette = useChartPalette();
   const totals = columns.map((c) => c.segments.reduce((s, g) => s + g.value, 0));
   const peak = Math.max(...totals, ...columns.map((c) => c.marker ?? 0), 0);
   const { max, steps } = niceScale(peak);
@@ -49,7 +61,7 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
       <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" style={{ height, width: "100%" }}>
         {steps.map((s) => {
           const y = padT + plot - (s / max) * plot;
-          return <line key={s} x1={0} x2={100} y1={y} y2={y} stroke="rgba(31,30,38,0.09)" strokeWidth={0.6} vectorEffect="non-scaling-stroke" />;
+          return <line key={s} x1={0} x2={100} y1={y} y2={y} stroke={palette.grid} strokeWidth={0.6} vectorEffect="non-scaling-stroke" />;
         })}
         {columns.map((c, i) => {
           let acc = 0;
@@ -74,7 +86,7 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
                   x1={x - colW * 0.04} x2={x + w + colW * 0.04}
                   y1={padT + plot - (c.marker / max) * plot}
                   y2={padT + plot - (c.marker / max) * plot}
-                  stroke={INDIGO} strokeWidth={2} strokeDasharray="4 3"
+                  stroke={palette.axis} strokeWidth={2} strokeDasharray="4 3"
                   vectorEffect="non-scaling-stroke"
                 >
                   <title>{`${c.label} · ${markerLabel ?? "marker"}: ${format(c.marker)}`}</title>
@@ -112,6 +124,7 @@ export function Legend({ items }: { items: { key: string; colour: string; dashed
 
 /** Tapered funnel with stage-to-stage drop-off. */
 export function FunnelChart({ stages }: { stages: { stage: string; count: number; conversion: number }[] }) {
+  const palette = useChartPalette();
   const top = Math.max(...stages.map((s) => s.count), 1);
   return (
     <div className="funnel">
@@ -126,9 +139,17 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
               <span className="muted">{s.count}</span>
             </div>
             <div className="funnel-track">
+              {/* One hue deepening down the funnel, not six.
+                  Funnel stages are a sequence, not six unrelated things, and the
+                  previous version gave each one a categorical hue from a cycled
+                  list — so stage seven repeated stage one, and the colours
+                  implied a difference in kind where the only difference is
+                  position. Width already carries the count; the deepening only
+                  reinforces the direction of travel. */}
               <div className="funnel-bar" style={{
                 width: `${width}%`,
-                background: `linear-gradient(90deg, ${SERIES[i % SERIES.length]}, ${ACCENT})`,
+                background: palette.one,
+                opacity: 0.55 + (0.45 * i) / Math.max(stages.length - 1, 1),
               }} />
             </div>
             <div className="funnel-side">
@@ -180,9 +201,10 @@ export function Donut({ slices, size = 168, format }: {
   size?: number;
   format: (n: number) => string;
 }) {
+  const palette = useChartPalette();
   const total = slices.reduce((s, x) => s + x.value, 0);
   if (total <= 0) {
-    return <div className="empty">No attributed pipeline yet — campaigns have not sourced a deal</div>;
+    return <div className="empty">No attributed pipeline yet. Campaigns have not sourced a deal</div>;
   }
   const stroke = size * 0.19;
   const r = (size - stroke) / 2;
@@ -193,7 +215,7 @@ export function Donut({ slices, size = 168, format }: {
     <div className="donut-wrap">
       <div className="donut" style={{ width: size, height: size }}>
         <svg width={size} height={size}>
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(31,30,38,0.07)" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={palette.grid} strokeWidth={stroke} />
           {total > 0 && slices.map((s) => {
             const dash = (s.value / total) * circumference;
             const el = (

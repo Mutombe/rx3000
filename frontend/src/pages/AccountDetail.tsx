@@ -8,6 +8,7 @@ import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
 import { CompanyOverview } from "../types";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 type Tab = "contacts" | "deals" | "cases";
 type Row<K extends keyof CompanyOverview> = CompanyOverview[K] extends (infer R)[] ? R : never;
@@ -94,7 +95,7 @@ export default function AccountDetail() {
             </div>
           </div>
         </div>
-        <Link to="/accounts" className="btn secondary">← Accounts</Link>
+        <Link to="/accounts" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Accounts</Link>
       </div>
 
       <div className="card record-hero">

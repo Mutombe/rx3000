@@ -21,6 +21,8 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Patient, Product } from "../types";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -233,9 +235,9 @@ export default function LayBys() {
               <table>
                 <thead>
                   <tr>
-                    <th>Lay-by</th><th>Customer</th><th>Raised</th><th>Due</th>
+                    <th className="mono">Lay-by</th><th>Customer</th><th>Raised</th><th>Due</th>
                     <th className="num">Total</th><th className="num">Paid</th>
-                    <th className="num">Balance</th><th />
+                    <th className="num">Balance</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -396,10 +398,7 @@ export default function LayBys() {
                       </td>
                       <td className="num">{money(l.product.unit_price * l.quantity)}</td>
                       <td className="num">
-                        <button type="button" className="btn ghost small"
-                          onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>
-                          Remove
-                        </button>
+                        <IconButton action="remove" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))} type="button" />
                       </td>
                     </tr>
                   ))}
@@ -469,11 +468,11 @@ export default function LayBys() {
             </label>
             <label>
               Method
-              <select value={method} onChange={(e) => setMethod(e.target.value)}>
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="mobile_money">Mobile money</option>
-              </select>
+              <Select
+                value={String(method ?? "")}
+                onChange={(__value) => setMethod(__value)}
+                options={[{ value: "cash", label: "Cash" }, { value: "card", label: "Card" }, { value: "mobile_money", label: "Mobile money" }]}
+              />
             </label>
             <div className="modal-actions">
               <button type="button" className="btn ghost" onClick={() => setPaying(null)}>Cancel</button>

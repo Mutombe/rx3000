@@ -6,6 +6,10 @@ import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Company, Contact } from "../types";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 type Tab = "companies" | "contacts";
 
@@ -84,11 +88,12 @@ export default function Accounts() {
       ) },
     { key: "actions", header: "", align: "right",
       render: (c) => (
-        <span style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
-          <button className="ghost small" onClick={() => {
+        <span className="row-actions" onClick={(e) => e.stopPropagation()}>
+          <IconButton action="edit" title={`Edit ${c.name}`} onClick={() => {
             setEditingCo(c); setCoForm({ ...c, company_id: undefined }); setShowCo(true);
-          }}>Edit</button>
-          <button className="ghost small" onClick={() => aiSummary(c)} disabled={busy}>✦ Review</button>
+          }} />
+          <IconButton action="review" title={`AI review of ${c.name}`}
+            onClick={() => aiSummary(c)} disabled={busy} />
         </span>
       ) },
   ];
@@ -222,7 +227,7 @@ export default function Accounts() {
 
       {summary && (
         <div className="card">
-          <h3>✦ AI account review — {summary.name}</h3>
+          <h3><ClaudeIcon size={16} /> AI account review, {summary.name}</h3>
           <AiOutput text={summary.text} title="Account summary" context={summary.name} />
           <div style={{ marginTop: 10 }}>
             <button className="secondary small" onClick={() => setSummary(null)}>Dismiss</button>
@@ -239,17 +244,19 @@ export default function Accounts() {
               <div className="form-row">
                 <div className="field">
                   <label>Type</label>
-                  <select value={coForm.account_type} onChange={setCo("account_type")}>
-                    {ACCOUNT_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <Select
+                    value={String(coForm.account_type ?? "")}
+                    onChange={(__value) => setCo("account_type")({ target: { value: __value } } as any)}
+                    options={[...ACCOUNT_TYPES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                  />
                 </div>
                 <div className="field">
                   <label>Status</label>
-                  <select value={coForm.status} onChange={setCo("status")}>
-                    <option value="active">Active</option>
-                    <option value="prospect">Prospect</option>
-                    <option value="dormant">Dormant</option>
-                  </select>
+                  <Select
+                    value={String(coForm.status ?? "")}
+                    onChange={(__value) => setCo("status")({ target: { value: __value } } as any)}
+                    options={[{ value: "active", label: "Active" }, { value: "prospect", label: "Prospect" }, { value: "dormant", label: "Dormant" }]}
+                  />
                 </div>
                 <div className="field"><label>Credit terms (days)</label>
                   <input type="number" value={coForm.credit_terms_days} onChange={setCo("credit_terms_days")} /></div>
@@ -283,10 +290,11 @@ export default function Accounts() {
                 <div className="field"><label>Job title</label><input value={ctForm.job_title} onChange={setCt("job_title")} /></div>
                 <div className="field">
                   <label>Account</label>
-                  <select value={ctForm.company_id} onChange={setCt("company_id")}>
-                    <option value="">None</option>
-                    {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <Select
+                    value={String(ctForm.company_id ?? "")}
+                    onChange={(__value) => setCt("company_id")({ target: { value: __value } } as any)}
+                    options={[{ value: "", label: "None" }, ...companies.map((c) => ({ value: String(c.id), label: c.name }))]}
+                  />
                 </div>
               </div>
               <div className="form-row">
@@ -296,18 +304,27 @@ export default function Accounts() {
               <div className="form-row">
                 <div className="field">
                   <label>Lifecycle stage</label>
-                  <select value={ctForm.lifecycle_stage} onChange={setCt("lifecycle_stage")}>
-                    {STAGES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <Select
+                    value={String(ctForm.lifecycle_stage ?? "")}
+                    onChange={(__value) => setCt("lifecycle_stage")({ target: { value: __value } } as any)}
+                    options={[...STAGES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                  />
                 </div>
                 <div className="field"><label>Source</label>
                   <input value={ctForm.source} onChange={setCt("source")} placeholder="referral, website, event…" /></div>
               </div>
               <div className="field">
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={ctForm.marketing_opt_in} onChange={setCt("marketing_opt_in")} />
+                <Checkbox
+                  checked={ctForm.marketing_opt_in}
+                  // The shared setter reads `e.target.type` to decide between
+                  // `checked` and `value`; the synthetic event says which it is
+                  // rather than relying on the fallback branch happening to be
+                  // right for a boolean.
+                  onChange={(v) =>
+                    setCt("marketing_opt_in")({ target: { type: "checkbox", checked: v } } as any)}
+                >
                   Consented to marketing communication (POPIA)
-                </label>
+                </Checkbox>
               </div>
               <div className="field"><label>Notes</label><textarea rows={3} value={ctForm.notes} onChange={setCt("notes")} /></div>
               <div className="modal-actions">

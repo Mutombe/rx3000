@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "RX3000",
+  "productName": "RX5000",
   "version": "1.0.0",
   "identifier": "zw.co.bitstudio.rx3000",
   "build": {
@@ -10,7 +10,7 @@
   "app": {
     "windows": [
       {
-        "title": "RX3000 Pharmacy Suite",
+        "title": "RX5000 Pharmacy Suite",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,

@@ -1,5 +1,5 @@
 [package]
-name = "rx3000"
+name = "rx5000"
 version = "1.0.0"
 description = "RX3000 Pharmacy Suite"
 authors = ["BitStudio"]

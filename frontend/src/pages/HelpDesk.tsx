@@ -5,6 +5,10 @@ import DraftEditor from "../components/DraftEditor";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
 import { HelpdeskStats, Patient, Ticket, User } from "../types";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -224,24 +228,27 @@ export default function HelpDesk() {
             <div className="form-row">
               <div className="field">
                 <label>Status</label>
-                <select value={selected.status} onChange={(e) => patch({ status: e.target.value })}>
-                  <option value="open">Open</option><option value="pending">Pending</option>
-                  <option value="resolved">Resolved</option><option value="closed">Closed</option>
-                </select>
+                <Select
+                  value={String(selected.status ?? "")}
+                  onChange={(__value) => patch({ status: __value })}
+                  options={[{ value: "open", label: "Open" }, { value: "pending", label: "Pending" }, { value: "resolved", label: "Resolved" }, { value: "closed", label: "Closed" }]}
+                />
               </div>
               <div className="field">
                 <label>Priority</label>
-                <select value={selected.priority} onChange={(e) => patch({ priority: e.target.value })}>
-                  {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+                <Select
+                  value={String(selected.priority ?? "")}
+                  onChange={(__value) => patch({ priority: __value })}
+                  options={[...PRIORITIES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                />
               </div>
               <div className="field">
                 <label>Assigned to</label>
-                <select value={selected.assigned_to?.id ?? ""}
-                  onChange={(e) => patch({ assigned_to_id: e.target.value ? Number(e.target.value) : null })}>
-                  <option value="">Unassigned</option>
-                  {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-                </select>
+                <Select
+                  value={String(selected.assigned_to?.id)}
+                  onChange={(__value) => patch({ assigned_to_id: __value ? Number(__value) : null })}
+                  options={[{ value: "", label: "Unassigned" }, ...users.map((u) => ({ value: String(u.id), label: u.full_name }))]}
+                />
               </div>
             </div>
 
@@ -265,19 +272,16 @@ export default function HelpDesk() {
               </div>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>
-                  {aiBusy ? "Drafting…" : "✦ Draft reply"}
+                  {aiBusy ? "Drafting…" : <><ClaudeIcon size={14} /> Draft reply</>}
                 </button>
-                <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
-                  <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
-                  Internal note (not sent to customer)
-                </label>
+                <Checkbox checked={internal} onChange={setInternal}>Internal note (not sent to customer)</Checkbox>
                 <div className="spacer" />
                 {(selected.status === "resolved" || selected.status === "closed") && (
-                  <select value={selected.satisfaction ?? ""} style={{ width: "auto" }}
-                    onChange={(e) => patch({ satisfaction: Number(e.target.value) })}>
-                    <option value="">Rate CSAT…</option>
-                    {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} / 5</option>)}
-                  </select>
+                  <Select
+                    value={String(selected.satisfaction)}
+                    onChange={(__value) => patch({ satisfaction: Number(__value) })}
+                    options={[{ value: "", label: "Rate CSAT…" }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} / 5` }))]}
+                  />
                 )}
                 <button type="submit" disabled={!reply.trim()}>Send</button>
               </div>
@@ -302,22 +306,27 @@ export default function HelpDesk() {
               <div className="form-row">
                 <div className="field">
                   <label>Category</label>
-                  <select value={form.category} onChange={set("category")}>
-                    {CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.category ?? "")}
+                    onChange={(__value) => set("category")({ target: { value: __value } } as any)}
+                    options={[...CATEGORIES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                  />
                 </div>
                 <div className="field">
                   <label>Priority</label>
-                  <select value={form.priority} onChange={set("priority")}>
-                    {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.priority ?? "")}
+                    onChange={(__value) => set("priority")({ target: { value: __value } } as any)}
+                    options={[...PRIORITIES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                  />
                 </div>
                 <div className="field">
                   <label>Channel</label>
-                  <select value={form.channel} onChange={set("channel")}>
-                    <option value="walk_in">Walk-in</option><option value="phone">Phone</option>
-                    <option value="email">Email</option><option value="sms">SMS</option><option value="web">Web</option>
-                  </select>
+                  <Select
+                    value={String(form.channel ?? "")}
+                    onChange={(__value) => set("channel")({ target: { value: __value } } as any)}
+                    options={[{ value: "walk_in", label: "Walk-in" }, { value: "phone", label: "Phone" }, { value: "email", label: "Email" }, { value: "sms", label: "SMS" }, { value: "web", label: "Web" }]}
+                  />
                 </div>
               </div>
               <div className="field">
@@ -325,7 +334,7 @@ export default function HelpDesk() {
                 {form.patient_id ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <b>{patients.find((p) => p.id === form.patient_id)?.first_name ?? "Patient"} linked</b>
-                    <button type="button" className="ghost small" onClick={() => setForm({ ...form, patient_id: null })}>Remove</button>
+                    <IconButton action="remove" onClick={() => setForm({ ...form, patient_id: null })} type="button" />
                   </div>
                 ) : (
                   <>

@@ -12,7 +12,7 @@ from ..database import SessionLocal
 from ..models import Message, Patient, PrescriptionItem
 from . import messaging
 
-log = logging.getLogger("rx3000.scheduler")
+log = logging.getLogger("rx5000.scheduler")
 
 REMIND_DAYS_AHEAD = 3
 

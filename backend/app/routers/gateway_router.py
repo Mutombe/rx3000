@@ -31,7 +31,7 @@ def _fail(exc: gateway.GatewayError) -> HTTPException:
 
 @router.post("/auth/token", response_model=schemas.TokenGrant)
 def issue_token(body: schemas.ClientCredentials, db: Session = Depends(get_db)):
-    """OAuth2 client credentials — the client id is a user, the secret its password."""
+    """OAuth2 client credentials. The client id is a user, the secret its password."""
     if body.grant_type != "client_credentials":
         raise HTTPException(status_code=400, detail={
             "error_code": "UNSUPPORTED_GRANT",
@@ -53,7 +53,7 @@ def issue_token(body: schemas.ClientCredentials, db: Session = Depends(get_db)):
 @router.post("/eligibility/verify", response_model=schemas.EligibilityResponse,
              dependencies=[Depends(get_current_user)])
 def verify_eligibility(body: schemas.EligibilityRequest, db: Session = Depends(get_db)):
-    """Check benefits before dispensing — a rejection here costs nothing."""
+    """Check benefits before dispensing. A rejection here costs nothing."""
     started = time.monotonic()
     txn = gateway.new_transaction_id()
     try:
@@ -79,7 +79,7 @@ def verify_eligibility(body: schemas.EligibilityRequest, db: Session = Depends(g
 @router.post("/claims/submit", response_model=schemas.ClaimResponse,
              dependencies=[Depends(get_current_user)])
 def submit_claim(body: schemas.ClaimRequest, db: Session = Depends(get_db)):
-    """Validate, route, adjudicate — and keep the evidence either way."""
+    """Validate, route, adjudicate. And keep the evidence either way."""
     started = time.monotonic()
     txn = gateway.new_transaction_id()
     header = body.transaction_header
@@ -190,7 +190,7 @@ def _txn_query(db, kind):
 
 @router.get("/api/gateway/transactions", dependencies=[Depends(get_current_user)])
 def list_transactions(kind: str = "", limit: int = 100, db: Session = Depends(get_db)):
-    """The audit trail — what was sent, what came back, and how long it took."""
+    """The audit trail, what was sent, what came back, and how long it took."""
     return [_txn_row(t) for t in _txn_query(db, kind).limit(limit).all()]
 
 
@@ -229,7 +229,7 @@ def list_integrations():
 
 @router.get("/api/parity", dependencies=[Depends(get_current_user)])
 def feature_parity(area: str = "", state: str = ""):
-    """Where RX3000 stands against the system it has to displace.
+    """Where RX5000 stands against the system it has to displace.
 
     Published rather than kept in a document, because the honest answer changes
     every week and a stale document is worse than none.
@@ -241,7 +241,7 @@ def feature_parity(area: str = "", state: str = ""):
         "features": [{
             "key": f.key, "name": f.name, "area": f.area, "state": f.state,
             "incumbent": f.incumbent, "shortcut": f.shortcut,
-            "why_it_matters": f.why_it_matters, "rx3000": f.rx3000,
+            "why_it_matters": f.why_it_matters, "rx5000": f.rx5000,
         } for f in sorted(features, key=lambda x: (x.area, x.state != "missing", x.name))],
     }
 

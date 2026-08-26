@@ -1,6 +1,6 @@
 /** Governed data table.
  *
- *  One component owns how every list in RX3000 behaves: how much of a value is
+ *  One component owns how every list in RX5000 behaves: how much of a value is
  *  shown before it is clamped, how many rows appear at once, how the set is
  *  sorted and filtered, and where a row goes when you click it. Screens declare
  *  columns; they do not re-implement table mechanics.
@@ -8,6 +8,8 @@
 import { ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Select from "./Select";
+import { readStored, writeStored } from "../storage";
+import { CaretDown, CaretUp, CaretUpDown } from "@phosphor-icons/react";
 
 export interface Column<T> {
   key: string;
@@ -58,7 +60,19 @@ export function Truncate({ text, at = 40 }: { text: string; at?: number }) {
  *  it holds. Nothing can collapse, the total always adds up, and the identifier
  *  still dominates.
  */
-const WEIGHT = { first: 3, text: 1.7, center: 1, right: 1.15 };
+const WEIGHT = { first: 3, text: 1.7, center: 1, right: 1.15, actions: 1.4 };
+
+/** A column of buttons rather than a value.
+ *
+ *  These were being squeezed like any other narrow column, and buttons do not
+ *  squeeze: "Hand over 2" came out as a black stub, "Bill patient" rendered as
+ *  "ent", and a row of two actions had its second one sliced off at the table
+ *  edge. A cell holding controls needs the width its controls actually take, so
+ *  it is measured differently from a cell holding text.
+ */
+function isActions<T>(c: Column<T>): boolean {
+  return c.key === "actions" || (!c.header && c.align === "right");
+}
 
 /** What each kind of column needs to be readable at all.
  *
@@ -70,9 +84,16 @@ const WEIGHT = { first: 3, text: 1.7, center: 1, right: 1.15 };
  *  scrolling. `.dt-scroll` already scrolls; it simply never had anything to
  *  scroll, because a fixed-layout table at width:100% cannot exceed its box. The
  *  scroll belongs to the table's container, never to the page. */
-const MINIMUM = { first: 200, text: 130, center: 96, right: 136 };
+/* Measured against real rows rather than guessed generously.
+   These were 200/130/96/136/180, which summed past the width of the box on
+   tables whose widest actual value was far smaller — so the table declared a
+   minimum it did not need and the container scrolled. A column that is
+   occasionally too narrow shows an ellipsis and its full value on hover, which
+   costs a hover; a table that always scrolls sideways costs every row. */
+const MINIMUM = { first: 150, text: 96, center: 72, right: 84, actions: 96 };
 
 function kindOf<T>(c: Column<T>, firstText: Column<T> | undefined, many: boolean) {
+  if (isActions(c)) return "actions" as const;
   if (c === firstText && many) return "first" as const;
   if (c.align === "right") return "right" as const;
   if (c.align === "center") return "center" as const;
@@ -83,9 +104,28 @@ function widthFor<T>(c: Column<T>, columns: Column<T>[]): string | undefined {
   const unsized = columns.filter((x) => !x.width);
   if (!unsized.includes(c)) return undefined;
   const firstText = unsized.find((x) => x.align !== "right" && x.align !== "center");
+
+  // Buttons are given pixels, not a share.
+  //
+  // A share and a minimum are two different promises, and they were being made
+  // separately: the actions column was declared to need 180px and then handed
+  // 1.4/12.4 of the table, which came to 133px — so the minimum was stated,
+  // agreed with, and never actually applied to the column it described. Text
+  // survives being squeezed below its ideal width; a button just loses its
+  // label. So this one column is sized absolutely and the remaining width is
+  // shared out among the columns that can absorb it.
+    // Two icon buttons are 30px each with a gap, and the cell adds its own
+  // padding: 72px left them overflowing by a couple of pixels, which is enough
+  // for a hit target to clip against the next column.
+  if (isActions(c)) return `${MINIMUM.actions}px`;
+
+  const flexible = unsized.filter((x) => !isActions(x));
+  const fixed = unsized.length - flexible.length;
   const weigh = (x: Column<T>) => WEIGHT[kindOf(x, firstText, unsized.length > 2)];
-  const total = unsized.reduce((sum, x) => sum + weigh(x), 0);
-  return `${((weigh(c) / total) * 100).toFixed(2)}%`;
+  const total = flexible.reduce((sum, x) => sum + weigh(x), 0);
+  if (!total) return undefined;
+  // The share is of what is left once the button columns have taken theirs.
+  return `calc((100% - ${fixed * MINIMUM.actions}px) * ${(weigh(c) / total).toFixed(4)})`;
 }
 
 /** The width at which the table stops squeezing and the container scrolls. */
@@ -149,14 +189,14 @@ export default function DataTable<T>({
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [density, setDensity] = useState<Density>(() => {
     if (dense) return "compact";
-    try { return (localStorage.getItem("rx3000_density") as Density) || "comfortable"; }
+    try { return (readStored("density") as Density) || "comfortable"; }
     catch { return "comfortable"; }
   });
 
   function cycleDensity() {
     const next = DENSITIES[(DENSITIES.indexOf(density) + 1) % DENSITIES.length];
     setDensity(next);
-    try { localStorage.setItem("rx3000_density", next); } catch { /* private mode */ }
+    writeStored("density", next);
   }
 
   // Any change to the underlying set can shrink the page count — go back to
@@ -243,7 +283,11 @@ export default function DataTable<T>({
               {columns.map((c) => (
                 <th
                   key={c.key}
-                  className={`${c.align === "right" ? "num" : ""}${canSort(c) ? " sortable" : ""}`}
+                  // `actions` is stated, not inferred from alignment. The class
+                  // is what pins the column to the right edge and what sizes it;
+                  // deriving it from `align === "right"` labelled a button column
+                  // as numeric, so neither rule ever reached it.
+                  className={`${c.align === "right" ? "num" : ""}${isActions(c) ? " actions" : ""}${canSort(c) ? " sortable" : ""}`}
                   // Fixed layout divides the table equally between columns that
                   // do not state a width, which left a product name the same 95px
                   // as a quantity. Numbers and dates have a natural size and text
@@ -257,7 +301,9 @@ export default function DataTable<T>({
                   {c.header}
                   {canSort(c) && (
                     <span className="dt-sort">
-                      {sort?.key === c.key ? (sort.dir === "asc" ? "▲" : "▼") : "⇅"}
+                      {sort?.key === c.key
+                        ? (sort.dir === "asc" ? <CaretUp size={10} weight="bold" /> : <CaretDown size={10} weight="bold" />)
+                        : <CaretUpDown size={10} />}
                     </span>
                   )}
                 </th>
@@ -291,7 +337,7 @@ export default function DataTable<T>({
                     : (!c.render ? String(defaultValue(row, c.key)) : "");
                   const numeric = c.align === "right";
                   return (
-                    <td key={c.key} className={numeric ? "num" : c.align === "center" ? "center" : ""}>
+                    <td key={c.key} className={`${numeric ? "num" : c.align === "center" ? "center" : ""}${isActions(c) ? " actions" : ""}`.trim()}>
                       {c.wrap || numeric
                         ? raw
                         : <span className="clip" title={plain || undefined}>{raw}</span>}
@@ -305,7 +351,7 @@ export default function DataTable<T>({
             <tfoot>
               <tr>
                 {columns.map((c, i) => (
-                  <td key={c.key} className={c.align === "right" ? "num" : ""}>
+                  <td key={c.key} className={`${c.align === "right" ? "num" : ""}${isActions(c) ? " actions" : ""}`.trim()}>
                     {c.total !== undefined && sums[c.key] !== undefined
                       ? (c.totalRender ? c.totalRender(sums[c.key]) : sums[c.key].toLocaleString("en-ZA"))
                       : i === 0 ? "Total" : ""}

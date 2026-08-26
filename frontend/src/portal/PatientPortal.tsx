@@ -73,7 +73,7 @@ export default function PatientPortal() {
   return (
     <div className="pp">
       <header className="pp-head">
-        <div className="pp-brand">RX3000</div>
+        <div className="pp-brand">RX5000</div>
         {overview && <h1>Hello, {overview.greeting}</h1>}
       </header>
 

@@ -124,7 +124,7 @@ export default function DoctorPortal() {
   return (
     <div className="pp pp-wide">
       <header className="pp-head">
-        <div className="pp-brand">RX3000</div>
+        <div className="pp-brand">RX5000</div>
         {overview && (
           <>
             <h1>{overview.doctor}</h1>

@@ -19,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, money, errorText, fmtDateTime } from "../api";
 import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
+import Select from "./Select";
 
 interface Tender { method: string; label: string }
 interface Setup {
@@ -102,7 +103,7 @@ export default function CashUp(
           </p>
           <p>
             The expected figure appears once you commit, and the count cannot be
-            entered again afterwards — that is what makes it worth anything.
+            entered again afterwards. That is what makes it worth anything.
           </p>
         </>
       ),
@@ -239,7 +240,7 @@ export default function CashUp(
               {run.showing < run.documents
                 // Said plainly. A shortened list presented as the whole thing is
                 // the mistake this codebase has made repeatedly.
-                ? ` — showing the first ${run.showing}. The totals above cover all ${run.documents}.`
+                ? `. Showing the first ${run.showing}. The totals above cover all ${run.documents}.`
                 : "."}
             </p>
             {/* Only when there is something to list. A table of headings above no
@@ -302,9 +303,11 @@ export default function CashUp(
           {setup.currencies.length > 1 && (
             <label className="rr-param">
               <span>Currency</span>
-              <select value={currency} onChange={(e) => { setCurrency(e.target.value); setCoins({}); }}>
-                {setup.currencies.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Select
+                value={String(currency ?? "")}
+                onChange={(__value) => { setCurrency(__value); setCoins({}); }}
+                options={[...setup.currencies.map((c) => ({ value: String(c), label: c }))]}
+              />
             </label>
           )}
         </div>

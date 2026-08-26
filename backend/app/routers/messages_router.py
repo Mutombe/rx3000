@@ -88,7 +88,7 @@ def create_message(scope: str = Body(...), body: str = Body(...),
     if severity not in messages.SEVERITIES:
         raise HTTPException(
             status_code=400,
-            detail=f"'{severity}' is not a severity — use "
+            detail=f"'{severity}' is not a severity, use"
                    f"{', '.join(messages.SEVERITIES)}.")
     if scope not in ("patient", "member", "scheme", "product", "doctor"):
         raise HTTPException(status_code=400, detail=f"'{scope}' is not a message scope.")

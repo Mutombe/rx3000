@@ -61,6 +61,12 @@ class UserOut(ORM):
     username: str
     full_name: str
     role: str
+    # Carried on every auth response so the countdown starts from an absolute
+    # server time rather than a duration the client has to hold on to. A client
+    # counting down from "four hours" drifts, sleeps with the laptop lid, and
+    # then insists there is an hour left after the server has closed the demo.
+    is_demo: bool = False
+    demo_expires_at: datetime | None = None
 
 
 class UserCreate(BaseModel):
@@ -832,6 +838,15 @@ class LabelOut(BaseModel):
     dispensed_at: datetime
     pharmacy_name: str
     pharmacy_reg_no: str
+    pharmacy_address: str = ""
+    pharmacy_phone: str = ""
+    # Which item of how many, so a patient with four boxes can tell whether one
+    # is missing, and the practice number the prescriber is registered under.
+    item_number: int = 1
+    item_count: int = 1
+    doctor_practice_no: str = ""
+    unit_price: float = 0.0
+    line_total: float = 0.0
 
 
 # ==================== CRM ====================
@@ -1493,7 +1508,7 @@ class BiometricCapture(BaseModel):
     """One fingerprint impression, in transit only.
 
     It arrives from the till's reader, goes to the switch, and is redacted
-    before anything is recorded. Nothing in RX3000 stores a template.
+    before anything is recorded. Nothing in RX5000 stores a template.
     """
     template: str = ""
     format: str = ""

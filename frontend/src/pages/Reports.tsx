@@ -4,6 +4,10 @@ import { api, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ReportCatalogue from "../components/ReportCatalogue";
 import { Patient } from "../types";
+import Pagination from "../components/Pagination";
+import { useClientPage } from "../hooks/useClientPage";
+import ReportChart from "../components/ReportChart";
+import { ChartBar, Table } from "@phosphor-icons/react";
 
 type Tab = "all" | "daily" | "vat" | "valuation" | "tax";
 
@@ -22,6 +26,9 @@ export default function Reports() {
   const [daily, setDaily] = useState<any[]>([]);
   const [vat, setVat] = useState<any>(null);
   const [valuation, setValuation] = useState<any>(null);
+  const [view, setView] = useState<"table" | "chart">("table");
+  // Totals come from the endpoint, over every line; only the render is paged.
+  const valuationRows = useClientPage<any>(valuation?.lines ?? [], 25);
   const [patientQ, setPatientQ] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [taxReport, setTaxReport] = useState<any>(null);
@@ -67,10 +74,49 @@ export default function Reports() {
         </div>
       )}
 
+      {/* One switch, used by both tabs that carry rows. Declared here rather than
+          twice, so the two cannot drift into behaving differently. */}
+      {(tab === "daily" || tab === "valuation") && (
+        <div className="view-switch" role="tablist" aria-label="How to read this">
+          {(["table", "chart"] as const).map((v) => (
+            <button key={v} role="tab" aria-selected={view === v}
+              className={view === v ? "on" : ""} onClick={() => setView(v)}>
+              {v === "table" ? <Table size={14} weight="bold" /> : <ChartBar size={14} weight="bold" />}
+              {v === "table" ? "Table" : "Chart"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {tab === "all" && <ReportCatalogue />}
 
 
-      {tab === "daily" && (
+      {tab === "daily" && view === "chart" && (
+        <div className="card">
+          <ReportChart
+            format={(n) => money(n)}
+            columns={[
+              { key: "day", header: "Day", kind: "date", align: "left" },
+              { key: "total", header: "Total taken", kind: "money", align: "right", total: true },
+              { key: "cash", header: "Cash", kind: "money", align: "right", total: true },
+              { key: "card", header: "Card", kind: "money", align: "right", total: true },
+              { key: "medical_aid", header: "Medical aid", kind: "money", align: "right", total: true },
+              { key: "vat", header: "VAT", kind: "money", align: "right", total: true },
+              { key: "transactions", header: "Transactions", kind: "number", align: "right", total: true },
+            ]}
+            // Flattened here because the API nests the tender split under
+            // `by_method`, and the chart reads flat rows like every other report.
+            rows={daily.map((d) => ({
+              day: d.day, total: d.total, vat: d.vat, transactions: d.transactions,
+              cash: d.by_method?.cash ?? 0,
+              card: d.by_method?.card ?? 0,
+              medical_aid: d.by_method?.medical_aid ?? 0,
+            }))}
+          />
+        </div>
+      )}
+
+      {tab === "daily" && view === "table" && (
         <div className="card">
           <table>
             <thead>
@@ -128,11 +174,26 @@ export default function Reports() {
               <div className="value">{money(valuation.total_at_retail)}</div>
             </div>
           </div>
-          <div className="card">
+          {view === "chart" && (
+            <div className="card">
+              <ReportChart
+                format={(n) => money(n)}
+                columns={[
+                  { key: "product", header: "Product", kind: "text", align: "left" },
+                  { key: "value_at_cost", header: "Value at cost", kind: "money", align: "right", total: true },
+                  { key: "value_at_retail", header: "Value at retail", kind: "money", align: "right", total: true },
+                  { key: "on_hand", header: "On hand", kind: "number", align: "right", total: true },
+                ]}
+                rows={valuation.lines}
+              />
+            </div>
+          )}
+
+          <div className="card" hidden={view === "chart"}>
             <table>
               <thead><tr><th>Product</th><th className="num">On hand</th><th className="num">Cost</th><th className="num">Value at cost</th><th className="num">Value at retail</th></tr></thead>
               <tbody>
-                {valuation.lines.map((l: any, i: number) => (
+                {valuationRows.items.map((l: any, i: number) => (
                   <tr key={i}>
                     <td>{l.product}</td>
                     <td className="num">{l.on_hand}</td>
@@ -143,6 +204,7 @@ export default function Reports() {
                 ))}
               </tbody>
             </table>
+            <Pagination meta={valuationRows.meta} onPage={valuationRows.setPage} noun="lines" />
           </div>
         </>
       )}
@@ -161,7 +223,7 @@ export default function Reports() {
           </div>
           {taxReport && (
             <div className="card">
-              <h3>{taxReport.patient} — medical expenses, {taxReport.tax_year}</h3>
+              <h3>{taxReport.patient}, medical expenses, {taxReport.tax_year}</h3>
               <div className="grid cols-3" style={{ margin: "14px 0" }}>
                 <div className="card stat"><div className="label">Total spent</div><div className="value">{money(taxReport.total_spent)}</div></div>
                 <div className="card stat"><div className="label">Medical aid paid</div><div className="value">{money(taxReport.total_medical_aid_paid)}</div></div>

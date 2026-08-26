@@ -2,9 +2,13 @@ import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDateTime, errorText  } from "../api";
 import { Message, Patient } from "../types";
+import Pagination, { Paged } from "../components/Pagination";
+import Select from "../components/Select";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [meta, setMeta] = useState<Paged<Message> | null>(null);
+  const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
   const [showCompose, setShowCompose] = useState(false);
   const [patientQ, setPatientQ] = useState("");
@@ -17,10 +21,21 @@ export default function Reminders() {
   const [busy, setBusy] = useState(false);
 
   function load() {
-    api.get<Message[]>(`/api/messages?message_type=${typeFilter}`).then(setMessages).catch((e) => toast.error(errorText(e)));
+    api.get<Paged<Message>>(
+      `/api/messages/paged?message_type=${typeFilter}&page=${page}&per_page=25`)
+      .then((res) => {
+        setMessages(res.items);
+        setMeta(res);
+        if (res.page !== page) setPage(res.page);
+      })
+      .catch((e) => toast.error(errorText(e)));
   }
 
-  useEffect(load, [typeFilter]);
+  useEffect(load, [typeFilter, page]);
+
+  // Changing the filter changes the set, so the page number no longer means
+  // anything — page 40 of the birthdays is not page 40 of everything.
+  useEffect(() => { setPage(1); }, [typeFilter]);
 
   useEffect(() => {
     if (patientQ.length < 2) { setPatients([]); return; }
@@ -88,7 +103,7 @@ export default function Reminders() {
                 <td><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></td>
                 <td><span className="badge muted">{m.message_type.replace("_", " ")}</span></td>
                 <td>{m.channel.toUpperCase()}</td>
-                <td style={{ maxWidth: 420 }}>{m.subject && <b>{m.subject} — </b>}{m.body}</td>
+                <td style={{ maxWidth: 420 }}>{m.subject && <b>{m.subject}. </b>}{m.body}</td>
                 <td>
                   <span className={`badge ${badge(m.status)}`}>{m.status}</span>
                   {m.detail && <div className="muted" style={{ fontSize: 11 }}>{m.detail}</div>}
@@ -98,7 +113,8 @@ export default function Reminders() {
             ))}
           </tbody>
         </table>
-        {messages.length === 0 && <div className="empty">No messages yet — run the reminder jobs or compose one.</div>}
+        {meta && <Pagination meta={meta} onPage={setPage} noun="reminders" />}
+        {messages.length === 0 && <div className="empty">No messages yet, run the reminder jobs or compose one.</div>}
       </div>
 
       {showCompose && (
@@ -128,10 +144,11 @@ export default function Reminders() {
               <div className="form-row">
                 <div className="field">
                   <label>Channel</label>
-                  <select value={channel} onChange={(e) => setChannel(e.target.value)}>
-                    <option value="sms">SMS</option>
-                    <option value="email">Email</option>
-                  </select>
+                  <Select
+                    value={String(channel ?? "")}
+                    onChange={(__value) => setChannel(__value)}
+                    options={[{ value: "sms", label: "SMS" }, { value: "email", label: "Email" }]}
+                  />
                 </div>
                 {channel === "email" && (
                   <div className="field"><label>Subject</label><input value={subject} onChange={(e) => setSubject(e.target.value)} /></div>

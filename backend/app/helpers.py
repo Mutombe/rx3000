@@ -149,7 +149,7 @@ def consume_stock_fefo(
                     StockBatch.branch_id != branch_id)
             .scalar() or 0
         )
-        hint = (f" Another branch holds {int(elsewhere)} — raise a transfer."
+        hint = (f" Another branch holds {int(elsewhere)}, raise a transfer."
                 if elsewhere else "")
         if not allow_expired and total_any and available < quantity:
             raise HTTPException(
@@ -213,7 +213,7 @@ def restore_allocations(
             quantity_delta=allocation.quantity,
             balance_after=product.quantity_on_hand,
             reference=reference,
-            notes=f"void — restored to batch {batch.batch_number}",
+            notes=f"void, restored to batch {batch.batch_number}",
             user_id=user_id,
         ))
         db.delete(allocation)

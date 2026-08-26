@@ -1,6 +1,9 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
+
+const Welcome = lazy(() => import("./pages/Welcome"));
+const Training = lazy(() => import("./pages/Training"));
 import { getToken } from "./api";
 import Login from "./pages/Login";
 import { PageSkeleton } from "./components/Skeleton";
@@ -77,6 +80,11 @@ export default function App() {
     <ConnectionProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Public, because the person reading either of these has no account yet.
+          Lazily loaded: neither is on the path of anybody who works here, and a
+          till on a slow branch line should not pay for them at startup. */}
+      <Route path="/welcome" element={<Suspense fallback={null}><Welcome /></Suspense>} />
+      <Route path="/training" element={<Suspense fallback={null}><Training /></Suspense>} />
       {/* Public, unauthenticated, and deliberately above the Protected route so
           a patient is never bounced to a staff sign-in screen. */}
       <Route

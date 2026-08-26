@@ -1,4 +1,4 @@
-// RX3000 desktop shell.
+// RX5000 desktop shell.
 //
 // The reason this exists rather than a browser bookmark: a pharmacy till is not
 // a web page. It talks to a receipt printer, a cash drawer and a fiscal device,
@@ -12,7 +12,8 @@
 // which is not a product. So the server address is configuration, resolved in
 // this order:
 //
-//   1. RX3000_SERVER in the environment  (an operator overriding for one run)
+//   1. RX5000_SERVER in the environment  (an operator overriding for one run;
+//      RX3000_SERVER is still read, so an existing deployment keeps working)
 //   2. server.txt beside the executable  (what the installer or IT writes)
 //   3. http://localhost:8177             (the single-machine pharmacy)
 //
@@ -27,7 +28,7 @@ const DEFAULT_SERVER: &str = "http://localhost:8177";
 
 /// Where this till's backend lives.
 fn resolve_server() -> String {
-    if let Ok(from_env) = env::var("RX3000_SERVER") {
+    if let Ok(from_env) = env::var("RX5000_SERVER").or_else(|_| env::var("RX3000_SERVER")) {
         let trimmed = from_env.trim().to_string();
         if !trimmed.is_empty() {
             return trimmed;
@@ -62,7 +63,7 @@ fn server_file() -> Option<PathBuf> {
 /// Exposed to the front end so it knows where to send its requests, and so the
 /// System screen can show the operator which server this till is bound to.
 #[tauri::command]
-fn rx3000_server() -> String {
+fn rx5000_server() -> String {
     resolve_server()
 }
 
@@ -72,7 +73,7 @@ fn server_for_script() -> String {
 
 fn main() {
     let server = resolve_server();
-    println!("RX3000 desktop starting against {server}");
+    println!("RX5000 desktop starting against {server}");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -80,19 +81,19 @@ fn main() {
         // send its first request rather than resolving it asynchronously and
         // firing the first few calls at the wrong place.
         .append_invoke_initialization_script(format!(
-            "window.__RX3000_SERVER__ = {:?};", server_for_script()
+            "window.__RX5000_SERVER__ = {:?};", server_for_script()
         ))
-        .invoke_handler(tauri::generate_handler![rx3000_server])
+        .invoke_handler(tauri::generate_handler![rx5000_server])
         .setup(move |app| {
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {
                 // The bound server in the title bar. On a four-till counter,
                 // "which one is pointed at the wrong box" should be answerable
                 // by looking, not by opening a settings screen.
-                let _ = window.set_title(&format!("RX3000 Pharmacy Suite — {server}"));
+                let _ = window.set_title(&format!("RX5000 Pharmacy Suite — {server}"));
             }
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("RX3000 failed to start");
+        .expect("RX5000 failed to start");
 }

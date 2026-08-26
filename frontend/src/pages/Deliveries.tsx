@@ -15,6 +15,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import BusyButton from "../components/BusyButton";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -122,72 +123,74 @@ export default function Deliveries() {
         skeleton={<TableSkeleton cols={6} rows={6}
           widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
       >
-        <table className="dt">
-          <thead>
-            <tr>
-              <th>Waybill</th><th>Recipient</th><th>Address</th>
-              <th>Driver</th><th>Raised</th><th />
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((w) => (
-              <RowLink
-                key={w.id}
-                to={w.patient_id ? `/patients/${w.patient_id}` : `/sales/${w.sale_id}`}
-                prefetch={prefetchRoute}
-                className={w.requires_id_check ? "row-flag" : ""}
-              >
-                <td className="mono">
-                  {w.waybill_number}
-                  {/* The driver needs to know this before they leave, not on
-                      arrival at a locked gate. */}
-                  {w.requires_id_check && (
-                    <div><span className="badge warn">check ID at the door</span></div>
-                  )}
-                </td>
-                <td>
-                  {w.recipient}
-                  {w.phone && <div className="muted small">{w.phone}</div>}
-                </td>
-                <td>
-                  {w.address}
-                  {w.instructions && <div className="muted small">{w.instructions}</div>}
-                </td>
-                <td>{w.driver || <span className="muted">—</span>}</td>
-                <td>{fmtDateTime(w.created_at)}</td>
-                <RowActions>
-                  {w.status === "pending" && (
-                    <button className="btn primary sm" onClick={() => dispatch(w)}>
-                      Send out
-                    </button>
-                  )}
-                  {w.status === "out" && (
-                    <button className="btn primary sm" onClick={() => setSigning(w)}>
-                      Sign for
-                    </button>
-                  )}
-                  {(w.status === "pending" || w.status === "out") && (
-                    <button className="btn ghost sm" onClick={() => setFailing(w)}>
-                      Did not deliver
-                    </button>
-                  )}
-                  {w.status === "delivered" && (
-                    <span className="muted small">
-                      {w.received_by}
-                      {w.id_number_seen && ` · ID ${w.id_number_seen}`}
-                    </span>
-                  )}
-                  {w.status === "failed" && (
-                    <span className="muted small">{w.failure_reason}</span>
-                  )}
-                </RowActions>
-              </RowLink>
-            ))}
-            {!list.length && !loading && (
-              <tr><td colSpan={6} className="muted pad">Nothing here.</td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Waybill</th><th>Recipient</th><th>Address</th>
+                <th>Driver</th><th>Raised</th><th className="actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((w) => (
+                <RowLink
+                  key={w.id}
+                  to={w.patient_id ? `/patients/${w.patient_id}` : `/sales/${w.sale_id}`}
+                  prefetch={prefetchRoute}
+                  className={w.requires_id_check ? "row-flag" : ""}
+                >
+                  <td className="mono">
+                    {w.waybill_number}
+                    {/* The driver needs to know this before they leave, not on
+                        arrival at a locked gate. */}
+                    {w.requires_id_check && (
+                      <div><span className="badge warn">check ID at the door</span></div>
+                    )}
+                  </td>
+                  <td>
+                    {w.recipient}
+                    {w.phone && <div className="muted small">{w.phone}</div>}
+                  </td>
+                  <td>
+                    {w.address}
+                    {w.instructions && <div className="muted small">{w.instructions}</div>}
+                  </td>
+                  <td>{w.driver || <span className="muted">—</span>}</td>
+                  <td>{fmtDateTime(w.created_at)}</td>
+                  <RowActions>
+                    {w.status === "pending" && (
+                      <BusyButton className="btn primary sm" onClick={() => dispatch(w)}>
+                        Send out
+                      </BusyButton>
+                    )}
+                    {w.status === "out" && (
+                      <button className="btn primary sm" onClick={() => setSigning(w)}>
+                        Sign for
+                      </button>
+                    )}
+                    {(w.status === "pending" || w.status === "out") && (
+                      <button className="btn ghost sm" onClick={() => setFailing(w)}>
+                        Did not deliver
+                      </button>
+                    )}
+                    {w.status === "delivered" && (
+                      <span className="muted small">
+                        {w.received_by}
+                        {w.id_number_seen && ` · ID ${w.id_number_seen}`}
+                      </span>
+                    )}
+                    {w.status === "failed" && (
+                      <span className="muted small">{w.failure_reason}</span>
+                    )}
+                  </RowActions>
+                </RowLink>
+              ))}
+              {!list.length && !loading && (
+                <tr><td colSpan={6} className="muted pad">Nothing here.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Refreshable>
 
       {signing && (

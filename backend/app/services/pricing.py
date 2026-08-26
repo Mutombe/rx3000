@@ -115,7 +115,7 @@ def price_line(db: Session, product: Product, quantity: int,
 
     notes = ""
     if mmap_excess:
-        notes = (f"Priced above the reference price — the patient pays the "
+        notes = (f"Priced above the reference price, the patient pays the"
                  f"{mmap_excess:.2f} difference, which is not claimable.")
 
     return PricedLine(

@@ -22,6 +22,8 @@ import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
 
 interface Ingredient {
   product_id: number; quantity: number; unit: string; note: string;
@@ -110,7 +112,7 @@ export default function Compounding() {
           // making up a cream needs to know it is a controlled preparation before
           // they make it, not when the register is counted.
           + (controlled
-            ? ` This is a Schedule ${cost.effective_schedule} preparation — `
+            ? ` This is a Schedule ${cost.effective_schedule} preparation. `
               + `${cost.schedule_source} It must be recorded in the controlled register.`
             : ""),
       confirmLabel: "Make it up",
@@ -319,14 +321,11 @@ export default function Compounding() {
             <div className="form-row">
               <div className="field">
                 <label>Form</label>
-                <select value={form} onChange={(e) => setForm(e.target.value)}>
-                  <option value="mixture">Mixture</option>
-                  <option value="cream">Cream</option>
-                  <option value="ointment">Ointment</option>
-                  <option value="lotion">Lotion</option>
-                  <option value="powder">Powder</option>
-                  <option value="capsule">Capsules</option>
-                </select>
+                <Select
+                  value={String(form ?? "")}
+                  onChange={(__value) => setForm(__value)}
+                  options={[{ value: "mixture", label: "Mixture" }, { value: "cream", label: "Cream" }, { value: "ointment", label: "Ointment" }, { value: "lotion", label: "Lotion" }, { value: "powder", label: "Powder" }, { value: "capsule", label: "Capsules" }]}
+                />
               </div>
               <div className="field">
                 <label>Yield</label>
@@ -397,10 +396,7 @@ export default function Compounding() {
                             n === i ? { ...x, unit: e.target.value } : x))} />
                       </td>
                       <td className="num">
-                        <button type="button" className="btn ghost small"
-                          onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))}>
-                          Remove
-                        </button>
+                        <IconButton action="remove" onClick={() => setLines((ls) => ls.filter((_, n) => n !== i))} type="button" />
                       </td>
                     </tr>
                   ))}
@@ -418,7 +414,7 @@ export default function Compounding() {
             <label>
               Method
               <textarea rows={3} value={method} onChange={(e) => setMethod(e.target.value)}
-                placeholder="How it is made up — the steps somebody follows at the bench." />
+                placeholder="How it is made up. The steps somebody follows at the bench." />
             </label>
             <label>
               Directions for the label

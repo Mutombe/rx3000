@@ -33,6 +33,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from ..auth import verify_password
+from . import pins
 from ..models import StepUpGrant, User
 
 # How long an approval stays usable. Long enough to finish the transaction the
@@ -120,7 +121,7 @@ register(Action(
 
 register(Action(
     key="settings.global", name="Change global settings",
-    why="These decide how the whole system behaves — VAT, currency, scheme terms, "
+    why="These decide how the whole system behaves, VAT, currency, scheme terms, "
         "reminder rules. One wrong figure here is wrong on every transaction "
         "afterwards, silently.",
     approvers=("admin",), self_approval=True))
@@ -152,12 +153,19 @@ def _expiry() -> datetime:
     return datetime.utcnow() + timedelta(seconds=GRANT_TTL_SECONDS)
 
 
-def request(db: Session, *, action_key: str, actor: User, password: str,
-            approver_username: str = "", context: str = "") -> StepUpGrant:
+def request(db: Session, *, action_key: str, actor: User, password: str = "",
+            pin: str = "", approver_username: str = "", context: str = "") -> StepUpGrant:
     """Ask for authority to perform one action, once.
 
-    `approver_username` names the person typing the password when it is not the
-    person at the till. Left empty, the actor is re-authenticating themselves.
+    `approver_username` names the person typing their credential when it is not
+    the person at the till. Left empty, the actor is re-authenticating.
+
+    Either a password or a PIN proves it. The PIN exists because this prompt
+    appears mid-transaction on a shared till, with a patient waiting: a password
+    typed at a counter is a password read over a shoulder, and one long enough to
+    be worth having is long enough that people start choosing bad ones. Four
+    digits, rate limited and locked after five failures, is the trade this
+    prompt is for. The password path stays for anyone without a PIN set.
     """
     action = ACTIONS.get(action_key)
     if action is None:
@@ -181,8 +189,16 @@ def request(db: Session, *, action_key: str, actor: User, password: str,
 
     if approver is None:
         refuse(f"No active user is called '{approver_username}'.")
-    if not verify_password(password, approver.password_hash):
-        refuse("That password was not accepted.")
+    if pin:
+        try:
+            pins.check(db, approver, pin)
+        except pins.PinError as exc:
+            refuse(str(exc))
+    elif password:
+        if not verify_password(password, approver.password_hash):
+            refuse("That password was not accepted.")
+    else:
+        refuse("Enter a PIN or a password to authorise this.")
     if approver.role not in action.approvers and approver.role != "admin":
         refuse(f"{approver.full_name} is not permitted to approve "
                f"'{action.name.lower()}'. It needs "
@@ -215,7 +231,7 @@ def redeem(db: Session, *, action_key: str, token: str, actor: User) -> StepUpGr
     if grant.used_at is not None:
         raise StepUpError("That authorisation has already been used.")
     if grant.expires_at and datetime.utcnow() > grant.expires_at:
-        raise StepUpError("That authorisation has expired — ask again.")
+        raise StepUpError("That authorisation has expired, ask again.")
     grant.used_at = datetime.utcnow()
     db.commit()
     return grant

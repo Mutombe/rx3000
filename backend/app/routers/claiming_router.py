@@ -192,7 +192,7 @@ def update_fee_model(
 
 @router.get("/fee-models/{model_id}/quote")
 def quote_fee(model_id: int, base: float, db: Session = Depends(get_db)):
-    """What this model charges on a given base price — used to sanity-check bands."""
+    """What this model charges on a given base price, used to sanity-check bands."""
     model = db.get(FeeModel, model_id)
     if not model:
         raise HTTPException(status_code=404, detail="Fee model not found")
@@ -204,7 +204,7 @@ def quote_fee(model_id: int, base: float, db: Session = Depends(get_db)):
 # ---------- pricing ----------
 @router.post("/price", response_model=schemas.PricedBasket)
 def price(body: schemas.PriceRequest, db: Session = Depends(get_db)):
-    """Price a basket for a scheme — the derived price a claim will carry."""
+    """Price a basket for a scheme. The derived price a claim will carry."""
     scheme = db.get(MedicalAid, body.medical_aid_id) if body.medical_aid_id else None
     if body.medical_aid_id and not scheme:
         raise HTTPException(status_code=404, detail="Medical aid not found")
@@ -408,7 +408,7 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
 
 @router.get("/unbatched")
 def unbatched_summary(db: Session = Depends(get_db)):
-    """What is waiting to be claimed, by pay office — the work list."""
+    """What is waiting to be claimed, by pay office, the work list."""
     rows = (
         db.query(
             PayOffice.id, PayOffice.name, PayOffice.code,

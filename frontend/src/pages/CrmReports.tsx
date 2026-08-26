@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { api, money, errorText  } from "../api";
-import { BarList, ColumnChart, Donut, FunnelChart, Legend, SERIES } from "../components/charts";
+import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
@@ -24,6 +24,9 @@ export default function CrmReports() {
   const [funnel, setFunnel] = useState<FunnelReport | null>(null);
   const [owners, setOwners] = useState<OwnerReport[]>([]);
   const [roi, setRoi] = useState<CampaignROI[]>([]);
+  // Follows the theme, so the charts repaint rather than keeping the light hues
+  // on a dark surface.
+  const SERIES = useSeries();
   const toast = useToast();
 
   useEffect(() => {
@@ -43,10 +46,29 @@ export default function CrmReports() {
   const channelMix = useMemo(() => {
     const byChannel = new Map<string, number>();
     roi.forEach((c) => byChannel.set(c.channel, (byChannel.get(c.channel) ?? 0) + c.pipeline_value));
-    return [...byChannel.entries()].map(([key, value], i) => ({
-      key: key.toUpperCase(), value, colour: SERIES[i % SERIES.length],
+
+    /* Biggest first, and never more slices than there are colours.
+       The old line took `SERIES[i % SERIES.length]`, so a seventh channel was
+       painted the same blue as the first: two slices of one donut in one colour,
+       with a legend insisting they were different things. Anything past the
+       sixth is added up as "Other" instead, which is also the honest reading of
+       a tail of channels that sourced almost nothing. */
+    const ranked = [...byChannel.entries()].sort((a, b) => b[1] - a[1]);
+    const shown = ranked.slice(0, SERIES.length - (ranked.length > SERIES.length ? 1 : 0));
+    const rest = ranked.slice(shown.length);
+
+    const slices = shown.map(([key, value], i) => ({
+      key: key.toUpperCase(), value, colour: SERIES[i],
     }));
-  }, [roi]);
+    if (rest.length) {
+      slices.push({
+        key: `OTHER (${rest.length})`,
+        value: rest.reduce((s, [, v]) => s + v, 0),
+        colour: SERIES[SERIES.length - 1],
+      });
+    }
+    return slices;
+  }, [roi, SERIES]);
 
   const worstDrop = useMemo(() => {
     let worst = { from: "—", lost: 0 };

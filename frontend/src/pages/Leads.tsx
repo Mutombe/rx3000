@@ -4,6 +4,9 @@ import { useNavigate } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { Avatar, Path, ScoreRing } from "../components/record";
 import { DuplicateWarning, Lead, LeadScoreExplanation, User } from "../types";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import BusyButton from "../components/BusyButton";
 
 const SOURCES = [
   ["referral", "Referral"], ["event", "Event / expo"], ["campaign", "Campaign"],
@@ -114,7 +117,7 @@ export default function Leads() {
       const lead = await api.post<Lead>("/api/crm/leads", {
         ...form, estimated_value: Number(form.estimated_value) || 0,
       });
-      toast.ok(`Lead captured — scored ${lead.score}/100 (${lead.rating})${lead.owner ? `, routed to ${lead.owner.full_name}` : ""}.`);
+      toast.ok(`Lead captured, scored ${lead.score}/100 (${lead.rating})${lead.owner ? `, routed to ${lead.owner.full_name}` : ""}.`);
       setShowForm(false); setForm({ ...EMPTY }); setDupes([]);
       load();
     } catch (err: any) { toast.error(errorText(err)); }
@@ -143,7 +146,7 @@ export default function Leads() {
     setConverting(lead);
     setConvertForm({
       create_company: Boolean(lead.company_name), create_deal: true,
-      deal_title: `${lead.company_name || lead.last_name} — new opportunity`,
+      deal_title: `${lead.company_name || lead.last_name}, new opportunity`,
       deal_value: lead.estimated_value, account_type: "business",
     });
   }
@@ -173,7 +176,7 @@ export default function Leads() {
       <div className="page-head">
         <div>
           <h1>Leads</h1>
-          <div className="sub">Scored and routed on capture — qualify, then convert into an account, contact and opportunity</div>
+          <div className="sub">Scored and routed on capture, qualify, then convert into an account, contact and opportunity</div>
         </div>
         <button onClick={() => setShowForm(true)}>+ New Lead</button>
       </div>
@@ -230,10 +233,18 @@ export default function Leads() {
           {checked.length > 0 && (
             <div className="bulk-bar">
               <b>{checked.length} selected</b>
-              <select defaultValue="" onChange={(e) => { if (e.target.value) bulkAssign(Number(e.target.value)); }}>
-                <option value="">Reassign to…</option>
-                {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-              </select>
+              <Select
+                // An action menu, not a field: it does the thing and returns to
+                // its prompt, so the next reassignment starts from "Reassign to…"
+                // rather than showing whoever was picked last as if it were a
+                // current value. The native version relied on `defaultValue`,
+                // which is uncontrolled and kept the stale name on screen.
+                value=""
+                placeholder="Reassign to…"
+                searchable
+                onChange={(v) => { if (v) bulkAssign(Number(v)); }}
+                options={users.map((u) => ({ value: String(u.id), label: u.full_name }))}
+              />
               <button className="ghost small" onClick={() => setChecked([])}>Clear</button>
             </div>
           )}
@@ -244,7 +255,7 @@ export default function Leads() {
                 <div key={l.id}
                   className={`lead-row${selected?.id === l.id ? " active" : ""}`}
                   onClick={() => setSelectedId(l.id)}>
-                  <input type="checkbox" checked={checked.includes(l.id)}
+                  <Checkbox checked={checked.includes(l.id)}
                     onClick={(e) => e.stopPropagation()}
                     onChange={() => toggleCheck(l.id)} />
                   <Avatar first={l.first_name} last={l.last_name} />
@@ -322,15 +333,15 @@ export default function Leads() {
                     </button>
                   ) : <span className="muted">Converted {fmtDate(selected.converted_at)}</span>
                 ) : selected.status === "disqualified" ? (
-                  <button className="secondary small" onClick={() => setStatusOf(selected, "working")}>Requalify</button>
+                  <BusyButton className="secondary small" onClick={() => setStatusOf(selected, "working")}>Requalify</BusyButton>
                 ) : (
                   <>
                     <button className="small" onClick={() => openConvert(selected)}>Convert</button>
                     {selected.status === "new" &&
-                      <button className="secondary small" onClick={() => setStatusOf(selected, "working")}>Start working</button>}
+                      <BusyButton className="secondary small" onClick={() => setStatusOf(selected, "working")}>Start working</BusyButton>}
                     {selected.status !== "nurturing" &&
-                      <button className="secondary small" onClick={() => setStatusOf(selected, "nurturing")}>Nurture</button>}
-                    <button className="ghost small" onClick={() => setStatusOf(selected, "disqualified")}>Disqualify</button>
+                      <BusyButton className="secondary small" onClick={() => setStatusOf(selected, "nurturing")}>Nurture</BusyButton>}
+                    <BusyButton className="ghost small" onClick={() => setStatusOf(selected, "disqualified")}>Disqualify</BusyButton>
                   </>
                 )}
               </div>
@@ -392,7 +403,7 @@ export default function Leads() {
                     ))}
                     {explain.capped && (
                       <p className="muted" style={{ fontSize: 12 }}>
-                        Raw total {explain.raw_score} — capped at 100.
+                        Raw total {explain.raw_score}, capped at 100.
                       </p>
                     )}
                   </>
@@ -429,19 +440,28 @@ export default function Leads() {
               <div className="form-row">
                 <div className="field">
                   <label>Source</label>
-                  <select value={form.source} onChange={set("source")}>
-                    {SOURCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  <Select
+                    value={String(form.source ?? "")}
+                    onChange={(__value) => set("source")({ target: { value: __value } } as any)}
+                    options={[...SOURCES.map(([v, l]) => ({ value: String(v), label: l }))]}
+                  />
                 </div>
                 <div className="field"><label>Estimated value</label>
                   <input type="number" step="0.01" value={form.estimated_value} onChange={set("estimated_value")} /></div>
               </div>
               <div className="field"><label>What are they interested in?</label>
                 <textarea rows={3} value={form.interest} onChange={set("interest")} /></div>
-              <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <input type="checkbox" checked={form.marketing_opt_in} onChange={set("marketing_opt_in")} />
+              <Checkbox
+                checked={form.marketing_opt_in}
+                // The shared setter reads `e.target.type` to decide between
+                  // `checked` and `value`; the synthetic event says which it is
+                  // rather than relying on the fallback branch happening to be
+                  // right for a boolean.
+                  onChange={(v) =>
+                    set("marketing_opt_in")({ target: { type: "checkbox", checked: v } } as any)}
+              >
                 Consented to marketing communication (POPIA)
-              </label>
+              </Checkbox>
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit">Capture lead</button>
@@ -457,32 +477,27 @@ export default function Leads() {
             <h2>Convert {converting.first_name} {converting.last_name}</h2>
             <p className="muted">
               Score {converting.score}/100 ({converting.rating}). Converting creates a contact, and
-              optionally an account and an opportunity — the lead becomes read-only.
+              optionally an account and an opportunity, the lead becomes read-only.
             </p>
             <form onSubmit={doConvert}>
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <input type="checkbox" checked={convertForm.create_company}
-                  onChange={(e) => setConvertForm({ ...convertForm, create_company: e.target.checked })} />
+              <Checkbox className="cbx-spaced" checked={convertForm.create_company}
+                onChange={(v) => setConvertForm({ ...convertForm, create_company: v })}>
                 Create / link account {converting.company_name && <b>&nbsp;{converting.company_name}</b>}
-              </label>
+              </Checkbox>
               {convertForm.create_company && (
                 <div className="field">
                   <label>Account type</label>
-                  <select value={convertForm.account_type}
-                    onChange={(e) => setConvertForm({ ...convertForm, account_type: e.target.value })}>
-                    <option value="clinic">Clinic / practice</option>
-                    <option value="old_age_home">Old-age home</option>
-                    <option value="employer">Employer / occupational health</option>
-                    <option value="wholesale">Wholesale buyer</option>
-                    <option value="business">Other business</option>
-                  </select>
+                  <Select
+                    value={String(convertForm.account_type ?? "")}
+                    onChange={(__value) => setConvertForm({ ...convertForm, account_type: __value })}
+                    options={[{ value: "clinic", label: "Clinic / practice" }, { value: "old_age_home", label: "Old-age home" }, { value: "employer", label: "Employer / occupational health" }, { value: "wholesale", label: "Wholesale buyer" }, { value: "business", label: "Other business" }]}
+                  />
                 </div>
               )}
-              <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <input type="checkbox" checked={convertForm.create_deal}
-                  onChange={(e) => setConvertForm({ ...convertForm, create_deal: e.target.checked })} />
+              <Checkbox className="cbx-spaced" checked={convertForm.create_deal}
+                onChange={(v) => setConvertForm({ ...convertForm, create_deal: v })}>
                 Create an opportunity
-              </label>
+              </Checkbox>
               {convertForm.create_deal && (
                 <div className="form-row">
                   <div className="field"><label>Opportunity title</label>

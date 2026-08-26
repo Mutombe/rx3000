@@ -13,6 +13,10 @@
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  Check,
+  X,
+} from "@phosphor-icons/react";
 
 export interface Option {
   value: string;
@@ -155,7 +159,7 @@ export default function Select({
             role="button"
             aria-label="Clear"
             onClick={(e) => { e.stopPropagation(); onChange(""); }}
-          >✕</span>
+          ><X size={12} weight="bold" aria-hidden="true" /></span>
         )}
         <span className="sel-caret" aria-hidden>▾</span>
       </button>
@@ -205,7 +209,7 @@ export default function Select({
                       <span className="sel-option-label">{o.label}</span>
                       {o.hint && <span className="sel-option-hint">{o.hint}</span>}
                     </span>
-                    {o.value === value && <span className="sel-tick" aria-hidden>✓</span>}
+                    {o.value === value && <span className="sel-tick" aria-hidden><Check size={12} weight="bold" /></span>}
                   </div>
                 </div>
               );

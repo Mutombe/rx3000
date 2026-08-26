@@ -39,7 +39,7 @@ export default function Shifts() {
         opening_float: Number(openFloat) || 0,
         till_no: till.trim(), draw_no: draw.trim(),
       });
-      toast.ok("Shift opened — sales you process are now tracked against it.");
+      toast.ok("Shift opened, sales you process are now tracked against it.");
       load();
     } catch (err: any) { toast.error(errorText(err)); } finally { setBusy(false); }
   }

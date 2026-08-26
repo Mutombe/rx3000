@@ -15,6 +15,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
+import BusyButton from "../components/BusyButton";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -110,7 +111,7 @@ export default function Ledger() {
           <p className="muted">
             {tb
               ? tb.balanced
-                ? `Balanced — ${money(tb.total_debit)} debits against ${money(tb.total_credit)} credits.`
+                ? `Balanced. ${money(tb.total_debit)} debits against ${money(tb.total_credit)} credits.`
                 : tb.message
               : ""}
           </p>
@@ -134,38 +135,40 @@ export default function Ledger() {
           skeleton={<TableSkeleton cols={6} rows={8}
             widths={["6ch", "22ch", "10ch", "10ch", "10ch", "10ch"]} />}
         >
-          <table className="dt">
-            <thead>
-              <tr>
-                <th>Code</th><th>Account</th><th>Type</th>
-                <th className="num">Debit</th><th className="num">Credit</th>
-                <th className="num">Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tb?.lines.map((l) => (
-                <RowLink key={l.code} to={`/ledger/accounts/${l.code}`}>
-                  <td className="mono">{l.code}</td>
-                  <td>
-                    {l.name}
-                    {l.subledger && <span className="badge">{l.subledger}</span>}
-                  </td>
-                  <td className="muted">{l.type}</td>
-                  <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-                  <td className="num">{l.credit ? money(l.credit) : "—"}</td>
-                  <td className="num">{money(l.balance)}</td>
-                </RowLink>
-              ))}
-              {tb && (
-                <tr className="total-row">
-                  <td colSpan={3}>Totals</td>
-                  <td className="num">{money(tb.total_debit)}</td>
-                  <td className="num">{money(tb.total_credit)}</td>
-                  <td className="num">{tb.balanced ? "—" : money(tb.difference)}</td>
+          <div className="dt-scroll">
+            <table className="dt">
+              <thead>
+                <tr>
+                  <th>Code</th><th>Account</th><th>Type</th>
+                  <th className="num">Debit</th><th className="num">Credit</th>
+                  <th className="num">Balance</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tb?.lines.map((l) => (
+                  <RowLink key={l.code} to={`/ledger/accounts/${l.code}`}>
+                    <td className="mono">{l.code}</td>
+                    <td>
+                      {l.name}
+                      {l.subledger && <span className="badge">{l.subledger}</span>}
+                    </td>
+                    <td className="muted">{l.type}</td>
+                    <td className="num">{l.debit ? money(l.debit) : "—"}</td>
+                    <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+                    <td className="num">{money(l.balance)}</td>
+                  </RowLink>
+                ))}
+                {tb && (
+                  <tr className="total-row">
+                    <td colSpan={3}>Totals</td>
+                    <td className="num">{money(tb.total_debit)}</td>
+                    <td className="num">{money(tb.total_credit)}</td>
+                    <td className="num">{tb.balanced ? "—" : money(tb.difference)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </Refreshable>
       )}
 
@@ -175,30 +178,32 @@ export default function Ledger() {
           hasData={entries.length > 0}
           skeleton={<TableSkeleton cols={6} rows={8} />}
         >
-          <table className="dt">
-            <thead>
-              <tr>
-                <th>Reference</th><th>Date</th><th>Period</th>
-                <th>Description</th><th>Source</th><th className="num">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => (
-                <RowLink key={e.id} to={`/ledger/entries/${e.id}`} prefetch={prefetchRoute}
-                  className={e.status === "reversed" ? "row-flag" : ""}>
-                  <td className="mono">{e.reference}</td>
-                  <td>{fmtDate(e.entry_date)}</td>
-                  <td className="mono">{e.period_code}</td>
-                  <td>
-                    {e.description}
-                    {e.status === "reversed" && <span className="badge warn">reversed</span>}
-                  </td>
-                  <td className="muted">{e.source}</td>
-                  <td className="num">{money(e.total)}</td>
-                </RowLink>
-              ))}
-            </tbody>
-          </table>
+          <div className="dt-scroll">
+            <table className="dt">
+              <thead>
+                <tr>
+                  <th>Reference</th><th>Date</th><th>Period</th>
+                  <th>Description</th><th>Source</th><th className="num">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <RowLink key={e.id} to={`/ledger/entries/${e.id}`} prefetch={prefetchRoute}
+                    className={e.status === "reversed" ? "row-flag" : ""}>
+                    <td className="mono">{e.reference}</td>
+                    <td>{fmtDate(e.entry_date)}</td>
+                    <td className="mono">{e.period_code}</td>
+                    <td>
+                      {e.description}
+                      {e.status === "reversed" && <span className="badge warn">reversed</span>}
+                    </td>
+                    <td className="muted">{e.source}</td>
+                    <td className="num">{money(e.total)}</td>
+                  </RowLink>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {jMeta && (
             <Pagination
               meta={jMeta}
@@ -233,29 +238,31 @@ export default function Ledger() {
       )}
 
       {tab === "unposted" && (
-        <table className="dt">
-          <thead>
-            <tr><th>Sale</th><th className="num">Total</th><th /></tr>
-          </thead>
-          <tbody>
-            {unposted?.sales.map((s) => (
-              <tr key={s.sale_id}>
-                <td className="mono">{s.sale_number}</td>
-                <td className="num">{money(s.total)}</td>
-                <RowActions>
-                  <button className="btn sm" onClick={() => postSale(s.sale_id)}>
-                    Post
-                  </button>
-                </RowActions>
-              </tr>
-            ))}
-            {!unposted?.count && (
-              <tr><td colSpan={3} className="muted pad">
-                Every settled sale has reached the ledger.
-              </td></tr>
-            )}
-          </tbody>
-        </table>
+        <div className="dt-scroll">
+          <table className="dt">
+            <thead>
+              <tr><th>Sale</th><th className="num">Total</th><th className="actions" /></tr>
+            </thead>
+            <tbody>
+              {unposted?.sales.map((s) => (
+                <tr key={s.sale_id}>
+                  <td className="mono">{s.sale_number}</td>
+                  <td className="num">{money(s.total)}</td>
+                  <RowActions>
+                    <BusyButton className="btn sm" onClick={() => postSale(s.sale_id)}>
+                      Post
+                    </BusyButton>
+                  </RowActions>
+                </tr>
+              ))}
+              {!unposted?.count && (
+                <tr><td colSpan={3} className="muted pad">
+                  Every settled sale has reached the ledger.
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

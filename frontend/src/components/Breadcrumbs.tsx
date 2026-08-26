@@ -12,6 +12,7 @@
  */
 import { ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 export interface Crumb {
   label: string;
@@ -52,7 +53,7 @@ export default function Breadcrumbs({
             onClick={() => navigate(parent.to!)}
             title={`Back to ${parent.label}`}
           >
-            ← {parent.label}
+            <ArrowLeft size={13} weight="bold" /> {parent.label}
           </button>
         )}
       </div>

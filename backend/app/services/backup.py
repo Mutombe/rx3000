@@ -29,12 +29,39 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from ..config import settings
+from ..config import settings, env
 
-log = logging.getLogger("rx3000.backup")
+log = logging.getLogger("rx5000.backup")
 
-BACKUP_DIR = Path(os.getenv("RX3000_BACKUP_DIR", "backups"))
-KEEP = int(os.getenv("RX3000_BACKUP_KEEP", "14"))
+#: Anchored to the backend directory, not the working directory. A relative
+#: "backups" meant the folder moved with however the server happened to be
+#: started, so a service launched from elsewhere wrote its backups where nothing
+#: looked for them. The env override still wins for a real off-machine target.
+_BACKUP_DIR_OVERRIDE = env("BACKUP_DIR", "").strip()
+# Tested as a string, not as a Path: Path("") is Path("."), which is truthy, so
+# `Path(env(...)) or default` silently resolves every backup to the working
+# directory instead of the folder anyone looks in.
+BACKUP_DIR = (Path(_BACKUP_DIR_OVERRIDE) if _BACKUP_DIR_OVERRIDE
+              else Path(__file__).resolve().parent.parent.parent / "backups")
+
+#: Every spelling a backup has ever been written under. Two routes wrote backups
+#: with two different separators — `POST /api/system/backup` used a hyphen and
+#: `POST /api/admin/backup` an underscore — and each listing globbed only its
+#: own. The result was a pharmacist taking a verified backup and not finding it
+#: on the restore screen, which reads as "my backup did not save". The rename to
+#: RX5000 adds a third and fourth spelling, so this is now the single answer to
+#: "what is a backup file", and both listings and both prunes ask it.
+BACKUP_GLOBS = ("rx5000-*.db", "rx5000_*.db", "rx3000-*.db", "rx3000_*.db")
+
+
+def existing_backups() -> list[Path]:
+    """Every backup in the folder, newest first, whoever wrote it."""
+    found: dict[Path, float] = {}
+    for pattern in BACKUP_GLOBS:
+        for path in BACKUP_DIR.glob(pattern):
+            found[path] = path.stat().st_mtime
+    return sorted(found, key=lambda p: found[p], reverse=True)
+KEEP = int(env("BACKUP_KEEP", "14"))
 
 
 class BackupError(RuntimeError):
@@ -79,7 +106,7 @@ def take(note: str = "") -> dict:
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    target = BACKUP_DIR / f"rx3000-{stamp}.db"
+    target = BACKUP_DIR / f"rx5000-{stamp}.db"
 
     # SQLite's own backup API rather than a file copy: a copy of a live database
     # can catch a half-written page or miss the WAL, giving a file that opens
@@ -140,8 +167,7 @@ def take(note: str = "") -> dict:
 def listing() -> list[dict]:
     if not BACKUP_DIR.exists():
         return []
-    files = sorted(BACKUP_DIR.glob("rx3000-*.db"),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
+    files = existing_backups()
     out = []
     for path in files:
         note_file = path.with_suffix(".txt")
@@ -156,8 +182,7 @@ def listing() -> list[dict]:
 
 def prune(keep: int = KEEP) -> list[str]:
     """Delete the oldest beyond `keep`. The newest is never deleted."""
-    files = sorted(BACKUP_DIR.glob("rx3000-*.db"),
-                   key=lambda p: p.stat().st_mtime, reverse=True)
+    files = existing_backups()
     removed = []
     # max(1, keep) — a retention setting of zero must not be read as an
     # instruction to delete the only copy there is.

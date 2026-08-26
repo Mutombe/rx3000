@@ -19,6 +19,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { useStepUp, CANCELLED } from "./StepUp";
 import { useToast } from "./Toast";
+import Checkbox from "./Checkbox";
+import Select from "./Select";
 
 interface Entry {
   id: number; amount: number; category: string; description: string;
@@ -112,11 +114,11 @@ export default function PettyCash() {
           <div className="form-row">
             <div className="field">
               <label>Direction</label>
-              <select value={direction}
-                onChange={(e) => setDirection(e.target.value as "out" | "in")}>
-                <option value="out">Out of the drawer</option>
-                <option value="in">Into the drawer</option>
-              </select>
+              <Select
+                value={String(direction ?? "")}
+                onChange={(__value) => setDirection(__value as "out" | "in")}
+                options={[{ value: "out", label: "Out of the drawer" }, { value: "in", label: "Into the drawer" }]}
+              />
             </div>
             <div className="field">
               <label>Amount</label>
@@ -125,9 +127,11 @@ export default function PettyCash() {
             </div>
             <div className="field">
               <label>Category</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <Select
+                value={String(category ?? "")}
+                onChange={(__value) => setCategory(__value)}
+                options={[...CATEGORIES.map((c) => ({ value: String(c), label: c }))]}
+              />
             </div>
           </div>
           <div className="form-row">
@@ -142,14 +146,14 @@ export default function PettyCash() {
             </div>
           </div>
           {direction === "out" && (
-            <label className="check-row">
-              <input type="checkbox" checked={receiptSeen}
-                onChange={(e) => setReceiptSeen(e.target.checked)} />
+            <div className="check-row">
+              <Checkbox checked={receiptSeen} onChange={setReceiptSeen}>
               A receipt was seen for this
               <span className="muted">
                 {" "}— payouts without one are listed separately below.
               </span>
-            </label>
+              </Checkbox>
+            </div>
           )}
           <div className="cu-actions">
             <button className="btn primary" type="submit" disabled={busy}>

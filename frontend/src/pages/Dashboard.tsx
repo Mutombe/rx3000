@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api, money } from "../api";
 import { Block, TableSkeleton } from "../components/Skeleton";
 import { Dashboard as Dash } from "../types";
+import { ArrowRight } from "@phosphor-icons/react";
 
 export default function Dashboard() {
   const [data, setData] = useState<Dash | null>(null);
@@ -65,7 +66,7 @@ export default function Dashboard() {
       <div className="page-head">
         <div>
           <h1>Command Centre</h1>
-          <div className="sub">{data.pharmacy_name} — live operational overview</div>
+          <div className="sub">{data.pharmacy_name}, live operational overview</div>
         </div>
         <Link to="/pos" className="btn">New Sale</Link>
       </div>
@@ -79,25 +80,25 @@ export default function Dashboard() {
         <div className="card stat">
           <div className="label">Scripts dispensed today</div>
           <div className="value">{data.scripts_today}</div>
-          <div className="hint"><Link to="/dispense">Open dispensary →</Link></div>
+          <div className="hint"><Link to="/dispense">Open dispensary <ArrowRight size={12} weight="bold" /></Link></div>
         </div>
         <div className="card stat">
           <div className="label">Repeats due (7 days)</div>
           <div className="value">{data.repeats_due_count}</div>
-          <div className="hint"><Link to="/reminders">Manage reminders →</Link></div>
+          <div className="hint"><Link to="/reminders">Manage reminders <ArrowRight size={12} weight="bold" /></Link></div>
         </div>
         <div className="card stat">
           <div className="label">Low stock lines</div>
           <div className="value" style={{ color: data.low_stock_count ? "var(--danger)" : undefined }}>
             {data.low_stock_count}
           </div>
-          <div className="hint"><Link to="/orders">Generate orders →</Link></div>
+          <div className="hint"><Link to="/orders">Generate orders <ArrowRight size={12} weight="bold" /></Link></div>
         </div>
       </div>
 
       <div className="grid cols-2" style={{ marginTop: 2 }}>
         <div className="card">
-          <h3>Sales — last 7 days</h3>
+          <h3>Sales, last 7 days</h3>
           {data.week_sales.length === 0 ? (
             <div className="empty">No sales yet this week</div>
           ) : (
@@ -132,7 +133,7 @@ export default function Dashboard() {
                 <td className="num"><span className="badge">{data.repeats_due_count}</span></td>
               </tr>
               <tr>
-                <td>Batches expiring within 90 days <Link to="/stock">→ review</Link></td>
+                <td>Batches expiring within 90 days <Link to="/stock">review <ArrowRight size={12} weight="bold" /></Link></td>
                 <td className="num"><span className={`badge ${data.expiring_soon_count ? "warn" : "ok"}`}>{data.expiring_soon_count}</span></td>
               </tr>
             </tbody>

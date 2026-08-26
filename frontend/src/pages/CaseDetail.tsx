@@ -7,6 +7,10 @@ import DraftEditor from "../components/DraftEditor";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
 import { Ticket, User } from "../types";
+import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import ClaudeIcon from "../components/ClaudeIcon";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 const PRIORITIES: [string, string][] = [
   ["low", "Low"], ["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"],
@@ -100,7 +104,7 @@ export default function CaseDetail() {
             </div>
           </div>
         </div>
-        <Link to="/helpdesk" className="btn secondary">← Cases</Link>
+        <Link to="/helpdesk" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Cases</Link>
       </div>
 
       <div className="card record-hero">
@@ -118,26 +122,28 @@ export default function CaseDetail() {
         <div className="form-row" style={{ marginTop: 14 }}>
           <div className="field">
             <label>Priority</label>
-            <select value={ticket.priority} onChange={(e) => patch({ priority: e.target.value })}>
-              {PRIORITIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <Select
+              value={String(ticket.priority ?? "")}
+              onChange={(__value) => patch({ priority: __value })}
+              options={[...PRIORITIES.map(([v, l]) => ({ value: String(v), label: l }))]}
+            />
           </div>
           <div className="field">
             <label>Assigned to</label>
-            <select value={ticket.assigned_to?.id ?? ""}
-              onChange={(e) => patch({ assigned_to_id: e.target.value ? Number(e.target.value) : null })}>
-              <option value="">Unassigned</option>
-              {users.map((u) => <option key={u.id} value={u.id}>{u.full_name}</option>)}
-            </select>
+            <Select
+              value={String(ticket.assigned_to?.id)}
+              onChange={(__value) => patch({ assigned_to_id: __value ? Number(__value) : null })}
+              options={[{ value: "", label: "Unassigned" }, ...users.map((u) => ({ value: String(u.id), label: u.full_name }))]}
+            />
           </div>
           {(ticket.status === "resolved" || ticket.status === "closed") && (
             <div className="field">
               <label>Customer satisfaction</label>
-              <select value={ticket.satisfaction ?? ""}
-                onChange={(e) => patch({ satisfaction: Number(e.target.value) })}>
-                <option value="">Rate CSAT…</option>
-                {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n} / 5</option>)}
-              </select>
+              <Select
+                value={String(ticket.satisfaction)}
+                onChange={(__value) => patch({ satisfaction: Number(__value) })}
+                options={[{ value: "", label: "Rate CSAT…" }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} / 5` }))]}
+              />
             </div>
           )}
         </div>
@@ -166,12 +172,9 @@ export default function CaseDetail() {
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
             <button type="button" className="secondary" onClick={draftReply} disabled={aiBusy}>
-              {aiBusy ? "Drafting…" : "✦ Draft reply"}
+              {aiBusy ? "Drafting…" : <><ClaudeIcon size={14} /> Draft reply</>}
             </button>
-            <label style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
-              <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
-              Internal note (not sent to customer)
-            </label>
+            <Checkbox checked={internal} onChange={setInternal}>Internal note (not sent to customer)</Checkbox>
             <button type="submit" disabled={!reply.trim()}>Send</button>
           </div>
         </form>

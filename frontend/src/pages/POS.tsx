@@ -8,7 +8,13 @@ import { useConnection } from "../components/Connection";
 import * as queue from "../offline/queue";
 import * as deviceAgent from "../deviceAgent";
 import { printReceipt } from "../print";
+import { usePharmacy } from "../hooks/usePharmacy";
 import { CurrencyState, Patient, Product, Sale } from "../types";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import MobileMoney from "../components/MobileMoney";
+import { Printer } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 
 type Tab = "till" | "pending";
 
@@ -24,6 +30,7 @@ interface CartLine {
 }
 
 export default function POS() {
+  const pharmacy = usePharmacy();
   const [scan, setScan] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -52,6 +59,12 @@ export default function POS() {
   const [tenderLines, setTenderLines] = useState<TenderLine[]>([{ method: "cash", currency_code: "", amount: "" }]);
   const [changeCurrency, setChangeCurrency] = useState("");
   const [mobilePhone, setMobilePhone] = useState("");
+  /* Which wallet, and in which currency. EcoCash first because it is most of
+     the traffic; the currency follows whatever that wallet can actually settle
+     in, so the till never offers a combination that would be declined. */
+  const [wallet, setWallet] = useState("ecocash");
+  const [walletCurrency, setWalletCurrency] = useState("USD");
+  const [walletReference, setWalletReference] = useState("");
   const [mobileState, setMobileState] = useState("");
   const scanRef = useRef<HTMLInputElement>(null);
   const { online } = useConnection();
@@ -167,7 +180,9 @@ export default function POS() {
     }
     if (!mobilePhone.trim()) throw new Error("Enter the customer's mobile number");
     setMobileState("Sending request to the customer's phone…");
-    const started = await deviceAgent.initiateMobile(amount, mobilePhone.trim(), "ecocash", reference);
+    // The wallet the cashier chose, not a hardcoded one. Sending every payment
+    // to EcoCash meant an Omari customer watched a prompt that never arrived.
+    const started = await deviceAgent.initiateMobile(amount, mobilePhone.trim(), wallet, reference);
     if (!started.started || !started.poll_ref) {
       throw new Error(started.message || "Could not start the mobile money request");
     }
@@ -247,7 +262,7 @@ export default function POS() {
       return;
     }
     if (patient && redeemValue > 0) {
-      toast.error("Loyalty points cannot be redeemed offline — the balance cannot be checked.");
+      toast.error("Loyalty points cannot be redeemed offline. The balance cannot be checked.");
       return;
     }
     const schedules = cart.filter((l) => (l.product.schedule ?? 0) >= 5);
@@ -296,7 +311,7 @@ export default function POS() {
         : {};
       // Mobile money settles as a tender so the provider reference is retained.
       const mobileTenders = !splitMode && payMethod === "mobile_money"
-        ? [{ method: "mobile_money", currency_code: currencyState?.base ?? "",
+        ? [{ method: "mobile_money", wallet, currency_code: walletCurrency || (currencyState?.base ?? ""),
              amount: payable, reference: await resolveMobileTender(payable, "POS") }]
         : null;
       const sale = await api.post<Sale>("/api/pos/sales", {
@@ -323,7 +338,7 @@ export default function POS() {
       setTenderLines([{ method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
       if (patient) api.get<Patient>(`/api/patients/${patient.id}`).then(setPatient);
       if (agent?.printer.ready) {
-        deviceAgent.printReceiptOnAgent(sale, "RX3000 Pharmacy").catch(() => {});
+        deviceAgent.printReceiptOnAgent(sale, pharmacy.name, pharmacy.regNo).catch(() => {});
       }
     } catch (e: any) {
       toast.error(errorText(e));
@@ -345,7 +360,7 @@ export default function POS() {
       setReceipt(paid);
       loadPending();
       if (agent?.printer.ready) {
-        deviceAgent.printReceiptOnAgent(paid, "RX3000 Pharmacy").catch(() => {});
+        deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo).catch(() => {});
       }
     } catch (e: any) {
       toast.error(errorText(e));
@@ -366,7 +381,7 @@ export default function POS() {
       {tab === "pending" ? (
         <div className="card">
           <table>
-            <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th></th></tr></thead>
+            <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th className="actions" /></tr></thead>
             <tbody>
               {pending.map((s) => (
                 <tr key={s.id}>
@@ -375,9 +390,9 @@ export default function POS() {
                   <td className="muted">{fmtDateTime(s.created_at)}</td>
                   <td className="num"><b>{money(s.total)}</b></td>
                   <td className="right" style={{ whiteSpace: "nowrap" }}>
-                    <button className="small" onClick={() => settlePending(s, "medical_aid")} disabled={!s.patient_id}>Claim aid</button>{" "}
-                    <button className="small secondary" onClick={() => settlePending(s, "cash")}>Cash</button>{" "}
-                    <button className="small secondary" onClick={() => settlePending(s, "card")}>Card</button>
+                    <BusyButton className="small" onClick={() => settlePending(s, "medical_aid")} disabled={!s.patient_id}>Claim aid</BusyButton>{" "}
+                    <BusyButton className="small secondary" onClick={() => settlePending(s, "cash")}>Cash</BusyButton>{" "}
+                    <BusyButton className="small secondary" onClick={() => settlePending(s, "card")}>Card</BusyButton>
                   </td>
                 </tr>
               ))}
@@ -440,7 +455,7 @@ export default function POS() {
           <div className="card">
             <h3>Basket</h3>
             <table>
-              <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th><th></th></tr></thead>
+              <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th><th className="actions" /></tr></thead>
               <tbody>
                 {cart.map((l) => (
                   <tr key={l.product.id}>
@@ -451,7 +466,8 @@ export default function POS() {
                     </td>
                     <td className="num">{money(l.product.unit_price)}</td>
                     <td className="num">{money(l.product.unit_price * l.quantity)}</td>
-                    <td className="right"><button className="ghost small" onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))}>✕</button></td>
+                    <td className="right"><IconButton action="remove" danger title="Remove from the basket"
+                      onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -469,7 +485,7 @@ export default function POS() {
                   <b>{patient.first_name} {patient.last_name}</b>
                   <div className="muted">{patient.loyalty_points} loyalty points · {patient.medical_aid?.name ?? "Private"}</div>
                 </div>
-                <button className="ghost small" onClick={() => setPatient(null)}>Remove</button>
+                <IconButton action="remove" onClick={() => setPatient(null)} />
               </div>
             ) : (
               <>
@@ -502,24 +518,32 @@ export default function POS() {
                 <div className="tender-lines">
                   {tenderLines.map((line, i) => (
                     <div key={i} className="tender-line">
-                      <select value={line.method}
-                        onChange={(e) => updateTender(i, { method: e.target.value })}>
-                        <option value="cash">Cash</option>
-                        <option value="card">Card</option>
-                        <option value="mobile_money">Mobile money</option>
-                      </select>
-                      <select value={line.currency_code}
-                        onChange={(e) => updateTender(i, { currency_code: e.target.value })}>
-                        {currencyState?.currencies.map((c) => (
-                          <option key={c.code} value={c.code} disabled={!c.rate}>
-                            {c.code}{!c.rate ? " (no rate)" : ""}
-                          </option>
-                        ))}
-                      </select>
+                      <Select
+                        value={line.method}
+                        onChange={(v) => updateTender(i, { method: v })}
+                        options={[
+                          { value: "cash", label: "Cash" },
+                          { value: "card", label: "Card" },
+                          { value: "mobile_money", label: "Mobile money" },
+                        ]}
+                      />
+                      <Select
+                        value={line.currency_code}
+                        onChange={(v) => updateTender(i, { currency_code: v })}
+                        options={(currencyState?.currencies ?? []).map((c) => ({
+                          value: c.code,
+                          label: c.code,
+                          // Said in the list rather than by a silent refusal:
+                          // a currency with no rate cannot be tendered.
+                          hint: c.rate ? undefined : "no rate today",
+                          disabled: !c.rate,
+                        }))}
+                      />
                       <input type="number" step="0.01" value={line.amount} placeholder="0.00"
                         onChange={(e) => updateTender(i, { amount: e.target.value })} />
-                      <button className="ghost small" onClick={() => removeTender(i)}
-                        disabled={tenderLines.length === 1}>✕</button>
+                      <IconButton action="remove" danger title="Remove this tender line"
+                        onClick={() => removeTender(i)}
+                        disabled={tenderLines.length === 1} />
                     </div>
                   ))}
                 </div>
@@ -541,25 +565,44 @@ export default function POS() {
                 {changeInBase > 0.004 && (
                   <div className="field">
                     <label>Give change in</label>
-                    <select value={changeCurrency} onChange={(e) => setChangeCurrency(e.target.value)}>
-                      {currencyState?.currencies.filter((c) => c.rate > 0).map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code} — {(changeInBase * c.rate).toFixed(c.decimals)}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      value={changeCurrency}
+                      onChange={setChangeCurrency}
+                      options={(currencyState?.currencies ?? [])
+                        .filter((c) => c.rate > 0)
+                        .map((c) => ({
+                          value: c.code,
+                          label: `${c.code} ${(changeInBase * c.rate).toFixed(c.decimals)}`,
+                        }))}
+                    />
                   </div>
                 )}
               </>
             ) : (
             <div className="field">
               <label>Method</label>
-              <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
-                <option value="cash">Cash</option>
-                <option value="card">Card (EFTPOS)</option>
-                {agent?.mobile_money?.ready && <option value="mobile_money">Mobile money (EcoCash)</option>}
-                <option value="medical_aid" disabled={!patient}>Medical aid claim</option>
-              </select>
+              <Select
+                value={payMethod}
+                onChange={setPayMethod}
+                options={[
+                  { value: "cash", label: "Cash" },
+                  { value: "card", label: "Card (EFTPOS)" },
+                  // Always offered, whether or not the device agent is running.
+                  // With the agent, a prompt goes to the handset. Without it the
+                  // cashier takes the payment the way most Zimbabwean tills
+                  // already do, by watching the customer send to the merchant
+                  // code and entering the confirmation, and hiding the option
+                  // only meant those sales were rung up as cash.
+                  { value: "mobile_money", label: "Mobile money" },
+                  {
+                    value: "medical_aid",
+                    label: "Medical aid claim",
+                    disabled: !patient,
+                    // Why it is greyed, rather than leaving the cashier guessing.
+                    hint: patient ? undefined : "needs a patient on the sale",
+                  },
+                ]}
+              />
             </div>
             )}
             {!splitMode && payMethod === "cash" && (
@@ -573,30 +616,35 @@ export default function POS() {
             )}
             {!splitMode && payMethod === "mobile_money" && (
               <>
-                <div className="field">
-                  <label>Customer mobile number</label>
-                  <input value={mobilePhone} onChange={(e) => setMobilePhone(e.target.value)}
-                    placeholder="07…" inputMode="tel" />
-                </div>
-                {mobileState
-                  ? <div className="device-note">{mobileState}</div>
-                  : <div className="device-note ok">
-                      A prompt is sent to the customer's phone when you complete the sale.
-                      Nothing is charged until they approve it.
-                    </div>}
+                <MobileMoney
+                  wallet={wallet}
+                  onWallet={setWallet}
+                  currency={walletCurrency}
+                  onCurrency={setWalletCurrency}
+                  phone={mobilePhone}
+                  onPhone={setMobilePhone}
+                  amountDue={payable}
+                  base={currencyState?.base ?? "USD"}
+                  rates={Object.fromEntries(
+                    (currencyState?.currencies ?? []).map((c) => [c.code, c.rate]))}
+                  agentReady={!!agent?.mobile_money?.ready}
+                  reference={walletReference}
+                  onReference={setWalletReference}
+                />
+                {mobileState && <div className="device-note">{mobileState}</div>}
               </>
             )}
             {!splitMode && payMethod === "card" && (
               agent?.terminal.ready ? (
                 <div className="device-note ok">
-                  <b>Terminal connected</b> — {agent.terminal.terminal_id ?? agent.terminal.driver}.
+                  <b>Terminal connected:</b> {agent.terminal.terminal_id ?? agent.terminal.driver}.
                   The amount is sent to the machine when you complete the sale.
                   {terminalState && <div className="muted">{terminalState}</div>}
                 </div>
               ) : (
                 <>
                   <div className="device-note">
-                    No terminal connected to this till — key the amount into the card machine,
+                    No terminal connected to this till, key the amount into the card machine,
                     then capture the slip so the sale can be reconciled.
                   </div>
                   <div className="form-row">
@@ -612,12 +660,17 @@ export default function POS() {
                       <input value={card.reference}
                         onChange={(e) => setCard({ ...card, reference: e.target.value })} /></div>
                     <div className="field" style={{ maxWidth: 140 }}><label>Scheme</label>
-                      <select value={card.scheme} onChange={(e) => setCard({ ...card, scheme: e.target.value })}>
-                        <option value="">—</option>
-                        <option value="visa">Visa</option>
-                        <option value="mastercard">Mastercard</option>
-                        <option value="amex">Amex</option>
-                      </select></div>
+                      <Select
+                        value={card.scheme}
+                        onChange={(v) => setCard({ ...card, scheme: v })}
+                        placeholder="—"
+                        clearable
+                        options={[
+                          { value: "visa", label: "Visa" },
+                          { value: "mastercard", label: "Mastercard" },
+                          { value: "amex", label: "Amex" },
+                        ]}
+                      /></div>
                     <div className="field" style={{ maxWidth: 140 }}><label>Terminal</label>
                       <input value={card.terminal}
                         onChange={(e) => setCard({ ...card, terminal: e.target.value })} /></div>
@@ -627,7 +680,7 @@ export default function POS() {
             )}
             {patient && (patient.loyalty_points ?? 0) > 0 && (
               <div className="field">
-                <label>Redeem loyalty points (1 pt = {money(1)}) — available: {patient.loyalty_points}</label>
+                <label>Redeem loyalty points (1 pt = {money(1)}), available: {patient.loyalty_points}</label>
                 <input type="number" min={0} max={patient.loyalty_points} value={redeem} onChange={(e) => setRedeem(e.target.value)} />
               </div>
             )}
@@ -641,7 +694,7 @@ export default function POS() {
 
           {receipt && (
             <div className="card">
-              <h3>Receipt — {receipt.sale_number}</h3>
+              <h3>Receipt {receipt.sale_number}</h3>
               <table>
                 <tbody>
                   {receipt.items.map((i) => (
@@ -658,12 +711,12 @@ export default function POS() {
               </table>
               {receipt.claim && (
                 <div className={receipt.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 12 }}>
-                  Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b> — {receipt.claim.response_message}
+                  Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b>. {receipt.claim.response_message}
                   {receipt.claim.patient_liable > 0 && <> Patient pays <b>{money(receipt.claim.patient_liable)}</b>.</>}
                 </div>
               )}
               <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                <button className="small" onClick={() => printReceipt(receipt)}>🖨 Print receipt</button>
+                <button className="small" onClick={() => printReceipt(receipt, pharmacy.name, pharmacy.regNo)}><Printer size={14} /> Print receipt</button>
                 <button className="secondary small" onClick={() => setReceipt(null)}>Dismiss</button>
               </div>
             </div>

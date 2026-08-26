@@ -16,6 +16,11 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Checkbox from "../components/Checkbox";
+import Pagination from "../components/Pagination";
+import { useClientPage } from "../hooks/useClientPage";
+import Select from "../components/Select";
+import BusyButton from "../components/BusyButton";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -39,6 +44,9 @@ type Tab = "due" | "price";
 
 export default function Repeats() {
   const [due, setDue] = useState<Due | null>(null);
+  // The endpoint returns the whole call sheet — `count` and `overdue` are over
+  // all of it and must stay that way — so only the render is bounded.
+  const dueRows = useClientPage<DueItem>(due?.items ?? [], 25);
   const [horizon, setHorizon] = useState(14);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -54,7 +62,7 @@ export default function Repeats() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "due", label: "Repeats due", count: due?.count,
-      hint: "Overdue first — the order somebody would telephone in" },
+      hint: "Overdue first. The order somebody would telephone in" },
     { key: "price", label: "Quick price",
       hint: "What will this cost on my scheme?" },
   ];
@@ -113,18 +121,13 @@ export default function Repeats() {
           <div className="dt-filters">
             <label>
               Within
-              <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))}>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-                <option value={30}>30 days</option>
-                <option value={60}>60 days</option>
-              </select>
+              <Select
+                value={String(horizon ?? "")}
+                onChange={(__value) => setHorizon(Number(__value))}
+                options={[{ value: String(7), label: "7 days" }, { value: String(14), label: "14 days" }, { value: String(30), label: "30 days" }, { value: String(60), label: "60 days" }]}
+              />
             </label>
-            <label>
-              <input type="checkbox" checked={overdueOnly}
-                onChange={(e) => setOverdueOnly(e.target.checked)} />
-              Overdue only
-            </label>
+            <Checkbox checked={overdueOnly} onChange={setOverdueOnly}>Overdue only</Checkbox>
           </div>
 
           <Refreshable
@@ -133,54 +136,57 @@ export default function Repeats() {
             skeleton={<TableSkeleton cols={6} rows={6}
               widths={["18ch", "22ch", "10ch", "10ch", "10ch", "12ch"]} />}
           >
-            <table className="dt">
-              <thead>
-                <tr>
-                  <th>Patient</th><th>Medicine</th><th>Due</th>
-                  <th className="num">Repeats left</th>
-                  <th className="num">In stock</th><th /></tr>
-              </thead>
-              <tbody>
-                {due?.items.map((i) => (
-                  <RowLink key={i.item_id} to={`/patients/${i.patient_id}`}
-                    prefetch={prefetchRoute}
-                    className={i.overdue ? "row-flag" : ""}>
-                    <td>
-                      {i.patient_name}
-                      {i.patient_phone && (
-                        <div className="muted small">{i.patient_phone}</div>
-                      )}
-                    </td>
-                    <td>
-                      {i.product}
-                      <div className="muted small">
-                        {i.quantity} · {i.supply_days} days
-                      </div>
-                    </td>
-                    <td>
-                      {fmtDate(i.due_on)}
-                      {i.overdue && (
-                        <div><span className="badge warn">
-                          {i.days_overdue} days overdue
-                        </span></div>
-                      )}
-                    </td>
-                    <td className="num">{i.repeats_left} of {i.repeats_allowed}</td>
-                    <td className="num">{i.in_stock}</td>
-                    <RowActions>
-                      {/* Saying so beats letting somebody telephone a patient
-                          they cannot actually serve. */}
-                      {i.can_supply
-                        ? <span className="badge ok">can supply</span>
-                        : <span className="badge warn">not enough stock</span>}
-                    </RowActions>
-                  </RowLink>
-                ))}
-                {!due?.items.length && !loading && (
-                  <tr><td colSpan={6} className="muted pad">Nobody is due.</td></tr>
-                )}
-              </tbody>
-            </table>
+            <div className="dt-scroll">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Patient</th><th>Medicine</th><th>Due</th>
+                    <th className="num">Repeats left</th>
+                    <th className="num">In stock</th><th className="actions" /></tr>
+                </thead>
+                <tbody>
+                  {dueRows.items.map((i) => (
+                    <RowLink key={i.item_id} to={`/patients/${i.patient_id}`}
+                      prefetch={prefetchRoute}
+                      className={i.overdue ? "row-flag" : ""}>
+                      <td>
+                        {i.patient_name}
+                        {i.patient_phone && (
+                          <div className="muted small">{i.patient_phone}</div>
+                        )}
+                      </td>
+                      <td>
+                        {i.product}
+                        <div className="muted small">
+                          {i.quantity} · {i.supply_days} days
+                        </div>
+                      </td>
+                      <td>
+                        {fmtDate(i.due_on)}
+                        {i.overdue && (
+                          <div><span className="badge warn">
+                            {i.days_overdue} days overdue
+                          </span></div>
+                        )}
+                      </td>
+                      <td className="num">{i.repeats_left} of {i.repeats_allowed}</td>
+                      <td className="num">{i.in_stock}</td>
+                      <RowActions>
+                        {/* Saying so beats letting somebody telephone a patient
+                            they cannot actually serve. */}
+                        {i.can_supply
+                          ? <span className="badge ok">can supply</span>
+                          : <span className="badge warn">not enough stock</span>}
+                      </RowActions>
+                    </RowLink>
+                  ))}
+                  {!due?.items.length && !loading && (
+                    <tr><td colSpan={6} className="muted pad">Nobody is due.</td></tr>
+                  )}
+                </tbody>
+              </table>
+              <Pagination meta={dueRows.meta} onPage={dueRows.setPage} noun="repeats" />
+            </div>
           </Refreshable>
         </>
       )}
@@ -197,9 +203,9 @@ export default function Repeats() {
               <ul className="pick-list">
                 {products.map((p) => (
                   <li key={p.id}>
-                    <button className="btn ghost sm" onClick={() => price(p)}>
+                    <BusyButton className="btn ghost sm" onClick={() => price(p)}>
                       {p.name} {p.strength}
-                    </button>
+                    </BusyButton>
                   </li>
                 ))}
               </ul>
@@ -211,11 +217,11 @@ export default function Repeats() {
             </label>
             <label>
               Scheme
-              <select value={aidId}
-                onChange={(e) => setAidId(e.target.value === "" ? "" : Number(e.target.value))}>
-                <option value="">Cash</option>
-                {aids.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              <Select
+                value={String(aidId ?? "")}
+                onChange={(__value) => setAidId(__value === "" ? "" : Number(__value))}
+                options={[{ value: "", label: "Cash" }, ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
+              />
             </label>
           </div>
 
@@ -245,7 +251,7 @@ export default function Repeats() {
               <p className={quote.can_supply ? "muted small" : "alert warn"}>
                 {quote.can_supply
                   ? `${quote.in_stock} in stock.`
-                  : `Only ${quote.in_stock} in stock — this cannot be supplied in full today.`}
+                  : `Only ${quote.in_stock} in stock. This cannot be supplied in full today.`}
               </p>
               {quote.note && <p className="muted small">{quote.note}</p>}
             </div>

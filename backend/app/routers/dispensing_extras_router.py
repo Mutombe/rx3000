@@ -1,6 +1,6 @@
 """Waybills, quick pricing, and export.
 
-Three counter functions the incumbent has and RX3000 did not.
+Three counter functions the incumbent has and RX5000 did not.
 """
 import csv
 import io
@@ -304,7 +304,7 @@ def export(dataset: str, db: Session = Depends(get_db)):
             status_code=404,
             detail="Nothing exports under that name. Available: products, batches, "
                    "claims, to-follows, journal, trial-balance, accounts.")
-    return _csv(rows, f"rx3000-{dataset}-{stamp}.csv", db)
+    return _csv(rows, f"rx5000-{dataset}-{stamp}.csv", db)
 
 
 # ---------------------------------------------------------------------------

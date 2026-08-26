@@ -27,7 +27,7 @@ def status(db: Session = Depends(get_db)):
         "regime": settings.jurisdiction.fiscalisation,
         # ZIMRA publishes no driver to install: compliance is reached by one of
         # several routes, and which one this till is on is a decision the
-        # pharmacy makes before RX3000 arrives. Say plainly who files.
+        # pharmacy makes before RX5000 arrives. Say plainly who files.
         "route": fiscal_devices.route_for(device.name),
         "routes_available": fiscal_devices.ROUTES,
         "device": device.status(),
@@ -125,7 +125,7 @@ def flush(db: Session = Depends(get_db)):
 
 @router.get("/verify")
 def verify(db: Session = Depends(get_db)):
-    """Walk the hash chain — proves no receipt has been altered or removed."""
+    """Walk the hash chain, proves no receipt has been altered or removed."""
     return fiscal.verify_chain(db)
 
 

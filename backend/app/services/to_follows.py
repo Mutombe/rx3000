@@ -112,7 +112,7 @@ def settle(db: Session, owed: OwedItem, quantity: int, user_id: int,
 
 
 def cancel(db: Session, owed: OwedItem, reason: str) -> OwedItem:
-    """Write the debt off — the patient got it elsewhere, or no longer needs it."""
+    """Write the debt off. The patient got it elsewhere, or no longer needs it."""
     if owed.status == "settled":
         raise OwedError(f"{owed.reference} has already been settled.")
     if not (reason or "").strip():

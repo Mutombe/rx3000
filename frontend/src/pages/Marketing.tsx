@@ -5,12 +5,18 @@ import { api, fmtDateTime, errorText  } from "../api";
 import DraftEditor from "../components/DraftEditor";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Campaign, Message, Patient, Segment } from "../types";
+import Pagination, { Paged } from "../components/Pagination";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 type Tab = "compose" | "history";
 
 export default function Marketing() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignMeta, setCampaignMeta] = useState<Paged<Campaign> | null>(null);
+  const [campaignPage, setCampaignPage] = useState(1);
   const [channel, setChannel] = useState("sms");
   const [segment, setSegment] = useState("all_patients");
   const [name, setName] = useState("");
@@ -34,7 +40,11 @@ export default function Marketing() {
     api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments).catch((e) => toast.error(errorText(e)));
   }
   function loadCampaigns() {
-    api.get<Campaign[]>("/api/marketing/campaigns").then(setCampaigns);
+    api.get<Paged<Campaign>>(`/api/marketing/campaigns/paged?page=${campaignPage}&per_page=25`)
+      .then((res) => {
+        setCampaigns(res.items); setCampaignMeta(res);
+        if (res.page !== campaignPage) setCampaignPage(res.page);
+      });
   }
 
   useEffect(loadSegments, [channel]);
@@ -93,7 +103,7 @@ export default function Marketing() {
       <div className="page-head">
         <div>
           <h1>Campaigns</h1>
-          <div className="sub">Segment your patient base and run SMS or email campaigns — consent-aware</div>
+          <div className="sub">Segment your patient base and run SMS or email campaigns, consent-aware</div>
         </div>
       </div>
 
@@ -105,14 +115,24 @@ export default function Marketing() {
           <h3>1 · Choose an audience</h3>
           <div className="field">
             <label>Channel</label>
-            <select value={channel} onChange={(e) => setChannel(e.target.value)}>
-              <option value="sms">SMS</option>
-              <option value="email">Email</option>
-            </select>
+            <Select
+              value={String(channel ?? "")}
+              onChange={(__value) => setChannel(__value)}
+              options={[{ value: "sms", label: "SMS" }, { value: "email", label: "Email" }]}
+            />
           </div>
           {segments.map((s) => (
-            <div key={s.key} className="product-pick" onClick={() => setSegment(s.key)}
-              style={segment === s.key ? { background: "#fff", borderColor: "var(--accent)" } : undefined}>
+            // Selection was a white background and a one-pixel border against a
+            // near-white card — on screen it was almost impossible to tell which
+            // audience was chosen, and choosing the wrong audience sends the
+            // campaign to the wrong people.
+            <div
+              key={s.key}
+              className={`product-pick${segment === s.key ? " is-chosen" : ""}`}
+              role="radio"
+              aria-checked={segment === s.key}
+              onClick={() => setSegment(s.key)}
+            >
               <span>
                 <b>{s.label}</b>
                 <div className="muted" style={{ fontSize: 11.5 }}>{s.description}</div>
@@ -145,7 +165,7 @@ export default function Marketing() {
             </div>
             <div className="field">
               <label>
-                Message — merge fields:{" "}
+                Message, merge fields:{" "}
                 <span className="mono">{"{first_name} {points} {pharmacy}"}</span>
               </label>
               <DraftEditor rows={5} required value={body} onChange={setBody}
@@ -158,7 +178,7 @@ export default function Marketing() {
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button type="button" className="secondary" onClick={draftCopy} disabled={aiBusy}>
-                {aiBusy ? "Writing…" : "✦ Draft with AI"}
+                {aiBusy ? "Writing…" : <><ClaudeIcon size={14} /> Draft with AI</>}
               </button>
               <button type="submit" disabled={busy || !body.trim() || !(chosen?.size)}>
                 {busy ? "Sending…" : `Send to ${chosen?.size ?? 0}`}
@@ -174,7 +194,7 @@ export default function Marketing() {
         <table>
           <thead>
             <tr><th>Campaign</th><th>Channel</th><th>Segment</th><th className="num">Audience</th>
-              <th className="num">Sent</th><th className="num">Failed</th><th>Status</th><th>When</th><th></th></tr>
+              <th className="num">Sent</th><th className="num">Failed</th><th>Status</th><th>When</th><th className="actions" /></tr>
           </thead>
           <tbody>
             {campaigns.map((c) => (
@@ -188,12 +208,13 @@ export default function Marketing() {
                 <td><span className={`badge ${c.status === "sent" ? "ok" : "muted"}`}>{c.status}</span></td>
                 <td className="muted">{c.sent_at ? fmtDateTime(c.sent_at) : fmtDateTime(c.created_at)}</td>
                 <td className="right">
-                  {c.status === "sent" && <button className="ghost small" onClick={() => viewMessages(c)}>View</button>}
+                  {c.status === "sent" && <IconButton action="view" onClick={() => viewMessages(c)} />}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+            {campaignMeta && <Pagination meta={campaignMeta} onPage={setCampaignPage} noun="campaigns" />}
         {campaigns.length === 0 && <div className="empty">No campaigns yet</div>}
       </div>
       )}

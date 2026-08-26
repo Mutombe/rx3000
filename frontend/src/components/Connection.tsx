@@ -1,3 +1,4 @@
+import { ArrowsClockwise } from "@phosphor-icons/react";
 /** Whether the server is reachable, and what that means for what you may do.
  *
  *  A pharmacy's line goes down. That is the ordinary case this product is sold
@@ -34,6 +35,7 @@ import {
 import { apiBase, getToken } from "../api";
 import * as catalogue from "../offline/catalogue";
 import * as queue from "../offline/queue";
+import BusyButton from "./BusyButton";
 
 interface Connection {
   online: boolean;
@@ -169,7 +171,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function OfflineBanner({ onRetry, held }: { onRetry: () => void; held: number }) {
+function OfflineBanner({ onRetry, held }: { onRetry: () => Promise<boolean>; held: number }) {
   return (
     <div className="conn-banner" role="status">
       <span className="conn-dot" aria-hidden="true" />
@@ -183,7 +185,9 @@ function OfflineBanner({ onRetry, held }: { onRetry: () => void; held: number })
         the server. Dispensing is closed.
         {held > 0 && <> <b>{held} sale{held === 1 ? "" : "s"} waiting.</b></>}
       </span>
-      <button className="btn ghost small" onClick={onRetry}>Try again</button>
+      <BusyButton className="btn ghost small" onClick={onRetry} icon={ArrowsClockwise} busyLabel="Trying…">
+        Try again
+      </BusyButton>
     </div>
   );
 }
@@ -211,7 +215,7 @@ export function RequiresConnection({
       <ul className="conn-reasons">
         <li>
           <b>Repeats.</b> Whether this repeat has already been collected —
-          possibly at another branch — and dispensing it twice is a clinical
+          possibly at another branch. And dispensing it twice is a clinical
           event, not a record to tidy up later.
         </li>
         <li>
@@ -225,7 +229,7 @@ export function RequiresConnection({
       </ul>
       <p className="muted">
         Dispensing stays unavailable offline by design, even once offline
-        selling is supported — the three checks above cannot be made without the
+        selling is supported. The three checks above cannot be made without the
         server, and none of them can safely be deferred.
       </p>
       <div className="conn-actions">

@@ -34,6 +34,11 @@ export default function Variants({ productId }: { productId: number }) {
   useEffect(() => {
     let live = true;
     setData(null);
+    // An id that is not a number never becomes a URL. Interpolating `undefined`
+    // produces a real-looking request for /api/products/undefined/variants,
+    // which the server rejects with a 422 that reads like a server fault rather
+    // than a caller passing nothing.
+    if (!Number.isFinite(productId)) return () => { live = false; };
     api.get<Reply>(`/api/products/${productId}/variants`)
       .then((r) => { if (live) setData(r); })
       .catch(() => undefined);
@@ -60,7 +65,7 @@ export default function Variants({ productId }: { productId: number }) {
   return (
     <div className="vr">
       <p className="vr-head">
-        Same medicine ({data.molecule}) — {data.variants.length} other
+        Same medicine ({data.molecule}). {data.variants.length} other
         {data.variants.length === 1 ? "" : "s"} stocked
       </p>
       <ul className="vr-list">

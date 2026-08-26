@@ -182,7 +182,7 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
             out["warnings"].append("This branch has none of that in stock.")
         if product.schedule >= 5:
             out["warnings"].append(
-                f"Schedule {product.schedule} — this must be dispensed against a "
+                f"Schedule {product.schedule}. This must be dispensed against a "
                 "prescription and entered in the register, not sold at the till."
             )
     elif body.context in ("stock", "receive"):
@@ -393,8 +393,8 @@ def receive_line(
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"That pack expired on {expiry.isoformat()}. Do not book it in — "
-                    "quarantine it and raise it with the supplier."
+                    f"That pack expired on {expiry.isoformat()}. Do not book it in. "
+                    "Quarantine it and raise it with the supplier."
                 ),
             )
 

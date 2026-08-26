@@ -31,7 +31,7 @@ from ..config import settings
 from ..models import JournalEntry, Sale
 from . import ledger
 
-log = logging.getLogger("rx3000.posting")
+log = logging.getLogger("rx5000.posting")
 
 # Where the money landed, by how it was tendered.
 TENDER_ACCOUNT = {

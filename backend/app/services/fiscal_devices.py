@@ -3,12 +3,12 @@
 "Driver" here means a class in this file, not something downloadable. ZIMRA in
 particular publishes no driver and no installable component: compliance is
 reached by one of three routes, and which one a pharmacy is on is a business
-decision it has already made before RX3000 is installed.
+decision it has already made before RX5000 is installed.
 
     FISCAL_DEVICE   none | external | cloudesd | zimra_fdms | simulator
 
   * **external** - a hardware fiscal device procured, configured and registered
-    through a ZIMRA Approved Supplier. The device fiscalises; RX3000 does not
+    through a ZIMRA Approved Supplier. The device fiscalises; RX5000 does not
     and must not pretend to. This is the common case for a small pharmacy.
   * **cloudesd** - a hosted service that signs and files on the taxpayer's
     behalf. Virtual fiscalisation with somebody else operating it.
@@ -40,7 +40,7 @@ import urllib.request
 
 from .. import integrations
 
-log = logging.getLogger("rx3000.fiscal.device")
+log = logging.getLogger("rx5000.fiscal.device")
 
 
 class FiscalDevice:
@@ -70,7 +70,7 @@ class FiscalDevice:
 
 
 class NoFiscalDevice(FiscalDevice):
-    """Jurisdiction does not require fiscalisation — receipts are never queued."""
+    """Jurisdiction does not require fiscalisation, receipts are never queued."""
 
     name = "none"
     requires_network = False
@@ -102,12 +102,12 @@ class ExternalFiscalDevice(FiscalDevice):
     * **It will not sign.** A signature invented here would be worthless and
       would make the audit trail look complete when nothing had been filed.
     * **It will not block the sale.** The device is the compliance boundary; a
-      till that refused to trade because RX3000 could not see it would be
+      till that refused to trade because RX5000 could not see it would be
       inventing an outage.
 
     What it does do is record which device carries the obligation, so that when
     ZIMRA asks, the answer names a supplier, a serial and a registration rather
-    than a shrug. RX3000's own hash chain still runs underneath, which gives the
+    than a shrug. RX5000's own hash chain still runs underneath, which gives the
     pharmacy an internal record that its device output can be reconciled against.
 
         FISCAL_SUPPLIER / FISCAL_DEVICE_SERIAL / FISCAL_REGISTRATION_REF
@@ -145,7 +145,7 @@ class ExternalFiscalDevice(FiscalDevice):
         else:
             info["message"] = (
                 f"Receipts are fiscalised on {self.serial} supplied by "
-                f"{self.supplier}. RX3000 keeps its own hash chain for "
+                f"{self.supplier}. RX5000 keeps its own hash chain for "
                 "reconciliation and files nothing itself."
             )
         return info
@@ -190,7 +190,7 @@ class SimulatorFiscalDevice(FiscalDevice):
     def status(self) -> dict:
         return {"driver": self.name, "ready": not self._fail(), "required": True,
                 "device_id": self.device_id,
-                "message": "Simulated fiscal device — set FISCAL_SIM_FAIL=1 to force failures"}
+                "message": "Simulated fiscal device, set FISCAL_SIM_FAIL=1 to force failures"}
 
     def submit_receipt(self, payload: dict) -> dict:
         # A simulated signature is not a fiscal signature. On a live till this
@@ -224,7 +224,7 @@ class CloudEsdDevice(FiscalDevice):
     """CloudESD - signs receipts and files them with ZIMRA FDMS for the taxpayer.
 
     A hosted signing service rather than a physical fiscal device, which is why
-    it fits this interface at all: RX3000 keeps its own fiscal days, counters and
+    it fits this interface at all: RX5000 keeps its own fiscal days, counters and
     hash chain, and CloudESD supplies the signature and the ZIMRA submission.
 
     Built from CloudESD's published overview:
@@ -242,7 +242,7 @@ class CloudEsdDevice(FiscalDevice):
       the day is checked first and the receipt queues locally instead of being
       lost.
     * **A credit or debit note must carry the original invoice Reference as
-      OriginalReference.** RX3000 already refuses to void a filed sale and
+      OriginalReference.** RX5000 already refuses to void a filed sale and
       issues a credit note instead, so the original reference is threaded here.
 
     `ZIG` is accepted and converted to `ZWG` on their side, but it is normalised
@@ -325,7 +325,7 @@ class CloudEsdDevice(FiscalDevice):
     def _receipt_body(self, payload: dict) -> dict:
         raise NotImplementedError(
             "The CloudESD receipt schema for POST /api/receipt/sign is not in "
-            "their published overview. Map RX3000's receipt payload to their "
+            "their published overview. Map RX5000's receipt payload to their "
             "field names here - it is the only unknown. Authentication, device "
             "and fiscal-day gating, currency normalisation, the credit-note "
             "OriginalReference, response handling and the QR fields are built."
@@ -430,14 +430,14 @@ class ZimraFdmsDevice(FiscalDevice):
             "driver": self.name, "ready": False, "required": True,
             "device_id": self.device_id or None,
             "configured": bool(self.api_url and self.device_id and self.cert_path),
-            "message": "ZIMRA FDMS driver is not implemented — supply the FDMS "
+            "message": "ZIMRA FDMS driver is not implemented, supply the FDMS "
                        "specification and this is the only class that changes.",
         }
 
     def submit_receipt(self, payload: dict) -> dict:
         raise NotImplementedError(
             "ZIMRA FDMS submission is not implemented. Receipts continue to queue "
-            "locally with a valid hash chain, so nothing is lost — but they are "
+            "locally with a valid hash chain, so nothing is lost, but they are "
             "not being filed with ZIMRA and the till is not compliant."
         )
 
@@ -474,17 +474,17 @@ ROUTES = {
     },
     "zimra_fdms": {
         "route": "Virtual fiscalisation direct to ZIMRA",
-        "who_files": "RX3000, against the Fiscal Device Gateway API",
+        "who_files": "RX5000, against the Fiscal Device Gateway API",
         "suits": "A multi-till operator prepared to own device registration, "
                  "certificates and signature generation.",
         "setup": "Obtain the Fiscal Device Gateway API Specification and register "
                  "the device with ZIMRA.",
     },
     "simulator": {
-        "route": "Simulated — development only",
+        "route": "Simulated, development only",
         "who_files": "Nobody. Receipts are signed plausibly and filed nowhere.",
         "suits": "Building and demonstrating the system.",
-        "setup": "Refuses to act when RX3000_ENV=production.",
+        "setup": "Refuses to act when RX5000_ENV=production.",
     },
     "none": {
         "route": "No fiscal obligation",

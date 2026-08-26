@@ -172,7 +172,7 @@ def convert_lead(
     if lead.status == "converted":
         raise HTTPException(status_code=400, detail="Lead has already been converted")
     if lead.status == "disqualified":
-        raise HTTPException(status_code=400, detail="A disqualified lead cannot be converted — requalify it first")
+        raise HTTPException(status_code=400, detail="A disqualified lead cannot be converted, requalify it first")
 
     company = None
     if body.create_company and lead.company_name:
@@ -200,7 +200,7 @@ def convert_lead(
     deal = None
     if body.create_deal:
         deal = Deal(
-            title=body.deal_title or f"{lead.company_name or lead.last_name} — new opportunity",
+            title=body.deal_title or f"{lead.company_name or lead.last_name}, new opportunity",
             company_id=company.id if company else None,
             contact_id=contact.id,
             value=body.deal_value if body.deal_value is not None else lead.estimated_value,

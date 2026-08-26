@@ -38,7 +38,7 @@ class IngredientCost:
 
 
 def effective_schedule(mixture: Mixture) -> int:
-    """The highest schedule among the ingredients — never lower."""
+    """The highest schedule among the ingredients, never lower."""
     return max((i.product.schedule or 0) for i in mixture.ingredients) if mixture.ingredients else 0
 
 
@@ -138,7 +138,7 @@ def prepare(db: Session, mixture: Mixture, user_id: int, batches: float = 1.0,
         "drawn": drawn,
         "label_directions": mixture.directions,
         "warning": ("This preparation is Schedule "
-                    f"{summary['effective_schedule']} — dispense it under the "
+                    f"{summary['effective_schedule']}, dispense it under the "
                     "rules for that schedule, not as an ordinary preparation."
                     if summary["effective_schedule"] >= 5 else ""),
     }

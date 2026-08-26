@@ -72,7 +72,7 @@ def cost_mixture(mixture_id: int, batches: float = 1.0, db: Session = Depends(ge
 @router.post("/mixtures/{mixture_id}/prepare")
 def prepare_mixture(mixture_id: int, batches: float = 1.0, reference: str = "",
                     db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Make it up — draws the ingredients from stock through the usual FEFO path."""
+    """Make it up, draws the ingredients from stock through the usual FEFO path."""
     mixture = db.get(Mixture, mixture_id)
     if not mixture:
         raise HTTPException(status_code=404, detail="Mixture not found")

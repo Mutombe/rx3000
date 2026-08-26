@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
+from ..services import paging
 from ..models import (
     Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product,
     Sale, SaleItem, User,
@@ -59,7 +60,7 @@ def otc_sale(
     if policy.route != "otc":
         raise HTTPException(
             status_code=400,
-            detail=f"{product.name} is {policy.label} — it requires a prescription and cannot be "
+            detail=f"{product.name} is {policy.label}. It requires a prescription and cannot be "
                    "sold over the counter.",
         )
     if policy.requires_pharmacist and user.role not in ("pharmacist", "admin"):
@@ -127,27 +128,58 @@ def otc_sale(
     return record
 
 
-@router.get("/otc", response_model=list[schemas.OTCSaleOut])
-def list_otc_sales(days: int = 30, schedule: int | None = None, limit: int = 200, db: Session = Depends(get_db)):
-    """The pharmacy-medicine sales register (S1/S2 record keeping)."""
+def _otc_query(db: Session, days: int, schedule: int | None):
     query = db.query(OTCSale).filter(OTCSale.created_at >= datetime.utcnow() - timedelta(days=days))
     if schedule is not None:
         query = query.filter(OTCSale.schedule == schedule)
-    return query.order_by(OTCSale.created_at.desc()).limit(limit).all()
+    return query.order_by(OTCSale.created_at.desc())
+
+
+@router.get("/otc", response_model=list[schemas.OTCSaleOut])
+def list_otc_sales(days: int = 30, schedule: int | None = None, limit: int = 200, db: Session = Depends(get_db)):
+    """The pharmacy-medicine sales register (S1/S2 record keeping)."""
+    return _otc_query(db, days, schedule).limit(limit).all()
+
+
+@router.get("/otc/paged")
+def list_otc_sales_paged(days: int = 30, schedule: int | None = None, page: int = 1,
+                         per_page: int = paging.DEFAULT_PER_PAGE, db: Session = Depends(get_db)):
+    """The same register, a page at a time, with the true total.
+
+    A register is the wrong place to show a capped list with no total: the screen
+    said nothing about the difference between "this is everything" and "this is
+    the most recent two hundred".
+    """
+    result = paging.page(_otc_query(db, days, schedule), page=page, per_page=per_page)
+    return result.envelope(lambda r: schemas.OTCSaleOut.model_validate(r, from_attributes=True).model_dump())
 
 
 # ---------- controlled substances ----------
+def _controlled_query(db: Session, days: int):
+    return (db.query(Dispensing)
+            .filter(Dispensing.dispense_type == "controlled",
+                    Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
+            .order_by(Dispensing.dispensed_at.desc()))
+
+
 @router.get("/controlled/log", response_model=list[schemas.DispensingOut])
 def controlled_log(days: int = 90, limit: int = 200, db: Session = Depends(get_db)):
     """Every controlled-substance hand-over with its compliance record."""
-    return (
-        db.query(Dispensing)
-        .filter(Dispensing.dispense_type == "controlled",
-                Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
-        .order_by(Dispensing.dispensed_at.desc())
-        .limit(limit)
-        .all()
-    )
+    return _controlled_query(db, days).limit(limit).all()
+
+
+@router.get("/controlled/log/paged")
+def controlled_log_paged(days: int = 90, page: int = 1,
+                         per_page: int = paging.DEFAULT_PER_PAGE,
+                         db: Session = Depends(get_db)):
+    """The controlled register, paged, with the count over the whole period.
+
+    This is the list an inspector reads. Showing the most recent two hundred
+    hand-overs with nothing saying so is the one place a silent cap is not a
+    presentation choice.
+    """
+    result = paging.page(_controlled_query(db, days), page=page, per_page=per_page)
+    return result.envelope(lambda d: schemas.DispensingOut.model_validate(d, from_attributes=True).model_dump())
 
 
 @router.get("/stats")

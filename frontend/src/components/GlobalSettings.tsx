@@ -16,6 +16,7 @@ import { api, errorText } from "../api";
 import { useStepUp, CANCELLED } from "./StepUp";
 import { TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
+import Select from "./Select";
 
 interface Row {
   key: string; label: string; kind: string; unit: string; effect: string;
@@ -90,14 +91,11 @@ export default function GlobalSettings() {
 
         <div className="gs-control">
           {row.kind === "bool" ? (
-            <select
-              id={row.key}
-              value={current === "true" || current === "1" ? "true" : "false"}
-              onChange={(e) => setDraft((d) => ({ ...d, [row.key]: e.target.value }))}
-            >
-              <option value="true">Yes</option>
-              <option value="false">No</option>
-            </select>
+            <Select
+              value={String(current === "true" || current === "1" ? "true" : "false")}
+              onChange={(__value) => setDraft((d) => ({ ...d, [row.key]: __value }))}
+              options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} id={row.key}
+            />
           ) : (
             <div className="gs-input">
               <input

@@ -21,7 +21,7 @@ import logging
 from starlette.datastructures import QueryParams
 from starlette.middleware.base import BaseHTTPMiddleware
 
-log = logging.getLogger("rx3000.limits")
+log = logging.getLogger("rx5000.limits")
 
 # Same ceiling as the paged endpoints, so there is one number to reason about.
 from .services.paging import MAX_PER_PAGE  # noqa: E402

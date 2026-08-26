@@ -8,8 +8,11 @@ import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights } from "../components/record";
 import { printReceipt } from "../print";
 import { Sale, SaleItem } from "../types";
+import { usePharmacy } from "../hooks/usePharmacy";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 export default function SaleDetail() {
+  const pharmacy = usePharmacy();
   const { id } = useParams();
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
@@ -66,8 +69,8 @@ export default function SaleDetail() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="secondary" onClick={() => printReceipt(sale, "RX3000 Pharmacy")}>🖨 Reprint</button>
-          <Link to="/pos" className="btn secondary">← Front Shop</Link>
+          <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
+          <Link to="/pos" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Front Shop</Link>
         </div>
       </div>
 
@@ -88,7 +91,7 @@ export default function SaleDetail() {
             <div><dt>Auth code</dt>
               <dd>{sale.card_auth_code
                 ? <span className="mono">{sale.card_auth_code}</span>
-                : <span className="badge warn">not captured — cannot be reconciled</span>}</dd></div>
+                : <span className="badge warn">not captured, cannot be reconciled</span>}</dd></div>
             <div><dt>Acquirer reference</dt><dd className="mono">{sale.card_reference || "—"}</dd></div>
             <div><dt>Card</dt><dd>{sale.card_last4 ? `${sale.card_scheme || "card"} **** ${sale.card_last4}` : "—"}</dd></div>
             <div><dt>Terminal</dt><dd>{sale.terminal_id || "—"}</dd></div>
@@ -98,7 +101,7 @@ export default function SaleDetail() {
 
         {sale.claim && (
           <div className={sale.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 14 }}>
-            Claim {sale.claim.claim_number}: <b>{sale.claim.status.toUpperCase()}</b> — {sale.claim.response_message}
+            Claim {sale.claim.claim_number}: <b>{sale.claim.status.toUpperCase()}</b>. {sale.claim.response_message}
             {sale.claim.patient_liable > 0 && <> Patient pays <b>{money(sale.claim.patient_liable)}</b>.</>}
           </div>
         )}

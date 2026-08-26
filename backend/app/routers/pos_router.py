@@ -54,7 +54,7 @@ def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> No
             short = round(amount_due - collected, 2)
             raise HTTPException(
                 status_code=400,
-                detail=f"Tendered {collected} of {amount_due} — short by {short} "
+                detail=f"Tendered {collected} of {amount_due}, short by {short}"
                        f"{currency.base_code()}",
             )
 
@@ -285,8 +285,8 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
         # A receipt filed with the revenue authority cannot be withdrawn.
         raise HTTPException(
             status_code=400,
-            detail="This sale has been fiscalised and cannot be voided — "
-                   "issue a credit note instead (POST /api/fiscal/credit-note/{sale_id})",
+            detail="This sale has been fiscalised and cannot be voided. "
+                   "Issue a credit note instead (POST /api/fiscal/credit-note/{sale_id})",
         )
     # Return stock to the exact batches it was drawn from.
     helpers.return_sale_stock(db, sale, user.id, reference=f"VOID {sale.sale_number}")

@@ -40,7 +40,7 @@ ERRORS = {
     "VALIDATION_FAILED":  (400, "The payload failed validation."),
     "BIOMETRIC_REQUIRED": (428, "The funder requires the member's fingerprint before this transaction."),
     "BIOMETRIC_FAILED":   (401, "The fingerprint did not match the member's enrolled print."),
-    "BIOMETRIC_QUALITY":  (422, "The fingerprint image is too poor to submit — scan it again."),
+    "BIOMETRIC_QUALITY":  (422, "The fingerprint image is too poor to submit, scan it again."),
     "AUTH_DECLINED":      (402, "The funder declined the authorisation request."),
     "AUTH_REQUIRED":      (428, "This item needs a pre-authorisation before it can be claimed."),
     "AUTH_INVALID":       (422, "The authorisation held is expired, exhausted or not valid for this claim."),
@@ -337,7 +337,7 @@ class SimulatorSwitch(SwitchAdapter):
                 "status": "PAID" if not partial else "PART_PAID",
                 "approved_amount": amount,
                 "msg": ("Fully covered under basic benefit" if not partial
-                        else "Above per-claim ceiling — funder share applied"),
+                        else "Above per-claim ceiling, funder share applied"),
             })
         approved_total = round(approved_total, 2)
         return SwitchResult(
@@ -471,7 +471,7 @@ class Health263Switch(SwitchAdapter):
 
     def eligibility(self, payload: dict, funder: Funder) -> dict:
         raise GatewayError("SWITCH_UNAVAILABLE",
-                           "The Health 263 adapter is not implemented — supply their "
+                           "The Health 263 adapter is not implemented, supply their "
                            "REST specification and this adapter is the only change.")
 
     def claim(self, payload: dict, funder: Funder) -> SwitchResult:
@@ -504,7 +504,7 @@ class MediswitchSwitch(SwitchAdapter):
 
     def eligibility(self, payload: dict, funder: Funder) -> dict:
         raise GatewayError("SWITCH_UNAVAILABLE",
-                           "The Mediswitch adapter is not implemented — supply the WSDL "
+                           "The Mediswitch adapter is not implemented, supply the WSDL "
                            "and fault-code list.")
 
     def claim(self, payload: dict, funder: Funder) -> SwitchResult:

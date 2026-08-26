@@ -22,6 +22,8 @@ import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
+import Select from "../components/Select";
+import IconButton from "../components/IconButton";
 
 interface Branch {
   id: number; code: string; name: string; registration_no: string;
@@ -184,7 +186,7 @@ export default function Branches() {
     const ok = await confirm({
       title: `Receive ${t.quantity} × ${t.product}?`,
       body: `Confirms it arrived at ${t.to_branch} and puts it on that `
-          + `shelf. Only confirm what is physically in your hands — this is the `
+          + `shelf. Only confirm what is physically in your hands, this is the `
           + `point at which a box that never arrived stops being invisible.`,
       confirmLabel: "Confirm it arrived",
     });
@@ -229,9 +231,9 @@ export default function Branches() {
           <table>
             <thead>
               <tr>
-                <th>Reference</th><th>Item</th><th className="num">Quantity</th>
+                <th className="mono">Reference</th><th>Item</th><th className="num">Quantity</th>
                 <th>From</th><th>To</th><th>Sent</th>
-                <th className="num">Days out</th><th />
+                <th className="num">Days out</th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -250,7 +252,7 @@ export default function Branches() {
                   <td className={`num${t.days_in_transit >= 7 ? " cu-diff" : ""}`}>
                     {t.days_in_transit}
                   </td>
-                  <td className="num">
+                  <td className="num lb-actions">
                     <button className="small" disabled={busy === `receive-${t.id}`}
                       onClick={() => receive(t)}>
                       {busy === `receive-${t.id}` ? "Receiving…" : "Confirm arrival"}
@@ -272,7 +274,7 @@ export default function Branches() {
               <thead>
                 <tr>
                   <th>Code</th><th>Branch</th><th>City</th>
-                  <th>Responsible pharmacist</th><th>Registration</th><th />
+                  <th>Responsible pharmacist</th><th>Registration</th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -301,11 +303,9 @@ export default function Branches() {
                       <button className="small ghost" onClick={() => showStock(b)}>
                         {viewing === b.id ? "Hide stock" : "Stock"}
                       </button>
-                      <button className="small ghost" onClick={() => {
+                      <IconButton action="edit" title="Edit this branch" onClick={() => {
                         setEditing(b); setForm({ ...b });
-                      }}>
-                        Edit
-                      </button>
+                      }} />
                       {b.active && !b.is_default && (
                         <>
                           <button className="small ghost" disabled={busy === `default-${b.id}`}
@@ -332,7 +332,7 @@ export default function Branches() {
           <h3>Stock at {nameOf(viewing)}</h3>
           {stock && stock.lines.length >= 200 && (
             <p className="muted small">
-              The first 200 lines. This is a shelf list, not a stock report — use
+              The first 200 lines. This is a shelf list, not a stock report, use
               Analytics for the whole branch.
             </p>
           )}
@@ -439,25 +439,19 @@ export default function Branches() {
             <div className="form-row">
               <div className="field">
                 <label>From</label>
-                <select value={fromId}
-                  onChange={(e) => setFromId(e.target.value === "" ? "" : Number(e.target.value))}
-                  required>
-                  <option value="">Choose…</option>
-                  {branches.filter((b) => b.active).map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={String(fromId ?? "")}
+                  onChange={(__value) => setFromId(__value === "" ? "" : Number(__value))}
+                  options={[{ value: "", label: "Choose…" }, ...branches.filter((b) => b.active).map((b) => ({ value: String(b.id), label: b.name }))]}
+                />
               </div>
               <div className="field">
                 <label>To</label>
-                <select value={toId}
-                  onChange={(e) => setToId(e.target.value === "" ? "" : Number(e.target.value))}
-                  required>
-                  <option value="">Choose…</option>
-                  {branches.filter((b) => b.active && b.id !== fromId).map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                <Select
+                  value={String(toId ?? "")}
+                  onChange={(__value) => setToId(__value === "" ? "" : Number(__value))}
+                  options={[{ value: "", label: "Choose…" }, ...branches.filter((b) => b.active && b.id !== fromId).map((b) => ({ value: String(b.id), label: b.name }))]}
+                />
               </div>
             </div>
 

@@ -5,14 +5,18 @@ from pathlib import Path
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from . import schedule_policy
 from .audit import AuditMiddleware
 from .config import settings
-from .database import Base, SessionLocal, engine
+from sqlalchemy.orm import Session
+
+from .auth import get_current_user
+from .database import Base, SessionLocal, engine, get_db
+from .models import User
 from .limits import RequestSizeLimit
 from .migrate import run_migrations
 from .routers import (
@@ -87,7 +91,7 @@ async def lifespan(app: FastAPI):
 _STARTED_EPOCH = time.time()
 _STARTED = datetime.utcnow()
 
-app = FastAPI(title="RX3000 Pharmacy Management System", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="RX5000 Pharmacy Management System", version="1.0.0", lifespan=lifespan)
 
 # Bounds every size parameter before a handler sees it. Above the audit log so
 # what is recorded is what was actually served.
@@ -137,7 +141,7 @@ app.include_router(portal_router.admin)  # staff-side link issuing
 app.include_router(leads_router.public)  # unauthenticated web-to-lead / web-to-case
 
 
-log = logging.getLogger("rx3000")
+log = logging.getLogger("rx5000")
 
 
 @app.exception_handler(Exception)
@@ -197,6 +201,20 @@ def _code_stamp() -> dict:
 @app.get("/api/health")
 def health():
     return {"status": "ok", "pharmacy": settings.PHARMACY_NAME, **_code_stamp()}
+
+
+@app.get("/api/nav/counts")
+def nav_counts_endpoint(db: Session = Depends(get_db),
+                        _: User = Depends(get_current_user)):
+    """What needs doing, per navigation entry.
+
+    One call rather than fourteen: the sidebar asks once and every badge is
+    consistent with the others, which a badge-per-request cannot promise.
+    Counted in SQL — none of these load rows to measure their length.
+    """
+    from .services import nav_counts
+
+    return nav_counts.for_nav(db)
 
 
 @app.get("/api/jurisdiction")

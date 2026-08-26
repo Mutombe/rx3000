@@ -41,10 +41,10 @@ export default defineConfig({
     // Overridable so a second dev server can be run against a second backend.
     // Hard-coding both meant that when a stale uvicorn held 8177 there was no way
     // to check anything in a browser without killing somebody else's process.
-    port: Number(process.env.RX3000_PORT ?? 5180),
+    port: Number(process.env.RX5000_PORT ?? process.env.RX3000_PORT ?? 5180),
     strictPort: true,
     proxy: {
-      "/api": process.env.RX3000_API ?? "http://localhost:8177",
+      "/api": process.env.RX5000_API ?? process.env.RX3000_API ?? "http://localhost:8177",
     },
   },
 });

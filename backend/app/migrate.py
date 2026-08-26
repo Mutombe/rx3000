@@ -2,7 +2,7 @@
 
 `Base.metadata.create_all` creates new tables but never alters existing ones.
 This adds any missing columns on tables that predate a feature, so upgrading
-an existing rx3000.db never requires deleting it.
+an existing database file never requires deleting it.
 """
 import logging
 
@@ -10,11 +10,22 @@ import re
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
-log = logging.getLogger("rx3000.migrate")
+log = logging.getLogger("rx5000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0"},
+    # Till PINs. Nullable throughout: every user that existed before this has no
+    # PIN, and the password path has to keep working for them rather than
+    # locking them out of a prompt they have always answered with a password.
+    "users": {
+        "pin_hash": "VARCHAR(255)",
+        "pin_set_at": "TIMESTAMP",
+        "pin_failures": "INTEGER DEFAULT 0",
+        "pin_locked_until": "TIMESTAMP",
+        "is_demo": "BOOLEAN DEFAULT 0",
+        "demo_expires_at": "TIMESTAMP",
+    },
     "shifts": {
         "till_no": "VARCHAR(10)", "run_number": "INTEGER DEFAULT 0",
         "draw_no": "VARCHAR(10)", "branch_id": "INTEGER",
@@ -282,7 +293,7 @@ def _relax_not_null(conn, inspector, table: str, columns: tuple) -> int:
         # rows must be recoverable, and the half-done state is the evidence.
         raise RuntimeError(
             f"Rebuild of {table} copied {copied} of {original} rows. "
-            f"{table}__old has been kept — do not drop it.")
+            f"{table}__old has been kept, do not drop it.")
     conn.execute(text(f"DROP TABLE {table}__old"))
     conn.execute(text("PRAGMA foreign_keys=ON"))
     conn.execute(text("PRAGMA legacy_alter_table=OFF"))

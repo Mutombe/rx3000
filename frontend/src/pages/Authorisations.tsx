@@ -129,7 +129,7 @@ export default function Authorisations() {
       // and there is no point dressing it up: it decides whether the patient
       // pays today.
       toast.ok(made.effective_status === "approved"
-        ? `${made.reference} approved${made.authorisation_number ? ` — ${made.authorisation_number}` : ""}.`
+        ? `${made.reference} approved${made.authorisation_number ? `, number ${made.authorisation_number}` : ""}.`
         : `${made.reference}: ${made.effective_status}. ${made.decision_reason}`);
       setAsking(false);
       setPolicy(""); setMotivation(""); setIcd10("");
@@ -150,7 +150,7 @@ export default function Authorisations() {
       if (!res.usable) {
         toast.error(`Not usable: ${res.reasons.join(" ")}`);
       } else {
-        toast.ok(`Usable — ${res.quantity_remaining} left`
+        toast.ok(`Usable, ${res.quantity_remaining} left`
           + (res.valid_to ? `, until ${fmtDate(res.valid_to)}.` : "."));
       }
     } catch (e) {
@@ -233,7 +233,7 @@ export default function Authorisations() {
               <thead>
                 <tr>
                   <th>Reference</th><th>Funder</th><th>For</th><th>Status</th>
-                  <th>Valid to</th><th className="num">Left</th><th />
+                  <th>Valid to</th><th className="num">Left</th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -261,7 +261,9 @@ export default function Authorisations() {
                         {/* The reason a funder gave for refusing is the whole
                             value of a refusal — it says what to fix and resubmit. */}
                         {!live && a.decision_reason && (
-                          <div className="muted small">{a.decision_reason}</div>
+                          <div className="muted small clip-2" title={a.decision_reason}>
+                            {a.decision_reason}
+                          </div>
                         )}
                       </td>
                       <td className={expired(a) ? "cu-diff" : ""}>
@@ -329,7 +331,7 @@ export default function Authorisations() {
             <h2>Request an authorisation</h2>
             <p className="muted">
               Sent to the funder for a decision. An approval comes back with a
-              quantity, an amount and dates it is valid between — all of which the
+              quantity, an amount and dates it is valid between, all of which the
               claim is later checked against.
             </p>
 
@@ -442,7 +444,7 @@ export default function Authorisations() {
               {using.amount_authorised > 0
                 ? `, ${money(using.amount_remaining)} of ${money(using.amount_authorised)}.`
                 : "."}
-              {" "}Recording a draw is what keeps the balance honest — an
+              {" "}Recording a draw is what keeps the balance honest, an
               authorisation drawn but not recorded is one the next dispenser
               believes is still available.
             </p>

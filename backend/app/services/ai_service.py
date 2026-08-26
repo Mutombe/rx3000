@@ -17,6 +17,12 @@ from ..models import (
 
 MODEL = "claude-opus-5"
 
+
+def model_name() -> str:
+    """Which model answered. Recorded with each saved answer, because an answer
+    from a different model a year from now is not the same evidence."""
+    return MODEL
+
 _client = None
 
 
@@ -30,6 +36,11 @@ def _get_client():
         import anthropic
         _client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     return _client
+
+
+def _with_style(system: str) -> str:
+    """Every system prompt carries the house style, so no call site can forget."""
+    return f"{system}\n\n{HOUSE_STYLE}"
 
 
 def _ask_claude(system: str, user: str, max_tokens: int = 16000) -> str:
@@ -48,7 +59,7 @@ def _ask_claude(system: str, user: str, max_tokens: int = 16000) -> str:
     response = client.messages.create(
         model=MODEL,
         max_tokens=max_tokens,
-        system=system,
+        system=_with_style(system),
         messages=[{"role": "user", "content": user}],
     )
     if response.stop_reason == "refusal":
@@ -56,8 +67,43 @@ def _ask_claude(system: str, user: str, max_tokens: int = 16000) -> str:
     return "".join(block.text for block in response.content if block.type == "text")
 
 
+def stream_claude(system: str, user: str, max_tokens: int = 16000):
+    """Yield the answer as it is written, one delta at a time.
+
+    The same call as `_ask_claude`, streamed. It matters more than it looks: an
+    answer that takes twelve seconds to arrive whole reads as a system that has
+    hung, and the pharmacist reaches for the back button at about second five.
+    The same twelve seconds spent watching a sentence form reads as thinking,
+    and nobody leaves.
+
+    Yields plain text; the caller frames it for the wire.
+    """
+    if not ai_enabled():
+        yield ("AI features are disabled. Add your ANTHROPIC_API_KEY to "
+               "backend/.env and restart the server to enable them.")
+        return
+    client = _get_client()
+    with client.messages.stream(
+        model=MODEL,
+        max_tokens=max_tokens,
+        system=_with_style(system),
+        messages=[{"role": "user", "content": user}],
+    ) as stream:
+        for text in stream.text_stream:
+            yield text
+
+
+# House style, appended to every system prompt.
+#
+# The em dash is the giveaway: it is the punctuation mark a model reaches for and
+# most people do not, and a pharmacy system whose text reads as generated is a
+# system nobody trusts with a clinical note.
+HOUSE_STYLE = (
+    "Write like a person, not like a model. Use full stops, commas and colons; never an em dash. No bullet-point padding, no restating the question, no closing summary of what you just said. Say the number, then why it matters."
+)
+
 PHARMACIST_SYSTEM = (
-    "You are a clinical decision-support assistant embedded in RX3000, a pharmacy "
+    "You are a clinical decision-support assistant embedded in RX5000, a pharmacy "
     "management system. Your audience is a licensed pharmacist. Be concise, "
     "structured and practical. Flag severity clearly (e.g. CONTRAINDICATED, MAJOR, "
     "MODERATE, MINOR). Always end with a one-line reminder that this is decision "
@@ -167,13 +213,13 @@ def _local_context() -> str:
 
 
 def campaign_copy(name: str, channel: str, segment_label: str, goal: str) -> str:
-    limit = ("Keep it under 160 characters — it is an SMS."
+    limit = ("Keep it under 160 characters, it is an SMS."
              if channel == "sms" else "Write a short email: subject line, then 3-5 short lines.")
     prompt = (
         f"Draft marketing copy for a pharmacy campaign.\n"
         f"Campaign: {name}\nChannel: {channel}\nAudience: {segment_label}\nGoal: {goal}\n\n"
         f"{limit} You may use the merge fields {{first_name}}, {{points}} and {{pharmacy}}. "
-        "Do not make medical claims or guarantee outcomes. Give the copy only — no commentary."
+        "Do not make medical claims or guarantee outcomes. Give the copy only, no commentary."
     )
     return _ask_claude(crm_system(), prompt)
 
@@ -215,8 +261,13 @@ def account_summary(db: Session, company, deals: list, tickets: list, contacts: 
     return _ask_claude(crm_system(), prompt)
 
 
-def business_answer(db: Session, question: str) -> str:
-    """Natural-language Q&A over live business data."""
+def business_prompt(db: Session, question: str) -> tuple[str, str]:
+    """The system prompt and the user prompt for a business question.
+
+    Split out so the streaming endpoint and the plain one build exactly the
+    same context. Two call sites assembling "the same" prompt separately is
+    how a streamed answer quietly starts differing from a written one.
+    """
     today = date.today()
     month_start = today.replace(day=1)
     week_ago = datetime.utcnow() - timedelta(days=7)
@@ -253,9 +304,21 @@ def business_answer(db: Session, question: str) -> str:
         + "; ".join(f"{p.name} ({p.quantity_on_hand} on hand, reorder at {p.reorder_level})" for p in low_stock)
     )
     system = (
-        "You are the business analyst inside RX3000, a pharmacy management system. "
+        "You are the business analyst inside RX5000, a pharmacy management system. "
         "Answer the owner's question using ONLY the data snapshot provided. Amounts "
         f"are in {settings.CURRENCY}. If the snapshot can't answer the question, say what "
         "data would be needed. Be direct and practical."
     )
-    return _ask_claude(system, f"{context}\n\nQuestion: {question}")
+    return system, f"{context}\n\nQuestion: {question}"
+
+
+def business_answer(db: Session, question: str) -> str:
+    """A natural-language question over live business data, answered whole."""
+    system, user = business_prompt(db, question)
+    return _ask_claude(system, user)
+
+
+def business_answer_stream(db: Session, question: str):
+    """The same answer, delivered as it is written."""
+    system, user = business_prompt(db, question)
+    yield from stream_claude(system, user)

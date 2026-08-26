@@ -83,7 +83,7 @@ def _allergy_rows(patient: Patient, products: list[Product]) -> list[dict]:
                     "body": (f"{patient.first_name} {patient.last_name} is recorded as "
                              f"allergic to {term}. {product.name} matches that on name "
                              "or active ingredient. Confirm with the patient before "
-                             "dispensing — this is a text match against the allergy "
+                             "dispensing. This is a text match against the allergy "
                              "field, not a clinical interaction check."),
                     "source": "allergy record", "blocking": True,
                     "created_at": None, "created_by": "",

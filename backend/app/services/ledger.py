@@ -100,7 +100,7 @@ def post(db: Session, *, entry_date: date, description: str, lines: list[Line],
          currency_code: str = "USD", user_id: int | None = None) -> JournalEntry:
     """Post a balanced entry into an open period, or refuse."""
     if len(lines) < 2:
-        raise LedgerError("An entry needs at least two lines — that is what makes "
+        raise LedgerError("An entry needs at least two lines, that is what makes "
                           "it double entry.")
 
     debits = round(sum(l.debit for l in lines), 2)
@@ -165,7 +165,7 @@ def reverse(db: Session, entry: JournalEntry, on: date | None = None,
     reversal = post(
         db, entry_date=on or date.today(),
         description=f"Reversal of {entry.reference}"
-                    + (f" — {reason}" if reason else ""),
+                    + (f": {reason}" if reason else ""),
         lines=mirrored, source=entry.source, source_id=entry.source_id,
         currency_code=entry.currency_code, user_id=user_id)
     entry.status = "reversed"
@@ -243,7 +243,7 @@ def trial_balance(db: Session, *, period_code: str = "",
 
 
 def subledger(db: Session, name: str, *, period_code: str = "") -> dict:
-    """What a subledger holds, by party — the detail behind a control account."""
+    """What a subledger holds, by party. The detail behind a control account."""
     controls = [a for a in db.query(Account).filter(Account.subledger == name).all()]
     if not controls:
         raise LedgerError(f"No control account is marked as the '{name}' subledger.")
