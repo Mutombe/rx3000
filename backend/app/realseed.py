@@ -32,9 +32,10 @@ from sqlalchemy.orm import Session
 from . import zimdata
 from .database import SessionLocal
 from .models import (
-    Campaign, Claim, Dispensing, Doctor, MedicalAid, Message, OwedItem, Patient,
-    Prescription, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
-    RegisterEntry, Sale, SaleItem, StockBatch, Supplier, User,
+    Campaign, Claim, Deal, Dispensing, Doctor, LayBy, LayByItem, LayByPayment,
+    Lead, MedicalAid, Message, OwedItem, Patient, Prescription, PrescriptionItem,
+    Product, PurchaseOrder, PurchaseOrderItem, RegisterEntry, Sale, SaleItem,
+    Shift, StockBatch, Supplier, User,
 )
 
 # A fixed seed, so two people running this get the same pharmacy and can talk
@@ -271,7 +272,13 @@ def _catalogue(db: Session) -> list[Product]:
         row.unit_price = price
         row.cost_price = cost
         row.category = category
-        row.vat_rate = 0.0 if schedule >= 3 else 15.0  # prescription medicine is zero rated
+        # A fraction, not a percentage.
+        #
+        # The till computes `line_total / (1 + product.vat_rate)`, so 15% is
+        # 0.15 here. Written as 15.0 it divides by sixteen, and every VAT figure
+        # in the system is wrong by two orders of magnitude — silently, because
+        # nothing validates a tax rate against a plausible range.
+        row.vat_rate = 0.0 if schedule >= 3 else 0.15  # prescription medicine is zero rated
         if not row.quantity_on_hand:
             # Deep enough to sell from, shallow enough that the reorder screen
             # has something real on it.
@@ -471,8 +478,9 @@ def _trading(db: Session, days: int, products: list[Product],
                 continue
 
             total = round(spent, 2)
+            # VAT out of a VAT-inclusive line, the way the till does it.
             # Prescription medicine is zero rated; the front shop is not.
-            vat = round(sum(l * (p.vat_rate or 0) / 100 for p, _, l in lines), 2)
+            vat = round(sum(l - l / (1 + (p.vat_rate or 0)) for p, _, l in lines), 2)
             sale = Sale(
                 sale_number=f"INV{seq}",
                 patient_id=(RNG.choice(patients).id
@@ -485,7 +493,15 @@ def _trading(db: Session, days: int, products: list[Product],
                 payment_method=RNG.choices(
                     ["cash", "ecocash", "card", "swipe"],
                     weights=[0.52, 0.28, 0.13, 0.07])[0],
-                status="completed",
+                # "paid", not "completed".
+                #
+                # The vocabulary is pending / paid / void, and the till sets
+                # "paid" when the money is taken. "completed" reads correctly to
+                # a person and matches nothing in the code, so every takings
+                # figure, every VAT return and the whole of Analytics reported
+                # zero against four thousand real sales. A status column is only
+                # as good as the set of values something actually queries.
+                status="paid",
                 currency_code="USD",
             )
             db.add(sale)
@@ -598,7 +614,9 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                         product_id=product.id,
                         quantity_owed=item.quantity,
                         quantity_settled=0,
-                        status="open",
+                        # The queue filters on "outstanding"; "open" is not in
+                        # the vocabulary and matched nothing.
+                        status="outstanding",
                         promised_for=(when + timedelta(days=RNG.choice([1, 2, 3, 7]))).date(),
                         created_at=when,
                         created_by_id=RNG.choice(staff).id,
@@ -666,8 +684,12 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
             claimed = round(gross - levy, 2)
             # The states a claiming clerk actually works through, weighted the
             # way the claim summary reads: most of the money is still out.
+            # The states a claiming clerk actually works through, in the
+            # vocabulary the routers query: "deferred" is the one held back
+            # because the switch was down, which is the screen a Zimbabwean
+            # pharmacy looks at most.
             status = RNG.choices(
-                ["settled", "submitted", "approved", "rejected", "held"],
+                ["approved", "submitted", "partial", "rejected", "deferred"],
                 weights=[0.34, 0.30, 0.16, 0.10, 0.10])[0]
             db.add(Claim(
                 claim_number=f"CLM{claim_seq}",
@@ -677,23 +699,26 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                 gross=gross,
                 levy=levy,
                 amount_claimed=claimed,
-                amount_approved=claimed if status in ("settled", "approved") else 0,
+                amount_approved=(claimed if status == "approved" else
+                                 round(claimed * 0.6, 2) if status == "partial" else 0),
                 patient_liable=levy,
-                settled_amount=claimed if status == "settled" else 0,
+                settled_amount=(claimed if status == "approved" else
+                                round(claimed * 0.6, 2) if status == "partial" else 0),
                 settled_at=(sale.created_at + timedelta(days=RNG.randint(14, 45))
-                            if status == "settled" else None),
+                            if status in ("approved", "partial") else None),
                 submitted_at=(sale.created_at + timedelta(days=1)
-                              if status != "held" else None),
+                              if status != "deferred" else None),
                 status=status,
                 icd10_code=RNG.choice(zimdata.ICD10)[0],
                 authorisation=f"APWEB-{RNG.randint(10**12, 10**13 - 1)}",
-                response_message=("Paid in full" if status == "settled" else
+                response_message=("Paid in full" if status == "approved" else
                                   "Awaiting remittance" if status == "submitted" else
-                                  "Approved, not yet paid" if status == "approved" else
+                                  "Paid short against the reference price" if status == "partial" else
                                   "Member not on risk for this benefit" if status == "rejected" else
                                   "Switch was down at the time of sale"),
                 deferred_reason=("Switch offline at point of sale"
-                                 if status == "held" else None),
+                                 if status == "deferred" else None),
+                deferred_at=(sale.created_at if status == "deferred" else None),
                 created_at=sale.created_at,
             ))
             made["claims"] += 1
@@ -826,6 +851,180 @@ def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
     return dict(made)
 
 
+def _laybys(db: Session, patients, products, staff) -> dict[str, int]:
+    """Lay-bys, which is how a $45 blood pressure monitor gets bought here.
+
+    Not a fringe feature. A monitor is more than a week's grocery money, so it is
+    paid off over a month and collected when it is clear. A pharmacy evaluating
+    this looks for it early, and an empty lay-by screen reads as "not supported"
+    rather than "none open today".
+    """
+    made = collections.Counter()
+    dear = [p for p in products if (p.unit_price or 0) >= 6]
+    if not (patients and dear and staff):
+        return dict(made)
+
+    for n in range(14):
+        patient = RNG.choice(patients)
+        lines = RNG.sample(dear, RNG.choice([1, 1, 2]))
+        total = round(sum((p.unit_price or 0) * 1 for p in lines), 2)
+        opened = datetime.now() - timedelta(days=RNG.randint(3, 70))
+        status = RNG.choices(["open", "completed", "cancelled"],
+                             weights=[0.55, 0.35, 0.10])[0]
+        layby = LayBy(
+            layby_number=f"LB{4200 + n}",
+            patient_id=patient.id,
+            status=status,
+            total=total,
+            minimum_deposit=round(total * 0.25, 2),
+            due_date=(opened + timedelta(days=60)).date(),
+            created_at=opened,
+            created_by_id=RNG.choice(staff).id,
+            completed_at=opened + timedelta(days=RNG.randint(20, 55)) if status == "completed" else None,
+            cancelled_at=opened + timedelta(days=RNG.randint(30, 80)) if status == "cancelled" else None,
+            cancellation_fee=round(total * 0.10, 2) if status == "cancelled" else 0,
+        )
+        db.add(layby)
+        db.flush()
+        for product in lines:
+            db.add(LayByItem(layby_id=layby.id, product_id=product.id,
+                             quantity=1, unit_price=product.unit_price))
+        # Payments in the amounts people actually pay: a deposit, then whatever
+        # is spare that week. Round figures, because that is what cash is.
+        paid, when = 0.0, opened
+        target = total if status == "completed" else round(total * RNG.uniform(0.25, 0.8), 2)
+        while paid < target - 0.01:
+            when = when + timedelta(days=RNG.randint(3, 14))
+            if when > datetime.now():
+                break
+            amount = min(round(RNG.choice([5, 5, 10, 10, 20])), round(target - paid, 2))
+            if amount <= 0:
+                break
+            db.add(LayByPayment(layby_id=layby.id, amount=amount, created_at=when,
+                                method=RNG.choice(["cash", "ecocash"]),
+                                currency_code="USD",
+                                user_id=RNG.choice(staff).id))
+            paid += amount
+            made["layby payments"] += 1
+        made["lay-bys"] += 1
+    db.commit()
+    return dict(made)
+
+
+def _shifts(db: Session, staff, days: int) -> dict[str, int]:
+    """A cash-up a day, with the variances a real drawer has.
+
+    Every shift balancing to the cent is the tell that a demo was generated. A
+    counter is out by a dollar or two most days: a note miscounted, change given
+    from a pocket, a sale rung up in the wrong currency. The point of the screen
+    is explaining a variance, not celebrating its absence.
+    """
+    made = collections.Counter()
+    if not staff:
+        return dict(made)
+
+    for back in range(min(days, 45), 0, -1):
+        day = (datetime.now() - timedelta(days=back)).replace(hour=8, minute=0, second=0, microsecond=0)
+        rows = db.query(Sale).filter(
+            Sale.created_at >= day,
+            Sale.created_at < day + timedelta(days=1)).all()
+        if not rows:
+            continue
+        cash = sum(s.total or 0 for s in rows if s.payment_method == "cash")
+        card = sum(s.total or 0 for s in rows if s.payment_method in ("card", "swipe"))
+        opening = 50.0
+        expected = round(opening + cash, 2)
+        # Out by a couple of dollars most days, exact about a third of the time.
+        drift = RNG.choice([0, 0, 0, -2, -1, -0.5, 0.5, 1, 2, -5])
+        db.add(Shift(
+            user_id=RNG.choice(staff).id,
+            opened_at=day,
+            closed_at=day.replace(hour=22),
+            opening_float=opening,
+            expected_cash=expected,
+            counted_cash=round(expected + drift, 2),
+            variance=round(drift, 2),
+            card_total=round(card, 2),
+            sales_count=len(rows),
+            status="closed",
+            till_no="4",
+            run_number=4067 + back,
+            notes=("Short, note miscounted at hand over" if drift < -1 else
+                   "Over, change given from float" if drift > 1 else ""),
+            counted_by_id=RNG.choice(staff).id,
+            counted_at=day.replace(hour=22, minute=20),
+        ))
+        made["cash-ups"] += 1
+    db.commit()
+    return dict(made)
+
+
+def _crm(db: Session, staff) -> dict[str, int]:
+    """Zimbabwean accounts, in place of the South African fixtures.
+
+    The CRM side sells to clinics, mines, schools and corporates: the wholesale
+    and occupational-health work that sits alongside the retail counter. What was
+    there was Highveld Logistics and Piet van Zyl, which is a different country's
+    demo.
+    """
+    made = collections.Counter()
+    if not staff:
+        return dict(made)
+
+    # Children before parents. A deal has line items, activities, quotes and a
+    # timeline hanging off it, and a lead can point at the deal it converted
+    # into; deleting the parents first is a constraint failure, and the tables
+    # involved are read out of the schema rather than remembered.
+    deal_ids = [d.id for d in db.query(Deal).all()]
+    lead_ids = [l.id for l in db.query(Lead).all()]
+    for table, column in [("deal_items", "deal_id"), ("quotes", "deal_id"),
+                          ("quote_lines", "deal_id"), ("activities", "deal_id"),
+                          ("timeline_entries", "deal_id"), ("tasks", "deal_id"),
+                          ("leads", "converted_deal_id")]:
+        _delete_where_in(db, table, column, deal_ids)
+    for table, column in [("activities", "lead_id"), ("timeline_entries", "lead_id"),
+                          ("tasks", "lead_id")]:
+        _delete_where_in(db, table, column, lead_ids)
+    # `leads.converted_deal_id` is nulled rather than the lead deleted: the
+    # delete above would take the lead with the deal, and a converted lead is a
+    # record of how the deal was won.
+    db.query(Lead).update({Lead.converted_deal_id: None}, synchronize_session=False)
+    db.commit()
+    _delete_where_in(db, "deals", "id", deal_ids)
+    _delete_where_in(db, "leads", "id", lead_ids)
+    db.commit()
+
+    for i, (first, last, org, title, source, status, rating, value) in enumerate(zimdata.LEADS):
+        db.add(Lead(
+            first_name=first, last_name=last, company_name=org, job_title=title,
+            email=f"{first.lower()}@{org.split()[0].lower()}.co.zw",
+            phone=f"07{RNG.choice('1378')}{RNG.randint(1000000, 9999999)}",
+            source=source, status=status, rating=rating,
+            score=RNG.randint(20, 95), estimated_value=value,
+            interest=RNG.choice(["Chronic medicine supply", "Occupational health",
+                                 "Staff wellness screening", "First aid restocking"]),
+            owner_id=RNG.choice(staff).id,
+            marketing_opt_in=True,
+            created_at=datetime.now() - timedelta(days=RNG.randint(2, 120)),
+        ))
+        made["leads"] += 1
+
+    for i, (title, stage, value, probability, source) in enumerate(zimdata.DEALS):
+        opened = datetime.now() - timedelta(days=RNG.randint(5, 150))
+        db.add(Deal(
+            title=title, value=value, stage=stage, probability=probability,
+            expected_close_date=(opened + timedelta(days=RNG.randint(20, 90))).date(),
+            owner_id=RNG.choice(staff).id, source=source,
+            created_at=opened,
+            closed_at=(opened + timedelta(days=RNG.randint(20, 90))
+                       if stage in ("won", "lost") else None),
+            lost_reason=("Went with the incumbent on price" if stage == "lost" else None),
+        ))
+        made["opportunities"] += 1
+    db.commit()
+    return dict(made)
+
+
 def run(wipe_all: bool = False, days: int = 60) -> None:
     db = SessionLocal()
     try:
@@ -913,6 +1112,21 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         if db.query(Message).count() < 50:
             print("writing reminders and campaigns…")
             for k, v in _outreach(db, patients, products, cashiers).items():
+                print(f"  {v} {k}")
+
+        if db.query(LayBy).count() < 5:
+            print("opening lay-bys…")
+            for k, v in _laybys(db, patients, products, cashiers).items():
+                print(f"  {v} {k}")
+
+        if db.query(Shift).count() < 10:
+            print("cashing up…")
+            for k, v in _shifts(db, cashiers, days).items():
+                print(f"  {v} {k}")
+
+        if db.query(Lead).filter(Lead.company_name.like("%Zimplats%")).count() == 0:
+            print("replacing the CRM fixtures…")
+            for k, v in _crm(db, cashiers).items():
                 print(f"  {v} {k}")
 
         print("done.")

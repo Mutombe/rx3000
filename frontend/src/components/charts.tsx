@@ -171,11 +171,32 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
   );
 }
 
-/** Horizontal leaderboard bars — one row per entity, two comparable measures. */
-export function BarList({ rows, format }: {
+/** Horizontal leaderboard bars — one row per entity, two comparable measures.
+ *
+ *  The colours are **passed in**, and that is the whole point of this rewrite.
+ *  They used to come from the stylesheet: `.barlist-bar.primary` was painted in
+ *  `var(--accent)` — near-black ink, not a data colour — and `.secondary` in a
+ *  gradient of `--rose` and `--mauve`, two leftovers of a palette that was
+ *  removed for failing the contrast validator. Meanwhile the `<Legend>` above
+ *  the chart drew its swatches from the chart palette. So on the rep performance
+ *  and attribution tabs the key said blue and green while the bars rendered
+ *  black and pink, and the reader had no way to tell which bar was which
+ *  measure. A legend that does not match its chart is worse than no legend.
+ *
+ *  Each row also carries a hover readout, because a bar whose exact figure is
+ *  only in one column is a bar you cannot compare with the one below it.
+ */
+export function BarList({ rows, format, colours, labels }: {
   rows: { label: string; sub?: ReactNode; primary: number; secondary?: number }[];
   format: (n: number) => string;
+  /** [primary, secondary]. Defaults to the first two categorical slots. */
+  colours?: [string, string];
+  /** What the two measures are called, for the hover readout. */
+  labels?: [string, string];
 }) {
+  const palette = useChartPalette();
+  const [primaryColour, secondaryColour] = colours ?? [palette.slots[0], palette.slots[2]];
+  const [primaryLabel, secondaryLabel] = labels ?? ["Primary", "Secondary"];
   const top = Math.max(...rows.map((r) => Math.max(r.primary, r.secondary ?? 0)), 1);
   return (
     <div className="barlist">
@@ -183,9 +204,20 @@ export function BarList({ rows, format }: {
         <div key={r.label} className="barlist-row">
           <div className="barlist-label"><b>{r.label}</b>{r.sub && <div className="muted">{r.sub}</div>}</div>
           <div className="barlist-track">
-            <div className="barlist-bar primary" style={{ width: `${(r.primary / top) * 100}%` }} />
+            {/* The tip is on the track rather than the bar: a bar two pixels
+                wide is a hit target nobody can find, and the row is what the
+                reader is pointing at anyway. */}
+            <div
+              className="barlist-hit"
+              data-tip={r.secondary !== undefined
+                ? `${r.label} · ${primaryLabel} ${format(r.primary)} · ${secondaryLabel} ${format(r.secondary)}`
+                : `${r.label} · ${format(r.primary)}`}
+            />
+            <div className="barlist-bar primary"
+                 style={{ width: `${(r.primary / top) * 100}%`, background: primaryColour }} />
             {r.secondary !== undefined && (
-              <div className="barlist-bar secondary" style={{ width: `${(r.secondary / top) * 100}%` }} />
+              <div className="barlist-bar secondary"
+                   style={{ width: `${(r.secondary / top) * 100}%`, background: secondaryColour }} />
             )}
           </div>
           <div className="barlist-value">{format(r.primary)}</div>

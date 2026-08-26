@@ -336,13 +336,22 @@ def _mark_cash_accounts(conn) -> int:
     purpose: an account is cash if it is named like cash, not if it merely sits
     near cash in the numbering.
     """
+    # TRUE, not 1.
+    #
+    # SQLite has no boolean type and treats them as integers, so `is_cash = 1`
+    # works locally and always will. PostgreSQL refuses it outright — "operator
+    # does not exist: boolean = integer" — and because this runs inside the
+    # startup lifespan, that refusal is not a failed migration but a server that
+    # will not boot. It took the production API down while every local check
+    # stayed green, which is the shape of every SQLite-versus-Postgres bug: the
+    # dialect that accepts more is the one you develop against.
     already = conn.execute(text(
-        "SELECT COUNT(*) FROM accounts WHERE is_cash = 1"
+        "SELECT COUNT(*) FROM accounts WHERE is_cash = TRUE"
     )).scalar()
     if already:
         return 0
     result = conn.execute(text(
-        "UPDATE accounts SET is_cash = 1 "
+        "UPDATE accounts SET is_cash = TRUE "
         "WHERE type = 'asset' AND ("
         "  LOWER(name) LIKE '%cash%' OR LOWER(name) LIKE '%bank%'"
         "  OR LOWER(name) LIKE '%petty%' OR LOWER(name) LIKE '%till%')"
@@ -498,8 +507,29 @@ def run_migrations(engine: Engine) -> int:
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
-        if "products" in existing_tables:
-            applied += _name_the_nameless(conn)
-        if "accounts" in existing_tables:
-            applied += _mark_cash_accounts(conn)
+    # The tidying passes run in their own transactions, and a failure in one is
+    # logged rather than raised.
+    #
+    # These are advisory: naming a product that has no name, guessing which
+    # accounts are cash. None of them is a schema change and nothing downstream
+    # is broken if one is skipped. Inside the block above they were fatal, and
+    # because migrations run in the startup lifespan, "fatal" means the API does
+    # not boot at all — which is what `is_cash = 1` did to production while
+    # every local check stayed green, SQLite having no opinion about comparing a
+    # boolean to an integer.
+    #
+    # Schema changes stay in the block above and stay fatal, deliberately: a
+    # server running against a table that is missing a column should stop, not
+    # answer 500 to one screen in nine.
+    for label, needs, fix in [
+        ("naming unnamed products", "products", _name_the_nameless),
+        ("classifying cash accounts", "accounts", _mark_cash_accounts),
+    ]:
+        if needs not in existing_tables:
+            continue
+        try:
+            with engine.begin() as conn:
+                applied += fix(conn)
+        except Exception:  # noqa: BLE001 - advisory, never worth the server
+            log.exception("Skipped %s; the server is starting anyway", label)
     return applied

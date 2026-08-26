@@ -383,3 +383,38 @@ DELIVERY_FAILURES = [
     "Patient at work, asked us to try after 17:00",
     "Refused: wanted to pay on collection, not on delivery",
 ]
+
+
+# --- the wholesale and occupational-health side ----------------------------
+#
+# A retail pharmacy here also supplies clinics, mines, schools and corporates.
+# The fixtures that were in the database — Highveld Logistics, Piet van Zyl —
+# are a different country's demo.
+#
+# (first, last, organisation, title, source, status, rating, value)
+LEADS = [
+    ("Tapiwa",   "Muronzi",   "Chitungwiza Central Clinic",  "Matron",             "referral",  "qualified",  "hot",  8400.0),
+    ("Rutendo",  "Chigumba",  "Zimplats Selous",             "Occupational Health Nurse", "event", "working", "hot", 21500.0),
+    ("Blessing", "Nyathi",    "Arundel School",              "School Nurse",       "website",   "new",        "warm", 3200.0),
+    ("Farai",    "Marimo",    "Old Mutual Zimbabwe",         "HR Manager",         "referral",  "working",    "warm", 14000.0),
+    ("Memory",   "Sibanda",   "Harare Institute of Technology", "Clinic Sister",   "walk-in",   "new",        "cold",  1800.0),
+    ("Shingirai", "Gwaze",    "Delta Beverages Graniteside", "Safety Officer",     "cold call", "qualified",  "hot",  17600.0),
+    ("Privilege", "Zvobgo",   "Avenues Clinic",              "Procurement",        "referral",  "working",    "warm", 26000.0),
+    ("Chiedza",  "Mhlanga",   "Econet Wireless",             "Wellness Lead",      "event",     "new",        "warm", 9800.0),
+    ("Nomatter", "Dube",      "Mbare Polyclinic",            "Sister in Charge",   "walk-in",   "disqualified", "cold", 900.0),
+    ("Tendai",   "Moyo",      "Nyaradzo Group",              "Staff Welfare",      "website",   "qualified",  "hot",  12400.0),
+]
+
+# (title, stage, value, probability, source)
+DEALS = [
+    ("Zimplats Selous, chronic medicine supply",        "negotiation", 21500.0, 70, "event"),
+    ("Avenues Clinic, ward stock account",              "proposal",    26000.0, 55, "referral"),
+    ("Delta Graniteside, first aid restocking contract", "qualified",  17600.0, 40, "cold call"),
+    ("Old Mutual, staff wellness screening",            "proposal",    14000.0, 55, "referral"),
+    ("Nyaradzo Group, staff medicine benefit",          "qualified",   12400.0, 40, "website"),
+    ("Econet Wireless, on-site pharmacy pilot",         "new",          9800.0, 15, "event"),
+    ("Chitungwiza Central Clinic, monthly supply",      "won",          8400.0, 100, "referral"),
+    ("Arundel School, sick bay account",                "won",          3200.0, 100, "website"),
+    ("Harare Institute of Technology, clinic supply",   "new",          1800.0, 15, "walk-in"),
+    ("Mbare Polyclinic, ARV dispensing partnership",    "lost",         4500.0, 0, "walk-in"),
+]

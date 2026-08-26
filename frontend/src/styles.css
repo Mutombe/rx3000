@@ -1067,9 +1067,21 @@ label {
 .barlist-label { font-size: 13px; min-width: 0; }
 .barlist-label .muted { font-size: 11px; }
 .barlist-track { position: relative; height: 26px; }
-.barlist-bar { position: absolute; left: 0; height: 11px; border-radius: 999px; transition: width 0.3s ease; }
-.barlist-bar.primary { top: 0; background: var(--accent); }
-.barlist-bar.secondary { top: 14px; background: linear-gradient(90deg, var(--rose), var(--mauve)); }
+/* No background here on purpose. The colour is a property of the data and comes
+   from the chart palette via a prop; setting it in CSS is what let the bars and
+   their own legend disagree for as long as this component has existed. */
+.barlist-bar {
+  position: absolute; left: 0; height: 11px; border-radius: 999px;
+  transition: width 0.3s ease;
+  /* A hairline of the surface between the two bars, so a long primary and a
+     long secondary read as two marks rather than one thick one. */
+  box-shadow: 0 0 0 1.5px var(--surface);
+}
+.barlist-bar.primary { top: 1px; }
+.barlist-bar.secondary { top: 14px; }
+/* The whole track is the hit target. A two-pixel bar is not one. */
+.barlist-hit { position: absolute; inset: -4px 0; z-index: 1; }
+.barlist-row:hover .barlist-bar { filter: brightness(1.08); }
 .barlist-value { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
 @media (max-width: 760px) { .barlist-row { grid-template-columns: 1fr; gap: 4px; } }
 

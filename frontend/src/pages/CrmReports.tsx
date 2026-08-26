@@ -203,8 +203,14 @@ export default function CrmReports() {
                 { key: "Closed won", colour: SERIES[2] },
               ]} />
             </div>
+            {/* The same two slots the legend above draws from, passed in rather
+                than left to the stylesheet. That mismatch is what made these
+                charts look wrong: the key said blue and green, the bars were
+                black and pink. */}
             <BarList
               format={money}
+              colours={[SERIES[0], SERIES[2]]}
+              labels={["Open pipeline", "Closed won"]}
               rows={owners.map((o) => ({
                 label: o.name,
                 sub: `${o.role} · ${o.open_deals} open · ${o.win_rate}% win rate`,
@@ -253,9 +259,18 @@ export default function CrmReports() {
               <Donut slices={channelMix} format={compact} />
             </div>
             <div className="card">
-              <div className="card-head"><h3>Pipeline by campaign</h3></div>
+              <div className="card-head">
+                <h3>Pipeline by campaign</h3>
+                {/* Two series, so a legend is not optional. */}
+                <Legend items={[
+                  { key: "Pipeline sourced", colour: SERIES[0] },
+                  { key: "Closed won", colour: SERIES[2] },
+                ]} />
+              </div>
               <BarList
                 format={money}
+                colours={[SERIES[0], SERIES[2]]}
+                labels={["Pipeline sourced", "Closed won"]}
                 rows={roi.map((c) => ({
                   label: c.name,
                   sub: `${c.channel.toUpperCase()} · ${c.sent} sent · ${c.response_rate}% response`,
