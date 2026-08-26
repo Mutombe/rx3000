@@ -7,14 +7,14 @@ Three distinct workflows:
 """
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import paging
+from ..services import interactions, paging
 from ..models import (
     Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product,
     Sale, SaleItem, User,
@@ -202,3 +202,73 @@ def dispensing_stats(days: int = 30, db: Session = Depends(get_db)):
         "otc_sales": otc,
         "otc_referrals": referrals,
     }
+
+
+@router.post("/interaction-screen")
+def interaction_screen(patient_id: int | None = Body(default=None),
+                       product_ids: list[int] = Body(default_factory=list),
+                       db: Session = Depends(get_db)):
+    """Screen a basket, and screen it against what the patient already takes.
+
+    Called by the dispensing screen every time the basket changes, not from a
+    button. A safety check somebody has to remember to run is a safety check that
+    gets skipped on exactly the busy afternoon it was written for.
+
+    **The medication history is the point.** Two new lines interacting with each
+    other is the case that is easy to picture and uncommon in practice: one
+    prescriber wrote both and has usually thought about it. The dangerous case is
+    a new line against a repeat from two years ago — warfarin from a cardiologist
+    in March, ibuprofen for a sore back today, different prescriber, nobody
+    holding both facts. The pharmacy counter is the only place both are visible.
+
+    Deliberately does not block on its own. The checker holds twelve pairs and
+    says so in every response; blocking on twelve while missing thousands would
+    teach a pharmacist that a clear result means safe, which is the failure this
+    whole module is written against. The screen asks for an acknowledgement on a
+    major finding and never claims more than it knows.
+    """
+    products = db.query(Product).filter(Product.id.in_(product_ids)).all() if product_ids else []
+
+    history: list[dict] = []
+    if patient_id:
+        # What this patient is actually on: every line dispensed in the last six
+        # months, most recent first, one row per product. Six months because a
+        # chronic repeat cycles monthly and a quarterly script is ordinary; much
+        # longer and a course finished in March starts flagging in September.
+        cutoff = datetime.utcnow() - timedelta(days=182)
+        rows = (db.query(Product, func.max(Dispensing.dispensed_at))
+                  .join(PrescriptionItem, PrescriptionItem.product_id == Product.id)
+                  .join(Dispensing, Dispensing.prescription_item_id == PrescriptionItem.id)
+                  .join(Prescription, Prescription.id == PrescriptionItem.prescription_id)
+                  .filter(Prescription.patient_id == patient_id,
+                          Dispensing.dispensed_at >= cutoff)
+                  .group_by(Product.id)
+                  .all())
+        basket = {p.id for p in products}
+        for product, last in rows:
+            # A product already in the basket is not also "history": flagging a
+            # repeat against itself would report every chronic refill as a
+            # duplicate.
+            if product.id in basket:
+                continue
+            history.append({
+                "product_id": product.id,
+                "name": f"{product.name} {product.strength or ''}".strip(),
+                "active_ingredient": product.active_ingredient or "",
+                "since": last.strftime("%d %b") if last else "",
+            })
+
+    result = interactions.check(
+        [{"product_id": p.id,
+          "name": f"{p.name} {p.strength or ''}".strip(),
+          "active_ingredient": p.active_ingredient or ""}
+         for p in products],
+        existing=history,
+    )
+    result["history_source"] = (
+        f"{len(history)} medicine(s) dispensed to this patient in the last six months"
+        if history else
+        ("Nothing dispensed to this patient in the last six months"
+         if patient_id else "No patient selected, so nothing was checked against history")
+    )
+    return result

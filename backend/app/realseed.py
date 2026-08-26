@@ -308,6 +308,10 @@ def _catalogue(db: Session) -> list[Product]:
         row.unit_price = price
         row.cost_price = cost
         row.category = category
+        # What is actually in the box. The interaction checker falls back to the
+        # product name, which carries a generic and misses every brand, so the
+        # ingredient is stated wherever the name does not already say it.
+        row.active_ingredient = zimdata.ACTIVE_INGREDIENTS.get(name, name.lower())
         # A fraction, not a percentage.
         #
         # The till computes `line_total / (1 + product.vat_rate)`, so 15% is

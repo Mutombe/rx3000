@@ -7,6 +7,7 @@ import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
+import InteractionPanel from "../components/InteractionPanel";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import Variants from "../components/Variants";
@@ -65,6 +66,11 @@ export default function Dispense() {
   const [items, setItems] = useState<DraftItem[]>([]);
   const [aiResult, setAiResult] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  /* Interaction screening runs on every basket change, so its state lives here
+     and gates the dispense button. `ixMajor` is how many major findings are
+     outstanding; `ixAcknowledged` is whether the pharmacist has accepted them. */
+  const [ixMajor, setIxMajor] = useState(0);
+  const [ixAcknowledged, setIxAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
   const [doneRxId, setDoneRxId] = useState<number | null>(null);
@@ -268,7 +274,18 @@ export default function Dispense() {
   const complianceReady =
     (!needsInitials || initials.trim() !== "") &&
     (route !== "controlled" ||
-    (items.length > 0 && idVerified && scriptSighted && prescriberVerified));
+    (items.length > 0 && idVerified && scriptSighted && prescriberVerified)) &&
+    // A major interaction has to be acknowledged, not blocked. The checker holds
+    // twelve pairs and says so; refusing outright on twelve while missing
+    // thousands teaches a pharmacist that a clear result means safe.
+    (ixMajor === 0 || ixAcknowledged);
+
+  useEffect(() => {
+    // Adding or removing a line makes it a different question, so a previous
+    // acknowledgement stops applying. Carrying it over would let somebody accept
+    // one finding and dispense a basket that now has another in it.
+    setIxAcknowledged(false);
+  }, [items.map((i) => i.product.id).join(","), patient?.id]);
 
   function addItem(p: Product) {
     if (items.some((i) => i.product.id === p.id)) return;
@@ -777,6 +794,17 @@ export default function Dispense() {
                   the claim will be paid.
                 </div>
               )}
+              {/* Runs itself as the basket changes. The button below is the
+                  second opinion, not the first: this one is the check that
+                  cannot be forgotten on a busy afternoon. */}
+              <InteractionPanel
+                patientId={patient?.id ?? null}
+                productIds={items.map((i) => i.product.id)}
+                acknowledged={ixAcknowledged}
+                onAcknowledge={setIxAcknowledged}
+                onScreened={setIxMajor}
+              />
+
               <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
                 <button className="secondary" onClick={checkInteractions} disabled={!patient || items.length === 0 || aiBusy}>
                   {aiBusy ? "Checking…" : <><ClaudeIcon size={14} /> AI interaction check</>}
@@ -785,9 +813,25 @@ export default function Dispense() {
                   {busy ? "Dispensing…" : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
                 </button>
               </div>
-              {!complianceReady && items.length > 0 && (
+              {ixMajor > 0 && !ixAcknowledged && items.length > 0 && (
+                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                  Acknowledge the interaction finding above before dispensing.
+                </div>
+              )}
+              {/* Only when the controlled record is what is actually missing.
+                  This used to fire on any incomplete gate, so a Schedule 4 line
+                  held up by an unacknowledged interaction was told to complete a
+                  compliance record that is not on its route and does not exist —
+                  two messages at once, one of them impossible to act on. */}
+              {!complianceReady && items.length > 0 && route === "controlled"
+                && !(idVerified && scriptSighted && prescriberVerified) && (
                 <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
                   Complete every item in the compliance record before this controlled substance can be dispensed.
+                </div>
+              )}
+              {needsInitials && !initials.trim() && items.length > 0 && (
+                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                  Enter the checking pharmacist's initials before dispensing.
                 </div>
               )}
               {aiResult && <AiOutput text={aiResult} title="Interaction check" />}

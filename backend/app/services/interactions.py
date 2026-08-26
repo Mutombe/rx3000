@@ -94,8 +94,24 @@ def _matches(ingredient: str, term: str) -> bool:
     return bool(ingredient) and (term in ingredient or ingredient in term)
 
 
-def check(items: list[dict]) -> dict:
-    """Check a basket. `items` are {name, active_ingredient} dicts.
+def check(items: list[dict], existing: list[dict] | None = None) -> dict:
+    """Check a basket, and the basket against what the patient already takes.
+
+    `items` are what is about to be dispensed; `existing` is what is already on
+    file for this patient. Both are {name, active_ingredient} dicts.
+
+    The second argument is the point of this function.
+    ---------------------------------------------------
+    Two new lines interacting with each other is the case that is easy to
+    imagine and rare in practice: a prescriber wrote them together and has
+    usually thought about it. The dangerous case is a new line against a repeat
+    the patient has been on for two years — warfarin from the cardiologist in
+    March, ibuprofen for a sore back today, different prescriber, nobody holding
+    both facts. The pharmacy is the only place both are visible, which is exactly
+    why this belongs here and not on the prescription pad.
+
+    Each finding says which side is which, so a pharmacist can tell "these two
+    on your screen" from "this one and something they are already taking".
 
     Also flags a duplicated active ingredient, which is not an interaction but is
     the same mistake with a worse outcome — two products, one drug, double dose.
@@ -113,21 +129,61 @@ def check(items: list[dict]) -> dict:
             "text": f"{ingredient} {item.get('name', '')}".lower(),
             "ingredient": ingredient,
             "id": item.get("product_id"),
+            "dispensing_now": True,
         })
+
+    on_file = []
+    for item in existing or []:
+        ingredient = (item.get("active_ingredient") or "").lower()
+        on_file.append({
+            "label": item.get("name", ""),
+            "text": f"{ingredient} {item.get('name', '')}".lower(),
+            "ingredient": ingredient,
+            "id": item.get("product_id"),
+            "dispensing_now": False,
+            "since": item.get("since", ""),
+        })
+
+    def pair_hit(first, second):
+        for pair in KNOWN:
+            hit_a = _matches(first["text"], pair.a) and _matches(second["text"], pair.b)
+            hit_b = _matches(first["text"], pair.b) and _matches(second["text"], pair.a)
+            if hit_a or hit_b:
+                return pair
+        return None
+
+    def describe(first, second, pair):
+        # Which side is which. "Both on this script" and "this one against a
+        # repeat they are already on" call for different conversations with the
+        # patient, and the finding should not make the pharmacist work it out.
+        if first["dispensing_now"] and second["dispensing_now"]:
+            context = "both on this script"
+        else:
+            already = second if first["dispensing_now"] else first
+            since = already.get("since")
+            context = (f"{already['label']} is already on file"
+                       + (f", last dispensed {since}" if since else ""))
+        return {
+            "severity": pair.severity,
+            "between": [first["label"], second["label"]],
+            "context": context,
+            "with_history": not (first["dispensing_now"] and second["dispensing_now"]),
+            "effect": pair.effect,
+            "action": pair.action,
+        }
 
     found = []
     for i, first in enumerate(profiles):
+        # Within the basket.
         for second in profiles[i + 1:]:
-            for pair in KNOWN:
-                hit_a = _matches(first["text"], pair.a) and _matches(second["text"], pair.b)
-                hit_b = _matches(first["text"], pair.b) and _matches(second["text"], pair.a)
-                if hit_a or hit_b:
-                    found.append({
-                        "severity": pair.severity,
-                        "between": [first["label"], second["label"]],
-                        "effect": pair.effect,
-                        "action": pair.action,
-                    })
+            pair = pair_hit(first, second)
+            if pair:
+                found.append(describe(first, second, pair))
+        # And against the medication already on file.
+        for second in on_file:
+            pair = pair_hit(first, second)
+            if pair:
+                found.append(describe(first, second, pair))
 
     # Duplicate therapy: two products carrying the same ingredient.
     duplicates = []
@@ -151,6 +207,7 @@ def check(items: list[dict]) -> dict:
     all_found.sort(key=lambda f: order.get(f["severity"], 9))
     return {
         "checked": len(profiles),
+        "history_checked": len(on_file),
         "pairs_consulted": len(KNOWN),
         "found": all_found,
         "major": sum(1 for f in all_found if f["severity"] == "major"),

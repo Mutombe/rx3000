@@ -439,3 +439,51 @@ STAFF = [
     ("sfunsani",   "Susan Funsani",      "cashier"),
     ("nbanda",     "Nyasha Banda",       "cashier"),
 ]
+
+
+# --- what is actually in the box -------------------------------------------
+#
+# The interaction checker matches on active ingredient and falls back to the
+# product name. That fallback carries generics — "Tramadol" contains tramadol —
+# and silently fails for every brand: Brufen is ibuprofen, Panadeine is codeine,
+# Coartem is artemether with lumefantrine, and none of those words appear in
+# their names. A checker that quietly cannot see half the catalogue is worse than
+# one that admits it holds twelve pairs, because the twelve are at least honest.
+#
+# Only where the name does not already say it. A generic named after its
+# ingredient needs no entry here.
+ACTIVE_INGREDIENTS = {
+    "Panadol": "paracetamol",
+    "Panadeine": "paracetamol, codeine",
+    "Brufen": "ibuprofen",
+    "Cataflam": "diclofenac",
+    "Aspirin": "aspirin",
+    "Aspirin Cardio": "aspirin",
+    "Amoxil": "amoxicillin",
+    "Augmentin": "amoxicillin, clavulanate",
+    "Flagyl": "metronidazole",
+    "Coartem": "artemether, lumefantrine",
+    "Artemether-Lumefantrine": "artemether, lumefantrine",
+    "Cotrimoxazole": "sulfamethoxazole, trimethoprim",
+    "Ventolin": "salbutamol",
+    "Benylin": "diphenhydramine",
+    "Gaviscon": "alginate",
+    "Buscopan": "hyoscine butylbromide",
+    "Betadine": "povidone iodine",
+    "Savlon": "chlorhexidine, cetrimide",
+    "Insulatard": "insulin isophane",
+    "Actrapid": "insulin soluble",
+    "Whitfield's Ointment": "benzoic acid, salicylic acid",
+    "Tenofovir/Lamivudine/Dolutegravir": "tenofovir, lamivudine, dolutegravir",
+    "Atazanavir/Ritonavir": "atazanavir, ritonavir",
+    "Oral Rehydration Salts": "sodium chloride, glucose",
+    "Vitamin B Complex": "thiamine, riboflavin, nicotinamide",
+    "Calcium with Vitamin D": "calcium carbonate, colecalciferol",
+    "Pregnacare": "folic acid, ferrous fumarate",
+    "Vitamin C": "ascorbic acid",
+    "Ferrous Sulphate": "ferrous sulphate",
+    "Hydrochlorothiazide": "hydrochlorothiazide",
+    # Named so the ACE-inhibitor pair can match: the rule is written against the
+    # class, and enalapril is the one in this catalogue.
+    "Enalapril": "enalapril, ace inhibitor",
+}

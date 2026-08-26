@@ -4470,3 +4470,62 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   --e2: 0 8px 24px rgba(0, 0, 0, 0.55);
   --e3: 0 12px 40px rgba(0, 0, 0, 0.65);
 }
+
+/* --- interaction screening ------------------------------------------------ */
+
+/* Sits above the dispense button, in the path of the eye on its way there.
+   Quiet when nothing is flagged — a panel that shouts on every script is a panel
+   people stop reading, and the whole point is that the one time it matters, it
+   is still being read. */
+.ix {
+  margin-bottom: var(--s4); padding: var(--s3) var(--s4);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-sm);
+}
+.ix-major {
+  background: var(--danger-soft);
+  border-color: var(--danger-line); border-left-color: var(--danger);
+}
+.ix-head {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  font-size: var(--t-sm);
+}
+.ix-head svg { flex: none; color: var(--ink-soft); }
+.ix-major .ix-head svg { color: var(--danger); }
+.ix-head .muted { font-size: var(--t-xs); }
+
+.ix-row {
+  display: flex; gap: var(--s2); align-items: flex-start;
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px solid var(--line-soft);
+  font-size: var(--t-sm); line-height: 1.5;
+}
+.ix-row svg { flex: none; margin-top: 2px; }
+.ix-row.is-major svg { color: var(--danger); }
+.ix-row.is-moderate svg { color: var(--warn); }
+.ix-row.is-minor svg { color: var(--ink-faint); }
+.ix-row p { margin: 2px 0 0; color: var(--ink-mid); }
+.ix-row .ix-action { color: var(--ink); font-weight: 500; }
+/* Which side is already on file. Set apart from the pair itself, because "both
+   on this script" and "against a repeat" are different conversations. */
+.ix-context {
+  display: block; margin-top: 1px;
+  color: var(--ink-soft); font-size: var(--t-xs);
+}
+
+.ix-ack {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px solid var(--danger-line);
+  font-size: var(--t-sm); font-weight: 500; line-height: 1.45; cursor: pointer;
+}
+.ix-ack input { width: auto; height: auto; margin-top: 2px; flex: none; }
+
+/* The limits of the checker, on screen whether or not anything was flagged.
+   They are only useful at the moment somebody is relying on it. */
+.ix-coverage {
+  margin: var(--s3) 0 0; padding-top: var(--s2);
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-soft); font-size: var(--t-xs); line-height: 1.5;
+}
