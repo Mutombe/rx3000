@@ -18,6 +18,7 @@
  *  the log exists to make that visible rather than impossible.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { api, errorText } from "../api";
 import PinInput from "./PinInput";
 import type { User } from "../types";
@@ -37,6 +38,29 @@ function idleMs(): number {
   return Number.isFinite(asked) && asked >= 500 ? asked : DEFAULT_IDLE_MS;
 }
 const ACTIVITY = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+
+/** Where a shared machine is genuinely shared.
+ *
+ *  The lock used to arm on every screen in the product, which is why an
+ *  administrator reading a report got a PIN prompt every five minutes for a
+ *  machine nobody else touches. That is how a lock gets switched off, and then
+ *  the till it was written for is unlocked all day too.
+ *
+ *  These are the screens where somebody hands the keyboard over mid-shift and
+ *  where what happens next has to be attributable: the till, the dispensary,
+ *  the cash drawer, the controlled register. Everywhere else the session simply
+ *  stays open — the same session, on the same machine, doing office work.
+ *
+ *  A pharmacy whose back-office machine IS a shared counter turns
+ *  `lock_everywhere` on in settings and gets the old behaviour deliberately. */
+const SHARED_ROUTES = [
+  "/register", "/pos", "/dispense", "/shifts", "/laybys",
+  "/compounding", "/to-follows", "/will-call",
+];
+
+function isSharedScreen(pathname: string): boolean {
+  return SHARED_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
 
 export default function TillLock({
   user, onActorChange,
@@ -62,11 +86,27 @@ export default function TillLock({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [everywhere, setEverywhere] = useState(false);
   const timer = useRef(0);
+  const { pathname } = useLocation();
+
+  /* Armed only where the keyboard is actually shared, unless the pharmacy has
+     said its machines are shared everywhere. An already-locked till stays
+     locked wherever you navigate to: walking to the reports screen is not a
+     way out of it. */
+  const armHere = everywhere || isSharedScreen(pathname);
 
   // Only lock a till whose user can unlock it. Somebody with no PIN set would be
   // locked out of their own session with no way back except signing in again,
   // which is the very thing this exists to avoid.
+  useEffect(() => {
+    // Whether this pharmacy treats every machine as a shared counter. Off by
+    // default: most back offices are one person's desk.
+    api.get<{ value: string }>("/api/settings/till.lock_everywhere")
+      .then((s) => setEverywhere(s.value === "1" || s.value === "true"))
+      .catch(() => setEverywhere(false));
+  }, []);
+
   useEffect(() => {
     let live = true;
     api.get<{ pin_set: boolean }>("/api/auth/pin")
@@ -77,19 +117,24 @@ export default function TillLock({
 
   const arm = useCallback(() => {
     window.clearTimeout(timer.current);
-    if (!enabled || locked) return;
+    if (!enabled || locked || !armHere) return;
     timer.current = window.setTimeout(() => lockGate.lock(), idleMs());
-  }, [enabled, locked]);
+  }, [enabled, locked, armHere]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !armHere) {
+      // Leaving a till screen disarms the timer but never unlocks a till that is
+      // already locked: navigating away must not be a way past the PIN.
+      window.clearTimeout(timer.current);
+      return;
+    }
     arm();
     for (const e of ACTIVITY) window.addEventListener(e, arm, { passive: true });
     return () => {
       window.clearTimeout(timer.current);
       for (const e of ACTIVITY) window.removeEventListener(e, arm);
     };
-  }, [arm, enabled]);
+  }, [arm, enabled, armHere]);
 
   async function unlock(code: string) {
     setBusy(true);

@@ -65,6 +65,15 @@ DECLARED: tuple[Declared, ...] = (
              "Named on controlled-substance records and regulatory reports."),
 
     # ---- counter behaviour
+    Declared("till.lock_everywhere", "Lock every screen when idle", "bool", "0",
+             "Counter",
+             "On, any screen left idle asks for a PIN, which suits a pharmacy "
+             "where every machine is a shared counter. Off, only the screens "
+             "where the keyboard actually changes hands lock — the till, the "
+             "dispensary, the cash drawer — and a back-office machine stays "
+             "signed in. Off by default: a manager who is asked for a PIN every "
+             "five minutes while reading a report turns the lock off entirely, "
+             "and then the till it was written for is unlocked all day too."),
     Declared("layby.minimum_deposit_pct", "Minimum lay-by deposit", "percent", "20",
              "Counter",
              "Below this a lay-by is refused. Set it low and the pharmacy stores "
@@ -163,6 +172,28 @@ def listing(db: Session = Depends(get_db)):
     # because a stray key is usually a typo that has been silently doing nothing.
     unknown = sorted(k for k in stored if k not in BY_KEY)
     return {"groups": groups, "unrecognised": unknown}
+
+
+@router.get("/{key:path}")
+def one(key: str, db: Session = Depends(get_db)):
+    """One setting, with its stored value or its declared default.
+
+    A single-key read, because a screen that needs one flag should not fetch and
+    filter the whole catalogue on every mount. Unknown keys 404 rather than
+    answering empty: a typo that silently returns "" is a feature that quietly
+    behaves as though it were switched off.
+    """
+    declared = next((d for d in DECLARED if d.key == key), None)
+    if not declared:
+        raise HTTPException(status_code=404, detail=f"No setting called '{key}'.")
+    row = db.query(Setting).filter(Setting.key == key).first()
+    return {
+        "key": key,
+        "value": row.value if row and row.value != "" else declared.default,
+        "is_default": not (row and row.value != ""),
+        "kind": declared.kind,
+        "label": declared.label,
+    }
 
 
 @router.put("/{key:path}")

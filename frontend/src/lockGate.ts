@@ -15,7 +15,12 @@
  *  protects nothing the shelf does not already show, and it would make the lock
  *  something staff work around rather than with.
  */
-type Waiter = { resolve: () => void; reject: (reason: Error) => void };
+/** What a held request is told when the gate finally answers.
+ *  `unlocked` — the PIN landed, carry on. `abandoned` — the operator pushed the
+ *  prompt aside; do nothing, and say nothing. */
+export type GateOutcome = "unlocked" | "abandoned";
+
+type Waiter = { resolve: (outcome: GateOutcome) => void };
 
 let locked = false;
 let dismissed = false;
@@ -64,25 +69,29 @@ export const lockGate = {
     locked = false;
     dismissed = false;
     // Everything that was held now proceeds, in the order it arrived.
-    while (waiters.length) waiters.shift()!.resolve();
+    while (waiters.length) waiters.shift()!.resolve("unlocked");
     announce();
   },
 
   /** Give up on the held requests, so a cancel does not leave promises pending
-   *  for the rest of the session. */
+   *  for the rest of the session.
+   *
+   *  Resolved as *abandoned* rather than rejected. Rejecting looked right — the
+   *  request did not happen — but nothing was catching it, so pressing "Not now"
+   *  logged an unhandled failure every time, and on a page with a held save it
+   *  produced an error the operator had done nothing to cause. The caller is
+   *  told the request was dropped and returns quietly instead. */
   abandon() {
-    while (waiters.length) {
-      waiters.shift()!.reject(new Error("The till is locked."));
-    }
+    while (waiters.length) waiters.shift()!.resolve("abandoned");
     announce();
   },
 
   /** Called by the API layer before anything that writes. Resolves at once when
    *  the till is open, and otherwise waits for the PIN. */
-  ensureUnlocked(): Promise<void> {
-    if (!locked) return Promise.resolve();
+  ensureUnlocked(): Promise<GateOutcome> {
+    if (!locked) return Promise.resolve("unlocked");
     lockGate.prompt();
-    return new Promise<void>((resolve, reject) => waiters.push({ resolve, reject }));
+    return new Promise<GateOutcome>((resolve) => waiters.push({ resolve }));
   },
 };
 

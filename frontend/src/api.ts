@@ -227,7 +227,12 @@ async function request<T>(
      paused, not refused: when the PIN lands it continues, so nobody loses the
      basket they were halfway through. */
   if (method !== "GET" && !path.startsWith("/api/auth/")) {
-    await lockGate.ensureUnlocked();
+    // "abandoned" means the operator pushed the prompt aside. The request is
+    // dropped without an error: they chose this, and telling them off for it is
+    // how a lock becomes something staff disable.
+    if ((await lockGate.ensureUnlocked()) === "abandoned") {
+      throw new Abandoned();
+    }
   }
 
   let res: Response;
@@ -299,6 +304,17 @@ async function request<T>(
  *  software. Those go to the console, where they are useful, and the screen
  *  gets one honest sentence.
  */
+/** A request the operator chose not to complete.
+ *
+ *  Not a failure, and deliberately its own type so callers can tell it apart
+ *  from a server that refused. Screens show nothing for it. */
+export class Abandoned extends Error {
+  constructor() {
+    super("The till is locked and the prompt was set aside.");
+    this.name = "Abandoned";
+  }
+}
+
 export function errorText(cause: unknown, fallback = "That did not work. Please try again."): string {
   if (cause instanceof ApiError) return cause.message;
   if (typeof cause === "string" && cause.trim()) return cause;
