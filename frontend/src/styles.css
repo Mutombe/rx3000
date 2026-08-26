@@ -429,7 +429,21 @@ a:hover { opacity: 0.75; }
 .me-menu button.is-leave { color: var(--danger); }
 .me-menu button.is-leave:hover { background: var(--danger-soft); color: var(--danger); }
 
-.main { flex: 1; padding: var(--s8) var(--s8) var(--s12); max-width: 1400px; width: 100%; }
+/* The working pane. Capped, but the cap scales with the screen.
+   A flat 1400px meant a 1920 monitor showed 1400px of product and 320px of empty
+   grey — and a card grid that stopped at four columns where six would have fit.
+   The cap exists because a line of body text three thousand pixels wide is
+   unreadable, not because 1400 is a magic number; tables and card grids have no
+   such limit and are what people actually buy a big monitor for.
+   `min()` gives the reading width on a laptop and the room on a monitor. */
+.main {
+  flex: 1; width: 100%;
+  padding: var(--s8) var(--s8) var(--s12);
+  max-width: min(2000px, 100%);
+}
+/* Prose keeps its own measure wherever it appears, so widening the pane widens
+   the tables and not the paragraphs. */
+.main .sub, .main .lede, .main .empty p { max-width: 90ch; }
 @media (max-width: 640px) { .topbar { padding: var(--s2) var(--s4); } }
 .page-head {
   display: flex; align-items: flex-end; justify-content: space-between;
@@ -453,6 +467,11 @@ a:hover { opacity: 0.75; }
 .cols-2 { grid-template-columns: 1fr 1fr; }
 .cols-3 { grid-template-columns: repeat(3, 1fr); }
 .cols-4 { grid-template-columns: repeat(4, 1fr); }
+/* A catalogue of cards fills the width it is given rather than holding a fixed
+   column count. On a wide monitor the reports screen was four across with a
+   third of the pane empty beside it. */
+.cols-auto { grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+@media (min-width: 1700px) { .cols-4 { grid-template-columns: repeat(5, 1fr); } }
 @media (max-width: 1100px) { .cols-4 { grid-template-columns: repeat(2, 1fr); } .cols-3 { grid-template-columns: 1fr; } .cols-2 { grid-template-columns: 1fr; } }
 
 /* stat tiles — first one gets the mesh-gradient hero treatment */
