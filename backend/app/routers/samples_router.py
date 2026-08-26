@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import User
-from ..services import consent, samples
+from ..services import consent, recall, samples
 
 router = APIRouter(prefix="/api", tags=["compliance"],
                    dependencies=[Depends(get_current_user)])
@@ -96,3 +96,30 @@ def record_consent(subject_type: str, subject_id: int,
     except consent.ConsentError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True, "id": e.id}
+
+
+# --------------------------------------------------------------------- recall
+
+@router.get("/recall/batches")
+def recall_search(q: str = "", db: Session = Depends(get_db)):
+    """Find a batch by its number or by the medicine's name.
+
+    Matched loosely: a recall notice gives the number in the manufacturer's
+    format and whoever booked the delivery in typed what was on the box.
+    """
+    return {"items": recall.find_batches(db, q)}
+
+
+@router.get("/recall/batches/{batch_id}")
+def recall_trace(batch_id: int, db: Session = Depends(get_db)):
+    """Where the batch came from, what is left, and who has the rest.
+
+    The counts reconcile out loud — received, on the shelf, traced to a named
+    patient, sold to a walk-in, and unaccounted for. That last figure is the
+    honest part: a recall report that quietly omits what it cannot see reads as
+    "nobody else has it".
+    """
+    out = recall.trace(db, batch_id)
+    if not out:
+        raise HTTPException(status_code=404, detail="That batch is not on file.")
+    return out

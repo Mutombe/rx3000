@@ -4687,3 +4687,22 @@ table.dt.sub th { font-size: var(--t-xs); }
   padding: var(--s2) 0;
 }
 .prov-detail[open] summary { margin-bottom: var(--s2); }
+
+/* --- recall --------------------------------------------------------------- */
+
+.rc-search { position: relative; display: flex; align-items: center; }
+.rc-search svg { position: absolute; left: 10px; color: var(--ink-faint); }
+.rc-search input { padding-left: 32px; }
+
+/* What to do first, above the list of names. Quarantining what is still on the
+   shelf takes ten seconds and is the only step that stops another person
+   receiving it; the telephone calls take the afternoon. */
+.recall-do { display: flex; gap: var(--s3); align-items: flex-start; }
+.recall-do svg { flex: none; margin-top: 2px; }
+.recall-do ul { margin: 0; padding-left: var(--s4); display: grid; gap: 4px; }
+.recall-do li { line-height: 1.5; }
+
+/* A definition list that reads as a record card rather than a form. */
+.kv { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: var(--s2) var(--s4); margin: 0; }
+.kv dt { color: var(--ink-soft); font-size: var(--t-sm); }
+.kv dd { margin: 0; font-size: var(--t-sm); }

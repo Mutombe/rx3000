@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 
 const WillCall = lazy(() => import("./pages/WillCall"));
 const Samples = lazy(() => import("./pages/Samples"));
+const Recall = lazy(() => import("./pages/Recall"));
 const Welcome = lazy(() => import("./pages/Welcome"));
 const Training = lazy(() => import("./pages/Training"));
 import { getToken } from "./api";
@@ -115,6 +116,7 @@ export default function App() {
                 <Route path="/to-follows" element={<ToFollows />} />
                 <Route path="/will-call" element={<WillCall />} />
                 <Route path="/samples" element={<Samples />} />
+                <Route path="/recall" element={<Recall />} />
                 <Route path="/periods" element={<Periods />} />
                 <Route path="/system" element={<System />} />
                 <Route path="/claims-held" element={<DeferredClaims />} />

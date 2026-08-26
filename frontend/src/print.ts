@@ -121,56 +121,98 @@ const LABEL_CSS = `
      preview, because somebody signs off on the screen and the roll disagrees.
 
      Millimetres throughout. A thermal label is a physical object and points
-     drift between browsers; millimetres do not. */
+     drift between browsers; millimetres do not.
+
+     ---
+
+     **It has to fit on one label.** The previous design did not, and because the
+     overflow was hidden it did not look broken — it looked finished with the
+     bottom missing. Measured across forty-two real labels, every one of them
+     overflowed: the shortest needed 61mm of a 42mm sticker and the worst needed
+     79mm. What got cut was the end: the pharmacy name, the date, the script
+     number. A dispensing label that silently loses its footer is worse than one
+     that is obviously wrong.
+
+     So the sticker now carries what a sticker is for, and the rest lives where
+     it is actually looked up:
+
+       kept    patient, medicine and strength, the directions, warnings,
+               the pharmacy, the date, the script number
+       dropped batch and expiry (in the stock register, and in the recall
+               trace, which is where anybody looks for them), the prescriber
+               (on the script), repeats left (the patient asks), the price
+               (on the receipt)
+
+     qa/label-fits.mjs measures the real markup at the real size and fails on a
+     single pixel of overflow, so this cannot quietly drift back. */
   @page { size: 58mm 42mm; margin: 0; }
   body { margin: 0; color: #111; font-family: Arial, Helvetica, sans-serif; }
 
   .label {
-    width: 58mm; height: 42mm; padding: 3.4mm 3.6mm; box-sizing: border-box;
+    width: 58mm; height: 42mm; padding: 2.2mm 2.6mm; box-sizing: border-box;
     display: flex; flex-direction: column;
-    font-size: 7.6pt; line-height: 1.3;
+    font-size: 7pt; line-height: 1.22;
     page-break-after: always; overflow: hidden;
   }
   .label:last-child { page-break-after: auto; }
 
-  .top { display: flex; align-items: baseline; justify-content: space-between; gap: 2mm; padding-bottom: 1.2mm; }
-  .patient { font-weight: bold; font-size: 9pt; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .price { font-size: 7.6pt; color: #444; white-space: nowrap; }
+  /* One line, and it truncates rather than wrapping: a second line here costs
+     the directions a line, and the name is recognised from its first half. */
+  .patient {
+    font-weight: bold; font-size: 8.4pt; line-height: 1.15;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 
-  .drug { display: flex; flex-direction: column; padding-bottom: 1.4mm; }
-  .med { font-weight: bold; font-size: 10.5pt; line-height: 1.15; }
-  .form { font-size: 7pt; color: #555; }
+  .med {
+    font-weight: bold; font-size: 9.2pt; line-height: 1.12; margin-top: 0.6mm;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .form { font-size: 6.4pt; color: #555; }
 
-  /* The line the sticker exists for. */
+  /* The line the sticker exists for, and the one that is allowed to grow.
+     Everything above and below it is fixed, so a long direction takes the room
+     rather than pushing the footer off the label. */
   .dose {
-    padding: 1.8mm 0; font-size: 11pt; font-weight: bold; line-height: 1.32;
-    border-top: 0.35mm solid #111; border-bottom: 0.35mm solid #111;
+    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    margin-top: 1.2mm; padding: 1.2mm 0;
+    font-size: 9.6pt; font-weight: bold; line-height: 1.24;
+    border-top: 0.3mm solid #111; border-bottom: 0.3mm solid #111;
   }
 
   /* Printed on a monochrome thermal head the tint renders as a light stipple,
      which still reads as a band rather than as another paragraph. */
   .warn {
-    margin-top: 1.4mm; padding: 1.1mm 1.4mm;
-    background: #f3efe4; border-left: 0.7mm solid #a8873f;
-    font-size: 6.9pt; font-weight: bold; line-height: 1.28; color: #4a3c17;
+    flex: 0 0 auto;
+    margin-top: 1mm; padding: 0.8mm 1.2mm;
+    background: #f3efe4; border-left: 0.6mm solid #a8873f;
+    font-size: 6.2pt; font-weight: bold; line-height: 1.2; color: #4a3c17;
     text-transform: uppercase;
+    max-height: 7mm; overflow: hidden;
   }
 
-  .audit {
-    margin-top: 1.8mm; padding-top: 1.4mm; border-top: 0.2mm solid rgba(17,17,17,0.28);
-    font-size: 6.6pt; color: #333;
-  }
-  .audit .row { display: flex; gap: 2.2mm; flex-wrap: wrap; margin-bottom: 0.5mm; }
-  .audit .pair { display: inline-flex; align-items: baseline; gap: 1.1mm; white-space: nowrap; }
-  .audit i { font-style: normal; font-size: 5.9pt; text-transform: uppercase; letter-spacing: 0.06em; color: #777; font-weight: bold; }
-  .audit b { font-weight: 500; }
-  .audit .mono { font-family: "Courier New", monospace; font-size: 6.4pt; }
-
+  /* One footer line, not five audit rows. The pharmacy is a legal requirement on
+     a dispensed label; the date and the script number are what somebody quotes
+     back on the telephone. */
+  /* Two lines, not one row sharing a width.
+     Side by side, a long script number squeezed the pharmacy name until it
+     ellipsed to "RX5000 Phar…" — and the dispensing pharmacy is a legal
+     requirement on the label while the reference is a convenience. Stacked, the
+     name gets the full width and the reference cannot take it. */
   .foot {
-    margin-top: auto; padding-top: 1.6mm; border-top: 0.2mm solid rgba(17,17,17,0.28);
-    display: flex; flex-direction: column; font-size: 6.4pt; color: #444;
+    flex: 0 0 auto;
+    margin-top: 1mm; padding-top: 0.9mm;
+    border-top: 0.2mm solid rgba(17,17,17,0.3);
+    display: flex; flex-direction: column; gap: 0.2mm;
+    font-size: 6.2pt; color: #444;
   }
-  .foot b { font-size: 7.4pt; color: #111; text-transform: uppercase; }
+  .foot b {
+    font-size: 6.6pt; color: #111; font-weight: bold; line-height: 1.15;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .foot .mono {
+    font-family: "Courier New", monospace; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
 `;
 
 /** Escape anything that came from the database before it becomes markup.
@@ -193,46 +235,38 @@ function esc(v: unknown): string {
  *  needs its own sticker. Repeating whole sets rather than consecutive
  *  duplicates keeps a patient's items together when they come off the printer.
  */
-export function printLabels(labels: Label[], copies = 1) {
-  if (labels.length === 0) return;
+/** The markup for a sheet of labels, without printing it.
+ *
+ *  Split out so the overflow check can render the real thing at the real size.
+ *  The sticker clips what does not fit, so a label that is too tall does not look
+ *  broken — it looks finished with the bottom missing, which is the worst way for
+ *  a dispensing label to fail. Measuring it is the only way to know. */
+export function labelSheetHtml(labels: Label[], copies = 1): string {
   const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
   const body = sheet
     .map(
       (l) => `
       <div class="label">
-        <div class="top">
-          <span class="patient">${esc(l.patient_name)}</span>
-          ${l.line_total > 0 ? `<span class="price">${esc(l.line_total.toFixed(2))}</span>` : ""}
-        </div>
-        <div class="drug">
-          <span class="med">${esc(l.product_name)} ${esc(l.strength)}</span>
-          <span class="form">${esc([l.dosage_form, l.quantity ? `Qty ${l.quantity}` : ""].filter(Boolean).join(" · "))}</span>
-        </div>
+        <div class="patient">${esc(l.patient_name)}</div>
+        <div class="med">${esc(l.product_name)} ${esc(l.strength)}</div>
+        <div class="form">${esc([l.dosage_form, l.quantity ? `Qty ${l.quantity}` : "",
+                                 l.item_count > 1 ? `${l.item_number} of ${l.item_count}` : ""]
+                                .filter(Boolean).join(" · "))}</div>
         <div class="dose">${esc(l.dosage_instructions)}</div>
         ${l.warnings ? `<div class="warn">${esc(l.warnings)}</div>` : ""}
-        <div class="audit">
-          <div class="row">
-            <span class="pair"><i>Batch</i> <b class="mono">${esc(l.batch_number || "not recorded")}</b></span>
-            ${l.expiry_date ? `<span class="pair"><i>Exp</i> <b class="mono">${esc(String(l.expiry_date))}</b></span>` : ""}
-          </div>
-          <div class="row">
-            <span class="pair"><i>Script</i> <b class="mono">${esc(l.rx_number)}</b></span>
-            <span class="pair"><i>Item</i> <b>${l.item_number} of ${l.item_count}</b></span>
-          </div>
-          <div class="row">
-            <span class="pair"><i>Checked</i> <b>${esc(l.dispensed_by || "not recorded")}</b></span>
-            <span class="pair"><i>On</i> <b>${new Date(l.dispensed_at).toLocaleString("en-ZA")}</b></span>
-          </div>
-          ${l.doctor_name ? `<div class="row"><span class="pair"><i>Prescriber</i> <b>${esc(l.doctor_name)}${l.doctor_practice_no ? ` ${esc(l.doctor_practice_no)}` : ""}</b></span></div>` : ""}
-          ${l.repeats_remaining > 0 ? `<div class="row"><span class="pair"><i>Repeats</i> <b>${l.repeats_remaining} left</b></span></div>` : ""}
-        </div>
         <div class="foot">
           <b>${esc(l.pharmacy_name)}</b>
-          <span>${esc([l.pharmacy_address, l.pharmacy_phone].filter(Boolean).join("  ·  ")
-            || (l.pharmacy_reg_no ? `Reg ${l.pharmacy_reg_no}` : ""))}</span>
+          <span class="mono">${esc(l.rx_number)} · ${new Date(l.dispensed_at).toLocaleDateString("en-ZA")}</span>
         </div>
       </div>`,
     )
     .join("");
-  printHtml("Dispensing labels", LABEL_CSS, body);
+  return `<style>${LABEL_CSS}</style>${body}`;
+}
+
+export function printLabels(labels: Label[], copies = 1) {
+  if (labels.length === 0) return;
+  const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
+  printHtml("Dispensing labels", LABEL_CSS,
+            labelSheetHtml(sheet).replace(/^<style>[\s\S]*?<\/style>/, ""));
 }

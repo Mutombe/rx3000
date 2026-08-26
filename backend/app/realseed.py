@@ -931,6 +931,53 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
     return dict(made)
 
 
+def _allocate_batches(db: Session) -> dict[str, int]:
+    """Say which batch served which sale line.
+
+    The till does this through `consume_stock_fefo`; the seeder wrote sales
+    directly and skipped it, so every batch had a quantity and no idea where any
+    of it went. That is invisible on the stock screens — the numbers all add up —
+    and it makes recall tracing return nothing, which is the one time it matters.
+
+    Allocated first-expiry-first-out, the way the counter does it, so the trace
+    tells the truth about which batch a patient actually got.
+    """
+    made = collections.Counter()
+    if db.execute(text("SELECT COUNT(*) FROM batch_allocations")).scalar() > 50:
+        return dict(made)
+
+    # Batches per product, soonest expiry first: that is the order stock leaves
+    # a shelf and therefore the order it has to be allocated in.
+    shelves: dict[int, list] = collections.defaultdict(list)
+    for b in (db.query(StockBatch)
+                .order_by(StockBatch.expiry_date.asc().nullslast(),
+                          StockBatch.received_at.asc()).all()):
+        shelves[b.product_id].append({"id": b.id, "left": b.quantity_received or 0})
+
+    rows = (db.query(SaleItem.id, SaleItem.product_id, SaleItem.quantity)
+              .join(Sale, Sale.id == SaleItem.sale_id)
+              .order_by(Sale.created_at.asc()).all())
+    for line_id, product_id, quantity in rows:
+        want = quantity or 0
+        for batch in shelves.get(product_id, []):
+            if want <= 0:
+                break
+            if batch["left"] <= 0:
+                continue
+            take = min(batch["left"], want)
+            db.execute(text(
+                "INSERT INTO batch_allocations (batch_id, sale_item_id, quantity, created_at) "
+                "VALUES (:b, :s, :q, :t)"),
+                {"b": batch["id"], "s": line_id, "q": take, "t": datetime.now()})
+            batch["left"] -= take
+            want -= take
+            made["batch allocations"] += 1
+        if made["batch allocations"] % 500 == 0:
+            db.commit()
+    db.commit()
+    return dict(made)
+
+
 def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
     """Reminders and campaigns, written the way a pharmacy writes them."""
     made = collections.Counter()
@@ -1352,6 +1399,10 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
             print("receiving stock…")
             for k, v in _stock_and_supply(db, products, cashiers).items():
                 print(f"  {v} {k}")
+
+        print("linking batches to what was sold…")
+        for k, v in _allocate_batches(db).items():
+            print(f"  {v} {k}")
 
         if db.query(Message).count() < 50:
             print("writing reminders and campaigns…")
