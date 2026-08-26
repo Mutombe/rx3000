@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 
 const WillCall = lazy(() => import("./pages/WillCall"));
+const Samples = lazy(() => import("./pages/Samples"));
 const Welcome = lazy(() => import("./pages/Welcome"));
 const Training = lazy(() => import("./pages/Training"));
 import { getToken } from "./api";
@@ -113,6 +114,7 @@ export default function App() {
                   <RequiresConnection what="Dispensing"><Dispense /></RequiresConnection>} />
                 <Route path="/to-follows" element={<ToFollows />} />
                 <Route path="/will-call" element={<WillCall />} />
+                <Route path="/samples" element={<Samples />} />
                 <Route path="/periods" element={<Periods />} />
                 <Route path="/system" element={<System />} />
                 <Route path="/claims-held" element={<DeferredClaims />} />

@@ -122,7 +122,7 @@ export default function WillCall() {
 
       {/* The bands are the summary and the filter at once. Counted over the whole
           shelf rather than the visible page. */}
-      <div className="wl-stats">
+      <div className="wc-bands">
         <button className={`wl-stat${band === "" ? " is-on" : ""}`} onClick={() => setBand("")}>
           <b>{shelf?.total ?? "—"}</b><span>on the shelf</span>
         </button>
@@ -167,6 +167,10 @@ export default function WillCall() {
         )}
         {rows.length > 0 && (
           <>
+            {/* Said once, for the band in view. */}
+            {band && rows[0] && (
+              <p className="muted wc-advice">{rows[0].action}</p>
+            )}
             <div className="dt-scroll">
               <table className="dt">
                 <thead>
@@ -199,8 +203,15 @@ export default function WillCall() {
                         {/* The band leads, not the number. "Forty-one days" asks
                             the reader to decide what that means on a Saturday
                             morning with a queue behind them. */}
-                        <span className={`badge wc-badge wc-${b.band}`}>{BAND_LABEL[b.band]}</span>
-                        <div className="muted small">{b.action}</div>
+                        {/* The action is on the badge, not under every row.
+                            It is identical for every bag in a band, so printing
+                            it ten times is ten copies of one sentence competing
+                            with the names — and it was too long for the column,
+                            so each copy was also cut off mid-clause. */}
+                        <span className={`badge wc-badge wc-${b.band}`} data-tip={b.action}>
+                          {BAND_LABEL[b.band]}
+                        </span>
+                        <div className="muted small">{b.days_waiting} days</div>
                       </td>
                       <td className="actions">
                         <BusyButton className="btn small" onClick={() => collect(b)}>

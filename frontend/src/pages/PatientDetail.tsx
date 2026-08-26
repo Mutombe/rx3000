@@ -4,13 +4,14 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiStreamBlock from "../components/AiStreamBlock";
+import ConsentPanel from "../components/ConsentPanel";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
 import { Label, Patient, Prescription, Sale } from "../types";
 import { useToast } from "../components/Toast";
 import ClaudeIcon from "../components/ClaudeIcon";
 
-type Tab = "scripts" | "history" | "sales" | "tax";
+type Tab = "scripts" | "history" | "sales" | "tax" | "consent";
 
 interface HistoryLine {
   date: string; product: string; strength: string; quantity: number;
@@ -30,6 +31,9 @@ export default function PatientDetail() {
     { key: "history", label: "Dispensing history", count: history.length },
     { key: "sales", label: "Purchases", count: sales.length },
     { key: "tax", label: "Tax statement" },
+    // On the patient record, because that is where somebody stands when they
+    // say "stop sending me those" — not buried in a settings screen.
+    { key: "consent", label: "Consent" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "scripts");
 
@@ -207,6 +211,15 @@ export default function PatientDetail() {
           <div style={{ marginTop: 12 }}>
             <button className="secondary" onClick={() => window.print()}>Print statement</button>
           </div>
+        </div>
+      )}
+
+      {tab === "consent" && (
+        <div className="card">
+          <div className="card-head">
+            <h3>What they have agreed to</h3>
+          </div>
+          <ConsentPanel subjectType="patient" subjectId={Number(id)} />
         </div>
       )}
     </>

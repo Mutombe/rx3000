@@ -4563,10 +4563,35 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 
 /* --- the will-call bands -------------------------------------------------- */
 
+/* Five tiles across, not the three `.wl-stats` was built for.
+   Left to that grid they wrapped two-and-three, which reads as two groups of
+   different things rather than one scale from "nothing to do" to "deal with
+   this". Below a laptop they wrap deliberately, in pairs. */
+.wc-bands {
+  display: grid; gap: var(--s2); margin-bottom: var(--s5);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+@media (max-width: 1100px) { .wc-bands { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px)  { .wc-bands { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.wc-bands .wl-stat {
+  width: auto; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+}
+.wc-bands .wl-stat b { font-size: 1.35rem; line-height: 1.1; }
+.wc-bands .wl-stat span {
+  font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.3;
+}
+
 /* Four steps from "nothing to do" to "deal with this". The colours are the
    status set, not the chart palette: these are states, and a state that borrows
    a series colour reads as a category. */
-.wc-badge { font-weight: 600; }
+.wc-badge { font-weight: 600; cursor: help; }
+/* The band's advice, once, above the rows it applies to. */
+.wc-advice {
+  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
+  background: var(--tint-weak); border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+}
 .wc-fresh      { background: var(--tint-weak);  color: var(--ink-soft); border-color: var(--line); }
 .wc-waiting    { background: var(--info-soft);  color: var(--ink);      border-color: var(--line); }
 .wc-stale      { background: var(--warn-soft);  color: var(--warn);     border-color: var(--warn-line); }
@@ -4580,3 +4605,85 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 .wl-stat.wc-stale     { border-left-color: var(--warn); }
 .wl-stat.wc-abandoned { border-left-color: var(--danger); }
 .wl-stat.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* --- consent, per channel ------------------------------------------------- */
+
+.consent-grid {
+  display: grid; gap: var(--s2);
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-bottom: var(--s5);
+}
+.consent-cell {
+  padding: var(--s3);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.consent-cell.is-on { border-left-color: var(--ok); background: var(--ok-soft); }
+.consent-cell b {
+  display: flex; align-items: center; gap: 5px;
+  font-size: var(--t-sm); font-weight: 600;
+}
+.consent-cell.is-on b svg { color: var(--ok); }
+.consent-cell:not(.is-on) b svg { color: var(--ink-faint); }
+/* The provenance in words, and small. It is the second thing read and the first
+   thing that matters when somebody complains. */
+.consent-cell .muted { font-size: var(--t-xs); line-height: 1.4; }
+
+.consent-record {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+  padding-top: var(--s4); border-top: 1px solid var(--line-soft);
+}
+.consent-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+.consent-history { margin-top: var(--s5); }
+.consent-history summary {
+  cursor: pointer; color: var(--ink-soft); font-size: var(--t-sm);
+}
+.consent-history ul { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: var(--s3); }
+.consent-history li {
+  padding: var(--s3); font-size: var(--t-sm);
+  background: var(--surface-sunk); border-radius: var(--r-sm);
+}
+/* The wording they were shown, kept verbatim. Consent to words nobody retained
+   is not evidence of anything. */
+.consent-wording {
+  margin-top: 6px; padding-left: var(--s3);
+  border-left: 2px solid var(--line);
+  color: var(--ink-mid); font-size: var(--t-xs); font-style: italic; line-height: 1.5;
+}
+
+/* A nested register under a row, one step quieter than the table above it. */
+table.dt.sub { background: var(--surface); font-size: var(--t-sm); }
+table.dt.sub th { font-size: var(--t-xs); }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-sm); }
+.inline-check input { width: auto; height: auto; }
+
+/* --- the expiry provision ------------------------------------------------- */
+
+/* Said in a sentence under the figures. A row of four numbers does not tell an
+   owner what happens if they press the button, and this is a screen somebody
+   runs once a month and has to be talked through the first time. */
+.prov-said {
+  margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
+  background: var(--tint-weak); border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--ink-mid); font-size: var(--t-sm); line-height: 1.55;
+  max-width: 78ch;
+}
+/* The judgement behind each rate wraps rather than being cut.
+   `main td` truncates to one line with an ellipsis, which is right for a column
+   of names and wrong for the sentence explaining why a band is provided at 75%
+   — cut at "Under a month. Most of this will" it says nothing. */
+.prov .dt td:first-child { white-space: normal; width: 42%; }
+.prov .dt td:first-child .muted { white-space: normal; line-height: 1.45; }
+
+.prov-detail { margin-top: var(--s5); }
+.prov-detail summary {
+  cursor: pointer; color: var(--ink-soft); font-size: var(--t-sm);
+  padding: var(--s2) 0;
+}
+.prov-detail[open] summary { margin-bottom: var(--s2); }

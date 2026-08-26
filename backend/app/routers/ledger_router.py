@@ -5,11 +5,11 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import paging
 from ..models import Account, JournalEntry, User
-from ..services import bank_recon, ledger, posting, reporting, statements
+from ..services import bank_recon, ledger, posting, reporting, statements, writedowns
 
 router = APIRouter(prefix="/api/ledger", tags=["ledger"],
                    dependencies=[Depends(get_current_user)])
@@ -413,3 +413,31 @@ def cash_flow(
     """Where the cash went, and whether that ties back to the bank."""
     upto = upto or date.today()
     return statements.cash_flow(db, start=start or _year_start(upto), upto=upto)
+
+
+# --------------------------------------------------- short-dated stock provision
+
+@router.get("/expiry-provision")
+def expiry_provision(db: Session = Depends(get_db)):
+    """What the provision against short-dated stock should be, and what is carried.
+
+    Read-only, and it says what it would post before anybody presses anything. An
+    accounting routine whose effect is only visible afterwards is one nobody runs
+    a second time.
+    """
+    return {**writedowns.exposure(db), "history": writedowns.history(db)}
+
+
+@router.post("/expiry-provision")
+def post_expiry_provision(db: Session = Depends(get_db),
+                          user: User = Depends(require_role("admin", "pharmacist"))):
+    """Post the movement in the provision.
+
+    The movement, not the balance: posting the whole requirement each month would
+    charge the same loss again and again, and each entry would look correct on
+    its own. Running it twice in a day is harmless and says so.
+    """
+    try:
+        return writedowns.post(db, user_id=user.id)
+    except ledger.LedgerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

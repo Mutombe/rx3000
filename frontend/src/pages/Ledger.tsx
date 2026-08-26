@@ -14,6 +14,7 @@ import AgedAnalysis from "../components/AgedAnalysis";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import ExpiryProvision from "../components/ExpiryProvision";
 import Pagination, { Paged } from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import BusyButton from "../components/BusyButton";
@@ -42,7 +43,7 @@ interface Unposted {
   sales: { sale_id: number; sale_number: string; total: number }[];
 }
 
-type Tab = "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "unposted";
+type Tab = "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "unposted" | "provision";
 
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
@@ -71,6 +72,9 @@ export default function Ledger() {
       hint: "How old the money owed is, and who is sitting on it" },
     { key: "journal", label: "Journal", count: entries.length },
     { key: "recon", label: "Reconciliation" },
+    // Beside the statements, because it is the entry that makes the balance
+    // sheet honest rather than a stock report that happens to mention money.
+    { key: "provision", label: "Expiry provision" },
     { key: "unposted", label: "Not posted", count: unposted?.count,
       hint: "Settled sales the ledger has not caught up with" },
   ];
@@ -239,6 +243,15 @@ export default function Ledger() {
               </dl>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === "provision" && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Provision against short-dated stock</h3>
+          </div>
+          <ExpiryProvision />
         </div>
       )}
 
