@@ -171,11 +171,27 @@ def unposted_sales(db: Session, limit: int = 200) -> list[dict]:
     posted = {e.source_id for e in db.query(JournalEntry)
               .filter(JournalEntry.source == "sale",
                       JournalEntry.status == "posted").all()}
+
+    # A day posted as one takings journal covers every sale in it.
+    #
+    # A pharmacy's cash book is a daily takings entry, not eighty-one separate
+    # ones, and this queue only knew about the per-sale kind. So a shop keeping
+    # its books the ordinary way saw "four thousand sales have not reached the
+    # ledger" for ever, on a trial balance that balanced perfectly — the exact
+    # false alarm that teaches people to ignore the one screen whose whole job
+    # is to be believed.
+    summarised = {e.source_id for e in db.query(JournalEntry)
+                  .filter(JournalEntry.source == "daily_takings",
+                          JournalEntry.status == "posted").all()}
+
     rows = (db.query(Sale).filter(Sale.status == "paid")
             .order_by(Sale.created_at.desc()).limit(limit * 3).all())
     return [{"sale_id": s.id, "sale_number": s.sale_number,
              "total": s.total, "created_at": s.created_at}
-            for s in rows if s.id not in posted][:limit]
+            for s in rows
+            if s.id not in posted
+            and (not s.created_at
+                 or int(s.created_at.strftime("%Y%m%d")) not in summarised)][:limit]
 
 
 # ---------------------------------------------------------------------------
