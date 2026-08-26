@@ -32,7 +32,7 @@ interface AgeSupplier {
 interface Ageing {
   as_at: string; bands: string[]; totals: Record<string, number>;
   total: number; queried: number; suppliers: AgeSupplier[];
-  control_balance: number; difference: number;
+  control_balance: number; difference: number; awaiting_approval: number;
 }
 interface MatchLine {
   description: string; billed_quantity: number; received_quantity: number;
@@ -167,17 +167,25 @@ export default function Payables() {
             </div>
           </div>
 
-          {/* The two are kept separately so they can disagree. A difference
-              means something was posted straight to the control account with no
-              invoice behind it, and that is the one error nothing else finds. */}
+          {/* The two are kept separately precisely so they can disagree, and
+              this is the one check that finds what nothing else can. It names
+              the innocent explanation first, because that is usually the true
+              one: a delivery raised the creditor at the order's cost and its
+              invoice has not been approved yet. Leading with an accusation
+              sends somebody hunting a fraud that is really a queue. */}
           {Math.abs(ageing.difference) > 0.005 && (
             <div className="alert warn">
               <Warning size={16} weight="fill" />
               <span>
-                The ledger says {money(ageing.control_balance)} is owed but these
+                The ledger says {money(ageing.control_balance)} is owed; these
                 invoices come to {money(ageing.total)}, a difference of{" "}
-                <b>{money(ageing.difference)}</b>. Something was posted to trade
-                creditors without an invoice behind it.
+                <b>{money(ageing.difference)}</b>.{" "}
+                {ageing.awaiting_approval > 0.005
+                  ? <>{money(ageing.awaiting_approval)} of that is invoices
+                      recorded but not yet approved, which accounts for most or all
+                      of it. Approve them and the two should meet.</>
+                  : <>Nothing is waiting for approval, so this is stock received
+                      and posted with no invoice recorded against it.</>}
               </span>
             </div>
           )}
