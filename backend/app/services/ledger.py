@@ -91,8 +91,26 @@ def ensure_chart(db: Session) -> int:
 
 
 def next_reference(db: Session) -> str:
-    count = db.query(JournalEntry).count() + 1
-    return f"JE{datetime.utcnow():%y%m}{count:06d}"
+    """The next journal reference, taken from the highest one in use.
+
+    It used to be `COUNT(*) + 1`, which is unique only while nothing is ever
+    deleted. Remove sixty entries to repost them and the count falls back over
+    numbers that are still on the books, so the next entry collides with one
+    from an hour ago — and because the reference is indexed unique, the whole
+    posting run fails on a constraint rather than on anything to do with
+    accounting.
+
+    Counting rows is not the same as counting how many have existed. The
+    highest number actually issued is.
+    """
+    prefix = f"JE{datetime.utcnow():%y%m}"
+    highest = 0
+    for (reference,) in db.query(JournalEntry.reference).filter(
+            JournalEntry.reference.like(f"{prefix}%")).all():
+        tail = (reference or "")[len(prefix):]
+        if tail.isdigit():
+            highest = max(highest, int(tail))
+    return f"{prefix}{highest + 1:06d}"
 
 
 def post(db: Session, *, entry_date: date, description: str, lines: list[Line],
