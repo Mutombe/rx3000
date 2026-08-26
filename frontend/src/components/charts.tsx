@@ -70,15 +70,17 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
           return (
             <g key={c.label}>
               {c.segments.map((g) => {
-                const h = (g.value / max) * plot;
-                const y = padT + plot - acc - h;
-                acc += h;
+                const full = (g.value / max) * plot;
+                // Two pixels of surface between segments. Without it a stack of
+                // two similar hues is one bar with a colour change in it, and
+                // the eye cannot find where one measure ends.
+                const h = Math.max(full - (acc > 0 ? 1.5 : 0), 0.5);
+                const y = padT + plot - acc - full;
+                acc += full;
                 // no rx — the viewBox is stretched horizontally, so a corner
                 // radius would render as a lopsided ellipse
                 return g.value > 0 ? (
-                  <rect key={g.key} x={x} y={y} width={w} height={h} fill={g.colour}>
-                    <title>{`${c.label} · ${g.key}: ${format(g.value)}`}</title>
-                  </rect>
+                  <rect key={g.key} x={x} y={y} width={w} height={h} fill={g.colour} />
                 ) : null;
               })}
               {c.marker !== undefined && c.marker > 0 && (
@@ -88,13 +90,31 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
                   y2={padT + plot - (c.marker / max) * plot}
                   stroke={palette.axis} strokeWidth={2} strokeDasharray="4 3"
                   vectorEffect="non-scaling-stroke"
-                >
-                  <title>{`${c.label} · ${markerLabel ?? "marker"}: ${format(c.marker)}`}</title>
-                </line>
+                />
               )}
             </g>
           );
         })}
+        {/* One hit target per column, sitting over the whole plot height.
+            A stacked segment three pixels tall is not a hit target, and the
+            reader is pointing at the month rather than at one band of it. The
+            readout names every series in that column, which is what makes two
+            months comparable — the native <title> that used to be on each rect
+            gave one number, after a one-second delay, in the system font, at the
+            pointer. That is the absence of a chart readout, not one. */}
+        {columns.map((c, i) => (
+          <rect
+            key={`hit-${c.label}`}
+            x={i * colW} y={0} width={colW} height={height}
+            fill="transparent" className="chart-hit"
+            data-tip={[
+              c.label,
+              ...c.segments.filter((g) => g.value > 0).map((g) => `${g.key} ${format(g.value)}`),
+              ...(c.marker !== undefined && c.marker > 0
+                ? [`${markerLabel ?? "marker"} ${format(c.marker)}`] : []),
+            ].join(" · ")}
+          />
+        ))}
       </svg>
       {/* axis labels sit outside the stretched SVG so text never distorts */}
       <div className="chart-yaxis" style={{ height, paddingTop: padT, paddingBottom: padB, width: padL }}>
@@ -257,9 +277,10 @@ export function Donut({ slices, size = 168, format }: {
                 strokeDasharray={`${dash} ${circumference - dash}`}
                 strokeDashoffset={-offset}
                 transform={`rotate(-90 ${size / 2} ${size / 2})`}
-              >
-                <title>{`${s.key}: ${format(s.value)}`}</title>
-              </circle>
+                /* A 2px ring of the surface between slices, so two adjacent
+                   slices read as two rather than as one long arc. */
+                style={{ filter: "drop-shadow(0 0 0 transparent)" }}
+              />
             );
             offset += dash;
             return el;

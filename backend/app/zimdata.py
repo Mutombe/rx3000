@@ -418,3 +418,24 @@ DEALS = [
     ("Harare Institute of Technology, clinic supply",   "new",          1800.0, 15, "walk-in"),
     ("Mbare Polyclinic, ARV dispensing partnership",    "lost",         4500.0, 0, "walk-in"),
 ]
+
+
+# --- who works here --------------------------------------------------------
+#
+# The names on the invoices, with the roles they were ringing up under. Kundai
+# Deshe and Emissary Mudzamiri between them took 3,906 of 5,056 invoices, which
+# is what a real roster looks like: two people carry the counter and everybody
+# else covers around them.
+#
+# (username, full name, role)
+STAFF = [
+    ("kdeshe",     "Kundai Deshe",       "pharmacist"),
+    ("emudzamiri", "Emissary Mudzamiri", "pharmacist"),
+    ("mwasharu",   "Munashe Washaru",    "assistant"),
+    ("achenjerai", "Charmaine Chenjerai", "cashier"),
+    ("gchiwara",   "Ganiere Chiwara",    "cashier"),
+    ("nmuparadzi", "Nicholas Muparadzi", "assistant"),
+    ("tgotora",    "Tatenda Gotora",     "assistant"),
+    ("sfunsani",   "Susan Funsani",      "cashier"),
+    ("nbanda",     "Nyasha Banda",       "cashier"),
+]

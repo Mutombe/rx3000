@@ -29,7 +29,6 @@ import {
   SealCheck,
   SignOut,
   SlidersHorizontal,
-  Sparkle,
   SquaresFour,
   Storefront,
   Truck,

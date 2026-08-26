@@ -4,6 +4,8 @@ import { api, fmtDateTime, errorText  } from "../api";
 import { Message, Patient } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
+import { ArrowsClockwise } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -83,7 +85,12 @@ export default function Reminders() {
           <div className="sub">SMS &amp; email for repeat prescriptions, birthdays and free-type messages</div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button className="secondary" onClick={runJobs} disabled={busy}>{busy ? "Running…" : "⟳ Run reminder jobs now"}</button>
+          {/* The glyph was a literal ⟳ in the label. It is an icon now, and it
+              turns while the jobs are actually running. */}
+          <BusyButton className="btn secondary" onClick={runJobs}
+                      icon={ArrowsClockwise} busyLabel="Running…">
+            Run reminder jobs now
+          </BusyButton>
           <button onClick={() => setShowCompose(true)}>+ Compose message</button>
         </div>
       </div>

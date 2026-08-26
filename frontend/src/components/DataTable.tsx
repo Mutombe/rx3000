@@ -90,7 +90,12 @@ function isActions<T>(c: Column<T>): boolean {
    minimum it did not need and the container scrolled. A column that is
    occasionally too narrow shows an ellipsis and its full value on hover, which
    costs a hover; a table that always scrolls sideways costs every row. */
-const MINIMUM = { first: 150, text: 96, center: 72, right: 84, actions: 96 };
+/* `actions: 96` was measured against the tables that had rows at the time, and
+   the batches table had no expired batch in it, so its "Write off" column was
+   never seen. With real stock in the database it needs 113 and clipped by 17px.
+   128 fits a single worded action with its padding; a cell with two of them is
+   widened further by the `--actions-w` buckets in the stylesheet. */
+const MINIMUM = { first: 150, text: 96, center: 72, right: 84, actions: 128 };
 
 function kindOf<T>(c: Column<T>, firstText: Column<T> | undefined, many: boolean) {
   if (isActions(c)) return "actions" as const;

@@ -29,7 +29,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from . import zimdata
+from . import auth, zimdata
 from .database import SessionLocal
 from .models import (
     Campaign, Claim, Deal, Dispensing, Doctor, LayBy, LayByItem, LayByPayment,
@@ -56,6 +56,18 @@ PLACEHOLDER_PRODUCTS = [
     # South African airtime in a Zimbabwean pharmacy, priced in rand. Replaced
     # by Econet and NetOne vouchers in the catalogue.
     "Vodacom Airtime%", "MTN Airtime%", "Telkom Airtime%",
+]
+#: Test patients, by the shape of the names the fixtures gave them: "Allergy
+#: Probe 66B5C7", "Crud Updated 634712", "Test Sweep". Matched on both halves of
+#: the name, because a first name of "Allergy" is as much a fixture as a surname
+#: ending in six hex digits.
+PLACEHOLDER_PATIENTS = [
+    ("last_name", "Sweep"),
+    ("last_name", "Updated%"),
+    ("first_name", "Crud"),
+    ("first_name", "Allergy"),
+    ("first_name", "Test"),
+    ("last_name", "Probe%"),
 ]
 PLACEHOLDER_PATIENT = "Sweep"
 
@@ -127,8 +139,14 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
         if p.name and hex_suffix.search(p.name)
     )
     probe_ids = sorted(set(probe_ids))
-    sweeps = db.query(Patient).filter(Patient.last_name == PLACEHOLDER_PATIENT).all()
-    sweep_ids = [p.id for p in sweeps]
+    sweep_ids: list[int] = []
+    for field, pattern in PLACEHOLDER_PATIENTS:
+        column = getattr(Patient, field)
+        query = (db.query(Patient).filter(column.like(pattern))
+                 if "%" in pattern else
+                 db.query(Patient).filter(column == pattern))
+        sweep_ids.extend(p.id for p in query.all())
+    sweep_ids = sorted(set(sweep_ids))
 
     if sweep_ids:
         counts["messages"] = (db.query(Message)
@@ -170,6 +188,24 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
                 _delete_where_in(db, table, "sale_id", sale_ids)
             db.query(SaleItem).filter(SaleItem.sale_id.in_(sale_ids)).delete(synchronize_session=False)
             counts["sales"] = db.query(Sale).filter(Sale.id.in_(sale_ids)).delete(synchronize_session=False)
+        # Twelve tables point at a patient, and each is a record of something
+        # that happened to them. They go first, or the delete fails on a
+        # constraint and takes the whole clear with it.
+        # A lay-by has payments and items of its own, so it is not a leaf: its
+        # children go before it does, or the delete fails on a constraint and
+        # takes the whole clear with it. One lay-by belonging to one fixture
+        # patient blocked all thirty-five.
+        layby_ids = [r[0] for r in db.query(LayBy.id)
+                                     .filter(LayBy.patient_id.in_(sweep_ids)).all()]
+        _delete_where_in(db, "layby_payments", "layby_id", layby_ids)
+        _delete_where_in(db, "layby_items", "layby_id", layby_ids)
+        _delete_where_in(db, "laybys", "id", layby_ids)
+
+        for table in ["activities", "authorisations", "claims", "contacts",
+                      "messages", "otc_sales", "owed_items",
+                      "register_entries", "tickets", "waybills",
+                      "message_acknowledgements", "dispensings"]:
+            _delete_where_in(db, table, "patient_id", sweep_ids)
         counts["patients"] = db.query(Patient).filter(
             Patient.id.in_(sweep_ids)
         ).delete(synchronize_session=False)
@@ -292,7 +328,7 @@ def _catalogue(db: Session) -> list[Product]:
 
 def _people(db: Session, schemes: list[MedicalAid], target: int) -> list[Patient]:
     """Patients, recombined from the name pool. No real person is reproduced."""
-    have = db.query(Patient).filter(Patient.last_name != PLACEHOLDER_PATIENT).count()
+    have = db.query(Patient).count()
     need = max(0, target - have)
     made = []
     used: set[tuple[str, str]] = set()
@@ -337,6 +373,51 @@ def _people(db: Session, schemes: list[MedicalAid], target: int) -> list[Patient
         made.append(p)
     db.commit()
     return made
+
+
+def _staff(db: Session) -> list[User]:
+    """The people on the invoices, with the roles they rang up under.
+
+    Two of them took 3,906 of 5,056 invoices between them, which is what a real
+    roster looks like: two people carry the counter and everybody else covers
+    around them. A demo where six identically-busy staff share the day evenly is
+    a demo nobody recognises.
+
+    Everybody gets the same starter password, said out loud on the sign-in
+    screen. This is seed data for a demonstration, not an account anybody keeps.
+    """
+    out = []
+    for username, full_name, role in zimdata.STAFF:
+        row = db.query(User).filter(User.username == username).first()
+        if not row:
+            row = User(username=username, password_hash=auth.hash_password("rx5000staff"))
+            db.add(row)
+        row.full_name = full_name
+        row.role = role
+        row.active = True
+        row.is_demo = False
+        out.append(row)
+    db.commit()
+    return out
+
+
+def _retire_expired_demos(db: Session) -> int:
+    """Deactivate demo accounts whose four hours are up.
+
+    Deactivated rather than deleted: what somebody entered during a demo is kept,
+    and their name is on the sales and scripts they made. Deleting the user would
+    orphan those rows or, worse, silently reassign them.
+    """
+    now = datetime.now()
+    rows = (db.query(User)
+              .filter(User.is_demo.is_(True), User.active.is_(True),
+                      User.demo_expires_at.isnot(None),
+                      User.demo_expires_at <= now)
+              .all())
+    for row in rows:
+        row.active = False
+    db.commit()
+    return len(rows)
 
 
 def _prescribers(db: Session) -> list[Doctor]:
@@ -818,6 +899,44 @@ def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
         made["campaigns"] += 1
     db.commit()
 
+    # Birthdays, from the dates of birth already on file. A small feature, and
+    # the one a patient actually remembers the pharmacy for.
+    today = date.today()
+    for patient in patients:
+        if not patient.date_of_birth or patient.date_of_birth.month != today.month:
+            continue
+        db.add(Message(
+            patient_id=patient.id, channel="sms", message_type="birthday",
+            subject="Birthday",
+            body=f"Happy birthday {patient.first_name}, from all of us at RX5000 "
+                 f"Pharmacy. Come in this month for 10% off any front shop item.",
+            status=RNG.choices(["sent", "queued"], weights=[0.9, 0.1])[0],
+            sent_at=datetime.now() - timedelta(days=RNG.randint(0, 25)),
+        ))
+        made["birthday messages"] += 1
+        if made["birthday messages"] >= 25:
+            break
+
+    # A handful typed by hand at the counter, which is what "free-type" means.
+    HAND_WRITTEN = [
+        "Good day {name}, the Coartem you asked about is now in stock.",
+        "Hello {name}, your medical aid rejected the claim. Please call the scheme on the number on your card, then come back to us.",
+        "{name}, we still have your change from Saturday. Ask for Kundai at the counter.",
+        "Good day {name}, the doctor has phoned through a change to your script. Please come in before Friday.",
+        "Hello {name}, we could not reach you on the number we have. Please confirm your phone number next time you are in.",
+    ]
+    for patient in RNG.sample(patients, min(len(patients), 18)):
+        db.add(Message(
+            patient_id=patient.id,
+            channel=RNG.choices(["sms", "whatsapp"], weights=[0.6, 0.4])[0],
+            message_type="custom",
+            subject="",
+            body=RNG.choice(HAND_WRITTEN).format(name=patient.first_name),
+            status=RNG.choices(["sent", "failed"], weights=[0.92, 0.08])[0],
+            sent_at=datetime.now() - timedelta(days=RNG.randint(0, 30)),
+        ))
+        made["counter messages"] += 1
+
     # Repeat reminders, against script lines that are genuinely due. Written
     # against real lines so the reminder screen and the repeats screen cannot
     # disagree about who is owed what.
@@ -836,7 +955,14 @@ def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
         db.add(Message(
             patient_id=patient.id,
             channel=RNG.choices(["sms", "whatsapp"], weights=[0.7, 0.3])[0],
-            message_type="reminder",
+            # "repeat", not "reminder".
+            #
+            # The Patient Adherence tabs filter on repeat / birthday / custom.
+            # "reminder" reads correctly to a person and matches none of them, so
+            # three of the four tabs were empty while 160 repeat reminders sat in
+            # the table. The same mistake as the sale status: a value nothing
+            # queries is a value that does not exist.
+            message_type="repeat",
             subject="Repeat due",
             body=template.format(
                 name=patient.first_name,
@@ -1077,6 +1203,11 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         print(f"  {len(schemes)} medical aid schemes")
         products = _catalogue(db)
         print(f"  {len(products)} products")
+        staff = _staff(db)
+        print(f"  {len(staff)} staff")
+        retired = _retire_expired_demos(db)
+        if retired:
+            print(f"  deactivated {retired} expired demo account(s)")
         _prescribers(db)
         _suppliers(db)
         print(f"  {len(zimdata.DOCTORS)} prescribers, {len(zimdata.SUPPLIERS)} suppliers")
@@ -1085,7 +1216,9 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         print(f"  {len(made)} new patients")
 
         patients = db.query(Patient).all()
-        cashiers = db.query(User).filter(User.active.is_(True)).all()
+        cashiers = (db.query(User)
+                      .filter(User.active.is_(True), User.is_demo.is_(False))
+                      .all())
 
         existing = db.query(Sale).count()
         if existing > 200 and not wipe_all:

@@ -1082,6 +1082,11 @@ label {
 /* The whole track is the hit target. A two-pixel bar is not one. */
 .barlist-hit { position: absolute; inset: -4px 0; z-index: 1; }
 .barlist-row:hover .barlist-bar { filter: brightness(1.08); }
+
+/* One hit target per column of the stacked chart, covering the full plot height
+   so a three-pixel segment is still reachable. */
+.chart-hit { cursor: default; }
+.chart-hit:hover { fill: var(--tint-weak); }
 .barlist-value { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
 @media (max-width: 760px) { .barlist-row { grid-template-columns: 1fr; gap: 4px; } }
 
@@ -1366,6 +1371,13 @@ table:has(td.actions button + button + button),
 table:has(td.lb-actions button + button + button) { --actions-w: 19rem; }
 table:has(td.actions > span),
 table:has(td.lb-actions > span) { --actions-w: 17rem; }
+/* A button carrying a count is wider than the plain pair this was sized for.
+   "Hand over 59 of 60" plus "Write off" needs 267px against the 248 that two
+   buttons were given, so the second one lost its last seven pixels. The count
+   only appears once there are real to-follows in the database, which is why an
+   empty table never showed it. */
+table:has(td.actions .btn-count),
+table:has(td.lb-actions .btn-count) { --actions-w: 18.5rem; }
 table th.actions { width: var(--actions-w, 11rem); }
 /* No `.dt` exception here. DataTable states its column widths as inline styles
    on the header cells, which outrank any stylesheet rule, so its own tables are

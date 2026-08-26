@@ -15,6 +15,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
+import { useClientPage } from "../hooks/useClientPage";
 import BusyButton from "../components/BusyButton";
 
 interface TbLine {
@@ -51,6 +52,10 @@ export default function Ledger() {
   const [jSize, setJSize] = useState(50);
   const [recon, setRecon] = useState<Record<string, Recon>>({});
   const [unposted, setUnposted] = useState<Unposted | null>(null);
+  /* The count and the total beside this table are computed over the whole set by
+     the endpoint, never over the visible page. A footer that quietly totals one
+     page is the most misleading thing a ledger screen can do. */
+  const unpostedPage = useClientPage(unposted?.sales ?? [], 25);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
@@ -244,7 +249,12 @@ export default function Ledger() {
               <tr><th>Sale</th><th className="num">Total</th><th className="actions" /></tr>
             </thead>
             <tbody>
-              {unposted?.sales.map((s) => (
+              {/* Paged in the browser, because the endpoint deliberately returns
+                  the whole set: the figure beside this table is the total value
+                  waiting to be posted, and that has to be summed over all of it.
+                  What was wrong was rendering all of it — two hundred rows with
+                  no way to move through them. */}
+              {unpostedPage.items.map((s) => (
                 <tr key={s.sale_id}>
                   <td className="mono">{s.sale_number}</td>
                   <td className="num">{money(s.total)}</td>
@@ -262,6 +272,7 @@ export default function Ledger() {
               )}
             </tbody>
           </table>
+          <Pagination meta={unpostedPage.meta} onPage={unpostedPage.setPage} />
         </div>
       )}
     </div>

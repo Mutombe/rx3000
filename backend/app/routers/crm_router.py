@@ -573,7 +573,16 @@ def by_owner(db: Session = Depends(get_db)):
     the number of reps, which is the wrong thing to grow with.
     """
     now = datetime.utcnow()
-    users = db.query(User).filter(User.active).all()
+    # Staff, not visitors.
+    #
+    # A demo account is a real user with a real role, which is what makes the
+    # demo worth anything — but it is not somebody whose pipeline a manager wants
+    # in their rep performance report. Six people who tried the product on a
+    # Tuesday appeared as six reps with no deals, pushing the actual staff down
+    # the chart.
+    users = (db.query(User)
+               .filter(User.active, User.is_demo.is_(False))
+               .all())
 
     def grouped(query):
         return {row[0]: row[1:] for row in query.all() if row[0] is not None}

@@ -19,6 +19,8 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
+import Pagination from "../components/Pagination";
+import { useClientPage } from "../hooks/useClientPage";
 
 interface Owed {
   id: number;
@@ -90,6 +92,11 @@ export default function ToFollows() {
   useEffect(load, []);
 
   const rows = tab === "ready" ? ready : tab === "settled" ? settled : all;
+  /* Paged in the browser. The endpoint returns everything on purpose — the
+     totals above this table are the pharmacy's whole outstanding debt, and a
+     page at a time would either make them wrong or cost a second round trip.
+     The data stays whole; only the render is bounded. */
+  const page = useClientPage(rows, 25);
 
   async function settle(owed: Owed, quantity?: number) {
     const amount = quantity ?? owed.quantity_outstanding;
@@ -193,7 +200,7 @@ export default function ToFollows() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((o) => (
+            {page.items.map((o) => (
               <RowLink
                 key={o.id}
                 /* A walk-in has no patient record, so the row leads to the
@@ -265,6 +272,7 @@ export default function ToFollows() {
             )}
           </tbody>
         </table>
+        <Pagination meta={page.meta} onPage={page.setPage} />
       </div>
       </Refreshable>
 

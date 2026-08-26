@@ -53,7 +53,8 @@ def create_user(
 
 @router.get("/users", response_model=list[schemas.UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(auth.require_role("admin"))):
-    return db.query(User).all()
+    """The pharmacy's staff. Demo visitors are not staff and are left out."""
+    return db.query(User).filter(User.is_demo.is_(False)).all()
 
 
 # ---------------------------------------------------------------- shared tills
