@@ -237,6 +237,7 @@ def in_transit(db: Session) -> list[dict]:
         "id": t.id, "reference": t.reference,
         "from_branch": t.from_branch.name if t.from_branch else "",
         "to_branch": t.to_branch.name if t.to_branch else "",
+        "product_id": t.product_id,
         "product": t.product.name if t.product else "",
         "quantity": t.quantity,
         "despatched_at": t.despatched_at,

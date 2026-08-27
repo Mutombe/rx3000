@@ -24,6 +24,7 @@ import { useToast } from "../components/Toast";
 import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
+import { EntityLink } from "../components/Filters";
 
 interface Branch {
   id: number; code: string; name: string; registration_no: string;
@@ -42,6 +43,7 @@ interface BranchStock { branch_id: number; lines: StockLine[] }
  *  read a `pharmacist` key nothing sends. Declaring your own interface means
  *  TypeScript cannot help. */
 interface Transit {
+  product_id: number;
   id: number; reference: string;
   from_branch: string; to_branch: string;
   product: string; quantity: number;
@@ -240,7 +242,11 @@ export default function Branches() {
               {transit.map((t) => (
                 <tr key={t.id} className={t.days_in_transit >= 7 ? "is-off" : ""}>
                   <td className="mono">{t.reference}</td>
-                  <td><span className="clip" title={t.product}>{t.product}</span></td>
+                  <td>
+                    <EntityLink kind="product" id={t.product_id}>
+                      <span className="clip" title={t.product}>{t.product}</span>
+                    </EntityLink>
+                  </td>
                   <td className="num">{t.quantity}</td>
                   <td><span className="clip" title={t.from_branch}>{t.from_branch}</span></td>
                   <td><span className="clip" title={t.to_branch}>{t.to_branch}</span></td>

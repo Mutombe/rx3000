@@ -30,6 +30,7 @@ import {
   Printer,
   Warning,
 } from "@phosphor-icons/react";
+import { EntityLink } from "../components/Filters";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -535,10 +536,14 @@ export default function Dispense() {
                   <tr key={r.id}>
                     <td>{fmtDateTime(r.created_at)}</td>
                     <td>
-                      <b>{r.product?.name}</b> ×{r.quantity}
+                      <EntityLink kind="product" id={r.product_id}><b>{r.product?.name}</b></EntityLink> ×{r.quantity}
                       <span className={`badge ${r.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>S{r.schedule}</span>
                     </td>
-                    <td>{r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : (r.customer_name || "—")}</td>
+                    <td>
+                      <EntityLink kind="patient" id={r.patient_id}>
+                        {r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : (r.customer_name || "—")}
+                      </EntityLink>
+                    </td>
                     <td>
                       {r.indication || "—"}
                       {r.referred_to_doctor && <div><span className="badge warn">referred to doctor</span></div>}

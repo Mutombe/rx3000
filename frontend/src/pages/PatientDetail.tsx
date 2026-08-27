@@ -11,6 +11,7 @@ import { Label, Patient, Prescription, Sale } from "../types";
 import { useToast } from "../components/Toast";
 import ClaudeIcon from "../components/ClaudeIcon";
 
+import { EntityLink } from "../components/Filters";
 type Tab = "scripts" | "history" | "sales" | "tax" | "consent";
 
 interface HistoryLine {
@@ -128,7 +129,7 @@ export default function PatientDetail() {
                 <tbody>
                   {rx.items.map((i) => (
                     <tr key={i.id}>
-                      <td>{i.product?.name} {i.product?.strength}</td>
+                      <td><EntityLink kind="product" id={i.product_id}>{i.product?.name} {i.product?.strength}</EntityLink></td>
                       <td>{i.dosage_instructions || "—"}</td>
                       <td className="num">{i.quantity}</td>
                       <td>{i.repeats_used}/{i.repeats_allowed}</td>

@@ -15,6 +15,7 @@ import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
 import { Printer } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
+import { EntityLink } from "../components/Filters";
 
 type Tab = "till" | "pending";
 
@@ -385,8 +386,14 @@ export default function POS() {
             <tbody>
               {pending.map((s) => (
                 <tr key={s.id}>
-                  <td className="mono">{s.sale_number}</td>
-                  <td>{s.patient ? `${s.patient.first_name} ${s.patient.last_name}` : "Walk-in"}</td>
+                  <td className="mono">
+                    <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
+                  </td>
+                  <td>
+                    <EntityLink kind="patient" id={s.patient?.id}>
+                      {s.patient ? `${s.patient.first_name} ${s.patient.last_name}` : "Walk-in"}
+                    </EntityLink>
+                  </td>
                   <td className="muted">{fmtDateTime(s.created_at)}</td>
                   <td className="num"><b>{money(s.total)}</b></td>
                   <td className="right" style={{ whiteSpace: "nowrap" }}>

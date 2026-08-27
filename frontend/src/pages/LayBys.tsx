@@ -23,6 +23,7 @@ import { useToast } from "../components/Toast";
 import { Patient, Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
+import { EntityLink } from "../components/Filters";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -253,7 +254,11 @@ export default function LayBys() {
                             {l.layby_number}
                           </button>
                         </td>
-                        <td><span className="clip" title={l.patient}>{l.patient}</span></td>
+                        <td>
+                          <EntityLink kind="patient" id={l.patient_id}>
+                            <span className="clip" title={l.patient}>{l.patient}</span>
+                          </EntityLink>
+                        </td>
                         <td>{l.created_at ? fmtDate(l.created_at) : "—"}</td>
                         <td className={overdue(l) ? "cu-diff" : ""}>
                           {l.due_date ? fmtDate(l.due_date) : "—"}

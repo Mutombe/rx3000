@@ -120,6 +120,7 @@ def trace(db: Session, batch_id: int) -> dict:
                p.first_name     AS first_name,
                p.last_name      AS last_name,
                p.phone          AS phone,
+               rx.id            AS prescription_id,
                rx.rx_number     AS rx_number
           FROM batch_allocations ba
           JOIN sale_items si ON si.id = ba.sale_item_id
@@ -149,7 +150,9 @@ def trace(db: Session, batch_id: int) -> dict:
             "patient": f"{r['first_name']} {r['last_name']}",
             "phone": r["phone"] or "",
             "quantity": r["qty"],
+            "sale_id": r["sale_id"],
             "sale_number": r["sale_number"],
+            "prescription_id": r["prescription_id"],
             "rx_number": r["rx_number"] or "",
             "sold_at": r["sold_at"],
         })

@@ -24,7 +24,8 @@ interface Hit {
 }
 interface Recipient {
   patient_id: number; patient: string; phone: string; quantity: number;
-  sale_number: string; rx_number: string; sold_at: string;
+  sale_id: number | null; sale_number: string;
+  prescription_id: number | null; rx_number: string; sold_at: string;
 }
 interface Trace {
   batch: { batch_id: number; batch_number: string; product: string;
@@ -275,7 +276,13 @@ export default function Recall() {
                             <td>
                               {fmtDate(r.sold_at)}
                               <div className="muted small mono">
-                                {r.rx_number || r.sale_number}
+                                {r.rx_number
+                                  ? <EntityLink kind="prescription" id={r.prescription_id}>
+                                      {r.rx_number}
+                                    </EntityLink>
+                                  : <EntityLink kind="sale" id={r.sale_id}>
+                                      {r.sale_number}
+                                    </EntityLink>}
                               </div>
                             </td>
                           </tr>

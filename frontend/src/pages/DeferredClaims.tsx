@@ -149,7 +149,7 @@ export default function DeferredClaims() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <td className="mono">{c.claim_number}</td>
+                  <td className="mono"><EntityLink kind="claim" id={c.id}>{c.claim_number}</EntityLink></td>
                   <td>
                     <EntityLink to={`/sales/${c.sale_id}`}>{c.sale_number}</EntityLink>
                   </td>

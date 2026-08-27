@@ -143,7 +143,7 @@ export default function Orders() {
                       <tr className="row-click" onClick={() => setExpanded(open ? null : o.id)}>
                         <td style={{ width: 22 }} className="muted">{open ? "▾" : "▸"}</td>
                         <td><EntityLink to={`/orders/${o.id}`}><span className="mono">{o.order_number}</span></EntityLink></td>
-                        <td>{o.supplier?.name}</td>
+                        <td><EntityLink kind="supplier" id={o.supplier_id}>{o.supplier?.name}</EntityLink></td>
                         <td><span className={`badge ${badge(o.status)}`}>{o.status}</span></td>
                         <td className="muted">{fmtDateTime(o.created_at)}</td>
                         <td className="num">{o.items.length}</td>

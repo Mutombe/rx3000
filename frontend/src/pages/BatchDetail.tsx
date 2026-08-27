@@ -14,7 +14,8 @@ import { useParams } from "react-router-dom";
 
 interface Recipient {
   patient_id: number | null; patient: string; phone: string; quantity: number;
-  sale_number: string; rx_number: string; sold_at: string;
+  sale_id: number | null; sale_number: string;
+  prescription_id: number | null; rx_number: string; sold_at: string;
 }
 interface Data {
   id: number; batch_number: string; product_id: number; product: string;
@@ -148,7 +149,15 @@ export default function BatchDetail() {
                       </td>
                       <td className="num">{r.quantity}</td>
                       <td>{fmtDate(r.sold_at)}</td>
-                      <td className="mono small">{r.rx_number || r.sale_number}</td>
+                      <td className="mono small">
+                        {r.rx_number
+                          ? <EntityLink kind="prescription" id={r.prescription_id}>
+                              {r.rx_number}
+                            </EntityLink>
+                          : <EntityLink kind="sale" id={r.sale_id}>
+                              {r.sale_number}
+                            </EntityLink>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
