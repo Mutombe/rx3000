@@ -315,8 +315,28 @@ export class Abandoned extends Error {
   }
 }
 
+/** Something the person at the till needs to read, not a defect.
+ *
+ *  A declined card, a confirmation code nobody typed, a wallet payment the
+ *  customer never approved. These are ordinary outcomes of taking money and
+ *  the operator has to act on them, so the message must survive.
+ *
+ *  Without this every one of them was thrown as a plain `Error`, and the line
+ *  below treated it as a bug: it logged "unhandled failure" to the console and
+ *  replaced the message with "That did not work. Please try again." So a
+ *  cashier holding a declined card was told nothing useful, and the till
+ *  looked broken while behaving correctly.
+ */
+export class Refused extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "Refused";
+  }
+}
+
 export function errorText(cause: unknown, fallback = "That did not work. Please try again."): string {
   if (cause instanceof ApiError) return cause.message;
+  if (cause instanceof Refused) return cause.message;
   if (typeof cause === "string" && cause.trim()) return cause;
   // Anything else is ours, and is a defect rather than a condition.
   console.error("[RX5000] unhandled failure:", cause);

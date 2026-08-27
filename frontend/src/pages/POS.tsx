@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
-import { api, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDateTime, money, errorText, Refused } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
 import { useConnection } from "../components/Connection";
@@ -155,7 +155,7 @@ export default function POS() {
       setTerminalState("Waiting for the customer to tap or insert…");
       try {
         const res = await deviceAgent.takePayment(amount, reference);
-        if (!res.approved) throw new Error(res.message || "Card declined");
+        if (!res.approved) throw new Refused(res.message || "Card declined");
         setTerminalState("");
         return {
           card_auth_code: res.auth_code ?? "", card_reference: res.reference ?? "",
@@ -176,16 +176,30 @@ export default function POS() {
   /** Mobile money is a push: send it, then wait for the customer to approve on
    *  their handset. Nothing is settled until the provider confirms. */
   async function resolveMobileTender(amount: number, reference: string) {
+    // No gateway on this till: the customer paid on their handset and read the
+    // code back, exactly as they do for a card slip off a standalone machine.
+    //
+    // This used to throw "No mobile money provider is configured on this till"
+    // — after the screen had already asked for the confirmation code and
+    // promised to keep it with the sale. The card path has always fallen back
+    // to keyed slip detail; this one refused the sale outright, so a pharmacy
+    // without an integration either rang wallet payments up as cash, which is a
+    // hole nobody can close at cash-up, or could not sell at all.
     if (!agent?.mobile_money?.ready) {
-      throw new Error("No mobile money provider is configured on this till");
+      const code = walletReference.trim();
+      if (!code) {
+        throw new Refused(
+          "Enter the confirmation code the customer read back, or take the payment another way.");
+      }
+      return code;
     }
-    if (!mobilePhone.trim()) throw new Error("Enter the customer's mobile number");
+    if (!mobilePhone.trim()) throw new Refused("Enter the customer's mobile number");
     setMobileState("Sending request to the customer's phone…");
     // The wallet the cashier chose, not a hardcoded one. Sending every payment
     // to EcoCash meant an Omari customer watched a prompt that never arrived.
     const started = await deviceAgent.initiateMobile(amount, mobilePhone.trim(), wallet, reference);
     if (!started.started || !started.poll_ref) {
-      throw new Error(started.message || "Could not start the mobile money request");
+      throw new Refused(started.message || "Could not start the mobile money request");
     }
     setMobileState(started.message ?? "Waiting for the customer to approve…");
     const result = await deviceAgent.awaitMobilePayment(started.poll_ref, {
@@ -194,7 +208,7 @@ export default function POS() {
     });
     setMobileState("");
     if (result.state !== "paid") {
-      throw new Error(result.message || `Mobile money ${result.state}`);
+      throw new Refused(result.message || `Mobile money ${result.state}`);
     }
     return result.reference ?? "";
   }

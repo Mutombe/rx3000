@@ -514,7 +514,12 @@ export function ScanBar({
           // A miss is the start of a workflow, not the end of one. Offer to
           // attach the code to a product rather than leaving a dead end.
           setMiss(result);
-          if (result.message) toast.error(errorText(result));
+          // The message, not the whole result. `errorText` treats anything it
+          // does not recognise as a defect: it logged "unhandled failure" with
+          // the scan object in it and then showed "That did not work" instead
+          // of the reason. A barcode that matches nothing is an ordinary
+          // moment at a till, not a bug.
+          if (result.message) toast.error(result.message);
         } else {
           setMiss(null);
         }
