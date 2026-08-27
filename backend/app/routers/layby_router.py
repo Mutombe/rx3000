@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers
 from ..auth import get_current_user
@@ -314,7 +314,15 @@ LISTING_CAP = 200
 
 @router.get("")
 def listing(status: str = "open", db: Session = Depends(get_db)):
-    query = db.query(LayBy)
+    # `_out` names the customer and every product on the lay-by, all of which
+    # were lazy — ten lay-bys came to forty-two queries.
+    query = db.query(LayBy).options(
+        joinedload(LayBy.patient),
+        selectinload(LayBy.items).joinedload(LayByItem.product),
+        # `paid` sums the payments and `balance` reads `paid`, so every row was
+        # another query even after the patient and items were loaded.
+        selectinload(LayBy.payments),
+    )
     if status:
         query = query.filter(LayBy.status == status)
     total = query.count()

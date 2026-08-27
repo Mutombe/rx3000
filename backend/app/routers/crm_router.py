@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schemas
 from ..auth import get_current_user
@@ -118,7 +118,13 @@ def update_contact(contact_id: int, body: schemas.ContactBase, db: Session = Dep
 # ---------- deals / pipeline ----------
 @router.get("/deals", response_model=list[schemas.DealOut])
 def list_deals(stage: str = "", open_only: bool = False, limit: int = 300, db: Session = Depends(get_db)):
-    query = db.query(Deal)
+    # A deal row names its company, its contact, its owner and its lines.
+    query = db.query(Deal).options(
+        joinedload(Deal.company),
+        joinedload(Deal.contact),
+        joinedload(Deal.owner),
+        selectinload(Deal.items),
+    )
     if stage:
         query = query.filter(Deal.stage == stage)
     if open_only:

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import schemas
 from ..auth import get_current_user
@@ -11,7 +11,8 @@ router = APIRouter(prefix="/api/messages", tags=["reminders"], dependencies=[Dep
 
 
 def _reminder_query(db: Session, status: str, message_type: str):
-    query = db.query(Message)
+    # Each row shows who it went to. That was a query a row.
+    query = db.query(Message).options(joinedload(Message.patient))
     if status:
         query = query.filter(Message.status == status)
     if message_type:

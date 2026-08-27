@@ -211,6 +211,36 @@ def balance(db: Session, account_code: str, *, upto: date | None = None,
     return round(net if account.type in DEBIT_POSITIVE else -net, 2)
 
 
+def balances(db: Session, codes: list[str], *, upto: date | None = None,
+             period_code: str = "") -> dict[str, float]:
+    """Every balance in one query, in the direction each account's type runs.
+
+    `balance` answers for one code, and a chart of accounts screen calling it in
+    a loop is a query per account — twenty-one accounts, forty-five queries and
+    five seconds against a hosted database to produce under two kilobytes. The
+    arithmetic is identical; only the number of round trips differs.
+    """
+    if not codes:
+        return {}
+    kinds = {a.code: a.type for a in
+             db.query(Account).filter(Account.code.in_(codes)).all()}
+    query = (db.query(JournalLine.account_code,
+                      func.coalesce(func.sum(JournalLine.debit), 0.0),
+                      func.coalesce(func.sum(JournalLine.credit), 0.0))
+             .join(JournalEntry, JournalLine.entry_id == JournalEntry.id)
+             .filter(JournalLine.account_code.in_(codes)))
+    if upto:
+        query = query.filter(JournalEntry.entry_date <= upto)
+    if period_code:
+        query = query.filter(JournalEntry.period_code == period_code)
+
+    out = {code: 0.0 for code in codes}
+    for code, debits, credits in query.group_by(JournalLine.account_code).all():
+        net = (debits or 0.0) - (credits or 0.0)
+        out[code] = round(net if kinds.get(code) in DEBIT_POSITIVE else -net, 2)
+    return out
+
+
 def trial_balance(db: Session, *, period_code: str = "",
                   upto: date | None = None) -> dict:
     """Every account with a movement, and the proof that the whole thing balances."""

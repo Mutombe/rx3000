@@ -21,10 +21,17 @@ def accounts(subledger: str = "", db: Session = Depends(get_db)):
     query = db.query(Account).filter(Account.active)
     if subledger:
         query = query.filter(Account.subledger == subledger)
+    # One grouped query for every balance, not one query per account.
+    #
+    # `ledger.balance` sums the journal for a single code, and calling it in a
+    # loop turned a twenty-one row chart of accounts into forty-five queries and
+    # nearly five seconds in production — to return under two kilobytes.
+    rows = query.order_by(Account.code).all()
+    sums = ledger.balances(db, [a.code for a in rows])
     return [{"code": a.code, "name": a.name, "type": a.type,
              "subledger": a.subledger,
-             "balance": ledger.balance(db, a.code)}
-            for a in query.order_by(Account.code).all()]
+             "balance": sums.get(a.code, 0.0)}
+            for a in rows]
 
 
 @router.post("/entries")

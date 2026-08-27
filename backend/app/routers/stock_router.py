@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schemas
 from ..auth import get_current_user
@@ -279,7 +279,10 @@ def list_batches(
     include_empty: bool = False,
     db: Session = Depends(get_db),
 ):
-    query = db.query(StockBatch)
+    # Every batch row names its medicine, and that was a query a batch: two
+    # hundred and forty-eight batches came to a hundred and twelve queries and
+    # eleven seconds in production, for a screen an expiry sweep lives on.
+    query = db.query(StockBatch).options(joinedload(StockBatch.product))
     if product_id:
         query = query.filter(StockBatch.product_id == product_id)
     if not include_empty:
@@ -303,7 +306,10 @@ def list_batches_paged(
     and a recall both work from, so a list that stops a third of the way through
     is the wrong tool for the two jobs it exists to do.
     """
-    query = db.query(StockBatch)
+    # Every batch row names its medicine, and that was a query a batch: two
+    # hundred and forty-eight batches came to a hundred and twelve queries and
+    # eleven seconds in production, for a screen an expiry sweep lives on.
+    query = db.query(StockBatch).options(joinedload(StockBatch.product))
     if product_id:
         query = query.filter(StockBatch.product_id == product_id)
     if not include_empty:
@@ -387,7 +393,12 @@ def create_supplier(body: schemas.SupplierBase, db: Session = Depends(get_db)):
 # ---------- purchase orders ----------
 @router.get("/orders", response_model=list[schemas.POOut])
 def list_orders(status: str = "", db: Session = Depends(get_db)):
-    query = db.query(PurchaseOrder)
+    # The supplier and every ordered line with its product, in one go rather
+    # than four round trips an order.
+    query = db.query(PurchaseOrder).options(
+        joinedload(PurchaseOrder.supplier),
+        selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.product),
+    )
     if status:
         query = query.filter(PurchaseOrder.status == status)
     return query.order_by(PurchaseOrder.created_at.desc()).limit(100).all()
@@ -400,7 +411,12 @@ def list_orders_paged(
     db: Session = Depends(get_db),
 ):
     """Purchase orders, paged. 217 orders behind a cap of 100."""
-    query = db.query(PurchaseOrder)
+    # The supplier and every ordered line with its product, in one go rather
+    # than four round trips an order.
+    query = db.query(PurchaseOrder).options(
+        joinedload(PurchaseOrder.supplier),
+        selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.product),
+    )
     if status:
         query = query.filter(PurchaseOrder.status == status)
     result = paging.page(query.order_by(PurchaseOrder.created_at.desc()), page=page, per_page=per_page)

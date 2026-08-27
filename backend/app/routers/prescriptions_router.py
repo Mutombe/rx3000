@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
@@ -22,6 +22,25 @@ from ..services import messages, sig, to_follows
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
 
+def _rx_loaded(query):
+    """Load everything `PrescriptionOut` serialises, in a fixed few queries.
+
+    The schema reaches for the patient, the prescriber, every item and every
+    item's product. Left lazy that is four round trips per script — a hundred
+    scripts became a hundred and fifty-five queries, which on a laptop is
+    milliseconds and against a hosted database is sixteen seconds.
+
+    `selectinload` for the items rather than `joinedload`: items are a
+    collection, and a joined load with LIMIT applies the limit to the joined
+    rows, so a script with three items would eat three of the hundred.
+    """
+    return query.options(
+        joinedload(Prescription.patient),
+        joinedload(Prescription.doctor),
+        selectinload(Prescription.items).joinedload(PrescriptionItem.product),
+    )
+
+
 @router.get("/prescriptions", response_model=list[schemas.PrescriptionOut])
 def list_prescriptions(
     patient_id: int | None = None,
@@ -29,7 +48,7 @@ def list_prescriptions(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    query = db.query(Prescription)
+    query = _rx_loaded(db.query(Prescription))
     if patient_id:
         query = query.filter(Prescription.patient_id == patient_id)
     return query.order_by(Prescription.created_at.desc()).limit(limit).all()
@@ -440,8 +459,17 @@ def prescription_labels(
 @router.get("/repeats/due", response_model=list[schemas.PrescriptionItemOut])
 def repeats_due(days: int = 7, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
     horizon = date.today() + timedelta(days=days)
+    # The row is a script line, and the screen shows the medicine and the
+    # patient beside it. Both were fetched one at a time: two hundred and thirty
+    # lines came to three hundred and eighty-four queries and thirty-five
+    # seconds in production, for a list a pharmacist opens every morning.
     return (
         db.query(PrescriptionItem)
+        .options(
+            joinedload(PrescriptionItem.product),
+            joinedload(PrescriptionItem.prescription)
+            .joinedload(Prescription.patient),
+        )
         .filter(
             PrescriptionItem.next_repeat_date.isnot(None),
             PrescriptionItem.next_repeat_date <= horizon,
@@ -468,7 +496,7 @@ def unfinished(mine_only: bool = False, limit: int = 100,
                db: Session = Depends(get_db),
                user: User = Depends(get_current_user)):
     """Scripts started and not finished. Oldest first, the stalest is the risk."""
-    query = db.query(Prescription).filter(Prescription.status == "draft")
+    query = _rx_loaded(db.query(Prescription)).filter(Prescription.status == "draft")
     if mine_only:
         query = query.filter(Prescription.started_by_id == user.id)
     return query.order_by(Prescription.updated_at).limit(limit).all()
