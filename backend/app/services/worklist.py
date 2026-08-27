@@ -97,25 +97,39 @@ def _pending_base(db: Session):
             .filter(PrescriptionItem.not_dispensed.is_(False)))
 
 
+def _handed_out():
+    """How much of each prescription line has already gone out.
+
+    One grouped aggregate, joined once. Shared by the count and the list so the
+    sidebar badge and the worklist panel cannot answer the same question
+    differently — which is the whole reason `_pending_base` exists too.
+    """
+    return (
+        select(Dispensing.prescription_item_id.label("item_id"),
+               func.coalesce(func.sum(Dispensing.quantity), 0).label("qty"))
+        .group_by(Dispensing.prescription_item_id)
+        .subquery()
+    )
+
+
 def pending_count(db: Session) -> int:
     """How many lines are waiting, counted in SQL.
 
-    `pending()` loads every row to build the panel and then measures the list,
-    which costs 2.2 seconds here — fine once for a panel somebody is reading,
-    far too slow for a badge that refreshes on every navigation. The
-    "not fully dispensed" test is the one piece of that function's logic done in
-    Python, so it is expressed here as a correlated subquery rather than
-    reimplemented as a different rule.
+    This was a correlated subquery — a SUM over the dispensings re-evaluated
+    once for every prescription line the database considered. Correct, and it
+    cost 1.1 seconds for a badge that refreshes on every navigation, because
+    the work is quadratic in the size of the queue rather than linear.
+
+    The same figure comes out of a single grouped aggregate joined once, which
+    is what `pending()` uses, so the two now share the expression rather than
+    describing the same rule two ways.
     """
-    dispensed = (
-        select(func.coalesce(func.sum(Dispensing.quantity), 0))
-        .where(Dispensing.prescription_item_id == PrescriptionItem.id)
-        .correlate(PrescriptionItem)
-        .scalar_subquery()
-    )
+    handed_out = _handed_out()
+    already = func.coalesce(handed_out.c.qty, 0)
     return int(
         _pending_base(db)
-        .filter(func.coalesce(PrescriptionItem.quantity, 0) - dispensed > 0)
+        .outerjoin(handed_out, handed_out.c.item_id == PrescriptionItem.id)
+        .filter(func.coalesce(PrescriptionItem.quantity, 0) > already)
         .with_entities(func.count())
         .order_by(None)
         .scalar() or 0
@@ -131,27 +145,44 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
     backlog of eight hundred reads as two hundred, and it is the same mistake
     this codebase has now made in five separate places.
     """
+    # How much of each line has already gone out, summed in the database.
+    #
+    # This used to be `sum(d.quantity for d in item.dispensings)` inside the
+    # loop below — one lazy load per prescription line. Every line of every
+    # script that was not a draft got loaded and then asked about individually:
+    # two and a half thousand rows became two thousand six hundred and ninety
+    # eight queries. On a laptop that is seven seconds. Against a hosted
+    # database it is four minutes, so the screen never arrived at all — the
+    # request timed out and the dispensary worklist simply did not load in
+    # production while working locally, which is the shape of every bug in this
+    # file's history.
+    #
+    # Joined rather than fetched separately so the database also does the
+    # filtering: a line that has been fully dispensed never leaves the server.
+    handed_out = _handed_out()
+    already = func.coalesce(handed_out.c.qty, 0)
+
     rows = (
-        db.query(PrescriptionItem, Prescription, Product)
+        db.query(PrescriptionItem, Prescription, Product, already)
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
         .join(Product, PrescriptionItem.product_id == Product.id)
+        .outerjoin(handed_out, handed_out.c.item_id == PrescriptionItem.id)
         .filter(Prescription.status.notin_(("draft", "cancelled")))
         .filter(PrescriptionItem.not_dispensed.is_(False))
+        .filter(func.coalesce(PrescriptionItem.quantity, 0) > already)
         .all()
     )
     if not rows:
-        return [], 0
+        return [], 0, []
 
     patients = {
         p.id: p for p in
         db.query(Patient).filter(
-            Patient.id.in_({s.patient_id for _i, s, _p in rows if s.patient_id})).all()
+            Patient.id.in_({s.patient_id for _i, s, _p, _q in rows if s.patient_id})).all()
     }
     out = []
-    for item, script, product in rows:
-        # Already gone out entirely? Then it is not pending.
-        dispensed = sum(d.quantity or 0 for d in item.dispensings)
-        outstanding = (item.quantity or 0) - dispensed
+    for item, script, product, dispensed in rows:
+        outstanding = (item.quantity or 0) - int(dispensed or 0)
         if outstanding <= 0:
             continue
         patient = patients.get(script.patient_id)
