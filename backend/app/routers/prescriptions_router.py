@@ -380,6 +380,47 @@ def _warnings(product) -> str:
     return " ".join(notes)
 
 
+def _initials_of(name: str) -> str:
+    """The initials a person would sign with, from their full name.
+
+    Tolerant of how staff are actually recorded: "T. Moyo (Pharmacist)" and
+    "Tendai Moyo" both give TM, because the stops, the parenthetical and the
+    case are decoration.
+    """
+    import re as _re
+
+    cleaned = _re.sub(r"\([^)]*\)", " ", name or "")
+    parts = [p for p in _re.split(r"[^A-Za-z]+", cleaned) if p]
+    return "".join(p[0] for p in parts).upper()
+
+
+def _dispenser(dispensing, user) -> str:
+    """Who handed the medicine over, in words a patient can read.
+
+    The label used to print the pharmacist's initials, because the initials are
+    what the checking pharmacist signed for while the login is only whoever was
+    at the till. True, and useless to the person holding the box: "TM" answers
+    nobody's question.
+
+    So the full name is printed. Where an initial was recorded for somebody
+    other than the logged-in user — which the shared-till case makes possible —
+    it is kept alongside, because that is the one case where the two really do
+    name different people and the accountability belongs to the initial.
+    """
+    if dispensing is None:
+        return user.full_name
+
+    full = (dispensing.dispensed_by.full_name
+            if dispensing.dispensed_by else "").strip()
+    initial = (dispensing.pharmacist_initial or "").strip()
+
+    if not full:
+        return initial
+    if not initial or initial.upper() == _initials_of(full):
+        return full
+    return f"{full} ({initial})"
+
+
 @router.get("/prescriptions/{rx_id}/labels", response_model=list[schemas.LabelOut])
 def prescription_labels(
     rx_id: int,
@@ -466,15 +507,7 @@ def prescription_labels(
             repeats_remaining=max(0, item.repeats_allowed - item.repeats_used),
             next_repeat_date=item.next_repeat_date,
             doctor_name=rx.doctor.name if rx.doctor else "",
-            # The initials if they were recorded, the full name otherwise. The
-            # initials are what the checking pharmacist actually put their name
-            # to; the dispensing user is only who was logged in, and on a shared
-            # till those are not always the same person.
-            dispensed_by=(
-                (dispensing.pharmacist_initial
-                 or (dispensing.dispensed_by.full_name if dispensing.dispensed_by else ""))
-                if dispensing else user.full_name
-            ),
+            dispensed_by=_dispenser(dispensing, user),
             dispensed_at=(dispensing.dispensed_at if dispensing else datetime.utcnow()),
             pharmacy_name=settings.PHARMACY_NAME,
             pharmacy_reg_no=settings.PHARMACY_REG_NO,
