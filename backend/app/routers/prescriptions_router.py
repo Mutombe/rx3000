@@ -8,7 +8,8 @@ from ..auth import get_current_user
 from ..config import settings
 from ..database import get_db
 from ..models import (
-    Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem, User,
+    Branch, Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale,
+    SaleItem, User,
 )
 # `sig` is imported here, at module level, and not inside one function.
 # It was imported inside the shorthand-expansion endpoint only, while three
@@ -17,7 +18,7 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import messages, sig, to_follows
+from ..services import branches, messages, sig, to_follows
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
@@ -401,6 +402,38 @@ def prescription_labels(
     wanted = {int(i) for i in item_ids.split(",") if i.strip().isdigit()}
     items = [i for i in rx.items if not wanted or i.id in wanted]
 
+    # Which shop is handing this over.
+    #
+    # Resolved once for the script rather than per item: every item on one
+    # script goes out over the same counter, and asking the database again for
+    # each of five boxes is five round trips for an answer that cannot change.
+    branch = None
+    first_dispensing = next((i.dispensings[-1] for i in items if i.dispensings), None)
+    if first_dispensing is not None and first_dispensing.sale_id:
+        sale = db.get(Sale, first_dispensing.sale_id)
+        if sale is not None and getattr(sale, "branch_id", None):
+            branch = db.get(Branch, sale.branch_id)
+    if branch is None:
+        # A single-shop pharmacy has one branch and never chose it. Falling back
+        # to the default is what makes the address on the sticker right for the
+        # nine pharmacies in ten that will never open a second counter.
+        branch = branches.default_branch(db)
+
+    def _address(b) -> str:
+        """Street and city, without saying the city twice.
+
+        Pharmacies write the town into the address field — "114 Samora Machel
+        Avenue, Harare" — and appending the city column to that gives
+        "…Harare, Harare" on every sticker printed.
+        """
+        street = (b.address or "").strip().rstrip(",")
+        city = (b.city or "").strip()
+        if not city or street.lower().endswith(city.lower()):
+            return street
+        return f"{street}, {city}" if street else city
+
+    branch_address = _address(branch) if branch else ""
+
     labels = []
     for position, item in enumerate(items, start=1):
         product = item.product
@@ -452,6 +485,15 @@ def prescription_labels(
             doctor_practice_no=(rx.doctor.practice_number or "") if rx.doctor else "",
             unit_price=round(product.unit_price or 0.0, 2),
             line_total=round((product.unit_price or 0.0) * (item.quantity or 0), 2),
+            branch_code=(branch.code or "") if branch else "",
+            # The branch's own name and number where it has them, the company's
+            # where it does not — an empty line on a sticker is worse than a
+            # slightly less specific one.
+            branch_name=(branch.name or settings.PHARMACY_NAME) if branch else settings.PHARMACY_NAME,
+            branch_address=branch_address or settings.PHARMACY_ADDRESS,
+            branch_phone=((branch.phone or "") if branch else "") or settings.PHARMACY_PHONE,
+            branch_reg_no=((branch.registration_no or "") if branch else "") or settings.PHARMACY_REG_NO,
+            dispensing_id=dispensing.id if dispensing else None,
         ))
     return labels
 

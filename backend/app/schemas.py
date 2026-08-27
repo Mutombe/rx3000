@@ -847,6 +847,18 @@ class LabelOut(BaseModel):
     doctor_practice_no: str = ""
     unit_price: float = 0.0
     line_total: float = 0.0
+    # The branch that actually handed the medicine over, which on a chain is not
+    # the same as the company on the licence. A patient telephoning about a box
+    # rings the shop they collected it from, so the sticker has to carry that
+    # shop's address, its number and its code — not head office's.
+    branch_code: str = ""
+    branch_name: str = ""
+    branch_address: str = ""
+    branch_phone: str = ""
+    branch_reg_no: str = ""
+    #: Which physical label this is of how many for the same item, e.g. a
+    #: hundred tablets split across two boxes.
+    dispensing_id: Optional[int] = None
 
 
 # ==================== CRM ====================

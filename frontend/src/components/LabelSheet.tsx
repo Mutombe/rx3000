@@ -136,6 +136,11 @@ export default function LabelSheet({
                   <div className="lbl-pair">
                     <dt>Item</dt><dd>{l.item_number} of {l.item_count}</dd>
                   </div>
+                  {l.branch_code && (
+                    <div className="lbl-pair">
+                      <dt>Dispensary</dt><dd className="mono">{l.branch_code}</dd>
+                    </div>
+                  )}
                 </div>
                 <div className="lbl-row">
                   <div className="lbl-pair">
@@ -166,12 +171,20 @@ export default function LabelSheet({
                 )}
               </dl>
 
+              {/* The branch that hands the medicine over, not the company on
+                  the licence. On a chain those differ, and the number a patient
+                  rings about their box is the shop's. Falls back to the
+                  pharmacy for a single-counter business that has never named a
+                  branch. */}
               <footer className="lbl-foot">
-                <b>{l.pharmacy_name}</b>
+                <b>{l.branch_name || l.pharmacy_name}</b>
                 <span>
-                  {[l.pharmacy_address, l.pharmacy_phone].filter(Boolean).join("  ·  ")}
-                  {!l.pharmacy_address && !l.pharmacy_phone && l.pharmacy_reg_no
-                    ? `Reg ${l.pharmacy_reg_no}` : ""}
+                  {[l.branch_address || l.pharmacy_address,
+                    l.branch_phone || l.pharmacy_phone].filter(Boolean).join("  ·  ")}
+                  {!(l.branch_address || l.pharmacy_address)
+                    && !(l.branch_phone || l.pharmacy_phone)
+                    && (l.branch_reg_no || l.pharmacy_reg_no)
+                    ? `Reg ${l.branch_reg_no || l.pharmacy_reg_no}` : ""}
                 </span>
               </footer>
             </article>

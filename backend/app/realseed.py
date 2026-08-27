@@ -442,6 +442,41 @@ def _prescribers(db: Session) -> list[Doctor]:
     return out
 
 
+def _branch(db: Session) -> None:
+    """Give the shop an address and a telephone number.
+
+    `default_branch` creates a placeholder called "Main branch" with neither,
+    because it exists to satisfy a foreign key rather than to describe a
+    pharmacy. That placeholder is what the dispensing label prints at the foot,
+    so every sticker went out with a name and two blank lines where the address
+    and the number should be — which on a real label is the part a patient uses
+    to ring back about their medicine.
+    """
+    from .services import branches
+
+    branch = branches.default_branch(db)
+    changed = False
+    # "Main branch" is the placeholder `default_branch` invents to satisfy a
+    # foreign key. It is not a pharmacy's name, and it is what the label footer
+    # prints, so the demo replaces it — a real one that has been named is left
+    # alone by the blank check below.
+    if (branch.name or "").strip() in ("", "Main branch"):
+        branch.name = zimdata.PHARMACY["trading_name"]
+        changed = True
+    for field, value in (
+        ("name", zimdata.PHARMACY["trading_name"]),
+        ("address", zimdata.PHARMACY["address"]),
+        ("phone", zimdata.PHARMACY["phone"]),
+        ("registration_no", zimdata.PHARMACY["licence"]),
+        ("city", "Harare"),
+    ):
+        if not (getattr(branch, field, "") or "").strip():
+            setattr(branch, field, value)
+            changed = True
+    if changed:
+        db.commit()
+
+
 def _suppliers(db: Session) -> None:
     for name, contact, phone, email in zimdata.SUPPLIERS:
         row = db.query(Supplier).filter(Supplier.name == name).first()
@@ -1664,6 +1699,7 @@ def run_if_thin(db: Session, *, days: int = 60) -> dict[str, int]:
     products = _catalogue(db)
     staff = _staff(db)
     _prescribers(db)
+    _branch(db)
     _suppliers(db)
     _people(db, schemes, target=180)
 
@@ -1738,6 +1774,7 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
         if retired:
             print(f"  deactivated {retired} expired demo account(s)")
         _prescribers(db)
+        _branch(db)
         _suppliers(db)
         print(f"  {len(zimdata.DOCTORS)} prescribers, {len(zimdata.SUPPLIERS)} suppliers")
 

@@ -331,6 +331,14 @@ export interface Label {
   doctor_practice_no: string;
   unit_price: number;
   line_total: number;
+  /** The shop that handed it over. On a chain this is not the company on the
+   *  licence, and it is the number a patient rings about their box. */
+  branch_code: string;
+  branch_name: string;
+  branch_address: string;
+  branch_phone: string;
+  branch_reg_no: string;
+  dispensing_id: number | null;
 }
 
 export interface SchedulePolicy {
