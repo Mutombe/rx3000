@@ -5,7 +5,7 @@
  *  optional — when it is not running every call reports unavailable and the
  *  caller falls back to browser printing and manual card capture.
  */
-import { Sale } from "./types";
+import { Label, Sale } from "./types";
 import { money } from "./api";
 
 const AGENT = "http://127.0.0.1:9110";
@@ -13,7 +13,13 @@ const AGENT = "http://127.0.0.1:9110";
 export interface AgentStatus {
   agent: string;
   version: string;
+  /** The receipt roll. Kept for callers that only ever wanted the one. */
   printer: { mode: string; port: string | null; width: number; ready: boolean };
+  /** Every printer this till has, by the role it serves. Absent on an agent
+   *  older than roles, which is why every read of it is optional. */
+  printers?: Record<string, {
+    role: string; mode: string; port: string | null; width: number; ready: boolean;
+  }>;
   drawer: { pin: number; ready: boolean; via: string | null };
   terminal: { driver: string; ready: boolean; terminal_id?: string; message?: string };
   mobile_money?: { driver: string; ready: boolean; timeout_seconds?: number; message?: string };
@@ -174,4 +180,106 @@ export function printReceiptOnAgent(sale: Sale, pharmacyName: string, regNo = ""
     cut: true,
     open_drawer: sale.payment_method === "cash",
   }, 15000);
+}
+
+
+/** Whether this till can print labels without a dialog.
+ *
+ *  True when a label roll is configured, and also when only one printer exists
+ *  — the agent falls back to it rather than refusing, because a pharmacy with
+ *  one printer wants its labels on that printer.
+ */
+export function canPrintLabels(status: AgentStatus | null): boolean {
+  if (!status) return false;
+  const bench = status.printers;
+  if (!bench) return false;                 // an agent that predates roles
+  return Object.values(bench).some((p) => p.ready);
+}
+
+/** Lay a dispensing label out as ESC/POS lines.
+ *
+ *  Mirrors the printed sticker so a till with a label roll and one without
+ *  produce the same document — the same rule the receipt follows, and for the
+ *  same reason: two documents that disagree is worse than one that is plain.
+ *
+ *  A 58mm roll is about 32 characters. The directions are what the patient
+ *  reads, so they get double height; everything else is the audit trail and is
+ *  set small, in the order the sticker prints it.
+ */
+export function labelLines(l: Label, width = 32): Line[] {
+  const lines: Line[] = [];
+  const wrap = (text: string, w: number): string[] => {
+    const words = String(text || "").split(/\s+/).filter(Boolean);
+    const out: string[] = [];
+    let row = "";
+    for (const word of words) {
+      if (!row) row = word;
+      else if ((row + " " + word).length <= w) row += " " + word;
+      else { out.push(row); row = word; }
+    }
+    if (row) out.push(row);
+    return out;
+  };
+
+  lines.push({ text: `${l.product_name} ${l.strength}`.trim().slice(0, width), bold: true });
+  const qty = [
+    l.quantity ? `${l.quantity} ${l.dosage_form || ""}`.trim() : "",
+    l.line_total ? `x${l.line_total.toFixed(2)}` : "",
+  ].filter(Boolean).join("  ");
+  if (qty) lines.push({ text: qty });
+
+  // Half width, because double-height glyphs are also double-wide.
+  for (const row of wrap((l.dosage_instructions || "As directed").toUpperCase(),
+                         Math.floor(width / 2))) {
+    lines.push({ text: row, bold: true, double: true });
+  }
+
+  if (l.warnings) {
+    lines.push({ text: "-".repeat(width) });
+    for (const row of wrap(l.warnings.toUpperCase(), width)) {
+      lines.push({ text: row, bold: true });
+    }
+  }
+
+  lines.push({ text: "-".repeat(width) });
+  const batch = [
+    l.batch_number ? `Batch: ${l.batch_number}` : "",
+    l.expiry_date ? `Exp: ${new Date(l.expiry_date).toLocaleDateString("en-GB")}` : "",
+  ].filter(Boolean).join("  ");
+  if (batch) lines.push({ text: batch.slice(0, width) });
+
+  lines.push({ text: l.patient_name.slice(0, width), bold: true });
+  lines.push({ text: new Date(l.dispensed_at).toLocaleString("en-GB", { hour12: false }) });
+  if (l.dispensed_by) lines.push({ text: `Disp by: ${l.dispensed_by}`.slice(0, width) });
+  if (l.doctor_name) lines.push({ text: `Doc. ${l.doctor_name}`.slice(0, width) });
+
+  const ref = [
+    l.rx_number ? `Rx: ${l.rx_number}` : "",
+    l.item_count > 1 ? `${l.item_number}/${l.item_count}` : "",
+    l.branch_code ? `[${l.branch_code}]` : "",
+  ].filter(Boolean).join(" ");
+  if (ref) lines.push({ text: ref.slice(0, width) });
+
+  lines.push({ text: "-".repeat(width) });
+  lines.push({ text: (l.branch_name || l.pharmacy_name).slice(0, width), bold: true });
+  const where = l.branch_address || l.pharmacy_address;
+  if (where) for (const row of wrap(where, width)) lines.push({ text: row });
+  const phone = l.branch_phone || l.pharmacy_phone;
+  if (phone) lines.push({ text: phone });
+
+  return lines;
+}
+
+/** Print labels on the label roll. One document per label, so each is cut. */
+export async function printLabelsOnAgent(labels: Label[], copies = 1, width = 32) {
+  const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
+  for (const label of sheet) {
+    await call<{ printed: boolean }>("/print", {
+      lines: labelLines(label, width),
+      cut: true,
+      open_drawer: false,
+      role: "label",
+    }, 15000);
+  }
+  return { printed: sheet.length };
 }

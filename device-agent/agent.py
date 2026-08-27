@@ -25,7 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from biometric import MIN_QUALITY, get_biometric_driver
 from drivers import get_mobile_driver, get_terminal_driver
-from printing import CashDrawer, ReceiptPrinter
+from printing import CashDrawer, Printers, ReceiptPrinter
 
 log = logging.getLogger("rx3000.agent")
 
@@ -37,7 +37,10 @@ ALLOWED_ORIGINS = [
     if o.strip()
 ]
 
-printer = ReceiptPrinter()
+printers = Printers()
+# The drawer hangs off the receipt printer's RJ11 port specifically — it is a
+# solenoid on the till, not on the label roll by the dispensary bench.
+printer = printers.by_role["receipt"]
 drawer = CashDrawer(printer)
 terminal = get_terminal_driver()
 mobile = get_mobile_driver()
@@ -94,7 +97,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, {
                 "agent": "rx3000-device-agent",
                 "version": "1.0",
+                # `printer` stays for the till already running against this
+                # agent and reading one object; `printers` is the whole bench.
                 "printer": printer.status(),
+                "printers": printers.status(),
                 "drawer": drawer.status(),
                 "terminal": terminal.status(),
                 "mobile_money": mobile.status(),
@@ -110,12 +116,16 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             if route == "/print":
-                result = printer.print_receipt(
+                # Defaults to the receipt roll, so a caller that predates roles
+                # keeps printing exactly where it did.
+                target = printers.get(str(body.get("role", "receipt")))
+                result = target.print_receipt(
                     lines=body.get("lines", []),
                     cut=body.get("cut", True),
                     open_drawer=body.get("open_drawer", False),
                 )
-                return self._send(200, result)
+                return self._send(200, {**result, "role": target.role,
+                                        "port": target.port or None})
 
             if route == "/drawer/kick":
                 return self._send(200, drawer.kick())
@@ -199,7 +209,9 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     log.info("RX3000 device agent on http://%s:%d", HOST, PORT)
-    log.info("printer=%s terminal=%s mobile=%s", printer.status(), terminal.status(), mobile.status())
+    for role, state in printers.status().items():
+        log.info("printer[%s]=%s", role, state)
+    log.info("terminal=%s mobile=%s", terminal.status(), mobile.status())
     try:
         server.serve_forever()
     except KeyboardInterrupt:

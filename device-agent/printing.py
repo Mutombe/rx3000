@@ -4,13 +4,37 @@ Thermal printers speak ESC/POS: a byte stream of text interleaved with control
 codes. Writing those bytes straight to the device gives silent printing (no
 browser dialog) and lets us send the drawer-kick pulse, which a browser cannot.
 
-Configured with environment variables so a till can be set up without editing
-code:
+A counter has more than one printer. The receipt roll is 80mm and lives under
+the till; the dispensing labels come off a 58mm roll beside the dispensary
+bench. Sending both to one device means somebody peels a receipt off a label
+roll, so printers are addressed by **role** rather than by there being only one.
 
-    PRINTER_MODE      file | windows | none      (default: auto-detect)
-    PRINTER_PORT      COM3, /dev/usb/lp0, or a Windows printer share name
-    PRINTER_WIDTH     characters per line (default 42, the usual 80mm width)
-    DRAWER_PIN        2 or 5 (default 2) — which RJ11 pin the drawer sits on
+    receipt   the 80mm till roll: sales, refunds, the drawer kick
+    label     the 58mm label roll: dispensing labels
+    report    anything long, usually an ordinary office printer
+
+Configured with environment variables so a till can be set up without editing
+code. The unprefixed names still work and still mean the receipt printer, so a
+counter already running this does not have to be reconfigured:
+
+    PRINTER_MODE            file | windows | none    (default: auto-detect)
+    PRINTER_PORT            COM3, /dev/usb/lp0, or a Windows printer share name
+    PRINTER_WIDTH           characters per line (default 42, the usual 80mm)
+
+    LABEL_PRINTER_PORT      the label roll, if it is a different device
+    LABEL_PRINTER_MODE      as above
+    LABEL_PRINTER_WIDTH     characters per line (default 32, the usual 58mm)
+
+    REPORT_PRINTER_PORT     an office printer, if raw printing suits it
+    REPORT_PRINTER_MODE
+    REPORT_PRINTER_WIDTH
+
+    DRAWER_PIN              2 or 5 (default 2) — which RJ11 pin the drawer is on
+
+A role with no port configured reports `ready: false` and falls back to the
+role below it rather than failing: a pharmacy with one printer should get its
+labels on that printer, not an error. Only `receipt` has no fallback, because
+there is nothing under it.
 """
 import logging
 import os
@@ -36,11 +60,28 @@ def drawer_pulse(pin: int = 2) -> bytes:
     return ESC + b"p" + bytes([m, 25, 250])
 
 
+#: Role -> (env prefix, default characters per line). Ordered widest first so
+#: `fallback` below can walk down to something that exists.
+ROLES = {
+    "receipt": ("PRINTER", 42),
+    "label": ("LABEL_PRINTER", 32),
+    "report": ("REPORT_PRINTER", 80),
+}
+
+
 class ReceiptPrinter:
-    def __init__(self):
-        self.port = os.getenv("PRINTER_PORT", "")
-        self.width = int(os.getenv("PRINTER_WIDTH", "42"))
-        self.mode = os.getenv("PRINTER_MODE", "").lower() or self._detect()
+    """One physical printer, addressed by the role it serves.
+
+    Still called ReceiptPrinter because that is what every caller imports and a
+    rename buys nothing; it has simply stopped being the only one.
+    """
+
+    def __init__(self, role: str = "receipt"):
+        prefix, default_width = ROLES.get(role, ROLES["receipt"])
+        self.role = role
+        self.port = os.getenv(f"{prefix}_PORT", "")
+        self.width = int(os.getenv(f"{prefix}_WIDTH", str(default_width)))
+        self.mode = os.getenv(f"{prefix}_MODE", "").lower() or self._detect()
 
     def _detect(self) -> str:
         if not self.port:
@@ -48,8 +89,8 @@ class ReceiptPrinter:
         return "windows" if os.name == "nt" and not self.port.upper().startswith("COM") else "file"
 
     def status(self) -> dict:
-        return {"mode": self.mode, "port": self.port or None, "width": self.width,
-                "ready": self.mode != "none"}
+        return {"role": self.role, "mode": self.mode, "port": self.port or None,
+                "width": self.width, "ready": self.mode != "none"}
 
     # ---- rendering ----
     def _render(self, lines: list[dict]) -> bytes:
@@ -120,6 +161,36 @@ class ReceiptPrinter:
         self._write(payload)
         log.info("printed %d line(s), %d bytes", len(lines), len(payload))
         return {"printed": True, "bytes": len(payload), "lines": len(lines)}
+
+
+class Printers:
+    """Every printer this till has, and which one a job should go to.
+
+    The fallback is the point. A single-printer pharmacy configures
+    `PRINTER_PORT` and nothing else, and its labels come off that printer
+    rather than raising "no label printer configured" — which is true, and
+    unhelpful, and would send somebody to a settings screen to describe a
+    counter that has one printer on it.
+    """
+
+    def __init__(self):
+        self.by_role = {role: ReceiptPrinter(role) for role in ROLES}
+
+    def status(self) -> dict:
+        return {role: printer.status() for role, printer in self.by_role.items()}
+
+    def get(self, role: str) -> ReceiptPrinter:
+        """The printer for this role, or the nearest one that exists."""
+        wanted = self.by_role.get(role) or self.by_role["receipt"]
+        if wanted.mode != "none":
+            return wanted
+        # Walk down to anything configured. `receipt` is last because it is the
+        # one a counter is most likely to have.
+        for name in ("label", "report", "receipt"):
+            candidate = self.by_role.get(name)
+            if candidate is not None and candidate.mode != "none":
+                return candidate
+        return wanted        # nothing configured; let it raise its own message
 
 
 class CashDrawer:

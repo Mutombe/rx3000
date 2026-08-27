@@ -30,6 +30,28 @@ Set as environment variables before starting.
 | `PRINTER_PORT` | *(unset)* | `COM3`, `/dev/usb/lp0`, or a Windows printer share name |
 | `PRINTER_MODE` | auto | `file` (COM/device node) or `windows` (raw queue) |
 | `PRINTER_WIDTH` | `42` | Characters per line — 42 for 80mm, 32 for 58mm |
+| `LABEL_PRINTER_PORT` | *(unset)* | The 58mm label roll, if it is a separate device |
+| `LABEL_PRINTER_MODE` | auto | As above |
+| `LABEL_PRINTER_WIDTH` | `32` | Characters per line on the label roll |
+| `REPORT_PRINTER_PORT` | *(unset)* | An office printer, where raw printing suits it |
+| `REPORT_PRINTER_MODE` | auto | As above |
+| `REPORT_PRINTER_WIDTH` | `80` | Characters per line |
+
+### More than one printer
+
+A counter usually has two: an 80mm receipt roll under the till and a 58mm
+label roll by the dispensary bench. Printers are addressed by the role they
+serve — `receipt`, `label`, `report` — and `POST /print` takes an optional
+`role`, defaulting to `receipt` so anything written before roles keeps working.
+
+A role with nothing configured falls back to a printer that exists rather than
+failing. A pharmacy with one printer should get its labels on that printer, not
+an error telling it to configure a second one it does not own. The response says
+which role actually printed, so the caller is never misled about where the paper
+came out.
+
+With no printer configured at all the agent reports every role as not ready, and
+the application falls back to the browser's print dialog.
 | `DRAWER_PIN` | `2` | RJ11 pin the drawer solenoid sits on (2 or 5) |
 | `TERMINAL_DRIVER` | `simulator` | `simulator`, `tcp` or `none` |
 | `TERMINAL_ID` | `SIM0001` | Terminal identifier stamped on the sale |

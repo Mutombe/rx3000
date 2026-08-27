@@ -16,6 +16,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { printLabels } from "../print";
+import { canPrintLabels, printLabelsOnAgent, probe } from "../deviceAgent";
+import type { AgentStatus } from "../deviceAgent";
 import type { Label } from "../types";
 import { useToast } from "./Toast";
 import IconButton from "./IconButton";
@@ -31,6 +33,12 @@ export default function LabelSheet({
   // ref rather than in the dependency list means a caller that passes an inline
   // arrow — the normal way to write this — cannot cause a refetch on every
   // render, which with a state update in the handler is an endless request loop.
+  // What hardware this till has. Asked once when the dialog opens rather than
+  // at print time, so the button can say where the labels are going before
+  // somebody presses it.
+  const [agent, setAgent] = useState<AgentStatus | null>(null);
+  useEffect(() => { probe().then(setAgent).catch(() => setAgent(null)); }, []);
+
   const cb = useRef({ onClose, toast });
   cb.current = { onClose, toast };
 
@@ -68,6 +76,34 @@ export default function LabelSheet({
         </div>
       </div>
     );
+  }
+
+  const onRoll = canPrintLabels(agent);
+  const roll = agent?.printers?.label?.port ?? agent?.printers?.receipt?.port ?? "";
+
+  /** The label roll if this till has one, the browser dialog otherwise.
+   *
+   *  A failed roll falls back to the dialog rather than losing the label: the
+   *  medicine is already in the bag, and a sticker that did not print is a
+   *  bag that cannot go out.
+   */
+  async function send() {
+    // Guarded here rather than relying on where this sits in the file: the
+    // dialog renders an empty state while the labels are still loading, and
+    // the button is only reachable after they arrive.
+    if (!labels || labels.length === 0) { onClose(); return; }
+    if (onRoll) {
+      try {
+        await printLabelsOnAgent(labels, copies, agent?.printers?.label?.width ?? 32);
+        toast.ok(`${labels.length * copies} label(s) sent to the roll.`);
+        onClose();
+        return;
+      } catch (e) {
+        toast.error(errorText(e, "The label roll did not answer — using the print dialog."));
+      }
+    }
+    printLabels(labels, copies);
+    onClose();
   }
 
   return (
@@ -201,8 +237,16 @@ export default function LabelSheet({
         </label>
 
         <div className="modal-actions">
+          {/* Said before the button is pressed, not after. A dispenser who
+              expects the label roll and gets a Windows dialog has already
+              turned to the printer. */}
+          <span className="muted small">
+            {onRoll
+              ? `To the label roll on this till${roll ? ` (${roll})` : ""}`
+              : "No label roll on this till — the print dialog will ask"}
+          </span>
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <IconButton action="print" onClick={() => { printLabels(labels, copies); onClose(); }} />
+          <IconButton action="print" onClick={send} />
         </div>
       </div>
     </div>
