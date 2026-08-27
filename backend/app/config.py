@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 # Minimal .env loader (no external dependency)
@@ -28,6 +29,35 @@ def env(name: str, default: str = "") -> str:
     return default if value is None else value
 
 
+def _data_dir() -> Path:
+    """Where a pharmacy's own data lives.
+
+    Running from a source checkout this is `backend/`, which is what every
+    developer and every existing install already expects.
+
+    Running as the executable bundled inside the desktop app it cannot be:
+    that lives in `Program Files`, which is read-only for the person at the
+    till, and a database that cannot be written is a pharmacy that cannot
+    dispense. So a frozen build keeps its data in the per-user application
+    data directory instead, which is also where a backup tool would look for
+    it and where it survives reinstalling the app.
+    """
+    override = env("DATA_DIR")
+    if override:
+        return Path(override).expanduser()
+
+    if getattr(sys, "frozen", False):          # PyInstaller
+        if sys.platform == "win32":
+            base = Path(os.getenv("APPDATA") or Path.home() / "AppData" / "Roaming")
+        elif sys.platform == "darwin":
+            base = Path.home() / "Library" / "Application Support"
+        else:
+            base = Path(os.getenv("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+        return base / "RX5000"
+
+    return Path(__file__).resolve().parent.parent
+
+
 def _default_database_url() -> str:
     """Prefer rx5000.db, but adopt an existing rx3000.db rather than ignore it.
 
@@ -35,11 +65,12 @@ def _default_database_url() -> str:
     database while their real one sat in the same folder — the data is not lost,
     but it is gone from their point of view, which is the same emergency.
     """
-    here = Path(__file__).resolve().parent.parent
+    here = _data_dir()
+    here.mkdir(parents=True, exist_ok=True)
     legacy = here / "rx3000.db"
     if legacy.exists() and not (here / "rx5000.db").exists():
-        return "sqlite:///./rx3000.db"
-    return "sqlite:///./rx5000.db"
+        return f"sqlite:///{(here / 'rx3000.db').as_posix()}"
+    return f"sqlite:///{(here / 'rx5000.db').as_posix()}"
 
 
 class Settings:

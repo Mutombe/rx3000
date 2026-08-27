@@ -38,3 +38,9 @@ qa/out/
 backend/uvicorn.err.log
 backend/uvicorn.out.log
 backend/*.log
+
+# The frozen backend and PyInstaller's working directory. Built by CI per
+# platform, never committed: a fifty-eight megabyte binary in git is a
+# repository nobody can clone over a Zimbabwean line.
+backend/build/
+backend/dist/

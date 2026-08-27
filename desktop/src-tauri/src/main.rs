@@ -24,7 +24,20 @@
 
 use std::{env, fs, path::PathBuf};
 
-const DEFAULT_SERVER: &str = "http://localhost:8177";
+/// Where a fresh install points before anybody configures it.
+///
+/// The hosted service, so that downloading the app is the whole of getting
+/// started: no Python, no database, no server to stand up first. An install
+/// that opens on a "cannot connect" banner is one nobody gets past.
+///
+/// A pharmacy running its own box overrides this without a rebuild — put the
+/// address in `server.txt` beside the executable, or set `RX5000_SERVER`.
+/// Deliberately not "whichever backend happens to be running": a machine with
+/// a stale local database would silently adopt it, and two tills showing
+/// different stock with no indication why is a worse failure than a clear
+/// "cannot connect". Switching is explicit, and the bound address is in the
+/// title bar so you can see which one you are on.
+const DEFAULT_SERVER: &str = "https://rx3000-api.onrender.com";
 
 /// Where this till's backend lives.
 fn resolve_server() -> String {
