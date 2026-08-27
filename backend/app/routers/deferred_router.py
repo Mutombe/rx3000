@@ -1,7 +1,7 @@
 """Claims held at the counter, waiting to be sent."""
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import desc, func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth import get_current_user
 from ..database import get_db
@@ -43,7 +43,12 @@ def deferred(limit: int = 200, db: Session = Depends(get_db)):
     dispensed against and not yet asked anybody for, and it stays here until
     somebody sends it — which is exactly why it has to be visible.
     """
-    rows = (db.query(Claim).filter(Claim.status == "deferred")
+    # `_row` names the sale, the patient and the scheme, and all three were
+    # fetched one row at a time — thirty held claims cost sixty-five queries.
+    rows = (db.query(Claim)
+            .options(joinedload(Claim.sale), joinedload(Claim.patient),
+                     joinedload(Claim.medical_aid))
+            .filter(Claim.status == "deferred")
             .order_by(Claim.created_at).limit(limit).all())
     return [_row(c) for c in rows]
 

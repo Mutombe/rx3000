@@ -70,7 +70,11 @@ def list_contacts(
     q: str = "", stage: str = "", company_id: int | None = None,
     limit: int = 200, db: Session = Depends(get_db),
 ):
-    query = db.query(Contact)
+    # Every contact row carries its company and its owner. Left lazy that is
+    # two round trips a row: a hundred and eighty-eight contacts came to
+    # ninety-eight queries.
+    query = db.query(Contact).options(
+        joinedload(Contact.company), joinedload(Contact.owner))
     if q:
         like = f"%{q}%"
         query = query.filter(or_(
