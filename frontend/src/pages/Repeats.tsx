@@ -21,6 +21,7 @@ import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
+import { EntityLink } from "../components/Filters";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -150,13 +151,13 @@ export default function Repeats() {
                       prefetch={prefetchRoute}
                       className={i.overdue ? "row-flag" : ""}>
                       <td>
-                        {i.patient_name}
+                        <EntityLink kind="patient" id={i.patient_id}>{i.patient_name}</EntityLink>
                         {i.patient_phone && (
                           <div className="muted small">{i.patient_phone}</div>
                         )}
                       </td>
                       <td>
-                        {i.product}
+                        <EntityLink kind="product" id={i.product_id}>{i.product}</EntityLink>
                         <div className="muted small">
                           {i.quantity} · {i.supply_days} days
                         </div>

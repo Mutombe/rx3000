@@ -4,6 +4,7 @@ import PettyCash from "../components/PettyCash";
 import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money, errorText  } from "../api";
 import { Shift, ShiftTakings } from "../types";
+import { EntityLink } from "../components/Filters";
 
 export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
@@ -160,7 +161,7 @@ export default function Shifts() {
           <tbody>
             {history.map((s) => (
               <tr key={s.id}>
-                <td><b>{s.user?.full_name ?? s.user_id}</b></td>
+                <td><EntityLink kind="staff" id={s.user_id}><b>{s.user?.full_name ?? s.user_id}</b></EntityLink></td>
                 {/* A run number without its till is meaningless, and every shift
                     opened before runs were numbered has neither. Both absent
                     shows a dash rather than "Till  · run 0". */}

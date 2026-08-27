@@ -20,6 +20,7 @@ import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
+import { EntityLink } from "../components/Filters";
 
 interface Scope { category: string; bin: string }
 interface Take {
@@ -29,7 +30,7 @@ interface Take {
   over_units: number; short_units: number;
 }
 interface Line {
-  product: string; counted: number; expected: number;
+  product_id: number; product: string; counted: number; expected: number;
   variance: number; value: number; note: string;
 }
 interface Detail extends Take { lines: Line[] }
@@ -365,7 +366,7 @@ export default function StockTake() {
                         recounting is the one at the top. */}
                     {detail.lines.map((l, i) => (
                       <tr key={i} className={l.variance !== 0 ? "is-off" : ""}>
-                        <td>{l.product}</td>
+                        <td><EntityLink kind="product" id={l.product_id}>{l.product}</EntityLink></td>
                         <td className="num">{l.counted}</td>
                         <td className="num">{l.expected}</td>
                         <td className={`num${l.variance !== 0 ? " cu-diff" : ""}`}>

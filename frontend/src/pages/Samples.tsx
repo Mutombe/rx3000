@@ -17,8 +17,10 @@ import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { EntityLink } from "../components/Filters";
 
 interface Receipt {
+  product_id: number;
   id: number;
   reference: string;
   product: string;
@@ -284,7 +286,7 @@ export default function Samples() {
                       <td>{expanded === r.id ? <CaretDown size={13} /> : <CaretRight size={13} />}</td>
                       <td className="mono">{r.reference}</td>
                       <td>
-                        {r.product}
+                        <EntityLink kind="product" id={r.product_id}>{r.product}</EntityLink>
                         {(r.schedule ?? 0) >= 3 && <span className="badge sched">S{r.schedule}</span>}
                         {r.batch_number && <div className="muted small">batch {r.batch_number}</div>}
                       </td>

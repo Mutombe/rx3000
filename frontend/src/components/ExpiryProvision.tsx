@@ -16,6 +16,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
+import { EntityLink } from "./Filters";
 
 interface Item {
   batch_id: number; product: string; batch_number: string;
@@ -159,7 +160,7 @@ export default function ExpiryProvision() {
                 {state.items.map((i) => (
                   <tr key={i.batch_id}>
                     <td>{i.product}</td>
-                    <td className="mono">{i.batch_number || "—"}</td>
+                    <td className="mono"><EntityLink kind="batch" id={i.batch_id}>{i.batch_number || "—"}</EntityLink></td>
                     <td>
                       {i.expiry ? fmtDate(i.expiry) : "—"}
                       <div className="muted small">

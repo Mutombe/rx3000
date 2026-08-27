@@ -275,6 +275,7 @@ def detail(take_id: int, db: Session = Depends(get_db)):
         **_out(db, take),
         "lines": [
             {
+                "product_id": l.product_id,
                 "product": products.get(l.product_id, f"#{l.product_id}"),
                 "counted": l.counted, "expected": l.expected,
                 "variance": l.variance,

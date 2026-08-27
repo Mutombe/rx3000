@@ -40,7 +40,11 @@ ENTITIES = {
     "message": "/messages/",
 }
 
-LINKY = re.compile(r"<Link\b|useNavigate|navigate\(|<NavLink\b|onRowClick|rowHref|to=\{")
+# `EntityLink` is the house component for exactly this, and it was missing from
+# the list — so tables full of working links counted as dead ends. A survey that
+# does not know what a link looks like in this codebase measures nothing.
+LINKY = re.compile(r"<Link\b|<EntityLink\b|<RowLink\b|useNavigate|navigate\(|"
+                   r"<NavLink\b|onRowClick|rowHref|to=\{")
 
 
 def tables_in(text: str) -> list[str]:

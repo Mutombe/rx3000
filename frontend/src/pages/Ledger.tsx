@@ -18,6 +18,7 @@ import ExpiryProvision from "../components/ExpiryProvision";
 import Pagination, { Paged } from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import BusyButton from "../components/BusyButton";
+import { EntityLink } from "../components/Filters";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -269,7 +270,7 @@ export default function Ledger() {
                   no way to move through them. */}
               {unpostedPage.items.map((s) => (
                 <tr key={s.sale_id}>
-                  <td className="mono">{s.sale_number}</td>
+                  <td className="mono"><EntityLink kind="sale" id={s.sale_id}>{s.sale_number}</EntityLink></td>
                   <td className="num">{money(s.total)}</td>
                   <RowActions>
                     <BusyButton className="btn sm" onClick={() => postSale(s.sale_id)}>

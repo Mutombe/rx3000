@@ -6,6 +6,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
+import { EntityLink } from "../components/Filters";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -107,7 +108,7 @@ export default function Reminders() {
           <tbody>
             {messages.map((m) => (
               <tr key={m.id}>
-                <td><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></td>
+                <td><EntityLink kind="patient" id={m.patient_id}><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></EntityLink></td>
                 <td><span className="badge muted">{m.message_type.replace("_", " ")}</span></td>
                 <td>{m.channel.toUpperCase()}</td>
                 <td style={{ maxWidth: 420 }}>{m.subject && <b>{m.subject}. </b>}{m.body}</td>

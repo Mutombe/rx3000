@@ -11,6 +11,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
+import { EntityLink } from "../components/Filters";
 
 type Tab = "compose" | "history";
 
@@ -226,7 +227,7 @@ export default function Marketing() {
               <tbody>
                 {sentMessages.map((m) => (
                   <tr key={m.id}>
-                    <td>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</td>
+                    <td><EntityLink kind="patient" id={m.patient_id}>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</EntityLink></td>
                     <td style={{ maxWidth: 380 }}>{m.body}</td>
                     <td><span className={`badge ${m.status === "sent" ? "ok" : "danger"}`}>{m.status}</span></td>
                   </tr>

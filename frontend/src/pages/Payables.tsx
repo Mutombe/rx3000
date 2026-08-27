@@ -19,6 +19,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import { EntityLink } from "../components/Filters";
 
 interface AgeInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -51,7 +52,7 @@ interface Invoice {
   paid: number; outstanding: number; match?: MatchResult;
 }
 interface Uninvoiced {
-  order_id: number; order_number: string; supplier: string;
+  order_id: number; order_number: string; supplier: string; supplier_id: number;
   received_at: string | null; value: number; days: number | null;
 }
 
@@ -219,7 +220,9 @@ export default function Payables() {
                   {ageing.suppliers.map((s) => (
                     <tr key={s.supplier_id}>
                       <td>
-                        <b>{s.supplier}</b>
+                        <EntityLink kind="supplier" id={s.supplier_id}>
+                          <b>{s.supplier}</b>
+                        </EntityLink>
                         {s.oldest_days > 0 && (
                           <div className="muted small">
                             oldest is {s.oldest_days} day{s.oldest_days === 1 ? "" : "s"} past due
@@ -253,8 +256,12 @@ export default function Payables() {
                   {ageing.suppliers.flatMap((s) =>
                     s.invoices.map((i) => (
                       <tr key={i.invoice_id}>
-                        <td className="mono">{i.invoice_number}</td>
-                        <td>{s.supplier}</td>
+                        <td className="mono">
+                          <EntityLink kind="invoice" id={i.invoice_id}>{i.invoice_number}</EntityLink>
+                        </td>
+                        <td>
+                          <EntityLink kind="supplier" id={s.supplier_id}>{s.supplier}</EntityLink>
+                        </td>
                         <td>
                           {fmtDate(i.due_date)}
                           {i.days_overdue > 0 && (
@@ -303,8 +310,12 @@ export default function Payables() {
                 <tbody>
                   {waiting.map((w) => (
                     <tr key={w.order_id}>
-                      <td className="mono">{w.order_number}</td>
-                      <td>{w.supplier}</td>
+                      <td className="mono">
+                        <EntityLink kind="order" id={w.order_id}>{w.order_number}</EntityLink>
+                      </td>
+                      <td>
+                        <EntityLink kind="supplier" id={w.supplier_id}>{w.supplier}</EntityLink>
+                      </td>
                       <td>
                         {w.received_at ? fmtDate(w.received_at) : "—"}
                         {w.days !== null && w.days > 45 && (

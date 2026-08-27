@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { useToast } from "../components/Toast";
+import { EntityLink } from "../components/Filters";
 
 interface Hit {
   batch_id: number; batch_number: string; product: string;
@@ -133,7 +134,11 @@ export default function Recall() {
             <tbody>
               {hits.map((h) => (
                 <tr key={h.batch_id}>
-                  <td className="mono">{h.batch_number || "—"}</td>
+                  <td className="mono">
+                    <EntityLink kind="batch" id={h.batch_id}>
+                      {h.batch_number || "—"}
+                    </EntityLink>
+                  </td>
                   <td>{h.product}</td>
                   <td>{h.expiry_date ? fmtDate(h.expiry_date) : "—"}</td>
                   <td className="num">
@@ -257,7 +262,9 @@ export default function Recall() {
                         {trace.recipients.map((r, i) => (
                           <tr key={`${r.sale_number}-${i}`}>
                             <td>
-                              <b>{r.patient}</b>
+                              <EntityLink kind="patient" id={r.patient_id}>
+                                <b>{r.patient}</b>
+                              </EntityLink>
                               <div className="muted small">
                                 {r.phone
                                   ? <><Phone size={11} /> {r.phone}</>

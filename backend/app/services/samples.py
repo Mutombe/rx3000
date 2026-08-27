@@ -158,6 +158,7 @@ def register(db: Session, *, only_open: bool = False, limit: int = 200) -> dict:
         items.append({
             "id": r.id,
             "reference": r.reference,
+            "product_id": r.product_id,
             "product": f"{r.product.name} {r.product.strength or ''}".strip() if r.product else "",
             "schedule": r.product.schedule if r.product else None,
             "supplier_name": r.supplier_name,
