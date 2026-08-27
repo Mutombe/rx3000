@@ -14,9 +14,11 @@
  *  `pharmacist` field that does not exist while TypeScript stayed quiet.
  */
 import { useEffect, useRef, useState } from "react";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
-import { printLabels } from "../print";
-import { canPrintLabels, printLabelsOnAgent, probe } from "../deviceAgent";
+import { api, errorText } from "../api";
+import { labelPreviewDoc, printLabels } from "../print";
+import { asText } from "../escpos";
+import * as roll from "../shellPrinter";
+import { canPrintLabels, labelLines, printLabelsOnAgent, probe } from "../deviceAgent";
 import type { AgentStatus } from "../deviceAgent";
 import type { Label } from "../types";
 import { useToast } from "./Toast";
@@ -38,6 +40,13 @@ export default function LabelSheet({
   // somebody presses it.
   const [agent, setAgent] = useState<AgentStatus | null>(null);
   useEffect(() => { probe().then(setAgent).catch(() => setAgent(null)); }, []);
+
+  // Which printers this machine has, and which one this till uses for labels.
+  // A per-machine choice, not a per-pharmacy one: the roll is plugged in here
+  // and called whatever Windows calls it here, so it is kept on the machine.
+  const [printers, setPrinters] = useState<string[]>([]);
+  const [picked, setPicked] = useState(roll.chosenPrinter());
+  useEffect(() => { roll.listPrinters().then(setPrinters).catch(() => setPrinters([])); }, []);
 
   const cb = useRef({ onClose, toast });
   cb.current = { onClose, toast };
@@ -78,8 +87,10 @@ export default function LabelSheet({
     );
   }
 
-  const onRoll = canPrintLabels(agent);
-  const roll = agent?.printers?.label?.port ?? agent?.printers?.receipt?.port ?? "";
+  const agentRoll = canPrintLabels(agent);
+  const onRoll = roll.labelsGoStraightToRoll() || agentRoll;
+  const rollName = roll.chosenPrinter()
+    || agent?.printers?.label?.port || agent?.printers?.receipt?.port || "";
 
   /** The label roll if this till has one, the browser dialog otherwise.
    *
@@ -87,12 +98,29 @@ export default function LabelSheet({
    *  medicine is already in the bag, and a sticker that did not print is a
    *  bag that cannot go out.
    */
+  /** The lines this label becomes on a thermal roll. */
+  function rollLines(l: Label) {
+    return labelLines(l, roll.printerWidth());
+  }
+
   async function send() {
     // Guarded here rather than relying on where this sits in the file: the
     // dialog renders an empty state while the labels are still loading, and
     // the button is only reachable after they arrive.
     if (!labels || labels.length === 0) { onClose(); return; }
-    if (onRoll) {
+    // The shell first: it needs no separate service on the machine, which is
+    // the difference between a pharmacy downloading one thing and two.
+    if (roll.labelsGoStraightToRoll()) {
+      try {
+        for (const l of labels) await roll.printLines(rollLines(l), copies);
+        toast.ok(`${labels.length * copies} label(s) printed.`);
+        onClose();
+        return;
+      } catch (e) {
+        toast.error(errorText(e, "The label printer did not take it — using the print dialog."));
+      }
+    }
+    if (agentRoll) {
       try {
         await printLabelsOnAgent(labels, copies, agent?.printers?.label?.width ?? 32);
         toast.ok(`${labels.length * copies} label(s) sent to the roll.`);
@@ -116,116 +144,63 @@ export default function LabelSheet({
           {labels.length * copies === 1 ? "" : "s"} will print.
         </p>
 
-        <div className="lbl-preview">
-          {labels.map((l, i) => (
-            <article className="lbl" key={i}>
-              {/* Read in the order a label is read, which is not the order the
-                  data arrives in.
+        {/* The printed markup, in an iframe, at the printed size.
 
-                  The patient's name is first and unmissable because the first
-                  question at a counter is whether this bag is the right one.
-                  The medicine and its directions are the largest thing on the
-                  sticker because that is what somebody reads at home, sometimes
-                  without their glasses. Everything that exists for the pharmacy
-                  and the inspector sits below the rule, quiet and tabular. The
-                  shop's own name is last, where somebody with a question looks. */}
-              <header className="lbl-top">
-                <span className="lbl-patient">{l.patient_name}</span>
-                {l.line_total > 0 && (
-                  <span className="lbl-price">{money(l.line_total)}</span>
-                )}
-              </header>
+            This drew its own stickers until now — a `.lbl-*` layout beside the
+            `.label` one the printer gets. The file's own note at the top warned
+            that two designs "would drift apart at the first change", and they
+            did: the sticker on screen stopped matching the sticker on the roll,
+            which somebody only found by printing one in a pharmacy.
 
-              <div className="lbl-drug">
-                <span className="lbl-med">
-                  {l.product_name} {l.strength}
-                </span>
-                <span className="lbl-form">
-                  {[l.dosage_form, l.quantity ? `Qty ${l.quantity}` : ""]
-                    .filter(Boolean).join(" · ")}
-                </span>
-              </div>
+            An iframe rather than an inline fragment because the print
+            stylesheet sets rules on `body`, and those would otherwise leak into
+            the application. Isolated, this is exactly the document the printer
+            is handed. */}
+        {/* Two printers, two documents, and the preview shows whichever is
+            about to be used.
 
-              <p className="lbl-dose">{l.dosage_instructions || "As directed"}</p>
+            A thermal roll cannot print the HTML sticker — it takes text with
+            control codes. Showing the designed sticker and then printing lines
+            of text is the same lie as before, in the other direction, so when
+            the roll is the destination the preview is the text the roll gets,
+            in a monospaced block at the roll's own width. */}
+        {onRoll ? (
+          <div className="lbl-preview">
+            {labels.map((l, i) => (
+              <pre key={i} className="lbl-roll">{asText(rollLines(l), roll.printerWidth())}</pre>
+            ))}
+          </div>
+        ) : (
+          <div className="lbl-preview">
+            <iframe
+              title="Label preview"
+              className="lbl-frame"
+              srcDoc={labelPreviewDoc(labels)}
+              style={{ height: `${Math.min(labels.length, 6) * 48 + 8}mm` }}
+            />
+          </div>
+        )}
 
-              {l.warnings && <p className="lbl-warn">{l.warnings}</p>}
-
-              <dl className="lbl-audit">
-                {/* Each label and its value is one unit that cannot be split.
-                    Left as loose dt/dd in a wrapping row, "Checked" kept its
-                    value but "On" ended a line and dropped its date onto the
-                    next one, which reads as a stray timestamp. */}
-                <div className="lbl-row">
-                  <div className="lbl-pair">
-                    <dt>Batch</dt><dd className="mono">{l.batch_number || "not recorded"}</dd>
-                  </div>
-                  {l.expiry_date && (
-                    <div className="lbl-pair">
-                      <dt>Exp</dt><dd className="mono">{fmtDate(l.expiry_date)}</dd>
-                    </div>
-                  )}
-                </div>
-                <div className="lbl-row">
-                  <div className="lbl-pair">
-                    <dt>Script</dt><dd className="mono">{l.rx_number}</dd>
-                  </div>
-                  <div className="lbl-pair">
-                    <dt>Item</dt><dd>{l.item_number} of {l.item_count}</dd>
-                  </div>
-                  {l.branch_code && (
-                    <div className="lbl-pair">
-                      <dt>Dispensary</dt><dd className="mono">{l.branch_code}</dd>
-                    </div>
-                  )}
-                </div>
-                <div className="lbl-row">
-                  <div className="lbl-pair">
-                    <dt>Checked</dt><dd>{l.dispensed_by || "not recorded"}</dd>
-                  </div>
-                  <div className="lbl-pair">
-                    <dt>On</dt><dd>{fmtDateTime(l.dispensed_at)}</dd>
-                  </div>
-                </div>
-                {l.doctor_name && (
-                  <div className="lbl-row">
-                    <div className="lbl-pair">
-                      <dt>Prescriber</dt>
-                      <dd>
-                        {l.doctor_name}
-                        {l.doctor_practice_no && <span className="mono"> {l.doctor_practice_no}</span>}
-                      </dd>
-                    </div>
-                  </div>
-                )}
-                {l.repeats_remaining > 0 && (
-                  <div className="lbl-row">
-                    <div className="lbl-pair">
-                      <dt>Repeats</dt>
-                      <dd>{l.repeats_remaining} left{l.next_repeat_date ? `, next ${fmtDate(l.next_repeat_date)}` : ""}</dd>
-                    </div>
-                  </div>
-                )}
-              </dl>
-
-              {/* The branch that hands the medicine over, not the company on
-                  the licence. On a chain those differ, and the number a patient
-                  rings about their box is the shop's. Falls back to the
-                  pharmacy for a single-counter business that has never named a
-                  branch. */}
-              <footer className="lbl-foot">
-                <b>{l.branch_name || l.pharmacy_name}</b>
-                <span>
-                  {[l.branch_address || l.pharmacy_address,
-                    l.branch_phone || l.pharmacy_phone].filter(Boolean).join("  ·  ")}
-                  {!(l.branch_address || l.pharmacy_address)
-                    && !(l.branch_phone || l.pharmacy_phone)
-                    && (l.branch_reg_no || l.pharmacy_reg_no)
-                    ? `Reg ${l.branch_reg_no || l.pharmacy_reg_no}` : ""}
-                </span>
-              </footer>
-            </article>
-          ))}
-        </div>
+        {/* Only where it can be acted on. A browser tab cannot print without
+            a dialog whatever is chosen here, and offering the choice there
+            would be a setting that quietly does nothing. */}
+        {roll.canPrintDirect() && printers.length > 0 && (
+          <label className="lbl-copies">
+            Label printer
+            <select
+              value={picked}
+              onChange={(e) => {
+                setPicked(e.target.value);
+                roll.choosePrinter(e.target.value, roll.printerWidth());
+              }}
+            >
+              <option value="">Ask me each time (print dialog)</option>
+              {printers.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <label className="lbl-copies">
           Copies of each
@@ -242,7 +217,7 @@ export default function LabelSheet({
               turned to the printer. */}
           <span className="muted small">
             {onRoll
-              ? `To the label roll on this till${roll ? ` (${roll})` : ""}`
+              ? `To the label roll on this till${rollName ? ` (${rollName})` : ""}`
               : "No label roll on this till — the print dialog will ask"}
           </span>
           <button className="btn ghost" onClick={onClose}>Cancel</button>

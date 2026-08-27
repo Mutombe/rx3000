@@ -22,6 +22,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod printing;
+
 use std::{env, fs, path::PathBuf};
 
 /// Where a fresh install points before anybody configures it.
@@ -96,7 +98,11 @@ fn main() {
         .append_invoke_initialization_script(format!(
             "window.__RX5000_SERVER__ = {:?};", server_for_script()
         ))
-        .invoke_handler(tauri::generate_handler![rx5000_server])
+        .invoke_handler(tauri::generate_handler![
+            rx5000_server,
+            printing::list_printers,
+            printing::print_raw,
+        ])
         .setup(move |app| {
             use tauri::Manager;
             if let Some(window) = app.get_webview_window("main") {

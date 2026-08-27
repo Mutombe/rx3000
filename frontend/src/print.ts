@@ -336,6 +336,27 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
   return `<style>${LABEL_CSS}</style>${body}`;
 }
 
+/** The labels as a standalone document, for showing what will be printed.
+ *
+ *  Rendered into an iframe by the preview so that the sticker on screen and the
+ *  sticker on the roll are the same markup and the same stylesheet, not two
+ *  designs that agree today. `LabelSheet` drew its own once; the layouts drifted
+ *  apart at the first change, which is a preview that lies — and somebody signs
+ *  off on the screen while the printer disagrees.
+ */
+export function labelPreviewDoc(labels: Label[]): string {
+  return `<!doctype html><html><head><meta charset="utf-8">` +
+    `<style>${LABEL_CSS}` +
+    // Stacked with a gap so the edges of each sticker are visible on screen.
+    // The printer gets one per page and never sees this.
+    `.label { page-break-after: auto; margin: 0 auto 3mm; ` +
+    `box-shadow: 0 0 0 1px rgba(0,0,0,0.25); background: #fff; }` +
+    `body { background: transparent; padding: 2mm 0; }` +
+    `</style></head><body>` +
+    labelSheetHtml(labels).replace(/^<style>[\s\S]*?<\/style>/, "") +
+    `</body></html>`;
+}
+
 export function printLabels(labels: Label[], copies = 1) {
   if (labels.length === 0) return;
   const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();

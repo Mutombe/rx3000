@@ -16,6 +16,8 @@ import SigInput from "../components/SigInput";
 import Variants from "../components/Variants";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
+import * as roll from "../shellPrinter";
+import { labelLines } from "../deviceAgent";
 import {
   ControlledDispensing, CoverageReport, Doctor, Label, OTCSale, Patient,
   Prescription, PrescriptionItem, Product, Sale, SchedulePolicy, User,
@@ -318,9 +320,29 @@ export default function Dispense() {
   const updateItem = (idx: number, patch: Partial<DraftItem>) =>
     setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
+  /** Print this script's labels, straight to the roll where there is one.
+   *
+   *  This is the path with a queue behind it. A print dialog here is a
+   *  keystroke and a decision for every item on every script, so where the
+   *  till has a label printer the stickers come off it the moment the script
+   *  is dispensed, and the dialog is only what happens when it has not.
+   */
   async function printRxLabels(rxId: number) {
     try {
-      printLabels(await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`));
+      const labels = await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`);
+      if (roll.labelsGoStraightToRoll()) {
+        try {
+          for (const l of labels) await roll.printLines(labelLines(l, roll.printerWidth()));
+          toast.ok(`${labels.length} label(s) printed.`);
+          return;
+        } catch (e) {
+          // The medicine is already in the bag. A roll that will not take the
+          // job must not cost the label, so the dialog is the fallback rather
+          // than the error being the end of it.
+          toast.error(errorText(e, "The label printer did not take it — using the print dialog."));
+        }
+      }
+      printLabels(labels);
     } catch (e: any) { toast.error(errorText(e)); }
   }
 

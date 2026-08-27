@@ -3077,6 +3077,22 @@ img { -webkit-user-drag: none; user-select: none; }
    some properties: a border-top on the warning drew a second rule above the one
    the layout puts below it, so the preview showed two lines where the printer
    puts one. */
+/* The preview is an iframe carrying the print stylesheet, so it needs a size
+   and nothing else — every rule inside it belongs to the printed sticker. */
+.lbl-frame {
+  width: 100%; border: 0; display: block; background: transparent;
+}
+
+/* What the thermal roll will actually say. Monospaced at the roll's own
+   width, because that is the document — there is no layout to preview. */
+.lbl-roll {
+  margin: 0 0 3mm; padding: 2mm 3mm;
+  background: #fff; color: #111;
+  font-family: "Courier New", monospace; font-size: 11px; line-height: 1.28;
+  white-space: pre; overflow-x: auto;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.25);
+}
+
 .lbl-copies { display: flex; align-items: center; gap: var(--s2); font-size: .82rem; }
 .lbl-copies input { width: 64px; }
 

@@ -1,13 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RX5000",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "identifier": "zw.co.bitstudio.rx3000",
   "build": {
     "frontendDist": "../../frontend/dist",
     "devUrl": "http://localhost:5180"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "RX5000 Pharmacy Suite",
