@@ -6,6 +6,18 @@ const WillCall = lazy(() => import("./pages/WillCall"));
 const Samples = lazy(() => import("./pages/Samples"));
 const Recall = lazy(() => import("./pages/Recall"));
 const Payables = lazy(() => import("./pages/Payables"));
+const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
+const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
+const BatchDetail = lazy(() => import("./pages/BatchDetail"));
+const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
+const StaffDetail = lazy(() => import("./pages/StaffDetail"));
+const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
+const ShiftDetail = lazy(() => import("./pages/ShiftDetail"));
+const MessageDetail = lazy(() => import("./pages/MessageDetail"));
+const CampaignDetail = lazy(() => import("./pages/CampaignDetail"));
+const InvoiceDetail = lazy(() => import("./pages/InvoiceDetail"));
+const LayByDetail = lazy(() => import("./pages/LayByDetail"));
+const LeadDetail = lazy(() => import("./pages/LeadDetail"));
 const Welcome = lazy(() => import("./pages/Welcome"));
 const Training = lazy(() => import("./pages/Training"));
 import { getToken } from "./api";
@@ -119,6 +131,18 @@ export default function App() {
                 <Route path="/samples" element={<Samples />} />
                 <Route path="/recall" element={<Recall />} />
                 <Route path="/payables" element={<Payables />} />
+                <Route path="/suppliers/:id" element={<SupplierDetail />} />
+                <Route path="/claims/:id" element={<ClaimDetail />} />
+                <Route path="/batches/:id" element={<BatchDetail />} />
+                <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
+                <Route path="/staff/:id" element={<StaffDetail />} />
+                <Route path="/prescribers/:id" element={<PrescriberDetail />} />
+                <Route path="/shifts/:id" element={<ShiftDetail />} />
+                <Route path="/messages/:id" element={<MessageDetail />} />
+                <Route path="/campaigns/:id" element={<CampaignDetail />} />
+                <Route path="/payables/invoices/:id" element={<InvoiceDetail />} />
+                <Route path="/laybys/:id" element={<LayByDetail />} />
+                <Route path="/leads/:id" element={<LeadDetail />} />
                 <Route path="/periods" element={<Periods />} />
                 <Route path="/system" element={<System />} />
                 <Route path="/claims-held" element={<DeferredClaims />} />

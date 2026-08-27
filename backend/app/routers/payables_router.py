@@ -3,7 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
@@ -17,9 +17,23 @@ router = APIRouter(prefix="/api/payables", tags=["payables"],
                    dependencies=[Depends(get_current_user)])
 
 
+def _loaded(query):
+    """The supplier, the order and the lines, rather than three fetches a row.
+
+    `_invoice_json` reached for all three with `db.get`, which is a round trip
+    each against a hosted database. Thirteen invoices took nearly five seconds
+    to return twelve kilobytes.
+    """
+    return query.options(
+        joinedload(SupplierInvoice.supplier),
+        joinedload(SupplierInvoice.order),
+        selectinload(SupplierInvoice.items),
+    )
+
+
 def _invoice_json(db: Session, invoice: SupplierInvoice, paid: float = 0.0) -> dict:
-    supplier = db.get(Supplier, invoice.supplier_id)
-    order = db.get(PurchaseOrder, invoice.order_id) if invoice.order_id else None
+    supplier = invoice.supplier
+    order = invoice.order
     return {
         "id": invoice.id,
         "invoice_number": invoice.invoice_number,
@@ -52,7 +66,7 @@ def _invoice_json(db: Session, invoice: SupplierInvoice, paid: float = 0.0) -> d
 def list_invoices(status: str = "", supplier_id: int = 0, q: str = "",
                   limit: int = Query(default=100, le=500),
                   db: Session = Depends(get_db)):
-    query = db.query(SupplierInvoice)
+    query = _loaded(db.query(SupplierInvoice))
     if status:
         query = query.filter(SupplierInvoice.status == status)
     if supplier_id:
@@ -69,7 +83,8 @@ def list_invoices(status: str = "", supplier_id: int = 0, q: str = "",
 
 @router.get("/invoices/{invoice_id}")
 def one_invoice(invoice_id: int, db: Session = Depends(get_db)):
-    invoice = db.get(SupplierInvoice, invoice_id)
+    invoice = _loaded(db.query(SupplierInvoice)).filter(
+        SupplierInvoice.id == invoice_id).first()
     if invoice is None:
         raise HTTPException(404, "No such invoice.")
     paid = payables.paid_against(db, [invoice_id]).get(invoice_id, 0.0)

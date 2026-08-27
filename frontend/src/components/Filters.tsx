@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import Select from "./Select";
+import { entityHref, type EntityKind } from "../entityRoutes";
 
 export interface FilterState {
   q: string;
@@ -98,11 +99,32 @@ export function FilterBar({ value, onChange, placeholder, showDates, dimensions,
   );
 }
 
-/** A hyperlink from one record to another. Stops propagation so it works
- *  inside a clickable table row without also triggering the row's own link. */
-export function EntityLink({ to, children, muted }: { to: string; children: ReactNode; muted?: boolean }) {
+/** A name in a table you can click through to the record itself.
+ *
+ *  Stops propagation, so it works inside a clickable row without also firing
+ *  the row's own navigation.
+ *
+ *  Takes either an explicit `to`, or a `kind` and an `id` resolved through the
+ *  route map — the second form is what most tables want, and it means a renamed
+ *  route is one edit rather than eighty.
+ *
+ *  A missing id renders plain text rather than a link. Walk-in sales have no
+ *  patient, batches may have no supplier recorded, and a hand-keyed line may
+ *  name a medicine that is not in the catalogue. None of those is an error, and
+ *  none of them should produce a link to `/patients/undefined`.
+ */
+export function EntityLink({ to, kind, id, children, muted }: {
+  to?: string;
+  kind?: EntityKind;
+  id?: string | number | null;
+  children: ReactNode;
+  muted?: boolean;
+}) {
+  const href = to ?? (kind && id !== null && id !== undefined && id !== 0 && id !== ""
+    ? entityHref(kind, id) : "");
+  if (!href) return <>{children}</>;
   return (
-    <Link to={to} className={`entity-link${muted ? " muted" : ""}`} onClick={(e) => e.stopPropagation()}>
+    <Link to={href} className={`entity-link${muted ? " muted" : ""}`} onClick={(e) => e.stopPropagation()}>
       {children}
     </Link>
   );

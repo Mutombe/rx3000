@@ -272,35 +272,6 @@ h4 { font-size: var(--t-base); font-weight: 600; }
 a { color: var(--ink); text-decoration: none; }
 a:hover { opacity: 0.75; }
 
-/* A name in a table you can open.
- *
- * Underlined faintly all the time rather than only on hover: a table where the
- * clickable names are indistinguishable from the dead ones is a table people
- * stop trying to click. The underline sits in the same colour as a row rule, so
- * a screen of forty links reads as text rather than as a page of blue.
- *
- * It inherits its colour deliberately. Colouring these would fight every status
- * badge and schedule chip already earning attention in the same row. */
-.elink {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: var(--line);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
-  border-radius: 3px;
-  transition: text-decoration-color 90ms ease, opacity 90ms ease;
-}
-.elink:hover {
-  opacity: 1;
-  text-decoration-color: currentColor;
-}
-.elink:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  text-decoration-color: currentColor;
-}
-/* A reference number stays monospaced when it becomes a link. */
-.elink.mono { font-variant-numeric: tabular-nums; }
 
 /* ---------- shell ---------- */
 .shell { display: flex; min-height: 100vh; }
