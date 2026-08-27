@@ -26,10 +26,12 @@ import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
 import { useToast } from "../components/Toast";
 
+import { EntityLink } from "../components/Filters";
 type Tab = "outstanding" | "advices" | "import";
 
 interface Line {
   id: number; remittance_id: number; remittance_number: string; funder_id: string;
+  claim_id: number | null;
   claim_reference: string; member_name: string; service_date: string | null;
   amount_claimed: number; amount_paid: number; variance: number;
   reason_code: string; reason: string; status: string;
@@ -233,9 +235,11 @@ export default function Remittances() {
                     {open.lines.map((l) => (
                       <tr key={l.id}>
                         <td>
-                          <span className="clip mono" title={l.claim_reference}>
-                            {l.claim_reference}
-                          </span>
+                          <EntityLink kind="claim" id={l.claim_id}>
+                            <span className="clip mono" title={l.claim_reference}>
+                              {l.claim_reference}
+                            </span>
+                          </EntityLink>
                           {l.member_name && (
                             <span className="clip muted small" title={l.member_name}>
                               {l.member_name}

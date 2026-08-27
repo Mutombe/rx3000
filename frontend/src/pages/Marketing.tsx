@@ -198,7 +198,7 @@ export default function Marketing() {
           <tbody>
             {campaigns.map((c) => (
               <tr key={c.id}>
-                <td><b>{c.name}</b><div className="muted" style={{ maxWidth: 340 }}>{c.body.slice(0, 90)}…</div></td>
+                <td><EntityLink kind="campaign" id={c.id}><b>{c.name}</b></EntityLink><div className="muted" style={{ maxWidth: 340 }}>{c.body.slice(0, 90)}…</div></td>
                 <td>{c.channel.toUpperCase()}</td>
                 <td className="muted">{c.segment.replace(/_/g, " ")}</td>
                 <td className="num">{c.audience_size}</td>

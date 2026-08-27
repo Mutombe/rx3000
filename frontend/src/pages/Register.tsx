@@ -5,6 +5,7 @@ import { RegisterEntry } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 
+import { EntityLink } from "../components/Filters";
 export default function Register() {
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [schedule, setSchedule] = useState("");
@@ -69,13 +70,13 @@ export default function Register() {
             {entries.map((e) => (
               <tr key={e.id}>
                 <td>{fmtDateTime(e.created_at)}</td>
-                <td><b>{e.product?.name}</b> {e.product?.strength}</td>
+                <td><EntityLink kind="product" id={e.product?.id}><b>{e.product?.name}</b> {e.product?.strength}</EntityLink></td>
                 <td><span className="badge sched">S{e.schedule}</span></td>
                 <td><span className={`badge ${e.entry_type === "dispense" ? "warn" : e.entry_type === "receive" ? "ok" : "muted"}`}>{e.entry_type}</span></td>
                 <td className="num">{e.quantity_delta > 0 ? `+${e.quantity_delta}` : e.quantity_delta}</td>
                 <td className="num"><b>{e.balance_after}</b></td>
-                <td>{e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "—"}</td>
-                <td>{e.doctor?.name ?? "—"}</td>
+                <td><EntityLink kind="patient" id={e.patient?.id}>{e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "—"}</EntityLink></td>
+                <td><EntityLink kind="prescriber" id={e.doctor?.id}>{e.doctor?.name ?? "—"}</EntityLink></td>
                 <td className="mono">{e.reference}</td>
               </tr>
             ))}
