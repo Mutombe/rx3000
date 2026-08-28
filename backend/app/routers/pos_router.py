@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Header, HTTPException
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
-from ..models import Claim, Patient, Product, Sale, SaleItem, User
-from ..services import claims_engine, currency, fiscal, posting, reconciliation
+from ..models import Claim, Patient, Product, Sale, SaleItem, SaleTender, User
+from ..services import claims_engine, currency, fiscal, posting, reconciliation, stepup
 from . import shifts_router
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
@@ -66,11 +69,28 @@ def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> No
         collected = round(collected, 2)
         if collected + 0.005 < amount_due:
             short = round(amount_due - collected, 2)
-            raise HTTPException(
-                status_code=400,
-                detail=f"Tendered {collected} of {amount_due}, short by {short}"
-                       f"{currency.base_code()}",
-            )
+            # Short, and sometimes that is the answer.
+            #
+            # A patient who can find twenty of fifty-seven today still needs
+            # their medicine, and refusing is what makes a counter ring the
+            # whole thing up as cash and lose the difference where nobody can
+            # find it. So the shortfall is allowed to become a debt — but only
+            # deliberately, and only with a pharmacist behind it, because the
+            # pharmacy is lending money and somebody has to own that.
+            if not getattr(body, "part_payment", False):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Tendered {collected} of {amount_due}, short by {short}"
+                           f"{currency.base_code()}. Mark it as a part payment to "
+                           f"let the patient owe the balance.",
+                )
+            if not sale.patient_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A balance has to be owed by somebody — link the "
+                           "patient before taking a part payment.")
+            sale.status = "part_paid"
+            return
 
         change_base = round(collected - amount_due, 2)
         if change_base > 0:
@@ -114,7 +134,15 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
         patient.loyalty_points -= points_redeemed
         sale.loyalty_points_redeemed = points_redeemed
 
-    amount_due = round(sale.total - redeem_value, 2)
+    # What is still owed, not what the sale came to.
+    #
+    # A part-paid sale is settled a second time when the patient comes back
+    # with the rest, and asking for the whole total again is asking them to pay
+    # twice. Anything already tendered against this sale comes off first.
+    already = _paid_on(db, [sale.id]).get(sale.id, 0.0) if sale.id else 0.0
+    amount_due = round(sale.total - redeem_value - already, 2)
+    if amount_due < 0:
+        amount_due = 0.0
     sale.payment_method = payment_method
     sale.currency_code = sale.currency_code or currency.base_code()
 
@@ -146,11 +174,14 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
                 claims_engine.submit_claim(db, sale, patient)
 
         sale.payment_method = methods.pop() if len(methods) == 1 else "split"
-        if patient:
+        # Points are earned on what has actually been paid, not on what was
+        # rung up: a patient owing half the sale has not spent it yet.
+        if patient and sale.status != "part_paid":
             earned = int(amount_due * LOYALTY_EARN_RATE)
             sale.loyalty_points_earned = earned
             patient.loyalty_points += earned
-        sale.status = "paid"
+        if sale.status != "part_paid":
+            sale.status = "paid"
         return
 
     if payment_method == "medical_aid":
@@ -259,14 +290,109 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
     return sale
 
 
+def _require_part_payment_approval(db: Session, user: User, token: str) -> None:
+    """A debt needs a pharmacist's name against it.
+
+    Not because a cashier is untrusted, but because "she will bring it on
+    Friday" is a decision about the pharmacy's money made under the eye of
+    somebody who cannot pay, and the person who made it should be recorded.
+    """
+    if not token:
+        raise HTTPException(
+            status_code=403,
+            detail="Letting a patient owe the balance needs a pharmacist's "
+                   "authorisation.")
+    try:
+        stepup.redeem(db, action_key="sale.part_payment", token=token, actor=user)
+    except stepup.StepUpError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+
+
+def _paid_on(db: Session, sale_ids: list[int]) -> dict[int, float]:
+    """What has actually been collected against each sale.
+
+    Summed from the tenders rather than stored on the sale: a second column
+    holding the same fact is a second thing to keep right, and this one only
+    changes when a tender is written.
+    """
+    if not sale_ids:
+        return {}
+    rows = (db.query(SaleTender.sale_id,
+                     func.coalesce(func.sum(SaleTender.amount_in_base), 0.0))
+              .filter(SaleTender.sale_id.in_(sale_ids))
+              .group_by(SaleTender.sale_id).all())
+    return {sale_id: round(total or 0.0, 2) for sale_id, total in rows}
+
+
+@router.get("/owed")
+def money_owed(patient_id: int = 0, db: Session = Depends(get_db),
+               _: User = Depends(get_current_user)):
+    """Sales that went out without being paid for in full.
+
+    A work list, not a report. Every row is medicine the pharmacy has already
+    handed over and money it has not been given, and it stays here until
+    somebody collects it — which is exactly why it has to be visible.
+    """
+    query = (db.query(Sale)
+               .options(joinedload(Sale.patient))
+               .filter(Sale.status == "part_paid"))
+    if patient_id:
+        query = query.filter(Sale.patient_id == patient_id)
+    sales = query.order_by(Sale.created_at).limit(500).all()
+
+    paid = _paid_on(db, [s.id for s in sales])
+    rows = []
+    for sale in sales:
+        collected = paid.get(sale.id, 0.0)
+        balance = round((sale.total or 0.0) - collected, 2)
+        if balance <= 0.005:
+            continue
+        person = sale.patient
+        rows.append({
+            "sale_id": sale.id,
+            "sale_number": sale.sale_number,
+            "created_at": sale.created_at,
+            "patient_id": sale.patient_id,
+            "patient": (f"{person.first_name} {person.last_name}".strip()
+                        if person else "Walk-in"),
+            "phone": (person.phone or "") if person else "",
+            "total": round(sale.total or 0.0, 2),
+            "paid": collected,
+            "balance": balance,
+            "days": (datetime.utcnow() - sale.created_at).days if sale.created_at else 0,
+        })
+    return {
+        "items": rows,
+        "total_owed": round(sum(r["balance"] for r in rows), 2),
+        "patients": len({r["patient_id"] for r in rows if r["patient_id"]}),
+    }
+
+
+@router.get("/sales/{sale_id}/pay", response_model=schemas.SaleOut)
+def sale_for_payment(sale_id: int, db: Session = Depends(get_db),
+                     _: User = Depends(get_current_user)):
+    """One sale, for a till about to take money against it."""
+    sale = db.get(Sale, sale_id)
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    return sale
+
+
 @router.post("/sales/{sale_id}/pay", response_model=schemas.SaleOut)
-def pay_sale(sale_id: int, body: schemas.PayRequest, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def pay_sale(sale_id: int, body: schemas.PayRequest, db: Session = Depends(get_db),
+             user: User = Depends(get_current_user),
+             step_up: str = Header(default="", alias="X-Step-Up")):
     """Settle a pending sale created by the dispensary."""
     sale = db.get(Sale, sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
-    if sale.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Sale is {sale.status}, not pending")
+    # A part-paid sale is still collectable: the patient is coming back with
+    # the rest of it, which is the entire point of allowing the balance.
+    if sale.status not in ("pending", "part_paid"):
+        raise HTTPException(status_code=400,
+                            detail=f"Sale is {sale.status}, not awaiting payment")
+    if getattr(body, "part_payment", False):
+        _require_part_payment_approval(db, user, step_up)
     if sale.shift_id is None:
         shift = shifts_router.current_open_shift(db, user.id)
         sale.shift_id = shift.id if shift else None

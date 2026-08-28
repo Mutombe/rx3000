@@ -79,6 +79,13 @@ register(Action(
     approvers=("admin", "pharmacist"), self_approval=False))
 
 register(Action(
+    key="sale.part_payment", name="Let a patient owe the balance",
+    why="Medicine leaving the shop unpaid for is the pharmacy lending money, and "
+        "a cashier under the eye of somebody who cannot pay today is exactly who "
+        "should not decide it alone. The debt is real and somebody has to own it.",
+    approvers=("admin", "pharmacist"), self_approval=True))
+
+register(Action(
     key="stock.adjust", name="Adjust stock without a document",
     why="An adjustment with no invoice or script behind it is how shrinkage is "
         "hidden. It should cost somebody a password.",

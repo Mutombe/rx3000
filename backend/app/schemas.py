@@ -510,6 +510,9 @@ class SaleCreate(CardTender):
     # and the claim is submitted when it can be.
     claim_later: bool = False
     claim_later_reason: str = ""
+    # Take less than is due and let the patient owe the rest.
+    part_payment: bool = False
+    part_payment_note: str = ""
     # Set by a till replaying a sale it took while offline. Same value on every
     # retry, which is what lets the server recognise a repeat.
     client_ref: str = ""
@@ -637,6 +640,10 @@ class PayRequest(CardTender):
     # and the claim is submitted when it can be.
     claim_later: bool = False
     claim_later_reason: str = ""
+    # Take less than is due and let the patient owe the rest. Needs a
+    # pharmacist's authorisation, because the pharmacy is lending money.
+    part_payment: bool = False
+    part_payment_note: str = ""
 
 
 # ---------- purchase orders ----------
