@@ -19,8 +19,9 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, errorText, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import { useConfirm } from "../components/Confirm";
+import RowLink from "../components/RowLink";
 import { TableSkeleton } from "../components/Skeleton";
 import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
@@ -303,7 +304,11 @@ export default function Remittances() {
                 </thead>
                 <tbody>
                   {advices.map((a) => (
-                    <tr key={a.id}>
+                    // An advice that cannot be opened is a total nobody can
+                    // act on: the shortfall is only work once you can see which
+                    // claims it came from.
+                    <RowLink key={a.id} to={`/remittances/${a.id}`}
+                             prefetch={prefetchRoute}>
                       <td className="mono">{a.remittance_number}</td>
                       <td>{a.funder_id}</td>
                       <td>{a.payment_date ? fmtDate(a.payment_date) : "—"}</td>
@@ -322,7 +327,7 @@ export default function Remittances() {
                           ? <span className="badge danger">{a.unmatched}</span>
                           : <span className="muted">—</span>}
                       </td>
-                    </tr>
+                    </RowLink>
                   ))}
                 </tbody>
               </table>
