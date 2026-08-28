@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Dispensing, Patient, Prescription, PrescriptionItem, Product
@@ -89,6 +90,33 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
     more = len(rows) > limit
     rows = rows[:limit]
 
+    # What is still owed on each bag, in two queries rather than two a row.
+    #
+    # A will-call bag is medicine that has been dispensed and not yet handed
+    # over, and in this pharmacy it is usually not paid for either — the sale
+    # sits pending until somebody comes for it. The shelf could not say that,
+    # so a bag was handed over and whether it had been paid for was a separate
+    # question nobody was prompted to ask.
+    sale_ids = [d.sale_id for d in rows if d.sale_id]
+    owed_by_sale: dict[int, float] = {}
+    if sale_ids:
+        from ..models import Claim, Sale, SaleTender
+
+        paid = dict(
+            db.query(SaleTender.sale_id,
+                     func.coalesce(func.sum(SaleTender.amount_in_base), 0.0))
+              .filter(SaleTender.sale_id.in_(sale_ids))
+              .group_by(SaleTender.sale_id).all())
+        covered = dict(
+            db.query(Claim.sale_id, Claim.amount_approved)
+              .filter(Claim.sale_id.in_(sale_ids),
+                      Claim.status.notin_(("rejected", "reversed"))).all())
+        for sale in db.query(Sale).filter(Sale.id.in_(sale_ids)).all():
+            if sale.status in ("paid", "void"):
+                continue
+            due = (sale.total or 0.0) - float(covered.get(sale.id) or 0.0)
+            owed_by_sale[sale.id] = max(0.0, round(due - float(paid.get(sale.id) or 0.0), 2))
+
     now = datetime.utcnow()
     items = []
     for d in rows:
@@ -116,6 +144,10 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
             # A controlled item cannot simply be handed to whoever turns up, and
             # the screen needs to know before the bag is at the counter.
             "needs_id": (d.schedule or 0) >= 5,
+            "sale_id": d.sale_id,
+            # Nought means nothing to collect: either it was paid at the till
+            # or the scheme carried all of it.
+            "outstanding": owed_by_sale.get(d.sale_id, 0.0),
         })
 
     # Counted over the whole shelf, never over the page.
@@ -131,6 +163,10 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
     return {
         "items": items,
         "more": more,
+        # What the shelf is holding in unpaid medicine. A figure worth seeing
+        # before it is a figure worth chasing.
+        "owed_on_the_shelf": round(sum(owed_by_sale.values()), 2),
+        "bags_unpaid": len([v for v in owed_by_sale.values() if v > 0.005]),
         # The real total, not the length of the page. A screen that reports its
         # own page size as the total is the commonest way software lies by
         # accident.

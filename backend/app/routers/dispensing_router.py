@@ -154,9 +154,26 @@ def list_otc_sales_paged(days: int = 30, schedule: int | None = None, page: int 
 
 
 # ---------- controlled substances ----------
+#: What makes a hand-over controlled. Schedule 5 and above is the legal line.
+CONTROLLED_FROM = 5
+
+
 def _controlled_query(db: Session, days: int):
+    """The register, defined by the schedule rather than by a label on the row.
+
+    This filtered on `dispense_type == "controlled"`, a field written when the
+    dispensing was created. Every seeded row defaulted to "prescription", so
+    the register an inspector reads was empty while two hundred and twenty-six
+    schedule 5 and 6 hand-overs sat in the database — the worst possible way
+    for this particular screen to be wrong.
+
+    A schedule 5 hand-over is controlled because of what it is, not because
+    something remembered to say so. Either condition puts it in the register,
+    so a row typed correctly and a row typed by an older code path both appear.
+    """
     return (db.query(Dispensing)
-            .filter(Dispensing.dispense_type == "controlled",
+            .filter(or_(Dispensing.dispense_type == "controlled",
+                        Dispensing.schedule >= CONTROLLED_FROM),
                     Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
             .order_by(Dispensing.dispensed_at.desc()))
 

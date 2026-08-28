@@ -853,6 +853,11 @@ def _dispensary(db: Session, days: int, products, patients, doctors, staff) -> d
                     dispensed_at=when,
                     is_repeat=bool(item.repeats_used),
                     schedule=product.schedule,
+                    # Typed from the schedule, as the live dispensing path does.
+                    # Left unset, every seeded row defaulted to "prescription"
+                    # and the controlled register came out empty.
+                    dispense_type=("controlled" if (product.schedule or 0) >= 5
+                                   else "prescription"),
                     script_sighted=True,
                     pharmacist_initial=initials,
                     collected_at=collected_at,
