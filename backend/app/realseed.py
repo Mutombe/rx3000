@@ -1820,6 +1820,112 @@ def _remittances(db: Session) -> dict[str, int]:
     return dict(made)
 
 
+#: Why somebody walks in and asks for something by name.
+#:
+#: Keyed on the product's category rather than words in its name. Name matching
+#: was tried first and quietly failed: "Ferrous Sulphate" contains neither
+#: "iron" nor "supplement", so four sales in five fell through to a limp
+#: "asked for by name" — a record that looks complete and says nothing, which is
+#: the exact failure the indication field exists to prevent.
+OTC_INDICATIONS = {
+    "analgesic": ["headache", "period pain", "backache", "toothache until the dentist",
+                  "fever in a child", "muscular pain after work"],
+    "respiratory": ["a dry night cough", "a chesty cough for three days",
+                    "cough after a cold", "a blocked chest"],
+    "antihistamine": ["hay fever", "an allergic rash", "itching at night",
+                      "reaction to something eaten"],
+    "antiseptic": ["a grazed knee", "cleaning a small wound", "a cut that keeps opening"],
+    "first aid": ["dressing a graze", "a small burn", "a blister"],
+    "dermatological": ["an itchy rash", "insect bites", "heat rash on a baby",
+                       "dry cracked skin"],
+    "gastrointestinal": ["stomach cramps", "heartburn after eating", "indigestion",
+                         "loose stools since yesterday"],
+    "anthelmintic": ["deworming the household", "routine deworming for a child"],
+    "supplement": ["a supplement the patient asked for", "tiredness",
+                   "pregnancy supplement", "advised to take iron"],
+    "cardiovascular": ["on the doctor's advice, low dose", "continuing what the clinic started"],
+}
+
+#: Sold at the counter but not pharmacy medicines: airtime, wipes, a
+#: thermometer. They belong on the till, not in a register that records a
+#: pharmacist's clinical decision — a counselled sale of five dollars of airtime
+#: is not a wrong row, it is a nonsense one.
+NOT_MEDICINE = ("airtime", "front shop", "front_shop")
+
+#: When the right answer is "see a doctor". A counter that never refers is a
+#: counter that sells to everybody, which is the thing the record exists to
+#: catch.
+REFERRAL_NOTES = [
+    "Pain for more than ten days; referred rather than sold again.",
+    "Child under two with a fever; sent to the clinic.",
+    "Cough with blood; referred the same morning.",
+    "Asked for a third course in a month; referred.",
+    "Blood pressure taken at the counter was high; referred.",
+]
+
+
+def _otc(db: Session, products, staff, days: int) -> dict[str, int]:
+    """Counter sales of pharmacy medicines, the trade that needs no script.
+
+    A Zimbabwean dispensary does a great deal of this — paracetamol, cough
+    linctus, an antacid, deworming tablets — and the screen was empty, which
+    reads as a feature nobody uses rather than a day nobody wrote down.
+
+    It is not a till receipt. Selling a schedule 1 or 2 without a prescription
+    is allowed because a pharmacist stands behind it, so the record carries who
+    that was, what the customer said was wrong, and whether they were counselled
+    or sent to a doctor. Seeding it without those would produce a screen that
+    looks right and records nothing worth keeping.
+    """
+    from .models import OTCSale
+
+    made = collections.Counter()
+    if db.query(OTCSale).count():
+        return {"counter sales already recorded": db.query(OTCSale).count()}
+
+    sellable = [
+        p for p in products
+        if (p.schedule or 0) <= 2
+        and (p.category or "").strip().lower() not in NOT_MEDICINE
+        and (p.category or "").strip().lower() in OTC_INDICATIONS
+    ]
+    pharmacists = [u for u in staff if (u.role or "") in ("pharmacist", "admin")] or staff
+    if not sellable or not pharmacists:
+        return dict(made)
+
+    now = datetime.now()
+    for day in range(days):
+        when = now - timedelta(days=day)
+        if when.weekday() == 6:
+            continue                       # Sunday; the counter is quiet
+        for _ in range(RNG.randint(3, 11)):
+            product = RNG.choice(sellable)
+            reasons = OTC_INDICATIONS[(product.category or "").strip().lower()]
+            referred = RNG.random() < 0.06
+            db.add(OTCSale(
+                product_id=product.id,
+                quantity=RNG.choice([1, 1, 1, 2, 2, 3]),
+                schedule=product.schedule or 0,
+                customer_name="",           # most counter trade is anonymous
+                pharmacist_id=RNG.choice(pharmacists).id,
+                indication=RNG.choice(reasons),
+                # A schedule 2 sold without counselling is the audit finding, so
+                # it is not always true — but it is nearly always true.
+                counselling_given=RNG.random() < 0.93,
+                referred_to_doctor=referred,
+                notes=RNG.choice(REFERRAL_NOTES) if referred else "",
+                created_at=when.replace(hour=RNG.randint(8, 17),
+                                        minute=RNG.randint(0, 59)),
+            ))
+            made["counter sales"] += 1
+            if referred:
+                made["referred to a doctor"] += 1
+        if day % 10 == 0:
+            db.commit()
+    db.commit()
+    return dict(made)
+
+
 def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
     """Reminders and campaigns, written the way a pharmacy writes them."""
     made = collections.Counter()
@@ -2275,6 +2381,10 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
             print(f"  {added} raw materials")
         products = db.query(Product).filter(Product.active.is_(True)).all()
         for k, v in _compounding(db, products).items():
+            print(f"  {v} {k}")
+
+        print("writing up the counter sales…")
+        for k, v in _otc(db, products, staff, days).items():
             print(f"  {v} {k}")
 
         print("importing the remittance advices…")
