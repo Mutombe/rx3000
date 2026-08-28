@@ -15,8 +15,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ArrowClockwise, CheckCircle, Question, Receipt, Warning,
 } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import BusyButton from "../components/BusyButton";
+import RowLink from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
@@ -218,7 +219,11 @@ export default function Payables() {
                 </thead>
                 <tbody>
                   {ageing.suppliers.map((s) => (
-                    <tr key={s.supplier_id}>
+                    // The ageing row is about one supplier, so the row opens
+                    // that supplier. The name was already a link; the other six
+                    // columns were dead space in a table people read across.
+                    <RowLink key={s.supplier_id} to={`/suppliers/${s.supplier_id}`}
+                             prefetch={prefetchRoute}>
                       <td>
                         <EntityLink kind="supplier" id={s.supplier_id}>
                           <b>{s.supplier}</b>
@@ -235,7 +240,7 @@ export default function Payables() {
                         </td>
                       ))}
                       <td className="num"><b>{money(s.total)}</b></td>
-                    </tr>
+                    </RowLink>
                   ))}
                 </tbody>
               </table>
