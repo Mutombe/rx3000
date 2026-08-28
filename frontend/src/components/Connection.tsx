@@ -59,8 +59,26 @@ export function useConnection() {
 const POLL_UP = 30_000;
 const POLL_DOWN = 5_000;
 
+/** Whether this till talks to a server across the internet.
+ *
+ *  A server in the back office answers immediately or not at all. A hosted one
+ *  sleeps between customers and needs waking, and the difference decides how
+ *  long it is fair to wait before telling a pharmacy the line is down.
+ */
+const REMOTE = /^https?:\/\//i.test(apiBase)
+  && !/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(apiBase);
+
+/** Long enough for a server that is awake, short enough not to hang a till. */
+const FIRST_TRY_MS = 5000;
+/** A sleeping instance on a small hosting plan takes about this long to come
+ *  back. Waited only once, and only for a server that is not on the premises. */
+const WAKE_MS = 45000;
+
 export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState(true);
+  /** True while a sleeping hosted server is being given time to wake. Not the
+   *  same as offline, and the banner must not say it is. */
+  const [waking, setWaking] = useState(false);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [held, setHeld] = useState(0);
   // A token appearing is not something React re-renders for, so it is
@@ -79,20 +97,54 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       setCheckedAt(new Date());
       return false;
     }
-    try {
+    const ask = async (ms: number) => {
       const controller = new AbortController();
-      const bail = window.setTimeout(() => controller.abort(), 4000);
-      const res = await fetch(`${apiBase}/api/health`, {
-        signal: controller.signal,
-        cache: "no-store",
-      });
-      window.clearTimeout(bail);
-      const ok = res.ok;
-      setOnline(ok);
-      setCheckedAt(new Date());
-      setSignedIn(Boolean(getToken()));
-      return ok;
+      const bail = window.setTimeout(() => controller.abort(), ms);
+      try {
+        const res = await fetch(`${apiBase}/api/health`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        return res.ok;
+      } finally {
+        window.clearTimeout(bail);
+      }
+    };
+
+    try {
+      // Four seconds is right for a server in the back office: it is either
+      // switched on or it is not, and a till should say so at once rather than
+      // hang. It is wrong for a hosted one, which sleeps when nobody has used
+      // it and takes half a minute to wake — and this application was pointed
+      // at a hosted server without that timeout being revisited. A pharmacy
+      // then opened the till, waited four seconds, and was told the line was
+      // down while the server was starting up perfectly well.
+      const ok = await ask(FIRST_TRY_MS);
+      if (ok) {
+        setOnline(true);
+        setCheckedAt(new Date());
+        setSignedIn(Boolean(getToken()));
+        return true;
+      }
+      throw new Error("not ok");
     } catch {
+      // One patient retry before declaring the line down, and only where it
+      // can help: a local server that missed four seconds has not gone to
+      // sleep, it is off, and waiting longer only makes the till feel broken.
+      if (REMOTE) {
+        setWaking(true);
+        try {
+          const ok = await ask(WAKE_MS);
+          setOnline(ok);
+          setCheckedAt(new Date());
+          setSignedIn(Boolean(getToken()));
+          return ok;
+        } catch {
+          /* falls through to offline */
+        } finally {
+          setWaking(false);
+        }
+      }
       setOnline(false);
       setCheckedAt(new Date());
       return false;
@@ -155,7 +207,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider value={{ online, checkedAt, recheck: check }}>
-      {!online && <OfflineBanner onRetry={check} held={held} />}
+      {!online && <OfflineBanner onRetry={check} held={held} waking={waking} />}
       {/* Said once, when it happens, then gone. A till that carries a permanent
           notice about a queue that is empty teaches people to ignore it. */}
       {online && flushed > 0 && (
@@ -171,7 +223,23 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function OfflineBanner({ onRetry, held }: { onRetry: () => Promise<boolean>; held: number }) {
+function OfflineBanner({ onRetry, held, waking }: {
+  onRetry: () => Promise<boolean>; held: number; waking: boolean;
+}) {
+  // A sleeping server is not a broken one, and saying "no connection" while it
+  // starts up sends somebody to check a router that is working. It takes about
+  // half a minute, so the wait is worth naming rather than hiding.
+  if (waking) {
+    return (
+      <div className="conn-banner" role="status">
+        <span className="conn-dot" aria-hidden="true" />
+        <span>
+          <b>Waking the server.</b> It sleeps when the pharmacy is quiet and
+          takes up to a minute to come back. Nothing is lost while you wait.
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="conn-banner" role="status">
       <span className="conn-dot" aria-hidden="true" />
