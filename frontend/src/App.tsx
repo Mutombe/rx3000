@@ -55,6 +55,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const DealDetail = lazy(() => import("./pages/DealDetail"));
 const DeferredClaims = lazy(() => import("./pages/DeferredClaims"));
 const Scorecard = lazy(() => import("./pages/Scorecard"));
+const StockCategories = lazy(() => import("./pages/StockCategories"));
 const Pharmacies = lazy(() => import("./pages/Pharmacies"));
 const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
 const Deliveries = lazy(() => import("./pages/Deliveries"));
@@ -160,6 +161,7 @@ export default function App() {
                 <Route path="/system" element={<System />} />
                 <Route path="/claims-held" element={<DeferredClaims />} />
                 <Route path="/scorecard" element={<Scorecard />} />
+                <Route path="/stock-categories" element={<StockCategories />} />
                 <Route path="/pharmacies" element={<Pharmacies />} />
                 <Route path="/remittances/:id" element={<RemittanceDetail />} />
                 <Route path="/deliveries" element={<Deliveries />} />

@@ -380,6 +380,38 @@ class Supplier(Base, TenantMixin):
     email = Column(String(120), default="")
 
 
+class StockCategory(Base, TenantMixin):
+    """What kind of thing a product is, as the pharmacy itself groups them.
+
+    Every pharmacy already has this and calls it a department: dispensary, over
+    the counter, cosmetics, consignment. It decides where a line sits on a
+    stocktake sheet, which margin is expected of it, and which report it lands
+    in — so a catalogue where the answer lives in a free-text field is one where
+    "COSMETICS", "Cosmetics" and "cosmetic" become three departments and no
+    total is right.
+
+    Deliberately separate from `Product.category`, which asks a different
+    question with a confusingly similar name. That one says whether a line is a
+    medicine, a front-shop item or airtime, and code branches on it — airtime is
+    kept out of stocktakes, only medicines reach the dispensing routes. This one
+    is the pharmacy's own grouping and is theirs to rename.
+    """
+    __tablename__ = "stock_categories"
+
+    id = Column(Integer, primary_key=True)
+    #: The pharmacy's own department code, as it appears on their reports.
+    code = Column(String(20), default="", index=True)
+    name = Column(String(80), nullable=False)
+    #: The margin expected of this department, where a pharmacy works that way.
+    #: A cosmetics line and a dispensary line are not judged on the same number.
+    target_margin = Column(Float, default=0.0)
+    notes = Column(Text, default="")
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    products = relationship("Product", back_populates="stock_category")
+
+
 class Product(Base, TenantMixin):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True)
@@ -398,6 +430,16 @@ class Product(Base, TenantMixin):
     sep_price = Column(Float, default=0.0)
 
     category = Column(String(40), default="medicine")  # medicine | front_shop | airtime
+    #: The pharmacy's own department. See StockCategory for why this is separate
+    #: from `category` above.
+    category_id = Column(Integer, ForeignKey("stock_categories.id"),
+                         nullable=True, index=True)
+    #: The code this pharmacy knows the line by — what is on their shelf labels
+    #: and their own reports. Not the NAPPI code, which is national.
+    stock_code = Column(String(40), default="", index=True)
+    #: What the stock cost on average, as against the last price paid. A
+    #: pharmacy values its shelf on this, and the two differ enough to matter.
+    average_cost = Column(Float, default=0.0)
     schedule = Column(Integer, default=0)  # 0-6 (S5/S6 tracked in register)
     dosage_form = Column(String(60), default="")
     strength = Column(String(60), default="")
@@ -418,6 +460,7 @@ class Product(Base, TenantMixin):
     active = Column(Boolean, default=True)
 
     supplier = relationship("Supplier")
+    stock_category = relationship("StockCategory", back_populates="products")
     barcodes = relationship(
         "ProductBarcode", back_populates="product", cascade="all, delete-orphan"
     )

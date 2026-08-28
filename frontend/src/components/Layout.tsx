@@ -132,6 +132,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     section: "Stock",
     links: [
       { to: "/stock", label: "Inventory", icon: Package },
+      { to: "/stock-categories", label: "Departments", icon: ChartBar },
       { to: "/orders", label: "Procurement", icon: Truck },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
       { to: "/samples", label: "Samples", icon: Gift },

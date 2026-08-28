@@ -126,6 +126,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "settled_at": "DATETIME",
     },
     "products": {
+        "category_id": "INTEGER",
+        # The pharmacy's own code for the line, and what the shelf actually cost
+        # on average — both come straight off their stock export.
+        "stock_code": "VARCHAR(40) DEFAULT ''",
+        "average_cost": "FLOAT DEFAULT 0",
         # DEFAULT '' matters on both of these. Without it every existing row is
         # NULL, and the API declares them as plain strings — which took
         # GET /api/products down with a 500 for all 545 products.

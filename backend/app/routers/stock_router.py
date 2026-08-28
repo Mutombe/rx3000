@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schemas
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import paging
 from ..services import posting
@@ -18,7 +18,8 @@ router = APIRouter(prefix="/api", tags=["stock"], dependencies=[Depends(get_curr
 
 
 # ---------- products ----------
-def _product_search(db: Session, q: str, category: str, low_stock: bool):
+def _product_search(db: Session, q: str, category: str, low_stock: bool,
+                    category_id: int = 0):
     query = db.query(Product).filter(Product.active)
     if q:
         like = f"%{q}%"
@@ -26,18 +27,27 @@ def _product_search(db: Session, q: str, category: str, low_stock: bool):
             Product.name.ilike(like),
             Product.barcode.ilike(like),
             Product.nappi_code.ilike(like),
+            # The code the shop's own staff know the line by, which is what
+            # they read off a shelf label when the name is ambiguous.
+            Product.stock_code.ilike(like),
         ))
     if category:
         query = query.filter(Product.category == category)
+    if category_id:
+        # The pharmacy's own department, which is a different question from
+        # `category` above — see StockCategory.
+        query = query.filter(Product.category_id == category_id)
     if low_stock:
         query = query.filter(Product.quantity_on_hand <= Product.reorder_level)
     return query.order_by(Product.name)
 
 
 @router.get("/products", response_model=list[schemas.ProductOut])
-def list_products(q: str = "", category: str = "", low_stock: bool = False, limit: int = 300, db: Session = Depends(get_db)):
+def list_products(q: str = "", category: str = "", category_id: int = 0,
+                  low_stock: bool = False, limit: int = 300,
+                  db: Session = Depends(get_db)):
     """Capped list, for pickers and typeaheads that want a shortlist."""
-    return _product_search(db, q, category, low_stock).limit(limit).all()
+    return _product_search(db, q, category, low_stock, category_id).limit(limit).all()
 
 
 @router.delete("/products/{product_id}")
@@ -547,3 +557,91 @@ def set_order_status(
         posting.post_stock_receipt(db, order, user.id)
     db.refresh(order)
     return order
+
+
+# ---------- stock categories ----------
+
+
+@router.get("/stock-categories")
+def list_stock_categories(db: Session = Depends(get_db),
+                          _: User = Depends(get_current_user)):
+    """The pharmacy's own departments, with how much sits in each.
+
+    Counted and valued in one grouped query rather than one per category. The
+    value is what the shelf actually cost, because that is the figure a
+    department is judged on — a thousand cosmetics lines worth two hundred
+    dollars and forty dispensary lines worth nine thousand are not comparable
+    on a count.
+    """
+    from ..models import StockCategory
+
+    rows = dict(db.query(Product.category_id, func.count(Product.id))
+                .filter(Product.active)
+                .group_by(Product.category_id).all())
+    value = dict(db.query(Product.category_id,
+                          func.coalesce(func.sum(Product.quantity_on_hand
+                                                 * Product.average_cost), 0.0))
+                 .filter(Product.active)
+                 .group_by(Product.category_id).all())
+    stocked = dict(db.query(Product.category_id, func.count(Product.id))
+                   .filter(Product.active, Product.quantity_on_hand > 0)
+                   .group_by(Product.category_id).all())
+
+    cats = db.query(StockCategory).order_by(StockCategory.name).all()
+    out = [{
+        "id": c.id, "code": c.code or "", "name": c.name,
+        "target_margin": c.target_margin or 0.0,
+        "active": bool(c.active),
+        "products": rows.get(c.id, 0),
+        "in_stock": stocked.get(c.id, 0),
+        "at_cost": round(value.get(c.id, 0.0) or 0.0, 2),
+    } for c in cats]
+
+    # Anything nobody has filed. Shown rather than left out, because an
+    # untagged line is invisible on every department report and that is how a
+    # product quietly stops being counted.
+    untagged = rows.get(None, 0)
+    return {"items": out, "untagged": untagged}
+
+
+@router.post("/stock-categories")
+def create_stock_category(body: dict, db: Session = Depends(get_db),
+                          _: User = Depends(require_role("admin", "manager"))):
+    """Add a department."""
+    from ..models import StockCategory
+
+    name = " ".join((body.get("name") or "").split())
+    if len(name) < 2:
+        raise HTTPException(status_code=400, detail="Give the department a name.")
+    existing = (db.query(StockCategory)
+                .filter(func.lower(StockCategory.name) == name.lower()).first())
+    if existing:
+        return {"id": existing.id, "name": existing.name, "code": existing.code or ""}
+    cat = StockCategory(name=name, code=(body.get("code") or "").strip()[:20],
+                        target_margin=float(body.get("target_margin") or 0),
+                        active=True)
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
+    return {"id": cat.id, "name": cat.name, "code": cat.code or ""}
+
+
+@router.post("/products/{product_id}/category")
+def tag_product(product_id: int, body: dict, db: Session = Depends(get_db),
+                _: User = Depends(require_role("admin", "manager", "pharmacist"))):
+    """File a product under a department."""
+    from ..models import StockCategory
+
+    product = db.get(Product, product_id)
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    raw = body.get("category_id")
+    if raw in (None, "", 0):
+        product.category_id = None
+    else:
+        cat = db.get(StockCategory, int(raw))
+        if cat is None:
+            raise HTTPException(status_code=404, detail="No such department.")
+        product.category_id = cat.id
+    db.commit()
+    return {"id": product.id, "category_id": product.category_id}
