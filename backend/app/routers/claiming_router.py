@@ -1,18 +1,17 @@
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from .. import helpers, icd10, schemas
-from ..auth import get_current_user
+from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import (
-    Claim, ClaimBatch, DiagnosisCode, FeeModel, FeeTier, Formulary,
-    FormularyEntry, MedicalAid, PayOffice, Product, User,
+    Claim, ClaimBatch, DiagnosisCode, FeeModel, FeeTier, Formulary, FormularyEntry, MedicalAid, PayOffice, Product, User,
 )
 from ..services import formulary as formulary_service, pricing
 from .periods_router import require_step_up
@@ -425,3 +424,122 @@ def unbatched_summary(db: Session = Depends(get_db)):
          "claims": count, "value": round(value, 2)}
         for pid, name, code, count, value in rows
     ]
+
+
+def _next_on(day: int, today: date) -> date | None:
+    """The next occurrence of a day-of-month, this month or next.
+
+    Clamped to the length of the month, because a funder that settles on the
+    31st still settles in February — on the 28th, or the 29th, and a diary that
+    says "no such date" is a diary nobody trusts.
+    """
+    if not day:
+        return None
+    import calendar
+
+    def clamp(year: int, month: int) -> date:
+        return date(year, month, min(day, calendar.monthrange(year, month)[1]))
+
+    this_month = clamp(today.year, today.month)
+    if this_month >= today:
+        return this_month
+    year, month = (today.year + 1, 1) if today.month == 12 else (today.year, today.month + 1)
+    return clamp(year, month)
+
+
+@router.get("/schemes/calendar")
+def scheme_calendar(db: Session = Depends(get_db)):
+    """Every funder, its agreed dates, and what is riding on the next one.
+
+    Claiming is not continuous. A pharmacy signs terms with each scheme saying
+    when a month's claims must be in and when the money comes back, and missing
+    a cut-off costs a whole cycle — which for a shop running on its float is the
+    difference between paying staff this month and not.
+
+    None of that was recorded anywhere, so "when does CIMAS pay" was answered
+    from somebody's memory, and "what have we not sent yet" was a report nobody
+    ran until the money was late.
+    """
+    today = date.today()
+    schemes = (db.query(MedicalAid)
+                 .filter(MedicalAid.active.is_(True))
+                 .order_by(MedicalAid.name).all())
+
+    # What is outstanding with each funder, in one grouped query.
+    waiting = dict(
+        db.query(Claim.medical_aid_id,
+                 func.coalesce(func.sum(Claim.amount_claimed), 0.0))
+          .filter(Claim.status.in_(("submitted", "partial")))
+          .group_by(Claim.medical_aid_id).all())
+    unsent = dict(
+        db.query(Claim.medical_aid_id, func.count(Claim.id))
+          .filter(Claim.status == "deferred")
+          .group_by(Claim.medical_aid_id).all())
+    counts = dict(
+        db.query(Claim.medical_aid_id, func.count(Claim.id))
+          .filter(Claim.status.in_(("submitted", "partial")))
+          .group_by(Claim.medical_aid_id).all())
+
+    rows = []
+    for scheme in schemes:
+        cutoff = _next_on(scheme.claim_cutoff_day or 0, today)
+        pays = _next_on(scheme.settlement_day or 0, today)
+        rows.append({
+            "id": scheme.id,
+            "name": scheme.name,
+            "scheme_code": scheme.scheme_code or "",
+            "currency_code": scheme.currency_code or "",
+            "realtime": bool(scheme.realtime),
+            "claim_cutoff_day": scheme.claim_cutoff_day or 0,
+            "settlement_day": scheme.settlement_day or 0,
+            "settlement_days": scheme.settlement_days or 0,
+            "agreement_reference": scheme.agreement_reference or "",
+            "agreement_note": scheme.agreement_note or "",
+            "next_cutoff": cutoff,
+            "days_to_cutoff": (cutoff - today).days if cutoff else None,
+            "next_settlement": pays,
+            "days_to_settlement": (pays - today).days if pays else None,
+            "awaiting_payment": round(float(waiting.get(scheme.id) or 0.0), 2),
+            "claims_awaiting": int(counts.get(scheme.id) or 0),
+            # Claims held rather than sent. These are the ones that miss a
+            # cut-off, because nothing about them is on anybody's list.
+            "held": int(unsent.get(scheme.id) or 0),
+        })
+
+    # Soonest cut-off first: the one with a deadline is the one to act on.
+    rows.sort(key=lambda r: (r["days_to_cutoff"] is None,
+                             r["days_to_cutoff"] if r["days_to_cutoff"] is not None else 0))
+    return {
+        "as_at": today,
+        "schemes": rows,
+        "awaiting_payment": round(sum(r["awaiting_payment"] for r in rows), 2),
+        "held": sum(r["held"] for r in rows),
+        "without_agreement": [r["name"] for r in rows
+                              if not r["claim_cutoff_day"] and not r["settlement_day"]
+                              and not r["settlement_days"]],
+    }
+
+
+@router.put("/schemes/{scheme_id}/agreement")
+def set_agreement(scheme_id: int,
+                  claim_cutoff_day: int = Body(default=0),
+                  settlement_day: int = Body(default=0),
+                  settlement_days: int = Body(default=0),
+                  agreement_reference: str = Body(default=""),
+                  agreement_note: str = Body(default=""),
+                  db: Session = Depends(get_db),
+                  user: User = Depends(require_role("admin", "pharmacist"))):
+    """Record what was agreed with a funder."""
+    scheme = db.get(MedicalAid, scheme_id)
+    if scheme is None:
+        raise HTTPException(404, "No such scheme.")
+    for day, label in ((claim_cutoff_day, "cut-off"), (settlement_day, "settlement")):
+        if day and not 1 <= day <= 31:
+            raise HTTPException(400, f"The {label} day has to be between 1 and 31.")
+    scheme.claim_cutoff_day = claim_cutoff_day
+    scheme.settlement_day = settlement_day
+    scheme.settlement_days = settlement_days
+    scheme.agreement_reference = agreement_reference.strip()[:60]
+    scheme.agreement_note = agreement_note.strip()
+    db.commit()
+    return {"message": f"The agreement with {scheme.name} is recorded."}

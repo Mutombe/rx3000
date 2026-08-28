@@ -274,6 +274,24 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
     return {k: v for k, v in counts.items() if v}
 
 
+#: (claims in by, funder settles on) — day of the month, as the memoranda are
+#: written. Spread deliberately: a pharmacy with six funders on the same date
+#: has one impossible week a month, and the real ones are not aligned.
+AGREEMENTS = {
+    "CIMAS": (25, 15),
+    "FMH": (20, 10),
+    "FMHZWA": (20, 10),
+    "ALLIANCE": (15, 28),
+    "BONVIE": (25, 20),
+    "FBC": (30, 21),
+    "FLIMAS": (15, 5),
+    "FMGU": (25, 12),
+    "PSMAS": (10, 30),
+    "NYAR": (20, 18),
+    "AHSSZWA": (28, 14),
+}
+
+
 def _schemes(db: Session) -> list[MedicalAid]:
     """The schemes that turn up on a Harare counter, matched by name."""
     out = []
@@ -290,6 +308,22 @@ def _schemes(db: Session) -> list[MedicalAid]:
         # difference between a demo that surprises a pharmacist and one that
         # makes them nod.
         row.biometric_required = code in {"CIMAS", "FMH"}
+
+        # The claiming agreement, which every pharmacy has and none of them
+        # keeps anywhere a system can read. The dates below are the ordinary
+        # shape of one: claims in by the middle or the end of the month, money
+        # back two to six weeks later. A realtime scheme settles continuously
+        # and has no cut-off at all, which is exactly why it is worth showing
+        # the difference on a screen rather than assuming every funder is the
+        # same.
+        if not row.claim_cutoff_day and not row.settlement_days:
+            if row.realtime:
+                row.settlement_days = 7
+            else:
+                agreed = AGREEMENTS.get(code)
+                if agreed:
+                    row.claim_cutoff_day, row.settlement_day = agreed
+                    row.agreement_reference = f"MOU-{code}-2026"
         out.append(row)
     db.commit()
     return out

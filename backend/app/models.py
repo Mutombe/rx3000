@@ -289,6 +289,25 @@ class MedicalAid(Base):
     credit_limit = Column(Float, default=0.0)
     active = Column(Boolean, default=True)
 
+    # The agreement, and the two dates a pharmacy actually plans around.
+    #
+    # Claiming is not continuous: a pharmacy signs terms with each funder that
+    # say when a month's claims must be in by and when the money comes back.
+    # Miss the cut-off and the claim waits a whole extra cycle, which for a
+    # shop running on its float is the difference between paying staff and not.
+    # None of that was written down anywhere, so "when does CIMAS pay" was
+    # answered from somebody's memory.
+    #: Day of the month claims must be submitted by. 0 when there is no cut-off.
+    claim_cutoff_day = Column(Integer, default=0)
+    #: Day of the month the funder settles. 0 when it is terms-based instead.
+    settlement_day = Column(Integer, default=0)
+    #: Days after submission the funder is expected to pay, where the agreement
+    #: is expressed as terms rather than a fixed day.
+    settlement_days = Column(Integer, default=0)
+    #: The memorandum this was agreed in, so somebody can find the paper.
+    agreement_reference = Column(String(60), default="")
+    agreement_note = Column(Text, default="")
+
     patients = relationship("Patient", back_populates="medical_aid")
     pay_office = relationship("PayOffice", back_populates="schemes")
     fee_model = relationship("FeeModel")

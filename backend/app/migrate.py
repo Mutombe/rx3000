@@ -89,6 +89,13 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     },
     "remittance_lines": {"resolution_note": "VARCHAR(300) DEFAULT ''"},
     "medical_aids": {
+        # The claiming agreement: when a month's claims are due in, and when
+        # the funder pays. A pharmacy plans its float around both.
+        "claim_cutoff_day": "INTEGER DEFAULT 0",
+        "settlement_day": "INTEGER DEFAULT 0",
+        "settlement_days": "INTEGER DEFAULT 0",
+        "agreement_reference": "VARCHAR(60) DEFAULT ''",
+        "agreement_note": "TEXT DEFAULT ''",
         "credit_limit": "FLOAT DEFAULT 0",
         "pay_office_id": "INTEGER",
         "fee_model_id": "INTEGER",
