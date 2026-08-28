@@ -362,14 +362,53 @@ export default function POS() {
     }
   }
 
+  /** What the customer actually has to hand over on a dispensed sale.
+   *
+   *  A script dispensed for a scheme member is adjudicated as it is dispensed,
+   *  so the sale arrives here already split: the funder's share and the levy.
+   *  Asking the customer for the gross is asking them for the scheme's money
+   *  as well as their own.
+   */
+  function patientOwes(sale: Sale): number {
+    const claim = sale.claim;
+    if (!claim) return sale.total;
+    if (claim.status === "rejected" || claim.status === "reversed") return sale.total;
+    return Math.max(0, Number(claim.patient_liable ?? sale.total));
+  }
+
   async function settlePending(sale: Sale, method: string) {
     try {
+      const owed = patientOwes(sale);
+      const claim = sale.claim;
+      const covered = round2(sale.total - owed);
+
       const cardTender = method === "card"
-        ? await resolveCardTender(sale.total, sale.sale_number)
+        ? await resolveCardTender(owed, sale.sale_number)
         : {};
+
+      // Where the scheme is carrying part of it, the sale is settled as two
+      // tenders rather than one. Sent as a split even when the levy is nil, so
+      // the funder's share is recorded against the sale either way — a sale
+      // marked "paid by medical aid" with no tender behind it reconciles to
+      // nothing at cash-up.
+      const split = claim && covered > 0.005
+        ? {
+            payment_method: "split",
+            tenders: [
+              { method: "medical_aid", currency_code: currencyState?.base ?? "USD",
+                amount: covered },
+              ...(owed > 0.005
+                ? [{ method, currency_code: currencyState?.base ?? "USD", amount: owed }]
+                : []),
+            ],
+          }
+        : {
+            payment_method: method,
+            amount_tendered: method === "cash" ? owed : 0,
+          };
+
       const paid = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
-        payment_method: method,
-        amount_tendered: method === "cash" ? sale.total : 0,
+        ...split,
         ...cardTender,
       });
       setReceipt(paid);
@@ -409,11 +448,24 @@ export default function POS() {
                     </EntityLink>
                   </td>
                   <td className="muted">{fmtDateTime(s.created_at)}</td>
-                  <td className="num"><b>{money(s.total)}</b></td>
+                  {/* The gross, and underneath it what the customer actually
+                      pays. A cashier reading only the total asks a scheme
+                      member for the funder's money as well as their own. */}
+                  <td className="num">
+                    <b>{money(patientOwes(s))}</b>
+                    {s.claim && patientOwes(s) < s.total - 0.005 && (
+                      <div className="muted small">
+                        of {money(s.total)} · {money(s.total - patientOwes(s))} on the scheme
+                      </div>
+                    )}
+                  </td>
                   <td className="right" style={{ whiteSpace: "nowrap" }}>
-                    <BusyButton className="small" onClick={() => settlePending(s, "medical_aid")} disabled={!s.patient_id}>Claim aid</BusyButton>{" "}
-                    <BusyButton className="small secondary" onClick={() => settlePending(s, "cash")}>Cash</BusyButton>{" "}
-                    <BusyButton className="small secondary" onClick={() => settlePending(s, "card")}>Card</BusyButton>
+                    {/* No "Claim aid" button: the claim was raised when the
+                        script was dispensed. What is left here is collecting
+                        the levy, in whatever the customer is paying with. */}
+                    <BusyButton className="small" onClick={() => settlePending(s, "cash")}>Cash</BusyButton>{" "}
+                    <BusyButton className="small secondary" onClick={() => settlePending(s, "card")}>Card</BusyButton>{" "}
+                    <BusyButton className="small secondary" onClick={() => settlePending(s, "mobile_money")}>Mobile</BusyButton>
                   </td>
                 </tr>
               ))}

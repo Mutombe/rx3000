@@ -29,6 +29,20 @@ def _record_card_tender(sale: Sale, body) -> None:
             setattr(sale, field, value[:40])
 
 
+def _already_claimed(db: Session, sale: Sale) -> bool:
+    """Whether this sale has a live claim against it already.
+
+    A script claimed when it was dispensed must not be claimed a second time
+    when the patient reaches the till — the scheme would be billed twice for
+    one dispensing, and the second claim is the one that gets noticed, in a
+    reconciliation, by somebody who cannot tell which was real.
+    """
+    return db.query(Claim).filter(
+        Claim.sale_id == sale.id,
+        Claim.status.notin_(("reversed", "rejected")),
+    ).first() is not None
+
+
 def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> None:
     """Settle a sale from an explicit list of tenders, possibly across currencies.
 
@@ -109,6 +123,28 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
     if getattr(body_tenders, "tenders", None):
         _settle_split_tender(db, sale, body_tenders, amount_due)
         methods = {t.method for t in body_tenders.tenders if t.amount > 0}
+
+        # A medical aid line in a split is a claim, exactly as it is on its own.
+        #
+        # This branch used to return two lines above the `medical_aid` branch
+        # below, so a sale settled half by scheme and half by cash recorded the
+        # scheme's share as collected and never billed anybody for it. The
+        # medicine went out, the books showed the money in, and the funder was
+        # never asked — a hole that only shows up as an ageing debtor nobody
+        # can explain, months later.
+        if "medical_aid" in methods and not _already_claimed(db, sale):
+            if not patient:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A medical aid tender needs a linked patient to claim against.")
+            if getattr(body_tenders, "claim_later", False):
+                claims_engine.defer_claim(
+                    db, sale, patient,
+                    getattr(body_tenders, "claim_later_reason", "")
+                    or "Held at the counter")
+            else:
+                claims_engine.submit_claim(db, sale, patient)
+
         sale.payment_method = methods.pop() if len(methods) == 1 else "split"
         if patient:
             earned = int(amount_due * LOYALTY_EARN_RATE)

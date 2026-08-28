@@ -7,6 +7,10 @@ from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..config import settings
 from ..database import get_db
+
+import logging
+
+log = logging.getLogger("rx5000.dispensing")
 from ..models import (
     Branch, Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale,
     SaleItem, User,
@@ -18,7 +22,7 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import branches, messages, sig, to_follows
+from ..services import branches, claims_engine, messages, sig, to_follows
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
@@ -351,6 +355,33 @@ def dispense(
     sale.subtotal = round(subtotal, 2)
     sale.vat_amount = round(vat_total, 2)
     sale.total = round(subtotal + vat_total, 2)
+
+    # Bill the scheme here, while the patient is still at the dispensary.
+    #
+    # The claim used to be raised at the till, which meant the pending sale
+    # carried one gross figure and nobody could tell the patient what they
+    # owed until they had walked to the counter and queued. Adjudicating now
+    # means the dispenser says "that is four dollars at the till" while
+    # handing the bag over, and the till collects a figure that is already
+    # known rather than discovering it in front of the customer.
+    #
+    # Deliberately non-fatal. The medicine has left the shelf and the register
+    # entry is written; a scheme that cannot be reached must not undo that. A
+    # claim that could not be raised is held, which is the state the claiming
+    # screens exist to work through.
+    patient = rx.patient
+    if patient is not None and patient.medical_aid_id:
+        try:
+            claims_engine.submit_claim(db, sale, patient)
+        except Exception as exc:                       # noqa: BLE001
+            log.warning("claim for %s could not be raised: %s", rx.rx_number, exc)
+            try:
+                claims_engine.defer_claim(
+                    db, sale, patient,
+                    "Could not be adjudicated when dispensed; held at the counter.")
+            except Exception:                          # noqa: BLE001
+                pass
+
     db.commit()
     db.refresh(sale)
     return sale
