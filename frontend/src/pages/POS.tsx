@@ -13,7 +13,7 @@ import { CurrencyState, Patient, Product, Sale } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
-import { Printer } from "@phosphor-icons/react";
+import { ClockCounterClockwise, Printer } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
@@ -53,14 +53,14 @@ export default function POS() {
   const [params, setParams] = useSearchParams();
   const settleId = Number(params.get("settle")) || 0;
 
+  /* The three states this page can be in. Kept as a list so the tab lives in
+     the address — a cashier who reloads mid-settlement lands back where they
+     were — even though the page now switches with a button rather than a tab
+     bar. */
   const TABS: TabDef<Tab>[] = [
     { key: "till", label: "Till" },
-    { key: "pending", label: "Awaiting payment", count: pending.length,
-      hint: "Dispensary sales handed over for settlement" },
-    // The front shop could not answer "what did we take today" or "what did
-    // that customer pay for on Tuesday". The dispensary has had a history for
-    // weeks; the till, which handles more transactions, had none.
-    { key: "history", label: "History", hint: "Everything the till has taken" },
+    { key: "pending", label: "Awaiting payment", count: pending.length },
+    { key: "history", label: "History" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
@@ -539,9 +539,41 @@ export default function POS() {
           <h1>Front Shop</h1>
           <div className="sub">Barcode scanning, loyalty, airtime, medical aid claiming &amp; EFTPOS</div>
         </div>
+        {/* History is where you go to look something up, not a place the till
+            sits. Same shape as the dispensary's own history button, so the two
+            counters behave alike. */}
+        <button className="btn secondary"
+                onClick={() => setTab(tab === "history" ? "till" : "history")}>
+          <ClockCounterClockwise size={15} />
+          {tab === "history" ? "Back to the till" : "History"}
+        </button>
       </div>
 
-      <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
+      {/* One switch, not a row of tabs.
+          Taking money and settling what the dispensary sent over are the two
+          states of a till, and a cashier is always in one of them wanting the
+          other. A tab bar makes you read three labels and pick; a switch says
+          where you are and what one press does. It carries the count, because
+          how many are waiting is the reason to press it. */}
+      {tab !== "history" && (
+        <div className="till-switch">
+          <button className="btn"
+                  onClick={() => setTab(tab === "till" ? "pending" : "till")}>
+            {tab === "till" ? (
+              <>Awaiting payment{pending.length > 0 && <span className="btn-count">{pending.length}</span>}</>
+            ) : (
+              <>Back to the till</>
+            )}
+          </button>
+          <span className="muted small">
+            {tab === "till"
+              ? (pending.length
+                  ? `${pending.length} dispensary sale${pending.length === 1 ? "" : "s"} waiting to be settled`
+                  : "Nothing is waiting to be settled")
+              : "Ringing up over the counter"}
+          </span>
+        </div>
+      )}
 
       {tab === "pending" ? (
         <div className="card">

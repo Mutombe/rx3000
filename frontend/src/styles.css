@@ -4883,3 +4883,11 @@ table.dt.sub th { font-size: var(--t-xs); }
   display: flex; align-items: center; gap: var(--s2);
   flex-wrap: wrap; margin-bottom: var(--s3);
 }
+
+/* The till's one switch. A button and a sentence, not a row of tabs: a cashier
+   is always in one of two states and wants the other, so the control says where
+   pressing it goes and the line beside it says why you would. */
+.till-switch {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s4);
+}
