@@ -2330,3 +2330,49 @@ class ConsentEvent(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
     user = relationship("User")
+
+
+class ClinicalTerm(Base):
+    """A word the pharmacy is allowed to record in a clinical field.
+
+    Allergies and chronic conditions were free text, and both are read by code
+    rather than only by people. An allergy raises a blocking warning at
+    dispensing by matching the typed words against product names and active
+    ingredients; a chronic condition decides whether a patient's repeat is
+    treated as urgent. So "penicilin" with one L is not a typo that somebody
+    tidies up later — it is a safety check that silently never fires, on the
+    one record whose whole purpose is to fire.
+
+    A catalogue fixes that by making the common answer a click rather than a
+    spelling. It stays open, though: `POST /api/clinical-terms` adds a term at
+    the moment somebody needs one, because a locked vocabulary in a pharmacy is
+    a vocabulary people work around by typing into the notes field, and an
+    allergy recorded in the notes warns nobody at all.
+
+    `synonyms` exist because the patient says one word and the box says another
+    — "aspirin" for acetylsalicylic acid, "sulfa" for sulphonamides. They widen
+    what the dispensing check matches without asking the counter to know the
+    pharmacological name.
+    """
+    __tablename__ = "clinical_terms"
+    id = Column(Integer, primary_key=True)
+    # allergy | condition
+    kind = Column(String(20), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    # Comma-separated alternatives matched alongside the name.
+    synonyms = Column(String(300), default="")
+    # drug | food | environmental | "" — grouping for the picker, not clinical.
+    category = Column(String(40), default="")
+    # Seeded terms are common enough to offer first; ones added at the counter
+    # are kept but not promoted until somebody uses them.
+    common = Column(Boolean, default=False, index=True)
+    active = Column(Boolean, default=True)
+    times_used = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    created_by = relationship("User")
+
+    __table_args__ = (
+        UniqueConstraint("kind", "name", name="uq_clinical_term_kind_name"),
+    )

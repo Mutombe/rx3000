@@ -8,6 +8,7 @@ import { api, fmtDate, prefetchRoute, errorText  } from "../api";
 import { MedicalAid, Patient } from "../types";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
+import TermSelect from "../components/TermSelect";
 import IconButton from "../components/IconButton";
 
 const EMPTY = {
@@ -199,8 +200,27 @@ export default function Patients() {
               </div>
               <div className="field"><label>Address</label><input value={form.address} onChange={set("address")} /></div>
               <div className="form-row">
-                <div className="field"><label>Allergies</label><input value={form.allergies} onChange={set("allergies")} placeholder="e.g. Penicillin" /></div>
-                <div className="field"><label>Chronic conditions</label><input value={form.chronic_conditions} onChange={set("chronic_conditions")} /></div>
+                {/* Picked, not typed. The dispensing check reads this field
+                    and matches it against product names and ingredients, so a
+                    misspelt allergy is a blocking warning that never fires. */}
+                <div className="field">
+                  <label>Allergies</label>
+                  <TermSelect
+                    kind="allergy"
+                    value={form.allergies}
+                    onChange={(v) => setForm((f) => ({ ...f, allergies: v }))}
+                    placeholder="Search allergies, or add a new one"
+                  />
+                </div>
+                <div className="field">
+                  <label>Chronic conditions</label>
+                  <TermSelect
+                    kind="condition"
+                    value={form.chronic_conditions}
+                    onChange={(v) => setForm((f) => ({ ...f, chronic_conditions: v }))}
+                    placeholder="Search conditions, or add a new one"
+                  />
+                </div>
               </div>
               <div className="form-row">
                 <div className="field">

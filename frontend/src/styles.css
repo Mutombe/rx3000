@@ -4756,3 +4756,79 @@ table.dt.sub th { font-size: var(--t-xs); }
 .kv { display: grid; grid-template-columns: minmax(120px, auto) 1fr; gap: var(--s2) var(--s4); margin: 0; }
 .kv dt { color: var(--ink-soft); font-size: var(--t-sm); }
 .kv dd { margin: 0; font-size: var(--t-sm); }
+
+/* A field that holds several picked terms, and can add one it does not have.
+ *
+ *  Built on the same tokens as `.sel-*` so it reads as the same control family.
+ *  It differs in one way that matters: the box grows down as chips are added
+ *  rather than scrolling sideways, because a patient with four allergies must
+ *  be able to see all four at once. That is the whole reason the field exists —
+ *  a fifth allergy hidden behind a scrollbar is the one nobody checks. */
+.term-select {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1);
+  width: 100%; min-height: var(--control); padding: 4px var(--s2);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  font-size: var(--t-base); cursor: text;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.term-select:hover { border-color: var(--ink-faint); }
+.term-select.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.term-select.is-disabled { opacity: 0.5; cursor: not-allowed; background: var(--surface-sunk); }
+
+.term-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px var(--s2); border-radius: var(--r-sm);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  font-size: var(--t-sm); line-height: 1.5; white-space: nowrap;
+}
+.term-chip button {
+  display: inline-flex; align-items: center;
+  color: var(--ink-faint); border-radius: var(--r-sm); padding: 1px;
+}
+.term-chip button:hover { color: var(--danger); background: var(--hover); }
+
+/* Grows to fill the row it is on, so the caret sits after the last chip rather
+   than on a line of its own. */
+.term-input {
+  flex: 1 1 6rem; min-width: 6rem;
+  height: calc(var(--control) - 10px);
+  border: none; background: transparent; color: var(--ink);
+  font-size: var(--t-base); padding: 0;
+}
+.term-input:focus { outline: none; box-shadow: none; }
+
+.term-panel {
+  z-index: 400;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); box-shadow: var(--e3);
+  max-height: 280px; overflow-y: auto; padding: var(--s1);
+  animation: sel-in 0.1s ease-out;
+}
+.term-option {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
+  width: 100%; padding: var(--s2); border-radius: var(--r-sm);
+  font-size: var(--t-sm); text-align: left; color: var(--ink);
+}
+.term-option.is-on { background: var(--hover); }
+.term-option:disabled { opacity: 0.6; }
+.term-syn {
+  display: block; color: var(--ink-faint); font-size: var(--t-xs);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.term-tick { color: var(--ink-faint); flex-shrink: 0; }
+/* The row that keeps the vocabulary open. Separated by a line because it is a
+   different kind of act from picking: it writes to the catalogue. */
+.term-add {
+  gap: var(--s2); justify-content: flex-start;
+  border-top: 1px solid var(--line); border-radius: 0;
+  margin-top: var(--s1); padding-top: var(--s2); color: var(--accent);
+}
+.term-add b { font-weight: 600; }
+.term-empty {
+  padding: var(--s3); color: var(--ink-faint); font-size: var(--t-sm);
+}
+/* A term the record already carries. Shown, not hidden — see TermSelect for
+   why removing it from the list produced junk in the vocabulary. */
+.term-option.is-had { opacity: 0.55; cursor: default; }
+.term-had { color: var(--ink-faint); font-size: var(--t-xs); flex-shrink: 0; }

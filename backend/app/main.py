@@ -27,6 +27,7 @@ from .routers import (
     dispensing_router,
     fiscal_router,
     helpdesk_router, leads_router, ledger_router, marketing_router, payables_router,
+    clinical_terms_router,
     detail_router,
     messages_router,
     patients_router,
@@ -70,6 +71,11 @@ async def lifespan(app: FastAPI):
         seed_claiming_if_empty(db)
         seed_formulary_if_empty(db)
         seed_gateway_if_empty(db)
+        # The vocabulary behind the allergy and condition fields. Added on
+        # every boot rather than only a fresh one, so an existing pharmacy
+        # picks up terms shipped in a later release.
+        from .routers.clinical_terms_router import seed_if_empty as _terms
+        _terms(db)
         from .services.ledger import ensure_chart
         ensure_chart(db)
         from .services import sig as _sig
@@ -152,7 +158,7 @@ for router_module in (
     to_follows_router, deferred_router, messages_router, ledger_router,
     dispensing_extras_router, system_router, profile_router, portal_router,
     branches_router, scan_router, layby_router, stocktake_router,
-    settings_router, payables_router, detail_router,
+    settings_router, payables_router, detail_router, clinical_terms_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

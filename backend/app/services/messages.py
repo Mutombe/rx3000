@@ -16,6 +16,7 @@ requiring a separate message to be written, because a system that only warns
 about allergies somebody remembered to re-enter as a note is worse than useless
 — it is reassuring and wrong.
 """
+import re
 from datetime import date
 
 from sqlalchemy import or_
@@ -54,41 +55,102 @@ def _row(message: Message, source: str = "") -> dict:
     }
 
 
-def _allergy_rows(patient: Patient, products: list[Product]) -> list[dict]:
+def _match_words(db: Session, terms: list[str]) -> list[tuple[str, list[str]]]:
+    """Expand each recorded allergy into every word that should trigger on it.
+
+    A patient recorded as allergic to "Penicillin" was getting no warning at all
+    for Amoxicillin, Augmentin or Co-amoxiclav. The check matched the recorded
+    text against the product, and "penicillin" is simply not a substring of
+    "amoxicillin" — so the one record whose entire purpose is to stop that
+    dispensing sat there looking correct and did nothing. It only came to light
+    by running a real patient against real products rather than reading the
+    matcher.
+
+    The vocabulary already holds the answer: each catalogued allergen carries
+    the names it is met under. Recording "Penicillin" therefore now also watches
+    for amoxicillin, ampicillin, flucloxacillin and the rest. A term that is not
+    in the catalogue still matches on itself, so a free-text allergy typed
+    before any of this existed is no worse off than it was.
+    """
+    from ..models import ClinicalTerm
+
+    catalogue = db.query(ClinicalTerm).filter(ClinicalTerm.kind == "allergy",
+                                              ClinicalTerm.active.is_(True)).all()
+    out = []
+    for term in terms:
+        low = term.lower()
+        words = {low}
+        for row in catalogue:
+            names = {(row.name or "").lower()}
+            syns = {w.strip().lower() for w in (row.synonyms or "").split(",") if w.strip()}
+            # Matched either way round: the record may hold the catalogue's name
+            # or one of the words it is met under.
+            if low in names or low in syns:
+                words |= names | syns
+        out.append((term, sorted(w for w in words if len(w) >= 4)))
+    return out
+
+
+def _hits(haystack: str, words: list[str]) -> str | None:
+    """The first word that appears in the product, matched whole.
+
+    Whole words, not substrings. The synonym lists contain short forms — "asa"
+    for aspirin, "tb", "bp" — and a bare substring test lets those fire inside
+    unrelated names, which trains a dispenser to click past allergy warnings.
+    A warning nobody believes is worse than none, because it is the same
+    indifference applied to the real one.
+    """
+    for word in words:
+        if re.search(r"\b" + re.escape(word) + r"\b", haystack):
+            return word
+    return None
+
+
+def _allergy_rows(db: Session, patient: Patient, products: list[Product]) -> list[dict]:
     """Turn the patient's recorded allergies into warnings against these products.
 
-    Matched on the active ingredient and the product name, both ways round, so
-    "penicillin" catches a product whose ingredient names it. This is a text
-    match and it is not a clinical interaction check — it is deliberately
-    conservative and says so, because a pharmacist who mistakes one for the
-    other is the failure mode that matters.
+    Matched on the active ingredient and the product name, through the allergen
+    vocabulary, so "penicillin" catches the whole class rather than only a
+    product that spells it out. This is still a name match and it is not a
+    clinical interaction check — it is deliberately conservative and says so,
+    because a pharmacist who mistakes one for the other is the failure mode that
+    matters.
     """
     text = (patient.allergies or "").strip()
     if not text:
         return []
-    terms = [t.strip().lower() for t in text.replace(";", ",").split(",") if t.strip()]
+    terms = [t.strip() for t in text.replace(";", ",").split(",") if t.strip()]
+    expanded = _match_words(db, terms)
+
     hits = []
     for product in products:
         haystack = f"{product.name} {product.active_ingredient or ''}".lower()
-        for term in terms:
-            if len(term) > 2 and term in haystack:
-                hits.append({
-                    # A derived warning still needs a stable identifier, or it
-                    # can never be acknowledged and the script can never be
-                    # dispensed at all. Negative ids cannot collide with a
-                    # stored message and say plainly that this one is derived.
-                    "id": -product.id, "scope": "patient", "target_id": patient.id,
-                    "derived": True,
-                    "severity": "stop", "category": "allergy",
-                    "body": (f"{patient.first_name} {patient.last_name} is recorded as "
-                             f"allergic to {term}. {product.name} matches that on name "
-                             "or active ingredient. Confirm with the patient before "
-                             "dispensing. This is a text match against the allergy "
-                             "field, not a clinical interaction check."),
-                    "source": "allergy record", "blocking": True,
-                    "created_at": None, "created_by": "",
-                })
-                break
+        for recorded, words in expanded:
+            word = _hits(haystack, words)
+            if not word:
+                continue
+            # Say both: what the record holds, and what actually matched. A
+            # pharmacist told only "allergic to penicillin" while holding a box
+            # of Augmentin has to make the connection themselves, at speed.
+            because = ("" if word == recorded.lower()
+                       else f" {product.name} contains {word}, which is a {recorded.lower()}.")
+            hits.append({
+                # A derived warning still needs a stable identifier, or it
+                # can never be acknowledged and the script can never be
+                # dispensed at all. Negative ids cannot collide with a
+                # stored message and say plainly that this one is derived.
+                "id": -product.id, "scope": "patient", "target_id": patient.id,
+                "derived": True,
+                "severity": "stop", "category": "allergy",
+                "body": (f"{patient.first_name} {patient.last_name} is recorded as "
+                         f"allergic to {recorded}.{because} {product.name} matches that "
+                         "on name or active ingredient. Confirm with the patient before "
+                         "dispensing. This is a name match against the allergy "
+                         "record, not a clinical interaction check."),
+                "source": "allergy record", "blocking": True,
+                "created_at": None, "created_by": "",
+            })
+            break
     return hits
 
 
@@ -109,7 +171,7 @@ def for_dispensing(db: Session, *, patient_id: int | None = None,
             Message.scope == "patient",
             or_(Message.target_id == patient.id, Message.target_id.is_(None)))).all()
         out += [_row(m, "patient") for m in rows]
-        out += _allergy_rows(patient, products)
+        out += _allergy_rows(db, patient, products)
         aid_id = medical_aid_id or patient.medical_aid_id
     else:
         aid_id = medical_aid_id

@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
+import BusyButton from "../components/BusyButton";
+import TermSelect from "../components/TermSelect";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
@@ -23,6 +25,8 @@ export default function PatientDetail() {
   const { id } = useParams();
   const toast = useToast();
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [clinical, setClinical] =
+    useState<{ allergies: string; chronic_conditions: string } | null>(null);
   const [scripts, setScripts] = useState<Prescription[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [history, setHistory] = useState<HistoryLine[]>([]);
@@ -71,6 +75,38 @@ export default function PatientDetail() {
     }
   }
 
+  function openClinical() {
+    if (!patient) return;
+    setClinical({
+      allergies: patient.allergies ?? "",
+      chronic_conditions: patient.chronic_conditions ?? "",
+    });
+  }
+
+  /** Save the two clinical fields without disturbing the rest of the record.
+   *
+   *  The patient endpoint replaces the whole object, so this sends the patient
+   *  it already has with the two fields changed. Sending only the two would
+   *  answer 422 for the missing name — and worse, a partial write here would
+   *  quietly blank a caregiver's phone number.
+   */
+  async function saveClinical() {
+    if (!patient || !clinical) return;
+    try {
+      const saved = await api.put<Patient>(`/api/patients/${patient.id}`, {
+        ...patient,
+        medical_aid_id: patient.medical_aid_id ?? null,
+        allergies: clinical.allergies,
+        chronic_conditions: clinical.chronic_conditions,
+      });
+      setPatient(saved);
+      setClinical(null);
+      toast.ok("Updated.");
+    } catch (e) {
+      toast.error(errorText(e, "That could not be saved."));
+    }
+  }
+
   return (
     <>
       <Breadcrumbs
@@ -94,10 +130,58 @@ export default function PatientDetail() {
         <Link to="/dispense" className="btn">New Script</Link>
       </div>
 
-      {(patient.allergies || patient.chronic_conditions) && (
+      {/* The banner is where anybody looks for this, so it is also where it is
+          changed. Editing a patient's allergies used to be possible only from a
+          small icon on the list page — and once the list rows became links,
+          clicking a patient took you here, to a screen that showed the allergy
+          and gave you no way to correct it. */}
+      {(patient.allergies || patient.chronic_conditions) ? (
         <div className="error-banner">
           {patient.allergies && <>⚠ Allergies: <b>{patient.allergies}</b>&nbsp;&nbsp;</>}
           {patient.chronic_conditions && <>· Chronic: {patient.chronic_conditions}</>}
+          <button className="btn ghost small" onClick={openClinical}>Change</button>
+        </div>
+      ) : (
+        <p className="muted">
+          No allergies or chronic conditions recorded.{" "}
+          <button className="btn ghost small" onClick={openClinical}>Record them</button>
+        </p>
+      )}
+
+      {clinical && (
+        <div className="modal-backdrop" onClick={() => setClinical(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>{patient.first_name} {patient.last_name}</h2>
+            <p className="muted">
+              Both of these are read by the system, not only by people. An
+              allergy here stops a dispensing of anything that matches it, and a
+              chronic condition moves this patient's repeats up the queue — so
+              they are picked from a list rather than typed, and a spelling
+              cannot quietly switch the check off.
+            </p>
+            <label className="field">
+              Allergies
+              <TermSelect
+                kind="allergy"
+                value={clinical.allergies}
+                onChange={(v) => setClinical({ ...clinical, allergies: v })}
+                placeholder="Search allergies, or add a new one"
+              />
+            </label>
+            <label className="field">
+              Chronic conditions
+              <TermSelect
+                kind="condition"
+                value={clinical.chronic_conditions}
+                onChange={(v) => setClinical({ ...clinical, chronic_conditions: v })}
+                placeholder="Search conditions, or add a new one"
+              />
+            </label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setClinical(null)}>Cancel</button>
+              <BusyButton onClick={saveClinical}>Save</BusyButton>
+            </div>
+          </div>
         </div>
       )}
 
