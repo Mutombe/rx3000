@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Phone } from "@phosphor-icons/react";
-import { api, errorText, fmtDateTime } from "../api";
+import { api, errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import Pagination from "../components/Pagination";
@@ -25,6 +25,8 @@ import { TableSkeleton } from "../components/Skeleton";
 
 interface Bag {
   dispensing_id: number;
+  outstanding: number;
+  sale_id: number | null;
   rx_number: string;
   patient_id: number | null;
   patient: string;
@@ -193,9 +195,16 @@ export default function WillCall() {
                         )}
                       </td>
                       <td>
-                        {b.product}
+                        {/* The bag opens. Everything a counter asks about it —
+                            has it been paid for, who may take it, how long has
+                            it been here — was previously read off a row and
+                            guessed at. */}
+                        <Link to={`/will-call/${b.dispensing_id}`}>{b.product}</Link>
                         {b.needs_id && <span className="badge sched">S{b.schedule}</span>}
                         <div className="muted small">{b.rx_number} · {b.dispensed_by}</div>
+                        {b.outstanding > 0.005 && (
+                          <div className="muted small"><b>{money(b.outstanding)} to pay</b></div>
+                        )}
                       </td>
                       <td className="num">{b.quantity}</td>
                       <td>{fmtDateTime(b.dispensed_at)}</td>

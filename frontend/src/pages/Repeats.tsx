@@ -21,6 +21,7 @@ import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
+import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 
 interface DueItem {
@@ -52,6 +53,7 @@ export default function Repeats() {
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [products, setProducts] = useState<any[]>([]);
   const [aids, setAids] = useState<any[]>([]);
@@ -98,6 +100,56 @@ export default function Repeats() {
     }
   }
   useEffect(() => { if (pick) price(pick); }, [qty, aidId]);
+
+  /** Supply a due repeat.
+   *
+   *  Confirmed first because it moves stock and raises a sale — a button that
+   *  quietly dispenses on one click is a button somebody presses by accident
+   *  on a busy counter, and the medicine is then off the shelf.
+   */
+  async function dispenseRepeat(item: DueItem) {
+    const ok = await confirm({
+      title: `Dispense ${item.product}?`,
+      body: (
+        <>
+          {item.quantity} for <b>{item.patient_name}</b> against{" "}
+          <span className="mono">{item.rx_number}</span>. This moves the stock,
+          raises the sale and puts the bag on the will-call shelf.
+        </>
+      ),
+      confirmLabel: "Dispense it",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/prescriptions/${item.prescription_id}/dispense`, {
+        item_ids: [item.item_id],
+        payment_method: "cash",
+        supply: {},
+        id_verified: false, script_sighted: true, prescriber_verified: false,
+        id_number_seen: "", pharmacist_initial: "", compliance_notes: "",
+      });
+      toast.ok(`${item.product} dispensed for ${item.patient_name}.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be dispensed."));
+    }
+  }
+
+  /** Tell the patient their repeat is due. */
+  async function remind(item: DueItem) {
+    try {
+      await api.post("/api/messages", {
+        patient_id: item.patient_id,
+        channel: "sms",
+        subject: "Your repeat is due",
+        body: `Good day ${item.patient_name}. Your ${item.product} is due for `
+            + `collection. Please come in when you can.`,
+      });
+      toast.ok(`Reminder sent to ${item.patient_name}.`);
+    } catch (e) {
+      toast.error(errorText(e, "The reminder could not be sent."));
+    }
+  }
 
   return (
     <div className="page">
@@ -173,11 +225,28 @@ export default function Repeats() {
                       <td className="num">{i.repeats_left} of {i.repeats_allowed}</td>
                       <td className="num">{i.in_stock}</td>
                       <RowActions>
-                        {/* Saying so beats letting somebody telephone a patient
-                            they cannot actually serve. */}
-                        {i.can_supply
-                          ? <span className="badge ok">can supply</span>
-                          : <span className="badge warn">not enough stock</span>}
+                        {/* A queue you can only read is a list, not a work
+                            screen. A repeat is re-supplying a line on a script
+                            that already exists, so dispensing it is one call —
+                            there is nothing to capture again. */}
+                        {i.can_supply ? (
+                          <BusyButton className="btn primary sm"
+                                      onClick={() => dispenseRepeat(i)}>
+                            Dispense
+                            <span className="btn-count">{i.quantity}</span>
+                          </BusyButton>
+                        ) : (
+                          <span className="badge warn">not enough stock</span>
+                        )}
+                        {/* The other half of the job. Half of a repeat queue is
+                            people who have not come in, and telephoning them is
+                            the work — so the message is here rather than on a
+                            screen somebody has to remember to open. */}
+                        <BusyButton className="btn ghost sm"
+                                    disabled={!i.patient_phone}
+                                    onClick={() => remind(i)}>
+                          Remind
+                        </BusyButton>
                       </RowActions>
                     </RowLink>
                   ))}

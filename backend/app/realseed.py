@@ -1428,6 +1428,238 @@ def _ledger(db: Session) -> dict[str, int]:
     return dict(made)
 
 
+#: What a Zimbabwean dispensary actually makes on the bench. Extemporaneous
+#: preparations are not a curiosity here: a paediatric dose of something only
+#: made as an adult tablet, or a skin preparation nobody imports, is compounded
+#: because the alternative is the patient going without.
+MIXTURES = [
+    ("MAGTRI", "Magnesium trisilicate mixture", "oral liquid", 200, "mL", 3.50, 14,
+     "Triturate the powders with a little water to a smooth paste, then make up "
+     "to volume. Shake before each dose.",
+     "10mL three times a day after food."),
+    ("CALAM", "Calamine lotion, fortified", "lotion", 200, "mL", 3.00, 30,
+     "Levigate the calamine and zinc oxide with the glycerin, then add the "
+     "solution slowly with constant stirring.",
+     "Apply to the affected area twice a day."),
+    ("WHIT", "Whitfield's ointment", "ointment", 100, "g", 4.00, 60,
+     "Melt the base on a water bath, dissolve the acids in it and stir until "
+     "cold to prevent the crystals settling out.",
+     "Apply thinly to the affected area at night."),
+    ("KMNO4", "Potassium permanganate solution 1:8000", "solution", 500, "mL", 2.50, 7,
+     "Dissolve the crystals fully before diluting. An undissolved crystal will "
+     "burn the skin, so the solution is not issued until it is clear.",
+     "Dilute as directed and soak for ten minutes twice a day."),
+    ("ORS", "Oral rehydration solution", "oral liquid", 1000, "mL", 1.50, 1,
+     "Dissolve in one litre of cooled boiled water. Discard anything unused "
+     "after twenty-four hours.",
+     "Drink freely after each loose stool."),
+    ("PARAPAED", "Paracetamol paediatric suspension 120mg/5mL", "oral liquid",
+     100, "mL", 3.00, 14,
+     "Triturate the tablets to a fine powder, wet with the vehicle and make up "
+     "to volume. Label 'shake well'.",
+     "5mL every six hours as needed. Not more than four doses in a day."),
+]
+
+
+#: The raw materials a compounding bench keeps. Not medicines a patient is
+#: handed — powders and bases that go into what is made on the bench — but a
+#: pharmacy stocks and counts them like anything else, and a formula naming an
+#: ingredient the shop does not hold is a recipe nobody can follow.
+RAW_MATERIALS = [
+    ("Magnesium Trisilicate Powder", "500g", 14.00, "powder"),
+    ("Light Magnesium Carbonate", "500g", 12.50, "powder"),
+    ("Calamine Powder", "500g", 11.00, "powder"),
+    ("Benzoic Acid Powder", "250g", 16.00, "powder"),
+    ("Salicylic Acid Powder", "250g", 18.50, "powder"),
+    ("Potassium Permanganate Crystals", "100g", 9.50, "crystals"),
+    ("Sodium Bicarbonate Powder", "500g", 7.50, "powder"),
+    ("Sodium Chloride Powder", "500g", 6.00, "powder"),
+    ("Anhydrous Glucose Powder", "500g", 8.00, "powder"),
+    ("Emulsifying Ointment Base", "500g", 13.00, "base"),
+    ("Glycerin BP", "500mL", 10.50, "liquid"),
+]
+
+
+def _drop_sweep_mixtures(db: Session) -> int:
+    """Remove the compounding fixtures the old scaffolding left behind.
+
+    "Sweep Test Mixture" and "Controlled Sweep Cream" were the whole of the
+    compounding bench, which is why the screen looked like a feature nobody had
+    finished rather than one nobody had filled in.
+    """
+    from .models import Mixture, MixtureIngredient
+
+    doomed = [m.id for m in db.query(Mixture)
+              .filter(Mixture.name.ilike("%sweep%")).all()]
+    if not doomed:
+        return 0
+    db.query(MixtureIngredient).filter(
+        MixtureIngredient.mixture_id.in_(doomed)).delete(synchronize_session=False)
+    db.query(Mixture).filter(Mixture.id.in_(doomed)).delete(synchronize_session=False)
+    db.commit()
+    return len(doomed)
+
+
+def _raw_materials(db: Session) -> int:
+    """Stock the bench, so a formula names things the pharmacy actually holds."""
+    made = 0
+    for name, pack, cost, form in RAW_MATERIALS:
+        row = db.query(Product).filter(Product.name == name).first()
+        if row is None:
+            row = Product(name=name)
+            db.add(row)
+            made += 1
+        row.pack_size = pack
+        row.dosage_form = form
+        row.category = "medicine"
+        row.schedule = 0
+        row.cost_price = cost
+        row.unit_price = round(cost * 1.45, 2)
+        row.active = True
+        if not row.quantity_on_hand:
+            row.quantity_on_hand = RNG.randint(2, 12)
+        row.reorder_level = 2
+    db.commit()
+    return made
+
+
+def _compounding(db: Session, products) -> dict[str, int]:
+    """The formulas kept on the bench, with what goes into them.
+
+    The compounding screen was empty, which reads as a feature nobody uses
+    rather than a bench nobody wrote down. These are the preparations an
+    ordinary Harare dispensary makes, with a method written the way a
+    pharmacist would say it — including the parts that matter for safety, like
+    a permanganate crystal that has not dissolved.
+    """
+    from .models import Mixture, MixtureIngredient
+
+    made = collections.Counter()
+    by_name = {p.name.lower(): p for p in products}
+
+    def find(*words):
+        for name, product in by_name.items():
+            if all(w in name for w in words):
+                return product
+        return None
+
+    recipes = {
+        "MAGTRI": [(find("magnesium"), 10, "g"), (find("sodium"), 5, "g")],
+        "CALAM": [(find("calamine"), 15, "g"), (find("zinc"), 5, "g")],
+        "WHIT": [(find("benzoic"), 6, "g"), (find("salicylic"), 3, "g")],
+        "KMNO4": [(find("potassium"), 1, "g")],
+        "ORS": [(find("sodium"), 3, "g"), (find("glucose"), 20, "g")],
+        "PARAPAED": [(find("paracetamol"), 24, "tablets")],
+    }
+
+    for code, name, form, yield_qty, unit, fee, life, method, directions in MIXTURES:
+        row = db.query(Mixture).filter(Mixture.code == code).first()
+        if row is None:
+            row = Mixture(code=code)
+            db.add(row)
+            made["formulas"] += 1
+        row.name = name
+        row.form = form
+        row.yield_quantity = yield_qty
+        row.yield_unit = unit
+        row.compounding_fee = fee
+        row.shelf_life_days = life
+        row.method = method
+        row.directions = directions
+        row.active = True
+        db.flush()
+
+        if db.query(MixtureIngredient).filter(
+                MixtureIngredient.mixture_id == row.id).count():
+            continue
+        for product, quantity, ing_unit in recipes.get(code, []):
+            if product is None:
+                # Said nothing rather than inventing an ingredient. A formula
+                # short of a line is obvious on the screen; a formula naming a
+                # product the pharmacy does not stock is a wrong answer that
+                # looks right.
+                continue
+            db.add(MixtureIngredient(mixture_id=row.id, product_id=product.id,
+                                     quantity=quantity, unit=ing_unit))
+            made["ingredients"] += 1
+    db.commit()
+    return dict(made)
+
+
+def _deliveries(db: Session, staff) -> dict[str, int]:
+    """Waybills for medicine that went out by driver.
+
+    A pharmacy that delivers has a book of these and the screen was empty. The
+    mix is deliberate: most arrive, a few are still out, and one or two fail —
+    a delivery book where everything succeeded is not a delivery book, it is a
+    list of receipts.
+    """
+    from .models import Waybill
+
+    made = collections.Counter()
+    if db.query(Waybill).count():
+        return {"waybills already recorded": db.query(Waybill).count()}
+
+    sales = (db.query(Sale)
+               .filter(Sale.patient_id.isnot(None))
+               .order_by(Sale.created_at.desc()).limit(60).all())
+    drivers = [u for u in staff if u.active] or staff
+    if not sales or not drivers:
+        return dict(made)
+
+    seq = 4100
+    for sale in sales:
+        if RNG.random() < 0.45:
+            continue
+        patient = db.get(Patient, sale.patient_id)
+        if patient is None:
+            continue
+        seq += 1
+        raised = sale.created_at or datetime.now()
+        # Most get there. Some are still on the road. A couple do not, and the
+        # reason is the useful part of the record.
+        roll = RNG.random()
+        if roll < 0.72:
+            status, delivered = "delivered", raised + timedelta(hours=RNG.randint(2, 30))
+        elif roll < 0.92:
+            status, delivered = "despatched", None
+        else:
+            status, delivered = "failed", None
+
+        db.add(Waybill(
+            waybill_number=f"WB{seq}",
+            sale_id=sale.id,
+            patient_id=patient.id,
+            recipient=f"{patient.first_name} {patient.last_name}".strip(),
+            address=patient.address or RNG.choice(zimdata.SUBURBS)
+                    if hasattr(zimdata, "SUBURBS") else (patient.address or "Harare"),
+            phone=patient.phone or "",
+            instructions=RNG.choice([
+                "", "", "Gate is on the left, ask for the caretaker.",
+                "Telephone on arrival, the dogs are loose.",
+                "Leave with reception if nobody is in.",
+            ]),
+            status=status,
+            driver_id=RNG.choice(drivers).id,
+            received_by=("" if status != "delivered" else RNG.choice(
+                ["the patient", "spouse", "daughter", "the caretaker", "neighbour"])),
+            failure_reason=("" if status != "failed" else RNG.choice([
+                "Nobody at the address after two attempts.",
+                "Telephone off; could not confirm anybody was in.",
+                "Address could not be found from the directions given.",
+            ])),
+            requires_id_check=RNG.random() < 0.18,
+            created_at=raised,
+            created_by_id=RNG.choice(drivers).id,
+            dispatched_at=raised + timedelta(minutes=RNG.randint(20, 200)),
+            delivered_at=delivered,
+        ))
+        made[status] += 1
+        made["waybills"] += 1
+    db.commit()
+    return dict(made)
+
+
 def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
     """Reminders and campaigns, written the way a pharmacy writes them."""
     made = collections.Counter()
@@ -1873,6 +2105,21 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
             print("replacing the CRM fixtures…")
             for k, v in _crm(db, cashiers).items():
                 print(f"  {v} {k}")
+
+        print("writing up the compounding bench…")
+        gone = _drop_sweep_mixtures(db)
+        if gone:
+            print(f"  removed {gone} placeholder mixture(s)")
+        added = _raw_materials(db)
+        if added:
+            print(f"  {added} raw materials")
+        products = db.query(Product).filter(Product.active.is_(True)).all()
+        for k, v in _compounding(db, products).items():
+            print(f"  {v} {k}")
+
+        print("filling the delivery book…")
+        for k, v in _deliveries(db, staff).items():
+            print(f"  {v} {k}")
 
         print("invoicing the deliveries…")
         for k, v in _payables(db).items():

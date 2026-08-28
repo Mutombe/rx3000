@@ -144,6 +144,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // Batching and sending claims is the weekly round; "Claims held" is the
       // exception queue for ones that could not go. Sending comes first.
       { to: "/claiming", label: "Claiming", icon: PaperPlaneTilt },
+      // When each funder wants its claims and when it pays. A cut-off
+      // missed costs a whole cycle, so it belongs beside the claiming.
+      { to: "/claiming-calendar", label: "Claiming calendar", icon: CalendarCheck },
       { to: "/authorisations", label: "Authorisations", icon: SealCheck },
       { to: "/claims-held", label: "Claims held", icon: PauseCircle },
       { to: "/remittances", label: "Remittances", icon: Coins },

@@ -8,6 +8,9 @@ const Recall = lazy(() => import("./pages/Recall"));
 const Payables = lazy(() => import("./pages/Payables"));
 const DispensingHistory = lazy(() => import("./pages/DispensingHistory"));
 const MoneyOwed = lazy(() => import("./pages/MoneyOwed"));
+const WillCallBag = lazy(() => import("./pages/WillCallBag"));
+const ToFollowDetail = lazy(() => import("./pages/ToFollowDetail"));
+const SchemeCalendar = lazy(() => import("./pages/SchemeCalendar"));
 const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const BatchDetail = lazy(() => import("./pages/BatchDetail"));
@@ -135,6 +138,9 @@ export default function App() {
                 <Route path="/payables" element={<Payables />} />
                 <Route path="/dispensing-history" element={<DispensingHistory />} />
                 <Route path="/money-owed" element={<MoneyOwed />} />
+                <Route path="/will-call/:id" element={<WillCallBag />} />
+                <Route path="/to-follows/:id" element={<ToFollowDetail />} />
+                <Route path="/claiming-calendar" element={<SchemeCalendar />} />
                 <Route path="/suppliers/:id" element={<SupplierDetail />} />
                 <Route path="/claims/:id" element={<ClaimDetail />} />
                 <Route path="/batches/:id" element={<BatchDetail />} />

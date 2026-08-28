@@ -404,3 +404,111 @@ def message(message_id: int, db: Session = Depends(get_db)):
                      "scheduled_for": m.scheduled_for, "sent_at": m.sent_at}
                     for m in siblings],
     }
+
+
+# ------------------------------------------------------------------ will-call
+
+@router.get("/dispensing/will-call/{dispensing_id}")
+def will_call_bag(dispensing_id: int, db: Session = Depends(get_db)):
+    """One bag on the shelf: what is in it, who it is for, and what is owed.
+
+    The shelf listed bags and opened none of them, so the questions asked at
+    the counter — is this the right bag, has it been paid for, who may take it,
+    how long has it been here — were answered by reading a row and guessing.
+    """
+    from ..services import willcall
+
+    d = _found(
+        db.query(Dispensing)
+          .options(joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.product),
+                   joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.patient),
+                   joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.doctor),
+                   joinedload(Dispensing.dispensed_by))
+          .filter(Dispensing.id == dispensing_id).first(),
+        "bag")
+
+    item = d.prescription_item
+    rx = item.prescription if item else None
+    product = item.product if item else None
+    days = (datetime.utcnow() - d.dispensed_at).days if d.dispensed_at else 0
+    band, action = willcall._band(days)
+
+    sale = db.get(Sale, d.sale_id) if d.sale_id else None
+    owed = 0.0
+    claim = None
+    if sale is not None:
+        claim = (db.query(Claim)
+                   .filter(Claim.sale_id == sale.id,
+                           Claim.status.notin_(("rejected", "reversed"))).first())
+        if sale.status not in ("paid", "void"):
+            from ..models import SaleTender
+
+            paid = (db.query(func.coalesce(func.sum(SaleTender.amount_in_base), 0.0))
+                      .filter(SaleTender.sale_id == sale.id).scalar() or 0.0)
+            covered = float(claim.amount_approved) if claim else 0.0
+            owed = max(0.0, round((sale.total or 0.0) - covered - float(paid), 2))
+
+    # Everything else waiting for the same patient, so a bag is not handed over
+    # while its other half stays on the shelf.
+    alongside = []
+    if rx and rx.patient_id:
+        for other in (db.query(Dispensing)
+                        .join(PrescriptionItem,
+                              Dispensing.prescription_item_id == PrescriptionItem.id)
+                        .join(Prescription,
+                              PrescriptionItem.prescription_id == Prescription.id)
+                        .options(joinedload(Dispensing.prescription_item)
+                                 .joinedload(PrescriptionItem.product))
+                        .filter(Prescription.patient_id == rx.patient_id,
+                                Dispensing.collected_at.is_(None),
+                                Dispensing.id != d.id).limit(20).all()):
+            other_item = other.prescription_item
+            other_product = other_item.product if other_item else None
+            alongside.append({
+                "dispensing_id": other.id,
+                "product": (f"{other_product.name} {other_product.strength or ''}".strip()
+                            if other_product else ""),
+                "quantity": other.quantity,
+                "dispensed_at": other.dispensed_at,
+            })
+
+    return {
+        "dispensing_id": d.id,
+        "quantity": d.quantity,
+        "schedule": d.schedule or 0,
+        "is_repeat": bool(d.is_repeat),
+        "dispensed_at": d.dispensed_at,
+        "dispensed_by_id": d.dispensed_by_id,
+        "dispensed_by": d.dispensed_by.full_name if d.dispensed_by else "",
+        "pharmacist_initial": d.pharmacist_initial or "",
+        "collected_at": d.collected_at,
+        "collected_name": d.collected_name or "",
+        "days_waiting": days,
+        "band": band,
+        "action": action,
+        # A controlled bag cannot go to whoever turns up, and the counter has
+        # to know that before the person is standing there.
+        "needs_id": (d.schedule or 0) >= 5,
+        "product_id": item.product_id if item else None,
+        "product": (f"{product.name} {product.strength or ''}".strip()
+                    if product else ""),
+        "directions": item.dosage_instructions if item else "",
+        "prescription_id": rx.id if rx else None,
+        "rx_number": rx.rx_number if rx else "",
+        "prescriber_id": rx.doctor_id if rx else None,
+        "prescriber": rx.doctor.name if rx and rx.doctor else "",
+        "patient": _person(rx.patient if rx else None),
+        "sale_id": sale.id if sale else None,
+        "sale_number": sale.sale_number if sale else "",
+        "sale_status": sale.status if sale else "",
+        "sale_total": round(sale.total, 2) if sale else 0.0,
+        "outstanding": owed,
+        "claim_id": claim.id if claim else None,
+        "scheme_pays": round(claim.amount_approved, 2) if claim else 0.0,
+        "alongside": alongside,
+    }

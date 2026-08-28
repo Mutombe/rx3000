@@ -12,6 +12,7 @@
  *  server does refuse, the row snaps back and says why.
  */
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
@@ -211,7 +212,7 @@ export default function ToFollows() {
                 className={[o.overdue ? "row-flag" : "",
                             saving.has(o.id) ? "is-saving" : ""].filter(Boolean).join(" ")}
               >
-                <td className="mono">{o.reference}</td>
+                <td className="mono"><Link to={`/to-follows/${o.id}`}>{o.reference}</Link></td>
                 <td>
                   {o.patient_id ? (
                     <EntityLink to={`/patients/${o.patient_id}`}>{o.patient_name}</EntityLink>
@@ -238,13 +239,13 @@ export default function ToFollows() {
                       in it. */}
                   {o.status === "outstanding" && o.can_settle_now && (
                     <BusyButton className="btn primary sm" onClick={() => settle(o)}>
-                      Hand over
+                      Give the rest
                       <span className="btn-count">{o.quantity_outstanding}</span>
                     </BusyButton>
                   )}
                   {o.status === "outstanding" && o.can_settle_partially && (
                     <BusyButton className="btn sm" onClick={() => settle(o, o.quantity_on_hand)}>
-                      Hand over
+                      Give what came in
                       {/* A part-settlement says what it is against what is owed,
                           which is the whole reason to offer it. */}
                       <span className="btn-count">
@@ -254,7 +255,7 @@ export default function ToFollows() {
                   )}
                   {o.status === "outstanding" && (
                     <button className="btn ghost sm" onClick={() => setCancelling(o)}>
-                      Write off
+                      Cancel — not coming
                     </button>
                   )}
                   {o.status !== "outstanding" && (
