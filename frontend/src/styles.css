@@ -4832,3 +4832,47 @@ table.dt.sub th { font-size: var(--t-xs); }
    why removing it from the list produced junk in the vocabulary. */
 .term-option.is-had { opacity: 0.55; cursor: default; }
 .term-had { color: var(--ink-faint); font-size: var(--t-xs); flex-shrink: 0; }
+
+/* One value picked from a published list — a diagnosis code, a funder.
+   Shares the panel with TermSelect; the trigger differs because a single value
+   reads better as a settled chip than as a box you might still be typing in. */
+.lookup {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; min-height: var(--control); padding: 0 var(--s2);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  font-size: var(--t-base); cursor: text;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.lookup:hover { border-color: var(--ink-faint); }
+.lookup.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
+.lookup.is-disabled { opacity: 0.5; cursor: not-allowed; background: var(--surface-sunk); }
+/* A value the list does not recognise. Not an error — it is somebody's existing
+   data — but it is what comes back rejected, so it does not look settled. */
+.lookup.is-unknown { border-color: var(--warn, var(--danger)); }
+.lookup-icon { color: var(--ink-faint); flex-shrink: 0; }
+.lookup-input {
+  flex: 1; min-width: 0; height: calc(var(--control) - 2px);
+  border: none; background: transparent; color: var(--ink);
+  font-size: var(--t-base); padding: 0;
+}
+.lookup-input:focus { outline: none; box-shadow: none; }
+.lookup-picked {
+  display: flex; align-items: center; gap: var(--s2);
+  flex: 1; min-width: 0; padding: 4px 0;
+}
+.lookup-picked button {
+  display: inline-flex; color: var(--ink-faint);
+  border-radius: var(--r-sm); padding: 1px; margin-left: auto;
+}
+.lookup-picked button:hover { color: var(--danger); background: var(--hover); }
+.lookup-ok { color: var(--ok, var(--accent)); flex-shrink: 0; }
+.lookup-warn { color: var(--danger); flex-shrink: 0; }
+.lookup-code {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: var(--t-sm); flex-shrink: 0;
+}
+.lookup-label {
+  color: var(--ink-soft, var(--ink-faint)); font-size: var(--t-sm);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

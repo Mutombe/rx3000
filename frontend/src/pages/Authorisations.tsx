@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
 import { useConfirm } from "../components/Confirm";
+import LookupInput, { LookupItem } from "../components/LookupInput";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
@@ -40,6 +41,27 @@ interface Check {
   usable: boolean; status: string; reasons: string[];
   quantity_remaining: number; amount_remaining: number;
   valid_to: string | null;
+}
+
+/** Look up ICD-10 codes for the picker.
+ *
+ *  Outside the component so it keeps its identity between renders — passed in
+ *  as a prop, a function rebuilt every render would restart the debounce on
+ *  every keystroke and the list would never settle.
+ */
+async function searchDiagnoses(q: string): Promise<LookupItem[]> {
+  const rows = await api.get<{
+    id: number; code: string; description: string;
+    chapter: string; valid_primary: boolean;
+  }[]>(`/api/claiming/diagnoses?q=${encodeURIComponent(q)}&limit=25`);
+  return rows.map((r) => ({
+    value: r.code,
+    label: r.description,
+    // Said where it matters rather than everywhere: a code that cannot be a
+    // primary diagnosis is the one that comes back rejected.
+    hint: r.valid_primary ? r.chapter : `${r.chapter} · not valid as a primary diagnosis`,
+    usable: true,
+  }));
 }
 
 export default function Authorisations() {
@@ -402,8 +424,19 @@ export default function Authorisations() {
             <div className="form-row">
               <div className="field">
                 <label>Diagnosis (ICD-10)</label>
-                <input value={icd10} onChange={(e) => setIcd10(e.target.value)}
-                  placeholder="e.g. E11.9" />
+                {/* Searched, not remembered. "e.g. E11.9" asked somebody to
+                    recall a code, and the ones people recall are the three they
+                    always use — whether or not those fit this patient. There is
+                    no "add new" here on purpose: a pharmacy may decide what it
+                    calls an allergy, it may not invent a diagnosis code, and an
+                    invented one fails weeks later as a rejected claim. */}
+                <LookupInput
+                  value={icd10}
+                  onChange={setIcd10}
+                  placeholder="Search by code or condition"
+                  emptyLabel="No diagnosis matches that."
+                  search={searchDiagnoses}
+                />
               </div>
               <div className="field">
                 <label>Quantity</label>
