@@ -60,18 +60,28 @@ def ensure_backfilled(db: Session) -> int:
     """
     branch = default_branch(db)
     filled = 0
-    for model in (StockBatch, StockMovement):
+
+    # Every model that has a branch, asked of the models themselves.
+    #
+    # This used to name three of them — stock batches, movements and sales —
+    # and shifts, lay-bys, petty cash and stock takes all have a branch too.
+    # They were never filled, so a hundred and two shifts belonged to no shop
+    # and the branch scorecard showed every one of them zero staff, zero tills
+    # and no cash-up accuracy at all. That is the failure this docstring already
+    # warns about, and the list was how it happened: a list is a thing somebody
+    # has to remember to add to.
+    from ..database import Base
+
+    for mapper in Base.registry.mappers:
+        model = mapper.class_
+        if not hasattr(model, "branch_id"):
+            continue
         rows = db.query(model).filter(model.branch_id.is_(None)).count()
         if rows:
             db.query(model).filter(model.branch_id.is_(None)).update(
                 {model.branch_id: branch.id}, synchronize_session=False)
             filled += rows
-    from ..models import Sale
-    rows = db.query(Sale).filter(Sale.branch_id.is_(None)).count()
-    if rows:
-        db.query(Sale).filter(Sale.branch_id.is_(None)).update(
-            {Sale.branch_id: branch.id}, synchronize_session=False)
-        filled += rows
+
     if filled:
         db.commit()
     return filled

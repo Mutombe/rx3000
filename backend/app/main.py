@@ -29,6 +29,7 @@ from .routers import (
     fiscal_router,
     helpdesk_router, leads_router, ledger_router, marketing_router, payables_router,
     clinical_terms_router,
+    scorecard_router,
     detail_router,
     messages_router,
     patients_router,
@@ -183,6 +184,7 @@ for router_module in (
     dispensing_extras_router, system_router, profile_router, portal_router,
     branches_router, scan_router, layby_router, stocktake_router,
     settings_router, payables_router, detail_router, clinical_terms_router,
+    scorecard_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

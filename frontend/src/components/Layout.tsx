@@ -1,4 +1,5 @@
 import {
+  ChartBar,
   ClockCounterClockwise,
   ArrowsClockwise,
   ArrowsLeftRight,
@@ -136,6 +137,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/samples", label: "Samples", icon: Gift },
       { to: "/recall", label: "Recall", icon: Siren },
       { to: "/branches", label: "Branches", icon: Storefront },
+      { to: "/scorecard", label: "Branch scorecard", icon: ChartBar, tier: 2 },
     ],
   },
   {
