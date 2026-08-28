@@ -99,4 +99,20 @@ def run(engine: Engine) -> tuple[int, int | None]:
                 log.info("Stamped %s row(s) in %s", result.rowcount, table)
                 filled += result.rowcount
 
+    # Somebody has to be able to reach the pharmacies screen, and on an
+    # existing deployment nobody carries the flag yet. The founding
+    # administrator gets it — they are already whoever set this system up.
+    # Only when no platform administrator exists at all, so this never
+    # re-promotes an account that was deliberately demoted.
+    with engine.begin() as conn:
+        has_owner = conn.execute(text(
+            "SELECT COUNT(*) FROM users WHERE is_platform_admin = 1")).scalar()
+        if not has_owner:
+            promoted = conn.execute(text(
+                "UPDATE users SET is_platform_admin = 1 WHERE id = ("
+                "  SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)"
+            )).rowcount
+            if promoted:
+                log.info("Promoted the founding administrator to platform admin")
+
     return filled, pharmacy_id

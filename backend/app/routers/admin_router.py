@@ -12,7 +12,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from .. import schemas
-from ..auth import get_current_user, require_role
+from ..auth import require_platform_admin, get_current_user, require_role
 from ..config import settings
 from ..database import get_db
 from ..services import paging
@@ -257,6 +257,14 @@ def audit_log_paged(
 
 
 # ---------- backups ----------
+#
+# Platform-level, not a pharmacy's. A backup is the whole database — every
+# pharmacy on the deployment, all of their patients — so a customer's own
+# administrator downloading one would walk out with every other customer's
+# records in a single file. That was harmless while the system served one
+# pharmacy and became a complete bypass of the tenancy the moment it served
+# two, which is exactly the kind of permission that stops being right without
+# anybody changing it.
 def _db_path() -> Path:
     url = settings.DATABASE_URL
     if not url.startswith("sqlite"):
@@ -320,7 +328,7 @@ def _prune() -> None:
 
 
 @router.post("/backup", response_model=schemas.BackupOut)
-def backup_now(_: User = Depends(require_role("admin"))):
+def backup_now(_: User = Depends(require_platform_admin)):
     path = create_backup()
     stat = path.stat()
     return schemas.BackupOut(
@@ -330,7 +338,7 @@ def backup_now(_: User = Depends(require_role("admin"))):
 
 
 @router.get("/backups", response_model=list[schemas.BackupOut])
-def list_backups(_: User = Depends(require_role("admin"))):
+def list_backups(_: User = Depends(require_platform_admin)):
     if not BACKUP_DIR.exists():
         return []
     out = []
@@ -352,7 +360,7 @@ def list_backups(_: User = Depends(require_role("admin"))):
 
 
 @router.post("/backups/{filename}/verify", response_model=schemas.BackupOut)
-def verify_backup(filename: str, _: User = Depends(require_role("admin"))):
+def verify_backup(filename: str, _: User = Depends(require_platform_admin)):
     """Re-check an existing backup.
 
     Worth having on demand as well as on write: a file that verified when it was
@@ -374,7 +382,7 @@ def verify_backup(filename: str, _: User = Depends(require_role("admin"))):
 
 
 @router.get("/backups/{filename}/download")
-def download_backup(filename: str, _: User = Depends(require_role("admin"))):
+def download_backup(filename: str, _: User = Depends(require_platform_admin)):
     # filenames are server-generated; reject anything that isn't a plain name
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename")

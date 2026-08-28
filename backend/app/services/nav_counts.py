@@ -28,7 +28,19 @@ from . import era, to_follows, worklist
 
 
 def _count(query) -> int:
-    return int(query.with_entities(func.count()).order_by(None).scalar() or 0)
+    """Count the rows a query would return, without loading them.
+
+    `query.count()` and not `with_entities(func.count())`, and the difference is
+    not stylistic. A bare `func.count()` names no column, which takes the entity
+    out of the statement — and the tenancy filter attaches to entities. The
+    badge counts therefore came back unscoped: a pharmacy created five minutes
+    ago showed three hundred and fourteen repeats and two hundred and
+    sixty-eight claims, every one of them belonging to somebody else.
+
+    `count()` wraps the query as a subquery with the entity intact, so the
+    filter survives. It is the same single round trip and no rows are loaded.
+    """
+    return int(query.count() or 0)
 
 
 def for_nav(db: Session) -> dict[str, int]:

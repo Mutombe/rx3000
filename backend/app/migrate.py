@@ -19,6 +19,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # PIN, and the password path has to keep working for them rather than
     # locking them out of a prompt they have always answered with a password.
     "users": {
+        "is_platform_admin": "BOOLEAN DEFAULT 0",
         "pin_hash": "VARCHAR(255)",
         "pin_set_at": "TIMESTAMP",
         "pin_failures": "INTEGER DEFAULT 0",

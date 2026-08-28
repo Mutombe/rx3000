@@ -115,3 +115,24 @@ def require_role(*roles: str):
             raise HTTPException(status_code=403, detail=f"Requires role: {', '.join(roles)}")
         return user
     return checker
+
+
+def require_platform_admin(user: User = Depends(get_current_user)) -> User:
+    """Only whoever operates the platform, never a customer's administrator.
+
+    This guards the one part of the system that deliberately crosses tenants:
+    creating pharmacies and deciding which pharmacy a person belongs to. A
+    pharmacy's own `admin` must not reach it — an administrator who can move a
+    user between tenants can read another pharmacy's patients by moving
+    themselves, which undoes the whole of `tenancy` from the inside.
+
+    So this checks the flag and nothing else. `require_role` deliberately treats
+    `admin` as passing every check, which is right within a pharmacy and exactly
+    wrong here.
+    """
+    if not user.is_platform_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="This is reserved for whoever operates RX5000, not for a "
+                   "pharmacy's own administrator.")
+    return user

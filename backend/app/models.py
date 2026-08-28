@@ -37,6 +37,14 @@ class User(Base, TenantMixin):
     # once issued it says what it said, and a demo that could be extended by
     # holding on to an old one is not a demo. Every request re-reads this, so
     # revoking a demo early is a single UPDATE.
+    #: Operates the platform, not a pharmacy.
+    #:
+    #: Deliberately a flag and not a role. `admin` already means "runs this
+    #: pharmacy" and is held by a customer; whoever sells the system to them is
+    #: a different kind of person entirely, and conflating the two would let any
+    #: customer's administrator create tenants and move users between them —
+    #: which is the whole tenancy undone from inside.
+    is_platform_admin = Column(Boolean, default=False, index=True)
     is_demo = Column(Boolean, default=False)
     demo_expires_at = Column(DateTime, nullable=True)
 
