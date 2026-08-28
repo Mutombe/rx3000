@@ -63,6 +63,20 @@ const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
  *  somebody walk to another screen to hand over two dollars is not a workflow,
  *  it is an errand.
  */
+/** What the patient owes on a dispensed sale.
+ *
+ *  Not the total. The claim is raised when the script is dispensed, so by the
+ *  time this screen is showing a figure the scheme is already carrying most of
+ *  it — and asking a member for the funder's money as well as their own is the
+ *  mistake this exists to prevent. Same rule as the till uses.
+ */
+function patientPortion(sale: Sale): number {
+  const claim: any = (sale as any).claim;
+  if (!claim) return sale.total;
+  if (claim.status === "rejected" || claim.status === "reversed") return sale.total;
+  return Math.max(0, Number(claim.patient_liable ?? sale.total));
+}
+
 const PAY_CHOICES = [
   { key: "till", label: "Send to till", hint: "Raise the invoice; settle at the front shop" },
   { key: "cash", label: "Cash now", hint: "Take it here and print the receipt" },
@@ -415,11 +429,14 @@ export default function Dispense() {
       let finished = sale;
       if (payHow !== "till") {
         try {
+          const due = patientPortion(sale);
           finished = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
             payment_method: payHow,
-            amount_tendered: payHow === "cash" ? sale.total : 0,
+            amount_tendered: payHow === "cash" ? due : 0,
           });
-          toast.ok(`${money(sale.total)} taken. ${sale.sale_number} is settled.`);
+          toast.ok(due < sale.total - 0.005
+            ? `${money(due)} taken from the patient, ${money(sale.total - due)} on the scheme.`
+            : `${money(due)} taken. ${sale.sale_number} is settled.`);
         } catch (err) {
           // The medicine has already gone out and the invoice exists — the
           // dispensing is not undone because the card machine declined. It
@@ -912,9 +929,18 @@ export default function Dispense() {
                     <>Dispensed and paid. Invoice <b>{doneSale.sale_number}</b>,{" "}
                     {money(doneSale.total)}. Labels sent to the printer.</>
                   ) : (
-                    <>Dispensed. Invoice <b>{doneSale.sale_number}</b> for{" "}
-                    {money(doneSale.total)} is <b>not yet paid</b>. Labels sent to
-                    the printer.</>
+                    <>Dispensed. Invoice <b>{doneSale.sale_number}</b>:{" "}
+                    <b>{money(patientPortion(doneSale))}</b> to collect from the
+                    patient
+                    {/* The scheme's share, said plainly. A dispenser reading
+                        only the total asks a member for the funder's money as
+                        well as their own — and "where is the claim half" was
+                        unanswerable on this screen. */}
+                    {patientPortion(doneSale) < doneSale.total - 0.005 && (
+                      <> ({money(doneSale.total - patientPortion(doneSale))} of{" "}
+                      {money(doneSale.total)} is on the scheme)</>
+                    )}
+                    . <b>Not yet paid</b>. Labels sent to the printer.</>
                   )}
                   {" "}
                   {doneRxId && (
