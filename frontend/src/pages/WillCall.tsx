@@ -15,8 +15,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Phone } from "@phosphor-icons/react";
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money, prefetchRoute } from "../api";
 import BusyButton from "../components/BusyButton";
+import RowLink, { RowActions } from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
 import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
@@ -183,7 +184,14 @@ export default function WillCall() {
                 </thead>
                 <tbody>
                   {page.items.map((b) => (
-                    <tr key={b.dispensing_id}>
+                    // The whole row opens the bag, not just the medicine's
+                    // name. A counter is read at a glance with a queue waiting,
+                    // and asking somebody to aim at one word in six columns is
+                    // the difference between a table that answers questions and
+                    // one nobody opens. The patient link and the hand-over
+                    // button keep their own destinations.
+                    <RowLink key={b.dispensing_id} to={`/will-call/${b.dispensing_id}`}
+                             prefetch={prefetchRoute}>
                       <td>
                         {b.patient_id
                           ? <Link to={`/patients/${b.patient_id}`}>{b.patient}</Link>
@@ -195,11 +203,7 @@ export default function WillCall() {
                         )}
                       </td>
                       <td>
-                        {/* The bag opens. Everything a counter asks about it —
-                            has it been paid for, who may take it, how long has
-                            it been here — was previously read off a row and
-                            guessed at. */}
-                        <Link to={`/will-call/${b.dispensing_id}`}>{b.product}</Link>
+                        <b>{b.product}</b>
                         {b.needs_id && <span className="badge sched">S{b.schedule}</span>}
                         <div className="muted small">{b.rx_number} · {b.dispensed_by}</div>
                         {b.outstanding > 0.005 && (
@@ -222,12 +226,12 @@ export default function WillCall() {
                         </span>
                         <div className="muted small">{b.days_waiting} days</div>
                       </td>
-                      <td className="actions">
+                      <RowActions>
                         <BusyButton className="btn small" onClick={() => collect(b)}>
                           Handed over
                         </BusyButton>
-                      </td>
-                    </tr>
+                      </RowActions>
+                    </RowLink>
                   ))}
                 </tbody>
               </table>
