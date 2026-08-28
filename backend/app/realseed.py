@@ -20,6 +20,7 @@ sales seeded twice is a takings chart that has quietly doubled.
 from __future__ import annotations
 
 import argparse
+import calendar
 import collections
 import random
 import re
@@ -37,7 +38,8 @@ from .models import (
     LayByPayment,
     Lead, MedicalAid, Message, OwedItem, Patient, Prescription,
     PrescriptionItem,
-    Product, PurchaseOrder, PurchaseOrderItem, RegisterEntry, Sale, SaleItem,
+    Product, PurchaseOrder, PurchaseOrderItem, RegisterEntry, Remittance,
+    Sale, SaleItem,
     Shift, StockBatch, Supplier, SupplierInvoice, SupplierInvoiceItem,
     SupplierPayment, SupplierPaymentAllocation, User,
 )
@@ -1660,6 +1662,154 @@ def _deliveries(db: Session, staff) -> dict[str, int]:
     return dict(made)
 
 
+#: How a funder actually pays. Most lines go through; a fifth come back short
+#: because the member owes a levy or the item was repriced to the scheme's
+#: tariff; a tenth are refused outright. A remittance where every line paid in
+#: full is not a remittance, it is a receipt, and it would leave the shortfall
+#: screens empty and the reconciliation work invisible.
+PAID_IN_FULL = 0.72
+SHORT_PAID = 0.90          # cumulative: 0.72–0.90 short, the rest refused
+
+REFUSALS = [
+    ("NO_AUTH", "No valid pre-authorisation was held."),
+    ("BENEFIT_EXHAUSTED", "The member's benefit was exhausted."),
+    ("MEMBER_INVALID", "The member was not active on the service date."),
+    ("NOT_COVERED", "The item is not on the member's formulary."),
+    ("STALE", "Submitted outside the funder's claiming window."),
+]
+
+
+def _remittances(db: Session) -> dict[str, int]:
+    """The money coming back from the funders, against claims already sent.
+
+    Claiming was only half-written down. Claims went out and nothing recorded
+    them being paid, so the calendar could say when CIMAS settles but never that
+    it had, every claim sat "submitted" for ever, and the shortfall screens —
+    the ones that decide whether a difference goes to the patient or to
+    write-off — had nothing in them to work on.
+
+    Advices are built from real claims and imported through the ordinary import
+    path, so the matching, the classification and the settling of the claim all
+    run as they would for a file a funder actually sent. Seeding the rows
+    directly would have produced the same screens and proved none of it.
+
+    The current month is deliberately left unpaid: a pharmacy always has money
+    in the air, and a claiming screen showing nothing outstanding is the one
+    state that never happens.
+    """
+    from .services import era
+
+    made = collections.Counter()
+    if db.query(Remittance).count():
+        return {"advices already imported": db.query(Remittance).count()}
+
+    claims = (db.query(Claim)
+                .filter(Claim.status.in_(("submitted", "approved", "paid")),
+                        Claim.amount_claimed > 0)
+                .order_by(Claim.created_at).all())
+    if not claims:
+        return dict(made)
+
+    this_month = date.today().replace(day=1)
+
+    # One advice per funder per month, the way a statement arrives.
+    months: dict[tuple[int, str], list] = collections.defaultdict(list)
+    for claim in claims:
+        raised = (claim.submitted_at or claim.created_at)
+        if raised is None:
+            continue
+        period = raised.date().replace(day=1)
+        if period >= this_month:
+            continue                      # still in the air, and should be
+        months[(claim.medical_aid_id, period.isoformat())].append(claim)
+
+    for (aid_id, period_iso), batch in sorted(months.items(), key=lambda kv: kv[0][1]):
+        aid = db.get(MedicalAid, aid_id)
+        if aid is None:
+            continue
+        period = date.fromisoformat(period_iso)
+
+        # They pay on the day the memorandum says, in the month after the claim.
+        pay_month = (period.replace(day=28) + timedelta(days=7)).replace(day=1)
+        day = aid.settlement_day or 25
+        last = calendar.monthrange(pay_month.year, pay_month.month)[1]
+        paid_on = pay_month.replace(day=min(day, last))
+        if paid_on > date.today():
+            continue                      # not due yet; nothing has arrived
+
+        lines = []
+        for n, claim in enumerate(batch, start=1):
+            claimed = round(claim.amount_claimed or 0.0, 2)
+            roll = RNG.random()
+            if roll < PAID_IN_FULL:
+                paid, code, reason = claimed, "PAID", ""
+            elif roll < SHORT_PAID:
+                # A shortfall with a cause. The levy is the honest common one:
+                # the member owes it, so it is billed on rather than written off.
+                if (aid.levy_fixed or aid.levy_percent):
+                    cut = max(aid.levy_fixed or 0.0,
+                              round(claimed * (aid.levy_percent or 0) / 100, 2))
+                    cut = min(cut or round(claimed * 0.15, 2), round(claimed * 0.6, 2))
+                    code, reason = "LEVY", ""
+                else:
+                    cut = round(claimed * RNG.uniform(0.08, 0.35), 2)
+                    code, reason = "TARIFF", ""
+                paid = round(max(claimed - max(cut, 0.5), 0.5), 2)
+            else:
+                paid, (code, reason) = 0.0, RNG.choice(REFUSALS)
+
+            patient = claim.patient
+            lines.append({
+                "line_number": n,
+                "claim_reference": claim.claim_number,
+                "policy_number": getattr(patient, "medical_aid_number", "") or "",
+                "member_name": (f"{patient.first_name} {patient.last_name}".strip()
+                                if patient else ""),
+                "service_date": (claim.submitted_at or claim.created_at).date(),
+                "amount_claimed": claimed,
+                "amount_allowed": paid,
+                "amount_paid": paid,
+                "reason_code": code,
+                "reason": reason,
+            })
+            made[{"PAID": "paid in full"}.get(code,
+                 "short paid" if paid > 0 else "refused")] += 1
+
+        # Funders do pay for things the pharmacy cannot find — a line keyed to
+        # somebody else's claim number, or one already written off here. The
+        # unmatched state is a real part of this work, so leave one in.
+        if len(lines) > 12 and RNG.random() < 0.35:
+            stray = round(RNG.uniform(4, 40), 2)
+            lines.append({
+                "line_number": len(lines) + 1,
+                "claim_reference": f"CLM{RNG.randint(900000, 999999)}",
+                "policy_number": "", "member_name": "",
+                "service_date": period,
+                "amount_claimed": stray, "amount_allowed": stray,
+                "amount_paid": stray, "reason_code": "PAID", "reason": "",
+            })
+            made["unmatched"] += 1
+
+        code = aid.scheme_code or f"AID{aid.id}"
+        try:
+            era.import_advice(
+                db,
+                funder_id=code,
+                remittance_number=f"ERA-{code}-{period:%Y%m}",
+                payment_reference=f"TT{RNG.randint(10**7, 10**8 - 1)}",
+                payment_date=paid_on,
+                currency_code=aid.currency_code or "USD",
+                lines=lines,
+                source="switch",
+                notes=f"{aid.name} statement for {period:%B %Y}.",
+            )
+        except era.RemittanceError:
+            # Already imported. Said nothing rather than counting it twice.
+            continue
+        made["advices"] += 1
+    return dict(made)
+
+
 def _outreach(db: Session, patients, products, staff) -> dict[str, int]:
     """Reminders and campaigns, written the way a pharmacy writes them."""
     made = collections.Counter()
@@ -2115,6 +2265,10 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
             print(f"  {added} raw materials")
         products = db.query(Product).filter(Product.active.is_(True)).all()
         for k, v in _compounding(db, products).items():
+            print(f"  {v} {k}")
+
+        print("importing the remittance advices…")
+        for k, v in _remittances(db).items():
             print(f"  {v} {k}")
 
         print("filling the delivery book…")
