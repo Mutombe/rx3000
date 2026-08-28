@@ -105,11 +105,24 @@ def run(engine: Engine) -> tuple[int, int | None]:
     # Only when no platform administrator exists at all, so this never
     # re-promotes an account that was deliberately demoted.
     with engine.begin() as conn:
+        # `WHERE is_platform_admin` and not `= 1`.
+        #
+        # Postgres refuses to compare a boolean to an integer — "operator does
+        # not exist: boolean = integer" — and SQLite has no opinion about it at
+        # all. So `= 1` passes every local check and raises on the hosted
+        # database, inside the startup path, which takes the whole deployment
+        # down. That is exactly what it did: the migration and the backfill
+        # committed, this line raised, Render failed the health check and rolled
+        # back to the previous build. The database ended up migrated while the
+        # code serving it did not know about any of it.
+        #
+        # This file already carried that lesson under another name: `is_cash = 1`
+        # did the same thing to the same deployment. Written twice now.
         has_owner = conn.execute(text(
-            "SELECT COUNT(*) FROM users WHERE is_platform_admin = 1")).scalar()
+            "SELECT COUNT(*) FROM users WHERE is_platform_admin")).scalar()
         if not has_owner:
             promoted = conn.execute(text(
-                "UPDATE users SET is_platform_admin = 1 WHERE id = ("
+                "UPDATE users SET is_platform_admin = TRUE WHERE id = ("
                 "  SELECT id FROM users WHERE role = 'admin' ORDER BY id LIMIT 1)"
             )).rowcount
             if promoted:
