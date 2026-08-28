@@ -60,7 +60,13 @@ export default function DispensaryWorklist({
   onPickRepeat,
   panel: panelProp,
   onPanelChange,
+  reloadOn,
 }: {
+  /** Changes when the page has done something the queue should reflect.
+   *  Without it the rail refreshed on a two-minute timer, so dispensing a line
+   *  left the count unchanged for up to two minutes — after the one action that
+   *  should visibly move it. */
+  reloadOn?: number;
   /** Segment to show. Optional: the rail governs itself unless told otherwise,
    *  which is what lets a keyboard shortcut on the page open "Due". */
   panel?: Panel;
@@ -96,6 +102,9 @@ export default function DispensaryWorklist({
     const timer = window.setInterval(load, 120_000);
     return () => window.clearInterval(timer);
   }, [load]);
+
+  // And immediately when the page says something changed.
+  useEffect(() => { if (reloadOn) load(); }, [reloadOn, load]);
 
   if (failed) {
     return (

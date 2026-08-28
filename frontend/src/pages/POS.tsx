@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
-import { api, fmtDate, fmtDateTime, money, errorText, Refused } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute, Refused } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
 import { useConnection } from "../components/Connection";
@@ -15,12 +15,13 @@ import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
 import { Printer } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
-import { Link } from "react-router-dom";
+import RowLink from "../components/RowLink";
+import { Link, useSearchParams } from "react-router-dom";
 import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 
-type Tab = "till" | "pending";
+type Tab = "till" | "pending" | "history";
 
 const EMPTY_CARD = { auth: "", reference: "", last4: "", scheme: "", terminal: "" };
 
@@ -46,11 +47,20 @@ export default function POS() {
   const [redeem, setRedeem] = useState("0");
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [pending, setPending] = useState<Sale[]>([]);
+  const [history, setHistory] = useState<Sale[]>([]);
+  const [historyQ, setHistoryQ] = useState("");
+  /** The sale the dispensary sent over, so the till opens on it. */
+  const [params, setParams] = useSearchParams();
+  const settleId = Number(params.get("settle")) || 0;
 
   const TABS: TabDef<Tab>[] = [
     { key: "till", label: "Till" },
     { key: "pending", label: "Awaiting payment", count: pending.length,
       hint: "Dispensary sales handed over for settlement" },
+    // The front shop could not answer "what did we take today" or "what did
+    // that customer pay for on Tuesday". The dispensary has had a history for
+    // weeks; the till, which handles more transactions, had none.
+    { key: "history", label: "History", hint: "Everything the till has taken" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
@@ -92,6 +102,26 @@ export default function POS() {
   function loadPending() {
     api.get<Sale[]>("/api/pos/sales?status=pending&limit=20").then(setPending);
   }
+
+  function loadHistory() {
+    api.get<Sale[]>(`/api/pos/sales?status=paid&limit=50`
+      + (historyQ ? `&q=${encodeURIComponent(historyQ)}` : ""))
+      .then(setHistory).catch(() => setHistory([]));
+  }
+
+  useEffect(() => { if (tab === "history") loadHistory(); }, [tab, historyQ]);
+
+  /* Arriving from the dispensary with a sale to settle.
+   *
+   *  The dispensary handed over with a bare link to /pos, which passed nothing:
+   *  the cashier landed on an empty till and had to find the invoice by hand,
+   *  with the patient standing there. The sale now travels in the address, the
+   *  till opens on the list it is in, and the row says which one it is. */
+  useEffect(() => {
+    if (!settleId) return;
+    setTab("pending");
+    loadPending();
+  }, [settleId]);
 
   useEffect(() => {
     if (scan.length < 2) { setResults([]); return; }
@@ -478,7 +508,22 @@ export default function POS() {
         ...cardTender,
       });
       setReceipt(paid);
+      // Said out loud. The receipt opened and nothing else happened, so on a
+      // busy counter it read as the row having simply vanished — and once the
+      // receipt was dismissed there was nothing on screen saying the money had
+      // been taken at all.
+      toast.ok(covered > 0.005
+        ? `${money(owed)} taken, ${money(covered)} on the scheme. ${sale.sale_number} is settled.`
+        : `${money(owed)} taken. ${sale.sale_number} is settled.`);
       loadPending();
+      if (tab === "history") loadHistory();
+      // The invoice the dispensary sent has been dealt with; drop it from the
+      // address so a refresh does not reopen a settled sale.
+      if (settleId === sale.id) {
+        const next = new URLSearchParams(params);
+        next.delete("settle");
+        setParams(next, { replace: true });
+      }
       if (agent?.printer.ready) {
         deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo).catch(() => {});
       }
@@ -504,9 +549,10 @@ export default function POS() {
             <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th className="actions" /></tr></thead>
             <tbody>
               {pending.map((s) => (
-                <tr key={s.id}>
+                <tr key={s.id} className={settleId === s.id ? "row-flag" : ""}>
                   <td className="mono">
                     <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
+                    {settleId === s.id && <div className="muted small">just dispensed</div>}
                   </td>
                   <td>
                     <EntityLink kind="patient" id={s.patient?.id}>
@@ -544,6 +590,42 @@ export default function POS() {
             </tbody>
           </table>
           {pending.length === 0 && <div className="empty">Nothing awaiting payment</div>}
+        </div>
+      ) : tab === "history" ? (
+        <div className="card">
+          <input className="page-search" value={historyQ}
+                 onChange={(e) => setHistoryQ(e.target.value)}
+                 placeholder="Search by invoice number or customer" />
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>Invoice</th><th>Customer</th><th>Taken</th>
+                <th>How</th><th className="num">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((h) => (
+                <RowLink key={h.id} to={`/sales/${h.id}`} prefetch={prefetchRoute}>
+                  <td className="mono">{h.sale_number}</td>
+                  <td>
+                    {h.patient
+                      ? `${h.patient.first_name} ${h.patient.last_name}`
+                      : <span className="muted">Walk-in</span>}
+                  </td>
+                  <td className="muted">{fmtDateTime(h.created_at)}</td>
+                  {/* How it was settled, which is the question asked when the
+                      drawer does not balance. */}
+                  <td>{h.payment_method || "—"}</td>
+                  <td className="num"><b>{money(h.total)}</b></td>
+                </RowLink>
+              ))}
+            </tbody>
+          </table>
+          {history.length === 0 && (
+            <div className="empty">
+              {historyQ ? "No sale matches that." : "Nothing taken yet."}
+            </div>
+          )}
         </div>
       ) : (
       <div className="pos-layout">
@@ -844,38 +926,44 @@ export default function POS() {
             </button>
           </div>
 
-          {receipt && (
-            <div className="card">
-              <h3>Receipt {receipt.sale_number}</h3>
-              <table>
-                <tbody>
-                  {receipt.items.map((i) => (
-                    <tr key={i.id}><td>{i.description} ×{i.quantity}</td><td className="num">{money(i.line_total)}</td></tr>
-                  ))}
-                  <tr><td><b>Total (incl. VAT {money(receipt.vat_amount)})</b></td><td className="num"><b>{money(receipt.total)}</b></td></tr>
-                  {receipt.payment_method === "cash" && receipt.change_due > 0 && (
-                    <tr><td>Change</td><td className="num">{money(receipt.change_due)}</td></tr>
-                  )}
-                  {receipt.loyalty_points_earned > 0 && (
-                    <tr><td>Loyalty earned</td><td className="num">{receipt.loyalty_points_earned} pts</td></tr>
-                  )}
-                </tbody>
-              </table>
-              {receipt.claim && (
-                <div className={receipt.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 12 }}>
-                  Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b>. {receipt.claim.response_message}
-                  {receipt.claim.patient_liable > 0 && <> Patient pays <b>{money(receipt.claim.patient_liable)}</b>.</>}
-                </div>
-              )}
-              <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
-                <button className="small" onClick={() => printReceipt(receipt, pharmacy.name, pharmacy.regNo)}><Printer size={14} /> Print receipt</button>
-                <button className="secondary small" onClick={() => setReceipt(null)}>Dismiss</button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
       )}
+      {/* Outside the tab conditional, deliberately.
+          This lived inside the till's branch, so settling from Awaiting
+          payment set the receipt and drew nothing: the row vanished, no
+          receipt appeared, and the cashier had no way to tell whether the
+          money had been taken. A receipt belongs to the sale, not to the
+          screen the sale happened to be settled from. */}
+        {receipt && (
+          <div className="card">
+            <h3>Receipt {receipt.sale_number}</h3>
+            <table>
+              <tbody>
+                {receipt.items.map((i) => (
+                  <tr key={i.id}><td>{i.description} ×{i.quantity}</td><td className="num">{money(i.line_total)}</td></tr>
+                ))}
+                <tr><td><b>Total (incl. VAT {money(receipt.vat_amount)})</b></td><td className="num"><b>{money(receipt.total)}</b></td></tr>
+                {receipt.payment_method === "cash" && receipt.change_due > 0 && (
+                  <tr><td>Change</td><td className="num">{money(receipt.change_due)}</td></tr>
+                )}
+                {receipt.loyalty_points_earned > 0 && (
+                  <tr><td>Loyalty earned</td><td className="num">{receipt.loyalty_points_earned} pts</td></tr>
+                )}
+              </tbody>
+            </table>
+            {receipt.claim && (
+              <div className={receipt.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 12 }}>
+                Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b>. {receipt.claim.response_message}
+                {receipt.claim.patient_liable > 0 && <> Patient pays <b>{money(receipt.claim.patient_liable)}</b>.</>}
+              </div>
+            )}
+            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+              <button className="small" onClick={() => printReceipt(receipt, pharmacy.name, pharmacy.regNo)}><Printer size={14} /> Print receipt</button>
+              <button className="secondary small" onClick={() => setReceipt(null)}>Dismiss</button>
+            </div>
+          </div>
+        )}
       {partOf && (
         <PartPayment
           owed={patientOwes(partOf)}

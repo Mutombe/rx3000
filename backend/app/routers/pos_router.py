@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schemas
@@ -426,11 +426,31 @@ def reconcile_card(body: schemas.CardReconcileRequest, db: Session = Depends(get
 
 
 @router.get("/sales", response_model=list[schemas.SaleOut])
-def list_sales(status: str = "", limit: int = 100, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    query = db.query(Sale)
+def list_sales(status: str = "", q: str = "", limit: int = 100,
+               db: Session = Depends(get_db), _: User = Depends(get_current_user)):
+    """What the till has taken, newest first.
+
+    `q` searches the invoice number and the customer's name, which are the two
+    things anybody actually has when they ask: a slip in their hand, or the name
+    of the person who was standing there. The front shop had no history screen
+    at all until now, so this had never needed to answer a search.
+
+    The patient is joined rather than lazily loaded — the list renders a name
+    per row, and fifty rows was fifty extra queries against a hosted database.
+    """
+    query = db.query(Sale).options(joinedload(Sale.patient))
     if status:
         query = query.filter(Sale.status == status)
-    return query.order_by(Sale.created_at.desc()).limit(limit).all()
+    term = (q or "").strip()
+    if term:
+        like = f"%{term.lower()}%"
+        query = (query.outerjoin(Patient, Sale.patient_id == Patient.id)
+                 .filter(or_(
+                     func.lower(Sale.sale_number).like(like),
+                     func.lower(Patient.first_name).like(like),
+                     func.lower(Patient.last_name).like(like),
+                 )))
+    return query.order_by(Sale.created_at.desc()).limit(max(1, min(limit, 200))).all()
 
 
 @router.get("/sales/{sale_id}", response_model=schemas.SaleOut)

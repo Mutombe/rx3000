@@ -54,6 +54,22 @@ const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
   { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription" },
 ];
 
+/** What happens to the money at the moment of dispensing.
+ *
+ *  "Send to till" is the old behaviour and stays the default: the invoice is
+ *  raised as pending and settled at the front shop, which is right when a
+ *  relative is collecting, when it is going on the will-call shelf, or when the
+ *  medical aid is carrying it. The others take the money here, because making
+ *  somebody walk to another screen to hand over two dollars is not a workflow,
+ *  it is an errand.
+ */
+const PAY_CHOICES = [
+  { key: "till", label: "Send to till", hint: "Raise the invoice; settle at the front shop" },
+  { key: "cash", label: "Cash now", hint: "Take it here and print the receipt" },
+  { key: "card", label: "Card now", hint: "Take it here on the terminal" },
+  { key: "mobile_money", label: "Mobile now", hint: "Take it here by EcoCash or OneMoney" },
+];
+
 export default function Dispense() {
   const [route, setRoute] = useState<Route>("prescription");
   const [policies, setPolicies] = useState<SchedulePolicy[]>([]);
@@ -90,6 +106,9 @@ export default function Dispense() {
   const [ixAcknowledged, setIxAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
+  const [payHow, setPayHow] = useState("till");
+  /** Bumped after a dispensing so the worklist reloads at once. */
+  const [worklistNonce, setWorklistNonce] = useState(0);
   const [doneRxId, setDoneRxId] = useState<number | null>(null);
   // ?reprint=<rx id> opens the label preview straight away. Without it a reprint
   // is only reachable in the moments after dispensing, in the same browser
@@ -389,11 +408,37 @@ export default function Dispense() {
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: rx.items.map((i) => i.id), ...compliancePayload(),
       });
-      setDoneSale(sale); setDoneRxId(rx.id);
+      // Take the money here when that is what was asked for. The sale is
+      // raised pending either way; settling it is the same call the till makes,
+      // so there is one payment path in the system rather than two that can
+      // disagree about what a scheme has already covered.
+      let finished = sale;
+      if (payHow !== "till") {
+        try {
+          finished = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
+            payment_method: payHow,
+            amount_tendered: payHow === "cash" ? sale.total : 0,
+          });
+          toast.ok(`${money(sale.total)} taken. ${sale.sale_number} is settled.`);
+        } catch (err) {
+          // The medicine has already gone out and the invoice exists — the
+          // dispensing is not undone because the card machine declined. It
+          // becomes an ordinary pending sale, which is exactly what the till
+          // is for, and the message says so instead of reading as a failure.
+          toast.error(errorText(err,
+            "Dispensed, but the payment did not go through. It is waiting at the till."));
+        }
+      }
+      setDoneSale(finished); setDoneRxId(rx.id);
       setItems([]); aiCheck.reset();
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
       loadLists();
+      // The queue is why anybody is on this screen. It refreshed itself every
+      // two minutes and not on dispensing, so the count sat unchanged after the
+      // very act that should have moved it — which reads as the dispensing not
+      // having registered at all.
+      setWorklistNonce((n) => n + 1);
       printRxLabels(rx.id);
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
@@ -447,17 +492,6 @@ export default function Dispense() {
         <LabelSheet rxId={reprintRx} onClose={closeReprint} />
       )}
 
-      {doneSale && (
-        <div className="success-banner">
-          Dispensed, invoice <b>{doneSale.sale_number}</b> for {money(doneSale.total)} is pending payment.
-          Labels sent to the printer.{" "}
-          {/* A reprint gets the preview: whoever is asking for one already had a
-              set come out, so the question now is how many and for which item —
-              not "print immediately", which is what already happened. */}
-          {doneRxId && <button className="ghost small" onClick={() => setReprintRx(doneRxId)}><Printer size={14} /> Reprint labels</button>}
-          {" "}<Link to="/pos">Settle at Point of Sale <ArrowRight size={12} weight="bold" /></Link>
-        </div>
-      )}
 
       <div className="pill-tabs">
         {ROUTE_TABS.map((t) => (
@@ -858,6 +892,68 @@ export default function Dispense() {
                   {busy ? "Dispensing…" : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
                 </button>
               </div>
+
+              {/* How it gets paid for, decided here rather than afterwards.
+                  Dispensing always raised a pending invoice and sent the
+                  patient to the till, even for a two-dollar cash sale where the
+                  same person is standing at the same counter — so a transaction
+                  that is one act became two screens. The till is still the right
+                  answer when somebody else settles, or when it is going on the
+                  shelf to be collected later, so it stays the default. */}
+              {/* The outcome, where the action was.
+                  This used to render at the top of the page. After dispensing,
+                  the dispenser is at the bottom — beside the button they just
+                  pressed — so the one message telling them what happened, what
+                  is owed and where to settle it appeared off screen. On a
+                  counter that is indistinguishable from nothing happening. */}
+              {doneSale && (
+                <div className={doneSale.status === "paid" ? "success-banner" : "alert warn"}>
+                  {doneSale.status === "paid" ? (
+                    <>Dispensed and paid. Invoice <b>{doneSale.sale_number}</b>,{" "}
+                    {money(doneSale.total)}. Labels sent to the printer.</>
+                  ) : (
+                    <>Dispensed. Invoice <b>{doneSale.sale_number}</b> for{" "}
+                    {money(doneSale.total)} is <b>not yet paid</b>. Labels sent to
+                    the printer.</>
+                  )}
+                  {" "}
+                  {doneRxId && (
+                    <button className="ghost small" onClick={() => setReprintRx(doneRxId)}>
+                      <Printer size={14} /> Reprint labels
+                    </button>
+                  )}
+                  {doneSale.status !== "paid" && (
+                    <>
+                      {" "}
+                      {/* Carries the invoice with it. A bare link to /pos landed
+                          the cashier on an empty till and left them to find the
+                          sale by hand, with the patient standing there. */}
+                      <Link to={`/pos?settle=${doneSale.id}`}>
+                        Take payment for this one <ArrowRight size={12} weight="bold" />
+                      </Link>
+                    </>
+                  )}
+                  {" "}
+                  <button className="ghost small" onClick={() => setDoneSale(null)}>Dismiss</button>
+                </div>
+              )}
+
+              {items.length > 0 && (
+                <div className="disp-pay">
+                  <span className="muted small">Payment</span>
+                  {PAY_CHOICES.map((c) => (
+                    <button
+                      key={c.key}
+                      className={`btn small ${payHow === c.key ? "" : "ghost"}`}
+                      onClick={() => setPayHow(c.key)}
+                      title={c.hint}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                  <span className="muted small">{PAY_CHOICES.find((c) => c.key === payHow)?.hint}</span>
+                </div>
+              )}
               {ixMajor > 0 && !ixAcknowledged && items.length > 0 && (
                 <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
                   Acknowledge the interaction finding above before dispensing.
@@ -915,6 +1011,7 @@ export default function Dispense() {
       </div>
 
       <DispensaryWorklist
+        reloadOn={worklistNonce}
         panel={worklistPanel}
         onPanelChange={setWorklistPanel}
         onPickRepeat={(row) => {

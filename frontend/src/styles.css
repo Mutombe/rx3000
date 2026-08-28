@@ -4876,3 +4876,10 @@ table.dt.sub th { font-size: var(--t-xs); }
   color: var(--ink-soft, var(--ink-faint)); font-size: var(--t-sm);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* The payment choice on the dispensing screen, on the row under the button it
+   belongs to. Laid out inline because it is one decision, not a form. */
+.disp-pay {
+  display: flex; align-items: center; gap: var(--s2);
+  flex-wrap: wrap; margin-bottom: var(--s3);
+}
