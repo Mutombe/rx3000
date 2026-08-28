@@ -1,4 +1,5 @@
 import {
+  ClockCounterClockwise,
   ArrowsClockwise,
   ArrowsLeftRight,
   Bag,
@@ -102,6 +103,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/patients", label: "Patients", icon: Users, tier: 1 },
       { to: "/to-follows", label: "To follows", icon: ClockCountdown },
       { to: "/will-call", label: "Will call", icon: Bag },
+      // What has already gone out, as against what is still to go. A
+      // dispensary is asked about yesterday several times a day.
+      { to: "/dispensing-history", label: "Dispensing history", icon: ClockCounterClockwise },
       { to: "/repeats", label: "Repeats", icon: ArrowsClockwise },
       { to: "/compounding", label: "Compounding", icon: Flask },
       { to: "/register", label: "Controlled Register", icon: Notebook },

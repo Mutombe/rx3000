@@ -6,6 +6,7 @@ const WillCall = lazy(() => import("./pages/WillCall"));
 const Samples = lazy(() => import("./pages/Samples"));
 const Recall = lazy(() => import("./pages/Recall"));
 const Payables = lazy(() => import("./pages/Payables"));
+const DispensingHistory = lazy(() => import("./pages/DispensingHistory"));
 const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const BatchDetail = lazy(() => import("./pages/BatchDetail"));
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="/samples" element={<Samples />} />
                 <Route path="/recall" element={<Recall />} />
                 <Route path="/payables" element={<Payables />} />
+                <Route path="/dispensing-history" element={<DispensingHistory />} />
                 <Route path="/suppliers/:id" element={<SupplierDetail />} />
                 <Route path="/claims/:id" element={<ClaimDetail />} />
                 <Route path="/batches/:id" element={<BatchDetail />} />

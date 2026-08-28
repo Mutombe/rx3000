@@ -29,6 +29,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import {
   ArrowRight,
+  ClockCounterClockwise,
   Printer,
   Warning,
 } from "@phosphor-icons/react";
@@ -427,6 +428,13 @@ export default function Dispense() {
             {ROUTE_TABS.find((t) => t.key === route)?.hint}
           </div>
         </div>
+        {/* What has already gone out. A dispensary is asked about yesterday's
+            script several times a day — "did she collect it", "was that one
+            paid for", "print that label again" — and the only way to answer
+            was to know the patient and open their record. */}
+        <Link className="btn secondary" to="/dispensing-history">
+          <ClockCounterClockwise size={15} /> Dispensing history
+        </Link>
       </div>
 
       {/* Work on the left, worklist on the right. The queue has to be in view

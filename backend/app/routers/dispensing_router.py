@@ -8,16 +8,15 @@ Three distinct workflows:
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import doses, interactions, paging, willcall
 from ..models import (
-    Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product,
-    Sale, SaleItem, User,
+    Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem, User,
 )
 from . import shifts_router
 
@@ -310,6 +309,132 @@ def interaction_screen(patient_id: int | None = Body(default=None),
 
 
 # ---------------------------------------------------------- the will-call shelf
+
+@router.get("/history")
+def dispensing_history(
+    q: str = "",
+    patient_id: int = 0,
+    product_id: int = 0,
+    schedule: int = -1,
+    dispensed_by: int = 0,
+    days: int = 0,
+    unpaid_only: bool = False,
+    uncollected_only: bool = False,
+    page: int = 1,
+    per_page: int = paging.DEFAULT_PER_PAGE,
+    db: Session = Depends(get_db),
+):
+    """What has been dispensed, and what happened to it afterwards.
+
+    There was no such screen. The controlled register covers S5 and S6, the
+    counter log covers over-the-counter sales, and everything in between — the
+    ordinary prescription dispensed an hour ago — could only be found by
+    knowing the patient and opening their record.
+
+    That is the question a pharmacy actually asks: "what went out this
+    morning", "did that one get paid for", "has she collected it". So the row
+    carries the money and the collection alongside the medicine, because those
+    are the three reasons anybody looks.
+    """
+    query = (
+        db.query(Dispensing)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .options(
+            joinedload(Dispensing.prescription_item)
+            .joinedload(PrescriptionItem.product),
+            joinedload(Dispensing.prescription_item)
+            .joinedload(PrescriptionItem.prescription)
+            .joinedload(Prescription.patient),
+            joinedload(Dispensing.prescription_item)
+            .joinedload(PrescriptionItem.prescription)
+            .joinedload(Prescription.doctor),
+            joinedload(Dispensing.dispensed_by),
+        )
+    )
+
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(or_(
+            Prescription.rx_number.ilike(like),
+            Product.name.ilike(like),
+            Patient.first_name.ilike(like),
+            Patient.last_name.ilike(like),
+        )).join(Patient, Prescription.patient_id == Patient.id)
+    if patient_id:
+        query = query.filter(Prescription.patient_id == patient_id)
+    if product_id:
+        query = query.filter(PrescriptionItem.product_id == product_id)
+    if schedule >= 0:
+        query = query.filter(Dispensing.schedule == schedule)
+    if dispensed_by:
+        query = query.filter(Dispensing.dispensed_by_id == dispensed_by)
+    if days > 0:
+        query = query.filter(
+            Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
+    if uncollected_only:
+        query = query.filter(Dispensing.collected_at.is_(None))
+
+    result = paging.page(query.order_by(Dispensing.dispensed_at.desc()),
+                         page=page, per_page=per_page)
+
+    # The sale and the claim for these rows, in two queries rather than two per
+    # row. Every row shows whether it was paid for, and that is a different
+    # table from the dispensing.
+    sale_ids = {d.sale_id for d in result.items if d.sale_id}
+    sales = {s.id: s for s in db.query(Sale).filter(Sale.id.in_(sale_ids or [0])).all()}
+    claims = {c.sale_id: c for c in
+              db.query(Claim).filter(Claim.sale_id.in_(sale_ids or [0])).all()}
+
+    def row(d):
+        item = d.prescription_item
+        rx = item.prescription if item else None
+        patient = rx.patient if rx else None
+        product = item.product if item else None
+        sale = sales.get(d.sale_id)
+        claim = claims.get(d.sale_id)
+        owed = 0.0
+        if sale and sale.status != "paid":
+            owed = round(claim.patient_liable if claim else (sale.total or 0.0), 2)
+        return {
+            "id": d.id,
+            "dispensed_at": d.dispensed_at,
+            "quantity": d.quantity,
+            "schedule": d.schedule or 0,
+            "is_repeat": bool(d.is_repeat),
+            "prescription_id": rx.id if rx else None,
+            "rx_number": rx.rx_number if rx else "",
+            "patient_id": rx.patient_id if rx else None,
+            "patient": (f"{patient.first_name} {patient.last_name}".strip()
+                        if patient else "Walk-in"),
+            "product_id": item.product_id if item else None,
+            "product": (f"{product.name} {product.strength or ''}".strip()
+                        if product else ""),
+            "prescriber_id": rx.doctor_id if rx else None,
+            "prescriber": rx.doctor.name if rx and rx.doctor else "",
+            "dispensed_by_id": d.dispensed_by_id,
+            "dispensed_by": d.dispensed_by.full_name if d.dispensed_by else "",
+            "pharmacist_initial": d.pharmacist_initial or "",
+            "collected_at": d.collected_at,
+            "collected_name": d.collected_name or "",
+            "sale_id": d.sale_id,
+            "sale_number": sale.sale_number if sale else "",
+            "sale_status": sale.status if sale else "",
+            "sale_total": round(sale.total, 2) if sale else 0.0,
+            "claim_id": claim.id if claim else None,
+            "claim_status": claim.status if claim else "",
+            "scheme_pays": round(claim.amount_approved, 2) if claim else 0.0,
+            # What the patient still has to hand over. The reason a dispensing
+            # is looked up at all, as often as not.
+            "outstanding": owed,
+        }
+
+    rows = [row(d) for d in result.items]
+    if unpaid_only:
+        rows = [r for r in rows if r["outstanding"] > 0.005]
+    return {**result.envelope(), "items": rows}
+
 
 @router.get("/will-call")
 def will_call(limit: int = 200, db: Session = Depends(get_db)):
