@@ -110,6 +110,15 @@ def trace(db: Session, batch_id: int) -> dict:
 
     # Forward: allocations link a batch to the sale line it served, and the sale
     # line to the sale and the patient. This is the join nobody had written.
+    #
+    # Scoped by hand, because it has to be. The tenancy filter is applied by the
+    # ORM and the ORM cannot see inside a `text()` string — SQLAlchemy has no
+    # idea this touches patients. Today the only way in is `db.get(StockBatch)`
+    # above, which *is* scoped, so another pharmacy's batch id already comes
+    # back empty. This is the second lock: the rows are pinned to the batch's
+    # own pharmacy, so the query is right even if a future caller reaches it
+    # some other way. Patient names and telephone numbers are not a thing to
+    # protect with one lock.
     rows = db.execute(
         text("""
         SELECT ba.quantity      AS qty,
@@ -129,9 +138,10 @@ def trace(db: Session, batch_id: int) -> dict:
           LEFT JOIN prescription_items pi ON pi.id = si.prescription_item_id
           LEFT JOIN prescriptions rx ON rx.id = pi.prescription_id
          WHERE ba.batch_id = :batch
+           AND s.pharmacy_id = :pharmacy
          ORDER BY s.created_at DESC
         """),
-        {"batch": batch_id},
+        {"batch": batch_id, "pharmacy": batch.pharmacy_id},
     ).mappings().all() if _has_allocations(db) else []
 
     recipients = []
@@ -194,7 +204,13 @@ def trace(db: Session, batch_id: int) -> dict:
 
 
 def _has_allocations(db: Session) -> bool:
-    """Whether this build records which batch served which sale line."""
+    """Whether this build records which batch served which sale line.
+
+    Asks whether the table exists, not what is in it: the constant 1 is all it
+    ever selects, so there is no row here to belong to anybody. Left as raw SQL
+    deliberately — the point is to survive the table being absent, which an ORM
+    query would not.
+    """
     try:
         db.execute(text("SELECT 1 FROM batch_allocations LIMIT 1"))
         return True
