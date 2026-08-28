@@ -1397,7 +1397,7 @@ table:has(td.lb-actions > span) { --actions-w: 17rem; }
    only appears once there are real to-follows in the database, which is why an
    empty table never showed it. */
 table:has(td.actions .btn-count),
-table:has(td.lb-actions .btn-count) { --actions-w: 18.5rem; }
+table:has(td.lb-actions .btn-count) { --actions-w: 20.5rem; }
 table th.actions { width: var(--actions-w, 11rem); }
 /* No `.dt` exception here. DataTable states its column widths as inline styles
    on the header cells, which outrank any stylesheet rule, so its own tables are
@@ -3349,10 +3349,21 @@ img { -webkit-user-drag: none; user-select: none; }
    `overflow: visible` was the first attempt at that and it was the wrong tool:
    it stopped buttons being clipped by letting the cell paint outside the table
    entirely, so a failure reason in the same column ran off the white background
-   and onto the page. Clip here; earn the room in the header. */
+   and onto the page. Clip here; earn the room in the header.
+
+   `clip`, not `ellipsis` — and this rule said `ellipsis` while its own comment
+   said otherwise, which quietly undid the decision made two thousand lines
+   above. The reason it matters is not neatness. An ellipsis in a column of
+   buttons renders as three dots at the end of the row, which reads as a "more
+   actions" menu, does nothing when clicked, and hides the fact that a button
+   has been cut off and cannot be reached. On To Follows it was concealing
+   "Cancel — not coming" hanging thirty-one pixels outside its cell. With
+   `clip` a column that is too narrow looks broken, which is the truth, and
+   somebody fixes the width instead of trusting the dots. */
 .dt td.actions, .dt th.actions,
+.dt td.lb-actions, .dt th.lb-actions,
 .cu-scroll > table td.actions {
-  overflow: hidden; text-overflow: ellipsis;
+  overflow: hidden; text-overflow: clip;
   white-space: nowrap; text-align: right;
 }
 
@@ -3406,7 +3417,10 @@ td.lb-actions {
      its box and puts the second action off-screen. Asking for the room the
      buttons need keeps them where they can be clicked. */
   /* Width comes from the header, like every other column under fixed layout. */
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* `clip` for the same reason as the other action cells: three dots at the end
+     of a row of buttons read as a menu, do nothing, and disguise a control that
+     has been cut off. A column that is too narrow should look it. */
+  overflow: hidden; text-overflow: clip; white-space: nowrap;
 }
 .lb-actions { min-width: max-content; }
 .cu-scroll > table td .clip { max-width: 100%; }

@@ -54,6 +54,12 @@ export default function Repeats() {
   const [loading, setLoading] = useState(true);
   const toast = useToast();
   const confirm = useConfirm();
+  // What the dispensing record needs before it can be written: who checked it,
+  // and whether the script it repeats was actually looked at.
+  const [supplying, setSupplying] = useState<DueItem | null>(null);
+  const [initials, setInitials] = useState("");
+  const [sighted, setSighted] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const [products, setProducts] = useState<any[]>([]);
   const [aids, setAids] = useState<any[]>([]);
@@ -103,35 +109,41 @@ export default function Repeats() {
 
   /** Supply a due repeat.
    *
-   *  Confirmed first because it moves stock and raises a sale — a button that
-   *  quietly dispenses on one click is a button somebody presses by accident
-   *  on a busy counter, and the medicine is then off the shelf.
+   *  This asked for a plain yes and sent empty initials, which the server
+   *  refuses — so the button could never once have worked, and said so with a
+   *  400 the dispenser could do nothing about. It also asserted that the script
+   *  had been sighted, on the dispenser's behalf and without asking. A false
+   *  entry in a dispensing record is worse than a missing feature: the record
+   *  exists to say who checked what, and one that answers for somebody is not a
+   *  record at all.
+   *
+   *  Both are now asked for, because both are what the dispensing is.
    */
-  async function dispenseRepeat(item: DueItem) {
-    const ok = await confirm({
-      title: `Dispense ${item.product}?`,
-      body: (
-        <>
-          {item.quantity} for <b>{item.patient_name}</b> against{" "}
-          <span className="mono">{item.rx_number}</span>. This moves the stock,
-          raises the sale and puts the bag on the will-call shelf.
-        </>
-      ),
-      confirmLabel: "Dispense it",
-    });
-    if (!ok) return;
+  async function dispenseRepeat() {
+    const item = supplying;
+    if (!item) return;
+    setBusy(true);
     try {
       await api.post(`/api/prescriptions/${item.prescription_id}/dispense`, {
         item_ids: [item.item_id],
         payment_method: "cash",
         supply: {},
-        id_verified: false, script_sighted: true, prescriber_verified: false,
-        id_number_seen: "", pharmacist_initial: "", compliance_notes: "",
+        id_verified: false,
+        script_sighted: sighted,
+        prescriber_verified: false,
+        id_number_seen: "",
+        pharmacist_initial: initials.trim(),
+        compliance_notes: "",
       });
       toast.ok(`${item.product} dispensed for ${item.patient_name}.`);
+      setSupplying(null);
+      setInitials("");
+      setSighted(false);
       load();
     } catch (e) {
       toast.error(errorText(e, "That could not be dispensed."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -231,7 +243,10 @@ export default function Repeats() {
                             there is nothing to capture again. */}
                         {i.can_supply ? (
                           <BusyButton className="btn primary sm"
-                                      onClick={() => dispenseRepeat(i)}>
+                                      onClick={() => {
+                                        setInitials(""); setSighted(false);
+                                        setSupplying(i);
+                                      }}>
                             Dispense
                             <span className="btn-count">{i.quantity}</span>
                           </BusyButton>
@@ -326,6 +341,49 @@ export default function Repeats() {
               {quote.note && <p className="muted small">{quote.note}</p>}
             </div>
           )}
+        </div>
+      )}
+
+      {supplying && (
+        <div className="modal-backdrop" onClick={() => setSupplying(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Dispense {supplying.product}?</h2>
+            <p className="muted">
+              {supplying.quantity} for <b>{supplying.patient_name}</b> against{" "}
+              <span className="mono">{supplying.rx_number}</span>. This moves the
+              stock, raises the sale and puts the bag on the will-call shelf.
+            </p>
+            <label className="field">
+              Checked by (pharmacist initials)
+              <input
+                value={initials} maxLength={8} autoFocus
+                onChange={(e) => setInitials(e.target.value)}
+                placeholder="e.g. TM"
+              />
+            </label>
+            {/* Asked, not assumed. This used to be sent as true on the
+                dispenser's behalf, which put a statement in the register that
+                nobody had made. */}
+            <Checkbox checked={sighted} onChange={setSighted}>
+              The script this repeats has been sighted
+            </Checkbox>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setSupplying(null)}>
+                Cancel
+              </button>
+              <BusyButton
+                disabled={busy || !initials.trim() || !sighted}
+                onClick={dispenseRepeat}
+              >
+                Dispense it
+              </BusyButton>
+            </div>
+            {!initials.trim() && (
+              <p className="muted small">
+                The dispensing record has to say who checked it.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>
