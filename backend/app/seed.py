@@ -403,6 +403,75 @@ def seed_claiming_if_empty(db):
             aid.discount_percent = 0.0
         db.commit()
 
+    _attach_pay_offices(db)
+
+
+def _attach_pay_offices(db) -> int:
+    """Give every scheme a pay office, on every boot rather than the first.
+
+    This used to live inside the block above, which only runs when there are no
+    pay offices at all. On the hosted database the offices were created on an
+    early boot, before a single medical aid existed: the loop ran over an empty
+    set, linked nothing, and could never run again because the offices now
+    existed. Eleven schemes ended up orphaned, and since the batching work list
+    reaches claims by joining scheme to pay office, three hundred claims sat
+    unbatched with the screen showing nothing to do and no way to find out why.
+
+    The same thing would happen to any pharmacy adding a medical aid after the
+    first run, which is every pharmacy — a scheme signed up in year two would
+    silently never be claimable.
+
+    Only the missing link is filled. Trading terms — whether a scheme claims in
+    realtime, its levy, its discount — are somebody's deliberate settings once a
+    scheme is in use, and a backfill that resets them would be a worse bug than
+    the one it fixes.
+
+    A scheme with no matching office gets one of its own rather than being
+    dropped into "Private / cash patients". Only four offices are seeded and a
+    Zimbabwean pharmacy claims from a dozen funders; filing Alliance Health
+    under private patients would send its claims to the wrong place and pay the
+    money to nobody. A pay office is simply who the claim goes to and who
+    settles it, and for Alliance Health that is Alliance Health.
+    """
+    from .models import FeeModel, MedicalAid, PayOffice
+
+    orphans = db.query(MedicalAid).filter(MedicalAid.pay_office_id.is_(None)).all()
+    if not orphans:
+        return 0
+
+    offices = db.query(PayOffice).all()
+    if not offices:
+        return 0
+    by_code = {o.code: o for o in offices}
+    models = {m.code: m for m in db.query(FeeModel).all()}
+
+    for aid in orphans:
+        name = (aid.name or "").upper()
+        office = (by_code.get("CIMAS") if "CIMAS" in name
+                  else by_code.get("PSMAS") if "PSMAS" in name or "PREMIER" in name
+                  else by_code.get("FIRSTMUT") if "FIRST" in name
+                  else None)
+        if office is None:
+            # Its own payer. Matched on the scheme's code so the two books of a
+            # scheme that runs one in each currency — First Mutual's USD and ZiG
+            # ledgers, for instance — do not each invent a separate office.
+            code = (aid.scheme_code or aid.name or f"AID{aid.id}")[:20].upper()
+            office = by_code.get(code)
+            if office is None:
+                office = PayOffice(code=code, name=aid.name or code,
+                                   phone=aid.phone or "")
+                db.add(office)
+                db.flush()
+                by_code[code] = office
+        aid.pay_office_id = office.id
+        if aid.fee_model_id is None:
+            model = models.get("SEP-TIER" if office.code == "CIMAS" else "SEP+50")
+            if model is not None:
+                aid.fee_model_id = model.id
+    db.commit()
+    log.info("Attached %s scheme(s) to a pay office", len(orphans))
+    return len(orphans)
+
     if db.query(DiagnosisCode).count() == 0:
         # A working starter set. A live install imports the full ICD-10 release.
         codes = [
