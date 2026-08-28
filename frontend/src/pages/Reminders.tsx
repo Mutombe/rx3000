@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime, errorText  } from "../api";
+import RowLink, { RowActions } from "../components/RowLink";
+import { api, fmtDateTime, errorText, prefetchRoute } from "../api";
 import { Message, Patient } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -107,7 +108,8 @@ export default function Reminders() {
           <thead><tr><th>Patient</th><th>Type</th><th>Channel</th><th>Message</th><th>Status</th><th>When</th></tr></thead>
           <tbody>
             {messages.map((m) => (
-              <tr key={m.id}>
+              <RowLink key={m.id} to={`/messages/${m.id}`}
+                       prefetch={prefetchRoute}>
                 <td><EntityLink kind="patient" id={m.patient_id}><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></EntityLink></td>
                 <td><span className="badge muted">{m.message_type.replace("_", " ")}</span></td>
                 <td>{m.channel.toUpperCase()}</td>
@@ -117,7 +119,7 @@ export default function Reminders() {
                   {m.detail && <div className="muted" style={{ fontSize: 11 }}>{m.detail}</div>}
                 </td>
                 <td className="muted">{fmtDateTime(m.sent_at ?? m.scheduled_for)}</td>
-              </tr>
+              </RowLink>
             ))}
           </tbody>
         </table>

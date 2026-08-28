@@ -14,8 +14,9 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { useToast } from "../components/Toast";
+import RowLink, { RowActions } from "../components/RowLink";
 import { EntityLink } from "../components/Filters";
 
 interface Hit {
@@ -134,7 +135,8 @@ export default function Recall() {
             </thead>
             <tbody>
               {hits.map((h) => (
-                <tr key={h.batch_id}>
+                <RowLink key={h.batch_id} to={`/batches/${h.batch_id}`}
+                         prefetch={prefetchRoute}>
                   <td className="mono">
                     <EntityLink kind="batch" id={h.batch_id}>
                       {h.batch_number || "—"}
@@ -145,10 +147,10 @@ export default function Recall() {
                   <td className="num">
                     {h.quantity_remaining} <span className="muted">of {h.quantity_received}</span>
                   </td>
-                  <td className="actions">
+                  <RowActions>
                     <button className="btn small" onClick={() => open(h)}>Trace it</button>
-                  </td>
-                </tr>
+                  </RowActions>
+                </RowLink>
               ))}
             </tbody>
           </table>

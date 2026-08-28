@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import RowLink, { RowActions } from "../components/RowLink";
 import PettyCash from "../components/PettyCash";
 import CashUp from "../components/CashUp";
-import { api, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
 
@@ -160,7 +161,8 @@ export default function Shifts() {
           </thead>
           <tbody>
             {history.map((s) => (
-              <tr key={s.id}>
+              <RowLink key={s.id} to={`/shifts/${s.id}`}
+                       prefetch={prefetchRoute}>
                 <td><EntityLink kind="staff" id={s.user_id}><b>{s.user?.full_name ?? s.user_id}</b></EntityLink></td>
                 {/* A run number without its till is meaningless, and every shift
                     opened before runs were numbered has neither. Both absent
@@ -185,7 +187,7 @@ export default function Shifts() {
                 </td>
                 <td className="num">{s.sales_count}</td>
                 <td className="muted">{s.notes}</td>
-              </tr>
+              </RowLink>
             ))}
           </tbody>
         </table>

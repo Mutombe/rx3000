@@ -11,8 +11,9 @@
  *  queue in a state nobody can reason about.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { EntityLink } from "../components/Filters";
+import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
 
 interface Deferred {
@@ -148,7 +149,8 @@ export default function DeferredClaims() {
             </thead>
             <tbody>
               {rows.map((c) => (
-                <tr key={c.id}>
+                <RowLink key={c.id} to={`/claims/${c.id}`}
+                         prefetch={prefetchRoute}>
                   <td className="mono"><EntityLink kind="claim" id={c.id}>{c.claim_number}</EntityLink></td>
                   <td>
                     <EntityLink to={`/sales/${c.sale_id}`}>{c.sale_number}</EntityLink>
@@ -170,7 +172,7 @@ export default function DeferredClaims() {
                       <div className="muted small">held {fmtDateTime(c.deferred_at)}</div>
                     )}
                   </td>
-                  <td className="actions">
+                  <RowActions>
                     <button
                       className="btn sm"
                       disabled={busy !== null}
@@ -178,8 +180,8 @@ export default function DeferredClaims() {
                     >
                       {busy === c.id ? "Sending…" : "Send now"}
                     </button>
-                  </td>
-                </tr>
+                  </RowActions>
+                </RowLink>
               ))}
             </tbody>
           </table>
