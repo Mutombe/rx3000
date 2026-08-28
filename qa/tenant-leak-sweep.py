@@ -116,19 +116,30 @@ if status != 200:
 owner = tok["access_token"]
 
 # A pharmacy that has never traded.
-import time
-stamp = str(int(time.time()))[-6:]
-status, made = call("/api/pharmacies", owner, "POST", {
-    "name": f"Leak Sweep {stamp}",
-    "admin_username": f"leak{stamp}",
-    "admin_password": "leaksweep123",
-    "admin_name": "Leak Sweep",
-})
-if status != 200:
-    sys.exit(f"could not create the empty pharmacy: {status} {made}")
+#
+# One fixture, reused, rather than a fresh one per run. The first version
+# stamped the name with the clock and left a tenant behind every time it ran —
+# which on a real deployment is litter that accumulates in the one list a
+# platform owner reads to see who their customers are.
+FIXTURE = "Leak Sweep (test fixture)"
+FIXTURE_USER = "leak.sweep.fixture"
+FIXTURE_PASS = "leaksweep123"
+
+status, existing = call("/api/pharmacies", owner)
+already = any(p["name"] == FIXTURE for p in (existing or {}).get("items", []))
+
+if not already:
+    status, made = call("/api/pharmacies", owner, "POST", {
+        "name": FIXTURE,
+        "admin_username": FIXTURE_USER,
+        "admin_password": FIXTURE_PASS,
+        "admin_name": "Leak Sweep",
+    })
+    if status != 200:
+        sys.exit(f"could not create the empty pharmacy: {status} {made}")
 
 status, tok = call("/api/auth/login", method="POST",
-                   body={"username": f"leak{stamp}", "password": "leaksweep123"})
+                   body={"username": FIXTURE_USER, "password": FIXTURE_PASS})
 if status != 200:
     sys.exit(f"could not sign in as the empty pharmacy: {status}")
 empty = tok["access_token"]
