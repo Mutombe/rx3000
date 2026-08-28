@@ -2,6 +2,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import settings
+from . import tenancy
 
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
@@ -89,8 +90,17 @@ class Base(DeclarativeBase):
     pass
 
 
+# Every ORM read on a session from this factory is filtered by pharmacy. Done
+# once, here, so that no query anywhere has to remember — see `tenancy` for why
+# the alternative does not work.
+tenancy.install(SessionLocal)
+
+
 def get_db():
     db = SessionLocal()
+    # New rows get the pharmacy in force. Registered per session rather than on
+    # the class so the handler is bound to this session's identity map.
+    tenancy.stamp(db)
     try:
         yield db
     finally:

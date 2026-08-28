@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from .middleware_tenancy import TenancyMiddleware
 from fastapi.responses import JSONResponse
 
 from . import schedule_policy
@@ -56,6 +57,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
+    # Before anything serves a request. The scoping narrows a query with no
+    # pharmacy in force to nothing, so a deployment that adds the column and
+    # stops there comes up with every screen empty and every patient apparently
+    # gone — which is a worse morning than a failed migration.
+    from .tenancy_backfill import run as _backfill_tenants
+    from . import tenancy as _tenancy
+    stamped, founding_pharmacy = _backfill_tenants(engine)
+    if stamped:
+        log.info("Tenancy backfill stamped %s row(s)", stamped)
+
+    # The rest of startup runs *as* the founding pharmacy.
+    #
+    # Boot-time work — the default branch, the chart of accounts, the
+    # demonstration data — writes rows like any request does, and a row written
+    # with no pharmacy in force belongs to nobody and is visible to nobody. The
+    # first symptom of getting this wrong is not an error: it is
+    # `default_branch` failing to see the branch that already exists, deciding
+    # there is none, and colliding with its unique code.
+    _tenant_token = _tenancy.set_current_pharmacy(founding_pharmacy)
     # Every pre-branch row gets a home. A batch belonging to no branch is stock
     # that has vanished from the system while sitting on a shelf.
     from .database import SessionLocal
@@ -102,6 +122,7 @@ async def lifespan(app: FastAPI):
                 db.rollback()
     finally:
         db.close()
+        _tenancy.reset_current_pharmacy(_tenant_token)
     scheduler.start()
     yield
     scheduler.stop()
@@ -120,6 +141,9 @@ app = FastAPI(title="RX5000 Pharmacy Management System", version="1.0.0", lifesp
 
 # Bounds every size parameter before a handler sees it. Above the audit log so
 # what is recorded is what was actually served.
+# Outermost of the application middlewares, so the pharmacy is in force before
+# anything else — including the audit log — reads a row.
+app.add_middleware(TenancyMiddleware)
 app.add_middleware(RequestSizeLimit)
 
 app.add_middleware(AuditMiddleware)

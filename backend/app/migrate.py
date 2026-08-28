@@ -489,6 +489,38 @@ def _fill_null_text(conn, inspector, existing_tables: set) -> int:
     return filled
 
 
+def _add_tenant_columns(conn, inspector, existing_tables) -> int:
+    """Add `pharmacy_id` to every table the models say is tenant-scoped.
+
+    Read from the mappers rather than listed in ADDED_COLUMNS, for the same
+    reason the filter itself is automatic: seventy-three hand-written entries is
+    seventy-three chances to omit one, and the omission does not fail — it
+    produces a table whose rows belong to nobody and are therefore invisible to
+    everybody.
+
+    Nullable on purpose. The backfill that follows fills them; a NOT NULL added
+    ahead of that takes the deployment down instead of the data.
+    """
+    from .database import Base
+    from .tenancy import TenantMixin
+
+    added = 0
+    for mapper in Base.registry.mappers:
+        cls = mapper.class_
+        if not issubclass(cls, TenantMixin):
+            continue
+        table = cls.__tablename__
+        if table not in existing_tables:
+            continue                      # create_all builds it complete
+        present = {c["name"] for c in inspector.get_columns(table)}
+        if "pharmacy_id" in present:
+            continue
+        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN pharmacy_id INTEGER"))
+        log.info("Added column %s.pharmacy_id", table)
+        added += 1
+    return added
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -513,6 +545,7 @@ def run_migrations(engine: Engine) -> int:
                 log.info("Added column %s.%s", table, column)
                 applied += 1
 
+        applied += _add_tenant_columns(conn, inspector, existing_tables)
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)

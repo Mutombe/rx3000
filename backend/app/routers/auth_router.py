@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=schemas.TokenResponse)
 def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == body.username).first()
+    user = auth.find_by_username(db, body.username)
     if not user or not auth.verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password")
     if not user.active:
@@ -37,7 +37,7 @@ def create_user(
     db: Session = Depends(get_db),
     _: User = Depends(auth.require_role("admin")),
 ):
-    if db.query(User).filter(User.username == body.username).first():
+    if auth.find_by_username(db, body.username):
         raise HTTPException(status_code=400, detail="Username already exists")
     user = User(
         username=body.username,
@@ -103,7 +103,7 @@ def unlock_till(pin: str = Body(...), username: str = Body(default=""),
     """
     who = user
     if username and username != user.username:
-        who = db.query(User).filter(User.username == username, User.active).first()
+        who = (lambda u: u if u and u.active else None)(auth.find_by_username(db, username))
         if not who:
             raise HTTPException(status_code=403, detail=f"No active user is called '{username}'.")
     try:
@@ -175,7 +175,7 @@ def reset_with_pin(username: str = Body(...), pin: str = Body(...),
     Somebody with no PIN set cannot use this, and is told to ask an
     administrator rather than being left guessing.
     """
-    user = db.query(User).filter(User.username == username.strip()).first()
+    user = auth.find_by_username(db, username.strip())
     # The same answer whether the name is wrong or the PIN is: a reset form that
     # distinguishes them is a list of valid usernames.
     generic = "That username and PIN were not accepted."

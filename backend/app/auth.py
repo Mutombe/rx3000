@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .config import settings
 from .database import get_db
+from . import tenancy
 from .models import User
 
 _bearer = HTTPBearer(auto_error=False)
@@ -30,6 +31,27 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 
+def find_by_username(db: Session, username: str) -> User | None:
+    """Look a person up to sign them in, across every pharmacy.
+
+    Authentication is the one thing that cannot be scoped by pharmacy, because
+    the pharmacy is what it is about to establish. Somebody typing their
+    username has not told us which tenant they are yet — the user record is what
+    says so.
+
+    That makes usernames global to a deployment, which is the ordinary trade and
+    the one worth taking: the alternative is asking a pharmacist to pick their
+    employer from a list before typing a password.
+
+    Every other query about users stays scoped. This function exists so that the
+    exception is one named thing that can be read and audited, rather than an
+    `unscoped()` block copied into four routers by somebody who needed a login
+    to work.
+    """
+    with tenancy.unscoped():
+        return db.query(User).filter(User.username == username).first()
+
+
 def create_token(user: User) -> str:
     ttl = timedelta(hours=settings.TOKEN_TTL_HOURS)
     # A demo token never outlives the demo. The row is still the authority — see
@@ -43,6 +65,14 @@ def create_token(user: User) -> str:
         "sub": str(user.id),
         "username": user.username,
         "role": user.role,
+        # Which pharmacy's data this token may see.
+        #
+        # Carried in the token rather than looked up, because the lookup is the
+        # thing that needs scoping: loading the user to find their pharmacy is
+        # itself a query against a scoped table, and at that moment no pharmacy
+        # is in force. Putting it in the token breaks that circle — the tenant
+        # is known from the first line of the request, before anything reads.
+        "pharmacy_id": user.pharmacy_id,
         "exp": datetime.now(timezone.utc) + ttl,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
@@ -58,7 +88,11 @@ def get_current_user(
         payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
     except jwt.PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
-    user = db.get(User, int(payload["sub"]))
+    # Deliberately unscoped, and the only place in the application that is.
+    # The user record is what *says* which pharmacy is in force; scoping it by
+    # the pharmacy in force would mean nobody could ever sign in.
+    with tenancy.unscoped():
+        user = db.get(User, int(payload["sub"]))
     if user is None or not user.active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     # Checked here rather than only at login, so a demo ends four hours after it

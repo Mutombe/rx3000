@@ -7,9 +7,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from .database import Base
+from .tenancy import TenantMixin
 
 
-class User(Base):
+class User(Base, TenantMixin):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False, index=True)
@@ -141,7 +142,7 @@ class Tariff(Base):
     active = Column(Boolean, default=True)
 
 
-class GatewayTransaction(Base):
+class GatewayTransaction(Base, TenantMixin):
     """Every call through the gateway, kept for dispute and audit.
 
     A funder query six months later is answered from here, not from memory.
@@ -165,7 +166,7 @@ class GatewayTransaction(Base):
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
-class Mixture(Base):
+class Mixture(Base, TenantMixin):
     """An extemporaneous preparation — a recipe made up in the dispensary.
 
     A compound is not a product on a shelf: it is assembled from ingredients at
@@ -191,7 +192,7 @@ class Mixture(Base):
                                cascade="all, delete-orphan")
 
 
-class MixtureIngredient(Base):
+class MixtureIngredient(Base, TenantMixin):
     """One component of a recipe, drawn from ordinary stock when prepared."""
     __tablename__ = "mixture_ingredients"
     id = Column(Integer, primary_key=True)
@@ -314,7 +315,7 @@ class MedicalAid(Base):
     formulary = relationship("Formulary")
 
 
-class Doctor(Base):
+class Doctor(Base, TenantMixin):
     __tablename__ = "doctors"
     id = Column(Integer, primary_key=True)
     name = Column(String(120), nullable=False)
@@ -328,7 +329,7 @@ class Doctor(Base):
     portal_active = Column(Boolean, default=False)
 
 
-class Patient(Base):
+class Patient(Base, TenantMixin):
     __tablename__ = "patients"
     id = Column(Integer, primary_key=True)
     first_name = Column(String(80), nullable=False)
@@ -362,7 +363,7 @@ class Patient(Base):
     prescriptions = relationship("Prescription", back_populates="patient")
 
 
-class Supplier(Base):
+class Supplier(Base, TenantMixin):
     __tablename__ = "suppliers"
     id = Column(Integer, primary_key=True)
     name = Column(String(120), nullable=False)
@@ -371,7 +372,7 @@ class Supplier(Base):
     email = Column(String(120), default="")
 
 
-class Product(Base):
+class Product(Base, TenantMixin):
     __tablename__ = "products"
     id = Column(Integer, primary_key=True)
     name = Column(String(200), nullable=False, index=True)
@@ -414,7 +415,7 @@ class Product(Base):
     )
 
 
-class ProductBarcode(Base):
+class ProductBarcode(Base, TenantMixin):
     """The other codes a product answers to.
 
     `Product.barcode` stays where it is and stays authoritative — it is what
@@ -447,7 +448,7 @@ class ProductBarcode(Base):
     product = relationship("Product", back_populates="barcodes")
 
 
-class Prescription(Base):
+class Prescription(Base, TenantMixin):
     __tablename__ = "prescriptions"
     id = Column(Integer, primary_key=True)
     rx_number = Column(String(30), unique=True, nullable=True, index=True)
@@ -479,7 +480,7 @@ class Prescription(Base):
     items = relationship("PrescriptionItem", back_populates="prescription", cascade="all, delete-orphan")
 
 
-class PrescriptionItem(Base):
+class PrescriptionItem(Base, TenantMixin):
     __tablename__ = "prescription_items"
     id = Column(Integer, primary_key=True)
     prescription_id = Column(Integer, ForeignKey("prescriptions.id"), nullable=False)
@@ -507,7 +508,7 @@ class PrescriptionItem(Base):
     dispensings = relationship("Dispensing", back_populates="prescription_item")
 
 
-class Dispensing(Base):
+class Dispensing(Base, TenantMixin):
     __tablename__ = "dispensings"
     id = Column(Integer, primary_key=True)
     prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"), nullable=False)
@@ -565,7 +566,7 @@ class Dispensing(Base):
     witness = relationship("User", foreign_keys=[witness_id])
 
 
-class OTCSale(Base):
+class OTCSale(Base, TenantMixin):
     """Pharmacy-medicine (S1/S2) counter-sale record — no script, but the
     pharmacist, indication and counselling must be recorded."""
     __tablename__ = "otc_sales"
@@ -588,7 +589,7 @@ class OTCSale(Base):
     pharmacist = relationship("User")
 
 
-class Sale(Base):
+class Sale(Base, TenantMixin):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True)
     sale_number = Column(String(30), unique=True, nullable=False, index=True)
@@ -657,7 +658,7 @@ class Sale(Base):
     claim = relationship("Claim", back_populates="sale", uselist=False)
 
 
-class SaleItem(Base):
+class SaleItem(Base, TenantMixin):
     __tablename__ = "sale_items"
     id = Column(Integer, primary_key=True)
     sale_id = Column(Integer, ForeignKey("sales.id"), nullable=False)
@@ -685,7 +686,7 @@ class SaleItem(Base):
     prescription_item = relationship("PrescriptionItem")
 
 
-class ClaimBatch(Base):
+class ClaimBatch(Base, TenantMixin):
     """A set of claims submitted to one pay office as a unit.
 
     Realtime schemes settle line by line; the rest are batched, sent, and
@@ -715,7 +716,7 @@ class ClaimBatch(Base):
     claims = relationship("Claim", back_populates="batch")
 
 
-class Claim(Base):
+class Claim(Base, TenantMixin):
     __tablename__ = "claims"
     id = Column(Integer, primary_key=True)
     claim_number = Column(String(30), unique=True, nullable=False)
@@ -757,7 +758,7 @@ class Claim(Base):
     batch = relationship("ClaimBatch", back_populates="claims")
 
 
-class StockMovement(Base):
+class StockMovement(Base, TenantMixin):
     __tablename__ = "stock_movements"
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
@@ -774,7 +775,7 @@ class StockMovement(Base):
     user = relationship("User")
 
 
-class PurchaseOrder(Base):
+class PurchaseOrder(Base, TenantMixin):
     __tablename__ = "purchase_orders"
     id = Column(Integer, primary_key=True)
     order_number = Column(String(30), unique=True, nullable=False)
@@ -788,7 +789,7 @@ class PurchaseOrder(Base):
     items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan")
 
 
-class PurchaseOrderItem(Base):
+class PurchaseOrderItem(Base, TenantMixin):
     __tablename__ = "purchase_order_items"
     id = Column(Integer, primary_key=True)
     order_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=False)
@@ -801,7 +802,7 @@ class PurchaseOrderItem(Base):
     product = relationship("Product")
 
 
-class SupplierInvoice(Base):
+class SupplierInvoice(Base, TenantMixin):
     """What the supplier says is owed, as against what we thought we ordered.
 
     The purchase order is our intention and the goods receipt is what arrived.
@@ -845,7 +846,7 @@ class SupplierInvoice(Base):
                          cascade="all, delete-orphan")
 
 
-class SupplierInvoiceItem(Base):
+class SupplierInvoiceItem(Base, TenantMixin):
     """A billed line. Optional, and the match says so when they are absent.
 
     Entering every line off a wholesaler's invoice is real work, so a pharmacy
@@ -868,7 +869,7 @@ class SupplierInvoiceItem(Base):
     product = relationship("Product")
 
 
-class SupplierPayment(Base):
+class SupplierPayment(Base, TenantMixin):
     """Money going out. Before this, trade creditors only ever grew."""
     __tablename__ = "supplier_payments"
     id = Column(Integer, primary_key=True)
@@ -889,7 +890,7 @@ class SupplierPayment(Base):
                                cascade="all, delete-orphan")
 
 
-class SupplierPaymentAllocation(Base):
+class SupplierPaymentAllocation(Base, TenantMixin):
     """Which invoice a payment settled.
 
     Kept separate from the payment because one transfer routinely settles five
@@ -907,7 +908,7 @@ class SupplierPaymentAllocation(Base):
     invoice = relationship("SupplierInvoice")
 
 
-class RegisterEntry(Base):
+class RegisterEntry(Base, TenantMixin):
     """Electronic schedule register, immutable log for S5/S6 substances."""
     __tablename__ = "register_entries"
     id = Column(Integer, primary_key=True)
@@ -931,7 +932,7 @@ class RegisterEntry(Base):
 
 # ==================== CRM ====================
 
-class Company(Base):
+class Company(Base, TenantMixin):
     """A corporate account, clinic, old-age home, employer, wholesale buyer."""
     __tablename__ = "companies"
     id = Column(Integer, primary_key=True)
@@ -951,7 +952,7 @@ class Company(Base):
     contacts = relationship("Contact", back_populates="company")
 
 
-class Contact(Base):
+class Contact(Base, TenantMixin):
     """A person in the CRM. A lead, a corporate contact, or a linked patient."""
     __tablename__ = "contacts"
     id = Column(Integer, primary_key=True)
@@ -974,7 +975,7 @@ class Contact(Base):
     owner = relationship("User")
 
 
-class Lead(Base):
+class Lead(Base, TenantMixin):
     """An unqualified enquiry, converts into Account + Contact + Opportunity."""
     __tablename__ = "leads"
     id = Column(Integer, primary_key=True)
@@ -1004,7 +1005,7 @@ class Lead(Base):
     campaign = relationship("Campaign")
 
 
-class DealItem(Base):
+class DealItem(Base, TenantMixin):
     """A product line on an opportunity. The deal value is the sum of its lines."""
     __tablename__ = "deal_items"
     id = Column(Integer, primary_key=True)
@@ -1020,7 +1021,7 @@ class DealItem(Base):
     product = relationship("Product")
 
 
-class Quote(Base):
+class Quote(Base, TenantMixin):
     """A versioned quotation generated from an opportunity."""
     __tablename__ = "quotes"
     id = Column(Integer, primary_key=True)
@@ -1042,7 +1043,7 @@ class Quote(Base):
     created_by = relationship("User")
 
 
-class EmailTemplate(Base):
+class EmailTemplate(Base, TenantMixin):
     """Reusable message templates for campaigns and ticket replies."""
     __tablename__ = "email_templates"
     id = Column(Integer, primary_key=True)
@@ -1057,7 +1058,7 @@ class EmailTemplate(Base):
     created_by = relationship("User")
 
 
-class AutomationRule(Base):
+class AutomationRule(Base, TenantMixin):
     """Declarative CRM automation, assignment, escalation and lead scoring."""
     __tablename__ = "automation_rules"
     id = Column(Integer, primary_key=True)
@@ -1073,7 +1074,7 @@ class AutomationRule(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
-class Deal(Base):
+class Deal(Base, TenantMixin):
     """A sales opportunity, supply contract, wellness programme, chronic delivery."""
     __tablename__ = "deals"
     id = Column(Integer, primary_key=True)
@@ -1100,7 +1101,7 @@ class Deal(Base):
                          cascade="all, delete-orphan", order_by="DealItem.id")
 
 
-class Activity(Base):
+class Activity(Base, TenantMixin):
     """A call, meeting, task or note against any CRM record."""
     __tablename__ = "activities"
     id = Column(Integer, primary_key=True)
@@ -1123,7 +1124,7 @@ class Activity(Base):
     deal = relationship("Deal")
 
 
-class Campaign(Base):
+class Campaign(Base, TenantMixin):
     """A marketing campaign to a data-driven segment of patients/contacts."""
     __tablename__ = "campaigns"
     id = Column(Integer, primary_key=True)
@@ -1143,7 +1144,7 @@ class Campaign(Base):
     created_by = relationship("User")
 
 
-class Ticket(Base):
+class Ticket(Base, TenantMixin):
     """A customer-service / help-desk ticket with an SLA target."""
     __tablename__ = "tickets"
     id = Column(Integer, primary_key=True)
@@ -1174,7 +1175,7 @@ class Ticket(Base):
                             cascade="all, delete-orphan", order_by="TicketMessage.created_at")
 
 
-class TicketMessage(Base):
+class TicketMessage(Base, TenantMixin):
     __tablename__ = "ticket_messages"
     id = Column(Integer, primary_key=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
@@ -1188,7 +1189,7 @@ class TicketMessage(Base):
     author = relationship("User")
 
 
-class AuditLog(Base):
+class AuditLog(Base, TenantMixin):
     """Immutable per-user action log for every state-changing API call."""
     __tablename__ = "audit_logs"
     id = Column(Integer, primary_key=True)
@@ -1204,7 +1205,7 @@ class AuditLog(Base):
     user = relationship("User")
 
 
-class FiscalDay(Base):
+class FiscalDay(Base, TenantMixin):
     """A trading day as the revenue authority sees it.
 
     Fiscalisation regimes work in days: you open one, submit receipts against
@@ -1229,7 +1230,7 @@ class FiscalDay(Base):
     receipts = relationship("FiscalReceipt", back_populates="fiscal_day")
 
 
-class FiscalReceipt(Base):
+class FiscalReceipt(Base, TenantMixin):
     """The fiscal record of one sale — immutable once accepted.
 
     `previous_hash` chains each receipt to the one before it, so removing or
@@ -1265,7 +1266,7 @@ class FiscalReceipt(Base):
     fiscal_day = relationship("FiscalDay", back_populates="receipts")
 
 
-class ExchangeRate(Base):
+class ExchangeRate(Base, TenantMixin):
     """A dated exchange rate against the base currency.
 
     Rates are appended, never edited, so a sale settled last week keeps the rate
@@ -1287,7 +1288,7 @@ class ExchangeRate(Base):
     created_by = relationship("User")
 
 
-class SaleTender(Base):
+class SaleTender(Base, TenantMixin):
     """One payment against a sale.
 
     A sale can be settled with several of these at once — part USD cash, part
@@ -1309,7 +1310,7 @@ class SaleTender(Base):
     sale = relationship("Sale", back_populates="tenders")
 
 
-class Shift(Base):
+class Shift(Base, TenantMixin):
     """Cashier shift with opening float and end-of-shift cash-up."""
     __tablename__ = "shifts"
     id = Column(Integer, primary_key=True)
@@ -1346,7 +1347,7 @@ class Shift(Base):
     counted_by = relationship("User", foreign_keys=[counted_by_id])
 
 
-class StockBatch(Base):
+class StockBatch(Base, TenantMixin):
     """A received lot of a product with its own expiry date. FEFO consumption."""
     __tablename__ = "stock_batches"
     id = Column(Integer, primary_key=True)
@@ -1364,7 +1365,7 @@ class StockBatch(Base):
     product = relationship("Product")
 
 
-class BatchAllocation(Base):
+class BatchAllocation(Base, TenantMixin):
     """Which batch(es) a stock-out drew from, enables exact void restoration."""
     __tablename__ = "batch_allocations"
     id = Column(Integer, primary_key=True)
@@ -1378,7 +1379,7 @@ class BatchAllocation(Base):
     sale_item = relationship("SaleItem", backref="allocations")
 
 
-class Message(Base):
+class Message(Base, TenantMixin):
     """Outbound patient communication: repeat reminders, birthdays, free-type."""
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True)
@@ -1406,7 +1407,7 @@ class Message(Base):
 # been drawn against it are both tracked, and the draw is what the claim checks.
 # ---------------------------------------------------------------------------
 
-class Authorisation(Base):
+class Authorisation(Base, TenantMixin):
     __tablename__ = "authorisations"
     id = Column(Integer, primary_key=True)
     reference = Column(String(40), unique=True, nullable=False, index=True)
@@ -1447,7 +1448,7 @@ class Authorisation(Base):
                         cascade="all, delete-orphan")
 
 
-class AuthorisationUse(Base):
+class AuthorisationUse(Base, TenantMixin):
     """One draw against an authorisation, so the remaining balance is a fact."""
     __tablename__ = "authorisation_uses"
     id = Column(Integer, primary_key=True)
@@ -1471,7 +1472,7 @@ class AuthorisationUse(Base):
 # matched, that gap is invisible until someone reads a bank statement.
 # ---------------------------------------------------------------------------
 
-class Remittance(Base):
+class Remittance(Base, TenantMixin):
     __tablename__ = "remittances"
     id = Column(Integer, primary_key=True)
     remittance_number = Column(String(60), unique=True, nullable=False, index=True)
@@ -1491,7 +1492,7 @@ class Remittance(Base):
                          cascade="all, delete-orphan")
 
 
-class RemittanceLine(Base):
+class RemittanceLine(Base, TenantMixin):
     __tablename__ = "remittance_lines"
     id = Column(Integer, primary_key=True)
     remittance_id = Column(Integer, ForeignKey("remittances.id"), nullable=False, index=True)
@@ -1535,7 +1536,7 @@ class RemittanceLine(Base):
 # somebody has already reported.
 # ---------------------------------------------------------------------------
 
-class TradingPeriod(Base):
+class TradingPeriod(Base, TenantMixin):
     __tablename__ = "trading_periods"
     id = Column(Integer, primary_key=True)
     code = Column(String(10), unique=True, nullable=False, index=True)   # 202608
@@ -1579,7 +1580,7 @@ class TradingPeriod(Base):
 # grant records both who performed the action and who approved it.
 # ---------------------------------------------------------------------------
 
-class StepUpGrant(Base):
+class StepUpGrant(Base, TenantMixin):
     __tablename__ = "step_up_grants"
     id = Column(Integer, primary_key=True)
     action = Column(String(40), nullable=False, index=True)
@@ -1599,7 +1600,7 @@ class StepUpGrant(Base):
     approved_by = relationship("User", foreign_keys=[approved_by_id])
 
 
-class OwedItem(Base):
+class OwedItem(Base, TenantMixin):
     """A "to follow" — medicine the patient has paid for and the pharmacy still owes.
 
     The pharmacy is out of stock, the patient is at the counter, and the choice
@@ -1640,7 +1641,7 @@ class OwedItem(Base):
     created_by = relationship("User")
 
 
-class CounterMessage(Base):
+class CounterMessage(Base, TenantMixin):
     """A note that must surface at the counter, not one filed somewhere.
 
     Propharm devotes five tabs to these — patient, member, medical aid, scheme
@@ -1674,7 +1675,7 @@ class CounterMessage(Base):
     created_by = relationship("User")
 
 
-class MessageAcknowledgement(Base):
+class MessageAcknowledgement(Base, TenantMixin):
     """Who read a blocking message, and when. The reason `stop` is worth having."""
     __tablename__ = "message_acknowledgements"
     id = Column(Integer, primary_key=True)
@@ -1689,7 +1690,7 @@ class MessageAcknowledgement(Base):
     acknowledged_by = relationship("User")
 
 
-class Reprint(Base):
+class Reprint(Base, TenantMixin):
     """Every reprint of a script or a label.
 
     Labels jam, peel and end up on the wrong box, so reprinting is a daily
@@ -1718,7 +1719,7 @@ class Reprint(Base):
 # up to; a balanced journal cannot hide a missing side.
 # ---------------------------------------------------------------------------
 
-class Account(Base):
+class Account(Base, TenantMixin):
     __tablename__ = "accounts"
     id = Column(Integer, primary_key=True)
     code = Column(String(10), unique=True, nullable=False, index=True)
@@ -1749,7 +1750,7 @@ class Account(Base):
     notes = Column(Text, default="")
 
 
-class JournalEntry(Base):
+class JournalEntry(Base, TenantMixin):
     __tablename__ = "journal_entries"
     id = Column(Integer, primary_key=True)
     reference = Column(String(30), unique=True, nullable=False, index=True)
@@ -1771,7 +1772,7 @@ class JournalEntry(Base):
     created_by = relationship("User")
 
 
-class JournalLine(Base):
+class JournalLine(Base, TenantMixin):
     __tablename__ = "journal_lines"
     id = Column(Integer, primary_key=True)
     entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=False, index=True)
@@ -1789,7 +1790,7 @@ class JournalLine(Base):
     entry = relationship("JournalEntry", back_populates="lines")
 
 
-class Waybill(Base):
+class Waybill(Base, TenantMixin):
     """Medicine leaving the shop for somewhere other than the counter.
 
     A delivery is the one point where dispensed medicine is out of the
@@ -1847,7 +1848,40 @@ class Setting(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class Branch(Base):
+class Pharmacy(Base):
+    """One pharmacy business. The tenant.
+
+    Everything above a branch: the company that holds the licence, signs the
+    medical-aid agreements and owns the patient records. A single-shop pharmacy
+    has one of these and one branch under it and never thinks about either.
+
+    This sits above `Branch` rather than replacing it because the two answer
+    different questions. A branch is where stock physically is — the Avondale
+    shelf tells you nothing about Bulawayo. A pharmacy is who the data belongs
+    to, and crossing that line is not an inconvenience, it is one business
+    reading another's patients.
+    """
+    __tablename__ = "pharmacies"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(160), nullable=False)
+    trading_name = Column(String(160), default="")
+    # The regulator's number for the business. Branches carry their own too.
+    registration_no = Column(String(60), default="")
+    phone = Column(String(30), default="")
+    email = Column(String(160), default="")
+    address = Column(Text, default="")
+    city = Column(String(80), default="")
+    #: Suspending a tenant has to be possible without deleting their records —
+    #: a pharmacy that stops paying still owns its patients' histories, and the
+    #: regulator requires those be kept.
+    active = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    branches = relationship("Branch", back_populates="pharmacy")
+
+
+class Branch(Base, TenantMixin):
     """One trading location of the business.
 
     A single-shop pharmacy has exactly one of these and never thinks about it.
@@ -1864,6 +1898,9 @@ class Branch(Base):
     __tablename__ = "branches"
 
     id = Column(Integer, primary_key=True)
+    #: Which business this shop belongs to. The anchor of the whole tenancy:
+    #: anything reachable from a branch is reachable from exactly one pharmacy.
+    pharmacy_id = Column(Integer, ForeignKey("pharmacies.id"), nullable=True, index=True)
     code = Column(String(12), unique=True, nullable=False, index=True)
     name = Column(String(120), nullable=False)
     # Its own registration: a branch is licensed in its own right, and the
@@ -1878,8 +1915,10 @@ class Branch(Base):
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    pharmacy = relationship("Pharmacy", back_populates="branches")
 
-class BranchTransfer(Base):
+
+class BranchTransfer(Base, TenantMixin):
     """Stock moving from one branch to another.
 
     Deliberately two-sided and not instant. Goods despatched from Avondale are
@@ -1909,7 +1948,7 @@ class BranchTransfer(Base):
     product = relationship("Product")
 
 
-class PettyCash(Base):
+class PettyCash(Base, TenantMixin):
     """Money in or out of the drawer that was not a sale.
 
     A pharmacy pays the window cleaner out of the till, buys milk, refunds a bus
@@ -1942,7 +1981,7 @@ class PettyCash(Base):
 
 
 
-class LayBy(Base):
+class LayBy(Base, TenantMixin):
     """Goods set aside, paid for over time, collected when settled.
 
     Different from a COD in the way that matters: with a COD the goods have
@@ -2004,7 +2043,7 @@ class LayBy(Base):
         return round((self.total or 0) - self.paid, 2)
 
 
-class LayByItem(Base):
+class LayByItem(Base, TenantMixin):
     """A line on a lay-by, priced when it was agreed.
 
     The price is copied rather than looked up, because a lay-by is an agreement
@@ -2022,7 +2061,7 @@ class LayByItem(Base):
     product = relationship("Product")
 
 
-class LayByPayment(Base):
+class LayByPayment(Base, TenantMixin):
     """One instalment. Append-only: a correction is a negative payment."""
     __tablename__ = "layby_payments"
     id = Column(Integer, primary_key=True)
@@ -2040,7 +2079,7 @@ class LayByPayment(Base):
 
 
 
-class StockTake(Base):
+class StockTake(Base, TenantMixin):
     """A physical count of the shelves, against what the system believes.
 
     Shrinkage is invisible without this. A pharmacy can reconcile its till to
@@ -2075,7 +2114,7 @@ class StockTake(Base):
                          cascade="all, delete-orphan")
 
 
-class StockTakeLine(Base):
+class StockTakeLine(Base, TenantMixin):
     """One product counted.
 
     `expected` is captured when the line is counted rather than read at close,
@@ -2103,7 +2142,7 @@ class StockTakeLine(Base):
         return (self.counted or 0) - (self.expected or 0)
 
 
-class ScriptChange(Base):
+class ScriptChange(Base, TenantMixin):
     """What changed on a prescription, and who changed it.
 
     A script is the one record in this system that carries clinical weight, and
@@ -2195,7 +2234,7 @@ from sqlalchemy.orm import configure_mappers as _configure_mappers  # noqa: E402
 _configure_mappers()
 
 
-class AiConversation(Base):
+class AiConversation(Base, TenantMixin):
     """One question put to the assistant, and what it answered.
 
     Kept because the useful ones are asked once and wanted again a week later:
@@ -2224,7 +2263,7 @@ class AiConversation(Base):
     user = relationship("User")
 
 
-class SampleReceipt(Base):
+class SampleReceipt(Base, TenantMixin):
     """Medicine samples received from a manufacturer's representative.
 
     A rep leaves a box of something on the counter. It is medicine, it is in the
@@ -2263,7 +2302,7 @@ class SampleReceipt(Base):
                              cascade="all, delete-orphan")
 
 
-class SampleMovement(Base):
+class SampleMovement(Base, TenantMixin):
     """One thing that happened to a sample: issued, returned, destroyed, expired.
 
     A sample is never sold, so there is no sale to attach it to and no till entry
@@ -2294,7 +2333,7 @@ class SampleMovement(Base):
     witness = relationship("User", foreign_keys=[witness_id])
 
 
-class ConsentEvent(Base):
+class ConsentEvent(Base, TenantMixin):
     """Permission given or withdrawn, as an event rather than a flag.
 
     `marketing_opt_in = True` answers "may we message them" and nothing else. It
