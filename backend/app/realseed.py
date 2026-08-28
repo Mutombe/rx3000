@@ -1016,7 +1016,17 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
     # database that had batches but no purchase orders got neither — which is
     # exactly the state that produced no deliveries, no supplier invoices and
     # no creditors, on a system whose accounting screens all read from them.
-    need_batches = db.query(StockBatch).count() < 50
+    # Opening batches are not deliveries. `ensure_opening_batches` creates one
+    # per product, numbered "OPENING", to give pre-existing stock somewhere to
+    # live — and on the hosted database those 121 placeholders were enough to
+    # satisfy a plain count, so this stage never ran and every batch in
+    # production was an opening one. That meant every dispensing label printed
+    # batch "OPENING", a recall search by batch number matched the entire
+    # catalogue, picking had nothing real to order by, and nothing was ever
+    # short dated so the expiry provision was permanently zero. Count the
+    # batches that came from a delivery, which is what the question means.
+    need_batches = (db.query(StockBatch)
+                      .filter(StockBatch.batch_number != "OPENING").count()) < 50
     need_orders = db.query(PurchaseOrder).count() == 0
 
     today = date.today()
