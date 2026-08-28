@@ -122,6 +122,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // setting, so it sits with the till rather than in the control panel.
       { to: "/fiscal", label: "Fiscalisation", icon: Receipt },
       { to: "/laybys", label: "Lay-bys", icon: HandCoins },
+      // Medicine that has gone out unpaid for. Beside the lay-bys
+      // because both are money the shop is waiting on.
+      { to: "/money-owed", label: "Money owed", icon: Coins },
     ],
   },
   {

@@ -96,7 +96,7 @@ status, body = call("/api/pos/sales/%d/pay" % sale["id"], token, data={
     "tenders": [{"method": "cash", "currency_code": "USD", "amount": part}],
 })
 note("a declared part payment still needs authorising",
-     status == 403, str(body.get("detail", ""))[:80])
+     status == 428, str(body.get("detail", ""))[:80])
 
 # 3. With authorisation. Must go through and leave a balance.
 status, grant = call("/api/step-up", token, data={

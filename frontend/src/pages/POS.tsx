@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
-import { api, fmtDateTime, money, errorText, Refused } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText, Refused } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
 import { useConnection } from "../components/Connection";
@@ -15,7 +15,10 @@ import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
 import { Printer } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
+import { Link } from "react-router-dom";
 import { EntityLink } from "../components/Filters";
+import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
+import { useStepUp, CANCELLED } from "../components/StepUp";
 
 type Tab = "till" | "pending";
 
@@ -51,6 +54,11 @@ export default function POS() {
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
+  const { guarded, prompt: stepUpPrompt } = useStepUp();
+  /** The sale a cashier is taking part of, if any. */
+  const [partOf, setPartOf] = useState<Sale | null>(null);
+  /** What this customer already owes from a previous visit. */
+  const [owes, setOwes] = useState<{ balance: number; oldest: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [agent, setAgent] = useState<deviceAgent.AgentStatus | null>(null);
   const [terminalState, setTerminalState] = useState("");
@@ -89,6 +97,28 @@ export default function POS() {
     if (scan.length < 2) { setResults([]); return; }
     api.get<Product[]>(`/api/products?q=${encodeURIComponent(scan)}&limit=8`).then(setResults);
   }, [scan]);
+
+  // What they owe, looked up when they are linked.
+  //
+  // Shown, never enforced. A debt is not a clinical reason to refuse somebody
+  // their medicine, and a till that blocks a sale over one turns a cashier
+  // into a debt collector at the moment they are least able to be one. The
+  // figure is put in front of them and the decision stays theirs.
+  useEffect(() => {
+    if (!patient) { setOwes(null); return; }
+    let dropped = false;
+    api.get<{ items: { balance: number; created_at: string }[]; total_owed: number }>(
+      `/api/pos/owed?patient_id=${patient.id}`)
+      .then((d) => {
+        if (dropped) return;
+        setOwes(d.total_owed > 0.005
+          ? { balance: d.total_owed,
+              oldest: d.items[0]?.created_at ?? "" }
+          : null);
+      })
+      .catch(() => { if (!dropped) setOwes(null); });
+    return () => { dropped = true; };
+  }, [patient]);
 
   useEffect(() => {
     if (patientQ.length < 2) { setPatients([]); return; }
@@ -376,6 +406,42 @@ export default function POS() {
     return Math.max(0, Number(claim.patient_liable ?? sale.total));
   }
 
+  /** Take less than is owed and let the patient carry the balance.
+   *
+   *  Guarded, so the pharmacist's password is asked for by the same prompt
+   *  that guards voids and price overrides rather than a second one invented
+   *  here. The server answers 428 when it is missing, which is what `guarded`
+   *  watches for.
+   */
+  async function takePart(sale: Sale, choice: PartPaymentChoice) {
+    try {
+      const res = await guarded(
+        "sale.part_payment",
+        (token) => api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
+          payment_method: "split",
+          part_payment: true,
+          part_payment_note: choice.note,
+          tenders: [{
+            method: choice.method,
+            currency_code: currencyState?.base ?? "USD",
+            amount: choice.amount,
+          }],
+        }, token),
+        `${sale.sale_number} — ${money(choice.amount)} of ${money(patientOwes(sale))}`,
+      );
+      if (res === CANCELLED) return;
+      const owed = Math.round((patientOwes(sale) - choice.amount) * 100) / 100;
+      toast.ok(owed > 0.005
+        ? `${money(choice.amount)} taken. ${money(owed)} still owed.`
+        : `${money(choice.amount)} taken. Settled in full.`);
+      setPartOf(null);
+      setReceipt(res as Sale);
+      loadPending();
+    } catch (e: any) {
+      toast.error(errorText(e));
+    }
+  }
+
   async function settlePending(sale: Sale, method: string) {
     try {
       const owed = patientOwes(sale);
@@ -465,7 +531,13 @@ export default function POS() {
                         the levy, in whatever the customer is paying with. */}
                     <BusyButton className="small" onClick={() => settlePending(s, "cash")}>Cash</BusyButton>{" "}
                     <BusyButton className="small secondary" onClick={() => settlePending(s, "card")}>Card</BusyButton>{" "}
-                    <BusyButton className="small secondary" onClick={() => settlePending(s, "mobile_money")}>Mobile</BusyButton>
+                    <BusyButton className="small secondary" onClick={() => settlePending(s, "mobile_money")}>Mobile</BusyButton>{" "}
+                    {/* The conversation this exists for: they have some of it,
+                        not all of it, and the medicine is already in the bag. */}
+                    <button className="btn small ghost" disabled={!s.patient_id}
+                            onClick={() => setPartOf(s)}>
+                      Part
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -557,6 +629,13 @@ export default function POS() {
                 <div>
                   <b>{patient.first_name} {patient.last_name}</b>
                   <div className="muted">{patient.loyalty_points} loyalty points · {patient.medical_aid?.name ?? "Private"}</div>
+                  {owes && (
+                    <div className="muted small">
+                      <b>Owes {money(owes.balance)}</b>
+                      {owes.oldest ? ` from ${fmtDate(owes.oldest)}` : ""} ·{" "}
+                      <Link to="/money-owed">collect it</Link>
+                    </div>
+                  )}
                 </div>
                 <IconButton action="remove" onClick={() => setPatient(null)} />
               </div>
@@ -797,6 +876,17 @@ export default function POS() {
         </div>
       </div>
       )}
+      {partOf && (
+        <PartPayment
+          owed={patientOwes(partOf)}
+          patient={partOf.patient
+            ? `${partOf.patient.first_name} ${partOf.patient.last_name}`
+            : "This customer"}
+          onCancel={() => setPartOf(null)}
+          onConfirm={(choice) => takePart(partOf, choice)}
+        />
+      )}
+      {stepUpPrompt}
     </>
   );
 }

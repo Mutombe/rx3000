@@ -298,10 +298,17 @@ def _require_part_payment_approval(db: Session, user: User, token: str) -> None:
     somebody who cannot pay, and the person who made it should be recorded.
     """
     if not token:
-        raise HTTPException(
-            status_code=403,
-            detail="Letting a patient owe the balance needs a pharmacist's "
-                   "authorisation.")
+        # 428, in the shape the rest of the application already speaks.
+        #
+        # Not 403: the till's `guarded` helper watches for 428 and raises the
+        # authorisation prompt, and a 403 would simply have shown the cashier
+        # an error with no way past it. Matching `require_step_up` means the
+        # prompt that already exists works here without a second one.
+        detail = {"error_code": "STEP_UP_REQUIRED",
+                  **stepup.describe("sale.part_payment")}
+        detail["message"] = ("Letting a patient owe the balance needs a "
+                             "pharmacist's password.")
+        raise HTTPException(status_code=428, detail=detail)
     try:
         stepup.redeem(db, action_key="sale.part_payment", token=token, actor=user)
     except stepup.StepUpError as exc:
