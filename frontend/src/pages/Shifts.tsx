@@ -8,6 +8,12 @@ import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
+/** The words a teller uses, not the words the database uses. */
+const METHOD_LABEL: Record<string, string> = {
+  cash: "Cash", card: "Card / swipe", mobile_money: "Mobile money",
+  medical_aid: "Medical aid", loyalty: "Loyalty points",
+};
+
 export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
@@ -35,6 +41,15 @@ export default function Shifts() {
   }
 
   useEffect(load, []);
+
+  /* Summed from the per-currency takings, in base. The shift row carries a
+     card total and a medical aid total and no equivalent for the two a teller
+     actually counts out. */
+  const cashTaken = (takings?.currencies ?? [])
+    .reduce((n: number, c: any) => n + (c.in_base_cash ?? c.cash ?? 0), 0);
+  const mobileTaken = (takings?.currencies ?? [])
+    .reduce((n: number, c: any) => n + (c.mobile_money ?? 0), 0);
+
 
   async function openShift(e: FormEvent) {
     e.preventDefault();
@@ -71,6 +86,19 @@ export default function Shifts() {
               <div className="value">{money(current.opening_float)}</div>
               <div className="hint">Counted in at the start of this shift</div>
             </div>
+            {/* Cash and mobile money were both missing from this row, which
+                on a Zimbabwean counter is most of the money: the headline
+                showed the card total and the scheme total and left out the two
+                the teller actually counts. */}
+            <div className="card stat">
+              <div className="label">Cash takings</div>
+              <div className="value">{money(cashTaken)}</div>
+              <div className="hint">net of change given</div>
+            </div>
+            <div className="card stat">
+              <div className="label">Mobile money</div>
+              <div className="value">{money(mobileTaken)}</div>
+            </div>
             <div className="card stat">
               <div className="label">Card takings</div>
               <div className="value">{money(current.card_total)}</div>
@@ -86,7 +114,7 @@ export default function Shifts() {
             </div>
           </div>
 
-          {takings && takings.currencies.length > 1 && (
+          {takings && takings.currencies.length > 0 && (
             <div className="card">
               <h3>Takings by currency</h3>
               <p className="muted">
@@ -110,6 +138,51 @@ export default function Shifts() {
                       <td className="num">{c.cash.toFixed(2)}</td>
                       <td className="num">{c.card.toFixed(2)}</td>
                       <td className="num">{c.mobile_money.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Read against the sheet they fill in by hand, which has a column
+              per wallet and per bank rather than one for "mobile money". */}
+          {takings && (takings.instruments?.length ?? 0) > 0 && (
+            <div className="card">
+              <h3>What it came in on</h3>
+              <p className="muted">
+                EcoCash and Omari settle separately, and so do the banks behind
+                a swipe. This is the same split as the teller sheet.
+              </p>
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Instrument</th><th>Currency</th>
+                    <th className="num">Payments</th>
+                    <th className="num">Taken</th>
+                    <th className="num">In {takings.base_currency}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(takings.instruments ?? []).map((i, n) => (
+                    <tr key={n}>
+                      <td>
+                        <b>{i.instrument || METHOD_LABEL[i.method] || i.method}</b>
+                        {i.instrument && (
+                          <div className="muted small">
+                            {METHOD_LABEL[i.method] ?? i.method}
+                          </div>
+                        )}
+                        {/* Said rather than left blank: a swipe with no bank
+                            on it cannot be matched to a settlement. */}
+                        {!i.instrument && i.method !== "cash" && (
+                          <div className="muted small">not named on the sale</div>
+                        )}
+                      </td>
+                      <td>{i.currency}</td>
+                      <td className="num">{i.count}</td>
+                      <td className="num">{i.amount.toFixed(2)}</td>
+                      <td className="num">{money(i.in_base)}</td>
                     </tr>
                   ))}
                 </tbody>

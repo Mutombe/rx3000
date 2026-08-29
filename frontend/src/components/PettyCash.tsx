@@ -47,6 +47,22 @@ export default function PettyCash() {
   const [description, setDescription] = useState("");
   const [reference, setReference] = useState("");
   const [receiptSeen, setReceiptSeen] = useState(false);
+  /* Which drawer it came out of. The column has been on the record since it
+     was written and the form never set one, so every payout in a pharmacy that
+     runs two currencies was recorded as an amount with no currency — and a ZiG
+     taxi fare taken off a USD drawer is a variance nobody can explain. */
+  const [currencyCode, setCurrencyCode] = useState("");
+  const [currencies, setCurrencies] = useState<{ code: string; is_base?: boolean }[]>([]);
+
+  useEffect(() => {
+    api.get<any>("/api/currency")
+      .then((c) => {
+        const list = c?.currencies ?? [];
+        setCurrencies(list);
+        setCurrencyCode((prev) => prev || c?.base || list[0]?.code || "");
+      })
+      .catch(() => undefined);
+  }, []);
 
   const load = useCallback(() => {
     api.get<Listing>("/api/shifts/petty-cash?limit=50")
@@ -73,6 +89,7 @@ export default function PettyCash() {
         "pettycash.record",
         (token) => api.post<{ message: string }>("/api/shifts/petty-cash", {
           amount: signed,
+          currency_code: currencyCode,
           category: category.trim(),
           description: description.trim(),
           reference: reference.trim(),
@@ -125,6 +142,21 @@ export default function PettyCash() {
               <input type="number" min="0.01" step="0.01" value={amount}
                 onChange={(e) => setAmount(e.target.value)} required />
             </div>
+            {/* Which drawer. Only worth asking where there is more than one —
+                a single-currency pharmacy should not be made to answer it. */}
+            {currencies.length > 1 && (
+              <div className="field">
+                <label>Out of which drawer</label>
+                <Select
+                  value={currencyCode}
+                  onChange={setCurrencyCode}
+                  options={currencies.map((c) => ({
+                    value: c.code,
+                    label: c.code + (c.is_base ? " (base)" : ""),
+                  }))}
+                />
+              </div>
+            )}
             <div className="field">
               <label>Category</label>
               <Select

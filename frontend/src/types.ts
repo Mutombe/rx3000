@@ -649,6 +649,12 @@ export interface ShiftTakings {
   base_currency: string;
   sales_count: number;
   currencies: ShiftTakingsBucket[];
+  /** What the money actually came in on — the wallet, the bank — rather than
+   *  the method alone. A teller's own sheet has a column per instrument. */
+  instruments?: {
+    method: string; instrument: string; currency: string;
+    amount: number; in_base: number; count: number;
+  }[];
 }
 
 export interface ReconMatch {

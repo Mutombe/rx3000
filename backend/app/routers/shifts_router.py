@@ -108,11 +108,42 @@ def takings(shift_id: int, db: Session = Depends(get_db), _: User = Depends(get_
         for bucket in by_currency.values():
             bucket.pop("expected_cash", None)
 
+    # ---- what the money actually came in on ------------------------------
+    #
+    # "Mobile money 119.00" is not something a teller can reconcile. Their own
+    # cash-up sheet has five columns — USD, EcoCash USD, Swipe USD, Swipe ZWG,
+    # EcoCash ZWG — because EcoCash and Omari settle separately, on their own
+    # timetables, and so do the banks behind a swipe. The tender rows already
+    # carry which one: the till writes the wallet and the bank into the
+    # reference. This groups by it, so the screen can be read against the sheet
+    # they fill in by hand.
+    instruments: dict[tuple, dict] = {}
+    for sale in sales:
+        for tender in sale.tenders:
+            if tender.is_change:
+                continue
+            # The first word of the reference is the wallet or the bank —
+            # "EcoCash 0779…", "Stanbic ••4417". Anything else is left as the
+            # method itself rather than guessed at.
+            first = (tender.reference or "").strip().split(" ")[0]
+            named = first if first and not first[0].isdigit() else ""
+            key = (tender.method, named, tender.currency_code)
+            row = instruments.setdefault(key, {
+                "method": tender.method, "instrument": named,
+                "currency": tender.currency_code, "amount": 0.0,
+                "in_base": 0.0, "count": 0,
+            })
+            row["amount"] = round(row["amount"] + (tender.amount or 0.0), 2)
+            row["in_base"] = round(row["in_base"] + (tender.amount_in_base or 0.0), 2)
+            row["count"] += 1
+
     return {
         "shift_id": shift.id,
         "base_currency": base,
         "sales_count": len(sales),
         "currencies": sorted(by_currency.values(), key=lambda b: (not b["is_base"], b["currency"])),
+        "instruments": sorted(instruments.values(),
+                              key=lambda r: (-r["in_base"], r["method"])),
     }
 
 
@@ -413,6 +444,11 @@ class PettyCashIn(BaseModel):
     beats two fields and a rule about which one to use.
     """
     amount: float
+    #: Which drawer it came out of. The column has been on the record since it
+    #: was written and nothing ever sent one, so every payout in a pharmacy
+    #: running two currencies was an amount with no currency — and a ZiG taxi
+    #: fare taken off the USD drawer is a variance nobody can explain.
+    currency_code: str = ""
     category: str = ""
     description: str = ""
     reference: str = ""
@@ -443,6 +479,7 @@ def add_petty_cash(
         shift_id=shift.id if shift else None,
         branch_id=getattr(shift, "branch_id", None) if shift else None,
         amount=round(body.amount, 2),
+        currency_code=(body.currency_code or "").strip().upper()[:5],
         category=body.category.strip(),
         description=body.description.strip(),
         reference=body.reference.strip(),
