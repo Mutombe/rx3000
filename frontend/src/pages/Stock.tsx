@@ -39,6 +39,7 @@ const EMPTY = {
 
 export default function Stock() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [mvMeta, setMvMeta] = useState<Paged<StockMovement> | null>(null);
@@ -189,7 +190,8 @@ export default function Stock() {
   ];
 
   function load() {
-    api.get<Product[]>(`/api/products?q=${encodeURIComponent(q)}${lowOnly ? "&low_stock=true" : ""}`).then(setProducts).catch((e) => toast.error(errorText(e)));
+    api.get<Product[]>(`/api/products?q=${encodeURIComponent(q)}${lowOnly ? "&low_stock=true" : ""}`).then(setProducts).catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
   }
 
   useEffect(load, [q, lowOnly]);
@@ -336,6 +338,7 @@ export default function Stock() {
 
       {tab === "products" && (
         <DataTable
+          loading={loading}
           columns={productCols}
           rows={shownProducts}
           rowKey={(p) => p.id}

@@ -29,6 +29,7 @@ function slaBadge(t: Ticket) {
 
 export default function HelpDesk() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<HelpdeskStats | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [filter, setFilter] = useState("open");
@@ -101,7 +102,8 @@ export default function HelpDesk() {
 
   function load() {
     const q = filter === "breached" ? "breached=true" : `status=${filter}`;
-    api.get<Ticket[]>(`/api/helpdesk/tickets?${q}`).then(setTickets).catch((e) => toast.error(errorText(e)));
+    api.get<Ticket[]>(`/api/helpdesk/tickets?${q}`).then(setTickets).catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     api.get<HelpdeskStats>("/api/helpdesk/stats").then(setStats);
   }
 
@@ -215,6 +217,7 @@ export default function HelpDesk() {
       </div>
 
       <DataTable
+          loading={loading}
         columns={caseCols}
         rows={shownTickets}
         rowKey={(t) => t.id}

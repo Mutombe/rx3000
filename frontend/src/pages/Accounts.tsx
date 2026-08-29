@@ -40,6 +40,7 @@ const EMPTY_CT = {
 
 export default function Accounts() {
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [showCo, setShowCo] = useState(false);
   const [showCt, setShowCt] = useState(false);
@@ -138,7 +139,8 @@ export default function Accounts() {
   ];
 
   function load() {
-    api.get<Company[]>(`/api/crm/companies?q=${encodeURIComponent(q)}`).then(setCompanies).catch((e) => toast.error(errorText(e)));
+    api.get<Company[]>(`/api/crm/companies?q=${encodeURIComponent(q)}`).then(setCompanies).catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     api.get<Contact[]>(`/api/crm/contacts?q=${encodeURIComponent(q)}`).then(setContacts);
   }
 
@@ -207,6 +209,7 @@ export default function Accounts() {
 
       {tab === "companies" ? (
         <DataTable
+          loading={loading}
           columns={companyCols}
           rows={shownCompanies}
           rowKey={(c) => c.id}

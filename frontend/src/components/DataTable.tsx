@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import Select from "./Select";
 import { readStored, writeStored } from "../storage";
 import { CaretDown, CaretUp, CaretUpDown } from "@phosphor-icons/react";
+import { TableSkeleton } from "./Skeleton";
 
 export interface Column<T> {
   key: string;
@@ -149,7 +150,20 @@ function defaultValue<T>(row: T, key: string) {
 export default function DataTable<T>({
   columns, rows, rowKey, rowHref, onRowClick, empty = "Nothing to show",
   toolbar, totals = false, initialSort, pageSize: initialPageSize = 25, dense, server,
+  loading = false,
 }: {
+  /** True until the first answer lands.
+   *
+   *  Without it this table renders its empty state while the request is still
+   *  in flight, so a screen that is working says "Nothing to show" — which on
+   *  a slow connection is indistinguishable from a pharmacy with no records,
+   *  and is the first thing a new customer sees. Nine screens share this
+   *  component, so they shared the fault.
+   *
+   *  Only the first paint ghosts. A refetch keeps the rows that are already
+   *  there and dims them, because blanking a populated table on a filter
+   *  change reads as the page breaking rather than as progress. */
+  loading?: boolean;
   columns: Column<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
@@ -278,7 +292,13 @@ export default function DataTable<T>({
         </div>
       </div>
 
-      <div className="dt-scroll">
+      {/* The first paint, with the real column widths so nothing jumps when the
+          rows arrive. A refetch falls through to the dim below instead. */}
+      {loading && sorted.length === 0 ? (
+        <TableSkeleton cols={columns.length} rows={6}
+                       widths={columns.map((c) => c.width ?? "70%")} />
+      ) : (
+      <div className={`dt-scroll${loading ? " is-refreshing" : ""}`}>
         <table
           className={`dt dt-${density}`}
           style={{ minWidth: minimumTableWidth(columns) }}
@@ -367,8 +387,10 @@ export default function DataTable<T>({
           )}
         </table>
       </div>
+      )}
 
-      {sorted.length === 0 && <div className="empty">{empty}</div>}
+      {/* Said only once it is known to be true. */}
+      {sorted.length === 0 && !loading && <div className="empty">{empty}</div>}
 
       {/* Server-paged: always shown, even on a single page, because the count is
           the thing that confirms nothing is hidden. Client-paged: only when

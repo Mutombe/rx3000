@@ -33,6 +33,8 @@ NO_FETCH_NEEDED = {
 
 # A RecordPage that is handed a loading flag ghosts itself.
 REC_LOADING = re.compile(r"loading=\{")
+#: A DataTable handed a loading flag.
+DT_LOADING = re.compile(r"<DataTable\s*loading=\{", re.S)
 
 fetches, skeletons, refreshable, bare = [], [], [], []
 
@@ -53,6 +55,11 @@ for path in sorted(PAGES.glob("*.tsx")):
     has_skeleton = (
         "Skeleton" in src
         or ("RecordPage" in src and REC_LOADING.search(src) is not None)
+        # DataTable ghosts itself when it is handed the flag, so a page that
+        # passes one has a loading state without naming a skeleton — the same
+        # trap as RecordPage, and the second time this audit reported screens
+        # as bare that were not.
+        or DT_LOADING.search(src) is not None
     )
     has_refreshable = "<Refreshable" in src
     if has_skeleton:
