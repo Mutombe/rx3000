@@ -41,26 +41,16 @@ def take_backup(note: str = Body(default="", embed=True),
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@router.post("/interactions/check")
-def check_interactions(product_ids: list[int] = Body(..., embed=True),
-                       db: Session = Depends(get_db)):
-    """Check a basket against the interaction pairs held locally.
-
-    The response always carries its coverage. A clear result means none of the
-    pairs this system holds were found — not that the combination is safe — and
-    the wording says so, because a pharmacist who is told twice that the system
-    checks interactions will trust it the third time.
-    """
-    products = db.query(Product).filter(Product.id.in_(product_ids)).all()
-    missing = set(product_ids) - {p.id for p in products}
-    if missing:
-        raise HTTPException(status_code=404,
-                            detail=f"Unknown product(s): {sorted(missing)}")
-    return interactions.check([
-        {"product_id": p.id, "name": p.name,
-         "active_ingredient": p.active_ingredient or ""}
-        for p in products
-    ])
+# The interaction check itself lives on /api/dispensing/interaction-screen,
+# which the dispensing screen calls on every basket change. A second endpoint
+# used to sit here doing the same job without the patient's medication history —
+# and history is the whole point, because two lines on one script were written
+# together by a prescriber who thought about it, while warfarin from March
+# against ibuprofen today is two prescribers and nobody holding both facts.
+#
+# Nothing called it. Removed rather than left: the obvious-sounding name is
+# exactly what a future integration would reach for, and it would silently get
+# the weaker answer.
 
 
 @router.get("/interactions/coverage")
