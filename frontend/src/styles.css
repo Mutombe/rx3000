@@ -4891,3 +4891,29 @@ table.dt.sub th { font-size: var(--t-xs); }
   display: flex; align-items: center; gap: var(--s3);
   margin-bottom: var(--s4);
 }
+
+/* Building up a payment out of the pieces it was actually made of. */
+.tenders { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s3); }
+.tender-line {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s2); background: var(--surface-sunk);
+}
+.tender-row { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.tender-row > * { flex: 1 1 8rem; min-width: 0; }
+.tender-amount { flex: 0 0 8rem; text-align: right; }
+.tender-row .btn.small { flex: 0 0 auto; }
+/* The detail that makes a line reconcilable: which wallet, which bank. Set
+   apart so the amount stays the thing the eye lands on. */
+.tender-detail { margin-top: var(--s2); padding-top: var(--s2); border-top: 1px dashed var(--line); }
+.tender-conv { margin-top: 4px; }
+.tender-total {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  font-size: var(--t-sm); background: var(--surface-sunk);
+  border: 1px solid var(--line);
+}
+.tender-total.short { border-color: var(--warn, var(--danger)); }
+.tender-total.over { border-color: var(--accent); }
+.tender-total.exact { border-color: var(--ok, var(--accent)); }
+/* A payment made of several pieces needs the room to show them. */
+.modal-wide { max-width: 44rem; }

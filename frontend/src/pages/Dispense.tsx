@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
+import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
@@ -79,9 +80,7 @@ function patientPortion(sale: Sale): number {
 
 const PAY_CHOICES = [
   { key: "till", label: "Send to till", hint: "Raise the invoice; settle at the front shop" },
-  { key: "cash", label: "Cash now", hint: "Take it here and print the receipt" },
-  { key: "card", label: "Card now", hint: "Take it here on the terminal" },
-  { key: "mobile_money", label: "Mobile now", hint: "Take it here by EcoCash or OneMoney" },
+  { key: "now", label: "Take payment now", hint: "Cash, card, mobile or a mix of them" },
 ];
 
 export default function Dispense() {
@@ -121,6 +120,10 @@ export default function Dispense() {
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
   const [payHow, setPayHow] = useState("till");
+  const [tenders, setTenders] = useState<TenderLine[]>([]);
+  const [currencyState, setCurrencyState] = useState<any>(null);
+  /** What the patient will actually hand over, once the claim is off it. */
+  const [dueNow, setDueNow] = useState(0);
   /** Bumped after a dispensing so the worklist reloads at once. */
   const [worklistNonce, setWorklistNonce] = useState(0);
   const [doneRxId, setDoneRxId] = useState<number | null>(null);
@@ -179,6 +182,15 @@ export default function Dispense() {
   // rail that used to sit in the middle of this page is gone, and the shortcut
   // that opened it now opens the one queue instead of a second copy of it.
   const [worklistPanel, setWorklistPanel] = useState<WorklistPanel>("queue");
+
+  useEffect(() => {
+    api.get<any>("/api/currency")
+      .then((c) => {
+        setCurrencyState(c);
+        setTenders([{ method: "cash", currency_code: c?.base ?? "USD", amount: "" }]);
+      })
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api.get<SchedulePolicy[]>("/api/dispensing/policy").then(setPolicies);
@@ -427,12 +439,21 @@ export default function Dispense() {
       // so there is one payment path in the system rather than two that can
       // disagree about what a scheme has already covered.
       let finished = sale;
-      if (payHow !== "till") {
+      if (payHow === "now") {
         try {
           const due = patientPortion(sale);
+          const lines = tenders.filter((t) => Number(t.amount) > 0);
           finished = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
-            payment_method: payHow,
-            amount_tendered: payHow === "cash" ? due : 0,
+            payment_method: "split",
+            // Each piece kept separate, with what it needs to be matched to a
+            // statement later: the wallet and number, or the bank and last four.
+            tenders: lines.map((t) => ({
+              method: t.method,
+              currency_code: t.currency_code || (currencyState?.base ?? "USD"),
+              amount: Number(t.amount),
+              reference: [t.wallet, t.phone, t.scheme, t.last4 && `••${t.last4}`, t.auth]
+                .filter(Boolean).join(" "),
+            })),
           });
           toast.ok(due < sale.total - 0.005
             ? `${money(due)} taken from the patient, ${money(sale.total - due)} on the scheme.`
@@ -476,6 +497,13 @@ export default function Dispense() {
       alert(`Sold ${record.quantity} × ${record.product?.name}. Recorded in the pharmacy-medicine register.`);
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
+
+  // What the tender rows are settling. The basket's own total, since the claim
+  // has not been raised yet at this point — the confirmation afterwards shows
+  // the scheme's share once the server has worked it out.
+  useEffect(() => {
+    setDueNow(items.reduce((n, i) => n + (i.product.unit_price || 0) * (i.quantity || 0), 0));
+  }, [items]);
 
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
@@ -978,6 +1006,28 @@ export default function Dispense() {
                     </button>
                   ))}
                   <span className="muted small">{PAY_CHOICES.find((c) => c.key === payHow)?.hint}</span>
+                </div>
+              )}
+
+              {/* Built out of the pieces it was actually paid with, rather than
+                  a single word. "Card now" recorded no bank and no currency,
+                  which on a counter taking USD and ZiG across three wallets is
+                  a figure nobody can reconcile at cash-up. Same component the
+                  till uses, so the question is asked once and asked the same. */}
+              {items.length > 0 && payHow === "now" && (
+                <div className="card" style={{ marginBottom: 12 }}>
+                  <Tenders
+                    lines={tenders}
+                    onChange={setTenders}
+                    owed={dueNow}
+                    allowAid={false}
+                    {...currencyWorld(currencyState)}
+                  />
+                  <p className="muted small">
+                    The medical aid is not listed here: the claim is raised by
+                    the dispensing itself, so this is only what the patient
+                    hands over.
+                  </p>
                 </div>
               )}
               {ixMajor > 0 && !ixAcknowledged && items.length > 0 && (

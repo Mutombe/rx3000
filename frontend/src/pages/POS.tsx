@@ -19,6 +19,7 @@ import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
 import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
+import { currencyWorld } from "../components/Tenders";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 
 type Tab = "till" | "pending" | "history";
@@ -451,11 +452,11 @@ export default function POS() {
           payment_method: "split",
           part_payment: true,
           part_payment_note: choice.note,
-          tenders: [{
-            method: choice.method,
-            currency_code: currencyState?.base ?? "USD",
-            amount: choice.amount,
-          }],
+          // Every payment the cashier actually took, not a single flattened
+          // line. A part payment made of ZiG cash and an EcoCash transfer is
+          // two tenders, and recording it as one loses which drawer each
+          // belongs to — which is the whole of cash-up.
+          tenders: choice.tenders,
         }, token),
         `${sale.sale_number} — ${money(choice.amount)} of ${money(patientOwes(sale))}`,
       );
@@ -1002,6 +1003,8 @@ export default function POS() {
           patient={partOf.patient
             ? `${partOf.patient.first_name} ${partOf.patient.last_name}`
             : "This customer"}
+          {...currencyWorld(currencyState)}
+          aidCovers={partOf.total - patientOwes(partOf)}
           onCancel={() => setPartOf(null)}
           onConfirm={(choice) => takePart(partOf, choice)}
         />

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Phone } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
+import { currencyWorld } from "../components/Tenders";
 import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
@@ -40,6 +41,7 @@ export default function MoneyOwed() {
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [collecting, setCollecting] = useState<Row | null>(null);
+  const [currencyState, setCurrencyState] = useState<any>(null);
   const toast = useToast();
 
   const load = useCallback(() => {
@@ -49,6 +51,10 @@ export default function MoneyOwed() {
       .catch((e) => setFailed(errorText(e, "What is owed could not be worked out.")))
       .finally(() => window.setTimeout(() => setSpinning(false), 400));
   }, []);
+  useEffect(() => {
+    api.get("/api/currency").then(setCurrencyState).catch(() => undefined);
+  }, []);
+
 
   useEffect(() => { load(); }, [load]);
 
@@ -167,6 +173,7 @@ export default function MoneyOwed() {
         <PartPayment
           owed={collecting.balance}
           patient={collecting.patient}
+          {...currencyWorld(currencyState)}
           onCancel={() => setCollecting(null)}
           onConfirm={(choice) => collect(collecting, choice)}
         />

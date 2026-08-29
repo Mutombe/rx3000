@@ -5,73 +5,101 @@
  *  leave without their medicine, or the till rings it up as cash and the
  *  difference disappears somewhere nobody can find it later.
  *
- *  So the amount is asked for plainly, the balance is shown before anything is
- *  pressed, and a pharmacist puts their password to it — because the pharmacy
- *  is lending money and somebody should own that decision.
+ *  What they have is rarely one thing. It is eleven dollars on EcoCash and a
+ *  handful of ZiG, or a card for part and cash for the rest, with the medical
+ *  aid already carrying half. This asked for a single amount and a choice of
+ *  three words — "Cash / Card / Mobile money", no currency, no wallet, no bank —
+ *  which is not how anybody pays here, and produced a record that could not be
+ *  reconciled: "card 40.00" does not say forty of what, on whose card.
+ *
+ *  The tender rows are the shared component the till already uses, so the same
+ *  question is asked the same way wherever money is taken.
  */
 import { useState } from "react";
 import { money } from "../api";
 import BusyButton from "./BusyButton";
-import Select from "./Select";
+import Tenders, { TenderLine, blankLine, inBase } from "./Tenders";
 
 export interface PartPaymentChoice {
+  /** What was taken, in base currency. */
   amount: number;
+  /** Kept for callers that only care about the headline instrument. */
   method: string;
   note: string;
+  /** Every payment that made it up, for the server to record individually. */
+  tenders: {
+    method: string; currency_code: string; amount: number; reference: string;
+  }[];
 }
 
-export default function PartPayment({ owed, patient, onCancel, onConfirm }: {
+export default function PartPayment({
+  owed, patient, onCancel, onConfirm, currencies, base, rates, aidCovers = 0,
+}: {
   /** What is still due on this sale. */
   owed: number;
   /** Who will owe the balance. A debt needs somebody's name on it. */
   patient: string;
   onCancel: () => void;
   onConfirm: (choice: PartPaymentChoice) => Promise<void>;
+  currencies: string[];
+  base: string;
+  rates: Record<string, number>;
+  /** What the scheme is already carrying on this sale. */
+  aidCovers?: number;
 }) {
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("cash");
+  const [lines, setLines] = useState<TenderLine[]>([blankLine(base)]);
   const [note, setNote] = useState("");
 
-  const taking = Math.max(0, Number(amount) || 0);
+  const taking = Math.round(
+    lines.reduce((n, l) => n + inBase(l, rates, base), 0) * 100) / 100;
   const balance = Math.round((owed - taking) * 100) / 100;
   const tooMuch = taking > owed + 0.005;
   const nothing = taking <= 0.005;
 
+  // A line that cannot be reconciled later is a line somebody has to chase.
+  // Blocked here rather than discovered at cash-up.
+  const incomplete = lines.find((l) =>
+    Number(l.amount) > 0 && (
+      (l.method === "mobile_money" && !l.wallet) ||
+      (l.method === "card" && !l.scheme) ||
+      (l.currency_code !== base && !rates[l.currency_code])
+    ));
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
         <h2>Take part of it</h2>
         <p className="muted">
           {patient} owes <b>{money(owed)}</b>. Whatever is not paid now stays
           against this sale until it is collected.
         </p>
 
-        <label className="field">
-          How much are they paying?
-          <input
-            type="number" min="0" step="0.01" autoFocus
-            value={amount} onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
-          {tooMuch && (
-            <span className="field-hint">
-              That is more than is owed. Take {money(owed)} and settle it in full
-              instead.
-            </span>
-          )}
-        </label>
+        <Tenders
+          lines={lines}
+          onChange={setLines}
+          owed={owed}
+          currencies={currencies}
+          base={base}
+          rates={rates}
+          aidCovers={aidCovers}
+        />
 
-        <label className="field">
-          Paid with
-          <Select
-            value={method} onChange={setMethod} ariaLabel="Method"
-            options={[
-              { value: "cash", label: "Cash" },
-              { value: "card", label: "Card" },
-              { value: "mobile_money", label: "Mobile money" },
-            ]}
-          />
-        </label>
+        {tooMuch && (
+          <div className="alert warn">
+            That is more than is owed. Take {money(owed)} and settle it in full
+            instead.
+          </div>
+        )}
+
+        {incomplete && (
+          <div className="alert warn">
+            {incomplete.method === "mobile_money"
+              ? "Say which wallet the mobile money came from — a drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
+              : incomplete.method === "card"
+                ? "Say which card or bank. The settlement arrives from one of them, on their own timetable, and “card” matches none of it."
+                : `There is no exchange rate on file for ${incomplete.currency_code}, so this cannot be converted. Record today’s rate first.`}
+          </div>
+        )}
 
         <label className="field">
           Note (optional)
@@ -98,8 +126,24 @@ export default function PartPayment({ owed, patient, onCancel, onConfirm }: {
         <div className="modal-actions">
           <button className="btn ghost" onClick={onCancel}>Cancel</button>
           <BusyButton
-            disabled={nothing || tooMuch}
-            onClick={() => onConfirm({ amount: taking, method, note: note.trim() })}
+            disabled={nothing || tooMuch || !!incomplete}
+            onClick={() => onConfirm({
+              amount: taking,
+              method: lines.length === 1 ? lines[0].method : "split",
+              note: note.trim(),
+              tenders: lines
+                .filter((l) => Number(l.amount) > 0)
+                .map((l) => ({
+                  method: l.method,
+                  currency_code: l.currency_code || base,
+                  amount: Number(l.amount),
+                  // Everything needed to match this against a statement later:
+                  // the wallet and number, or the bank and the last four.
+                  reference: [l.wallet, l.phone, l.scheme, l.last4 && `••${l.last4}`,
+                              l.auth, l.reference]
+                    .filter(Boolean).join(" "),
+                })),
+            })}
           >
             Take {taking > 0 ? money(taking) : "payment"}
           </BusyButton>
