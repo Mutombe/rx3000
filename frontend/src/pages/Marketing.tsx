@@ -12,11 +12,13 @@ import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { EntityLink } from "../components/Filters";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 type Tab = "compose" | "history";
 
 export default function Marketing() {
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignMeta, setCampaignMeta] = useState<Paged<Campaign> | null>(null);
   const [campaignPage, setCampaignPage] = useState(1);
@@ -39,7 +41,9 @@ export default function Marketing() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "compose");
 
   function loadSegments() {
-    api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments).catch((e) => toast.error(errorText(e)));
+    api.get<Segment[]>(`/api/marketing/segments?channel=${channel}`).then(setSegments)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
   }
   function loadCampaigns() {
     api.get<Paged<Campaign>>(`/api/marketing/campaigns/paged?page=${campaignPage}&per_page=25`)
@@ -214,7 +218,18 @@ export default function Marketing() {
           </tbody>
         </table>
             {campaignMeta && <Pagination meta={campaignMeta} onPage={setCampaignPage} noun="campaigns" />}
-        {campaigns.length === 0 && <div className="empty">No campaigns yet</div>}
+        {loading && campaigns.length === 0 && (
+          <TableSkeleton cols={9} rows={4} />
+        )}
+        {!loading && campaigns.length === 0 && (
+          <div className="empty">
+            <b>No campaigns yet</b>
+            <p>
+              A campaign goes to a segment — a group of patients the pharmacy
+              has a reason to write to. Build the segment first.
+            </p>
+          </div>
+        )}
       </div>
       )}
 

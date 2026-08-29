@@ -7,6 +7,7 @@ import { DuplicateWarning, Lead, LeadScoreExplanation, User } from "../types";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 const SOURCES = [
   ["referral", "Referral"], ["event", "Event / expo"], ["campaign", "Campaign"],
@@ -44,6 +45,7 @@ function statusClass(s: string) {
 
 export default function Leads() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [view, setView] = useState("open");
   const [q, setQ] = useState("");
@@ -62,7 +64,9 @@ export default function Leads() {
   const navigate = useNavigate();
 
   function load() {
-    api.get<Lead[]>("/api/crm/leads?status=").then(setLeads).catch((e) => toast.error(errorText(e)));
+    api.get<Lead[]>("/api/crm/leads?status=").then(setLeads)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
   }
   useEffect(() => {
     load();
@@ -271,7 +275,19 @@ export default function Leads() {
                   <ScoreRing score={l.score} rating={l.rating} size={40} />
                 </div>
               ))}
-              {rows.length === 0 && <div className="empty">No leads in this view</div>}
+              {/* Only once it is known to be true. A list that says "no
+                  leads" while it is still fetching them is a list somebody
+                  acts on. */}
+              {loading && rows.length === 0 && (
+                <TableSkeleton cols={4} rows={5}
+                  widths={["20ch", "16ch", "10ch", "6ch"]} />
+              )}
+              {!loading && rows.length === 0 && (
+                <div className="empty">
+                  <b>No leads in this view</b>
+                  <p>Change the filter, or add the first one.</p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="lead-board">

@@ -21,6 +21,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
 import { EntityLink } from "../components/Filters";
+import { TableSkeleton } from "../components/Skeleton";
 
 interface Scope { category: string; bin: string }
 interface Take {
@@ -179,7 +180,17 @@ export default function StockTake() {
     }
   }
 
-  if (loading) return <div className="card"><div className="empty">Loading…</div></div>;
+  // "Loading…" in the middle of an empty card is the placeholder a skeleton
+  // replaces: it says nothing about what is coming and the page jumps when it
+  // does.
+  if (loading) {
+    return (
+      <div className="card">
+        <TableSkeleton cols={5} rows={5}
+          widths={["22ch", "10ch", "10ch", "10ch", "12ch"]} />
+      </div>
+    );
+  }
 
   return (
     <>

@@ -17,6 +17,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import { useStepUp, CANCELLED } from "../components/StepUp";
+import { TableSkeleton } from "../components/Skeleton";
 
 interface Scheme {
   id: number; name: string; scheme_code: string; currency_code: string;
@@ -43,6 +44,7 @@ function when(days: number | null, on: string | null): string {
 
 export default function SchemeCalendar() {
   const [data, setData] = useState<Calendar | null>(null);
+  const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
@@ -58,7 +60,10 @@ export default function SchemeCalendar() {
     api.get<Calendar>("/api/claiming/schemes/calendar")
       .then((d) => { setData(d); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "The claiming calendar could not be loaded.")))
-      .finally(() => window.setTimeout(() => setSpinning(false), 400));
+      .finally(() => {
+        setLoading(false);
+        window.setTimeout(() => setSpinning(false), 400);
+      });
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -176,6 +181,16 @@ export default function SchemeCalendar() {
             </div>
           )}
 
+          {/* Every funder's cut-off and payment day. A blank frame while it
+              loads reads as a pharmacy with no schemes on file, which is the
+              one thing that would make this page pointless. */}
+          {loading && (
+            <div className="card">
+              <TableSkeleton cols={5} rows={5}
+                widths={["20ch", "12ch", "14ch", "12ch", "14ch"]} />
+            </div>
+          )}
+          {!loading && (
           <div className="card">
             <table className="dt">
               <thead>
@@ -235,6 +250,7 @@ export default function SchemeCalendar() {
               </tbody>
             </table>
           </div>
+          )}
         </>
       )}
 

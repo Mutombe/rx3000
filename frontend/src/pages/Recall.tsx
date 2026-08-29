@@ -18,6 +18,7 @@ import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../a
 import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
 import { EntityLink } from "../components/Filters";
+import { TableSkeleton } from "../components/Skeleton";
 
 interface Hit {
   batch_id: number; batch_number: string; product: string;
@@ -113,7 +114,12 @@ export default function Recall() {
           </span>
         </label>
 
-        {busy && <p className="muted">Searching…</p>}
+        {/* A sentence where a table is about to be makes the page jump when
+            the answer lands. The ghost holds the shape. */}
+        {busy && (
+          <TableSkeleton cols={5} rows={4}
+            widths={["14ch", "22ch", "12ch", "10ch", "12ch"]} />
+        )}
         {!busy && q.trim() && hits.length === 0 && (
           <div className="empty">
             <b>No batch matches that.</b>
