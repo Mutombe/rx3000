@@ -25,8 +25,11 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import ExportButton from "../components/ExportButton";
 import Checkbox from "../components/Checkbox";
+import Select from "../components/Select";
+import BusyButton from "../components/BusyButton";
+import { EntityLink } from "../components/Filters";
 
-type Tab = "batches" | "models";
+type Tab = "batches" | "models" | "formularies";
 
 interface Unbatched {
   pay_office_id: number; pay_office: string; code: string;
@@ -47,6 +50,35 @@ interface FeeModel {
   vat_on_fee: boolean; apply_mmap: boolean; notes: string; active: boolean;
   tiers: Tier[];
 }
+/** A scheme's list of what it will pay for.
+ *
+ *  `default_rule` decides what happens to a product with no explicit entry.
+ *  The model's own warning: getting this backwards is the difference between
+ *  over-claiming and rejecting everything.
+ */
+interface Formulary {
+  id: number; code: string; name: string; default_rule: string;
+  active: boolean; notes: string;
+}
+interface FormularyEntry {
+  id: number; formulary_id: number; product_id: number; status: string;
+  reference_price: number; max_quantity: number;
+  requires_authorisation: boolean; note: string;
+  /** The server sends the whole product with each entry. */
+  product?: { id: number; name: string; strength: string } | null;
+}
+
+const ENTRY_STATUS = [
+  { value: "covered", label: "Paid in full",
+    hint: "at the scheme's fee model" },
+  { value: "reference", label: "Up to a reference price",
+    hint: "the patient pays the difference" },
+  { value: "authorisation", label: "Only against an authorisation",
+    hint: "no number, no payment" },
+  { value: "excluded", label: "Not paid at all",
+    hint: "the patient carries it" },
+];
+
 interface PayOffice {
   id: number; code: string; name: string; submission: string; active: boolean;
 }
@@ -89,6 +121,18 @@ export default function Claiming() {
   const [settling, setSettling] = useState<Batch | null>(null);
   const [paid, setPaid] = useState("");
   const [reference, setReference] = useState("");
+  const [formularies, setFormularies] = useState<Formulary[]>([]);
+  const [openFormulary, setOpenFormulary] = useState<Formulary | null>(null);
+  const [entries, setEntries] = useState<FormularyEntry[]>([]);
+  const [newFormulary, setNewFormulary] = useState<
+    { code: string; name: string; default_rule: string; notes: string } | null>(null);
+  const [addingEntry, setAddingEntry] = useState(false);
+  const [entryProductQ, setEntryProductQ] = useState("");
+  const [entryHits, setEntryHits] = useState<any[]>([]);
+  const [entryForm, setEntryForm] = useState({
+    product_id: 0, product_name: "", status: "covered",
+    reference_price: "", max_quantity: "", requires_authorisation: false, note: "",
+  });
 
   const load = useCallback(() => {
     api.get<Unbatched[]>("/api/claiming/unbatched").then(setUnbatched)
@@ -96,9 +140,67 @@ export default function Claiming() {
     api.get<Batch[]>("/api/claiming/batches").then(setBatches).catch(() => undefined);
     api.get<FeeModel[]>("/api/claiming/fee-models").then(setModels).catch(() => undefined);
     api.get<PayOffice[]>("/api/claiming/pay-offices").then(setOffices).catch(() => undefined);
+    api.get<Formulary[]>("/api/claiming/formularies")
+      .then(setFormularies).catch(() => undefined);
   }, [toast]);
 
   useEffect(load, [load]);
+
+  // The entries of whichever formulary is open. Fetched on demand: a scheme's
+  // list runs to thousands of lines and none of it is wanted until somebody
+  // asks for that scheme.
+  useEffect(() => {
+    if (!openFormulary) { setEntries([]); return; }
+    api.get<FormularyEntry[]>(`/api/claiming/formularies/${openFormulary.id}/entries`)
+      .then(setEntries).catch(() => setEntries([]));
+  }, [openFormulary]);
+
+  useEffect(() => {
+    if (entryProductQ.trim().length < 2) { setEntryHits([]); return; }
+    api.get<any>(`/api/products?q=${encodeURIComponent(entryProductQ)}&limit=6`)
+      .then((d) => setEntryHits(d.items ?? d ?? []))
+      .catch(() => setEntryHits([]));
+  }, [entryProductQ]);
+
+  async function createFormulary() {
+    if (!newFormulary) return;
+    try {
+      await api.post("/api/claiming/formularies", newFormulary);
+      toast.ok(`${newFormulary.name} added.`);
+      setNewFormulary(null);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That formulary could not be created."));
+    }
+  }
+
+  async function saveEntry() {
+    if (!openFormulary || !entryForm.product_id) return;
+    try {
+      await api.post(`/api/claiming/formularies/${openFormulary.id}/entries`, {
+        product_id: entryForm.product_id,
+        status: entryForm.status,
+        reference_price: Number(entryForm.reference_price) || 0,
+        max_quantity: Number(entryForm.max_quantity) || 0,
+        // A reference-priced or excluded line does not need an authorisation;
+        // the flag only means anything on a line the scheme will actually pay.
+        requires_authorisation: entryForm.status === "authorisation"
+          || entryForm.requires_authorisation,
+        note: entryForm.note,
+      });
+      toast.ok(`${entryForm.product_name} filed on ${openFormulary.name}.`);
+      setAddingEntry(false);
+      setEntryForm({ product_id: 0, product_name: "", status: "covered",
+                     reference_price: "", max_quantity: "",
+                     requires_authorisation: false, note: "" });
+      setEntryProductQ("");
+      const rows = await api.get<FormularyEntry[]>(
+        `/api/claiming/formularies/${openFormulary.id}/entries`);
+      setEntries(rows);
+    } catch (e) {
+      toast.error(errorText(e, "That entry could not be saved."));
+    }
+  }
 
   const officeName = (id: number) =>
     offices.find((o) => o.id === id)?.name ?? `#${id}`;
@@ -247,6 +349,10 @@ export default function Claiming() {
         </button>
         <button className={tab === "models" ? "active" : ""} onClick={() => setTab("models")}>
           Fee models
+        </button>
+        <button className={tab === "formularies" ? "active" : ""}
+                onClick={() => setTab("formularies")}>
+          Formularies{formularies.length ? ` (${formularies.length})` : ""}
         </button>
       </div>
 
@@ -399,6 +505,266 @@ export default function Claiming() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* What each scheme will pay for.
+          Full CRUD on the server since it was written, and no screen: the
+          coverage check on the dispensing page has been answering from
+          formularies nobody could see, let alone maintain. */}
+      {tab === "formularies" && (
+        <>
+          <div className="card">
+            <div className="card-head">
+              <h3>Formularies</h3>
+              <button className="btn" onClick={() => setNewFormulary(
+                { code: "", name: "", default_rule: "covered", notes: "" })}>
+                New formulary
+              </button>
+            </div>
+            {formularies.length === 0 ? (
+              <div className="empty">
+                <b>No scheme has a formulary on file.</b>
+                <p>
+                  Without one, every claim is priced as though the scheme pays
+                  for everything. The rejections arrive weeks later, one at a
+                  time, and by then the medicine has gone out.
+                </p>
+              </div>
+            ) : (
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Formulary</th><th>What it does by default</th>
+                    <th className="num">Listed</th><th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {formularies.map((f) => (
+                    <tr key={f.id} className={f.active ? "" : "row-flag"}>
+                      <td>
+                        <b>{f.name}</b>
+                        <div className="muted small mono">
+                          {f.code}{f.active ? "" : " · not in use"}
+                        </div>
+                      </td>
+                      <td className="wrap">
+                        {/* Spelled out rather than shown as the stored word.
+                            "covered" and "excluded" read as a property of the
+                            formulary; what they actually decide is the fate of
+                            every product nobody has listed. */}
+                        {f.default_rule === "covered"
+                          ? <>Open — pays for anything not explicitly excluded</>
+                          : <>Closed — pays only for what is listed below</>}
+                        {f.notes && <div className="muted small">{f.notes}</div>}
+                      </td>
+                      <td className="num">
+                        {openFormulary?.id === f.id ? entries.length
+                          : <span className="muted">—</span>}
+                      </td>
+                      <td className="actions">
+                        <button className="btn small secondary"
+                                onClick={() => setOpenFormulary(
+                                  openFormulary?.id === f.id ? null : f)}>
+                          {openFormulary?.id === f.id ? "Close" : "Open"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {openFormulary && (
+            <div className="card">
+              <div className="card-head">
+                <h3>{openFormulary.name}</h3>
+                <button className="btn" onClick={() => setAddingEntry(true)}>
+                  List a product
+                </button>
+              </div>
+              <p className="muted">
+                {openFormulary.default_rule === "covered"
+                  ? "This formulary is open, so anything not listed here is paid for. List the exceptions."
+                  : "This formulary is closed, so anything not listed here is refused. List what the scheme pays for."}
+              </p>
+              {entries.length === 0 ? (
+                <div className="empty">
+                  Nothing is listed.{" "}
+                  {openFormulary.default_rule === "covered"
+                    ? "Every product is being claimed as covered."
+                    : "Every claim against this scheme will be refused."}
+                </div>
+              ) : (
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Product</th><th>Standing</th>
+                      <th className="num">Reference price</th>
+                      <th className="num">Max per dispensing</th><th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((e) => (
+                      <tr key={e.id}>
+                        <td>
+                          <EntityLink kind="product" id={e.product_id}>
+                            {/* The server sends the product with the entry.
+                                Showing the id instead would make a formulary
+                                a list of numbers to look up one at a time. */}
+                            <b>{e.product?.name ?? `#${e.product_id}`}</b>
+                            {e.product?.strength ? ` ${e.product.strength}` : ""}
+                          </EntityLink>
+                        </td>
+                        <td>
+                          {ENTRY_STATUS.find((x) => x.value === e.status)?.label
+                            ?? e.status}
+                          {e.requires_authorisation && (
+                            <div className="muted small">needs an authorisation number</div>
+                          )}
+                        </td>
+                        <td className="num">
+                          {e.reference_price
+                            ? money(e.reference_price)
+                            : <span className="muted">—</span>}
+                        </td>
+                        <td className="num">
+                          {e.max_quantity || <span className="muted">no limit</span>}
+                        </td>
+                        <td className="small wrap">{e.note}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {newFormulary && (
+        <div className="modal-backdrop" onClick={() => setNewFormulary(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>New formulary</h2>
+            <div className="form-row">
+              <div className="field">
+                <label>Name</label>
+                <input value={newFormulary.name} autoFocus
+                       onChange={(e) => setNewFormulary({ ...newFormulary, name: e.target.value })}
+                       placeholder="e.g. CIMAS Private Hospital Plan" />
+              </div>
+              <div className="field">
+                <label>Code</label>
+                <input value={newFormulary.code}
+                       onChange={(e) => setNewFormulary({ ...newFormulary, code: e.target.value.toUpperCase() })}
+                       placeholder="as the scheme writes it" />
+              </div>
+            </div>
+            <div className="field">
+              <label>What happens to a product nobody has listed</label>
+              <Select
+                value={newFormulary.default_rule}
+                onChange={(v) => setNewFormulary({ ...newFormulary, default_rule: v })}
+                options={[
+                  { value: "covered", label: "Open — pay unless told otherwise" },
+                  { value: "excluded", label: "Closed — pay only what is listed" },
+                ]}
+              />
+              {/* The model's own warning, put where the choice is made rather
+                  than left in the source. */}
+              <span className="field-hint">
+                Getting this backwards is the difference between over-claiming
+                and rejecting everything.
+              </span>
+            </div>
+            <div className="field">
+              <label>Notes</label>
+              <input value={newFormulary.notes}
+                     onChange={(e) => setNewFormulary({ ...newFormulary, notes: e.target.value })}
+                     placeholder="optional" />
+            </div>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setNewFormulary(null)}>Cancel</button>
+              <BusyButton
+                disabled={newFormulary.name.trim().length < 2 || !newFormulary.code.trim()}
+                onClick={createFormulary}>
+                Create it
+              </BusyButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addingEntry && openFormulary && (
+        <div className="modal-backdrop" onClick={() => setAddingEntry(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>List a product on {openFormulary.name}</h2>
+            <div className="field">
+              <label>Which product</label>
+              {entryForm.product_id ? (
+                <div className="product-pick">
+                  <span>{entryForm.product_name}</span>
+                  <button type="button" className="btn ghost small"
+                          onClick={() => setEntryForm({ ...entryForm, product_id: 0, product_name: "" })}>
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input type="search" autoFocus value={entryProductQ}
+                         onChange={(e) => setEntryProductQ(e.target.value)}
+                         placeholder="Search the catalogue…" />
+                  {entryHits.map((pr: any) => (
+                    <div key={pr.id} className="product-pick"
+                         onClick={() => {
+                           setEntryForm({ ...entryForm, product_id: pr.id,
+                                          product_name: `${pr.name} ${pr.strength ?? ""}`.trim() });
+                           setEntryProductQ("");
+                         }}>
+                      <span>{pr.name} {pr.strength}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+            <div className="field">
+              <label>What the scheme does with it</label>
+              <Select value={entryForm.status}
+                      onChange={(v) => setEntryForm({ ...entryForm, status: v })}
+                      options={ENTRY_STATUS} />
+            </div>
+            {entryForm.status === "reference" && (
+              <div className="field">
+                <label>Reference price</label>
+                <input type="number" step="0.01" min="0"
+                       value={entryForm.reference_price}
+                       onChange={(e) => setEntryForm({ ...entryForm, reference_price: e.target.value })} />
+                <span className="field-hint">
+                  The scheme pays up to this; the patient pays whatever the
+                  product costs above it.
+                </span>
+              </div>
+            )}
+            <div className="field">
+              <label>Most it will pay for in one dispensing</label>
+              <input type="number" min="0" value={entryForm.max_quantity}
+                     onChange={(e) => setEntryForm({ ...entryForm, max_quantity: e.target.value })}
+                     placeholder="leave empty for no limit" />
+            </div>
+            <div className="field">
+              <label>Note</label>
+              <input value={entryForm.note}
+                     onChange={(e) => setEntryForm({ ...entryForm, note: e.target.value })}
+                     placeholder="e.g. chronic only, per the March memorandum" />
+            </div>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setAddingEntry(false)}>Cancel</button>
+              <BusyButton disabled={!entryForm.product_id} onClick={saveEntry}>
+                File it
+              </BusyButton>
+            </div>
+          </div>
         </div>
       )}
 
