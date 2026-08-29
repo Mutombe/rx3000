@@ -50,6 +50,22 @@ interface PayOffice {
   id: number; code: string; name: string; submission: string; active: boolean;
 }
 
+/** The calendar month just gone, which is what a claiming cycle almost always
+ *  means: a memorandum says "claims for August by the 25th of September". */
+function lastMonth(): { from: string; to: string } {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const last = new Date(now.getFullYear(), now.getMonth(), 0);
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: iso(first), to: iso(last) };
+}
+
+function lastMonthName(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return d.toLocaleDateString(undefined, { month: "long" });
+}
+
 export default function Claiming() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -86,10 +102,23 @@ export default function Claiming() {
   const officeName = (id: number) =>
     offices.find((o) => o.id === id)?.name ?? `#${id}`;
 
-  async function makeBatch(row: Unbatched) {
+  /** Batch a funder's claims, optionally only those in a period.
+   *
+   *  The endpoint has always taken a date range and the screen never offered
+   *  one, so every batch swept up every unbatched claim regardless of when it
+   *  was raised. That is wrong in the one case claiming is actually about: a
+   *  funder whose memorandum says "claims for August, in by the 25th" wants
+   *  August, and a batch carrying three days of September in it is one they
+   *  can reject whole.
+   */
+  async function makeBatch(row: Unbatched, period?: { from: string; to: string }) {
     const ok = await confirm({
       title: `Batch ${row.claims} claim(s) for ${row.pay_office}?`,
-      body: `${money(row.value)} of claims will be grouped into one batch ready to `
+      body: period
+        ? `Claims raised between ${period.from} and ${period.to} will be grouped `
+          + `into one batch ready to send. Anything outside those dates is left `
+          + `for the next batch.`
+        : `${money(row.value)} of claims will be grouped into one batch ready to `
           + `send. Claims already in a batch are not touched.`,
       confirmLabel: "Create the batch",
     });
@@ -97,7 +126,8 @@ export default function Claiming() {
     setBusy(`batch-${row.pay_office_id}`);
     try {
       const made = await api.post<Batch>("/api/claiming/batches",
-        { pay_office_id: row.pay_office_id });
+        { pay_office_id: row.pay_office_id,
+          ...(period ? { date_from: period.from, date_to: period.to } : {}) });
       toast.ok(`Batch ${made.batch_number} created with ${made.claim_count} claim(s).`);
       load();
     } catch (e) {
@@ -248,7 +278,18 @@ export default function Claiming() {
                             disabled={busy === `batch-${row.pay_office_id}`}
                             onClick={() => makeBatch(row)}
                           >
-                            {busy === `batch-${row.pay_office_id}` ? "Creating…" : "Create batch"}
+                            {busy === `batch-${row.pay_office_id}` ? "Creating…" : "Everything"}
+                          </button>{" "}
+                          {/* A funder whose memorandum says "August, in by the
+                              25th" wants August. Batching the lot sweeps in
+                              whatever was raised since, which is a batch they
+                              can reject whole. */}
+                          <button
+                            className="small secondary"
+                            disabled={busy === `batch-${row.pay_office_id}`}
+                            onClick={() => makeBatch(row, lastMonth())}
+                          >
+                            {lastMonthName()}
                           </button>
                         </td>
                       </tr>

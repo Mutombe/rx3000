@@ -495,6 +495,17 @@ def scheme_calendar(db: Session = Depends(get_db)):
             "settlement_days": scheme.settlement_days or 0,
             "agreement_reference": scheme.agreement_reference or "",
             "agreement_note": scheme.agreement_note or "",
+            # What the member pays and what the pharmacy gives away.
+            #
+            # These reprice every claim this scheme touches — the levy is the
+            # patient's share at the counter — and there was an endpoint to
+            # change them and no screen anywhere that could. So the calculation
+            # ran on whatever the seeder happened to set, for ever.
+            "levy_fixed": round(float(scheme.levy_fixed or 0), 2),
+            "levy_percent": round(float(scheme.levy_percent or 0), 2),
+            "discount_percent": round(float(scheme.discount_percent or 0), 2),
+            "extra_markup_percent": round(float(scheme.extra_markup_percent or 0), 2),
+            "credit_limit": round(float(scheme.credit_limit or 0), 2),
             "next_cutoff": cutoff,
             "days_to_cutoff": (cutoff - today).days if cutoff else None,
             "next_settlement": pays,

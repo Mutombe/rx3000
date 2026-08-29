@@ -21,6 +21,9 @@ import BusyButton from "./BusyButton";
 import Tenders, { TenderLine, blankLine, inBase } from "./Tenders";
 
 export interface PartPaymentChoice {
+  /** Set when a medical aid line is being held rather than sent. */
+  claim_later?: boolean;
+  claim_later_reason?: string;
   /** What was taken, in base currency. */
   amount: number;
   /** Kept for callers that only care about the headline instrument. */
@@ -128,6 +131,10 @@ export default function PartPayment({
           <BusyButton
             disabled={nothing || tooMuch || !!incomplete}
             onClick={() => onConfirm({
+              // Carried up so the server holds the claim instead of sending it
+              // into a switch that is not answering.
+              claim_later: lines.some((l) => l.method === "medical_aid" && l.claimLater),
+              claim_later_reason: lines.find((l) => l.claimLater)?.claimLaterReason || "",
               amount: taking,
               method: lines.length === 1 ? lines[0].method : "split",
               note: note.trim(),

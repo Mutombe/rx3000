@@ -139,6 +139,11 @@ export default function Authorisations() {
       const made = await api.post<Auth>("/api/authorisations", {
         funder_id: funder.trim().toUpperCase(),
         policy_number: policy.trim(),
+        // Which member on the policy. A family shares one policy number and the
+        // dependent code is what tells the funder whether this is the principal
+        // or a child — it is already on the patient record, and was simply not
+        // being sent, so every authorisation went up as the principal member.
+        dependent_code: patient?.dependent_code ?? "",
         patient_id: patient?.id ?? null,
         product_id: product?.id ?? null,
         description: product?.name ?? "",

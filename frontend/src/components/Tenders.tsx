@@ -40,6 +40,10 @@ export interface TenderLine {
   auth?: string;
   /** The scheme's own reference, for a medical aid line. */
   reference?: string;
+  /** Hold this claim rather than sending it now. */
+  claimLater?: boolean;
+  /** Why it is being held — read by whoever sends it later. */
+  claimLaterReason?: string;
 }
 
 /** The card schemes and banks a Zimbabwean pharmacy actually sees on a slip.
@@ -239,19 +243,49 @@ export default function Tenders({
             )}
 
             {line.method === "medical_aid" && (
-              <div className="tender-row tender-detail">
-                <input
-                  value={line.reference ?? ""}
-                  onChange={(e) => set(i, { reference: e.target.value })}
-                  placeholder="Scheme reference, if they gave one"
-                  aria-label="Scheme reference"
-                />
-                <span className="muted small">
-                  {aidCovers > 0.005
-                    ? <>The claim covers <b>{money(aidCovers)}</b> of this.</>
-                    : "Recorded against the claim rather than the drawer."}
-                </span>
-              </div>
+              <>
+                <div className="tender-row tender-detail">
+                  <input
+                    value={line.reference ?? ""}
+                    onChange={(e) => set(i, { reference: e.target.value })}
+                    placeholder="Scheme reference, if they gave one"
+                    aria-label="Scheme reference"
+                  />
+                  <span className="muted small">
+                    {aidCovers > 0.005
+                      ? <>The claim covers <b>{money(aidCovers)}</b> of this.</>
+                      : "Recorded against the claim rather than the drawer."}
+                  </span>
+                </div>
+                {/* The switch goes down, and the medicine still has to go out.
+                    Holding the claim is the only answer that neither turns the
+                    patient away nor loses the money — and the server has done
+                    it all along with nothing on any screen to ask for it. */}
+                <div className="tender-row tender-detail">
+                  <label className="cbx">
+                    <input
+                      type="checkbox"
+                      checked={!!line.claimLater}
+                      onChange={(e) => set(i, { claimLater: e.target.checked })}
+                    />
+                    <span>Hold this claim — do not send it now</span>
+                  </label>
+                  {line.claimLater && (
+                    <input
+                      value={line.claimLaterReason ?? ""}
+                      onChange={(e) => set(i, { claimLaterReason: e.target.value })}
+                      placeholder="Why — the switch is down, no card, …"
+                      aria-label="Why the claim is held"
+                    />
+                  )}
+                </div>
+                {line.claimLater && (
+                  <div className="muted small tender-conv">
+                    It will wait in <b>Claims held</b> until somebody sends it.
+                    The patient settles now and is refunded when the funder pays.
+                  </div>
+                )}
+              </>
             )}
 
             {/* Anything not in the base currency is shown converted, because

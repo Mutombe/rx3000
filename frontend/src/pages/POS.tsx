@@ -452,6 +452,10 @@ export default function POS() {
           payment_method: "split",
           part_payment: true,
           part_payment_note: choice.note,
+          // Hold the claim rather than sending it into a switch that is not
+          // answering. The server has supported this all along.
+          claim_later: choice.claim_later ?? false,
+          claim_later_reason: choice.claim_later_reason ?? "",
           // Every payment the cashier actually took, not a single flattened
           // line. A part payment made of ZiG cash and an EcoCash transfer is
           // two tenders, and recording it as one loses which drawer each

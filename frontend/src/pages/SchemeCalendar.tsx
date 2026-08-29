@@ -16,12 +16,15 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
+import { useStepUp, CANCELLED } from "../components/StepUp";
 
 interface Scheme {
   id: number; name: string; scheme_code: string; currency_code: string;
   realtime: boolean;
   claim_cutoff_day: number; settlement_day: number; settlement_days: number;
   agreement_reference: string; agreement_note: string;
+  levy_fixed: number; levy_percent: number; discount_percent: number;
+  extra_markup_percent: number; credit_limit: number;
   next_cutoff: string | null; days_to_cutoff: number | null;
   next_settlement: string | null; days_to_settlement: number | null;
   awaiting_payment: number; claims_awaiting: number; held: number;
@@ -43,8 +46,12 @@ export default function SchemeCalendar() {
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
-  const [form, setForm] = useState({ cutoff: "", settle: "", terms: "", ref: "", note: "" });
+  const [form, setForm] = useState({
+    cutoff: "", settle: "", terms: "", ref: "", note: "",
+    levyFixed: "", levyPercent: "", discount: "", markup: "", credit: "",
+  });
   const toast = useToast();
+  const { guarded, prompt: stepUpPrompt } = useStepUp();
 
   const load = useCallback(() => {
     setSpinning(true);
@@ -63,6 +70,11 @@ export default function SchemeCalendar() {
       terms: scheme.settlement_days ? String(scheme.settlement_days) : "",
       ref: scheme.agreement_reference,
       note: scheme.agreement_note,
+      levyFixed: scheme.levy_fixed ? String(scheme.levy_fixed) : "",
+      levyPercent: scheme.levy_percent ? String(scheme.levy_percent) : "",
+      discount: scheme.discount_percent ? String(scheme.discount_percent) : "",
+      markup: scheme.extra_markup_percent ? String(scheme.extra_markup_percent) : "",
+      credit: scheme.credit_limit ? String(scheme.credit_limit) : "",
     });
   }
 
@@ -76,6 +88,32 @@ export default function SchemeCalendar() {
         agreement_reference: form.ref,
         agreement_note: form.note,
       });
+      // The terms go to their own endpoint, which is behind a step-up because
+      // a levy reprices every future claim. Sent second so the dates are saved
+      // even if somebody cancels the password prompt.
+      const terms = {
+        levy_fixed: Number(form.levyFixed) || 0,
+        levy_percent: Number(form.levyPercent) || 0,
+        discount_percent: Number(form.discount) || 0,
+        extra_markup_percent: Number(form.markup) || 0,
+        credit_limit: Number(form.credit) || 0,
+      };
+      const changed = (["levy_fixed", "levy_percent", "discount_percent",
+                        "extra_markup_percent", "credit_limit"] as const)
+        .some((k) => (terms as any)[k] !== (editing as any)[k]);
+      if (changed) {
+        const res = await guarded(
+          "scheme.edit",
+          (token) => api.put(`/api/medical-aids/${editing.id}`, terms, token),
+          `${editing.name} — levy and discount`,
+        );
+        if (res === CANCELLED) {
+          toast.warn("The dates were saved. The terms were not changed.");
+          setEditing(null);
+          load();
+          return;
+        }
+      }
       toast.ok(`The agreement with ${editing.name} is recorded.`);
       setEditing(null);
       load();
@@ -200,6 +238,7 @@ export default function SchemeCalendar() {
         </>
       )}
 
+      {stepUpPrompt}
       {editing && (
         <div className="modal-backdrop" onClick={() => setEditing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -236,6 +275,56 @@ export default function SchemeCalendar() {
               Note
               <input value={form.note}
                      onChange={(e) => setForm({ ...form, note: e.target.value })} />
+            </label>
+
+            {/* What the member pays and what the pharmacy gives away.
+                These reprice every claim this scheme touches, and there was an
+                endpoint to change them with no screen that could — so they sat
+                at whatever they were first set to. */}
+            <h3>What the member pays</h3>
+            <div className="form-row">
+              <div className="field">
+                <label>Levy, fixed</label>
+                <input type="number" min="0" step="0.01" value={form.levyFixed}
+                       onChange={(e) => setForm({ ...form, levyFixed: e.target.value })}
+                       placeholder="0.00" />
+                <span className="field-hint">A flat amount the member pays.</span>
+              </div>
+              <div className="field">
+                <label>Levy, per cent</label>
+                <input type="number" min="0" max="100" step="0.1" value={form.levyPercent}
+                       onChange={(e) => setForm({ ...form, levyPercent: e.target.value })}
+                       placeholder="0" />
+                <span className="field-hint">
+                  Their share of the claim. The larger of the two is taken.
+                </span>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="field">
+                <label>Scheme discount %</label>
+                <input type="number" min="0" max="100" step="0.1" value={form.discount}
+                       onChange={(e) => setForm({ ...form, discount: e.target.value })}
+                       placeholder="0" />
+                <span className="field-hint">What this funder is given off the price.</span>
+              </div>
+              <div className="field">
+                <label>Extra markup %</label>
+                <input type="number" min="0" max="100" step="0.1" value={form.markup}
+                       onChange={(e) => setForm({ ...form, markup: e.target.value })}
+                       placeholder="0" />
+                <span className="field-hint">Where the scheme allows a higher margin.</span>
+              </div>
+            </div>
+            <label className="field">
+              Credit limit
+              <input type="number" min="0" step="0.01" value={form.credit}
+                     onChange={(e) => setForm({ ...form, credit: e.target.value })}
+                     placeholder="0 for no limit" />
+              <span className="field-hint">
+                How much the pharmacy will carry for this funder before it stops
+                claiming. Zero means no limit is set.
+              </span>
             </label>
             <div className="modal-actions">
               <button className="btn ghost" onClick={() => setEditing(null)}>Cancel</button>
