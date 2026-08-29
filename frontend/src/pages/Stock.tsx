@@ -5,6 +5,7 @@ import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import ExportButton from "../components/ExportButton";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
 import { Paged } from "../components/Pagination";
 import { ScanBar, ScanResult } from "../components/Scanner";
@@ -292,7 +293,12 @@ export default function Stock() {
           <h1>Inventory</h1>
           <div className="sub">Products, quantities, movements and reorder levels</div>
         </div>
-        <button onClick={openNew}>+ New Product</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <ExportButton dataset={tab === "batches" ? "batches" : "products"}
+                        label={tab === "batches" ? "Batches as a spreadsheet"
+                                                 : "Catalogue as a spreadsheet"} />
+          <button onClick={openNew}>+ New Product</button>
+        </div>
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

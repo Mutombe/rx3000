@@ -23,6 +23,7 @@ import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import ExportButton from "../components/ExportButton";
 import Checkbox from "../components/Checkbox";
 
 type Tab = "batches" | "models";
@@ -235,6 +236,9 @@ export default function Claiming() {
             how a claim is priced
           </div>
         </div>
+        {/* A pharmacy reconciles what a funder paid against what was claimed in
+            Excel, whatever the software offers. */}
+        <ExportButton dataset="claims" label="Claims as a spreadsheet" />
       </div>
 
       <div className="pill-tabs">

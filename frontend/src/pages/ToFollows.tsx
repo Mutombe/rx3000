@@ -17,6 +17,7 @@ import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import ExportButton from "../components/ExportButton";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
@@ -166,6 +167,7 @@ export default function ToFollows() {
           <h1>To follows</h1>
           <p className="muted">{headline}</p>
         </div>
+        <ExportButton dataset="to-follows" label="Spreadsheet" />
       </header>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

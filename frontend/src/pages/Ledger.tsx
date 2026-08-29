@@ -18,6 +18,7 @@ import ExpiryProvision from "../components/ExpiryProvision";
 import Pagination, { Paged } from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import BusyButton from "../components/BusyButton";
+import ExportButton from "../components/ExportButton";
 import { EntityLink } from "../components/Filters";
 
 interface TbLine {
@@ -178,6 +179,18 @@ export default function Ledger() {
               : ""}
           </p>
         </div>
+        {/* An accountant does not read a trial balance on a screen; they take
+            it away and tie it to something else. Which dataset leaves follows
+            whichever tab is open, so the button is never a guess. */}
+        {(tab === "trial" || tab === "journal" || tab === "recon") && (
+          <ExportButton
+            dataset={tab === "journal" ? "journal"
+              : tab === "recon" ? "accounts" : "trial-balance"}
+            label={tab === "journal" ? "Journal as a spreadsheet"
+              : tab === "recon" ? "Chart of accounts"
+                : "Trial balance as a spreadsheet"}
+          />
+        )}
       </header>
 
       {tb && !tb.balanced && <div className="alert error">{tb.message}</div>}
