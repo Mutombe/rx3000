@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { api, money, errorText  } from "../api";
 import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
+import { TableSkeleton } from "../components/Skeleton";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
 
@@ -28,9 +29,12 @@ export default function CrmReports() {
   // on a dark surface.
   const SERIES = useSeries();
   const toast = useToast();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (tab === "forecast") api.get<ForecastMonth[]>("/api/crm/reports/forecast?months=6").then(setForecast).catch((e) => toast.error(errorText(e)));
+    if (tab === "forecast") api.get<ForecastMonth[]>("/api/crm/reports/forecast?months=6").then(setForecast)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     if (tab === "funnel") api.get<FunnelReport>("/api/crm/reports/funnel").then(setFunnel).catch((e) => toast.error(errorText(e)));
     if (tab === "owners") api.get<OwnerReport[]>("/api/crm/reports/by-owner").then(setOwners).catch((e) => toast.error(errorText(e)));
     if (tab === "campaigns") api.get<CampaignROI[]>("/api/crm/reports/campaign-roi").then(setRoi).catch((e) => toast.error(errorText(e)));
@@ -162,7 +166,16 @@ export default function CrmReports() {
                 ))}
               </tbody>
             </table>
-            {forecast.length === 0 && <div className="empty">No dated opportunities to forecast</div>}
+            {loading && forecast.length === 0 && <TableSkeleton cols={4} rows={4} />}
+            {!loading && forecast.length === 0 && (
+              <div className="empty">
+                <b>No dated opportunities to forecast</b>
+                <p>
+                  A forecast is built from deals with an expected close date.
+                  Give the open ones a date and they will appear here.
+                </p>
+              </div>
+            )}
           </div>
         </>
       )}

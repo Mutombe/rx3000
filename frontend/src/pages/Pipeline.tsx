@@ -6,6 +6,8 @@ import { Avatar } from "../components/record";
 import { Company, Contact, CrmDashboard, Deal } from "../types";
 import Select from "../components/Select";
 import { XCircle } from "@phosphor-icons/react";
+import { TableSkeleton } from "../components/Skeleton";
+import { Block } from "../components/Skeleton";
 
 /** Days since a date, used to flag deals going stale in a stage. */
 function ageDays(iso: string) {
@@ -31,6 +33,7 @@ export default function Pipeline() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [stats, setStats] = useState<CrmDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState<number | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -39,7 +42,9 @@ export default function Pipeline() {
   const navigate = useNavigate();
 
   function load() {
-    api.get<Deal[]>("/api/crm/deals").then(setDeals).catch((e) => toast.error(errorText(e)));
+    api.get<Deal[]>("/api/crm/deals").then(setDeals)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     api.get<CrmDashboard>("/api/crm/dashboard").then(setStats);
   }
 
@@ -119,6 +124,22 @@ export default function Pipeline() {
             <div className="value">{stats.win_rate}%</div>
             <div className="hint">of closed deals</div>
           </div>
+        </div>
+      )}
+
+      {/* A board of empty columns is what an opportunity pipeline with no deals
+          looks like, so while it loads the columns carry ghosts rather than
+          nothing — otherwise the page says "no pipeline" for as long as the
+          request takes. */}
+      {loading && deals.length === 0 && (
+        <div className="kanban">
+          {STAGES.map((stage) => (
+            <div key={stage.key} className="kanban-col">
+              <div className="kanban-head">{stage.label}</div>
+              <Block w="100%" h={64} round="md" />
+              <Block w="100%" h={64} round="md" />
+            </div>
+          ))}
         </div>
       )}
 

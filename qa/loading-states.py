@@ -99,6 +99,9 @@ if only_skeleton:
 
 # A budget rather than a pass/fail: this is worked down over time, and a run
 # that fails the build the moment somebody adds a screen helps nobody.
-BUDGET = int(sys.argv[1]) if len(sys.argv) > 1 else len(bare)
+# Held at zero now that it is there. A budget that floats up to whatever the
+# last run happened to find is not a budget; this fails the moment a new screen
+# ships without a loading state, which is the only time it is cheap to add.
+BUDGET = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 print(f"\n{len(bare)} without a loading state (budget {BUDGET})")
 sys.exit(1 if len(bare) > BUDGET else 0)

@@ -11,6 +11,7 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
+import { TableSkeleton } from "../components/Skeleton";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -769,6 +770,10 @@ export default function Admin() {
             <input type="search" placeholder="Filter by username…" value={auditUser}
               onChange={(e) => setAuditUser(e.target.value)} />
           </div>
+          {/* The audit log is the slowest thing on this screen and the one
+              somebody opens with a question. An empty frame reads as "nothing
+              was recorded", which is the opposite of what it means. */}
+          {audit.length === 0 && <TableSkeleton cols={6} rows={6} />}
           <table>
             <thead><tr><th>When</th><th>User</th><th>Action</th><th>Endpoint</th><th>Status</th><th>IP</th></tr></thead>
             <tbody>

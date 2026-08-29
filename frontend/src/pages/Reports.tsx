@@ -8,6 +8,7 @@ import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import ReportChart from "../components/ReportChart";
 import { ChartBar, Table } from "@phosphor-icons/react";
+import { TableSkeleton } from "../components/Skeleton";
 
 type Tab = "all" | "daily" | "vat" | "valuation" | "tax";
 
@@ -33,11 +34,14 @@ export default function Reports() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [taxReport, setTaxReport] = useState<any>(null);
   const toast = useToast();
+  const [loading, setLoading] = useState(true);
 
   const range = `date_from=${dateFrom}&date_to=${dateTo}`;
 
   useEffect(() => {
-    if (tab === "daily") api.get<any[]>(`/api/reports/daily-totals?${range}`).then(setDaily).catch((e) => toast.error(errorText(e)));
+    if (tab === "daily") api.get<any[]>(`/api/reports/daily-totals?${range}`).then(setDaily)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     if (tab === "vat") api.get(`/api/reports/vat?${range}`).then(setVat).catch((e) => toast.error(errorText(e)));
     if (tab === "valuation") api.get(`/api/reports/stock-valuation`).then(setValuation).catch((e) => toast.error(errorText(e)));
   }, [tab, dateFrom, dateTo]);
@@ -136,7 +140,15 @@ export default function Reports() {
               ))}
             </tbody>
           </table>
-          {daily.length === 0 && <div className="empty">No paid sales in this period</div>}
+          {/* A takings report that says "no paid sales" while it is still
+              fetching them is a report somebody acts on. */}
+          {loading && daily.length === 0 && <TableSkeleton cols={5} rows={5} />}
+          {!loading && daily.length === 0 && (
+            <div className="empty">
+              <b>No paid sales in this period</b>
+              <p>Widen the dates, or check the till was in use.</p>
+            </div>
+          )}
         </div>
       )}
 

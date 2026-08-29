@@ -39,6 +39,7 @@ import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import PatientForm, { draftFrom } from "../components/PatientForm";
 import ScriptTotals from "../components/ScriptTotals";
+import { TableSkeleton } from "../components/Skeleton";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -177,6 +178,10 @@ export default function Dispense() {
   const [otcNotes, setOtcNotes] = useState("");
   const [tendered, setTendered] = useState("");
   const [otcLog, setOtcLog] = useState<OTCSale[]>([]);
+  /* The two registers on this screen load into empty tables, and an empty
+     controlled register reads as "nothing was dispensed" — which for a
+     schedule 5 log is the most misleading sentence on the page. */
+  const [logsLoading, setLogsLoading] = useState(true);
 
   // `recent`, `moreRecent` and `repeatsDue` used to live here to feed the middle
   // column. They are gone with it — including the two requests they made on
@@ -214,7 +219,8 @@ export default function Dispense() {
         if (res.page !== controlledPage) setControlledPage(res.page);
       });
     api.get<Paged<OTCSale>>(`/api/dispensing/otc/paged?days=30&page=${otcPage}&per_page=25`)
-      .then((res) => { setOtcLog(res.items); setOtcMeta(res); if (res.page !== otcPage) setOtcPage(res.page); });
+      .then((res) => { setOtcLog(res.items); setOtcMeta(res); if (res.page !== otcPage) setOtcPage(res.page); })
+      .finally(() => setLogsLoading(false));
   }
 
   useEffect(() => {
@@ -778,7 +784,18 @@ export default function Dispense() {
               </tbody>
             </table>
             {otcMeta && <Pagination meta={otcMeta} onPage={setOtcPage} noun="sales" />}
-            {otcLog.length === 0 && <div className="empty">No pharmacy-medicine sales recorded yet</div>}
+            {logsLoading && otcLog.length === 0 && (
+              <TableSkeleton cols={5} rows={4} />
+            )}
+            {!logsLoading && otcLog.length === 0 && (
+              <div className="empty">
+                <b>No pharmacy-medicine sales recorded yet</b>
+                <p>
+                  Everything sold over the counter without a script is entered
+                  here, and this register is what an inspector asks to see.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       ) : (

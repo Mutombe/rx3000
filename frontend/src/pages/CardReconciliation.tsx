@@ -6,6 +6,7 @@ import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { CardReconciliationReport, ReconMatch, ReconStatementLine, ReconUnbanked } from "../types";
+import { TableSkeleton } from "../components/Skeleton";
 
 type Tab = "matched" | "mismatched" | "missing_system" | "missing_statement";
 
@@ -134,6 +135,15 @@ export default function CardReconciliation() {
           {busy ? "Matching…" : "Reconcile"}
         </button>
       </div>
+
+      {/* Reconciling a statement is a POST that takes as long as the file is
+          big. Nothing on screen said so, so a large statement read as a button
+          that had not worked. */}
+      {busy && !report && (
+        <div className="card">
+          <TableSkeleton cols={5} rows={6} />
+        </div>
+      )}
 
       {report && (
         <>
