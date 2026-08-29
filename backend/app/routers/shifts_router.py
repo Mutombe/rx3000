@@ -207,25 +207,12 @@ def open_shift(body: schemas.ShiftOpen, db: Session = Depends(get_db), user: Use
     return shift
 
 
-@router.post("/close", response_model=schemas.ShiftOut)
-def close_shift(body: schemas.ShiftClose, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    shift = current_open_shift(db, user.id)
-    if not shift:
-        raise HTTPException(status_code=400, detail="No open shift to close")
-
-    totals = _totals(db, shift)
-    shift.expected_cash = totals["expected_cash"]
-    shift.card_total = totals["card_total"]
-    shift.medical_aid_total = totals["medical_aid_total"]
-    shift.sales_count = totals["sales_count"]
-    shift.counted_cash = body.counted_cash
-    shift.variance = round(body.counted_cash - shift.expected_cash, 2)
-    shift.notes = body.notes
-    shift.closed_at = datetime.utcnow()
-    shift.status = "closed"
-    db.commit()
-    db.refresh(shift)
-    return shift
+# A shift used to be closable here with a single counted figure. The real
+# close is POST /{shift_id}/cashup: it takes the denomination breakdown, is
+# one-shot so nobody re-counts after seeing the variance, and closes the shift
+# itself. Two ways to close a drawer is one too many — "the drawer was 12
+# short" is not a record without knowing whether that was a missing twenty and
+# eight extra singles, and the shallow one recorded neither.
 
 
 @router.get("", response_model=list[schemas.ShiftOut])

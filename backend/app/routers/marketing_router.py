@@ -179,12 +179,10 @@ def campaign_messages(campaign_id: int, limit: int = 200, db: Session = Depends(
     )
 
 
-@router.post("/consent/{patient_id}")
-def set_consent(patient_id: int, opt_in: bool, db: Session = Depends(get_db)):
-    """Record a patient's marketing consent (POPIA)."""
-    patient = db.get(Patient, patient_id)
-    if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
-    patient.marketing_opt_in = opt_in
-    db.commit()
-    return {"patient_id": patient_id, "marketing_opt_in": opt_in}
+# Marketing consent used to be set here, as one boolean overwritten in place.
+# The real record is /api/consent/{subject_type}/{subject_id}, which the consent
+# panel uses: permission per channel, with the evidence for each answer, and it
+# never overwrites what came before. Consent you cannot show the history of is
+# consent you cannot prove, which is the whole point of recording it.
+
+
