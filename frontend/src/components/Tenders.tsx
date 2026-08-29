@@ -52,10 +52,20 @@ export interface TenderLine {
  *  that bank's own timetable, and a drawer that says only "card 40.00" cannot be
  *  matched to any of them.
  */
-export const CARD_SCHEMES = [
-  "Visa", "Mastercard", "ZimSwitch",
+export const CARD_NETWORKS = ["Visa", "Mastercard", "ZimSwitch"];
+
+/** The banks a Zimbabwean pharmacy holds an account with or is paid through.
+ *
+ *  Kept apart from the card networks because money going *out* — paying a
+ *  wholesaler — is never "Visa". It is a transfer from a named bank, and a
+ *  payment record that does not name it cannot be found on the statement.
+ */
+export const ZIM_BANKS = [
   "CBZ", "Stanbic", "Steward", "FBC", "NMB", "ZB", "Ecobank", "First Capital",
+  "CABS", "POSB", "AFC", "Nedbank", "BancABC",
 ];
+
+export const CARD_SCHEMES = [...CARD_NETWORKS, ...ZIM_BANKS];
 
 /** The currency world, read off whatever /api/currency returned.
  *

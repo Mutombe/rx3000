@@ -4917,3 +4917,19 @@ table.dt.sub th { font-size: var(--t-xs); }
 .tender-total.exact { border-color: var(--ok, var(--accent)); }
 /* A payment made of several pieces needs the room to show them. */
 .modal-wide { max-width: 44rem; }
+
+/* ------------------------------------------------- printing from a modal
+   A remittance advice is a document that gets sent to a wholesaler, and it is
+   composed in a modal. Printing one without this puts the dimmed backdrop and
+   the page behind it on the paper. */
+@media print {
+  body:has(.print-area) > *:not(.modal-backdrop) { display: none !important; }
+  .modal-backdrop:has(.print-area) {
+    position: static; background: none; display: block; padding: 0;
+  }
+  .print-area {
+    box-shadow: none; border: none; max-width: none; width: auto;
+    max-height: none; overflow: visible; padding: 0;
+  }
+  .no-print { display: none !important; }
+}

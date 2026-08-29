@@ -21,6 +21,8 @@ import RowLink from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
+import PaySupplier from "../components/PaySupplier";
+import Remittance, { RemittanceData } from "../components/Remittance";
 
 interface AgeInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -68,6 +70,9 @@ export default function Payables() {
   const [waiting, setWaiting] = useState<Uninvoiced[]>([]);
   const [open, setOpen] = useState<Invoice | null>(null);
   const [failed, setFailed] = useState("");
+  const [paying, setPaying] = useState<AgeSupplier | null>(null);
+  const [payments, setPayments] = useState<RemittanceData[]>([]);
+  const [advice, setAdvice] = useState<RemittanceData | null>(null);
   const [spinning, setSpinning] = useState(false);
   const toast = useToast();
   const confirm = useConfirm();
@@ -75,12 +80,14 @@ export default function Payables() {
   const load = useCallback(async () => {
     setSpinning(true);
     try {
-      const [aged, un] = await Promise.all([
+      const [aged, un, paid] = await Promise.all([
         api.get<Ageing>("/api/payables/ageing"),
         api.get<{ items: Uninvoiced[] }>("/api/payables/uninvoiced"),
+        api.get<{ items: RemittanceData[] }>("/api/payables/payments?limit=25"),
       ]);
       setAgeing(aged);
       setWaiting(un.items);
+      setPayments(paid.items ?? []);
       setFailed("");
     } catch (e) {
       setFailed(errorText(e, "What is owed could not be worked out."));
@@ -215,6 +222,7 @@ export default function Payables() {
                     <th>Supplier</th>
                     {ageing.bands.map((b) => <th key={b} className="num">{b}</th>)}
                     <th className="num">Total</th>
+                    <th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -240,6 +248,14 @@ export default function Payables() {
                         </td>
                       ))}
                       <td className="num"><b>{money(s.total)}</b></td>
+                      <td className="actions">
+                        {/* Inside a RowLink, so the click has to be stopped or
+                            paying a supplier navigates away from the form. */}
+                        <button className="btn small"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPaying(s); }}>
+                          Pay
+                        </button>
+                      </td>
                     </RowLink>
                   ))}
                 </tbody>
@@ -292,6 +308,55 @@ export default function Payables() {
             </div>
           )}
 
+          {/* What has actually left the account. Without this the screen could
+              only ever show a growing debt, which is not what the business
+              looks like. */}
+          <div className="card">
+            <div className="card-head">
+              <h3>Paid recently</h3>
+              <span className="muted small">
+                Newest first. Open one to send the supplier its remittance.
+              </span>
+            </div>
+            {payments.length === 0 ? (
+              <div className="empty">
+                No payment has been recorded. Every invoice above will keep
+                ageing until one is.
+              </div>
+            ) : (
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Supplier</th><th>Paid</th><th>Reference</th>
+                    <th className="num">Amount</th><th className="num">On account</th>
+                    <th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((r) => (
+                    <tr key={r.payment_id}>
+                      <td><b>{r.supplier}</b></td>
+                      <td>{fmtDate(r.paid_on)}</td>
+                      <td className="mono small">{r.reference || <span className="muted">none</span>}</td>
+                      <td className="num">{money(r.amount)}</td>
+                      <td className="num">
+                        {r.on_account > 0.005
+                          ? <b>{money(r.on_account)}</b>
+                          : <span className="muted">—</span>}
+                      </td>
+                      <td className="actions">
+                        <button className="btn small secondary"
+                                onClick={() => setAdvice(r)}>
+                          Remittance
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
           <div className="card">
             <div className="card-head">
               <h3>Received, but no invoice has arrived</h3>
@@ -336,6 +401,25 @@ export default function Payables() {
           </div>
         </>
       )}
+
+      {paying && (
+        <PaySupplier
+          supplierId={paying.supplier_id}
+          supplier={paying.supplier}
+          owed={paying.total}
+          invoices={paying.invoices}
+          onClose={() => setPaying(null)}
+          onPaid={(remittance) => {
+            setPaying(null);
+            // Straight into the advice, because the next thing anybody does
+            // after paying a wholesaler is tell them.
+            if (remittance) setAdvice(remittance);
+            load();
+          }}
+        />
+      )}
+
+      {advice && <Remittance data={advice} onClose={() => setAdvice(null)} />}
 
       {open && (
         <div className="card">
