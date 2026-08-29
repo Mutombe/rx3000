@@ -22,6 +22,27 @@ import { api, errorText, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Pagination, { Paged } from "../components/Pagination";
+import Select from "../components/Select";
+import { EntityLink } from "../components/Filters";
+
+interface FiscalReceipt {
+  id: number; sale_id: number; receipt_type: string; global_counter: number;
+  receipt_counter: number; currency_code: string; total: number;
+  vat_amount: number; status: string; submitted_at: string | null;
+  response_message: string; verification_url: string; created_at: string;
+  reverses_receipt_id: number | null;
+}
+
+/** What a receipt register is opened to answer. Credit notes first, because
+ *  that is what an auditor asks about and what a manager checks up on. */
+const FILTERS = [
+  { value: "", label: "Every receipt" },
+  { value: "type:credit_note", label: "Credit notes only" },
+  { value: "status:queued", label: "Waiting to file" },
+  { value: "status:rejected", label: "Refused by ZIMRA" },
+  { value: "status:accepted", label: "Accepted" },
+];
 
 interface Route {
   route: string; who_files: string; suits: string; setup: string;
@@ -59,6 +80,9 @@ export default function Fiscal() {
   const [status, setStatus] = useState<Status | null>(null);
   const [days, setDays] = useState<Day[]>([]);
   const [busy, setBusy] = useState("");
+  const [receipts, setReceipts] = useState<Paged<FiscalReceipt> | null>(null);
+  const [filter, setFilter] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = useCallback(() => {
     api.get<Status>("/api/fiscal/status")
@@ -70,6 +94,19 @@ export default function Fiscal() {
   }, [toast]);
 
   useEffect(load, [load]);
+
+  // The register is paged on the server. These are the records ZIMRA can ask
+  // to see, and the hash chain only means anything if the whole of it can be
+  // walked — a view that stopped at the newest 200 could not answer a question
+  // about last month.
+  useEffect(() => {
+    const [kind, value] = filter ? filter.split(":") : ["", ""];
+    const q = new URLSearchParams({ page: String(page), per_page: "25" });
+    if (kind === "status") q.set("status_filter", value);
+    if (kind === "type") q.set("receipt_type", value);
+    api.get<Paged<FiscalReceipt>>(`/api/fiscal/receipts/paged?${q}`)
+      .then(setReceipts).catch(() => setReceipts(null));
+  }, [filter, page]);
 
   async function act(what: string, path: string, done: string) {
     setBusy(what);
@@ -229,6 +266,78 @@ export default function Fiscal() {
               + `the hash of the one before it, so none has been altered or removed.`
             : `The chain breaks at receipt ${status.chain.broken_at}. ${status.chain.reason}`}
         </p>
+      </div>
+
+      {/* The register itself. Everything above summarises it; nothing until now
+          could show a single receipt. */}
+      <div className="card">
+        <div className="card-head">
+          <h3>Receipt register</h3>
+          <Select value={filter}
+                  onChange={(v) => { setFilter(v); setPage(1); }}
+                  options={FILTERS} />
+        </div>
+        {!receipts || receipts.items.length === 0 ? (
+          <div className="empty">
+            {filter
+              ? "No receipt matches that."
+              : "No receipt has been filed yet."}
+          </div>
+        ) : (
+          <>
+            <div className="dt-scroll">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>No.</th><th>Type</th><th>Filed</th>
+                    <th className="num">Total</th><th className="num">VAT</th>
+                    <th>Status</th><th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipts.items.map((r) => (
+                    <tr key={r.id} className={r.status === "rejected" ? "row-flag" : ""}>
+                      <td className="mono">
+                        {r.global_counter}
+                        {r.reverses_receipt_id && (
+                          <div className="muted small">reverses one earlier</div>
+                        )}
+                      </td>
+                      <td>
+                        {r.receipt_type === "credit_note"
+                          ? <span className="badge warn">credit note</span>
+                          : "sale"}
+                      </td>
+                      <td className="small">
+                        {r.submitted_at ? fmtDateTime(r.submitted_at)
+                          : <span className="muted">not filed</span>}
+                      </td>
+                      <td className="num">{money(r.total)}</td>
+                      <td className="num muted">{money(r.vat_amount)}</td>
+                      <td>
+                        <span className={`badge ${r.status === "accepted" ? "ok"
+                          : r.status === "rejected" ? "danger" : "warn"}`}>
+                          {r.status}
+                        </span>
+                        {r.status === "rejected" && r.response_message && (
+                          <div className="muted small wrap">{r.response_message}</div>
+                        )}
+                      </td>
+                      <td className="actions">
+                        {r.sale_id && (
+                          <EntityLink to={`/sales/${r.sale_id}`}>
+                            <button className="btn small secondary">The sale</button>
+                          </EntityLink>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={receipts} onPage={setPage} noun="receipts" />
+          </>
+        )}
       </div>
 
       <div className="card">

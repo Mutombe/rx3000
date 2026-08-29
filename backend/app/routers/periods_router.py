@@ -32,7 +32,8 @@ def require_step_up(action_key: str):
             detail = {"error_code": "STEP_UP_REQUIRED", **stepup.describe(action_key)}
             detail["message"] = (
                 f"'{detail.get('name', action_key)}' needs a password before it can "
-                "be done. " + ("Ask a " + " or ".join(detail.get("approvers", []))
+                "be done. " + ("Ask "
+                               + stepup.approvers_phrase(detail.get("approvers", []))
                                + " to approve it."
                                if not detail.get("self_approval") else
                                "Re-enter your password to confirm."))

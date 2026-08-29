@@ -101,7 +101,11 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
 
         {needsSecondPerson ? (
           <p className="alert warn">
-            This needs a second person. Ask a {spec!.approvers.join(" or ")} to enter
+            This needs a second person. Ask{" "}
+            {/* "an admin", not "a admin". It is the one line somebody reads
+                with a customer waiting. */}
+            {"aeiou".includes(spec!.approvers.join(" or ")[0]?.toLowerCase()) ? "an" : "a"}{" "}
+            {spec!.approvers.join(" or ")} to enter
             their own username and password, not yours.
           </p>
         ) : (

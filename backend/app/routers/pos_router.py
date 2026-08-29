@@ -474,8 +474,13 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
         # A receipt filed with the revenue authority cannot be withdrawn.
         raise HTTPException(
             status_code=400,
-            detail="This sale has been fiscalised and cannot be voided. "
-                   "Issue a credit note instead (POST /api/fiscal/credit-note/{sale_id})",
+            # Written for whoever is standing at the till with a customer, not
+            # for somebody holding curl. The sale screen offers the credit note
+            # itself now, so nobody should reach this — but an error message is
+            # read precisely when something unexpected happened.
+            detail="This sale was filed with ZIMRA and cannot be voided. A "
+                   "filed receipt stands; it is reversed by a credit note "
+                   "instead, which the sale's own page will issue.",
         )
     # Return stock to the exact batches it was drawn from.
     helpers.return_sale_stock(db, sale, user.id, reference=f"VOID {sale.sale_number}")

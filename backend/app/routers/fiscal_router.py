@@ -91,8 +91,17 @@ def _receipt_row(r):
 
 
 @router.get("/receipts")
-def list_receipts(status_filter: str = "", limit: int = 200, db: Session = Depends(get_db)):
+def list_receipts(status_filter: str = "", sale_id: int = 0, limit: int = 200,
+                  db: Session = Depends(get_db)):
+    """Filed receipts. `sale_id` narrows it to one sale.
+
+    A sale screen has to know whether the sale was fiscalised before it can
+    offer the right way to reverse it: a receipt filed with the authority can
+    never be withdrawn, only credited.
+    """
     query = db.query(FiscalReceipt)
+    if sale_id:
+        query = query.filter(FiscalReceipt.sale_id == sale_id)
     if status_filter:
         query = query.filter(FiscalReceipt.status == status_filter)
     receipts = query.order_by(desc(FiscalReceipt.global_counter)).limit(limit).all()
@@ -100,7 +109,8 @@ def list_receipts(status_filter: str = "", limit: int = 200, db: Session = Depen
 
 
 @router.get("/receipts/paged")
-def list_receipts_paged(status_filter: str = "", page: int = 1,
+def list_receipts_paged(status_filter: str = "", receipt_type: str = "",
+                        page: int = 1,
                         per_page: int = paging.DEFAULT_PER_PAGE,
                         db: Session = Depends(get_db)):
     """Fiscal receipts, paged. 1,635 behind a cap of 200.
@@ -112,6 +122,10 @@ def list_receipts_paged(status_filter: str = "", page: int = 1,
     query = db.query(FiscalReceipt)
     if status_filter:
         query = query.filter(FiscalReceipt.status == status_filter)
+    # Credit notes are what an auditor asks about first, and finding them by
+    # eye in a list of several thousand receipts is not a search.
+    if receipt_type:
+        query = query.filter(FiscalReceipt.receipt_type == receipt_type)
     result = paging.page(query.order_by(desc(FiscalReceipt.global_counter)),
                          page=page, per_page=per_page)
     return result.envelope(_receipt_row)

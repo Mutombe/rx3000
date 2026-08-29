@@ -152,6 +152,18 @@ register(Action(
     approvers=("admin",), self_approval=True))
 
 
+def approvers_phrase(roles: list[str]) -> str:
+    """"an admin or pharmacist", not "a admin or pharmacist".
+
+    Small, and it appears in the one message a cashier reads while a customer
+    waits. Software that cannot write English is software people trust less
+    about the things they cannot check.
+    """
+    joined = " or ".join(roles)
+    article = "an" if joined[:1].lower() in "aeiou" else "a"
+    return f"{article} {joined}"
+
+
 class StepUpError(PermissionError):
     """Raised when an action is not authorised."""
 
@@ -211,8 +223,8 @@ def request(db: Session, *, action_key: str, actor: User, password: str = "",
                f"'{action.name.lower()}'. It needs "
                f"{' or '.join(action.approvers)}.")
     if approver.id == actor.id and not action.self_approval:
-        refuse(f"'{action.name}' needs a second person to approve it. Ask a "
-               f"{' or '.join(action.approvers)} to enter their own password.")
+        refuse(f"'{action.name}' needs a second person to approve it. Ask "
+               f"{approvers_phrase(action.approvers)} to enter their own password.")
 
     grant = StepUpGrant(
         action=action_key, token=secrets.token_urlsafe(24),

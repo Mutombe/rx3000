@@ -9,17 +9,83 @@ import { Avatar, Highlights } from "../components/record";
 import { printReceipt } from "../print";
 import { Sale, SaleItem } from "../types";
 import { usePharmacy } from "../hooks/usePharmacy";
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowUUpLeft, Receipt } from "@phosphor-icons/react";
+import { useStepUp, CANCELLED } from "../components/StepUp";
+import { useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
+import { errorText } from "../api";
+
+/** What the tax authority holds against this sale. */
+interface FiscalReceipt {
+  id: number; receipt_type: string; global_counter: number; status: string;
+  verification_url: string; reverses_receipt_id: number | null; total: number;
+}
 
 export default function SaleDetail() {
   const pharmacy = usePharmacy();
   const { id } = useParams();
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
+  const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
+  const { guarded, prompt } = useStepUp();
+  const confirm = useConfirm();
+  const toast = useToast();
 
-  useEffect(() => {
+  function load() {
     api.get<Sale>(`/api/pos/sales/${id}`).then(setSale).catch((e) => setError(e.message));
-  }, [id]);
+    // Whether this sale was filed decides how it can be reversed, so it is
+    // read before anybody presses anything rather than discovered from a 400.
+    api.get<FiscalReceipt[]>(`/api/fiscal/receipts?sale_id=${id}`)
+      .then(setReceipts).catch(() => setReceipts([]));
+  }
+  useEffect(load, [id]);
+
+  const filed = receipts.find((r) => r.receipt_type !== "credit_note");
+  const creditNote = receipts.find((r) => r.receipt_type === "credit_note");
+  const reversed = sale?.status === "void" || sale?.status === "credited";
+
+  /** Undo a sale the right way round.
+   *
+   *  Two different operations, and which one is legal is not the cashier's
+   *  judgement to make. A receipt already filed with ZIMRA can never be
+   *  withdrawn — the record stands and a credit note is filed against it. One
+   *  that was never filed is simply voided. The server enforces this; until
+   *  now it enforced it by returning a 400 telling the caller to POST to a
+   *  URL, which is a sentence written for somebody with curl.
+   */
+  async function reverse() {
+    if (!sale) return;
+    const ok = await confirm({
+      title: filed ? "File a credit note?" : "Void this sale?",
+      body: filed
+        ? <>Fiscal receipt <b>{filed.global_counter}</b> has been filed with
+            ZIMRA and cannot be withdrawn. A credit note will be filed against
+            it, the stock returned to the batches it came from, and any claim
+            reversed. Both documents stay on the record.</>
+        : <>This sale was never filed with ZIMRA, so it can be voided outright.
+            The stock returns to the batches it came from and any claim is
+            reversed.</>,
+      confirmLabel: filed ? "File the credit note" : "Void it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      const result = await guarded(
+        "sale.void",
+        (token) => filed
+          ? api.post<any>(`/api/fiscal/credit-note/${sale.id}`, {}, token)
+          : api.post<any>(`/api/pos/sales/${sale.id}/void`, {}, token),
+        `${filed ? "Credit note against" : "Void"} ${sale.sale_number}`,
+      );
+      if (result === CANCELLED) return;
+      toast.ok(filed
+        ? "Credit note filed. The original receipt still stands."
+        : `${sale.sale_number} voided and the stock returned.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That sale could not be reversed."));
+    }
+  }
 
   if (error)
     return (
@@ -70,6 +136,12 @@ export default function SaleDetail() {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
+          {!reversed && (
+            <button className="btn danger" onClick={reverse}>
+              <ArrowUUpLeft size={13} weight="bold" />
+              {filed ? " Credit note" : " Void this sale"}
+            </button>
+          )}
           <Link to="/pos" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Front Shop</Link>
         </div>
       </div>
@@ -107,8 +179,57 @@ export default function SaleDetail() {
         )}
       </div>
 
+      {/* What the revenue authority holds. Shown on the sale rather than only
+          on the fiscal page, because this is where somebody stands when a
+          customer is disputing a receipt. */}
+      {receipts.length > 0 && (
+        <div className="card">
+          <h3><Receipt size={15} /> Filed with ZIMRA</h3>
+          <table className="dt">
+            <tbody>
+              {receipts.map((r) => (
+                <tr key={r.id}>
+                  <td>
+                    <b>{r.receipt_type === "credit_note" ? "Credit note" : "Fiscal receipt"}</b>
+                    <div className="muted small mono">no. {r.global_counter}</div>
+                  </td>
+                  <td className="num">{money(r.total)}</td>
+                  <td>
+                    <span className={`badge ${r.status === "accepted" ? "ok"
+                      : r.status === "rejected" ? "danger" : "warn"}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="actions">
+                    {r.verification_url && (
+                      <a className="btn small secondary" href={r.verification_url}
+                         target="_blank" rel="noreferrer">Verify</a>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {creditNote && (
+            <p className="muted small">
+              The original receipt still stands and is still reported. A
+              fiscalised sale is credited, never withdrawn — reports have to be
+              able to tell those apart.
+            </p>
+          )}
+        </div>
+      )}
+
+      {reversed && !creditNote && (
+        <div className="alert warn">
+          This sale was voided. It was never filed with ZIMRA, so no credit note
+          was needed.
+        </div>
+      )}
+
       <DataTable columns={cols} rows={sale.items} rowKey={(i) => i.id} totals
         empty="This sale has no lines" />
+      {prompt}
     </>
   );
 }
