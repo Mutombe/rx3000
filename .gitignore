@@ -44,3 +44,7 @@ backend/*.log
 # repository nobody can clone over a Zimbabwean line.
 backend/build/
 backend/dist/
+
+# QA harnesses build throwaway databases; SCRATCH normally puts them
+# elsewhere, but a run without it should not offer them for commit.
+*.sqlite

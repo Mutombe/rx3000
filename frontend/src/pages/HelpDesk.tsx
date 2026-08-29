@@ -88,7 +88,15 @@ export default function HelpDesk() {
   const [form, setForm] = useState<any>({
     subject: "", description: "", category: "query", priority: "normal",
     channel: "walk_in", patient_id: null as number | null,
+    // Who the case is really for. A pharmacy serving corporate accounts takes
+    // cases from the account as often as from a patient — "Delta's invoice is
+    // wrong" is not about anybody's medicine — and the endpoint has always
+    // accepted both. Without them every such case was filed against nobody.
+    company_id: null as number | null,
+    contact_id: null as number | null,
   });
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
   const toast = useToast();
 
   function load() {
@@ -99,6 +107,17 @@ export default function HelpDesk() {
 
   useEffect(load, [filter]);
   useEffect(() => { api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }, []);
+  useEffect(() => {
+    api.get<any>("/api/crm/companies?limit=200")
+      .then((d) => setCompanies(d.items ?? d ?? [])).catch(() => setCompanies([]));
+  }, []);
+  // The people at the account this case belongs to, so the picker never offers
+  // somebody from a different company.
+  useEffect(() => {
+    if (!form.company_id) { setContacts([]); return; }
+    api.get<any>(`/api/crm/contacts?company_id=${form.company_id}&limit=100`)
+      .then((d) => setContacts(d.items ?? d ?? [])).catch(() => setContacts([]));
+  }, [form.company_id]);
   useEffect(() => {
     if (patientQ.length < 2) { setPatients([]); return; }
     api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
@@ -141,7 +160,8 @@ export default function HelpDesk() {
     try {
       const t = await api.post<Ticket>("/api/helpdesk/tickets", form);
       setShowNew(false);
-      setForm({ subject: "", description: "", category: "query", priority: "normal", channel: "walk_in", patient_id: null });
+      setForm({ subject: "", description: "", category: "query", priority: "normal",
+                channel: "walk_in", patient_id: null, company_id: null, contact_id: null });
       setPatientQ("");
       load();
       open(t);
@@ -350,6 +370,40 @@ export default function HelpDesk() {
                   </>
                 )}
               </div>
+
+              {/* Or the account it belongs to. A case about an invoice, a
+                  delivery or a contract is the account's, not a patient's, and
+                  filing it against nobody is how it stops being anybody's. */}
+              <div className="field">
+                <label>Account (optional)</label>
+                <Select
+                  value={form.company_id ? String(form.company_id) : ""}
+                  onChange={(v) => setForm({
+                    ...form,
+                    company_id: v ? Number(v) : null,
+                    // The contact belonged to the old account.
+                    contact_id: null,
+                  })}
+                  options={[{ value: "", label: "Not about an account" },
+                            ...companies.map((c: any) => ({
+                              value: String(c.id), label: c.name }))]}
+                />
+              </div>
+              {form.company_id && contacts.length > 0 && (
+                <div className="field">
+                  <label>Who raised it</label>
+                  <Select
+                    value={form.contact_id ? String(form.contact_id) : ""}
+                    onChange={(v) => setForm({ ...form, contact_id: v ? Number(v) : null })}
+                    options={[{ value: "", label: "Nobody in particular" },
+                              ...contacts.map((c: any) => ({
+                                value: String(c.id),
+                                label: `${c.first_name} ${c.last_name}`.trim(),
+                                hint: c.job_title || undefined }))]}
+                  />
+                </div>
+              )}
+
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowNew(false)}>Cancel</button>
                 <button type="submit">Create ticket</button>

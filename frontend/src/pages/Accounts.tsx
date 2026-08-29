@@ -30,6 +30,12 @@ const EMPTY_CT = {
   first_name: "", last_name: "", job_title: "", email: "", phone: "",
   company_id: "" as string | number, lifecycle_stage: "lead", source: "",
   marketing_opt_in: false, notes: "",
+  // Who in the pharmacy owns this relationship, and whether this person is also
+  // somebody the dispensary knows. Both were on the endpoint from the start and
+  // sent by nothing — so every contact was unowned, and the buyer at a corporate
+  // account who collects her own script was two unconnected records.
+  owner_id: "" as string | number,
+  patient_id: null as number | null,
 };
 
 export default function Accounts() {
@@ -38,6 +44,9 @@ export default function Accounts() {
   const [showCo, setShowCo] = useState(false);
   const [showCt, setShowCt] = useState(false);
   const [coForm, setCoForm] = useState<any>({ ...EMPTY_CO });
+  const [staff, setStaff] = useState<any[]>([]);
+  const [linkQ, setLinkQ] = useState("");
+  const [linkHits, setLinkHits] = useState<any[]>([]);
   const [ctForm, setCtForm] = useState<any>({ ...EMPTY_CT });
   const [editingCo, setEditingCo] = useState<Company | null>(null);
   const [busy, setBusy] = useState(false);
@@ -134,6 +143,15 @@ export default function Accounts() {
   }
 
   useEffect(load, [q]);
+  useEffect(() => {
+    api.get<any>("/api/auth/users").then((d) => setStaff(d.items ?? d ?? []))
+      .catch(() => setStaff([]));
+  }, []);
+  useEffect(() => {
+    if (linkQ.trim().length < 2) { setLinkHits([]); return; }
+    api.get<any>(`/api/patients?q=${encodeURIComponent(linkQ)}&limit=6`)
+      .then((d) => setLinkHits(d.items ?? d ?? [])).catch(() => setLinkHits([]));
+  }, [linkQ]);
 
   async function saveCompany(e: FormEvent) {
     e.preventDefault();
@@ -150,7 +168,9 @@ export default function Accounts() {
     e.preventDefault();
     try {
       await api.post("/api/crm/contacts", {
-        ...ctForm, company_id: ctForm.company_id === "" ? null : Number(ctForm.company_id),
+        ...ctForm,
+        company_id: ctForm.company_id === "" ? null : Number(ctForm.company_id),
+        owner_id: ctForm.owner_id === "" ? null : Number(ctForm.owner_id),
       });
       setShowCt(false); setCtForm({ ...EMPTY_CT });
       load();
@@ -331,6 +351,52 @@ export default function Accounts() {
                   Consented to marketing communication (POPIA)
                 </Checkbox>
               </div>
+              {/* Who in the pharmacy owns this relationship. An unowned contact
+                  is one nobody rings back. */}
+              <div className="field">
+                <label>Owned by</label>
+                <Select
+                  value={ctForm.owner_id === "" ? "" : String(ctForm.owner_id)}
+                  onChange={(v) => setCtForm({ ...ctForm, owner_id: v })}
+                  options={[{ value: "", label: "Nobody yet" },
+                            ...staff.map((u: any) => ({
+                              value: String(u.id),
+                              label: u.full_name || u.username,
+                              hint: u.role }))]}
+                />
+              </div>
+
+              {/* The same person, on the other side of the counter. A buyer at
+                  a corporate account who collects her own script was two
+                  records that could not see each other. */}
+              <div className="field">
+                <label>Also a patient here?</label>
+                {ctForm.patient_id ? (
+                  <div className="product-pick">
+                    <span>Linked to patient #{ctForm.patient_id}</span>
+                    <button type="button" className="btn ghost small"
+                            onClick={() => setCtForm({ ...ctForm, patient_id: null })}>
+                      Unlink
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input type="search" placeholder="Search the patient register…"
+                           value={linkQ} onChange={(e) => setLinkQ(e.target.value)} />
+                    {linkHits.map((pt: any) => (
+                      <div key={pt.id} className="product-pick"
+                           onClick={() => {
+                             setCtForm({ ...ctForm, patient_id: pt.id });
+                             setLinkQ("");
+                           }}>
+                        <span>{pt.last_name}, {pt.first_name}</span>
+                        <span className="muted">{pt.phone}</span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
               <div className="field"><label>Notes</label><textarea rows={3} value={ctForm.notes} onChange={setCt("notes")} /></div>
               <div className="modal-actions">
                 <button type="button" className="secondary" onClick={() => setShowCt(false)}>Cancel</button>

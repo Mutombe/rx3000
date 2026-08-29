@@ -9,12 +9,14 @@ import AiStreamBlock from "../components/AiStreamBlock";
 import ConsentPanel from "../components/ConsentPanel";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
-import { Label, Patient, Prescription, Sale } from "../types";
+import { Label, Patient, Prescription, Sale, TimelineEntry } from "../types";
+import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import ClaudeIcon from "../components/ClaudeIcon";
+import { CalendarBlank, CheckSquare, PencilSimpleLine, PhoneCall } from "@phosphor-icons/react";
 
 import { EntityLink } from "../components/Filters";
-type Tab = "scripts" | "history" | "sales" | "tax" | "consent";
+type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 
 interface HistoryLine {
   date: string; product: string; strength: string; quantity: number;
@@ -31,10 +33,17 @@ export default function PatientDetail() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [history, setHistory] = useState<HistoryLine[]>([]);
   const [tax, setTax] = useState<any>(null);
+  const [log, setLog] = useState<TimelineEntry[]>([]);
+  const [logForm, setLogForm] = useState(
+    { activity_type: "call", subject: "", body: "", due_at: "" });
   const TABS: TabDef<Tab>[] = [
     { key: "scripts", label: "Prescriptions", count: scripts.length },
     { key: "history", label: "Dispensing history", count: history.length },
     { key: "sales", label: "Purchases", count: sales.length },
+    // Every conversation this pharmacy has had with them. The record of the
+    // medicine was here; the record of the phone calls about it was not, so
+    // "I rang her twice about that repeat" lived in one person's memory.
+    { key: "contact", label: "Contact log", count: log.length },
     { key: "tax", label: "Tax statement" },
     // On the patient record, because that is where somebody stands when they
     // say "stop sending me those" — not buried in a settings screen.
@@ -48,6 +57,7 @@ export default function PatientDetail() {
     api.get<Sale[]>(`/api/patients/${id}/sales`).then(setSales);
     api.get<HistoryLine[]>(`/api/reports/patient/${id}/history`).then(setHistory);
     api.get(`/api/reports/patient/${id}/tax`).then(setTax);
+    loadLog();
   }, [id]);
 
   if (!patient) return <DetailSkeleton
@@ -58,6 +68,32 @@ export default function PatientDetail() {
         avatar
         table={5}
       />;
+
+  function loadLog() {
+    api.get<TimelineEntry[]>(`/api/crm/timeline?patient_id=${id}`)
+      // A patient nobody has ever rung has no timeline, and that is not an
+      // error worth showing anybody.
+      .then(setLog).catch(() => setLog([]));
+  }
+
+  async function logContact() {
+    try {
+      await api.post("/api/crm/activities", {
+        activity_type: logForm.activity_type,
+        subject: logForm.subject.trim(),
+        body: logForm.body.trim(),
+        // A date turns it from something that happened into something owed.
+        due_at: logForm.due_at ? `${logForm.due_at}T09:00:00` : null,
+        patient_id: Number(id),
+      });
+      toast.ok(logForm.due_at ? "Saved, and it will come up on that date."
+                              : "Logged against this patient.");
+      setLogForm({ activity_type: "call", subject: "", body: "", due_at: "" });
+      loadLog();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be logged."));
+    }
+  }
 
   async function sendPortalLink() {
     try {
@@ -297,6 +333,112 @@ export default function PatientDetail() {
             <button className="secondary" onClick={() => window.print()}>Print statement</button>
           </div>
         </div>
+      )}
+
+      {tab === "contact" && (
+        <>
+          <div className="card">
+            <div className="card-head">
+              <h3>Log a contact</h3>
+              <span className="muted small">
+                Whoever picks this record up next reads what you write here.
+              </span>
+            </div>
+            <div className="form-row">
+              <div className="field">
+                <label>What happened</label>
+                <Select
+                  value={logForm.activity_type}
+                  onChange={(v) => setLogForm({ ...logForm, activity_type: v })}
+                  options={[
+                    { value: "call", label: "Phone call" },
+                    { value: "sms", label: "Text message" },
+                    { value: "email", label: "Email" },
+                    { value: "meeting", label: "Spoke at the counter" },
+                    { value: "note", label: "Note" },
+                    { value: "task", label: "Something to do" },
+                  ]}
+                />
+              </div>
+              <div className="field">
+                <label>In a line</label>
+                <input
+                  value={logForm.subject}
+                  onChange={(e) => setLogForm({ ...logForm, subject: e.target.value })}
+                  placeholder="e.g. Rang about the metformin repeat — no answer"
+                />
+              </div>
+              <div className="field">
+                <label>Come back to it on</label>
+                <input type="date" value={logForm.due_at}
+                       onChange={(e) => setLogForm({ ...logForm, due_at: e.target.value })} />
+                <span className="field-hint">
+                  {logForm.due_at
+                    ? "It stays open until somebody ticks it off."
+                    : "Leave empty if it is already done."}
+                </span>
+              </div>
+            </div>
+            <div className="field">
+              <label>Anything else</label>
+              <textarea rows={2} value={logForm.body}
+                        onChange={(e) => setLogForm({ ...logForm, body: e.target.value })}
+                        placeholder="optional" />
+            </div>
+            <div className="modal-actions">
+              <BusyButton disabled={logForm.subject.trim().length < 3}
+                          onClick={logContact}>
+                Log it
+              </BusyButton>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3>Everything said to this patient</h3>
+            {log.length === 0 && (
+              <div className="empty">
+                Nobody has recorded a conversation with this patient. Calls about
+                a late repeat, a counselling point, a complaint — none of it is
+                anywhere until somebody writes it down.
+              </div>
+            )}
+            <table className="dt">
+              <tbody>
+                {log.map((t) => (
+                  <tr key={t.id}>
+                    <td style={{ width: 30 }}>
+                      {t.type === "task" ? <CheckSquare size={14} />
+                        : t.type === "call" ? <PhoneCall size={14} />
+                        : t.type === "meeting" ? <CalendarBlank size={14} />
+                        : <PencilSimpleLine size={14} />}
+                    </td>
+                    <td>
+                      <b>{t.subject}</b>
+                      {t.body && <div className="muted small wrap">{t.body}</div>}
+                      <div className="muted small">
+                        {t.owner ?? "system"} · {fmtDateTime(t.created_at)}
+                        {t.completed_at && " · done"}
+                      </div>
+                    </td>
+                    <td className="actions">
+                      {/* Only what is still owed gets a button. Everything else
+                          is history and needs nothing doing to it. */}
+                      {t.due_at && !t.completed_at && (
+                        <>
+                          <span className="badge warn">due {fmtDate(t.due_at)}</span>
+                          <BusyButton className="btn small secondary" onClick={async () => {
+                            await api.post(`/api/crm/activities/${t.id}/complete`, {});
+                            loadLog();
+                          }}>Mark done</BusyButton>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {tab === "consent" && (

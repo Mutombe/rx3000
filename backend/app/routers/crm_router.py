@@ -346,7 +346,11 @@ def list_activities(
 @router.post("/activities", response_model=schemas.ActivityOut)
 def create_activity(body: schemas.ActivityBase, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     activity = Activity(**body.model_dump(), owner_id=user.id)
-    if activity.activity_type in ("note", "email") and activity.due_at is None:
+    # A call, a meeting or a note with no date on it is something that has
+    # already happened — recording it is the whole point. Only "email" and
+    # "note" were closed here, which left every logged call sitting open
+    # forever with nobody able to tick it off.
+    if activity.activity_type in ("note", "email", "call", "meeting", "sms")             and activity.due_at is None:
         activity.completed_at = datetime.utcnow()
     db.add(activity)
     db.commit()
