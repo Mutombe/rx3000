@@ -9,6 +9,8 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
 import { ProductDetail as Detail, StockBatch, StockMovement } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
+import AiStreamBlock from "../components/AiStreamBlock";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 type Tab = "batches" | "movements";
 
@@ -117,6 +119,22 @@ export default function ProductDetail() {
         </dl>
         {/* The rest of the family: other products holding the same molecule. */}
         <Variants productId={p.id} />
+      </div>
+
+      {/* What to say when this is handed over.
+          The endpoint has written these since it was added and nothing could
+          reach it, so the counselling half of dispensing lived entirely in
+          whatever the pharmacist happened to remember. Read to the patient,
+          not filed: how to take it, what to expect, what would worry you. */}
+      <div className="card">
+        <h3><ClaudeIcon size={16} /> Counselling points</h3>
+        <AiStreamBlock
+          path={`/api/ai/counseling/${p.id}/stream`}
+          label="Draft counselling points"
+          title={`Counselling — ${p.name}`}
+          context={`${p.name} ${p.strength ?? ""}`.trim()}
+          empty="What a pharmacist covers at hand-out — how to take it, common side effects, key warnings, storage — in language that can be read straight to a patient."
+        />
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

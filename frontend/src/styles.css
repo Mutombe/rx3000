@@ -4933,3 +4933,12 @@ table.dt.sub th { font-size: var(--t-xs); }
   }
   .no-print { display: none !important; }
 }
+
+/* The chapter filter under the ICD-10 search. Sits below the results rather
+   than beside the input: it is the second thing somebody reaches for, only
+   once typing a name has not found it. */
+.dx-chapter {
+  width: 100%; margin-top: 6px; font-size: 12.5px;
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
