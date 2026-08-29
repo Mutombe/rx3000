@@ -153,15 +153,10 @@ export function Refreshable({
  *  no id to act on — so `pending` also marks it non-interactive rather than
  *  merely faded.
  */
-export function RowState({ state }: { state: "creating" | "saving" | null }) {
-  if (!state) return null;
-  return (
-    <span className={`row-state row-state-${state}`}>
-      <span className="spinner" aria-hidden="true" />
-      {state === "creating" ? "Creating…" : "Saving…"}
-    </span>
-  );
-}
+/* `RowState` used to sit here — a "Creating…/Saving…" pill for an optimistic
+ * layer nothing had been wired to. `useOptimisticList` marks the row itself
+ * now, which is better: a five-row save shows five quiet bars rather than five
+ * spinners with five labels, and a list of those is a list nobody can read. */
 
 /** The stand-in for a record that has not arrived yet.
  *

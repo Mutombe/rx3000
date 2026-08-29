@@ -28,6 +28,7 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
+import BusyButton from "../components/BusyButton";
 import {
   ArrowRight,
   ClockCounterClockwise,
@@ -341,6 +342,27 @@ export default function Dispense() {
     // twelve pairs and says so; refusing outright on twelve while missing
     // thousands teaches a pharmacist that a clear result means safe.
     (ixMajor === 0 || ixAcknowledged);
+
+  /** Why the dispense button will not go, in one sentence.
+   *
+   *  These used to be three separate notices rendered in three different places
+   *  further down the page — an acknowledgement note, a compliance note and an
+   *  initials note — while the greyed-out button sat above them with nothing
+   *  beside it. A control that refuses without saying why, and an explanation
+   *  that is not next to the control, are the same fault twice. Only the first
+   *  unmet condition is named, in the order somebody would fix them.
+   */
+  const blockedBecause = (): string => {
+    if (!patient) return "Find the patient first.";
+    if (items.length === 0) return "Add at least one medicine to the script.";
+    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
+      return "Complete every item in the compliance record before this controlled substance can be dispensed.";
+    if (needsInitials && !initials.trim())
+      return "Enter the checking pharmacist's initials before dispensing.";
+    if (ixMajor > 0 && !ixAcknowledged)
+      return "Acknowledge the interaction finding above before dispensing.";
+    return "";
+  };
 
   useEffect(() => {
     // Adding or removing a line makes it a different question, so a previous
@@ -735,27 +757,32 @@ export default function Dispense() {
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
                 return (
-                  <div key={it.product.id} style={{ borderTop: "1px solid rgba(28,29,27,0.08)", paddingTop: 12, marginTop: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <div key={it.product.id} className="rx-item">
+                    <div className="rx-item-head">
                       <b>
                         {it.product.name} {it.product.strength}
-                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>
+                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
                       </b>
-                      <IconButton action="remove" onClick={() => setItems(items.filter((_, i) => i !== idx))} />
+                      <IconButton action="remove" title="Take this line off the script"
+                        onClick={() => setItems(items.filter((_, i) => i !== idx))} />
                     </div>
                     {/* Whether the same medicine is on the shelf under another
                         name, and what it costs. The substitution conversation
                         happens here, with the script in hand — not later. */}
                     <Variants productId={it.product.id} />
-                    <div className="form-row" style={{ marginTop: 8 }}>
-                      <div className="field" style={{ maxWidth: 90 }}>
+                    <div className="form-row">
+                      {/* On the twelve-column grid rather than a pixel width.
+                          `maxWidth: 90` made the quantity a stub beside a
+                          directions field that still spanned half the row, so
+                          the two never lined up with anything below them. */}
+                      <div className="field span-2">
                         <label>Qty</label>
                         <input type="number" min={1} value={it.quantity}
                           onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
                       </div>
-                      <div className="field">
+                      <div className="field span-10">
                         <label>Dosage instructions</label>
                         {/* Shorthand in, sentence out. `1 t tds pc` becomes the
                             line the patient reads on the label. */}
@@ -765,7 +792,7 @@ export default function Dispense() {
                         />
                       </div>
                     </div>
-                    <div className="field">
+                    <div className="field span-12">
                       <label>
                         Diagnosis (ICD-10)
                         {!it.icd10_code && <span className="badge warn" style={{ marginLeft: 8 }}>
@@ -808,7 +835,7 @@ export default function Dispense() {
                       );
                     })()}
                     <div className="form-row">
-                      <div className="field" style={{ maxWidth: 130 }}>
+                      <div className="field span-3">
                         <label>Repeats (max {maxRepeats})</label>
                         <input type="number" min={0} max={maxRepeats} value={it.repeats_allowed}
                           disabled={maxRepeats === 0}
@@ -816,12 +843,12 @@ export default function Dispense() {
                             repeats_allowed: Math.min(maxRepeats, Math.max(0, Number(e.target.value))),
                           })} />
                       </div>
-                      <div className="field" style={{ maxWidth: 140 }}>
+                      <div className="field span-3">
                         <label>Interval (days)</label>
                         <input type="number" min={1} value={it.repeat_interval_days}
                           onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
                       </div>
-                      <div className="field">
+                      <div className="field span-6">
                         <label>Auto-refill</label>
                         <Select
                           value={String(it.auto_refill ? "yes" : "no")}
@@ -831,14 +858,23 @@ export default function Dispense() {
                       </div>
                     </div>
                     {maxRepeats === 0 && (
-                      <div className="muted" style={{ fontSize: 12 }}>
-                        Schedule {it.product.schedule}: no repeats permitted. A fresh script is required each time.
+                      <div className="muted small">
+                        Schedule {it.product.schedule}: no repeats permitted. A fresh
+                        script is required each time.
                       </div>
                     )}
                   </div>
                 );
               })}
-              {items.length === 0 && <div className="empty">No items added yet</div>}
+              {items.length === 0 && (
+                <div className="empty">
+                  <b>Nothing on this script yet</b>
+                  <p>
+                    Search above for what is being dispensed. Each line carries
+                    its own directions, diagnosis and repeats.
+                  </p>
+                </div>
+              )}
             </div>
 
             {route === "controlled" && items.length > 0 && (
@@ -927,15 +963,30 @@ export default function Dispense() {
                 onScreened={setIxMajor}
               />
 
-              <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
-                <button className="secondary"
-                        onClick={aiCheck.streaming ? aiCheck.stop : checkInteractions}
-                        disabled={!aiCheck.streaming && (!patient || items.length === 0)}>
-                  {aiCheck.streaming ? "Stop" : <><ClaudeIcon size={14} /> AI interaction check</>}
-                </button>
-                <button onClick={createAndDispense} disabled={busy || !patient || items.length === 0 || !complianceReady}>
-                  {busy ? "Dispensing…" : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
-                </button>
+              {/* The one act this page exists for, and beside it the reason
+                  it cannot happen yet. */}
+              <div className="disp-commit">
+                <div className="disp-commit-row">
+                  <button className="btn secondary"
+                          onClick={aiCheck.streaming ? aiCheck.stop : checkInteractions}
+                          disabled={!aiCheck.streaming && (!patient || items.length === 0)}>
+                    {aiCheck.streaming ? "Stop" : <><ClaudeIcon size={14} /> AI interaction check</>}
+                  </button>
+                  <BusyButton
+                    className="btn primary disp-go"
+                    busyLabel="Dispensing…"
+                    disabled={!patient || items.length === 0 || !complianceReady}
+                    onClick={createAndDispense}
+                  >
+                    Dispense {items.length} item{items.length === 1 ? "" : "s"}
+                  </BusyButton>
+                </div>
+                {blockedBecause() && (
+                  <p className="disp-blocked">
+                    <Warning size={14} weight="fill" />
+                    <span>{blockedBecause()}</span>
+                  </p>
+                )}
               </div>
 
               {/* How it gets paid for, decided here rather than afterwards.
@@ -994,18 +1045,27 @@ export default function Dispense() {
 
               {items.length > 0 && (
                 <div className="disp-pay">
-                  <span className="muted small">Payment</span>
-                  {PAY_CHOICES.map((c) => (
-                    <button
-                      key={c.key}
-                      className={`btn small ${payHow === c.key ? "" : "ghost"}`}
-                      onClick={() => setPayHow(c.key)}
-                      title={c.hint}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                  <span className="muted small">{PAY_CHOICES.find((c) => c.key === payHow)?.hint}</span>
+                  <span className="disp-pay-label">How this is paid for</span>
+                  {/* A segmented control, because these are two states of one
+                      setting rather than two things to do. Set out flat as
+                      buttons with the explanation trailing off the end of the
+                      row, the sentence read as a third option. */}
+                  <div className="seg" role="radiogroup" aria-label="How this is paid for">
+                    {PAY_CHOICES.map((c) => (
+                      <button
+                        key={c.key}
+                        role="radio"
+                        aria-checked={payHow === c.key}
+                        className={payHow === c.key ? "on" : ""}
+                        onClick={() => setPayHow(c.key)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="muted small disp-pay-hint">
+                    {PAY_CHOICES.find((c) => c.key === payHow)?.hint}
+                  </span>
                 </div>
               )}
 
@@ -1028,27 +1088,6 @@ export default function Dispense() {
                     the dispensing itself, so this is only what the patient
                     hands over.
                   </p>
-                </div>
-              )}
-              {ixMajor > 0 && !ixAcknowledged && items.length > 0 && (
-                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-                  Acknowledge the interaction finding above before dispensing.
-                </div>
-              )}
-              {/* Only when the controlled record is what is actually missing.
-                  This used to fire on any incomplete gate, so a Schedule 4 line
-                  held up by an unacknowledged interaction was told to complete a
-                  compliance record that is not on its route and does not exist —
-                  two messages at once, one of them impossible to act on. */}
-              {!complianceReady && items.length > 0 && route === "controlled"
-                && !(idVerified && scriptSighted && prescriberVerified) && (
-                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-                  Complete every item in the compliance record before this controlled substance can be dispensed.
-                </div>
-              )}
-              {needsInitials && !initials.trim() && items.length > 0 && (
-                <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-                  Enter the checking pharmacist's initials before dispensing.
                 </div>
               )}
               {(aiCheck.streaming || aiCheck.text) && (

@@ -18,6 +18,7 @@ import { api, errorText, fmtDate } from "../api";
 import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface Pharmacy {
   id: number; name: string; trading_name: string; registration_no: string;
@@ -40,6 +41,7 @@ export default function Pharmacies() {
   const [error, setError] = useState("");
   const [forbidden, setForbidden] = useState(false);
   const [spinning, setSpinning] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ ...BLANK });
   const [open, setOpen] = useState<Pharmacy | null>(null);
@@ -56,7 +58,10 @@ export default function Pharmacies() {
         if (e?.status === 403) setForbidden(true);
         else setError(errorText(e, "The pharmacies could not be loaded."));
       })
-      .finally(() => window.setTimeout(() => setSpinning(false), 350));
+      .finally(() => {
+        setLoading(false);
+        window.setTimeout(() => setSpinning(false), 350);
+      });
     api.get<{ items: Person[] }>("/api/pharmacies/unassigned/users")
       .then((d) => setLoose(d.items ?? []))
       .catch(() => setLoose([]));
@@ -162,6 +167,12 @@ export default function Pharmacies() {
       )}
 
       <div className="card">
+        <Refreshable
+          loading={loading}
+          hasData={rows.length > 0}
+          skeleton={<TableSkeleton cols={5} rows={4}
+                                   widths={["22ch", "14ch", "8ch", "10ch", "10ch"]} />}
+        >
         <table className="dt">
           <thead>
             <tr>
@@ -201,9 +212,16 @@ export default function Pharmacies() {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && !spinning && (
-          <div className="empty">No pharmacies yet.</div>
+        {rows.length === 0 && !loading && (
+          <div className="empty">
+            <b>No pharmacies yet</b>
+            <p>
+              Every branch, user and figure in this system belongs to one. Add
+              the first to give them somewhere to live.
+            </p>
+          </div>
         )}
+        </Refreshable>
       </div>
 
       {adding && (

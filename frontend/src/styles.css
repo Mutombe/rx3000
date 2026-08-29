@@ -623,7 +623,11 @@ label {
 .field.span-3 { grid-column: span 3; }
 .field.span-4 { grid-column: span 4; }
 .field.span-6 { grid-column: span 6; }
+.field.span-5 { grid-column: span 5; }
+.field.span-7 { grid-column: span 7; }
 .field.span-8 { grid-column: span 8; }
+.field.span-9 { grid-column: span 9; }
+.field.span-10 { grid-column: span 10; }
 .field.span-12 { grid-column: span 12; }
 @media (max-width: 780px) { .form-row > .field { grid-column: span 12; } }
 
@@ -650,7 +654,22 @@ label {
 .toolbar select { width: auto; }
 .spacer { flex: 1; }
 
-.empty { color: var(--ink-soft); text-align: center; padding: 34px 0; font-size: 13.5px; }
+/* An empty state is a whole screen's answer, not a caption.
+   34px of padding on a card that fills the viewport left the sentence floating
+   just under the heading with a field of white beneath it, which reads as a
+   page that failed to load rather than one with nothing in it yet. It now
+   centres itself in whatever room it has and keeps its distance from the
+   heading above. */
+.empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  min-height: 14rem; padding: var(--s10) var(--s5);
+  color: var(--ink-soft); font-size: 13.5px;
+}
+/* Given the page rather than a card, it takes the height the page has. The
+   subtraction is the header and the shell's own padding; `min()` keeps it
+   sane on a short laptop screen in landscape. */
+.empty-page { min-height: min(60vh, 32rem); }
 .clamp-2 {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; line-height: 1.35;
@@ -1796,8 +1815,11 @@ td.actions > * + * { margin-left: var(--s2); }
 .sk-card { display: grid; gap: var(--s3); }
 
 /* A refetch dims what is already there instead of blanking it. Pointer events
- * stay on: the user may still scroll and read while the next page arrives. */
-.is-refreshing { opacity: 0.6; transition: opacity 120ms ease; }
+ * stay on: the user may still scroll and read while the next page arrives, and
+ * blanking a table to a skeleton on every filter change makes a fast connection
+ * feel like a slow one and loses the row somebody was reading. */
+.is-refreshing { opacity: 0.65; transition: opacity 130ms ease; }
+.is-refreshing input, .is-refreshing button { cursor: progress; }
 
 /* ---- optimistic rows ------------------------------------------------------
  *
@@ -1805,8 +1827,12 @@ td.actions > * + * { margin-left: var(--s2); }
  * it has no id, so acting on it could only fail. Fading alone would leave a
  * clickable row that lies about being real.
  */
-tr.is-pending { opacity: 0.55; pointer-events: none; }
-tr.is-saving { opacity: 0.75; }
+/* `tr.is-pending` and `tr.is-saving` used to live here, for an optimistic layer
+   that was never connected to a screen. `useOptimisticList` is that layer, and
+   it emits row-creating / row-saving / row-removing further down — which also
+   carry the travelling bar and the exit. Two vocabularies for one idea is how a
+   list ends up half-faded by one rule and half by the other, so the unused pair
+   is gone rather than left as a second way to say it. */
 .row-state {
   display: inline-flex; align-items: center; gap: var(--s1);
   font-size: var(--t-xs); color: var(--ink-mid);
@@ -1819,11 +1845,8 @@ tr.is-saving { opacity: 0.75; }
 @keyframes sk-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 
-/* New rows arrive, removed rows leave — so a list reads as changing rather
- * than as redrawing. */
-@keyframes row-in { from { opacity: 0; transform: translateY(-4px); } }
-tr.is-new { animation: row-in 180ms ease-out; }
-@media (prefers-reduced-motion: reduce) { tr.is-new { animation: none; } }
+/* The row-in keyframes and `tr.is-new` were here too, unused. The live ones are
+   with the optimistic rows below, where the rest of the list motion lives. */
 
 /* ---- rows as links --------------------------------------------------------
  *
@@ -3348,6 +3371,20 @@ img { -webkit-user-drag: none; user-select: none; }
 .vr-dearer { color: var(--ink-faint); }
 .vr-stock { font-size: .76rem; color: var(--ink-soft); }
 .vr-none { margin: var(--s2) 0 0; font-size: .78rem; color: var(--ink-faint); }
+
+/* Inside a script line the card is already sunk, so a sunk row on top of it
+   disappears — which is how the substitution offer, the one place a patient is
+   told they can pay three dollars less, came to read as a grey smear between
+   the medicine's name and the quantity box. On the card it is raised instead,
+   and given room. */
+.rx-item .vr { margin: 0 0 var(--s4); }
+.rx-item .vr-list li {
+  background: var(--surface); border: 1px solid var(--line);
+  padding: var(--s2) var(--s3); gap: var(--s3);
+}
+.rx-item .vr-list { gap: var(--s1); }
+.rx-item .vr-head { margin-bottom: var(--s2); }
+.rx-item .vr-none { margin: 0 0 var(--s3); }
 
 /* ================================================================ data at scale
    Data is untrusted input for the layout. A product name can be one word or a
@@ -5110,14 +5147,68 @@ table.dt.sub th { font-size: var(--t-xs); }
 .dt tbody tr:nth-child(9)  { animation-delay: 144ms; }
 .dt tbody tr:nth-child(10) { animation-delay: 162ms; }
 
-/* A list being refreshed keeps showing what it has. Blanking a table to a
-   skeleton on every filter change makes a fast connection feel like a slow
-   one, and loses the row somebody was reading. */
-.is-refreshing { opacity: 0.7; transition: opacity 140ms ease; }
-.is-refreshing * { cursor: progress; }
-
 @media (prefers-reduced-motion: reduce) {
   .dt tbody tr, .row-removing { animation: none; }
   .row-creating > td:first-child::before,
   .row-saving > td:first-child::before { animation: none; opacity: 0.5; }
+}
+
+
+/* --------------------------------------------------------- dispensing page
+   The three faults this fixes, all visible in one screenshot: fields at
+   unrelated widths because each carried its own pixel maximum, a disabled
+   Dispense button with the reason it was disabled three blocks further down,
+   and a payment choice laid out as loose buttons with its explanation trailing
+   off the end of the row like a third option. */
+
+/* One line of a script is one thing, so it is drawn as one thing. */
+.rx-item {
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: var(--s4); margin-top: var(--s4);
+  background: var(--surface-sunk);
+}
+.rx-item-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: var(--s3); margin-bottom: var(--s3);
+  padding-bottom: var(--s3); border-bottom: 1px solid var(--line);
+}
+.rx-item-head b { font-size: var(--t-base); line-height: 1.4; }
+.rx-item-head .badge { margin-left: var(--s2); vertical-align: middle; }
+/* The last row of fields in a card should not add its own bottom margin on top
+   of the card's padding. */
+.rx-item .form-row:last-child > .field { margin-bottom: 0; }
+
+/* The act, and the reason it cannot happen. */
+.disp-commit {
+  margin: var(--s5) 0 var(--s4);
+  padding-top: var(--s4); border-top: 1px solid var(--line);
+}
+.disp-commit-row { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: center; }
+/* The one button this page exists for. Given the room to say so. */
+.disp-go { min-width: 12rem; justify-content: center; }
+.disp-blocked {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin: var(--s3) 0 0; padding: var(--s2) var(--s3);
+  border-radius: var(--r-md);
+  background: var(--warn-soft, var(--surface-sunk));
+  border: 1px solid var(--warn, var(--line));
+  color: var(--ink-mid); font-size: var(--t-sm); line-height: 1.5;
+}
+.disp-blocked svg { flex: 0 0 auto; margin-top: 2px; color: var(--warn, var(--ink-soft)); }
+
+.disp-pay {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  margin-bottom: var(--s3);
+}
+.disp-pay-label { font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid); }
+/* The hint takes the rest of the row and wraps under on a narrow screen,
+   rather than pushing the control off the edge. */
+.disp-pay-hint { flex: 1 1 14rem; min-width: 0; }
+
+@media (max-width: 640px) {
+  .disp-commit-row { flex-direction: column; align-items: stretch; }
+  .disp-commit-row .btn { width: 100%; justify-content: center; }
+  .disp-pay { align-items: flex-start; }
+  .disp-pay .seg { width: 100%; }
+  .disp-pay .seg button { flex: 1; }
 }

@@ -17,6 +17,7 @@ import { ArrowClockwise, Info, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
+import { TableSkeleton } from "../components/Skeleton";
 
 interface Money { count: number; amount: number }
 interface Branch {
@@ -64,6 +65,9 @@ function pct(value: number | null, good = 90): JSX.Element {
 
 export default function Scorecard() {
   const [data, setData] = useState<Card | null>(null);
+  /* Distinct from `spinning`, which is the deliberate half-second on the
+     Refresh button. This one is "there is nothing on screen yet". */
+  const [loading, setLoading] = useState(true);
   const [days, setDays] = useState("30");
   const [error, setError] = useState("");
   const [spinning, setSpinning] = useState(false);
@@ -73,7 +77,10 @@ export default function Scorecard() {
     api.get<Card>(`/api/scorecard?days=${days}`)
       .then((d) => { setData(d); setError(""); })
       .catch((e) => setError(errorText(e, "The scorecard could not be loaded.")))
-      .finally(() => window.setTimeout(() => setSpinning(false), 350));
+      .finally(() => {
+        setLoading(false);
+        window.setTimeout(() => setSpinning(false), 350);
+      });
   }, [days]);
   useEffect(() => { load(); }, [load]);
 
@@ -96,6 +103,13 @@ export default function Scorecard() {
       </div>
 
       {error && <div className="alert error">{error}</div>}
+
+      {/* Twelve columns of figures a group manager compares across branches.
+          An empty frame while they arrive reads as a group with no trade. */}
+      {loading && !data && (
+        <TableSkeleton cols={7} rows={4}
+          widths={["18ch", "12ch", "8ch", "16ch", "12ch", "12ch", "12ch"]} />
+      )}
 
       {data && (
         <>

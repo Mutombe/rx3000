@@ -23,6 +23,7 @@ import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
 import PaySupplier from "../components/PaySupplier";
 import Remittance, { RemittanceData } from "../components/Remittance";
+import { TableSkeleton } from "../components/Skeleton";
 
 interface AgeInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -74,6 +75,7 @@ export default function Payables() {
   const [payments, setPayments] = useState<RemittanceData[]>([]);
   const [advice, setAdvice] = useState<RemittanceData | null>(null);
   const [spinning, setSpinning] = useState(false);
+  const [loading, setLoading] = useState(true);
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -92,6 +94,7 @@ export default function Payables() {
     } catch (e) {
       setFailed(errorText(e, "What is owed could not be worked out."));
     } finally {
+      setLoading(false);
       // Held briefly so the turn is visible. A spinner that stops on the same
       // frame it started reads as a button that did nothing.
       window.setTimeout(() => setSpinning(false), 450);
@@ -158,7 +161,12 @@ export default function Payables() {
         </button>
       </div>
 
-      {!ageing ? <p className="muted">Working out what is owed…</p> : (
+      {/* "Working out what is owed…" is a sentence where a table is about to
+          be, so the page jumps when it arrives. The skeleton holds the shape. */}
+      {!ageing ? (
+        <TableSkeleton cols={5} rows={5}
+          widths={["24ch", "12ch", "12ch", "12ch", "12ch"]} />
+      ) : (
         <>
           <div className="wc-bands">
             <div className="wl-stat">
