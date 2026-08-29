@@ -129,6 +129,8 @@ def run(path: str) -> dict:
                         currency_code=_currency_of(aid_name),
                     )
                     db.add(aid)
+                    # Flushed, not committed, and only because the patient rows
+                    # below need its id. Doctors do not, so they are not.
                     db.flush()
                     aids[key] = aid
                     counts["aids"] += 1
@@ -138,7 +140,10 @@ def run(path: str) -> dict:
             if doctor_name and doctor_name.upper() not in doctors:
                 doctor = Doctor(name=doctor_name.title(), pharmacy_id=pharmacy.id)
                 db.add(doctor)
-                db.flush()
+                # No flush. Nothing here needs the prescriber's id, and a round
+                # trip per new name is 689 of them before a single patient is
+                # written — invisible on SQLite, a minute of waiting against a
+                # hosted database.
                 doctors[doctor_name.upper()] = doctor
                 counts["doctors"] += 1
 
@@ -182,8 +187,15 @@ def run(path: str) -> dict:
                 patient.medical_aid_number = _clean(cell(row, "Member No"))[:40]
 
             if counts["rows"] % 4000 == 0:
-                db.flush()
-                print(f"  {counts['rows']:,} rows … {counts['patients']:,} people")
+                # Committed, not merely flushed. Against the hosted database
+                # one transaction spanning 53,206 rows is a transaction that
+                # loses everything when the connection drops — and seed_remote
+                # says plainly that it does. Committing in batches makes an
+                # interrupted run resumable, which is what the idempotency is
+                # for.
+                db.commit()
+                print(f"  {counts['rows']:,} rows … {counts['patients']:,} people",
+                      flush=True)
 
         book.close()
         db.commit()

@@ -127,12 +127,21 @@ def run(path: str, limit: int = 0) -> dict:
 
         sale = None
         pending_items: list[dict] = []
+        last_commit = [0]
 
         def flush():
-            """Write the invoice being read, with its lines."""
+            """Attach the lines to the invoice being read.
+
+            Through the relationship rather than by id, so SQLAlchemy cascades
+            them and both go out in one batch at the next commit. Writing the
+            sale, flushing for its id, then adding its items is a round trip
+            per invoice — invisible on SQLite, and 45,728 of them against a
+            hosted database, which is an hour of waiting for work that takes
+            two minutes.
+            """
             nonlocal sale, pending_items
             if sale is not None and pending_items:
-                db.add_all([SaleItem(sale_id=sale.id, **it) for it in pending_items])
+                sale.items = [SaleItem(**it) for it in pending_items]
                 counts["items"] += len(pending_items)
             sale, pending_items = None, []
 
@@ -182,7 +191,6 @@ def run(path: str, limit: int = 0) -> dict:
                     pharmacy_id=pharmacy.id,
                 )
                 db.add(sale)
-                db.flush()
                 counts["invoices"] += 1
                 if on_account:
                     counts["on_account"] += 1
@@ -238,8 +246,14 @@ def run(path: str, limit: int = 0) -> dict:
                 "vat_rate": 0.0,
             })
 
-            if counts["invoices"] % 3000 == 0 and pending_items:
-                db.flush()
+            # Committed in batches so an interrupted run resumes rather than
+            # losing everything. The invoice numbers already loaded are read at
+            # the start, so a second run skips them.
+            if counts["invoices"] % 2000 == 0 and counts["invoices"] != last_commit[0]:
+                flush()
+                db.commit()
+                last_commit[0] = counts["invoices"]
+                print(f"  {counts['invoices']:,} invoices …", flush=True)
 
         flush()
         book.close()
