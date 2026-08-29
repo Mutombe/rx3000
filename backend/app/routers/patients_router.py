@@ -2,13 +2,14 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import paging
-from ..models import Doctor, MedicalAid, Patient, Sale, User
+from ..models import (BatchAllocation, Doctor, MedicalAid, Patient, Sale,
+                      SaleItem, User)
 from .periods_router import require_step_up
 
 log = logging.getLogger(__name__)
@@ -91,8 +92,17 @@ def update_patient(patient_id: int, body: schemas.PatientCreate, db: Session = D
 
 @router.get("/patients/{patient_id}/sales", response_model=list[schemas.SaleOut])
 def patient_sales(patient_id: int, db: Session = Depends(get_db)):
+    # Same shape as the till's list, and the same reason: SaleOut renders the
+    # lines, the tenders and the claim, and a hundred purchases fetched one
+    # relation at a time is four hundred round trips on the patient record.
     return (
         db.query(Sale)
+        .options(selectinload(Sale.items)
+                 .selectinload(SaleItem.allocations)
+                 .joinedload(BatchAllocation.batch),
+                 selectinload(Sale.tenders),
+                 joinedload(Sale.claim),
+                 joinedload(Sale.patient).joinedload(Patient.medical_aid))
         .filter(Sale.patient_id == patient_id)
         .order_by(Sale.created_at.desc())
         .limit(100)

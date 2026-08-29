@@ -1329,6 +1329,12 @@ label {
   flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line-soft);
 }
 .dt-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
+/* Standing on its own — above a table rather than inside a toolbar — it needs
+   to be separated from what it filters. With no margin at all the first row of
+   the table began at the exact pixel the filter bar ended, and the controls and
+   the data read as one block. Inside a toolbar the toolbar owns the spacing. */
+.dt-filters { margin-bottom: var(--s4); }
+.toolbar .dt-filters, .dt-tools .dt-filters, .card-head .dt-filters { margin-bottom: 0; }
 .dt-tools { display: flex; align-items: center; gap: 10px; }
 .dt-count { font-size: 12px; white-space: nowrap; }
 /* inputs default to full width in this design system — inside a filter bar

@@ -195,6 +195,11 @@ export default function Repeats() {
             <Checkbox checked={overdueOnly} onChange={setOverdueOnly}>Overdue only</Checkbox>
           </div>
 
+          {/* In a card, like every other list in the product. Without one the
+              table — and the skeleton standing in for it — sat directly on the
+              page ground and began at the exact pixel the filter bar ended, so
+              the controls and the rows read as one undifferentiated block. */}
+          <div className="card">
           <Refreshable
             loading={loading}
             hasData={!!due?.items.length}
@@ -273,6 +278,7 @@ export default function Repeats() {
               <Pagination meta={dueRows.meta} onPage={dueRows.setPage} noun="repeats" />
             </div>
           </Refreshable>
+          </div>
         </>
       )}
 

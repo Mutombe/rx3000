@@ -2,13 +2,14 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import func, or_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
-from ..models import Claim, Patient, Product, Sale, SaleItem, SaleTender, User
+from ..models import (BatchAllocation, Claim, Patient, Product, Sale, SaleItem,
+                      SaleTender, User)
 from ..services import claims_engine, currency, fiscal, posting, reconciliation, stepup
 from . import shifts_router
 
@@ -341,7 +342,7 @@ def money_owed(patient_id: int = 0, db: Session = Depends(get_db),
     somebody collects it — which is exactly why it has to be visible.
     """
     query = (db.query(Sale)
-               .options(joinedload(Sale.patient))
+               .options(*_sale_graph())
                .filter(Sale.status == "part_paid"))
     if patient_id:
         query = query.filter(Sale.patient_id == patient_id)
@@ -425,6 +426,38 @@ def reconcile_card(body: schemas.CardReconcileRequest, db: Session = Depends(get
     return reconciliation.reconcile(db, body.csv_text, body.date_from, body.date_to)
 
 
+def _sale_graph():
+    """Everything SaleOut renders, fetched in a fixed number of queries.
+
+    SaleOut carries the tenders, the lines, the claim and the patient. Only the
+    patient was eager-loaded, so the other three were fetched per row: fifty
+    paid sales cost 266 queries. On SQLite that is invisible. Against a hosted
+    Postgres at roughly ninety milliseconds a round trip it is most of half a
+    minute, which is why the front shop's billing history appeared to hang.
+
+    `selectinload` rather than `joinedload` for the collections: a join across
+    two one-to-many relations multiplies the rows out, so a sale with four
+    lines and two tenders would come back eight times and be de-duplicated in
+    Python. This issues one extra query per relation regardless of how many
+    rows there are.
+    """
+    return (
+        # PatientOut nests the medical aid, so loading the patient alone still
+        # left one query per row to find out which scheme they are on.
+        joinedload(Sale.patient).joinedload(Patient.medical_aid),
+        # SaleItemOut carries the batch allocations, and AllocationOut carries
+        # the batch itself — so each line cost two more round trips, which is
+        # where the bulk of the 266 actually went. Serialisation walks whatever
+        # the schema declares, so the eager load has to reach as deep as the
+        # schema does.
+        selectinload(Sale.items)
+        .selectinload(SaleItem.allocations)
+        .joinedload(BatchAllocation.batch),
+        selectinload(Sale.tenders),
+        joinedload(Sale.claim),
+    )
+
+
 @router.get("/sales", response_model=list[schemas.SaleOut])
 def list_sales(status: str = "", q: str = "", limit: int = 100,
                db: Session = Depends(get_db), _: User = Depends(get_current_user)):
@@ -438,7 +471,7 @@ def list_sales(status: str = "", q: str = "", limit: int = 100,
     The patient is joined rather than lazily loaded — the list renders a name
     per row, and fifty rows was fifty extra queries against a hosted database.
     """
-    query = db.query(Sale).options(joinedload(Sale.patient))
+    query = db.query(Sale).options(*_sale_graph())
     if status:
         query = query.filter(Sale.status == status)
     term = (q or "").strip()
