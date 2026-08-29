@@ -5048,3 +5048,76 @@ table.dt.sub th { font-size: var(--t-xs); }
   padding: 6px 8px; border-radius: var(--radius-sm);
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
 }
+
+/* ------------------------------------------------- optimistic rows
+   A row that is on screen before the server has agreed to it. It has to read
+   as real enough to trust and provisional enough not to act on: dimmed, with a
+   quiet bar travelling along the top edge, and its own controls out of reach
+   until it settles.
+
+   Deliberately not a spinner in the row. A list of five saving rows with five
+   spinners in it is a list nobody can read. */
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes row-out {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.98); }
+}
+@keyframes row-pulse {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.dt tbody tr { animation: row-in 220ms ease both; }
+
+.row-creating, .row-saving {
+  position: relative;
+  /* Still legible — this is the figure somebody just typed and wants to check
+     — but plainly not finished. */
+  opacity: 0.62;
+  cursor: progress;
+}
+/* The travelling bar, on the row's top edge. `overflow: hidden` on a table row
+   is not honoured, so it is drawn as a gradient that moves instead of a bar
+   that slides. */
+.row-creating > td:first-child::before,
+.row-saving > td:first-child::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  animation: row-pulse 1.1s ease-in-out infinite;
+}
+/* Nothing on an unsettled row can be pressed. The record may not have an id
+   yet, and a button that acts on one that does not exist acts on the wrong
+   one. */
+.row-creating .actions, .row-saving .actions,
+.row-creating input[type="checkbox"], .row-saving input[type="checkbox"] {
+  pointer-events: none; opacity: 0.4;
+}
+.row-removing { animation: row-out 180ms ease both; pointer-events: none; }
+
+/* Lists arrive in sequence rather than all at once. Capped at ten: past that
+   the last row waits noticeably, which is the opposite of the intent. */
+.dt tbody tr:nth-child(1)  { animation-delay: 0ms; }
+.dt tbody tr:nth-child(2)  { animation-delay: 18ms; }
+.dt tbody tr:nth-child(3)  { animation-delay: 36ms; }
+.dt tbody tr:nth-child(4)  { animation-delay: 54ms; }
+.dt tbody tr:nth-child(5)  { animation-delay: 72ms; }
+.dt tbody tr:nth-child(6)  { animation-delay: 90ms; }
+.dt tbody tr:nth-child(7)  { animation-delay: 108ms; }
+.dt tbody tr:nth-child(8)  { animation-delay: 126ms; }
+.dt tbody tr:nth-child(9)  { animation-delay: 144ms; }
+.dt tbody tr:nth-child(10) { animation-delay: 162ms; }
+
+/* A list being refreshed keeps showing what it has. Blanking a table to a
+   skeleton on every filter change makes a fast connection feel like a slow
+   one, and loses the row somebody was reading. */
+.is-refreshing { opacity: 0.7; transition: opacity 140ms ease; }
+.is-refreshing * { cursor: progress; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dt tbody tr, .row-removing { animation: none; }
+  .row-creating > td:first-child::before,
+  .row-saving > td:first-child::before { animation: none; opacity: 0.5; }
+}

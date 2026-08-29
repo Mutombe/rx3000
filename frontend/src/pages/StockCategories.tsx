@@ -16,10 +16,10 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Warning } from "@phosphor-icons/react";
-import { api, errorText, money } from "../api";
+import { api, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
-import { useToast } from "../components/Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
@@ -27,37 +27,51 @@ interface Category {
 }
 
 export default function StockCategories() {
-  const [rows, setRows] = useState<Category[]>([]);
   const [untagged, setUntagged] = useState(0);
-  const [error, setError] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", code: "", target_margin: "" });
-  const toast = useToast();
 
-  const load = useCallback(() => {
+  const list = useOptimisticList<Category>({
+    load: useCallback(async () => {
+      const d = await api.get<{ items: Category[]; untagged: number }>(
+        "/api/stock-categories");
+      setUntagged(d.untagged ?? 0);
+      return d.items ?? [];
+    }, []),
+    key: (c) => c.id,
+  });
+  const rows = list.items;
+
+  function refresh() {
     setSpinning(true);
-    api.get<{ items: Category[]; untagged: number }>("/api/stock-categories")
-      .then((d) => { setRows(d.items ?? []); setUntagged(d.untagged ?? 0); setError(""); })
-      .catch((e) => setError(errorText(e, "The departments could not be loaded.")))
-      .finally(() => window.setTimeout(() => setSpinning(false), 350));
-  }, []);
-  useEffect(() => { load(); }, [load]);
+    list.reload().finally(() => window.setTimeout(() => setSpinning(false), 350));
+  }
 
-  async function create() {
-    try {
-      await api.post("/api/stock-categories", {
-        name: form.name,
-        code: form.code,
+  /** The dialog closes on the press; the row is already there.
+   *
+   *  Adding a department is a one-line write that cannot fail for any reason
+   *  the person could have prevented, so making them watch a spinner buys
+   *  nothing. If the server does refuse it, the row goes away again and says
+   *  why — and the figures beside it were never wrong, because the counts a
+   *  new department starts with are all nought.
+   */
+  function create() {
+    const name = form.name.trim();
+    setAdding(false);
+    setForm({ name: "", code: "", target_margin: "" });
+    list.create(
+      {
+        id: 0, name, code: form.code.trim(),
         target_margin: Number(form.target_margin) || 0,
-      });
-      toast.ok(`${form.name} added.`);
-      setAdding(false);
-      setForm({ name: "", code: "", target_margin: "" });
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That department could not be added."));
-    }
+        active: true, products: 0, in_stock: 0, at_cost: 0,
+      },
+      () => api.post<Category>("/api/stock-categories", {
+        name, code: form.code.trim(),
+        target_margin: Number(form.target_margin) || 0,
+      }),
+      `${name} added.`,
+    );
   }
 
   const totalLines = rows.reduce((n, r) => n + r.products, 0);
@@ -72,14 +86,14 @@ export default function StockCategories() {
           <div className="sub">How this pharmacy groups what it sells</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn secondary" onClick={load}>
+          <button className="btn secondary" onClick={refresh}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
           </button>
           <button className="btn" onClick={() => setAdding(true)}>New department</button>
         </div>
       </div>
 
-      {error && <div className="alert error">{error}</div>}
+      {list.error && <div className="alert error">{list.error}</div>}
 
       <div className="wc-bands">
         <div className="wl-stat"><b>{rows.length}</b><span>departments</span></div>
@@ -116,7 +130,7 @@ export default function StockCategories() {
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id}>
+              <tr key={c.id} className={rowClass(list.stateOf(c))}>
                 <td>
                   <b>{c.name}</b>
                   {c.code && <div className="muted small mono">{c.code}</div>}
@@ -140,15 +154,20 @@ export default function StockCategories() {
                     : <span className="muted">not set</span>}
                 </td>
                 <td className="actions">
-                  <EntityLink to={`/stock?category_id=${c.id}`}>
-                    <button className="btn small secondary">See the lines</button>
-                  </EntityLink>
+                  {/* Nothing to look at yet on a department the server has not
+                      confirmed — and its id is a placeholder, so the link would
+                      filter the catalogue by a number that does not exist. */}
+                  {!list.isPending(c) && (
+                    <EntityLink to={`/stock?category_id=${c.id}`}>
+                      <button className="btn small secondary">See the lines</button>
+                    </EntityLink>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && !spinning && (
+        {rows.length === 0 && !list.loading && (
           <div className="empty">
             No departments yet. Every pharmacy groups its stock somehow — adding
             those groups here is what makes the stocktake and the margin reports
