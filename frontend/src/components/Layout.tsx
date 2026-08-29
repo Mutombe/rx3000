@@ -138,10 +138,6 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/samples", label: "Samples", icon: Gift },
       { to: "/recall", label: "Recall", icon: Siren },
       { to: "/branches", label: "Branches", icon: Storefront },
-      { to: "/scorecard", label: "Branch scorecard", icon: ChartBar, tier: 2 },
-      // Only whoever operates RX5000 can open this; a pharmacy's own
-      // administrator gets a 403 and the page says why.
-      { to: "/pharmacies", label: "Pharmacies", icon: Buildings, tier: 3 },
     ],
   },
   {
@@ -169,6 +165,13 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     section: "Insight",
     links: [
       { to: "/", label: "Command Centre", icon: SquaresFour },
+      // The owner's view: which shop is working and which is quietly not.
+      // It was filed under Stock, between the stock take and the recall,
+      // because it reads branch data — but the question it answers is not a
+      // stock question and the person asking it is not doing stock. Somebody
+      // who owns three shops looks for this beside the analytics, which is
+      // where every other "how are we doing" screen already lives.
+      { to: "/scorecard", label: "Branch performance", icon: ChartBar, tier: 1 },
       { to: "/reports", label: "Analytics", icon: ChartLineUp },
       { to: "/assistant", label: "Pulse AI", icon: ClaudeIcon },
     ],
@@ -189,6 +192,11 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     links: [
       { to: "/admin", label: "Control Panel", icon: SlidersHorizontal },
       { to: "/system", label: "This Till", icon: Desktop },
+      // Platform-level: creating pharmacies and deciding who belongs to which.
+      // A pharmacy's own administrator gets a 403 and the page explains why, so
+      // it sits in Administration rather than under Stock, where it had no
+      // business being at all.
+      { to: "/pharmacies", label: "Pharmacies", icon: Buildings },
     ],
   },
 ];
