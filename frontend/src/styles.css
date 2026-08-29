@@ -674,16 +674,73 @@ label {
   display: grid; place-items: center; padding: 20px;
   backdrop-filter: blur(6px);
 }
+/* A dialog is three regions, not one scrolling column.
+   The whole box used to scroll — title, body and buttons together — so on a
+   payment with three tender lines the operator scrolled past "Take payment" to
+   read the total and then had to scroll back down to press it. The title says
+   what this is and the actions say how it ends; both stay put, and only the
+   part that can be arbitrarily long moves. */
 .modal {
   background: var(--surface);
   backdrop-filter: blur(30px);
-  border: 1px solid #fff;
+  border: 1px solid var(--line-soft, #fff);
   border-radius: var(--r-2xl); padding: var(--s6); width: 100%; max-width: 660px;
-  max-height: 90vh; overflow-y: auto;
+  max-height: min(90vh, 52rem); overflow-y: auto; overscroll-behavior: contain;
+  /* Nothing inside a dialog may push it sideways. A modal with a horizontal
+     scrollbar is a modal with content already off the edge of it. */
+  overflow-x: hidden;
   box-shadow: 0 30px 90px rgba(28, 29, 27, 0.3);
 }
-.modal h2 { font-size: 19px; margin-bottom: 18px; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.modal > * { min-width: 0; }
+
+/* Bled to the edges with a negative margin so the rule under the title runs the
+   full width of the dialog, and stuck to the top of the scrollport. */
+.modal > h2 {
+  position: sticky; top: calc(var(--s6) * -1); z-index: 3;
+  margin: calc(var(--s6) * -1) calc(var(--s6) * -1) var(--s4);
+  padding: var(--s5) var(--s6) var(--s3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+  font-size: 19px; letter-spacing: -0.01em;
+}
+/* The sentence under the title belongs to the header, not to the body: it is
+   what the dialog is for, and it should not scroll away from its own heading. */
+.modal > h2 + p.muted { margin-top: calc(var(--s4) * -1 + 2px); margin-bottom: var(--s4); }
+
+.modal-actions {
+  position: sticky; bottom: calc(var(--s6) * -1); z-index: 3;
+  display: flex; justify-content: flex-end; align-items: center; gap: 10px;
+  margin: var(--s5) calc(var(--s6) * -1) calc(var(--s6) * -1);
+  padding: var(--s3) var(--s6);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--r-2xl) var(--r-2xl);
+}
+/* A note beside the buttons — "this cannot be undone", a running total — reads
+   left while the actions stay right. */
+.modal-actions > .modal-note { margin-right: auto; text-align: left; }
+
+/* Sizes, named for what goes in them rather than for pixels. */
+.modal-narrow { max-width: 26rem; }
+.modal-wide   { max-width: 44rem; }
+.modal-full   { max-width: 62rem; }
+
+@media (max-width: 640px) {
+  /* On a phone the dialog is the screen. A centred card with margins wastes
+     the only room there is, and the actions matter more than the corners. */
+  .modal { max-width: none; max-height: 100vh; border-radius: 0; padding: var(--s4); }
+  .modal > h2 {
+    margin: calc(var(--s4) * -1) calc(var(--s4) * -1) var(--s3);
+    padding: var(--s4); border-radius: 0; top: calc(var(--s4) * -1);
+  }
+  .modal-actions {
+    margin: var(--s4) calc(var(--s4) * -1) calc(var(--s4) * -1);
+    padding: var(--s3) var(--s4); border-radius: 0;
+    bottom: calc(var(--s4) * -1);
+  }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+}
 
 /* ---------- login ---------- */
 .login-wrap {
@@ -807,6 +864,12 @@ label {
    One turn a second: fast enough to read as activity, slow enough that it is not
    the loudest thing on a screen where something else may be genuinely urgent. */
 @keyframes busy-spin { to { transform: rotate(360deg); } }
+/* Used by every Refresh control and by BusyButton's spinner. It was used in
+   eight places and defined in none, so none of them ever turned. */
+.spin { animation: busy-spin 1s linear infinite; transform-origin: 50% 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; opacity: 0.55; }
+}
 .is-busy svg { animation: busy-spin 1s linear infinite; transform-origin: 50% 50%; }
 /* The label dims rather than disappearing, so the button keeps its width and the
    row does not jump under a hand already moving to the next control. */
@@ -1424,10 +1487,17 @@ td.actions > * + * { margin-left: var(--s2); }
 }
 .device-note.ok { background: var(--ok-soft); border-color: rgba(127, 200, 109, 0.4); }
 
-/* split-tender panel */
+/* The till's own split-tender panel.
+   Scoped to `.tender-lines`, and it has to stay that way: these rules were
+   written unscoped, so `.tender-line` meant a four-column grid row here and a
+   bordered card in the shared Tenders component. Every payment modal in the
+   product laid its rows out in four columns as a result — the method, the
+   currency and the amount stacked into the first one, and the last child
+   ("Hold this claim — do not send it now") wrapped a word per line outside the
+   dialog. */
 .tender-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-.tender-line { display: grid; grid-template-columns: 1.1fr 0.9fr 1fr auto; gap: 6px; align-items: center; }
-.tender-line select, .tender-line input { padding: 7px 12px; font-size: 13px; width: 100%; }
+.tender-lines .tender-line { display: grid; grid-template-columns: 1.1fr 0.9fr 1fr auto; gap: 6px; align-items: center; }
+.tender-lines .tender-line select, .tender-lines .tender-line input { padding: 7px 12px; font-size: 13px; width: 100%; }
 .tender-summary {
   margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--radius-sm);
   background: var(--surface); border: 1px solid var(--line-soft);
@@ -4892,20 +4962,54 @@ table.dt.sub th { font-size: var(--t-xs); }
   margin-bottom: var(--s4);
 }
 
-/* Building up a payment out of the pieces it was actually made of. */
-.tenders { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s3); }
+/* Building up a payment out of the pieces it was actually made of.
+   One card per payment, and inside it a fixed three-part row: what it was, in
+   which currency, how much. A wrapping flex row put those three under each
+   other at the first hint of a narrow dialog, which turned one payment into
+   something that read like three. */
+.tenders { display: flex; flex-direction: column; gap: var(--s3); margin-bottom: var(--s4); }
 .tender-line {
-  border: 1px solid var(--line); border-radius: var(--r-md);
-  padding: var(--s2); background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  padding: var(--s3); background: var(--surface-sunk);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
 }
-.tender-row { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
-.tender-row > * { flex: 1 1 8rem; min-width: 0; }
-.tender-amount { flex: 0 0 8rem; text-align: right; }
+.tender-line:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft, rgba(0,0,0,0.05));
+}
+.tender-row {
+  display: grid;
+  /* method | currency | amount | remove. The amount is fixed and right-aligned
+     so the figures in a stack of payments line up under each other. */
+  grid-template-columns: minmax(7rem, 1.4fr) minmax(5rem, 0.7fr) 8rem auto;
+  gap: var(--s2); align-items: center;
+}
+.tender-row > * { min-width: 0; }
+.tender-amount { text-align: right; font-variant-numeric: tabular-nums; }
 .tender-row .btn.small { flex: 0 0 auto; }
-/* The detail that makes a line reconcilable: which wallet, which bank. Set
-   apart so the amount stays the thing the eye lands on. */
-.tender-detail { margin-top: var(--s2); padding-top: var(--s2); border-top: 1px dashed var(--line); }
-.tender-conv { margin-top: 4px; }
+
+/* The detail that makes a line reconcilable: which wallet, which bank, whose
+   card. Indented under the amount it belongs to, and set in a quieter register
+   so the amount stays the thing the eye lands on. */
+.tender-detail {
+  /* 11rem rather than 9: a scheme reference, a wallet name and an auth code all
+     have real words in them, and a column sized to the shortest of them
+     truncates the placeholder before anybody has typed anything. */
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--s2); align-items: center;
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px dashed var(--line);
+}
+.tender-detail .cbx,
+.tender-detail .muted { grid-column: 1 / -1; }
+.tender-conv { margin-top: var(--s2); }
+
+@media (max-width: 560px) {
+  /* Two rows rather than four squeezed columns: what and how much on top,
+     currency and the bin beneath. */
+  .tender-row { grid-template-columns: 1fr 8rem; }
+  .tender-row > *:nth-child(2) { grid-row: 2; }
+  .tender-row .btn.small { grid-row: 2; justify-self: end; }
+}
 .tender-total {
   display: flex; justify-content: space-between; align-items: center;
   gap: var(--s3); padding: var(--s2) var(--s3); border-radius: var(--r-md);
@@ -4915,8 +5019,10 @@ table.dt.sub th { font-size: var(--t-xs); }
 .tender-total.short { border-color: var(--warn, var(--danger)); }
 .tender-total.over { border-color: var(--accent); }
 .tender-total.exact { border-color: var(--ok, var(--accent)); }
-/* A payment made of several pieces needs the room to show them. */
-.modal-wide { max-width: 44rem; }
+/* The running total is a conclusion; whatever follows it starts a new thought
+   and should not sit against it. */
+.tender-total + * { margin-top: var(--s4); }
+
 
 /* ------------------------------------------------- printing from a modal
    A remittance advice is a document that gets sent to a wholesaler, and it is

@@ -20,8 +20,14 @@
  *  means editing the UI.
  */
 import { useEffect, useState } from "react";
+import { Warning } from "@phosphor-icons/react";
 import { api } from "../api";
+import BusyButton from "./BusyButton";
 import PinInput from "./PinInput";
+
+/** Kept beside the dialog that reads it, so "is the PIN finished" is one fact
+ *  rather than a 4 typed in two files that can drift apart. */
+const PIN_LENGTH = 4;
 
 export interface StepUpAction {
   key: string;
@@ -58,6 +64,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   const [pinRefused, setPinRefused] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const needsSecondPerson = spec && !spec.self_approval;
 
   useEffect(() => {
     api
@@ -66,8 +73,22 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
       .catch((e) => setError(e.message));
   }, [action]);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  /** Whether there is enough here to send.
+   *
+   *  This used to be `!password` regardless of which credential was on screen,
+   *  so in PIN mode — the default, and the one this dialog was designed around
+   *  — the Authorise button was disabled no matter how many digits were typed.
+   *  Nothing was wired to submit on the fourth digit either, so a PIN could not
+   *  authorise anything at all.
+   */
+  const complete = usePassword
+    ? password.length > 0
+    : pin.length === PIN_LENGTH;
+  const ready = complete && (!needsSecondPerson || !!approver.trim());
+
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!ready || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -85,12 +106,13 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
       // shown as written rather than replaced with something generic.
       setError(err.message);
       setPassword("");
+      // The boxes shake, then empty themselves. Retyping over a wrong PIN one
+      // digit at a time is how the second attempt becomes a third.
+      setPin("");
     } finally {
       setBusy(false);
     }
   }
-
-  const needsSecondPerson = spec && !spec.self_approval;
 
   return (
     <div className="modal-backdrop" onClick={onCancel}>
@@ -116,7 +138,15 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           </p>
         )}
 
-        {error && <div className="alert error">{error}</div>}
+        {/* A refusal is the most important thing on the dialog the moment it
+            happens: it says whether to try again, fetch a manager, or stop.
+            role="alert" so it is announced rather than only drawn. */}
+        {error && (
+          <div className="alert error su-error" role="alert">
+            <Warning size={16} weight="fill" />
+            <span>{error}</span>
+          </div>
+        )}
 
         {needsSecondPerson && (
           <label>
@@ -148,8 +178,14 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
               {needsSecondPerson ? "Approver's PIN" : "Your PIN"}
             </span>
             <PinInput
+              length={PIN_LENGTH}
               value={pin}
               onChange={(v) => { setPin(v); setPinRefused(false); }}
+              // Four keystrokes and nothing else, which is what the component
+              // was built for and what nobody had connected. Held back while a
+              // second person is required: the approver's username has to be
+              // filled first, and submitting without it only earns a refusal.
+              onComplete={() => { if (!needsSecondPerson || approver.trim()) submit(); }}
               autoFocus={!needsSecondPerson}
               invalid={pinRefused}
               disabled={busy}
@@ -177,13 +213,15 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           <button type="button" className="btn ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button
+          <BusyButton
             type="submit"
             className="btn primary"
-            disabled={busy || !password || (!!needsSecondPerson && !approver.trim())}
+            disabled={!ready}
+            busyLabel="Checking…"
+            onClick={submit}
           >
-            {busy ? "Checking…" : "Authorise"}
-          </button>
+            Authorise
+          </BusyButton>
         </div>
       </form>
     </div>

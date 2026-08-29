@@ -106,7 +106,12 @@ export default function Claiming() {
   // scheme's terms, and the server decides that — this only answers the prompt.
   const { guarded, prompt } = useStepUp();
   const [params, setParams] = useSearchParams();
-  const tab = (params.get("tab") === "models" ? "models" : "batches") as Tab;
+  // Read against the list of tabs rather than against two hard-coded names.
+  // It used to be `=== "models" ? "models" : "batches"`, so adding a third tab
+  // gave you a button that set ?tab=formularies in the URL and a reader that
+  // mapped it straight back to Batches — the screen behind it was unreachable.
+  const TABS: Tab[] = ["batches", "models", "formularies"];
+  const tab = (TABS.find((t) => t === params.get("tab")) ?? "batches") as Tab;
   const setTab = (t: Tab) =>
     setParams(t === "batches" ? {} : { tab: t }, { replace: true });
 

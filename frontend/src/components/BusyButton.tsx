@@ -12,10 +12,17 @@
  *
  *  Deliberately not a spinner replacing the label. A control that swaps its text
  *  for a spinner changes width, which moves the buttons beside it — and the row
- *  jumps under a hand that is already reaching for the next one.
+ *  jumps under a hand that is already reaching for the next one. The spinner is
+ *  added beside the label instead.
+ *
+ *  It used to spin only the icon a caller had passed, which meant every button
+ *  without one — "Take payment", "Authorise", "Post", most of the actions in
+ *  every modal in the product — showed nothing at all but a slightly dimmer
+ *  label. That is the exact failure this component was written to prevent, so
+ *  a busy button now always has something turning.
  */
 import { ReactNode, useCallback, useRef, useState } from "react";
-import type { Icon } from "@phosphor-icons/react";
+import { CircleNotch, type Icon } from "@phosphor-icons/react";
 
 export default function BusyButton({
   onClick, icon: Glyph, iconSize = 14, children, busyLabel, className = "", ...rest
@@ -57,7 +64,12 @@ export default function BusyButton({
       onClick={run}
       ref={(el) => { if (el) alive.current = true; }}
     >
-      {Glyph && <Glyph size={iconSize} weight="bold" />}
+      {/* Whatever the caller gave us, or a spinner in its place. Never
+          nothing: a control that fires a request and looks unchanged is how an
+          operator comes to press it three times. */}
+      {busy
+        ? <CircleNotch size={iconSize} weight="bold" className="spin" />
+        : Glyph && <Glyph size={iconSize} weight="bold" />}
       {busy && busyLabel ? busyLabel : children}
     </button>
   );
