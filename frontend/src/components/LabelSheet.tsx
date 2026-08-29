@@ -30,6 +30,9 @@ export default function LabelSheet({
   const toast = useToast();
   const [labels, setLabels] = useState<Label[] | null>(null);
   const [copies, setCopies] = useState(1);
+  const [reason, setReason] = useState("");
+  /** How many times these labels have already been printed. */
+  const [before, setBefore] = useState(0);
 
   // The fetch depends on the script and nothing else. Holding the callbacks in a
   // ref rather than in the dependency list means a caller that passes an inline
@@ -60,6 +63,13 @@ export default function LabelSheet({
         cb.current.toast.error(errorText(e, "Those labels could not be prepared."));
         cb.current.onClose();
       });
+    // How often this script's labels have been run before. A second label for
+    // a controlled substance is the easiest way to make one dispensing look
+    // like two, so the count is put in front of whoever is about to print
+    // another one rather than left in a log nobody opens.
+    api.get<{ id: number }[]>(`/api/reprints?prescription_id=${rxId}&kind=label`)
+      .then((rows) => { if (live) setBefore(rows.length); })
+      .catch(() => undefined);
     return () => { live = false; };
   }, [rxId]);
 
@@ -103,6 +113,25 @@ export default function LabelSheet({
     return labelLines(l, roll.printerWidth());
   }
 
+  /** Write down that this happened.
+   *
+   *  The endpoint has recorded reprints since it was written and nothing ever
+   *  called it, so every label reprinted in this product so far is unrecorded.
+   *  Deliberately not blocking: the medicine is in the bag and the sticker has
+   *  to go on it, so a failure to record must never stop a label printing. It
+   *  is reported, not swallowed, so a pharmacy is not told a compliance record
+   *  exists when it does not.
+   */
+  async function record() {
+    try {
+      await api.post("/api/reprints", {
+        kind: "label", prescription_id: rxId, reason: reason.trim(),
+      });
+    } catch {
+      toast.warn("The label printed, but the reprint could not be recorded.");
+    }
+  }
+
   async function send() {
     // Guarded here rather than relying on where this sits in the file: the
     // dialog renders an empty state while the labels are still loading, and
@@ -113,6 +142,7 @@ export default function LabelSheet({
     if (roll.labelsGoStraightToRoll()) {
       try {
         for (const l of labels) await roll.printLines(rollLines(l), copies);
+        await record();
         toast.ok(`${labels.length * copies} label(s) printed.`);
         onClose();
         return;
@@ -123,6 +153,7 @@ export default function LabelSheet({
     if (agentRoll) {
       try {
         await printLabelsOnAgent(labels, copies, agent?.printers?.label?.width ?? 32);
+        await record();
         toast.ok(`${labels.length * copies} label(s) sent to the roll.`);
         onClose();
         return;
@@ -131,6 +162,7 @@ export default function LabelSheet({
       }
     }
     printLabels(labels, copies);
+    await record();
     onClose();
   }
 
@@ -143,6 +175,19 @@ export default function LabelSheet({
           {" · "}{labels.length * copies} sticker
           {labels.length * copies === 1 ? "" : "s"} will print.
         </p>
+
+        {before > 0 && (
+          <div className="alert warn">
+            These labels have been printed {before === 1 ? "once" : `${before} times`}{" "}
+            before. Say why this one is needed — a second label is how one
+            dispensing comes to look like two.
+          </div>
+        )}
+        <label className="field">
+          Why this reprint {before > 0 ? "" : "(optional)"}
+          <input value={reason} onChange={(e) => setReason(e.target.value)}
+                 placeholder="e.g. the first one smudged" />
+        </label>
 
         {/* The printed markup, in an iframe, at the printed size.
 

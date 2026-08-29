@@ -20,17 +20,27 @@ const RULE_TYPES = [
   ["deal_task", "Deal task creation"],
 ];
 
-type Tab = "prices" | "currency" | "settings" | "scripts" | "audit" | "switch" | "notices" | "backups" | "automation" | "templates";
+type Tab = "prices" | "currency" | "settings" | "scripts" | "audit" | "approvals" | "switch" | "notices" | "backups" | "automation" | "templates";
 
 const TABS: [Tab, string][] = [
   ["prices", "Price file import"], ["currency", "Currency & rates"],
   ["settings", "Global settings"],
   ["scripts", "Prescriber scripts"],
   ["audit", "Audit log"],
+  ["approvals", "Approvals & refusals"],
   ["switch", "Switch log"], ["notices", "Counter notices"],
   ["backups", "Backups"], ["automation", "CRM automation"],
   ["templates", "Templates"],
 ];
+
+/** One request for authority to do something the role alone does not allow. */
+interface Grant {
+  id: number; action: string; action_name: string;
+  requested_by: string; approved_by: string;
+  granted: boolean; reason: string; context: string;
+  created_at: string; used_at: string | null;
+  supervisor_override: boolean;
+}
 
 interface Submitted {
   id: number; rx_number: string; date: string; doctor: string;
@@ -80,6 +90,8 @@ export default function Admin() {
   const showsMmap = !!result?.lines.some((l) => l.old_mmap != null || l.new_mmap != null);
   const [updateCost, setUpdateCost] = useState(true);
   const [updateSelling, setUpdateSelling] = useState(true);
+  const [grants, setGrants] = useState<Grant[]>([]);
+  const [grantFilter, setGrantFilter] = useState("");
   const [audit, setAudit] = useState<AuditEntry[]>([]);
   const [auditMeta, setAuditMeta] = useState<Paged<AuditEntry> | null>(null);
   const [auditPage, setAuditPage] = useState(1);
@@ -110,6 +122,12 @@ export default function Admin() {
 
   useEffect(() => {
     if (tab === "audit") loadAudit();
+    if (tab === "approvals") {
+      const q = grantFilter === "refused" ? "?granted=false"
+        : grantFilter === "granted" ? "?granted=true" : "";
+      api.get<Grant[]>(`/api/step-up/log${q}`)
+        .then(setGrants).catch((e) => toast.error(errorText(e)));
+    }
     if (tab === "scripts")
       api.get<Submitted[]>("/api/portal-admin/submitted")
         .then(setSubmitted).catch((e) => toast.error(errorText(e)));
@@ -130,7 +148,8 @@ export default function Admin() {
     if (tab === "backups") loadBackups();
     if (tab === "automation") { loadRules(); api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }
     if (tab === "templates") loadTemplates();
-  }, [tab, auditUser, auditPage, auditSize, txnPage, txnKind, noticePage, noticeActive]);
+  }, [tab, auditUser, auditPage, auditSize, txnPage, txnKind, noticePage, noticeActive,
+      grantFilter]);
   async function acceptScript(id: number) {
     try {
       const r = await api.post<{ rx_number: string; message: string }>(
@@ -667,6 +686,80 @@ export default function Admin() {
           {noticeMeta && (
             <Pagination meta={noticeMeta} noun="notices" onPage={setNoticePage} />
           )}
+        </div>
+      )}
+
+      {/* Who asked for authority to do something their role does not allow,
+          who granted it, and what was refused.
+
+          The endpoint's own note is the reason this tab leads with refusals:
+          repeated refusals on one till is what theft looks like from the
+          outside. There was no screen, so nobody had ever seen one. */}
+      {tab === "approvals" && (
+        <div className="card">
+          <div className="toolbar">
+            <Select
+              value={grantFilter}
+              onChange={setGrantFilter}
+              options={[
+                { value: "", label: "Everything asked for" },
+                { value: "refused", label: "Refused only" },
+                { value: "granted", label: "Granted only" },
+              ]}
+            />
+            <span className="muted small">
+              {grants.filter((g) => !g.granted).length} refused,{" "}
+              {grants.filter((g) => g.supervisor_override).length} approved by
+              somebody other than the person asking
+            </span>
+          </div>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>When</th><th>What</th><th>Asked by</th><th>Approved by</th>
+                <th>Outcome</th><th>Context</th>
+              </tr>
+            </thead>
+            <tbody>
+              {grants.map((g) => (
+                <tr key={g.id} className={g.granted ? "" : "row-flag"}>
+                  <td className="small">{fmtDateTime(g.created_at)}</td>
+                  <td>
+                    <b>{g.action_name}</b>
+                    <div className="muted small mono">{g.action}</div>
+                  </td>
+                  <td>{g.requested_by || <span className="muted">—</span>}</td>
+                  <td>
+                    {g.approved_by || <span className="muted">nobody</span>}
+                    {g.supervisor_override && (
+                      <div className="muted small">a second person</div>
+                    )}
+                  </td>
+                  <td>
+                    {g.granted
+                      ? <span className="badge ok">granted</span>
+                      : <span className="badge danger">refused</span>}
+                    {/* Granted and never spent is its own signal: somebody
+                        got authority and then thought better of it, or was
+                        interrupted. */}
+                    {g.granted && !g.used_at && (
+                      <div className="muted small">never used</div>
+                    )}
+                  </td>
+                  <td className="small wrap">
+                    {g.reason || g.context || <span className="muted">—</span>}
+                  </td>
+                </tr>
+              ))}
+              {grants.length === 0 && (
+                <tr><td colSpan={6} className="muted pad">
+                  {grantFilter === "refused"
+                    ? "Nothing has been refused."
+                    : "Nobody has asked for authority to override anything."}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 

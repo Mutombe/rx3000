@@ -6,6 +6,14 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 
 import { EntityLink } from "../components/Filters";
+
+/** One label or script printed a second time. */
+interface Reprint {
+  id: number; kind: string; prescription_id: number | null;
+  rx_number: string; sale_id: number | null; reason: string;
+  printed_by: string; printed_at: string;
+}
+
 export default function Register() {
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [schedule, setSchedule] = useState("");
@@ -14,6 +22,7 @@ export default function Register() {
   const [meta, setMeta] = useState<Paged<RegisterEntry> | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
+  const [reprints, setReprints] = useState<Reprint[]>([]);
   const toast = useToast();
 
   useEffect(() => {
@@ -36,6 +45,14 @@ export default function Register() {
   // Narrowing the filters must return to the first page, or you land past the
   // end of a set that just got smaller.
   useEffect(() => setPage(1), [schedule, dateFrom, dateTo]);
+
+  // The reprint log, which belongs beside the register rather than in a
+  // settings screen: its own endpoint says to read it "when a count does not
+  // add up", and the count that does not add up is the one on this page.
+  useEffect(() => {
+    api.get<Reprint[]>("/api/reprints?kind=label&limit=50")
+      .then(setReprints).catch(() => setReprints([]));
+  }, []);
 
   return (
     <>
@@ -91,6 +108,52 @@ export default function Register() {
           />
         )}
         {entries.length === 0 && <div className="empty">No register entries for this filter</div>}
+      </div>
+
+      {/* A second label for a controlled substance is the easiest way to make
+          one dispensing look like two. The register above counts dispensings;
+          this says which of them had a sticker run twice, and why. */}
+      <div className="card no-print">
+        <div className="card-head">
+          <h3>Labels printed again</h3>
+          <span className="muted small">
+            Read this when a balance above does not agree with the shelf
+          </span>
+        </div>
+        {reprints.length === 0 ? (
+          <div className="empty">
+            No label has been reprinted. Every dispensing on the register was
+            labelled once.
+          </div>
+        ) : (
+          <table className="dt">
+            <thead>
+              <tr>
+                <th>When</th><th>Script</th><th>By</th><th>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reprints.map((r) => (
+                <tr key={r.id}>
+                  <td className="small">{fmtDateTime(r.printed_at)}</td>
+                  <td className="mono">
+                    {r.prescription_id ? (
+                      <EntityLink kind="prescription" id={r.prescription_id}>
+                        {r.rx_number || `#${r.prescription_id}`}
+                      </EntityLink>
+                    ) : "—"}
+                  </td>
+                  <td>{r.printed_by}</td>
+                  <td className="wrap">
+                    {r.reason || (
+                      <span className="muted">no reason given</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </>
   );
