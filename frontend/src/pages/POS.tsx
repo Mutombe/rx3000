@@ -19,7 +19,7 @@ import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
 import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
-import { currencyWorld } from "../components/Tenders";
+import Tenders, { TenderLine, currencyWorld, inBase } from "../components/Tenders";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import SettleSale from "../components/SettleSale";
@@ -28,7 +28,11 @@ type Tab = "till" | "pending" | "history";
 
 const EMPTY_CARD = { auth: "", reference: "", last4: "", scheme: "", terminal: "" };
 
-interface TenderLine { method: string; currency_code: string; amount: string }
+/* The local three-field TenderLine used to live here — method, currency,
+   amount — which is why the till's own split panel could not say which wallet
+   or which bank, while the part-payment modal beside it could. It is the
+   shared one now: one definition, one set of questions, wherever money is
+   taken. */
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -208,21 +212,19 @@ export default function POS() {
     currencyState?.currencies.find((c) => c.code === code)?.rate ?? 0;
 
   // Each line is converted to base at its own rate; a line whose currency has
-  // no rate on record contributes nothing rather than a wrong number.
-  const collectedInBase = round2(tenderLines.reduce((sum, line) => {
-    const rate = rateFor(line.currency_code);
-    const amount = Number(line.amount) || 0;
-    return rate > 0 ? sum + amount / rate : sum;
-  }, 0));
+  // no rate on record contributes nothing rather than a wrong number. Through
+  // the shared converter so the till and the modals cannot disagree about what
+  // a ZiG line is worth.
+  const world = currencyWorld(currencyState);
+  const collectedInBase = round2(
+    tenderLines.reduce((sum, line) => sum + inBase(line, world.rates, world.base), 0));
   const shortfall = Math.max(0, round2(payable - collectedInBase));
   const changeInBase = Math.max(0, round2(collectedInBase - payable));
 
-  const updateTender = (i: number, patch: Partial<TenderLine>) =>
-    setTenderLines((lines) => lines.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
-  const addTender = () =>
-    setTenderLines((lines) => [...lines, { method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
-  const removeTender = (i: number) =>
-    setTenderLines((lines) => (lines.length === 1 ? lines : lines.filter((_, idx) => idx !== i)));
+  /* updateTender / addTender / removeTender used to live here. The shared
+     Tenders component owns adding, removing and patching a line now, so three
+     more copies of that logic in the one screen that already had the deepest
+     version is exactly the duplication this change removes. */
 
   /** Card tender: drive the terminal when one is connected, otherwise use the
    *  slip detail the cashier keyed off a standalone machine. Either way the
@@ -416,7 +418,17 @@ export default function POS() {
         ...(splitMode ? {
           tenders: tenderLines
             .filter((l) => Number(l.amount) > 0)
-            .map((l) => ({ method: l.method, currency_code: l.currency_code, amount: Number(l.amount) })),
+            .map((l) => ({
+              method: l.method,
+              currency_code: l.currency_code,
+              amount: Number(l.amount),
+              // Everything needed to match this line against a statement: the
+              // wallet and the number, or the bank and the last four. Dropped
+              // on the floor until now.
+              reference: [l.wallet, l.phone, l.scheme,
+                          l.last4 && `••${l.last4}`, l.auth]
+                .filter(Boolean).join(" "),
+            })),
           change_currency: changeCurrency,
         } : {}),
         ...cardTender,
@@ -870,39 +882,19 @@ export default function POS() {
 
             {splitMode ? (
               <>
-                <div className="tender-lines">
-                  {tenderLines.map((line, i) => (
-                    <div key={i} className="tender-line">
-                      <Select
-                        value={line.method}
-                        onChange={(v) => updateTender(i, { method: v })}
-                        options={[
-                          { value: "cash", label: "Cash" },
-                          { value: "card", label: "Card" },
-                          { value: "mobile_money", label: "Mobile money" },
-                        ]}
-                      />
-                      <Select
-                        value={line.currency_code}
-                        onChange={(v) => updateTender(i, { currency_code: v })}
-                        options={(currencyState?.currencies ?? []).map((c) => ({
-                          value: c.code,
-                          label: c.code,
-                          // Said in the list rather than by a silent refusal:
-                          // a currency with no rate cannot be tendered.
-                          hint: c.rate ? undefined : "no rate today",
-                          disabled: !c.rate,
-                        }))}
-                      />
-                      <input type="number" step="0.01" value={line.amount} placeholder="0.00"
-                        onChange={(e) => updateTender(i, { amount: e.target.value })} />
-                      <IconButton action="remove" danger title="Remove this tender line"
-                        onClick={() => removeTender(i)}
-                        disabled={tenderLines.length === 1} />
-                    </div>
-                  ))}
-                </div>
-                <button className="secondary small" onClick={addTender}>+ Add payment</button>
+                {/* The same rows as the part-payment modal and the dispensary.
+                    This panel asked for a method, a currency and an amount and
+                    nothing else, so a split sale recorded "mobile money 20.00"
+                    with no wallet on it — unreconcilable at cash-up, and the
+                    exact fault that was fixed everywhere except here. */}
+                <Tenders
+                  lines={tenderLines}
+                  onChange={setTenderLines}
+                  owed={payable}
+                  allowAid={false}
+                  {...world}
+                />
+
 
                 <div className="tender-summary">
                   <div><span>Collected</span><b>{money(collectedInBase)}</b></div>

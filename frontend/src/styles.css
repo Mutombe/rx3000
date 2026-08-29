@@ -1512,17 +1512,10 @@ td.actions > * + * { margin-left: var(--s2); }
 }
 .device-note.ok { background: var(--ok-soft); border-color: rgba(127, 200, 109, 0.4); }
 
-/* The till's own split-tender panel.
-   Scoped to `.tender-lines`, and it has to stay that way: these rules were
-   written unscoped, so `.tender-line` meant a four-column grid row here and a
-   bordered card in the shared Tenders component. Every payment modal in the
-   product laid its rows out in four columns as a result — the method, the
-   currency and the amount stacked into the first one, and the last child
-   ("Hold this claim — do not send it now") wrapped a word per line outside the
-   dialog. */
-.tender-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
-.tender-lines .tender-line { display: grid; grid-template-columns: 1.1fr 0.9fr 1fr auto; gap: 6px; align-items: center; }
-.tender-lines .tender-line select, .tender-lines .tender-line input { padding: 7px 12px; font-size: 13px; width: 100%; }
+/* The till's own split-tender grid used to be here, scoped to `.tender-lines`
+   after it collided with the shared component and laid every payment modal in
+   the product out in four columns. The till uses the shared rows now, so the
+   collision cannot recur: there is one `.tender-line` and one meaning for it. */
 .tender-summary {
   margin: 14px 0 4px; padding: 12px 14px; border-radius: var(--radius-sm);
   background: var(--surface); border: 1px solid var(--line-soft);
