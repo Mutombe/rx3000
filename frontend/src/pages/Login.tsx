@@ -32,6 +32,22 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Why the last session ended, if it did.
+   *
+   *  A 401 redirects here, and the redirect is a page load — which destroys any
+   *  toast raised alongside it. So the reason is handed over in session storage
+   *  and shown on the screen the person actually lands on, rather than flashing
+   *  on the one they are leaving. */
+  const [signedOut, setSignedOut] = useState("");
+  useEffect(() => {
+    try {
+      const why = sessionStorage.getItem("rx5000_signed_out");
+      if (why) {
+        setSignedOut(why);
+        sessionStorage.removeItem("rx5000_signed_out");
+      }
+    } catch { /* private mode: nothing to show, which is fine */ }
+  }, []);
 
   // Reset panel
   const [pin, setPin] = useState("");
@@ -121,6 +137,7 @@ export default function Login() {
             for an account and you carry on from exactly where you stopped.
           </div>
         )}
+        {signedOut && !error && <div className="alert">{signedOut}</div>}
         {error && <div className="error-banner">{error}</div>}
 
         {panel === "signin" && (

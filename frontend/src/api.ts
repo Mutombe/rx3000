@@ -257,9 +257,34 @@ async function request<T>(
     );
   }
   if (res.status === 401) {
+    // Two things were wrong here, and both landed on somebody trying to sign in.
+    //
+    // It said "your session has ended" whether or not there had been one. A
+    // stale token in an old desktop install fires a background request on the
+    // very first load; that 401s, and the person reading it is at the login
+    // screen typing a password, so it reads as "your login failed" for a login
+    // that has not been attempted yet. If there was no token, no session ended.
+    //
+    // And `window.location.href` reloads the page, which destroys the toast
+    // that was just raised. The message looked like it "disappeared fast" —
+    // it was not short-lived, it was killed by the navigation underneath it.
+    // Already being on the login screen means there is nowhere to send anybody.
+    const hadSession = !!getToken();
     setToken(null);
-    window.location.href = "/login";
-    throw new ApiError(401, "Your session has ended. Please sign in again.");
+    const onLogin = window.location.pathname.startsWith("/login");
+    if (!onLogin) {
+      // Carried across the reload, since the toast cannot survive it.
+      if (hadSession) {
+        try {
+          sessionStorage.setItem("rx5000_signed_out",
+                                 "Your session has ended. Please sign in again.");
+        } catch { /* private mode: the redirect still happens */ }
+      }
+      window.location.href = "/login";
+    }
+    throw new ApiError(401, hadSession
+      ? "Your session has ended. Please sign in again."
+      : "Please sign in.");
   }
   if (!res.ok) {
     let detail = "";
