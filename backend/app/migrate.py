@@ -125,6 +125,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "settled_amount": "FLOAT DEFAULT 0",
         "settled_at": "DATETIME",
     },
+    "purchase_orders": {"branch_id": "INTEGER"},
     "products": {
         "category_id": "INTEGER",
         # The pharmacy's own code for the line, and what the shelf actually cost

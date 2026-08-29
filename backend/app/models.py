@@ -830,6 +830,14 @@ class PurchaseOrder(Base, TenantMixin):
     __tablename__ = "purchase_orders"
     id = Column(Integer, primary_key=True)
     order_number = Column(String(30), unique=True, nullable=False)
+    #: Which shop raised it, and which shop the goods are for.
+    #:
+    #: Purchasing was the one measure on the branch scorecard that genuinely
+    #: could not be split by branch — because an order recorded none. A group
+    #: buying for three shops through one system could not see which of them
+    #: was ordering what. "We cannot measure that" was true only in the sense
+    #: that nothing had been written down, which is a gap and not a law.
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
     status = Column(String(20), default="draft")  # draft | sent | received | cancelled
     created_at = Column(DateTime, default=datetime.utcnow)

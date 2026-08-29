@@ -28,8 +28,8 @@ from sqlalchemy import Float, case, distinct, func
 from sqlalchemy.orm import Session
 
 from ..models import (
-    Branch, Claim, Dispensing, OTCSale, Patient, PrescriptionItem, Sale,
-    SaleItem, SaleTender, Shift, StockBatch, User, Waybill,
+    Branch, Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem,
+    PurchaseOrder, Sale, SaleItem, SaleTender, Shift, StockBatch, User, Waybill,
 )
 
 
@@ -208,6 +208,58 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
         .filter(Waybill.created_at >= since)
         .group_by(Sale.branch_id))
 
+    # ---- did staff follow the procedure -------------------------------------
+    #
+    # This is what "SOP compliance" means in a dispensary, and every field it
+    # needs has been on the dispensing record all along: the checking
+    # pharmacist's initials, the identity document seen on a controlled item,
+    # the script sighted, the prescriber verified. The scorecard used to say
+    # this could not be measured because there is no SOP *register* — but a
+    # register of procedures is not the measurement. Whether they were carried
+    # out is, and that is written down every time somebody dispenses.
+    sop = _rows(
+        db.query(Sale.branch_id,
+                 func.count(Dispensing.id),
+                 func.sum(case((func.coalesce(Dispensing.pharmacist_initial, "") != "", 1),
+                               else_=0)),
+                 func.sum(case((Dispensing.script_sighted.is_(True), 1), else_=0)),
+                 func.sum(case((Dispensing.prescriber_verified.is_(True), 1), else_=0)),
+                 # Identity is only required on a controlled item, so it is
+                 # counted against those rather than against everything — a
+                 # branch dispensing no schedule 5s is not failing to check IDs.
+                 func.sum(case(((Dispensing.schedule >= 5)
+                                & Dispensing.id_verified.is_(True), 1), else_=0)))
+        .join(Sale, Dispensing.sale_id == Sale.id)
+        .filter(Dispensing.dispensed_at >= since)
+        .group_by(Sale.branch_id))
+
+    # ---- buying, now that an order says which shop raised it -----------------
+    buying = _rows(
+        db.query(PurchaseOrder.branch_id,
+                 func.count(PurchaseOrder.id),
+                 func.sum(case((PurchaseOrder.status == "received", 1), else_=0)),
+                 func.sum(case((PurchaseOrder.status.in_(("draft", "sent")), 1), else_=0)))
+        .filter(PurchaseOrder.created_at >= since)
+        .group_by(PurchaseOrder.branch_id))
+
+    # ---- the portal ---------------------------------------------------------
+    #
+    # A prescriber sending a script in through the portal leaves it at status
+    # "submitted" until somebody accepts it, so portal traffic is countable.
+    # Links themselves are signed rather than stored, so how many were *issued*
+    # is not knowable — what was done with them is, which is the useful half.
+    portal = _rows(
+        db.query(Sale.branch_id, func.count(func.distinct(Prescription.id)))
+        .join(PrescriptionItem, PrescriptionItem.prescription_id == Prescription.id)
+        .join(Dispensing, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Sale, Dispensing.sale_id == Sale.id)
+        .filter(Prescription.created_at >= since,
+                Prescription.status == "submitted")
+        .group_by(Sale.branch_id))
+
+    portal_waiting = (db.query(func.count(Prescription.id))
+                      .filter(Prescription.status == "submitted").scalar() or 0)
+
     # ---- whether patients are actually coming back --------------------------
     #
     # Adherence, as far as a dispensary can see it: a repeat that fell due and
@@ -235,6 +287,9 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
         cl = claims.get(branch_id, (0, 0.0, 0.0, 0, 0))
         dl = deliveries.get(branch_id, (0, 0, 0))
         money = tenders.get(branch_id, {})
+        sp = sop.get(branch_id, (0, 0, 0, 0, 0))
+        by = buying.get(branch_id, (0, 0, 0))
+        pl = portal.get(branch_id, (0,))
 
         row.update({
             "sales": {
@@ -303,6 +358,30 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
             "patients": {
                 "served": adherence.get(branch_id, (0,))[0],
             },
+            # What "SOP compliance" actually is in a dispensary: whether the
+            # steps were carried out, taken from the record made at the time.
+            "sop": {
+                "dispensings": sp[0],
+                "checked": sp[1] or 0,
+                "script_sighted": sp[2] or 0,
+                "prescriber_verified": sp[3] or 0,
+                "controlled": dp[2] or 0,
+                "id_seen_on_controlled": sp[4] or 0,
+                "checked_rate": (round(100.0 * (sp[1] or 0) / sp[0], 1) if sp[0] else None),
+                "sighted_rate": (round(100.0 * (sp[2] or 0) / sp[0], 1) if sp[0] else None),
+                # Only against controlled items, because that is the only place
+                # an identity check is the procedure.
+                "id_rate": (round(100.0 * (sp[4] or 0) / dp[2], 1) if (dp[2] or 0) else None),
+                "counselling_rate": (round(100.0 * (oc[1] or 0) / oc[0], 1) if oc[0] else None),
+            },
+            "buying": {
+                "orders": by[0],
+                "received": by[1] or 0,
+                "outstanding": by[2] or 0,
+            },
+            "portal": {
+                "scripts_in": pl[0],
+            },
         })
 
     rows = sorted(out.values(), key=lambda r: -r["sales"]["value"])
@@ -316,6 +395,9 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
         "card": round(sum(r["money"]["card"]["amount"] for r in rows), 2),
         "claims_raised": sum(r["claims"]["raised"] for r in rows),
         "repeats_overdue": repeats_due,
+        "orders_raised": sum(r["buying"]["orders"] for r in rows),
+        "portal_scripts": sum(r["portal"]["scripts_in"] for r in rows),
+        "portal_waiting": portal_waiting,
     }
 
     return {
@@ -327,20 +409,21 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
         #: "SOP compliance 0%" will act on it; reading "not recorded" will ask
         #: for the feature. Only one of those is honest about what the system
         #: knows.
+        #: What is still not measured, and why — stated rather than shown as a
+        #: confident nought. This list used to be four items long and three of
+        #: them were wrong: the procedures, the buying and the portal were all
+        #: measurable, two of them from data that had been recorded all along.
+        #: Saying "we cannot know" about something already written down is the
+        #: worse failure, because nobody goes looking for it again.
         "not_measured": [
-            {"metric": "Standard operating procedures",
-             "why": "There is no SOP register. Nothing records which procedures "
-                    "a branch has signed off, so no figure here would mean anything."},
-            {"metric": "Purchasing by branch",
-             "why": "Purchase orders are raised for the pharmacy, not a branch — "
-                    "they carry no branch, so buying cannot be split between shops."},
-            {"metric": "Patient portal use",
-             "why": "Portal access is issued per patient, and a patient belongs to "
-                    "the pharmacy rather than to one shop. It cannot honestly be "
-                    "attributed to a branch."},
-            {"metric": "Patient health outcomes",
-             "why": "A dispensary sees collections, not outcomes. Adherence below "
-                    "is how reliably repeats are fetched, which is the nearest "
-                    "honest proxy — it does not say whether anybody got better."},
+            {"metric": "Clinical outcomes",
+             "why": "A dispensary sees collections, not outcomes. Adherence "
+                    "above is how reliably repeats are fetched, which is the "
+                    "nearest honest proxy — it does not say whether anybody got "
+                    "better, and no pharmacy system can."},
+            {"metric": "Portal links issued",
+             "why": "Links are signed rather than stored, so how many were sent "
+                    "is not recorded. What prescribers did with them is: scripts "
+                    "arriving through the portal are counted per branch above."},
         ],
     }

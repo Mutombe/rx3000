@@ -32,6 +32,14 @@ interface Branch {
   claims: { raised: number; claimed: number; settled: number; rejected: number; held: number; recovery: number | null };
   deliveries: { raised: number; delivered: number; failed: number; success: number | null };
   patients: { served: number };
+  sop: {
+    dispensings: number; checked: number; script_sighted: number;
+    prescriber_verified: number; controlled: number; id_seen_on_controlled: number;
+    checked_rate: number | null; sighted_rate: number | null;
+    id_rate: number | null; counselling_rate: number | null;
+  };
+  buying: { orders: number; received: number; outstanding: number };
+  portal: { scripts_in: number };
 }
 interface Card {
   days: number; as_at: string; branches: Branch[];
@@ -99,6 +107,10 @@ export default function Scorecard() {
             <div className={`wl-stat${(t.repeats_overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
               <b>{t.repeats_overdue ?? 0}</b><span>repeats overdue</span>
             </div>
+            <div className="wl-stat"><b>{t.orders_raised ?? 0}</b><span>orders raised</span></div>
+            <div className={`wl-stat${(t.portal_waiting ?? 0) > 0 ? " wc-stale" : ""}`}>
+              <b>{t.portal_waiting ?? 0}</b><span>portal scripts waiting</span>
+            </div>
           </div>
 
           {/* How the money arrived across the group. A shop taking everything in
@@ -128,6 +140,8 @@ export default function Scorecard() {
                     <th>Dispensing</th>
                     <th>Claims</th>
                     <th>Deliveries</th>
+                    <th>Procedure</th>
+                    <th>Buying</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -204,6 +218,34 @@ export default function Scorecard() {
                           : <span className="muted">none</span>}
                         {b.deliveries.failed > 0 && (
                           <div className="muted"><b>{b.deliveries.failed}</b> failed</div>
+                        )}
+                      </td>
+                      {/* Whether the steps were carried out, from the record
+                          made at the time of each dispensing. */}
+                      <td className="small">
+                        <div>checked {pct(b.sop.checked_rate, 95)}</div>
+                        <div className="muted">script sighted {pct(b.sop.sighted_rate, 90)}</div>
+                        {b.sop.controlled > 0 && (
+                          <div className="muted">
+                            ID on controlled {pct(b.sop.id_rate, 100)}
+                            <span className="muted"> ({b.sop.controlled})</span>
+                          </div>
+                        )}
+                        {b.counter.sales > 0 && (
+                          <div className="muted">counselled {pct(b.sop.counselling_rate, 90)}</div>
+                        )}
+                      </td>
+                      <td className="small">
+                        {b.buying.orders
+                          ? <>{b.buying.orders} orders
+                              <div className="muted">{b.buying.received} received</div>
+                              {b.buying.outstanding > 0 && (
+                                <div className="muted"><b>{b.buying.outstanding}</b> outstanding</div>
+                              )}
+                            </>
+                          : <span className="muted">none</span>}
+                        {b.portal.scripts_in > 0 && (
+                          <div className="muted">{b.portal.scripts_in} via portal</div>
                         )}
                       </td>
                     </tr>
