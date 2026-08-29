@@ -15,6 +15,7 @@ import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { EntityLink } from "../components/Filters";
 import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface Deferred {
   id: number;
@@ -48,13 +49,16 @@ interface BatchResult {
 
 export default function DeferredClaims() {
   const [rows, setRows] = useState<Deferred[]>([]);
+  const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<Summary | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState<number | "all" | null>(null);
   const [failures, setFailures] = useState<BatchResult["failed"]>([]);
 
   function load() {
-    api.get<Deferred[]>("/api/claims/deferred").then(setRows).catch((e) => toast.error(errorText(e)));
+    api.get<Deferred[]>("/api/claims/deferred").then(setRows)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     api.get<Summary>("/api/claims/deferred/summary").then(setSummary).catch(() => undefined);
   }
 
@@ -135,6 +139,11 @@ export default function DeferredClaims() {
         </p>
       ) : (
         <div className="dt-scroll">
+          <Refreshable
+            loading={loading}
+            hasData={rows.length > 0}
+            skeleton={<TableSkeleton cols={6} rows={5} />}
+          >
           <table className="dt">
             <thead>
               <tr>
@@ -185,6 +194,7 @@ export default function DeferredClaims() {
               ))}
             </tbody>
           </table>
+          </Refreshable>
         </div>
       )}
     </div>

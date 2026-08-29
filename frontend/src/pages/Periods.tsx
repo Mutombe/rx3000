@@ -15,6 +15,7 @@ import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface VatReturn {
   period_code: string; period_name: string; period_status: string;
@@ -52,6 +53,7 @@ const STATUS_HINT: Record<string, string> = {
 
 export default function Periods() {
   const [periods, setPeriods] = useState<Period[]>([]);
+  const [loading, setLoading] = useState(true);
   const [current, setCurrent] = useState<Period | null>(null);
   const toast = useToast();
   const [reopening, setReopening] = useState<Period | null>(null);
@@ -64,7 +66,9 @@ export default function Periods() {
   const [vatBusy, setVatBusy] = useState("");
 
   function load() {
-    api.get<Period[]>("/api/periods").then(setPeriods).catch((e) => toast.error(errorText(e)));
+    api.get<Period[]>("/api/periods").then(setPeriods)
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
     api.get<Period>("/api/periods/current").then(setCurrent).catch(() => undefined);
   }
 
@@ -116,6 +120,11 @@ export default function Periods() {
       </header>
 
       <div className="dt-scroll">
+        <Refreshable
+          loading={loading}
+          hasData={periods.length > 0}
+          skeleton={<TableSkeleton cols={6} rows={5} />}
+        >
         <table className="dt">
           <thead>
             <tr>
@@ -205,6 +214,7 @@ export default function Periods() {
             ))}
           </tbody>
         </table>
+        </Refreshable>
       </div>
 
       {reopening && (
