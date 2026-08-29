@@ -38,6 +38,7 @@ import {
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import PatientForm, { draftFrom } from "../components/PatientForm";
+import ScriptTotals from "../components/ScriptTotals";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -977,6 +978,19 @@ export default function Dispense() {
                   </div>
                 );
               })}
+              {/* The dozen figures the incumbent prints along the bottom of a
+                  script, read before it is finished rather than in a report
+                  next month — by which time the medicine has gone. */}
+              {items.length > 0 && (
+                <ScriptTotals
+                  items={items.map((i: any) => ({
+                    product_id: i.product.id,
+                    quantity: i.quantity,
+                    no_claim: !!i.no_claim,
+                  }))}
+                  medicalAidId={patient?.medical_aid_id ?? null}
+                />
+              )}
               {items.length === 0 && (
                 <div className="empty">
                   <b>Nothing on this script yet</b>
@@ -1289,6 +1303,13 @@ export default function Dispense() {
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
         onPick={(row) => openQueued(row)}
+        onPickDraft={(d) => {
+          // A draft is a script somebody walked away from. Opening it puts the
+          // patient and the lines back on screen so it can be finished rather
+          // than started again beside it.
+          openQueued({ patient_id: d.patient_id ?? d.patient?.id ?? null,
+                       prescription_id: d.id, schedule: 0 });
+        }}
       />
       </div>
     </>

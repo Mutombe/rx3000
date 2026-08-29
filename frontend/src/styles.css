@@ -5356,3 +5356,33 @@ table.dt.sub th { font-size: var(--t-xs); }
 .bpd-hint { font-size: var(--t-xs); color: var(--ink-faint); }
 .bpd-fact.is-bad .bpd-value { color: var(--danger); }
 .bpd-fact.is-warn .bpd-value { color: var(--warn); }
+
+/* ---------------------------------------------- script totals
+   The figures along the bottom of a script. Read at a glance before the
+   medicine is handed over, so the two that change a decision — what the
+   patient pays and whether the script makes money — carry the weight. */
+.st-bar {
+  margin-top: var(--s4); padding: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface-sunk);
+}
+.st-bar.st-loss { border-color: var(--danger); }
+.st-warning {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
+  border-radius: var(--r-md); background: var(--danger-soft);
+  color: var(--danger); font-size: var(--t-sm); font-weight: 600;
+}
+.st-figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--s2) var(--s3);
+}
+.st-figures > div { display: flex; flex-direction: column; min-width: 0; }
+.st-figures span { font-size: var(--t-xs); color: var(--ink-soft); }
+.st-figures b { font-variant-numeric: tabular-nums; }
+/* What the person in front of you actually hands over. */
+.st-figures .st-lead b { font-size: 1.15rem; }
+.st-figures .is-bad b { color: var(--danger); }
+.st-toggle { margin-top: var(--s3); }
+.st-lines { margin-top: var(--s2); }
+.st-lines .is-bad { color: var(--danger); }

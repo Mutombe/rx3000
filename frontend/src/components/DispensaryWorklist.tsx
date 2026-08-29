@@ -47,7 +47,7 @@ interface Worklist {
   counts: { waiting: number; showing: number; time_critical: number; overdue_repeats: number };
 }
 
-export type WorklistPanel = "queue" | "chronics" | "due";
+export type WorklistPanel = "queue" | "chronics" | "due" | "drafts";
 type Panel = WorklistPanel;
 
 /** Band colour. Only the top band is loud — if everything is red, nothing is. */
@@ -57,6 +57,7 @@ const BAND_CLASS: Record<number, string> = {
 
 export default function DispensaryWorklist({
   onPick,
+  onPickDraft,
   onPickRepeat,
   panel: panelProp,
   onPanelChange,
@@ -71,6 +72,8 @@ export default function DispensaryWorklist({
    *  which is what lets a keyboard shortcut on the page open "Due". */
   panel?: Panel;
   onPanelChange?: (panel: Panel) => void;
+  /** Called when a dispenser opens an unfinished script. */
+  onPickDraft?: (draft: any) => void;
   /** Called when a dispenser clicks a queued line, so the page can open it. */
   onPick?: (row: QueueRow) => void;
   /** Called when a dispenser clicks a repeat that is due. */
@@ -78,6 +81,14 @@ export default function DispensaryWorklist({
 }) {
   const toast = useToast();
   const [data, setData] = useState<Worklist | null>(null);
+  /** Scripts somebody started and did not finish.
+   *
+   *  Its endpoint says it plainly — oldest first, the stalest is the risk — and
+   *  nothing showed them. A draft is a patient who was served halfway: the
+   *  medicine is not dispensed, the queue does not know about it because it has
+   *  no Rx number yet, and the only person who knows is whoever walked away
+   *  from it. */
+  const [drafts, setDrafts] = useState<any[]>([]);
   const [ownPanel, setOwnPanel] = useState<Panel>("queue");
   const panel = panelProp ?? ownPanel;
   const setPanel = (next: Panel) => { setOwnPanel(next); onPanelChange?.(next); };
@@ -89,11 +100,16 @@ export default function DispensaryWorklist({
      back to looking idle while the request was still in flight. Anything that
      wants to know when a load has finished — a busy control, a test — needs the
      promise handed back, not started and forgotten. */
-  const load = useCallback(() =>
-    api.get<Worklist>("/api/dispensary/worklist")
+  const load = useCallback(() => {
+    // The drafts are read alongside the queue rather than only when their tab
+    // is opened: the count is on the tab, and a tab that says nothing until
+    // you press it is a tab nobody presses.
+    api.get<any[]>("/api/prescriptions/queue/unfinished?limit=50")
+      .then(setDrafts).catch(() => setDrafts([]));
+    return api.get<Worklist>("/api/dispensary/worklist")
       .then((w) => { setData(w); setFailed(""); })
-      .catch((e) => setFailed(errorText(e, "The worklist could not be loaded."))),
-  []);
+      .catch((e) => setFailed(errorText(e, "The worklist could not be loaded.")));
+  }, []);
 
   useEffect(() => {
     load();
@@ -174,7 +190,8 @@ export default function DispensaryWorklist({
       <div className="wl-tabs">
         {([["queue", `Queue ${counts.waiting}`],
            ["chronics", `Chronic ${data.chronics.length}`],
-           ["due", `Due ${data.reminders.length}`]] as [Panel, string][]).map(([key, label]) => (
+           ["due", `Due ${data.reminders.length}`],
+           ["drafts", `Unfinished ${drafts.length}`]] as [Panel, string][]).map(([key, label]) => (
           <button
             key={key}
             className={panel === key ? "on" : ""}
@@ -184,6 +201,40 @@ export default function DispensaryWorklist({
           </button>
         ))}
       </div>
+
+      {panel === "drafts" && (
+        <div className="wl-list">
+          {drafts.length === 0 && (
+            <p className="wl-empty">
+              Nothing was left half-captured. Every script started has been
+              finished or cancelled.
+            </p>
+          )}
+          {drafts.map((d) => (
+            <button
+              key={d.id}
+              className="wl-row"
+              onClick={() => onPickDraft?.(d)}
+              title="Started and never finished"
+            >
+              <span className="wl-row-top">
+                <span className="wl-patient">
+                  {d.patient
+                    ? `${d.patient.first_name} ${d.patient.last_name}`
+                    : "No patient yet"}
+                </span>
+                <span className="wl-qty">
+                  {(d.items?.length ?? 0)} item{(d.items?.length ?? 0) === 1 ? "" : "s"}
+                </span>
+              </span>
+              <span className="wl-row-sub">
+                {d.draft_ref || "draft"}
+                {d.updated_at && ` · last touched ${new Date(d.updated_at).toLocaleDateString()}`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {panel === "queue" && (
         <div className="wl-list">
