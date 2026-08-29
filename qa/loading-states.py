@@ -7,10 +7,12 @@ Two faults, both of which look like the software being broken rather than busy:
     records are on their way. On a slow connection that is indistinguishable
     from an empty pharmacy, and it is the first thing a new customer sees.
 
-  * **A loading state that blanks what is already there.** Changing a filter on
-    a populated table and having it drop to a skeleton reads as the page
-    breaking. `Refreshable` exists for exactly this — skeleton on the first
-    paint, a dim on every refetch after it — and most screens do not use it.
+  * **A refetch that gives no sign of itself.** The screens below were checked
+    and they do *not* blank: none clears its rows before fetching, so a filter
+    change leaves the old ones on screen — which is the important half, and it
+    is already right. What they lack is the dim, so on a slow connection
+    nothing happens at all until the new rows land. `Refreshable` does both,
+    which is why it is still worth adopting; this is polish, not breakage.
 
 This counts both, names the screens, and is meant to be run down to zero rather
 than admired. It reads the source rather than the browser because the question
@@ -71,9 +73,19 @@ if bare:
     for n in bare:
         print(f"  {n}")
 
-only_skeleton = [n for n in skeletons if n not in refreshable]
+# Only pages that actually re-fetch can blank on a re-fetch. A record page
+# loads once and shows a skeleton while it does, which is correct — flagging
+# those made this list twenty names long and mostly wrong, and an audit that
+# cries wolf gets worked around rather than worked down.
+REFETCHES = re.compile(r"setPage\(|onPage=|useSearchParams|filter", re.I)
+only_skeleton = [
+    n for n in skeletons
+    if n not in refreshable
+    and REFETCHES.search((PAGES / f"{n}.tsx").read_text(encoding="utf-8"))
+    and "RecordPage" not in (PAGES / f"{n}.tsx").read_text(encoding="utf-8")
+]
 if only_skeleton:
-    print("\nSKELETON BUT NO Refreshable — these blank a populated table on refetch")
+    print("\nNO DIM WHILE REFETCHING — these keep their rows, but say nothing")
     print("-" * 72)
     for n in only_skeleton:
         print(f"  {n}")

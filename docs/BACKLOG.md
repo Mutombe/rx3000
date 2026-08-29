@@ -1,136 +1,65 @@
-# Backlog — paused 29 Aug 2026
+# Backlog — 29 Aug 2026
 
-Parked mid-task to work on the owner's priorities. This is where to pick it up.
+## Scores
 
-## What this work is
+- `qa/capability-gap.py` — screens sending less than the schema accepts: **0**.
+- `qa/endpoint-coverage.py` — endpoints no screen calls: **16 of 353 (4%)**,
+  from 38 when this started.
+- `qa/loading-states.py` — screens with no loading state: **16 of 68**, from 26.
 
-Two audits drive it, both in `qa/`:
+## Done since the last revision
 
-- `qa/capability-gap.py` — endpoints where the screen sends **less** than the
-  schema accepts. **Now at 0.**
-- `qa/endpoint-coverage.py` — endpoints **no screen calls at all**. Was 38 when
-  this started, now 20 of 353 routes (5%).
+- **Script totals** — the dozen figures the incumbent prints along the bottom
+  of a script, on the dispensary where the decision is. Margin included, with a
+  below-cost warning said in words.
+- **Unfinished scripts** — a fourth worklist segment. "Oldest first, the
+  stalest is the risk", and nothing had ever shown them.
+- **Insurance reconciliation** — whether the scheme is paying us, on the
+  dispensary and in the till modal. Benefit balance says it is unknown rather
+  than implying cover.
+- **JIT patient form** — creatable wherever a search finds nobody.
+- **Cash Office** — cash and mobile money in the headline, a per-wallet and
+  per-bank breakdown matching the teller sheet, and petty cash finally records
+  which drawer it came out of.
+- **Till** — quick-settle now confirms currency and instrument; receipts print
+  themselves on both settle and checkout.
+- **Branch performance** — cards instead of twelve crammed columns, plus a
+  detail page per branch with 39 figures.
+- **Data loaded to production** — 14,455 patients, 45,728 sales worth
+  668,699.08, one teller shift.
+- **Four shallower twins deleted**: the duplicate interaction checker,
+  `/shifts/close`, `/marketing/consent/{patient_id}`, and the second
+  `/api/system/interactions/check`.
 
-The pattern behind almost every finding: the deep version already existed on the
-server, carefully written and documented, and the frontend either never called
-it or built a shallower thing beside it.
+## Still open
 
-## Uncommitted right now
+### Worth doing
+- **Roll `useOptimisticList` out.** Only Stock departments uses it. Its
+  `update()` and `remove()` paths are written and unexercised — they need the
+  same treatment `create` got: a real screen, a held-open network, a refusal.
+- **16 screens still have no loading state** — `qa/loading-states.py` names
+  them. POS, Stock, Leads, HelpDesk, Marketing and Admin are the busiest.
+- **No dim while refetching** on ~12 screens. Checked: they do *not* blank —
+  none clears its rows before fetching, so the important half is already right.
+  What is missing is the feedback that a refetch is happening.
+- **The POS split-tender panel is shallower than the shared `Tenders`** — no
+  wallet, no bank, no medical aid. Same class of gap as the part-payment modal.
+- **Hover-to-prefetch** is on some tables, should be on all.
 
-Three files modified, typechecked clean, verified against the API, **not yet
-committed**:
+### The remaining 16 unreached endpoints
+Mostly internal or genuinely redundant. Worth a screen: `/api/integrations`,
+`POST /api/remittances/fetch`, `/api/products/barcode/{code}` and
+`/api/scan/codes/*` for barcode management. Confirmed redundant and left alone:
+`/fiscal/verify` (status computes the chain), `/system/interactions/coverage`
+(carried in every screening response), `/currency/convert` (rates are on
+screen), `/repeats/due` (call-sheet covers it).
 
-- `frontend/src/components/DiagnosisPicker.tsx` — a valid ICD-10 code the local
-  table does not hold used to dead-end at "No matching diagnosis". The local
-  table is a subset of the WHO release, and `/diagnoses/validate` exists to tell
-  "no description held" from "not a real code". Now offers the code with the
-  caveat. Also adds browsing by body system from `/diagnoses/chapters`.
-- `frontend/src/pages/ProductDetail.tsx` — counselling points on the medicine
-  record, from `/api/ai/counseling/{id}/stream`, which nothing could reach.
-- `frontend/src/styles.css` — `.dx-chapter` for the chapter filter.
+## Urgent, and not mine to do
 
-Verified: 22 chapters returned; a held code, a real-but-unheld code, and
-nonsense each classified correctly; the chapter filter narrows and excludes.
+**Rotate three credentials.** A Neon Postgres connection string, a Render API
+key and an Anthropic API key are all in this conversation's history. The Neon
+one is live and I have been using it to load production data. Still not rotated.
 
-**Next step: commit these three, then continue the list below.**
-
-## Still unreached — the 20, triaged
-
-### Worth a screen
-- `POST /api/script-totals` — "the twelve figures the incumbent puts along the
-  bottom of the script". Margin at dispensing time is how a dispenser notices
-  they are about to sell below cost; in a report next month the medicine has
-  gone. This is competitor-parity and probably the biggest one left.
-- `GET /api/prescriptions/queue/unfinished` — scripts started and not finished,
-  oldest first, "the stalest is the risk". No worklist shows them.
-- `GET /api/products/barcode/{code}` — barcode lookup at the till.
-- `GET /api/scan/codes/{product_id}`, `DELETE /api/scan/codes/{code_id}` —
-  managing the barcodes a product answers to.
-- `GET /api/repeats/due` — check first whether `/repeats/call-sheet`, which the
-  Repeats page does call, already covers it.
-- `GET /api/integrations` — what this pharmacy is connected to.
-- `POST /api/remittances/fetch` — pull advices the funder published on the
-  switch, rather than importing a CSV by hand.
-- `GET /api/dispensing/stats`, `GET /api/system/licence` — check what they
-  actually return before deciding.
-
-### Probably fine unreached — confirm, then leave
-- `GET /api/system/interactions/coverage` — the interaction screen already
-  carries its coverage note in every response.
-- `GET /api/fiscal/verify` — `/fiscal/status` already computes the chain result
-  and the Fiscal page shows it.
-- `GET /api/periods/postable/check`, `POST /api/ledger/backfill`,
-  `GET /api/auth/demo/state` — internal or admin-only.
-- `GET /api/currency/convert` — the rates are already on screen.
-- `POST /api/marketing/consent/{patient_id}` — likely superseded by
-  `/api/consent/{subject_type}/{subject_id}`, which `ConsentPanel` uses. If so,
-  delete it rather than wire it, the way the duplicate interaction checker was
-  deleted.
-- `GET /api/pos/claims` — the Claiming page uses `/api/claiming/*`. Check for
-  duplication.
-- `POST /api/shifts/close` — the till uses `/shifts/{id}/cashup`. Check.
-
-## UI quality — started 29 Aug, partly done
-
-### Done
-- **Payment dialog laid out in four columns.** `.tender-line` meant two
-  incompatible things in one stylesheet and neither rule was scoped. Fixed and
-  pinned by `qa/tender-modal.mjs` at five widths.
-- **A PIN could not authorise anything** — the button tested `!password` in PIN
-  mode and nothing submitted on the fourth digit. Both fixed; refusals now show
-  at the top with the server's wording and clear the boxes.
-- **Busy buttons showed nothing** unless the caller passed an icon. `.spin` was
-  used in eight places and defined in none, so Refresh never spun either.
-- **Dialogs are three regions now** — sticky title, scrolling body, sticky
-  actions. `qa/modal-shell.mjs` proves the buttons are reachable without
-  scrolling at 1440/1100/780.
-- **`useOptimisticList`** — snapshot, generation guard, pending rows kept out of
-  actions, motion for enter/exit. Applied to Stock departments.
-  `qa/optimistic-list.mjs` covers both the success and the rollback.
-
-### Still to do
-- **Roll the hook out to the rest of the lists.** Only Stock departments uses it.
-  Next by traffic: To-follows, Repeats, Orders, Patients, Leads, HelpDesk,
-  Accounts, Deliveries, Will-call.
-- **Update and delete paths are written but unexercised.** `update()` and
-  `remove()` exist in the hook and no screen calls them yet; they need the same
-  treatment `create` got — a real screen, a held-open network, and a refusal.
-- **No empty flash on filter/page change.** `.is-refreshing` is in the
-  stylesheet and nothing sets it. Lists still blank to a skeleton when a filter
-  changes instead of dimming the rows already on screen.
-- **Hover-to-prefetch** exists as `prefetchRoute` on some tables; it should be
-  on all of them.
-- **The POS split-tender panel is shallower than the shared component** — no
-  wallet, no bank, no medical aid. Same class of gap as the part-payment modal
-  had; it should use `Tenders`.
-- **The branch scorecard clips every column** (screenshot 113706): twelve
-  columns crammed, values truncated mid-word. Needs a real column strategy.
-
-## Other outstanding
-
-- **Rotate three exposed credentials.** A Neon Postgres connection string, a
-  Render API key and an Anthropic API key are all in this conversation's
-  history. Still not rotated. This is the only item here that is urgent.
-- **Desktop build.** 1.4.2 is published and carries the Tenders and CRM work.
-  Everything committed since — payments, sale reversal, bank reconciliation,
-  approvals, exports, formularies — needs a 1.4.3 before it reaches an
-  installed copy.
-
-## Finished in this run
-
-Each verified by a QA script, not by inspection.
-
-| What | Verified by |
-|---|---|
-| CRM links: helpdesk tickets to accounts, contacts to owners and patients, a patient contact log | `qa/patient-contact-log.py` |
-| Paying wholesalers, with invoice allocation and a printable remittance advice | `qa/supplier-payment.py` |
-| Reversing a sale — void or fiscal credit note, whichever is lawful | `qa/sale-reversal.py` |
-| Bank reconciliation, and the purchase half of "not posted" | `qa/bank-reconciliation.py` |
-| Step-up approvals and refusals; every label reprint recorded | `qa/reprint-trail.py` |
-| Seven datasets downloadable as spreadsheets | inline check, all seven |
-| Formularies — what each scheme pays for | `qa/formulary.py` |
-
-Two things were **deleted** rather than wired up, because a second shallower
-implementation on a public API surface is worse than none: the duplicate
-`/api/system/interactions/check`, which ignored the patient's medication history
-— the case the whole module exists for.
+**Desktop build.** 1.4.2 predates everything since — payments, sale reversal,
+bank reconciliation, the modal redesign, insurance standing, script totals.
+Needs a 1.4.3.
