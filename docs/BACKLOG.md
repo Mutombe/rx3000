@@ -70,6 +70,42 @@ nonsense each classified correctly; the chapter filter narrows and excludes.
   duplication.
 - `POST /api/shifts/close` — the till uses `/shifts/{id}/cashup`. Check.
 
+## UI quality — started 29 Aug, partly done
+
+### Done
+- **Payment dialog laid out in four columns.** `.tender-line` meant two
+  incompatible things in one stylesheet and neither rule was scoped. Fixed and
+  pinned by `qa/tender-modal.mjs` at five widths.
+- **A PIN could not authorise anything** — the button tested `!password` in PIN
+  mode and nothing submitted on the fourth digit. Both fixed; refusals now show
+  at the top with the server's wording and clear the boxes.
+- **Busy buttons showed nothing** unless the caller passed an icon. `.spin` was
+  used in eight places and defined in none, so Refresh never spun either.
+- **Dialogs are three regions now** — sticky title, scrolling body, sticky
+  actions. `qa/modal-shell.mjs` proves the buttons are reachable without
+  scrolling at 1440/1100/780.
+- **`useOptimisticList`** — snapshot, generation guard, pending rows kept out of
+  actions, motion for enter/exit. Applied to Stock departments.
+  `qa/optimistic-list.mjs` covers both the success and the rollback.
+
+### Still to do
+- **Roll the hook out to the rest of the lists.** Only Stock departments uses it.
+  Next by traffic: To-follows, Repeats, Orders, Patients, Leads, HelpDesk,
+  Accounts, Deliveries, Will-call.
+- **Update and delete paths are written but unexercised.** `update()` and
+  `remove()` exist in the hook and no screen calls them yet; they need the same
+  treatment `create` got — a real screen, a held-open network, and a refusal.
+- **No empty flash on filter/page change.** `.is-refreshing` is in the
+  stylesheet and nothing sets it. Lists still blank to a skeleton when a filter
+  changes instead of dimming the rows already on screen.
+- **Hover-to-prefetch** exists as `prefetchRoute` on some tables; it should be
+  on all of them.
+- **The POS split-tender panel is shallower than the shared component** — no
+  wallet, no bank, no medical aid. Same class of gap as the part-payment modal
+  had; it should use `Tenders`.
+- **The branch scorecard clips every column** (screenshot 113706): twelve
+  columns crammed, values truncated mid-word. Needs a real column strategy.
+
 ## Other outstanding
 
 - **Rotate three exposed credentials.** A Neon Postgres connection string, a
