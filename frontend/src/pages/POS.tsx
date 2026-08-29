@@ -1043,6 +1043,7 @@ export default function POS() {
         )}
       {partOf && (
         <PartPayment
+          patientId={partOf.patient_id ?? null}
           owed={patientOwes(partOf)}
           patient={partOf.patient
             ? `${partOf.patient.first_name} ${partOf.patient.last_name}`

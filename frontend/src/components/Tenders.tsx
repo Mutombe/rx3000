@@ -109,9 +109,21 @@ export function inBase(line: TenderLine, rates: Record<string, number>, base: st
   return rate ? n / rate : 0;
 }
 
+export interface Scheme { id: number; name: string; scheme_code?: string }
+
 export default function Tenders({
   lines, onChange, owed, currencies, base, rates, allowAid = true, aidCovers = 0,
+  scheme = null, schemes = [], onScheme,
 }: {
+  /** The funder this claim goes to, where one is already on the patient. */
+  scheme?: Scheme | null;
+  /** Every scheme on file, for a patient who has none yet. */
+  schemes?: Scheme[];
+  /** Set the patient's scheme from here. A member who has never been billed on
+   *  their aid has to be put on it somewhere, and the counter is where anybody
+   *  finds out — sending them back to the patient record to do it loses the
+   *  sale in progress. */
+  onScheme?: (id: number) => void;
   lines: TenderLine[];
   onChange: (lines: TenderLine[]) => void;
   /** What is being settled, in base currency. */
@@ -254,7 +266,29 @@ export default function Tenders({
 
             {line.method === "medical_aid" && (
               <>
+                {/* Which funder. "Medical aid 40.00" names no scheme, and a
+                    claim that cannot say who it is against is a claim nobody
+                    can chase — the same fault as a card line with no bank. */}
                 <div className="tender-row tender-detail">
+                  {scheme ? (
+                    <span className="tender-scheme">
+                      <b>{scheme.name}</b>
+                      {scheme.scheme_code && (
+                        <span className="muted small mono"> {scheme.scheme_code}</span>
+                      )}
+                    </span>
+                  ) : (
+                    <Select
+                      value=""
+                      onChange={(v) => onScheme?.(Number(v))}
+                      options={[{ value: "", label: "Which scheme is this?" },
+                                ...schemes.map((sc) => ({
+                                  value: String(sc.id), label: sc.name,
+                                  hint: sc.scheme_code }))]}
+                      ariaLabel="Medical aid scheme"
+                      disabled={!onScheme || schemes.length === 0}
+                    />
+                  )}
                   <input
                     value={line.reference ?? ""}
                     onChange={(e) => set(i, { reference: e.target.value })}
@@ -267,6 +301,13 @@ export default function Tenders({
                       : "Recorded against the claim rather than the drawer."}
                   </span>
                 </div>
+                {!scheme && (
+                  <div className="alert warn">
+                    This patient has no medical aid on file. Choose the scheme
+                    to claim against — it will be saved to their record, so it
+                    is asked once rather than at every visit.
+                  </div>
+                )}
                 {/* The switch goes down, and the medicine still has to go out.
                     Holding the claim is the only answer that neither turns the
                     patient away nor loses the money — and the server has done

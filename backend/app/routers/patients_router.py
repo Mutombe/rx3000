@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import schemas
 from ..auth import get_current_user
 from ..database import get_db
+from ..services import insurance_standing
 from ..services import paging
 from ..models import (BatchAllocation, Doctor, MedicalAid, Patient, Sale,
                       SaleItem, User)
@@ -88,6 +89,30 @@ def update_patient(patient_id: int, body: schemas.PatientCreate, db: Session = D
     db.commit()
     db.refresh(patient)
     return patient
+
+
+@router.get("/patients/{patient_id}/insurance")
+def patient_insurance(patient_id: int, db: Session = Depends(get_db)):
+    """Whether this member has cover, and whether their scheme is paying us.
+
+    Read at the two moments it can change a decision: dispensing, and taking
+    the money. Advisory on purpose — a slow funder is a commercial problem and
+    the person at the counter is not the one who can resolve it. What this does
+    is make sure the medicine is handed over knowingly.
+    """
+    standing = insurance_standing.patient_standing(db, patient_id)
+    if not standing:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    return standing
+
+
+@router.get("/medical-aids/{medical_aid_id}/standing")
+def scheme_insurance(medical_aid_id: int, db: Session = Depends(get_db)):
+    """How a funder has behaved, for a patient who is not on file yet."""
+    standing = insurance_standing.scheme_standing(db, medical_aid_id)
+    if not standing:
+        raise HTTPException(status_code=404, detail="Scheme not found")
+    return standing
 
 
 @router.get("/patients/{patient_id}/sales", response_model=list[schemas.SaleOut])

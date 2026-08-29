@@ -15,10 +15,13 @@
  *  The tender rows are the shared component the till already uses, so the same
  *  question is asked the same way wherever money is taken.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { money } from "../api";
 import BusyButton from "./BusyButton";
-import Tenders, { TenderLine, blankLine, inBase } from "./Tenders";
+import Tenders, { Scheme, TenderLine, blankLine, inBase } from "./Tenders";
+import { api, errorText } from "../api";
+import { useToast } from "./Toast";
+import InsuranceStanding from "./InsuranceStanding";
 
 export interface PartPaymentChoice {
   /** Set when a medical aid line is being held rather than sent. */
@@ -36,8 +39,11 @@ export interface PartPaymentChoice {
 }
 
 export default function PartPayment({
-  owed, patient, onCancel, onConfirm, currencies, base, rates, aidCovers = 0,
+  owed, patient, patientId = null, onCancel, onConfirm, currencies, base, rates,
+  aidCovers = 0,
 }: {
+  /** Whose record to read the scheme's standing from, if this is a member. */
+  patientId?: number | null;
   /** What is still due on this sale. */
   owed: number;
   /** Who will owe the balance. A debt needs somebody's name on it. */
@@ -52,6 +58,52 @@ export default function PartPayment({
 }) {
   const [lines, setLines] = useState<TenderLine[]>([blankLine(base)]);
   const [note, setNote] = useState("");
+  const [scheme, setScheme] = useState<Scheme | null>(null);
+  /* The whole record, held so the scheme can be saved back. The update
+     endpoint takes a complete patient rather than a patch, so sending only the
+     changed field would fail validation on the required name. */
+  const [record, setRecord] = useState<any>(null);
+  const [schemes, setSchemes] = useState<Scheme[]>([]);
+  const toast = useToast();
+
+  /* Who this claim is against. Read from the patient rather than passed in,
+     because the till knows the sale and not always the membership. */
+  useEffect(() => {
+    if (!patientId) { setScheme(null); return; }
+    let live = true;
+    api.get<any>(`/api/patients/${patientId}`)
+      .then((p) => {
+        if (!live) return;
+        setRecord(p);
+        setScheme(p.medical_aid
+          ? { id: p.medical_aid.id, name: p.medical_aid.name,
+              scheme_code: p.medical_aid.scheme_code }
+          : null);
+      })
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, [patientId]);
+
+  useEffect(() => {
+    api.get<Scheme[]>("/api/medical-aids").then(setSchemes).catch(() => setSchemes([]));
+  }, []);
+
+  /** Put the patient on a scheme from here, once. */
+  async function pickScheme(id: number) {
+    if (!patientId || !id || !record) return;
+    const chosen = schemes.find((s) => s.id === id) ?? null;
+    setScheme(chosen);
+    try {
+      await api.put(`/api/patients/${patientId}`, { ...record, medical_aid_id: id });
+      if (chosen) toast.ok(`${chosen.name} saved to this patient.`);
+    } catch (e) {
+      // The claim can still be taken against it now; what failed is
+      // remembering it for next time, and saying so is better than a silent
+      // revert that makes the cashier choose it again on the next visit.
+      setScheme(chosen);
+      toast.warn(errorText(e, "Claiming against it now, but it could not be saved to the patient."));
+    }
+  }
 
   const taking = Math.round(
     lines.reduce((n, l) => n + inBase(l, rates, base), 0) * 100) / 100;
@@ -65,6 +117,8 @@ export default function PartPayment({
     Number(l.amount) > 0 && (
       (l.method === "mobile_money" && !l.wallet) ||
       (l.method === "card" && !l.scheme) ||
+      // A claim against no named funder is a claim nobody can chase.
+      (l.method === "medical_aid" && !scheme) ||
       (l.currency_code !== base && !rates[l.currency_code])
     ));
 
@@ -77,6 +131,12 @@ export default function PartPayment({
           against this sale until it is collected.
         </p>
 
+        {/* The cashier settling this is often not the pharmacist who
+            dispensed it, and is the last person who can decline to extend
+            credit. So the scheme's standing is repeated here rather than
+            assumed to have been read at the dispensary. */}
+        <InsuranceStanding patientId={patientId} compact />
+
         <Tenders
           lines={lines}
           onChange={setLines}
@@ -85,6 +145,9 @@ export default function PartPayment({
           base={base}
           rates={rates}
           aidCovers={aidCovers}
+          scheme={scheme}
+          schemes={schemes}
+          onScheme={pickScheme}
         />
 
         {tooMuch && (
@@ -96,7 +159,9 @@ export default function PartPayment({
 
         {incomplete && (
           <div className="alert warn">
-            {incomplete.method === "mobile_money"
+            {incomplete.method === "medical_aid"
+              ? "Say which scheme this is claimed against. A claim with no funder on it cannot be batched, sent or chased."
+              : incomplete.method === "mobile_money"
               ? "Say which wallet the mobile money came from — a drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
               : incomplete.method === "card"
                 ? "Say which card or bank. The settlement arrives from one of them, on their own timetable, and “card” matches none of it."

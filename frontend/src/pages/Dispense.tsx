@@ -36,6 +36,7 @@ import {
   Warning,
 } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
+import InsuranceStanding from "../components/InsuranceStanding";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -817,6 +818,11 @@ export default function Dispense() {
                   ))}
                 </>
               )}
+              {/* Read before the first medicine goes on the script, not after
+                  the basket is built. Whether the scheme is paying changes
+                  whether this should be supplied on credit at all. */}
+              {patient && <InsuranceStanding patientId={patient.id} />}
+
               <div className="field" style={{ marginTop: 14 }}>
                 <label>Prescribing doctor</label>
                 <Select

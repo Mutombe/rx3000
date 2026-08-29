@@ -5256,3 +5256,43 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* Only once it is actually stuck to something, so a page at rest has no
    floating edge on it. */
 .disp-routes.is-stuck { box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.5); }
+
+/* ------------------------------------------- insurance standing
+   Whether the scheme is paying, shown where the decision is made. Bordered on
+   the leading edge rather than filled: it sits beside a patient's details and
+   must be readable at a glance without competing with the medicine. */
+.ins {
+  border: 1px solid var(--line); border-left-width: 3px;
+  border-radius: var(--r-md); padding: var(--s3);
+  background: var(--surface-sunk); margin: var(--s3) 0;
+  font-size: var(--t-sm);
+}
+.ins-ok   { border-left-color: var(--ok); }
+.ins-warn { border-left-color: var(--warn); }
+.ins-muted { border-left-color: var(--line-strong, var(--line)); }
+.ins-head {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin-bottom: var(--s2);
+}
+.ins-ok .ins-head svg { color: var(--ok); }
+.ins-warn .ins-head svg { color: var(--warn); }
+.ins-why { margin: 0; color: var(--ink-mid); line-height: 1.5; }
+.ins-figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--s2); margin-top: var(--s3);
+  padding-top: var(--s3); border-top: 1px dashed var(--line);
+}
+.ins-figures > div { display: flex; flex-direction: column; }
+.ins-figures span { font-size: var(--t-xs); color: var(--ink-soft); }
+.ins-figures b { font-variant-numeric: tabular-nums; }
+/* The unknown balance. Quieter than the verdict above it, because it is a
+   statement about this software rather than about the patient. */
+.ins-benefit {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin: var(--s3) 0 0; padding-top: var(--s2);
+  border-top: 1px dashed var(--line);
+  font-size: var(--t-xs); color: var(--ink-soft); line-height: 1.5;
+}
+.ins-benefit svg { flex: 0 0 auto; margin-top: 2px; }
+/* The funder a claim line is against, stated rather than left to be guessed. */
+.tender-scheme { display: flex; align-items: baseline; gap: var(--s1); min-width: 0; }
