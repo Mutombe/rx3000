@@ -3014,7 +3014,23 @@ img { -webkit-user-drag: none; user-select: none; }
   display: flex; flex-direction: column; gap: var(--s3);
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--r-lg); padding: var(--s3);
-  max-height: calc(100vh - 160px);
+  /* The queue is the reason anybody is on this screen, so it stays in view
+     while the script beside it is worked. It used to scroll away with the
+     form: by the time you were at the Dispense button the list of people
+     waiting was somewhere above the top of the window.
+
+     Stuck below the top bar rather than at zero, or it slides underneath it. */
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--s4));
+  max-height: calc(100vh - var(--topbar-h) - var(--s8));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+@media (max-width: 1179px) {
+  /* Stacked under the work, where sticking it would pin a 320px panel over
+     the form somebody is filling in. */
+  .wl { position: static; max-height: none; }
 }
 .wl-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -5218,3 +5234,25 @@ table.dt.sub th { font-size: var(--t-xs); }
   .disp-pay .seg { width: 100%; }
   .disp-pay .seg button { flex: 1; }
 }
+
+
+/* --------------------------------------------------- the dispensary's chrome
+   Which route is being dispensed governs everything below it — the compliance
+   record, the schedule policy, whether initials are required — so it stays on
+   screen while the script is worked. Scrolled away, "Prescription" and
+   "Dangerous Drugs" become something you have to scroll up to check, on the one
+   screen where dispensing against the wrong one matters most. */
+.disp-routes {
+  position: sticky;
+  top: var(--topbar-h);
+  z-index: 12;
+  background: var(--canvas, var(--surface));
+  padding: var(--s3) 0;
+  margin-bottom: var(--s3);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .disp-routes { transition: box-shadow 140ms ease; }
+}
+/* Only once it is actually stuck to something, so a page at rest has no
+   floating edge on it. */
+.disp-routes.is-stuck { box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.5); }

@@ -6,6 +6,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 
 import { EntityLink } from "../components/Filters";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 /** One label or script printed a second time. */
 interface Reprint {
@@ -23,6 +24,7 @@ export default function Register() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
   const [reprints, setReprints] = useState<Reprint[]>([]);
+  const [loading, setLoading] = useState(true);
   const toast = useToast();
 
   useEffect(() => {
@@ -39,7 +41,8 @@ export default function Register() {
         setMeta(r);
         if (r.page !== page) setPage(r.page);
       })
-      .catch((e) => toast.error(errorText(e)));
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
   }, [schedule, dateFrom, dateTo, page, perPage]);
 
   // Narrowing the filters must return to the first page, or you land past the
@@ -75,6 +78,12 @@ export default function Register() {
           <span className="muted">to</span>
           <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ maxWidth: 180 }} />
         </div>
+        <Refreshable
+          loading={loading}
+          hasData={entries.length > 0}
+          skeleton={<TableSkeleton cols={9} rows={6}
+            widths={["16ch", "18ch", "6ch", "8ch", "6ch", "8ch", "16ch", "14ch", "10ch"]} />}
+        >
         <table>
           <thead>
             <tr>
@@ -107,7 +116,16 @@ export default function Register() {
             onPerPage={(n) => { setPerPage(n); setPage(1); }}
           />
         )}
-        {entries.length === 0 && <div className="empty">No register entries for this filter</div>}
+        {entries.length === 0 && !loading && (
+          <div className="empty">
+            <b>No register entries for this filter</b>
+            <p>
+              The controlled register records every Schedule 5 and 6 movement.
+              Widen the dates or clear the schedule to see more.
+            </p>
+          </div>
+        )}
+        </Refreshable>
       </div>
 
       {/* A second label for a controlled substance is the easiest way to make

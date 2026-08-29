@@ -16,6 +16,7 @@ import { currencyWorld } from "../components/Tenders";
 import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface Row {
   sale_id: number;
@@ -44,12 +45,17 @@ export default function MoneyOwed() {
   const [currencyState, setCurrencyState] = useState<any>(null);
   const toast = useToast();
 
+  const [loading, setLoading] = useState(true);
+
   const load = useCallback(() => {
     setSpinning(true);
     api.get<Owed>("/api/pos/owed")
       .then((d) => { setData(d); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "What is owed could not be worked out.")))
-      .finally(() => window.setTimeout(() => setSpinning(false), 400));
+      .finally(() => {
+        setLoading(false);
+        window.setTimeout(() => setSpinning(false), 400);
+      });
   }, []);
   useEffect(() => {
     api.get("/api/currency").then(setCurrencyState).catch(() => undefined);
@@ -126,6 +132,12 @@ export default function MoneyOwed() {
             </p>
           </div>
         ) : (
+          <Refreshable
+            loading={loading}
+            hasData={!!data?.items?.length}
+            skeleton={<TableSkeleton cols={7} rows={5}
+              widths={["20ch", "12ch", "10ch", "10ch", "10ch", "10ch", "10ch"]} />}
+          >
           <table className="dt">
             <thead>
               <tr>
@@ -166,6 +178,7 @@ export default function MoneyOwed() {
               ))}
             </tbody>
           </table>
+          </Refreshable>
         )}
       </div>
 

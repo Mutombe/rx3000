@@ -18,6 +18,7 @@ import LabelSheet from "../components/LabelSheet";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface Row {
   id: number;
@@ -66,6 +67,7 @@ export default function DispensingHistory() {
   const [uncollected, setUncollected] = useState(false);
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [reprint, setReprint] = useState<number | null>(null);
   const toast = useToast();
 
@@ -82,7 +84,10 @@ export default function DispensingHistory() {
       .catch((e) => setFailed(errorText(e, "The history could not be loaded.")))
       // Held briefly so the turn is visible: a spinner that stops on the frame
       // it started reads as a button that did nothing.
-      .finally(() => window.setTimeout(() => setSpinning(false), 400));
+      .finally(() => {
+        setLoading(false);
+        window.setTimeout(() => setSpinning(false), 400);
+      });
   }, [page, q, days, schedule, unpaid, uncollected]);
 
   useEffect(() => { load(); }, [load]);
@@ -159,6 +164,12 @@ export default function DispensingHistory() {
                 <b>{money(owing)}</b> outstanding on this page.
               </p>
             )}
+            <Refreshable
+              loading={loading}
+              hasData={!!data?.items?.length}
+              skeleton={<TableSkeleton cols={7} rows={6}
+                widths={["14ch", "12ch", "18ch", "20ch", "6ch", "12ch", "10ch"]} />}
+            >
             <table className="dt">
               <thead>
                 <tr>
@@ -238,6 +249,7 @@ export default function DispensingHistory() {
               </tbody>
             </table>
             {data && <Pagination meta={data} onPage={setPage} noun="dispensings" />}
+            </Refreshable>
           </>
         )}
       </div>

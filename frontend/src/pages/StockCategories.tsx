@@ -20,6 +20,7 @@ import { api, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
@@ -117,6 +118,12 @@ export default function StockCategories() {
       )}
 
       <div className="card">
+        <Refreshable
+          loading={list.loading}
+          hasData={rows.length > 0}
+          skeleton={<TableSkeleton cols={6} rows={5}
+            widths={["20ch", "8ch", "10ch", "10ch", "10ch", "12ch"]} />}
+        >
         <table className="dt">
           <thead>
             <tr>
@@ -167,6 +174,7 @@ export default function StockCategories() {
             ))}
           </tbody>
         </table>
+        </Refreshable>
         {rows.length === 0 && !list.loading && (
           <div className="empty">
             No departments yet. Every pharmacy groups its stock somehow — adding

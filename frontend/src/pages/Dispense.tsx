@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
@@ -271,7 +271,17 @@ export default function Dispense() {
     initialAlwaysRequired ||
     items.some((i) => policyFor(i.product.schedule)?.requires_witness);
 
+  const navigate = useNavigate();
   const [showKeys, setShowKeys] = useState(false);
+  /** The queued script this screen was opened from, if any.
+   *
+   *  Without it, picking a line off the worklist loaded only the patient and
+   *  the dispenser re-typed the medicine — which created a *second*
+   *  prescription and dispensed that one. The queued line was never touched,
+   *  so the worklist could not go down however many people you served. It is
+   *  cleared the moment the basket stops matching the script, because at that
+   *  point what is on screen is no longer the thing that was queued. */
+  const [fromRx, setFromRx] = useState<{ id: number; number: string } | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   // A blocking counter message stops the dispense. The server enforces this
   // too; the button is disabled so the pharmacist is not invited to try.
@@ -437,6 +447,61 @@ export default function Dispense() {
     };
   }
 
+  /** Open a queued line as the script it actually is.
+   *
+   *  The whole point of a queue is that working it empties it. This loads the
+   *  prescription behind the line — every outstanding item on it, with the
+   *  directions, diagnosis and repeats already captured — so pressing Dispense
+   *  satisfies that script rather than writing a new one beside it.
+   */
+  async function openQueued(row: { patient_id: number | null; prescription_id: number;
+                                   schedule: number }) {
+    if (!row.patient_id) {
+      toast.warn("That line has no patient attached, so it cannot be opened from here.");
+      return;
+    }
+    try {
+      const [p, rx] = await Promise.all([
+        api.get<Patient>(`/api/patients/${row.patient_id}`),
+        api.get<Prescription>(`/api/prescriptions/${row.prescription_id}`),
+      ]);
+      setPatient(p);
+      setPatientQ("");
+      setRoute(row.schedule >= 5 ? "controlled" : "prescription");
+      if (rx.doctor_id) setDoctorId(rx.doctor_id);
+
+      // Lines the prescriber marked "do not dispense" are on the script but are
+      // not to go out. Everything else is offered, and the server decides what
+      // is genuinely still outstanding when the dispense is posted — it holds
+      // the dispensing records and this screen does not.
+      //
+      // The product comes back with the item, so it is read rather than fetched:
+      // a request per line here would be a fresh N+1 in the browser to answer
+      // something the response already contains.
+      const ready = (rx.items ?? [])
+        .filter((i: any) => !i.not_dispensed && i.product)
+        .map((i: any) => ({
+          product: i.product,
+          quantity: i.quantity ?? 1,
+          dosage_instructions: i.dosage_instructions ?? "",
+          repeats_allowed: i.repeats_allowed ?? 0,
+          repeat_interval_days: i.repeat_interval_days ?? 30,
+          auto_refill: !!i.auto_refill,
+          icd10_code: i.icd10_code ?? "",
+          item_id: i.id,
+        }));
+      if (!ready.length) {
+        toast.warn("Nothing is outstanding on that script.");
+        return;
+      }
+      setItems(ready);
+      setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}` });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      toast.error(errorText(e, "That queued line could not be opened."));
+    }
+  }
+
   async function createAndDispense() {
     if (!patient || doctorId === "" || items.length === 0) {
       toast.error("Select a patient, a doctor and at least one medication.");
@@ -444,17 +509,27 @@ export default function Dispense() {
     }
     setBusy(true);
     try {
-      const rx = await api.post<Prescription>("/api/prescriptions", {
-        patient_id: patient.id, doctor_id: doctorId,
-        items: items.map((i) => ({
-          product_id: i.product.id, quantity: i.quantity,
-          dosage_instructions: i.dosage_instructions, repeats_allowed: i.repeats_allowed,
-          repeat_interval_days: i.repeat_interval_days, auto_refill: i.auto_refill,
-          icd10_code: i.icd10_code,
-        })),
-      });
+      // A queued script is dispensed as itself. Capturing it again would leave
+      // the original waiting in the queue for ever, which is exactly what used
+      // to happen: the worklist never went down however many people you served.
+      const rx = fromRx
+        ? await api.get<Prescription>(`/api/prescriptions/${fromRx.id}`)
+        : await api.post<Prescription>("/api/prescriptions", {
+          patient_id: patient.id, doctor_id: doctorId,
+          items: items.map((i) => ({
+            product_id: i.product.id, quantity: i.quantity,
+            dosage_instructions: i.dosage_instructions, repeats_allowed: i.repeats_allowed,
+            repeat_interval_days: i.repeat_interval_days, auto_refill: i.auto_refill,
+            icd10_code: i.icd10_code,
+          })),
+        });
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
-        item_ids: rx.items.map((i) => i.id), ...compliancePayload(),
+        // Whatever is on screen, which for a queued script is the outstanding
+        // lines and for a fresh capture is everything just written.
+        item_ids: fromRx
+          ? items.map((i: any) => i.item_id).filter(Boolean)
+          : rx.items.map((i) => i.id),
+        ...compliancePayload(),
       });
       // Take the money here when that is what was asked for. The sale is
       // raised pending either way; settling it is the same call the till makes,
@@ -490,7 +565,7 @@ export default function Dispense() {
         }
       }
       setDoneSale(finished); setDoneRxId(rx.id);
-      setItems([]); aiCheck.reset();
+      setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
       loadLists();
@@ -499,7 +574,18 @@ export default function Dispense() {
       // very act that should have moved it — which reads as the dispensing not
       // having registered at all.
       setWorklistNonce((n) => n + 1);
+      // Labels first, then the screen moves. Printing is fire-and-forget — the
+      // browser dialog or the roll takes it from here — so it must be started
+      // before navigating away rather than left to a component that is about
+      // to unmount.
       printRxLabels(rx.id);
+      // "Send to till" is an instruction, so the screen follows it. It used to
+      // raise the invoice and stay put with a banner, leaving the dispenser to
+      // find the front shop and search for the sale they had just made — two
+      // screens for one act, and the commonest way a pending sale is forgotten.
+      if (payHow === "till" && finished?.id) {
+        navigate(`/pos?settle=${finished.id}&tab=pending`);
+      }
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
@@ -560,7 +646,9 @@ export default function Dispense() {
       )}
 
 
-      <div className="pill-tabs">
+      {/* Which route is being dispensed governs the whole screen below it, so
+          it floats rather than scrolling away. */}
+      <div className="pill-tabs disp-routes">
         {ROUTE_TABS.map((t) => (
           <button key={t.key} className={route === t.key ? "active" : ""} onClick={() => setRoute(t.key)}>
             {t.label}
@@ -963,6 +1051,58 @@ export default function Dispense() {
                 onScreened={setIxMajor}
               />
 
+              {/* How it is paid for is decided before it is dispensed, not
+                  after. It changes what pressing the button does — the till
+                  route sends the patient to the front shop, taking payment
+                  here does not — and a setting that governs an action reads
+                  as an afterthought when it sits below it. */}
+              {items.length > 0 && (
+                <div className="disp-pay">
+                  <span className="disp-pay-label">How this is paid for</span>
+                  {/* A segmented control, because these are two states of one
+                      setting rather than two things to do. Set out flat as
+                      buttons with the explanation trailing off the end of the
+                      row, the sentence read as a third option. */}
+                  <div className="seg" role="radiogroup" aria-label="How this is paid for">
+                    {PAY_CHOICES.map((c) => (
+                      <button
+                        key={c.key}
+                        role="radio"
+                        aria-checked={payHow === c.key}
+                        className={payHow === c.key ? "on" : ""}
+                        onClick={() => setPayHow(c.key)}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <span className="muted small disp-pay-hint">
+                    {PAY_CHOICES.find((c) => c.key === payHow)?.hint}
+                  </span>
+                </div>
+              )}
+              {/* Built out of the pieces it was actually paid with, rather than
+                  a single word. "Card now" recorded no bank and no currency,
+                  which on a counter taking USD and ZiG across three wallets is
+                  a figure nobody can reconcile at cash-up. Same component the
+                  till uses, so the question is asked once and asked the same. */}
+              {items.length > 0 && payHow === "now" && (
+                <div className="card" style={{ marginBottom: 12 }}>
+                  <Tenders
+                    lines={tenders}
+                    onChange={setTenders}
+                    owed={dueNow}
+                    allowAid={false}
+                    {...currencyWorld(currencyState)}
+                  />
+                  <p className="muted small">
+                    The medical aid is not listed here: the claim is raised by
+                    the dispensing itself, so this is only what the patient
+                    hands over.
+                  </p>
+                </div>
+              )}
+
               {/* The one act this page exists for, and beside it the reason
                   it cannot happen yet. */}
               <div className="disp-commit">
@@ -1043,53 +1183,7 @@ export default function Dispense() {
                 </div>
               )}
 
-              {items.length > 0 && (
-                <div className="disp-pay">
-                  <span className="disp-pay-label">How this is paid for</span>
-                  {/* A segmented control, because these are two states of one
-                      setting rather than two things to do. Set out flat as
-                      buttons with the explanation trailing off the end of the
-                      row, the sentence read as a third option. */}
-                  <div className="seg" role="radiogroup" aria-label="How this is paid for">
-                    {PAY_CHOICES.map((c) => (
-                      <button
-                        key={c.key}
-                        role="radio"
-                        aria-checked={payHow === c.key}
-                        className={payHow === c.key ? "on" : ""}
-                        onClick={() => setPayHow(c.key)}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="muted small disp-pay-hint">
-                    {PAY_CHOICES.find((c) => c.key === payHow)?.hint}
-                  </span>
-                </div>
-              )}
 
-              {/* Built out of the pieces it was actually paid with, rather than
-                  a single word. "Card now" recorded no bank and no currency,
-                  which on a counter taking USD and ZiG across three wallets is
-                  a figure nobody can reconcile at cash-up. Same component the
-                  till uses, so the question is asked once and asked the same. */}
-              {items.length > 0 && payHow === "now" && (
-                <div className="card" style={{ marginBottom: 12 }}>
-                  <Tenders
-                    lines={tenders}
-                    onChange={setTenders}
-                    owed={dueNow}
-                    allowAid={false}
-                    {...currencyWorld(currencyState)}
-                  />
-                  <p className="muted small">
-                    The medical aid is not listed here: the claim is raised by
-                    the dispensing itself, so this is only what the patient
-                    hands over.
-                  </p>
-                </div>
-              )}
               {(aiCheck.streaming || aiCheck.text) && (
                 <div className="ai-block">
                   <AiPhase phase={aiCheck.phase} />
@@ -1161,24 +1255,7 @@ export default function Dispense() {
             .catch(() => toast.warn("That medicine could not be loaded."));
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
-        onPick={(row) => {
-          // Load the patient the queued line belongs to. This screen captures
-          // and dispenses against a patient rather than looking a script up by
-          // number, so putting their record in the picker is what actually
-          // starts the work — a queue you can only read is a list, not a queue.
-          if (!row.patient_id) {
-            toast.warn("That line has no patient attached, so it cannot be opened from here.");
-            return;
-          }
-          api.get<Patient>(`/api/patients/${row.patient_id}`)
-            .then((p) => {
-              setPatient(p);
-              setPatientQ("");
-              setRoute(row.schedule >= 5 ? "controlled" : "prescription");
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            })
-            .catch((e) => toast.error(errorText(e, "That patient could not be opened.")));
-        }}
+        onPick={(row) => openQueued(row)}
       />
       </div>
     </>

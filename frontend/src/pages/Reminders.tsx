@@ -8,6 +8,7 @@ import Select from "../components/Select";
 import { ArrowsClockwise } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -23,6 +24,7 @@ export default function Reminders() {
   const [body, setBody] = useState("");
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   function load() {
     api.get<Paged<Message>>(
@@ -32,7 +34,8 @@ export default function Reminders() {
         setMeta(res);
         if (res.page !== page) setPage(res.page);
       })
-      .catch((e) => toast.error(errorText(e)));
+      .catch((e) => toast.error(errorText(e)))
+      .finally(() => setLoading(false));
   }
 
   useEffect(load, [typeFilter, page]);
@@ -104,6 +107,12 @@ export default function Reminders() {
       </div>
 
       <div className="card">
+        <Refreshable
+          loading={loading}
+          hasData={messages.length > 0}
+          skeleton={<TableSkeleton cols={6} rows={6}
+            widths={["18ch", "10ch", "8ch", "26ch", "10ch", "12ch"]} />}
+        >
         <table>
           <thead><tr><th>Patient</th><th>Type</th><th>Channel</th><th>Message</th><th>Status</th><th>When</th></tr></thead>
           <tbody>
@@ -124,6 +133,7 @@ export default function Reminders() {
           </tbody>
         </table>
         {meta && <Pagination meta={meta} onPage={setPage} noun="reminders" />}
+        </Refreshable>
         {messages.length === 0 && <div className="empty">No messages yet, run the reminder jobs or compose one.</div>}
       </div>
 

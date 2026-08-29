@@ -21,6 +21,7 @@ import { EntityLink } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { currencyWorld } from "../components/Tenders";
 import { useStepUp, CANCELLED } from "../components/StepUp";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 type Tab = "till" | "pending" | "history";
 
@@ -100,14 +101,26 @@ export default function POS() {
     }).catch(() => {});
   }, []);
 
+  /* Two lists, two flags. The till's own tab is built from what the cashier
+     is typing and has nothing to wait for; these two are fetched, and until
+     now they rendered an empty table while the answer was in flight — which on
+     the awaiting-payment tab reads as "nobody owes anything", the single most
+     misleading thing this screen could say. */
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
   function loadPending() {
-    api.get<Sale[]>("/api/pos/sales?status=pending&limit=20").then(setPending);
+    api.get<Sale[]>("/api/pos/sales?status=pending&limit=20")
+      .then(setPending)
+      .finally(() => setPendingLoading(false));
   }
 
   function loadHistory() {
+    setHistoryLoading(true);
     api.get<Sale[]>(`/api/pos/sales?status=paid&limit=50`
       + (historyQ ? `&q=${encodeURIComponent(historyQ)}` : ""))
-      .then(setHistory).catch(() => setHistory([]));
+      .then(setHistory).catch(() => setHistory([]))
+      .finally(() => setHistoryLoading(false));
   }
 
   useEffect(() => { if (tab === "history") loadHistory(); }, [tab, historyQ]);
@@ -582,6 +595,12 @@ export default function POS() {
 
       {tab === "pending" ? (
         <div className="card">
+          <Refreshable
+            loading={pendingLoading}
+            hasData={pending.length > 0}
+            skeleton={<TableSkeleton cols={5} rows={5}
+              widths={["14ch", "20ch", "16ch", "10ch", "12ch"]} />}
+          >
           <table>
             <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th className="actions" /></tr></thead>
             <tbody>
@@ -626,13 +645,28 @@ export default function POS() {
               ))}
             </tbody>
           </table>
-          {pending.length === 0 && <div className="empty">Nothing awaiting payment</div>}
+          {pending.length === 0 && !pendingLoading && (
+            <div className="empty">
+              <b>Nothing awaiting payment</b>
+              <p>
+                Every invoice raised at the dispensary has been settled. Sales
+                sent here from a dispensing appear the moment they are made.
+              </p>
+            </div>
+          )}
+          </Refreshable>
         </div>
       ) : tab === "history" ? (
         <div className="card">
           <input className="page-search" value={historyQ}
                  onChange={(e) => setHistoryQ(e.target.value)}
                  placeholder="Search by invoice number or customer" />
+          <Refreshable
+            loading={historyLoading}
+            hasData={history.length > 0}
+            skeleton={<TableSkeleton cols={5} rows={6}
+              widths={["14ch", "20ch", "16ch", "12ch", "10ch"]} />}
+          >
           <table className="dt">
             <thead>
               <tr>
@@ -658,11 +692,17 @@ export default function POS() {
               ))}
             </tbody>
           </table>
-          {history.length === 0 && (
+          {history.length === 0 && !historyLoading && (
             <div className="empty">
-              {historyQ ? "No sale matches that." : "Nothing taken yet."}
+              <b>{historyQ ? "No sale matches that" : "Nothing taken yet"}</b>
+              <p>
+                {historyQ
+                  ? "Search by the invoice number on the slip, or the customer's name."
+                  : "Every sale settled at this till appears here, newest first."}
+              </p>
             </div>
           )}
+          </Refreshable>
         </div>
       ) : (
       <div className="pos-layout">

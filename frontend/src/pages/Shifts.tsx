@@ -6,10 +6,12 @@ import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
+import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openFloat, setOpenFloat] = useState("500");
   const [till, setTill] = useState("1");
   const [draw, setDraw] = useState("");
@@ -28,7 +30,8 @@ export default function Shifts() {
         setTakings(null);
       }
     }).catch((e) => toast.error(errorText(e)));
-    api.get<Shift[]>("/api/shifts").then(setHistory);
+    api.get<Shift[]>("/api/shifts").then(setHistory)
+      .finally(() => setLoading(false));
   }
 
   useEffect(load, []);
@@ -151,6 +154,12 @@ export default function Shifts() {
 
       <div className="card">
         <h3>Shift history</h3>
+        <Refreshable
+          loading={loading}
+          hasData={history.length > 0}
+          skeleton={<TableSkeleton cols={10} rows={5}
+            widths={["14ch", "8ch", "12ch", "12ch", "8ch", "8ch", "8ch", "8ch", "8ch", "10ch"]} />}
+        >
         <table>
           <thead>
             <tr>
@@ -191,7 +200,16 @@ export default function Shifts() {
             ))}
           </tbody>
         </table>
-        {history.length === 0 && <div className="empty">No shifts recorded yet</div>}
+        {history.length === 0 && !loading && (
+          <div className="empty">
+            <b>No shifts recorded yet</b>
+            <p>
+              A shift is opened when somebody takes the till and closed when
+              they count it. The history is what a cash-up is checked against.
+            </p>
+          </div>
+        )}
+        </Refreshable>
       </div>
     </>
   );
