@@ -5306,3 +5306,53 @@ table.dt.sub th { font-size: var(--t-xs); }
   background: var(--surface-sunk);
   font-size: var(--t-sm); color: var(--ink-mid);
 }
+
+/* ------------------------------------------------ branch performance
+   Twelve columns of figures across one row is a wall, not a comparison: every
+   value truncated mid-word and the branch names clipped to an ellipsis. One
+   card per branch instead, so each figure has the room to be read. */
+.bp-grid {
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr));
+}
+.bp-card { display: flex; flex-direction: column; gap: var(--s3); }
+.bp-closed { opacity: 0.72; }
+.bp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s3); }
+.bp-head h3 { margin: 0; }
+/* The takings, given the size they deserve: it is the one number somebody
+   scans a page of branches for. */
+.bp-headline { display: flex; flex-direction: column; }
+.bp-headline b { font-size: 1.6rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.bp-headline span { font-size: var(--t-xs); color: var(--ink-soft); }
+.bp-figures {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: var(--s2) var(--s3);
+  padding-top: var(--s3); border-top: 1px solid var(--line);
+}
+.bp-figures > div { display: flex; flex-direction: column; min-width: 0; }
+.bp-figures span { font-size: var(--t-xs); color: var(--ink-soft); }
+.bp-figures b { font-variant-numeric: tabular-nums; }
+.bp-rates { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); font-size: var(--t-xs); color: var(--ink-soft); }
+.bp-rates span { display: inline-flex; align-items: center; gap: var(--s1); }
+/* Only what is wrong. An empty strip means a branch with no problems, which is
+   the whole signal — a row of zeroes would read as noise. */
+.bp-flags {
+  list-style: none; margin: 0; padding: var(--s3) 0 0;
+  border-top: 1px dashed var(--line);
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4);
+  font-size: var(--t-sm); color: var(--ink-mid);
+}
+.bp-flags b { color: var(--warn); font-variant-numeric: tabular-nums; }
+
+/* The detail page: facts with their denominators, because "12 exact" means
+   nothing until it says "of 26". */
+.bpd-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: var(--s4) var(--s3);
+}
+.bpd-fact { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bpd-label { font-size: var(--t-xs); color: var(--ink-soft); }
+.bpd-value { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.bpd-hint { font-size: var(--t-xs); color: var(--ink-faint); }
+.bpd-fact.is-bad .bpd-value { color: var(--danger); }
+.bpd-fact.is-warn .bpd-value { color: var(--warn); }

@@ -22,6 +22,7 @@ import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { currencyWorld } from "../components/Tenders";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import SettleSale from "../components/SettleSale";
 
 type Tab = "till" | "pending" | "history";
 
@@ -106,6 +107,8 @@ export default function POS() {
      now they rendered an empty table while the answer was in flight — which on
      the awaiting-payment tab reads as "nobody owes anything", the single most
      misleading thing this screen could say. */
+  /** A waiting sale about to be settled, and the button that was pressed. */
+  const [settling, setSettling] = useState<{ sale: Sale; method: string } | null>(null);
   const [pendingLoading, setPendingLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
 
@@ -426,9 +429,10 @@ export default function POS() {
       setMobilePhone("");
       setTenderLines([{ method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
       if (patient) api.get<Patient>(`/api/patients/${patient.id}`).then(setPatient);
-      if (agent?.printer.ready) {
-        deviceAgent.printReceiptOnAgent(sale, pharmacy.name, pharmacy.regNo).catch(() => {});
-      }
+      // Same as settling a waiting sale: the roll where there is one, the
+      // browser's dialog where there is not. Printing only on the agent meant
+      // a till without it took the money and printed nothing.
+      printPaidReceipt(sale);
     } catch (e: any) {
       toast.error(errorText(e));
     } finally {
@@ -490,13 +494,18 @@ export default function POS() {
     }
   }
 
-  async function settlePending(sale: Sale, method: string) {
+  async function settlePending(sale: Sale, method: string,
+                              confirmed?: { method: string; currency_code: string;
+                                            amount: number; reference: string }[]) {
     try {
       const owed = patientOwes(sale);
       const claim = sale.claim;
       const covered = round2(sale.total - owed);
 
-      const cardTender = method === "card"
+      // The confirmation dialog already captured the bank and the last four,
+      // so the terminal prompt is only used when something else settles
+      // without one.
+      const cardTender = method === "card" && !confirmed
         ? await resolveCardTender(owed, sale.sale_number)
         : {};
 
@@ -505,21 +514,30 @@ export default function POS() {
       // the funder's share is recorded against the sale either way — a sale
       // marked "paid by medical aid" with no tender behind it reconciles to
       // nothing at cash-up.
+      // What the cashier actually confirmed, where they confirmed it. Each
+      // piece keeps its own currency and its own reference, so a ZiG swipe and
+      // a USD EcoCash transfer on one sale stay two reconcilable lines rather
+      // than one figure nobody can match.
+      const taken = confirmed?.length
+        ? confirmed
+        : [{ method, currency_code: currencyState?.base ?? "USD", amount: owed,
+             reference: "" }];
+
       const split = claim && covered > 0.005
         ? {
             payment_method: "split",
             tenders: [
               { method: "medical_aid", currency_code: currencyState?.base ?? "USD",
                 amount: covered },
-              ...(owed > 0.005
-                ? [{ method, currency_code: currencyState?.base ?? "USD", amount: owed }]
-                : []),
+              ...(owed > 0.005 ? taken : []),
             ],
           }
-        : {
-            payment_method: method,
-            amount_tendered: method === "cash" ? owed : 0,
-          };
+        : confirmed?.length
+          ? { payment_method: "split", tenders: taken }
+          : {
+              payment_method: method,
+              amount_tendered: method === "cash" ? owed : 0,
+            };
 
       const paid = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
         ...split,
@@ -542,12 +560,28 @@ export default function POS() {
         next.delete("settle");
         setParams(next, { replace: true });
       }
-      if (agent?.printer.ready) {
-        deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo).catch(() => {});
-      }
+      printPaidReceipt(paid);
+      setSettling(null);
     } catch (e: any) {
       toast.error(errorText(e));
     }
+  }
+
+  /** Print the receipt the moment the money is taken.
+   *
+   *  It used to print only where a device agent was running, and to do nothing
+   *  at all otherwise — so a till without the agent settled the sale, opened a
+   *  receipt on screen, and left the customer waiting while somebody found the
+   *  print button. The roll is the right destination when there is one; the
+   *  browser's dialog is the fallback rather than the absence of one.
+   */
+  function printPaidReceipt(paid: Sale) {
+    if (agent?.printer.ready) {
+      deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo)
+        .catch(() => printReceipt(paid, pharmacy.name, pharmacy.regNo));
+      return;
+    }
+    printReceipt(paid, pharmacy.name, pharmacy.regNo);
   }
 
   return (
@@ -631,9 +665,19 @@ export default function POS() {
                     {/* No "Claim aid" button: the claim was raised when the
                         script was dispensed. What is left here is collecting
                         the levy, in whatever the customer is paying with. */}
-                    <BusyButton className="small" onClick={() => settlePending(s, "cash")}>Cash</BusyButton>{" "}
-                    <BusyButton className="small secondary" onClick={() => settlePending(s, "card")}>Card</BusyButton>{" "}
-                    <BusyButton className="small secondary" onClick={() => settlePending(s, "mobile_money")}>Mobile</BusyButton>{" "}
+                    {/* One step, not a form. Each opens already set to that
+                        method with the amount filled in, so the common case is
+                        still one press — the question is only asked where the
+                        answer cannot be guessed: which currency, which wallet,
+                        which bank. Settling outright recorded one word, and a
+                        drawer counted at five o'clock cannot be matched to a
+                        day of sales that each said "cash". */}
+                    <button className="btn small"
+                            onClick={() => setSettling({ sale: s, method: "cash" })}>Cash</button>{" "}
+                    <button className="btn small secondary"
+                            onClick={() => setSettling({ sale: s, method: "card" })}>Card</button>{" "}
+                    <button className="btn small secondary"
+                            onClick={() => setSettling({ sale: s, method: "mobile_money" })}>Mobile</button>{" "}
                     {/* The conversation this exists for: they have some of it,
                         not all of it, and the medicine is already in the bag. */}
                     <button className="btn small ghost" disabled={!s.patient_id}
@@ -1041,6 +1085,20 @@ export default function POS() {
             </div>
           </div>
         )}
+      {settling && (
+        <SettleSale
+          sale={settling.sale.sale_number}
+          owed={patientOwes(settling.sale)}
+          method={settling.method}
+          patientId={settling.sale.patient_id ?? null}
+          aidCovers={settling.sale.total - patientOwes(settling.sale)}
+          {...currencyWorld(currencyState)}
+          onCancel={() => setSettling(null)}
+          onConfirm={(choice) =>
+            settlePending(settling.sale, settling.method, choice.tenders)}
+        />
+      )}
+
       {partOf && (
         <PartPayment
           patientId={partOf.patient_id ?? null}

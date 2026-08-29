@@ -139,138 +139,95 @@ export default function Scorecard() {
             </div>
           </div>
 
-          <div className="card">
-            <div className="dt-scroll">
-              <table className="dt">
-                <thead>
-                  <tr>
-                    <th>Branch</th>
-                    <th className="num">Taken</th>
-                    <th className="num">Sales</th>
-                    <th>How it arrived</th>
-                    <th className="num">Stock</th>
-                    <th>People</th>
-                    <th>Cash-up</th>
-                    <th>Dispensing</th>
-                    <th>Claims</th>
-                    <th>Deliveries</th>
-                    <th>Procedure</th>
-                    <th>Buying</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((b) => (
-                    <tr key={b.branch_id} className={b.active ? "" : "row-flag"}>
-                      <td>
-                        <EntityLink to={`/branches`}><b>{b.branch}</b></EntityLink>
-                        <div className="muted small">
-                          {b.code}{b.city ? ` · ${b.city}` : ""}
-                          {!b.active && " · closed"}
-                        </div>
-                      </td>
-                      <td className="num">
-                        <b>{money(b.sales.value)}</b>
-                        <div className="muted small">avg {money(b.sales.average)}</div>
-                      </td>
-                      <td className="num">
-                        {b.sales.count}
-                        {/* Dispensed and never settled. The specific failure a
-                            group manager is looking for. */}
-                        {b.sales.pending > 0 && (
-                          <div className="muted small"><b>{b.sales.pending}</b> unpaid</div>
-                        )}
-                      </td>
-                      <td className="small">
-                        <div>cash {money(b.money.cash.amount)}</div>
-                        <div className="muted">card {money(b.money.card.amount)}</div>
-                        <div className="muted">mobile {money(b.money.mobile_money.amount)}</div>
-                        <div className="muted">aid {money(b.money.medical_aid.amount)}</div>
-                      </td>
-                      <td className="num">
-                        {money(b.stock.at_cost)}
-                        <div className="muted small">{b.stock.units} units · {b.stock.product_lines_sold} lines sold</div>
-                        {b.stock.short_dated > 0 && (
-                          <div className="muted small"><b>{b.stock.short_dated}</b> short dated</div>
-                        )}
-                      </td>
-                      <td className="small">
-                        {b.people.staff} staff · {b.people.tills} tills
-                        <div className="muted">{b.people.shifts} shifts
-                          {b.people.open_now > 0 && `, ${b.people.open_now} open now`}</div>
-                      </td>
-                      <td className="small">
-                        {pct(b.cashup.accuracy, 95)}
-                        <div className="muted">
-                          {b.cashup.exact}/{b.cashup.shifts_counted} exact
-                        </div>
-                        {b.cashup.total_variance > 0.005 && (
-                          <div className="muted">{money(b.cashup.total_variance)} out</div>
-                        )}
-                      </td>
-                      <td className="small">
-                        {b.dispensing.items} items
-                        <div className="muted">checked {pct(b.dispensing.checked_rate, 95)}</div>
-                        {b.dispensing.uncollected > 0 && (
-                          <div className="muted">{b.dispensing.uncollected} uncollected</div>
-                        )}
-                        {b.dispensing.controlled > 0 && (
-                          <div className="muted">{b.dispensing.controlled} controlled</div>
-                        )}
-                        <div className="muted">{b.counter.sales} over the counter</div>
-                      </td>
-                      <td className="small">
-                        {b.claims.raised} raised
-                        <div className="muted">recovered {pct(b.claims.recovery, 80)}</div>
-                        {b.claims.rejected > 0 && (
-                          <div className="muted"><b>{b.claims.rejected}</b> rejected</div>
-                        )}
-                        {b.claims.held > 0 && <div className="muted">{b.claims.held} held</div>}
-                      </td>
-                      <td className="small">
-                        {b.deliveries.raised
-                          ? <>{b.deliveries.raised} out<div className="muted">{pct(b.deliveries.success, 90)}</div></>
-                          : <span className="muted">none</span>}
-                        {b.deliveries.failed > 0 && (
-                          <div className="muted"><b>{b.deliveries.failed}</b> failed</div>
-                        )}
-                      </td>
-                      {/* Whether the steps were carried out, from the record
-                          made at the time of each dispensing. */}
-                      <td className="small">
-                        <div>checked {pct(b.sop.checked_rate, 95)}</div>
-                        <div className="muted">script sighted {pct(b.sop.sighted_rate, 90)}</div>
-                        {b.sop.controlled > 0 && (
-                          <div className="muted">
-                            ID on controlled {pct(b.sop.id_rate, 100)}
-                            <span className="muted"> ({b.sop.controlled})</span>
-                          </div>
-                        )}
-                        {b.counter.sales > 0 && (
-                          <div className="muted">counselled {pct(b.sop.counselling_rate, 90)}</div>
-                        )}
-                      </td>
-                      <td className="small">
-                        {b.buying.orders
-                          ? <>{b.buying.orders} orders
-                              <div className="muted">{b.buying.received} received</div>
-                              {b.buying.outstanding > 0 && (
-                                <div className="muted"><b>{b.buying.outstanding}</b> outstanding</div>
-                              )}
-                            </>
-                          : <span className="muted">none</span>}
-                        {b.portal.scripts_in > 0 && (
-                          <div className="muted">{b.portal.scripts_in} via portal</div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {rows.length === 0 && (
-              <div className="empty">This pharmacy has no branches on file.</div>
-            )}
+          {/* Twelve columns of figures across one row is not a comparison,
+              it is a wall — every value truncated mid-word, and the branch
+              names clipped to "RX5000 …". One card per branch instead, ordered
+              by takings, with the numbers grouped the way somebody actually
+              reads them: what came in, what it cost, who did it, and what went
+              wrong. The detail is a page of its own. */}
+          <div className="bp-grid">
+            {rows.map((b) => (
+              <article key={b.branch_id}
+                       className={`card bp-card${b.active ? "" : " bp-closed"}`}>
+                <header className="bp-head">
+                  <div>
+                    <h3>{b.branch}</h3>
+                    <div className="muted small">
+                      {b.code}{b.city ? ` · ${b.city}` : ""}
+                      {!b.active && " · closed"}
+                    </div>
+                  </div>
+                  <EntityLink to={`/branches/${b.branch_id}/performance?days=${days}`}>
+                    <button className="btn small secondary">Open</button>
+                  </EntityLink>
+                </header>
+
+                {/* The headline, given the room to be read across a room. */}
+                <div className="bp-headline">
+                  <b>{money(b.sales.value)}</b>
+                  <span>
+                    taken over {b.sales.count.toLocaleString()} sale
+                    {b.sales.count === 1 ? "" : "s"} · average {money(b.sales.average)}
+                  </span>
+                </div>
+
+                <div className="bp-figures">
+                  <div><span>Cash</span><b>{money(b.money.cash.amount)}</b></div>
+                  <div><span>Card</span><b>{money(b.money.card.amount)}</b></div>
+                  <div><span>Mobile</span><b>{money(b.money.mobile_money.amount)}</b></div>
+                  <div><span>Medical aid</span><b>{money(b.money.medical_aid.amount)}</b></div>
+                  <div><span>Stock at cost</span><b>{money(b.stock.at_cost)}</b></div>
+                  <div><span>Staff</span><b>{b.people.staff}</b></div>
+                  <div><span>Dispensed</span><b>{b.dispensing.items.toLocaleString()}</b></div>
+                  <div><span>Over the counter</span><b>{b.counter.sales.toLocaleString()}</b></div>
+                </div>
+
+                {/* The rates, where a percentage means something. */}
+                <div className="bp-rates">
+                  <span>Cash-up {pct(b.cashup.accuracy, 95)}</span>
+                  <span>Checked {pct(b.sop.checked_rate, 95)}</span>
+                  <span>Claims recovered {pct(b.claims.recovery, 80)}</span>
+                  {b.deliveries.raised > 0 && (
+                    <span>Deliveries {pct(b.deliveries.success, 90)}</span>
+                  )}
+                </div>
+
+                {/* What is actually wrong here, and nothing where nothing is.
+                    A row of zeroes reads as noise; an empty strip reads as a
+                    branch with no problems, which is the point. */}
+                {(b.sales.pending > 0 || b.stock.short_dated > 0
+                  || b.claims.rejected > 0 || b.dispensing.uncollected > 0
+                  || b.deliveries.failed > 0 || b.buying.outstanding > 0
+                  || b.cashup.total_variance > 0.005) && (
+                  <ul className="bp-flags">
+                    {b.sales.pending > 0 && (
+                      <li><b>{b.sales.pending}</b> sales unpaid</li>)}
+                    {b.cashup.total_variance > 0.005 && (
+                      <li><b>{money(b.cashup.total_variance)}</b> out at cash-up</li>)}
+                    {b.stock.short_dated > 0 && (
+                      <li><b>{b.stock.short_dated}</b> short dated</li>)}
+                    {b.claims.rejected > 0 && (
+                      <li><b>{b.claims.rejected}</b> claims rejected</li>)}
+                    {b.dispensing.uncollected > 0 && (
+                      <li><b>{b.dispensing.uncollected}</b> uncollected</li>)}
+                    {b.deliveries.failed > 0 && (
+                      <li><b>{b.deliveries.failed}</b> deliveries failed</li>)}
+                    {b.buying.outstanding > 0 && (
+                      <li><b>{b.buying.outstanding}</b> orders outstanding</li>)}
+                  </ul>
+                )}
+              </article>
+            ))}
           </div>
+          {rows.length === 0 && (
+            <div className="card">
+              <div className="empty">
+                <b>This pharmacy has no branches on file</b>
+                <p>Every figure on this page is grouped by branch, so there is
+                   nothing to compare until there is more than one.</p>
+              </div>
+            </div>
+          )}
 
           {/* Said in words rather than shown as nought. */}
           {data.not_measured.length > 0 && (
