@@ -6,10 +6,9 @@ import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
 import { api, fmtDate, prefetchRoute, errorText  } from "../api";
 import { MedicalAid, Patient } from "../types";
-import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
-import TermSelect from "../components/TermSelect";
 import IconButton from "../components/IconButton";
+import PatientForm from "../components/PatientForm";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -76,24 +75,6 @@ export default function Patients() {
     setShowForm(true);
   }
 
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    const body = {
-      ...form,
-      date_of_birth: form.date_of_birth || null,
-      medical_aid_id: form.medical_aid_id === "" ? null : Number(form.medical_aid_id),
-    };
-    try {
-      if (editing) await api.put(`/api/patients/${editing.id}`, body);
-      else await api.post("/api/patients", body);
-      setShowForm(false);
-      load();
-    } catch (err: any) {
-      toast.error(errorText(err));
-    }
-  }
-
-  const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
   return (
     <>
@@ -182,91 +163,13 @@ export default function Patients() {
       </div>
 
       {showForm && (
-        <div className="modal-backdrop" onClick={() => setShowForm(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editing ? "Edit Patient" : "New Patient"}</h2>
-            <form onSubmit={save}>
-              <div className="form-row">
-                <div className="field"><label>First name</label><input required value={form.first_name} onChange={set("first_name")} /></div>
-                <div className="field"><label>Last name</label><input required value={form.last_name} onChange={set("last_name")} /></div>
-              </div>
-              <div className="form-row">
-                <div className="field"><label>ID number</label><input value={form.id_number} onChange={set("id_number")} /></div>
-                <div className="field"><label>Date of birth</label><input type="date" value={form.date_of_birth} onChange={set("date_of_birth")} /></div>
-              </div>
-              <div className="form-row">
-                <div className="field"><label>Phone</label><input value={form.phone} onChange={set("phone")} /></div>
-                <div className="field"><label>Email</label><input type="email" value={form.email} onChange={set("email")} /></div>
-              </div>
-              <div className="field"><label>Address</label><input value={form.address} onChange={set("address")} /></div>
-              <div className="form-row">
-                {/* Picked, not typed. The dispensing check reads this field
-                    and matches it against product names and ingredients, so a
-                    misspelt allergy is a blocking warning that never fires. */}
-                <div className="field">
-                  <label>Allergies</label>
-                  <TermSelect
-                    kind="allergy"
-                    value={form.allergies}
-                    onChange={(v) => setForm((f) => ({ ...f, allergies: v }))}
-                    placeholder="Search allergies, or add a new one"
-                  />
-                </div>
-                <div className="field">
-                  <label>Chronic conditions</label>
-                  <TermSelect
-                    kind="condition"
-                    value={form.chronic_conditions}
-                    onChange={(v) => setForm((f) => ({ ...f, chronic_conditions: v }))}
-                    placeholder="Search conditions, or add a new one"
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="field">
-                  <label>Medical aid</label>
-                  <Select
-                    value={String(form.medical_aid_id ?? "")}
-                    onChange={(__value) => set("medical_aid_id")({ target: { value: __value } } as any)}
-                    options={[{ value: "", label: "Private (none)" }, ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
-                  />
-                </div>
-                <div className="field"><label>Member number</label><input value={form.medical_aid_number} onChange={set("medical_aid_number")} /></div>
-                <div className="field" style={{ maxWidth: 90 }}><label>Dep.</label><input value={form.dependent_code} onChange={set("dependent_code")} /></div>
-              </div>
-
-              <h4 className="form-section">Caregiver</h4>
-              <p className="muted small">
-                Left blank for a patient who manages their own medicine. Filled in,
-                this is who gets the reminder, signs for a delivery and takes the
-                follow-up call.
-              </p>
-              <div className="form-row">
-                <div className="field"><label>Name</label><input value={form.caregiver_name} onChange={set("caregiver_name")} /></div>
-                <div className="field"><label>Phone</label><input value={form.caregiver_phone} onChange={set("caregiver_phone")} placeholder="+263…" /></div>
-                <div className="field"><label>Relationship</label><input value={form.caregiver_relationship} onChange={set("caregiver_relationship")} placeholder="e.g. daughter" /></div>
-              </div>
-              <div className="check-row">
-                <Checkbox
-                  checked={form.contact_caregiver_first}
-                  onChange={(v) => setForm({ ...form, contact_caregiver_first: v })}
-                  disabled={!form.caregiver_phone.trim()}
-                >
-                Contact the caregiver first
-                {/* Meaningless without a number to ring, so it cannot be ticked
-                    until there is one. */}
-                {!form.caregiver_phone.trim() && (
-                  <span className="muted">, needs a caregiver phone number</span>
-                )}
-                </Checkbox>
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="secondary" onClick={() => setShowForm(false)}>Cancel</button>
-                <button type="submit">Save patient</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <PatientForm
+          open={showForm}
+          editing={editing}
+          initial={editing ? (form as any) : { ...form }}
+          onClose={() => setShowForm(false)}
+          onSaved={() => load()}
+        />
       )}
     </>
   );

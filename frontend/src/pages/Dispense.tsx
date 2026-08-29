@@ -37,6 +37,7 @@ import {
 } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
+import PatientForm, { draftFrom } from "../components/PatientForm";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -274,6 +275,8 @@ export default function Dispense() {
 
   const navigate = useNavigate();
   const [showKeys, setShowKeys] = useState(false);
+  /** Somebody at the counter who is not on file yet. */
+  const [newPatient, setNewPatient] = useState(false);
   /** The queued script this screen was opened from, if any.
    *
    *  Without it, picking a line off the worklist loaded only the patient and
@@ -809,6 +812,20 @@ export default function Dispense() {
                 <>
                   <input type="search" placeholder="Search patient…" value={patientQ}
                     onChange={(e) => setPatientQ(e.target.value)} />
+                  {/* The end of the search is the beginning of the work.
+                      "No match" used to be where this screen stopped: the
+                      person is standing there with a script, and the dispenser
+                      had to leave for the patient register, type the name
+                      again, and come back to an empty basket. */}
+                  {patientQ.trim().length >= 2 && patients.length === 0 && (
+                    <div className="pick-none">
+                      <span>Nobody on file matches &ldquo;{patientQ.trim()}&rdquo;.</span>
+                      <button type="button" className="btn small"
+                              onClick={() => setNewPatient(true)}>
+                        Add them
+                      </button>
+                    </div>
+                  )}
                   {patients.map((p) => (
                     <div key={p.id} className="product-pick"
                       onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); setIdNumber(p.id_number); }}>
@@ -1224,6 +1241,16 @@ export default function Dispense() {
         </div>
       )}
       </div>
+
+      {/* Created here, selected here, dispensed to here. A dialog that closes
+          and leaves you to search for what you just made is barely better than
+          the navigation it replaced. */}
+      <PatientForm
+        open={newPatient}
+        initial={draftFrom(patientQ)}
+        onClose={() => setNewPatient(false)}
+        onSaved={(p) => { setPatient(p); setPatients([]); setPatientQ(""); }}
+      />
 
       <DispensaryWorklist
         reloadOn={worklistNonce}

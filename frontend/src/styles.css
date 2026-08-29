@@ -5296,3 +5296,13 @@ table.dt.sub th { font-size: var(--t-xs); }
 .ins-benefit svg { flex: 0 0 auto; margin-top: 2px; }
 /* The funder a claim line is against, stated rather than left to be guessed. */
 .tender-scheme { display: flex; align-items: baseline; gap: var(--s1); min-width: 0; }
+/* The end of a search that found nobody, and the way out of it. A dead "no
+   match" is where a counter workflow stops; this is where it continues. */
+.pick-none {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+  margin-top: var(--s2); padding: var(--s3);
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  font-size: var(--t-sm); color: var(--ink-mid);
+}
