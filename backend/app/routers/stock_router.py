@@ -313,6 +313,17 @@ def list_batches_paged(
     )
 
 
+@router.get("/stock/reconcile")
+def stock_reconcile(limit: int = 200, db: Session = Depends(get_db)):
+    """Does each product's own count agree with the batches behind it?
+
+    The ledger has had a control-versus-subledger check since it was written.
+    Stock is kept in two places the same way and had none.
+    """
+    from ..services import stock_reconcile as recon
+    return recon.reconcile(db, limit=limit)
+
+
 @router.post("/stock/batches/{batch_id}/write-off")
 def write_off_batch(batch_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """Write off a batch's remaining stock (expired / damaged)."""
@@ -324,7 +335,15 @@ def write_off_batch(batch_id: int, db: Session = Depends(get_db), user: User = D
     product = batch.product
     qty = batch.quantity_remaining
     batch.quantity_remaining = 0
-    product.quantity_on_hand = (product.quantity_on_hand or 0) - qty
+    # Never below nothing.
+    #
+    # This subtracted the batch's remainder from the product's own count
+    # whether or not the product had ever held that much, and the two are
+    # allowed to drift — so writing off a batch could leave a product at minus
+    # seven, which every screen then showed to a dispenser as its stock. A
+    # negative shelf count is not information, it is arithmetic showing
+    # through; /stock/reconcile is where the drift itself is read.
+    product.quantity_on_hand = max(0, (product.quantity_on_hand or 0) - qty)
     db.add(StockMovement(
         product_id=product.id, movement_type="adjustment", quantity_delta=-qty,
         balance_after=product.quantity_on_hand,

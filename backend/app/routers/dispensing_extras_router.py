@@ -7,7 +7,7 @@ import io
 from datetime import date, datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schedule_policy
@@ -429,6 +429,23 @@ def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
             .order_by(PrescriptionItem.next_repeat_date)
             .all())
 
+    # What could actually be handed over today, from the batches — which is
+    # what dispensing draws against, first-expiry-first-out, skipping anything
+    # expired. The product's own `quantity_on_hand` is a different number kept
+    # in a different place, and on this database the two disagree on half the
+    # catalogue: telling a dispenser "none on hand" about a medicine with three
+    # hundred usable units on the shelf is worse than saying nothing, because
+    # they will order more of it.
+    from ..models import StockBatch
+    wanted = [i.product_id for i in rows if i.product_id]
+    usable = dict(
+        db.query(StockBatch.product_id,
+                 func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+        .filter(StockBatch.product_id.in_(wanted),
+                StockBatch.quantity_remaining > 0,
+                StockBatch.expiry_date >= today)
+        .group_by(StockBatch.product_id).all()) if wanted else {}
+
     out, value, overdue_value = [], 0.0, 0.0
     for item in rows:
         product = item.product
@@ -443,7 +460,8 @@ def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
         # rejects the second claim.
         if days < 0:
             continue
-        can_supply = (product.quantity_on_hand or 0) >= (item.quantity or 0)
+        on_shelf = int(usable.get(product.id, 0) or 0)
+        can_supply = on_shelf >= (item.quantity or 0)
         value += worth
         if days > 0:
             overdue_value += worth
@@ -467,7 +485,9 @@ def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
             # loss the pharmacy causes itself, and the counter is where it is
             # noticed in time to order rather than a month later in a report.
             "can_supply": can_supply,
-            "on_hand": product.quantity_on_hand or 0,
+            #: Unexpired units in the batches at hand, not the product's own
+            #: count — the two disagree, and this is the one dispensing obeys.
+            "on_hand": on_shelf,
         })
 
     return {

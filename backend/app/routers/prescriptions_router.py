@@ -268,10 +268,25 @@ def dispense(
     for position, item in enumerate(items, start=1):
         product = item.product
         is_repeat = item.repeats_used > 0 or bool(item.dispensings)
-        if is_repeat and item.repeats_used >= item.repeats_allowed and item.dispensings:
+        # The count is the authority, with or without local history.
+        #
+        # This also required `item.dispensings` — so a line carrying
+        # `5 used of 5` but no dispensing rows of ours sailed past and was
+        # dispensed a sixth time. That is precisely the shape of an imported or
+        # migrated script: the counter came across, the history did not. The
+        # check that exists to stop a script going out more often than the
+        # prescriber allowed was disabled for exactly the scripts whose history
+        # this pharmacy cannot see.
+        #
+        # The schedule check twenty lines above already uses `or` for the same
+        # pair. This one used `and`, and one row in this database reached
+        # six of five because of it.
+        if is_repeat and item.repeats_used >= item.repeats_allowed:
             raise HTTPException(
                 status_code=400,
-                detail=f"{product.name}: no repeats remaining ({item.repeats_used}/{item.repeats_allowed})",
+                detail=f"{product.name}: no repeats remaining "
+                       f"({item.repeats_used}/{item.repeats_allowed}). "
+                       f"A fresh prescription is required.",
             )
 
         # The patient is billed for what the script says; what is actually

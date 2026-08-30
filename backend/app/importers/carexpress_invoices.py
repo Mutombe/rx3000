@@ -27,6 +27,21 @@ receivable side of exactly the reconciliation this pharmacy asked for.
 
     python -m app.importers.carexpress_invoices "C:/path/Invoice Report ….xlsx"
 """
+
+#: A known and deliberate inconsistency in what this produces.
+#:
+#: The header's `Nett` is what the customer paid. On a script billed to a
+#: scheme that is the script charge alone — often a dollar — while the lines
+#: beneath it are every medicine dispensed, priced. So 551 of the 45,728 sales
+#: this imported carry a total smaller than their own lines add up to, and
+#: `qa/data-integrity.py` reports them.
+#:
+#: Neither number is wrong in the source's terms; they answer different
+#: questions. They are left as they came because inventing a claim to hold the
+#: difference would be inventing a claim, and because a total that no longer
+#: matches the paper invoice is worse than one that does not match its lines.
+#: Read the header for money taken and the lines for what went out.
+
 from __future__ import annotations
 
 import sys

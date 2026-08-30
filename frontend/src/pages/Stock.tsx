@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import StockReconcile from "../components/StockReconcile";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -14,7 +15,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "batches" | "movements";
+type Tab = "products" | "batches" | "movements" | "reconcile";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -56,6 +57,10 @@ export default function Stock() {
     { key: "products", label: "Products", count: products.length },
     { key: "batches", label: "Batches & expiry", count: batches.length },
     { key: "movements", label: "Movement history", count: movements.length },
+    // Beside the movements, because that is what explains a difference: the
+    // two counts disagree and the history is where the reason is.
+    { key: "reconcile", label: "Reconciliation",
+      hint: "Whether each product's own count agrees with the batches behind it" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "products");
   const [showForm, setShowForm] = useState(false);
@@ -369,6 +374,8 @@ export default function Stock() {
           }
         />
       )}
+
+      {tab === "reconcile" && <StockReconcile />}
 
       {tab === "movements" && (
         <DataTable
