@@ -1,17 +1,24 @@
-/** Do the route tabs and the worklist stay put while the script is worked?
+/** Does the worklist stay put while the script is worked — and do the route
+ *  tabs now scroll away as they are meant to?
  *
- *  Both are sticky, and both were pinned against the wrong thing. `main` is
- *  the scrolling element in this shell — `body` and `.shell` are
- *  `overflow: hidden` and the window never scrolls at all — so an offset
- *  written as `top: var(--topbar-h)` measured 56px from a scrollport that
- *  already begins below the top bar. The strip drifted down the page and
- *  looked as though the floating had given up.
+ *  The worklist is sticky and was pinned against the wrong thing. `main` is the
+ *  scrolling element in this shell — `body` and `.shell` are `overflow: hidden`
+ *  and the window never scrolls at all — so an offset written as
+ *  `top: var(--topbar-h)` measured 56px from a scrollport that already begins
+ *  below the top bar. The rail drifted down the page and looked as though the
+ *  floating had given up.
  *
- *  The failure is invisible in the source: `position: sticky` is right, the
- *  offset is a plausible number, and it only misbehaves once something is
- *  long enough to scroll. So this scrolls the real container to several depths
- *  and asserts the two things that matter — they stop somewhere and stay
- *  there, and they never slide under the top bar.
+ *  The route tabs were pinned too, and are deliberately not any more: the strip
+ *  ate the top of the screen on every scroll of a page that is long by nature,
+ *  and the route is already stated on the card being typed into. That is a
+ *  decision, so it is asserted rather than left to drift back — this file
+ *  checks the tabs DO scroll away, and would fail if somebody made them sticky
+ *  again without meaning to.
+ *
+ *  The original failure was invisible in the source: `position: sticky` is
+ *  right, the offset is a plausible number, and it only misbehaves once
+ *  something is long enough to scroll. So this scrolls the real container to
+ *  several depths and measures.
  *
  *  Run:  node qa/dispensary-sticky.mjs      (needs the app running on 5180)
  */
@@ -79,8 +86,10 @@ for (const depth of [300, 700, 1200, Math.round(scrollable)]) {
   });
 
   console.log(`\nat ${m.scrolled}px`);
-  check(m.routes !== null && m.routes >= m.bar - 1,
-        `the route tabs stay below the top bar (${m.routes} vs ${m.bar})`);
+  // The tabs are meant to leave with the page now. Anything still sitting at
+  // the top bar after scrolling a thousand pixels is pinned again.
+  check(m.routes !== null && m.routes < m.bar,
+        `the route tabs scroll away with the page (${m.routes} vs ${m.bar})`);
   check(m.rail === null || m.rail >= m.bar - 1,
         `the worklist stays below the top bar (${m.rail} vs ${m.bar})`);
   seen.routes.add(m.routes);
@@ -88,11 +97,15 @@ for (const depth of [300, 700, 1200, Math.round(scrollable)]) {
 }
 
 console.log("");
-// Pinned means it stops somewhere. A strip that reports a different position at
-// every depth is scrolling with the page, which is the bug this file exists for.
-check(seen.routes.size <= 2,
-      `the route tabs settle rather than drifting `
+// The inverse of the old assertion, and for the same reason: a pinned strip
+// reports the same position at every depth, so one that reports a different
+// position each time is travelling with the page — which is now what it is
+// supposed to do.
+check(seen.routes.size >= 3,
+      `the route tabs travel with the page rather than pinning `
       + `(${[...seen.routes].join(", ")})`);
+// Pinned means it stops somewhere. A rail that reports a different position at
+// every depth is scrolling with the page, which is the bug this file exists for.
 check(seen.rail.size <= 3,
       `the worklist settles rather than drifting (${[...seen.rail].join(", ")})`);
 
@@ -102,5 +115,5 @@ if (failures.length) {
   await browser.close();
   process.exit(1);
 }
-console.log("the tabs and the queue stay put while the script is worked");
+console.log("the queue stays put while the script is worked, and the tabs scroll away");
 await browser.close();
