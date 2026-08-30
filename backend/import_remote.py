@@ -12,9 +12,14 @@ backend/.env before anything imports `app.config`, because that module reads
 `DATABASE_URL` once at import and never looks again.
 
     python import_remote.py patients  "C:/path/patient detail.xlsx"
+    python import_remote.py scripts   "C:/path/patient detail.xlsx"
     python import_remote.py invoices  "C:/path/Invoice Report ….xlsx"
     python import_remote.py cashup    "C:/path/carexpress -teller ….xlsm"
     python import_remote.py status
+
+`patients` and `scripts` read the same file for different things — the people
+in it, and the 26,543 scripts they were dispensed. Patients first: a script
+needs somebody to belong to.
 
 Every importer is idempotent, so an interrupted run is resumed by running it
 again — which matters, because this connection drops.
@@ -71,6 +76,15 @@ def status() -> None:
         value = db.query(func.sum(S.total)).filter(S.pharmacy_id == cx.id).scalar() or 0
         print(f"  sales     {sales:,} worth {value:,.2f}")
         print(f"  shifts    {db.query(models.Shift).filter(models.Shift.pharmacy_id == cx.id).count():,}")
+        # The clinical half. It was absent for months while the money was
+        # present, and nothing on the status line said so.
+        rx = db.query(models.Prescription).filter(
+            models.Prescription.pharmacy_id == cx.id).count()
+        items = (db.query(models.PrescriptionItem)
+                 .join(models.Prescription,
+                       models.Prescription.id == models.PrescriptionItem.prescription_id)
+                 .filter(models.Prescription.pharmacy_id == cx.id).count())
+        print(f"  scripts   {rx:,} with {items:,} lines")
     db.close()
 
 
@@ -86,12 +100,16 @@ if WHAT == "patients":
     from app.importers import carexpress_patients as importer
 elif WHAT == "invoices":
     from app.importers import carexpress_invoices as importer
+elif WHAT == "scripts":
+    from app.importers import carexpress_scripts as importer
 elif WHAT == "cashup":
     from app.importers import carexpress_cashup as importer
 else:
-    raise SystemExit(f"Unknown importer {WHAT!r}. One of: patients, invoices, cashup.")
+    raise SystemExit(f"Unknown importer {WHAT!r}. "
+                     f"One of: patients, scripts, invoices, cashup.")
 
-result = importer.run(path)
+result = (importer.load(path) if hasattr(importer, "load")
+          else importer.run(path))
 print(f"\n{WHAT}: {result}")
 print("\nafter:")
 status()

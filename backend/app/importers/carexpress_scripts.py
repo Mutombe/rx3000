@@ -149,11 +149,21 @@ def load(path: str, *, limit: int = 0) -> dict:
         pending: list[dict] = []
 
         def flush() -> None:
-            """Write the scripts gathered so far."""
+            """Write the scripts gathered so far, three round trips a batch.
+
+            Not one flush per script and another per line. That is 133,000
+            inserts for this file, and against the hosted database — where a
+            round trip is about ninety milliseconds — flushing per row is the
+            difference between four minutes and the better part of three hours,
+            on a connection that drops. So each batch is added whole and
+            flushed once per layer, which is the fewest trips that still lets
+            the layer below read the ids the layer above just took.
+            """
             if not pending:
                 return
-            for script in pending:
-                rx = Prescription(
+
+            scripts = [
+                Prescription(
                     rx_number=script["number"],
                     patient_id=script["patient_id"],
                     doctor_id=script["doctor_id"],
@@ -168,39 +178,54 @@ def load(path: str, *, limit: int = 0) -> dict:
                     notes="Imported from CareXpress",
                     pharmacy_id=pharmacy.id,
                 )
-                db.add(rx)
-                db.flush()
+                for script in pending
+            ]
+            db.add_all(scripts)
+            db.flush()
+
+            items, owners = [], []
+            for script, rx in zip(pending, scripts):
                 for line in script["lines"]:
-                    item = PrescriptionItem(
+                    items.append(PrescriptionItem(
                         prescription_id=rx.id,
                         product_id=line["product_id"],
                         quantity=line["quantity"],
+                        # The export carries no directions. Left empty rather
+                        # than filled with the product's own description.
                         dosage_instructions="",
                         icd10_code=script["icd"],
                         # Nothing in the export says a script was repeatable.
                         repeats_allowed=0,
                         repeats_used=0,
                         pharmacy_id=pharmacy.id,
-                    )
-                    db.add(item)
-                    db.flush()
-                    counts["items"] += 1
-                    db.add(Dispensing(
-                        prescription_item_id=item.id,
-                        quantity=line["quantity"],
-                        dispensed_at=script["at"],
-                        dispensed_by_id=actor.id if actor else None,
-                        # The person who actually handed it over, as the
-                        # incumbent recorded them. They are not users here.
-                        pharmacist_initial=line["dispenser"][:10].upper(),
-                        is_repeat=False,
-                        script_sighted=True,
-                        compliance_notes="Imported from CareXpress",
-                        pharmacy_id=pharmacy.id,
                     ))
-                    counts["dispensings"] += 1
-                counts["scripts"] += 1
+                    owners.append((script, line))
+            db.add_all(items)
+            db.flush()
+
+            db.add_all([
+                Dispensing(
+                    prescription_item_id=item.id,
+                    quantity=item.quantity,
+                    dispensed_at=script["at"],
+                    dispensed_by_id=actor.id if actor else None,
+                    # The person who actually handed it over, as the incumbent
+                    # recorded them. They are not users here.
+                    pharmacist_initial=line["dispenser"][:10].upper(),
+                    is_repeat=False,
+                    script_sighted=True,
+                    compliance_notes="Imported from CareXpress",
+                    pharmacy_id=pharmacy.id,
+                )
+                for item, (script, line) in zip(items, owners)
+            ])
             db.commit()
+
+            counts["scripts"] += len(scripts)
+            counts["items"] += len(items)
+            counts["dispensings"] += len(items)
+            print(f"  {counts['scripts']:,} scripts … {counts['items']:,} lines",
+                  flush=True)
             pending.clear()
 
         for n, row in enumerate(sheet.iter_rows(values_only=True)):

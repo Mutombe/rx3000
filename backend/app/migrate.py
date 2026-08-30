@@ -399,6 +399,27 @@ WANTED_INDEXES: list[tuple[str, str, tuple[str, ...]]] = [
     ("remittance_lines", "ix_remittance_lines_open",
      ("status", "written_off", "patient_billed")),
     ("authorisations", "ix_authorisations_patient_id", ("patient_id",)),
+
+    # The clinical tables had no indexes at all — not one, on any of the three.
+    # That was survivable while a demo pharmacy held a few thousand rows and
+    # stopped being so the moment sixteen months of a real pharmacy's history
+    # was loaded: 55,741 dispensings, every one of them scanned by a patient's
+    # own record, the repeat book, the churn analysis and the controlled
+    # register. Each of these is a column those queries join or filter on.
+    ("dispensings", "ix_dispensings_prescription_item_id", ("prescription_item_id",)),
+    ("dispensings", "ix_dispensings_dispensed_at", ("dispensed_at",)),
+    ("dispensings", "ix_dispensings_sale_id", ("sale_id",)),
+    # Will-call reads "dispensed, never collected", which is this column being
+    # null across the whole table.
+    ("dispensings", "ix_dispensings_collected_at", ("collected_at",)),
+    ("prescription_items", "ix_prescription_items_prescription_id", ("prescription_id",)),
+    ("prescription_items", "ix_prescription_items_product_id", ("product_id",)),
+    # The repeat book is this column, filtered by date, on every screen that
+    # asks what is due.
+    ("prescription_items", "ix_prescription_items_next_repeat", ("next_repeat_date",)),
+    ("prescriptions", "ix_prescriptions_patient_id", ("patient_id",)),
+    ("prescriptions", "ix_prescriptions_status", ("status",)),
+    ("prescriptions", "ix_prescriptions_date", ("date_prescribed",)),
 ]
 
 
