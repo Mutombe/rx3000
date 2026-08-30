@@ -165,7 +165,11 @@ def run(path: str) -> dict:
                 patient = Patient(
                     first_name=first or "Unknown",
                     last_name=last or "Unknown",
-                    id_number=id_number[:40],
+                    # Thirty, because that is what the column is. Sliced at
+                    # forty it would have been accepted by SQLite and refused
+                    # by Postgres — only 151 of these 53,206 lines carry an ID
+                    # at all, so it happened never to fire.
+                    id_number=id_number[:30],
                     pharmacy_id=pharmacy.id,
                 )
                 db.add(patient)
