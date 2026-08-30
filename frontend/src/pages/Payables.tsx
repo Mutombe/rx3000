@@ -70,6 +70,8 @@ export default function Payables() {
   const [ageing, setAgeing] = useState<Ageing | null>(null);
   const [waiting, setWaiting] = useState<Uninvoiced[]>([]);
   const [open, setOpen] = useState<Invoice | null>(null);
+  const [querying, setQuerying] = useState(false);
+  const [queryNote, setQueryNote] = useState("");
   const [failed, setFailed] = useState("");
   const [paying, setPaying] = useState<AgeSupplier | null>(null);
   const [payments, setPayments] = useState<RemittanceData[]>([]);
@@ -137,6 +139,34 @@ export default function Payables() {
       await load();
     } catch (e) {
       toast.error(errorText(e, "That could not be approved."));
+    }
+  }
+
+  /** Dispute an invoice with the supplier.
+   *
+   *  The match exists to catch being billed for twelve when ten arrived, or at
+   *  a price that rose after the order was placed. It caught those and then
+   *  offered exactly one button: Approve. A pharmacist who found a discrepancy
+   *  could accept it or leave the screen — which in practice means accepting it
+   *  a week later, because the invoice has to be paid.
+   *
+   *  A queried invoice still ages and still counts as owed. This is not a way
+   *  of hiding a bill; it is a note that somebody has telephoned, so the next
+   *  person to look does not start the same conversation again.
+   */
+  async function raiseQuery() {
+    if (!open || !queryNote.trim()) return;
+    try {
+      const r = await api.post<{ message: string }>(
+        `/api/payables/invoices/${open.id}/query`, { note: queryNote.trim() });
+      toast.ok(r.message);
+      setQuerying(false);
+      setQueryNote("");
+      await show(open.id);
+      await load();
+    } catch (e) {
+      // The server refuses to query an invoice already paid, and says so.
+      toast.error(errorText(e, "That invoice could not be queried."));
     }
   }
 
@@ -563,12 +593,57 @@ export default function Payables() {
             </>
           )}
 
-          {open.posted_reference ? (
+          {open.status === "queried" && open.query_note && (
+            <div className="alert warn">
+              <Question size={16} weight="fill" />
+              <span>
+                <b>Queried with the supplier.</b> {open.query_note}
+              </span>
+            </div>
+          )}
+
+          {querying ? (
+            <div className="stack" style={{ marginTop: 12 }}>
+              <label className="field">
+                What is wrong with it?
+                <input
+                  value={queryNote} autoFocus maxLength={200}
+                  onChange={(e) => setQueryNote(e.target.value)}
+                  placeholder="Billed for 12, only 10 arrived — spoke to Tendai on the 14th"
+                />
+                <span className="hint">
+                  Written down because the next person to open this invoice has
+                  to know the call was already made, and by whom.
+                </span>
+              </label>
+              <div className="row-actions">
+                <button className="btn secondary"
+                        onClick={() => { setQuerying(false); setQueryNote(""); }}>
+                  Cancel
+                </button>
+                <BusyButton className="btn primary" onClick={raiseQuery}
+                            disabled={queryNote.trim().length < 4}
+                            busyLabel="Marking…">
+                  Mark it queried
+                </BusyButton>
+              </div>
+            </div>
+          ) : open.posted_reference ? (
             <p className="muted">
               Posted as <span className="mono">{open.posted_reference}</span>.
             </p>
           ) : (
-            <BusyButton onClick={approve}>Approve for payment</BusyButton>
+            <div className="row-actions" style={{ marginTop: 12 }}>
+              <BusyButton onClick={approve}>Approve for payment</BusyButton>
+              {open.status !== "paid" && (
+                <button className="btn secondary" onClick={() => {
+                  setQueryNote(open.query_note || "");
+                  setQuerying(true);
+                }}>
+                  <Question size={15} /> Query it with the supplier
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}

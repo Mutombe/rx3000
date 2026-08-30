@@ -217,17 +217,9 @@ def price_import(
 
 
 # ---------- audit log ----------
-@router.get("/audit", response_model=list[schemas.AuditLogOut])
-def audit_log(
-    username: str = "",
-    limit: int = 200,
-    db: Session = Depends(get_db),
-    _: User = Depends(require_role("admin", "pharmacist")),
-):
-    query = db.query(AuditLog)
-    if username:
-        query = query.filter(AuditLog.username.ilike(f"%{username}%"))
-    return query.order_by(AuditLog.created_at.desc()).limit(limit).all()
+# GET /audit was here, capped at 200. /audit/paged replaced it, and an audit
+# trail that silently stops at two hundred entries is the one list where a
+# cap is not an inconvenience but a hole.
 
 
 @router.get("/audit/paged")

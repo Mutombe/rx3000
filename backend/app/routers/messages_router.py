@@ -58,12 +58,8 @@ def _message_query(db, scope, target_id, severity, active_only):
     return query.order_by(desc(Message.created_at))
 
 
-@router.get("/counter-messages")
-def list_messages(scope: str = "", target_id: int = 0, severity: str = "",
-                  active_only: bool = True, limit: int = 200,
-                  db: Session = Depends(get_db)):
-    rows = _message_query(db, scope, target_id, severity, active_only).limit(limit).all()
-    return [_message_row(m) for m in rows]
+# GET /counter-messages was here, unpaged. /counter-messages/paged replaced
+# it and is what the admin screen reads.
 
 
 @router.get("/counter-messages/paged")

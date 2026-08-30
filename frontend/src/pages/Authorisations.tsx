@@ -25,7 +25,13 @@ import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
 import { Patient, Product } from "../types";
 
-interface Use { quantity: number; amount: number; reference: string; at?: string }
+interface Use {
+  // `created_at`, not `at`. The field was declared as `at` here and the server
+  // has always sent `created_at`, so every draw's date was undefined — which
+  // nothing noticed, because nothing rendered a draw.
+  id: number; quantity: number; amount: number; reference: string;
+  created_at?: string; claim_id?: number | null; reversed?: boolean;
+}
 interface Auth {
   id: number; reference: string; authorisation_number: string;
   funder_id: string; policy_number: string; description: string;
@@ -75,6 +81,7 @@ export default function Authorisations() {
   // The server does the narrowing, and only once the typing stops.
   const settled = useDebounced(search);
   const [busy, setBusy] = useState("");
+  const [showUses, setShowUses] = useState<number | null>(null);
   const [checked, setChecked] = useState<Record<number, Check>>({});
 
   // requesting
@@ -206,6 +213,48 @@ export default function Authorisations() {
     }
   }
 
+  /** Give back what a reversed sale had drawn.
+   *
+   *  When a sale is voided the medicine comes back over the counter, and if the
+   *  authorisation is not released with it the patient has silently lost cover
+   *  they never received. It surfaces months later as a refusal nobody can
+   *  explain. The endpoint has existed since authorisations were written; the
+   *  draws it releases were fetched by this screen, typed in this file, and
+   *  never once rendered — so there was nothing to press.
+   */
+  async function release(a: Auth, use: Use) {
+    const ok = await confirm({
+      title: `Give back ${use.quantity} on ${a.reference}?`,
+      body: (
+        <>
+          This puts {use.quantity} unit{use.quantity === 1 ? "" : "s"}
+          {use.amount > 0 ? <> and {money(use.amount)}</> : null} back on the
+          authorisation, for a sale that was reversed. Do it when the medicine
+          came back — not to correct a mistyped quantity, which is a fresh draw
+          of the difference.
+        </>
+      ),
+      confirmLabel: "Give it back",
+    });
+    if (!ok) return;
+    setBusy(`release-${a.id}-${use.reference}`);
+    try {
+      const q = use.claim_id
+        ? `claim_id=${use.claim_id}`
+        : `reference=${encodeURIComponent(use.reference)}`;
+      const r = await api.post<{ released: number }>(
+        `/api/authorisations/${a.id}/release?${q}`, {});
+      toast.ok(r.released
+        ? `Given back on ${a.reference}.`
+        : "Nothing was outstanding against that reference.");
+      await load();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be given back."));
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function cancel(a: Auth) {
     const ok = await confirm({
       title: `Cancel ${a.reference}?`,
@@ -329,6 +378,14 @@ export default function Authorisations() {
                             </button>
                           </>
                         )}
+                        {a.uses.length > 0 && (
+                          <button className="small ghost"
+                                  onClick={() => setShowUses(
+                                    showUses === a.id ? null : a.id)}>
+                            {showUses === a.id ? "Hide draws"
+                              : `${a.uses.length} draw${a.uses.length === 1 ? "" : "s"}`}
+                          </button>
+                        )}
                         {c && (
                           <div className={`small ${c.usable ? "" : "cu-diff"}`}>
                             {c.usable ? "usable" : c.reasons[0]}
@@ -338,6 +395,58 @@ export default function Authorisations() {
                     </tr>
                   );
                 })}
+                {/* The draws, under the authorisation they came out of.
+                    Rendered as a second row rather than a modal: the question
+                    "what used this up" is asked while looking at "3 of 10
+                    left", and a dialog takes that figure off the screen. */}
+                {rows.filter((a) => showUses === a.id).map((a) => (
+                  <tr key={`uses-${a.id}`} className="auth-uses">
+                    <td colSpan={7}>
+                      <table className="dt sub">
+                        <thead>
+                          <tr>
+                            <th>Reference</th><th>When</th>
+                            <th className="num">Quantity</th>
+                            <th className="num">Amount</th>
+                            <th className="actions" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {a.uses.map((u, i) => (
+                            <tr key={u.id ?? i} className={u.reversed ? "is-off" : ""}>
+                              <td className="mono">{u.reference || "—"}</td>
+                              <td>{u.created_at ? fmtDate(u.created_at) : "—"}</td>
+                              <td className="num">{u.quantity}</td>
+                              <td className="num">
+                                {u.amount > 0 ? money(u.amount)
+                                  : <span className="muted">—</span>}
+                              </td>
+                              <td className="actions">
+                                {u.reversed ? (
+                                  <span className="badge muted">given back</span>
+                                ) : !u.reference && !u.claim_id ? (
+                                  // Release works by reference or by claim, and
+                                  // this draw carries neither — so the button
+                                  // could only ever report that it found
+                                  // nothing. Say why instead of offering it.
+                                  <span className="muted small">
+                                    no reference to give back against
+                                  </span>
+                                ) : (
+                                  <button className="small ghost"
+                                    disabled={busy === `release-${a.id}-${u.reference}`}
+                                    onClick={() => release(a, u)}>
+                                    Give it back
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

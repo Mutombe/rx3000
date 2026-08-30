@@ -566,6 +566,14 @@ class SaleOut(ORM):
     terminal_id: str = ""
     card_batch: str = ""
     currency_code: str = ""
+    #: When this sale was moved onto the customer's account.
+    #:
+    #: A transferred sale stays `pending` — it is still unpaid, it has simply
+    #: moved from "money expected at the door" to "money owed on an account".
+    #: The column has been on the model since the transfer was written and was
+    #: sent to nothing, so the screen had no way to tell the two apart and the
+    #: button invited a second press that did nothing.
+    transferred_at: Optional[datetime] = None
     tenders: list[TenderOut] = []
     items: list[SaleItemOut] = []
     claim: Optional[ClaimOut] = None

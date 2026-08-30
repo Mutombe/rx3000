@@ -2,18 +2,17 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights } from "../components/record";
 import { printReceipt } from "../print";
 import { Sale, SaleItem } from "../types";
 import { usePharmacy } from "../hooks/usePharmacy";
-import { ArrowLeft, ArrowUUpLeft, Receipt } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowUUpLeft, Receipt, UserCircle } from "@phosphor-icons/react";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
-import { errorText } from "../api";
 
 /** What the tax authority holds against this sale. */
 interface FiscalReceipt {
@@ -87,6 +86,48 @@ export default function SaleDetail() {
     }
   }
 
+  /** Move an unpaid sale onto the customer's account.
+   *
+   *  The third thing that can happen to a sale awaiting payment, after being
+   *  paid and being voided: the goods have gone, the customer is not paying
+   *  today, and the debt should move from "money expected at the door" to
+   *  "money owed on an account" — where it can be aged, chased and provided
+   *  against. The endpoint has been there since the till was written and no
+   *  screen offered it, so in practice a pharmacy either voided a sale that had
+   *  actually gone out, or left it pending forever.
+   */
+  async function toAccount() {
+    // Captured, because the narrowing above does not survive into the JSX
+    // closure below — TypeScript will not carry it across a callback.
+    const it = sale;
+    if (!it) return;
+    const ok = await confirm({
+      title: "Put this sale on the customer's account?",
+      body: (
+        <>
+          <b>{money(it.total)}</b> moves off the till and onto{" "}
+          {it.patient
+            ? <b>{it.patient.first_name} {it.patient.last_name}</b>
+            : "the customer"}'s account, where it will age with everything else
+          they owe. The goods stay gone — this is not a reversal.
+        </>
+      ),
+      confirmLabel: "Put it on account",
+    });
+    if (!ok) return;
+    try {
+      const r = await api.post<{ message?: string }>(
+        `/api/pos/sales/${it.id}/transfer-to-account`, {});
+      toast.ok(r.message || "On account, and ageing from today.");
+      load();
+    } catch (e) {
+      // The server refuses a sale that is not pending and one with no customer
+      // attached, and says which. Shown as written: "attach the customer first"
+      // is the instruction, and rewording it here would lose it.
+      toast.error(errorText(e, "That sale could not be transferred."));
+    }
+  }
+
   if (error)
     return (
       <div className="page">
@@ -136,6 +177,11 @@ export default function SaleDetail() {
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
+          {sale.status === "pending" && !sale.transferred_at && (
+            <button className="btn secondary" onClick={toAccount}>
+              <UserCircle size={14} weight="bold" /> Put on account
+            </button>
+          )}
           {!reversed && (
             <button className="btn danger" onClick={reverse}>
               <ArrowUUpLeft size={13} weight="bold" />
@@ -145,6 +191,22 @@ export default function SaleDetail() {
           <Link to="/pos" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Front Shop</Link>
         </div>
       </div>
+
+      {sale.transferred_at && (
+        // A transferred sale is still `pending`, because it is still unpaid.
+        // Without this the record shows the same amber badge as a COD nobody
+        // has chased, and the two need different action.
+        <div className="alert ok">
+          <UserCircle size={16} weight="fill" />
+          <span>
+            On {sale.patient
+              ? `${sale.patient.first_name} ${sale.patient.last_name}'s`
+              : "the customer's"} account since {fmtDateTime(sale.transferred_at)}.
+            It ages with everything else they owe rather than sitting on the
+            till as an unpaid sale.
+          </span>
+        </div>
+      )}
 
       <div className="card record-hero">
         <Highlights items={[

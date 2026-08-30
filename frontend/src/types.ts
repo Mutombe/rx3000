@@ -153,6 +153,10 @@ export interface Sale {
   card_scheme: string;
   terminal_id: string;
   card_batch: string;
+  /** When this sale was moved onto the customer's account. It stays `pending`
+   *  either way — transferred means it has moved from money expected at the
+   *  door to money owed on an account, not that it has been paid. */
+  transferred_at?: string | null;
   items: SaleItem[];
   claim?: Claim | null;
   patient?: Patient | null;

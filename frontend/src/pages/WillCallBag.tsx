@@ -10,12 +10,13 @@
  *  on the shelf behind it.
  */
 import { useCallback, useEffect, useState } from "react";
-import { Phone, Printer, Warning } from "@phosphor-icons/react";
+import { ArrowUUpLeft, Phone, Printer, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import LabelSheet from "../components/LabelSheet";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -50,6 +51,7 @@ export default function WillCallBag() {
   const [idSeen, setIdSeen] = useState("");
   const [labels, setLabels] = useState(false);
   const toast = useToast();
+  const confirm = useConfirm();
   const navigate = useNavigate();
 
   const load = useCallback(() => {
@@ -73,6 +75,37 @@ export default function WillCallBag() {
   }
 
   const owed = bag?.outstanding ?? 0;
+
+  /** Put a bag back on the shelf.
+   *
+   *  A collection marked against the wrong bag is an ordinary counter mistake —
+   *  two people at the till, one queue — and until now it was permanent. The
+   *  bag showed as handed over, the worklist stopped counting it, and the
+   *  medicine sat on the shelf with nothing saying it was still there. The
+   *  endpoint to undo it has existed since will-call was written and no screen
+   *  ever offered it.
+   */
+  async function uncollect() {
+    if (!bag) return;
+    const ok = await confirm({
+      title: "Put this bag back on the shelf?",
+      body: <>
+        It will show as waiting again, from the date it was dispensed rather
+        than today, so the queue does not lose track of how long it has been
+        there. Use this when a collection was recorded against the wrong bag —
+        not when medicine has been returned, which is a reversal.
+      </>,
+      confirmLabel: "Put it back",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/dispensing/will-call/${bag.dispensing_id}/uncollect`, {});
+      toast.ok("Back on the shelf, and waiting again.");
+      await load();
+    } catch (e) {
+      toast.error(errorText(e, "That collection could not be undone."));
+    }
+  }
 
   return (
     <RecordPage
@@ -104,8 +137,13 @@ export default function WillCallBag() {
         <>
           {bag.collected_at ? (
             <div className="alert ok">
-              Handed over {fmtDateTime(bag.collected_at)}
-              {bag.collected_name ? ` to ${bag.collected_name}` : ""}.
+              <span>
+                Handed over {fmtDateTime(bag.collected_at)}
+                {bag.collected_name ? ` to ${bag.collected_name}` : ""}.
+              </span>
+              <button className="btn small secondary" onClick={uncollect}>
+                <ArrowUUpLeft size={14} /> Not collected after all
+              </button>
             </div>
           ) : (
             <>

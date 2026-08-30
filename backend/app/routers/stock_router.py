@@ -280,24 +280,7 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db), user:
 
 
 # ---------- batches / expiry ----------
-@router.get("/stock/batches", response_model=list[schemas.BatchOut])
-def list_batches(
-    product_id: int | None = None,
-    expiring_within_days: int | None = None,
-    include_empty: bool = False,
-    db: Session = Depends(get_db),
-):
-    # Every batch row names its medicine, and that was a query a batch: two
-    # hundred and forty-eight batches came to a hundred and twelve queries and
-    # eleven seconds in production, for a screen an expiry sweep lives on.
-    query = db.query(StockBatch).options(joinedload(StockBatch.product))
-    if product_id:
-        query = query.filter(StockBatch.product_id == product_id)
-    if not include_empty:
-        query = query.filter(StockBatch.quantity_remaining > 0)
-    if expiring_within_days is not None:
-        query = query.filter(StockBatch.expiry_date <= date.today() + timedelta(days=expiring_within_days))
-    return query.order_by(StockBatch.expiry_date.asc()).limit(500).all()
+# GET /stock/batches was here, unpaged. /stock/batches/paged replaced it.
 
 
 @router.get("/stock/batches/paged")
@@ -353,12 +336,9 @@ def write_off_batch(batch_id: int, db: Session = Depends(get_db), user: User = D
     return {"ok": True, "written_off": qty, "quantity_on_hand": product.quantity_on_hand}
 
 
-@router.get("/stock/movements", response_model=list[schemas.StockMovementOut])
-def list_movements(product_id: int | None = None, limit: int = 200, db: Session = Depends(get_db)):
-    query = db.query(StockMovement)
-    if product_id:
-        query = query.filter(StockMovement.product_id == product_id)
-    return query.order_by(StockMovement.created_at.desc()).limit(limit).all()
+# GET /stock/movements was here, capped at 200 against 5,143 rows —
+# ninety-six per cent of the stock history unreachable, and nothing said
+# so. /stock/movements/paged replaced it.
 
 
 @router.get("/stock/movements/paged")
@@ -399,17 +379,11 @@ def create_supplier(body: schemas.SupplierBase, db: Session = Depends(get_db)):
 
 
 # ---------- purchase orders ----------
-@router.get("/orders", response_model=list[schemas.POOut])
-def list_orders(status: str = "", db: Session = Depends(get_db)):
-    # The supplier and every ordered line with its product, in one go rather
-    # than four round trips an order.
-    query = db.query(PurchaseOrder).options(
-        joinedload(PurchaseOrder.supplier),
-        selectinload(PurchaseOrder.items).joinedload(PurchaseOrderItem.product),
-    )
-    if status:
-        query = query.filter(PurchaseOrder.status == status)
-    return query.order_by(PurchaseOrder.created_at.desc()).limit(100).all()
+# GET /orders was here: the same list capped at 100, superseded by
+# /orders/paged, which every screen uses. Two hundred and seventeen orders
+# behind a cap of a hundred is the bug the paged one was written to fix,
+# and leaving the capped twin in place leaves that bug where somebody can
+# wire it again by accident.
 
 
 @router.get("/orders/paged")

@@ -305,16 +305,7 @@ def fetch_remittances(funder_id: str, since: date | None = None,
     return {"fetched": len(advices), "imported": imported, "skipped": skipped}
 
 
-@router.get("/remittances")
-def list_remittances(funder_id: str = "", status: str = "", limit: int = 100,
-                     db: Session = Depends(get_db)):
-    query = db.query(Remittance)
-    if funder_id:
-        query = query.filter(Remittance.funder_id == funder_id.strip().upper())
-    if status:
-        query = query.filter(Remittance.status == status)
-    rows = query.order_by(desc(Remittance.created_at)).limit(limit).all()
-    return [era.reconcile(db, row) for row in rows]
+# GET /remittances was here, capped at 100. /remittances/paged replaced it.
 
 
 @router.get("/remittances/outstanding")
