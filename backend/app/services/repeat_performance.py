@@ -32,7 +32,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..models import (Dispensing, Patient, Prescription, PrescriptionItem,
                       Product)
@@ -64,6 +64,12 @@ def performance(db: Session, *, days: int = 30) -> dict:
         db.query(PrescriptionItem, Product, Prescription)
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
         .outerjoin(Product, PrescriptionItem.product_id == Product.id)
+        # The patient comes with the script. The at-risk list below reads a
+        # name and a telephone number off every overdue line, and without this
+        # that is a query each — ninety-two of them to draw one panel, which is
+        # eight seconds against the hosted database on a screen somebody opens
+        # first thing every morning.
+        .options(joinedload(Prescription.patient))
         .filter(PrescriptionItem.repeats_allowed > 0,
                 Prescription.status.notin_(("draft", "cancelled")))
         .all()

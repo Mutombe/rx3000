@@ -248,15 +248,24 @@ export function BarList({ rows, format, colours, labels }: {
 }
 
 /** Donut for share-of-total breakdowns. */
-export function Donut({ slices, size = 168, format }: {
+export function Donut({ slices, size = 168, format, empty, centreLabel = "total" }: {
   slices: { key: string; value: number; colour: string }[];
   size?: number;
   format: (n: number) => string;
+  /** Said when every slice is nought. The old text named campaigns and deals,
+   *  which is wrong on every page but the one it was written for. */
+  empty?: ReactNode;
+  /** What the figure in the middle is. */
+  centreLabel?: string;
 }) {
   const palette = useChartPalette();
   const total = slices.reduce((s, x) => s + x.value, 0);
   if (total <= 0) {
-    return <div className="empty">No attributed pipeline yet. Campaigns have not sourced a deal</div>;
+    return (
+      <div className="empty">
+        {empty ?? "Nothing to show yet."}
+      </div>
+    );
   }
   const stroke = size * 0.19;
   const r = (size - stroke) / 2;
@@ -288,7 +297,7 @@ export function Donut({ slices, size = 168, format }: {
         </svg>
         <div className="donut-centre">
           <b>{format(total)}</b>
-          <span>total</span>
+          <span>{centreLabel}</span>
         </div>
       </div>
       <div className="donut-key">

@@ -23,54 +23,25 @@ def _range(date_from: str, date_to: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-@router.get("/dashboard")
-def dashboard(db: Session = Depends(get_db)):
-    # A date object, not a string. SQLite compares a DATE column to '2026-08-11'
-    # happily; Postgres refuses with `operator does not exist: date = character
-    # varying`, which surfaces in the browser as a CORS error because the 500
-    # never reaches the CORS middleware.
-    today = date.today()
-    week_ago = datetime.utcnow() - timedelta(days=7)
+@router.get("/command-centre")
+def command_centre(days: int = 14, db: Session = Depends(get_db)):
+    """Everything the owner's first screen of the morning needs, in one call.
 
-    sales_today = db.query(func.count(Sale.id), func.coalesce(func.sum(Sale.total), 0.0)).filter(
-        Sale.status == "paid", func.date(Sale.created_at) == today
-    ).one()
-    scripts_today = db.query(func.count(Dispensing.id)).filter(
-        func.date(Dispensing.dispensed_at) == today
-    ).scalar()
-    low_stock = db.query(func.count(Product.id)).filter(
-        Product.active, Product.quantity_on_hand <= Product.reorder_level
-    ).scalar()
-    repeats_due = db.query(func.count(PrescriptionItem.id)).filter(
-        PrescriptionItem.next_repeat_date.isnot(None),
-        PrescriptionItem.next_repeat_date <= date.today() + timedelta(days=7),
-        PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed,
-    ).scalar()
-    pending_sales = db.query(func.count(Sale.id)).filter(Sale.status == "pending").scalar()
-    messages_pending = db.query(func.count(Message.id)).filter(Message.status == "pending").scalar()
-    expiring_soon = db.query(func.count(StockBatch.id)).filter(
-        StockBatch.quantity_remaining > 0,
-        StockBatch.expiry_date <= date.today() + timedelta(days=90),
-    ).scalar()
+    Not a set of counts. Every figure is money or leads to money, is compared
+    with the same period before it so it can be read as good or bad, and is
+    attached to the screen that can act on it.
+    """
+    from ..services import command_centre as cc
+    data = cc.overview(db, days=max(7, min(days, 90)))
+    data["actions"] = cc.actions(data)
+    return data
 
-    daily = (
-        db.query(func.date(Sale.created_at).label("day"), func.coalesce(func.sum(Sale.total), 0.0))
-        .filter(Sale.status == "paid", Sale.created_at >= week_ago)
-        .group_by(func.date(Sale.created_at)).order_by("day").all()
-    )
-    return {
-        "sales_today_count": sales_today[0],
-        "sales_today_total": round(sales_today[1], 2),
-        "scripts_today": scripts_today,
-        "low_stock_count": low_stock,
-        "repeats_due_count": repeats_due,
-        "pending_sales": pending_sales,
-        "messages_pending": messages_pending,
-        "expiring_soon_count": expiring_soon,
-        "week_sales": [{"day": d, "total": round(t, 2)} for d, t in daily],
-        "currency": settings.CURRENCY,
-        "pharmacy_name": settings.PHARMACY_NAME,
-    }
+
+# GET /dashboard was here — four counts and a week of sales totals.
+# /command-centre replaced it: the same figures with what they are worth,
+# what they should be read against, and what to do about them. Two
+# dashboards answering the same question differently is how a pharmacy
+# comes to trust neither.
 
 
 @router.get("/daily-totals")

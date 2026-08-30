@@ -1,145 +1,371 @@
-import { useEffect, useState } from "react";
+/** The Command Centre: what to do about today.
+ *
+ *  This was four counts and a bar chart. A count is a fact — "fourteen low
+ *  stock lines" — and a fact is not a decision. It becomes one when it says
+ *  what those lines are worth and what happens if nobody acts.
+ *
+ *  So every figure here is money or leads to money, is compared with the same
+ *  period before it so it can be read as good or bad, and links to the screen
+ *  that can do something about it. The four questions, in the order an owner
+ *  actually asks them:
+ *
+ *    Is today better or worse than the same day last week?
+ *    Which shop is working, and which is only busy?
+ *    What am I losing without seeing it — the repeat book?
+ *    What is my money doing?
+ *
+ *  The last card is the point of the page: everything above it, ranked by what
+ *  it is worth, with the thing to do written out. A dashboard's job is finished
+ *  when somebody knows what to do next.
+ */
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, money } from "../api";
-import { Block, TableSkeleton } from "../components/Skeleton";
-import { Dashboard as Dash } from "../types";
-import { ArrowRight } from "@phosphor-icons/react";
+import {
+  ArrowDown, ArrowRight, ArrowUp, ArrowClockwise, Minus,
+} from "@phosphor-icons/react";
+import { api, errorText, fmtDate, money } from "../api";
+import { ColumnChart, Donut, Legend, useSeries } from "../components/charts";
+import { EntityLink } from "../components/Filters";
+import { Block, Refreshable } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
+
+interface Trend {
+  change: number | null;
+  direction: "up" | "down" | "flat";
+  was: number;
+  compared_with?: string;
+}
+interface Day {
+  date: string; sales: number; value: number; before: number; today: boolean;
+}
+interface Branch {
+  branch_id: number; branch: string; value: number; count: number;
+  average: number; cashup_accuracy: number | null; variance: number;
+  scripts: number; claims_recovered: number | null; share: number;
+}
+interface Split {
+  reason: string; count: number; value: number; share: number; fix: string;
+}
+interface Data {
+  as_at: string; days: number;
+  today: Trend & { value: number; sales: number };
+  period: Trend & { value: number };
+  series: Day[];
+  branches: Branch[];
+  repeats: {
+    due: number; due_value: number; captured: number; captured_value: number;
+    lost: number; lost_value: number; value_loss_rate: number | null;
+    on_time: number | null; on_time_rate: number | null;
+    due_today: number; due_today_value: number;
+    split: Split[]; average_value: number;
+  };
+  money: { owed_to_us: number; owed_to_us_count: number;
+           claims_recovered: number | null };
+  shelf: { short_lines: number; reorder_cost: number;
+           expiring_batches: number; expiring_value: number };
+  actions: { what: string; worth: number; do: string; to: string; tone: string }[];
+}
+
+/** A figure with the direction it moved, or silence where there is nothing to
+ *  compare against. "+100%" on a first week in business is a number somebody
+ *  could act on wrongly. */
+function Move({ trend }: { trend: Trend }) {
+  if (trend.change === null) {
+    return <span className="muted small">nothing to compare against yet</span>;
+  }
+  const pct = Math.abs(Math.round(trend.change * 100));
+  const Icon = trend.direction === "up" ? ArrowUp
+    : trend.direction === "down" ? ArrowDown : Minus;
+  return (
+    <span className={`cc-move is-${trend.direction}`}>
+      <Icon size={12} weight="bold" />
+      {pct}% <span className="muted">against {trend.compared_with}</span>
+    </span>
+  );
+}
 
 export default function Dashboard() {
-  const [data, setData] = useState<Dash | null>(null);
+  const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
+  const [spinning, setSpinning] = useState(false);
+  const series = useSeries();
+  const toast = useToast();
 
-  useEffect(() => {
-    api.get<Dash>("/api/reports/dashboard").then(setData).catch((e) => setError(e.message));
+  const load = useCallback(() => {
+    setSpinning(true);
+    api.get<Data>("/api/reports/command-centre?days=14")
+      .then((d) => { setData(d); setError(""); })
+      .catch((e) => setError(errorText(e, "The command centre could not be loaded.")))
+      .finally(() => window.setTimeout(() => setSpinning(false), 300));
   }, []);
+  useEffect(() => { load(); }, [load]);
 
-  if (error)
+  if (error) {
     return (
-      <div className="page">
-        {/* A page that could not load says so in place. A toast over a
-            blank screen tells nobody what they were looking at. */}
+      <>
+        <div className="page-head"><h1>Command Centre</h1></div>
         <div className="alert error">{error}</div>
-        <p className="muted pad">
-          Nothing was loaded for this record. Check the connection and try again.
-        </p>
-      </div>
+      </>
     );
-  if (!data)
-    return (
-      <div aria-busy="true">
-        {/* The title and the New Sale button are known before the fetch and are
-            rendered for real. Only the pharmacy name in the subtitle comes from
-            the response, so only that ghosts — and the till stays one click away
-            while the figures load. */}
-        <div className="page-head">
-          <div>
-            <h1>Command Centre</h1>
-            <div className="sub"><Block w="26ch" h={12} /></div>
-          </div>
-          <Link to="/pos" className="btn">New Sale</Link>
-        </div>
-        <div className="grid cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className={`card stat${i === 0 ? " hero" : ""}`}>
-              <div className="label">{["Sales today", "Scripts dispensed today", "Repeats due (7 days)", "Low stock lines"][i]}</div>
-              <div className="value"><Block w="55%" h={28} /></div>
-              <div className="hint"><Block w="70%" h={11} /></div>
-            </div>
-          ))}
-        </div>
-        <div className="card sk-card">
-          <Block w="16ch" h={14} />
-          <TableSkeleton cols={4} rows={5} />
-        </div>
-        <div className="card sk-card">
-          <Block w="14ch" h={14} />
-          <Block w="100%" />
-          <Block w="80%" />
-        </div>
-      </div>
-    );
+  }
 
-  const max = Math.max(...data.week_sales.map((d) => d.total), 1);
+  const compact = (n: number) => money(n);
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1>Command Centre</h1>
-          <div className="sub">{data.pharmacy_name}, live operational overview</div>
-        </div>
-        <Link to="/pos" className="btn">New Sale</Link>
-      </div>
-
-      <div className="grid cols-4">
-        <div className="card stat hero">
-          <div className="label">Sales today</div>
-          <div className="value accent">{money(data.sales_today_total, data.currency)}</div>
-          <div className="hint">{data.sales_today_count} transactions</div>
-        </div>
-        <div className="card stat">
-          <div className="label">Scripts dispensed today</div>
-          <div className="value">{data.scripts_today}</div>
-          <div className="hint"><Link to="/dispense">Open dispensary <ArrowRight size={12} weight="bold" /></Link></div>
-        </div>
-        <div className="card stat">
-          <div className="label">Repeats due (7 days)</div>
-          <div className="value">{data.repeats_due_count}</div>
-          <div className="hint"><Link to="/reminders">Manage reminders <ArrowRight size={12} weight="bold" /></Link></div>
-        </div>
-        <div className="card stat">
-          <div className="label">Low stock lines</div>
-          <div className="value" style={{ color: data.low_stock_count ? "var(--danger)" : undefined }}>
-            {data.low_stock_count}
+          <div className="sub">
+            {data
+              ? <>The last {data.days} days, to {fmtDate(data.as_at)}</>
+              : "Loading the morning's figures"}
           </div>
-          <div className="hint"><Link to="/orders">Generate orders <ArrowRight size={12} weight="bold" /></Link></div>
+        </div>
+        <div className="row-actions">
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+          </button>
+          <Link to="/pos" className="btn primary">New sale</Link>
         </div>
       </div>
 
-      <div className="grid cols-2" style={{ marginTop: 2 }}>
-        <div className="card">
-          <h3>Sales, last 7 days</h3>
-          {data.week_sales.length === 0 ? (
-            <div className="empty">No sales yet this week</div>
-          ) : (
-            <div className="chart-bars" style={{ marginBottom: 26 }}>
-              {data.week_sales.map((d) => (
-                <div key={d.day} className="bar" style={{ height: `${(d.total / max) * 100}%` }}>
-                  <em>{money(d.total, data.currency)}</em>
-                  <span>{d.day.slice(5)}</span>
+      <Refreshable
+        loading={spinning || !data}
+        hasData={!!data}
+        skeleton={
+          <div className="grid cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card stat"><Block h={64} round="md" /></div>
+            ))}
+          </div>
+        }
+      >
+        {data && (
+          <>
+            {/* Four figures, each with the thing it should be read against.
+                A number on its own cannot be good or bad. */}
+            <div className="grid cols-4">
+              <div className="card stat hero">
+                <div className="label">Taken today</div>
+                <div className="value accent">{money(data.today.value)}</div>
+                <div className="hint">
+                  {data.today.sales} sale{data.today.sales === 1 ? "" : "s"} ·{" "}
+                  <Move trend={data.today} />
                 </div>
-              ))}
+              </div>
+              <div className="card stat">
+                <div className="label">Taken over {data.days} days</div>
+                <div className="value">{money(data.period.value)}</div>
+                <div className="hint"><Move trend={data.period} /></div>
+              </div>
+              <div className="card stat">
+                <div className="label">Repeat book lost</div>
+                <div className="value neg">{money(data.repeats.lost_value)}</div>
+                <div className="hint">
+                  {data.repeats.value_loss_rate !== null
+                    && `${Math.round(data.repeats.value_loss_rate * 100)}% of what fell due · `}
+                  <Link to="/repeats?tab=value">
+                    where it went <ArrowRight size={12} weight="bold" />
+                  </Link>
+                </div>
+              </div>
+              <div className="card stat">
+                <div className="label">Dispensed, never settled</div>
+                <div className="value">{money(data.money.owed_to_us)}</div>
+                <div className="hint">
+                  {data.money.owed_to_us_count} sale
+                  {data.money.owed_to_us_count === 1 ? "" : "s"} ·{" "}
+                  <Link to="/money-owed">chase <ArrowRight size={12} weight="bold" /></Link>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
-        <div className="card">
-          <h3>Attention needed</h3>
-          <table>
-            <tbody>
-              <tr>
-                <td>Pending dispensary sales awaiting payment</td>
-                <td className="num"><span className={`badge ${data.pending_sales ? "warn" : "ok"}`}>{data.pending_sales}</span></td>
-              </tr>
-              <tr>
-                <td>Reminder messages queued for delivery</td>
-                <td className="num"><span className={`badge ${data.messages_pending ? "warn" : "ok"}`}>{data.messages_pending}</span></td>
-              </tr>
-              <tr>
-                <td>Stock lines at or below reorder level</td>
-                <td className="num"><span className={`badge ${data.low_stock_count ? "danger" : "ok"}`}>{data.low_stock_count}</span></td>
-              </tr>
-              <tr>
-                <td>Repeat prescriptions due within 7 days</td>
-                <td className="num"><span className="badge">{data.repeats_due_count}</span></td>
-              </tr>
-              <tr>
-                <td>Batches expiring within 90 days <Link to="/stock">review <ArrowRight size={12} weight="bold" /></Link></td>
-                <td className="num"><span className={`badge ${data.expiring_soon_count ? "warn" : "ok"}`}>{data.expiring_soon_count}</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+
+            <div className="grid cols-2">
+              {/* Takings, with the same weekday a fortnight ago drawn across
+                  each column. A Monday compared with a Monday: comparing a
+                  Saturday with the Friday before it is how a pharmacy
+                  convinces itself trade collapses every weekend. */}
+              <div className="card">
+                <div className="card-head">
+                  <div>
+                    <h3>What came in, day by day</h3>
+                    <span className="muted small">
+                      The bar is this fortnight. The line across it is the same
+                      weekday, the fortnight before.
+                    </span>
+                  </div>
+                </div>
+                <ColumnChart
+                  height={240}
+                  format={compact}
+                  markerLabel="the same weekday, a fortnight ago"
+                  columns={data.series.map((d) => ({
+                    label: fmtDate(d.date).replace(/,.*/, ""),
+                    segments: [{ key: "Taken", value: d.value, colour: series[0] }],
+                    marker: d.before || undefined,
+                  }))}
+                />
+                <Legend items={[
+                  { key: "Taken", colour: series[0] },
+                  { key: "A fortnight ago", colour: series[0], dashed: true },
+                ]} />
+              </div>
+
+              {/* Where the repeat book went. Four buckets that sum exactly to
+                  the loss — a breakdown accounting for most of a number and
+                  silent about the rest is one nobody trusts. */}
+              <div className="card">
+                <div className="card-head">
+                  <div>
+                    <h3>The repeat book, and what happened to it</h3>
+                    <span className="muted small">
+                      {money(data.repeats.due_value)} fell due ·{" "}
+                      {money(data.repeats.captured_value)} filled
+                      {data.repeats.on_time_rate !== null
+                        && `, ${Math.round(data.repeats.on_time_rate * 100)}% on time`}
+                    </span>
+                  </div>
+                </div>
+                <Donut
+                  size={172}
+                  format={compact}
+                  centreLabel="lost"
+                  empty="Nothing fell due and went unfilled. The whole book was kept."
+                  slices={data.repeats.split.map((s, i) => ({
+                    key: s.reason, value: s.value, colour: series[i % series.length],
+                  }))}
+                />
+                <p className="muted small">
+                  A repeat that was not filled leaves no record anywhere — the
+                  patient simply goes elsewhere next month. This is the one
+                  place it appears.
+                </p>
+              </div>
+            </div>
+
+            {/* Which shop is working. Not which is busiest: the branch taking
+                the most money is not always the one earning it, so the average
+                sale and the cash-up sit beside the total. */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <h3>Branches, side by side</h3>
+                  <span className="muted small">
+                    Over the last {data.days} days. Open one for the workings.
+                  </span>
+                </div>
+                <Link to="/scorecard" className="btn secondary small">
+                  Full scorecard
+                </Link>
+              </div>
+              {data.branches.filter((b) => b.value > 0).length === 0 ? (
+                <div className="empty">
+                  <b>No branch took anything in this period</b>
+                  <p>
+                    Either trade has stopped or sales are not being recorded
+                    against a branch. Both are worth knowing about today.
+                  </p>
+                </div>
+              ) : (
+                // Eight columns will not fit a phone, and squeezing them makes
+                // the figures unreadable rather than the table narrow. It
+                // scrolls inside its own card instead, so the page never does.
+                <div className="dt-scroll">
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Branch</th>
+                      <th className="num">Taken</th>
+                      <th className="num">Share</th>
+                      <th className="num">Sales</th>
+                      <th className="num">Average sale</th>
+                      <th className="num">Scripts</th>
+                      <th className="num">Drawer</th>
+                      <th style={{ width: "12rem" }} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.branches.map((b) => {
+                      const best = data.branches[0]?.value || 1;
+                      return (
+                        <tr key={b.branch_id}>
+                          <td>
+                            <EntityLink to={`/branches/${b.branch_id}/performance`}>
+                              <b>{b.branch}</b>
+                            </EntityLink>
+                          </td>
+                          <td className="num"><b>{money(b.value)}</b></td>
+                          <td className="num">{Math.round(b.share * 100)}%</td>
+                          <td className="num">{b.count.toLocaleString()}</td>
+                          <td className="num">{money(b.average)}</td>
+                          <td className="num">{b.scripts.toLocaleString()}</td>
+                          <td className="num">
+                            {b.cashup_accuracy === null
+                              ? <span className="muted">not counted</span>
+                              : <span className={`badge ${b.cashup_accuracy >= 95
+                                  ? "ok" : b.cashup_accuracy >= 80 ? "warn" : "bad"}`}>
+                                  {b.cashup_accuracy}%
+                                </span>}
+                          </td>
+                          <td>
+                            {/* Against the best branch, so the bar is a
+                                comparison and not decoration. */}
+                            <span className="cc-bar"
+                                  style={{ width: `${Math.max(2, (b.value / best) * 100)}%`,
+                                           background: series[0] }} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                </div>
+              )}
+            </div>
+
+            {/* The point of the page. */}
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <h3>What to do about it</h3>
+                  <span className="muted small">
+                    Worth most first. Every line is a figure from this page with
+                    the thing to do written out.
+                  </span>
+                </div>
+              </div>
+              {data.actions.length === 0 ? (
+                <div className="empty">
+                  <b>Nothing is waiting</b>
+                  <p>
+                    No repeat is overdue, nothing is short on the shelf, and
+                    every sale has been settled. That is what this page looks
+                    like on a good morning.
+                  </p>
+                </div>
+              ) : (
+                <ul className="cc-actions">
+                  {data.actions.map((a, i) => (
+                    <li key={i} className={`cc-action is-${a.tone}`}>
+                      <div className="cc-action-worth">
+                        <b>{money(a.worth)}</b>
+                      </div>
+                      <div className="cc-action-what">
+                        <b>{a.what}</b>
+                        <span className="muted">{a.do}</span>
+                      </div>
+                      <Link to={a.to} className="btn small secondary">
+                        Open <ArrowRight size={12} weight="bold" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        )}
+      </Refreshable>
     </>
   );
 }

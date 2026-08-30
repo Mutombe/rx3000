@@ -5693,3 +5693,62 @@ table.dt.sub th { font-size: var(--t-xs); }
   display: block; height: 8px; border-radius: 4px;
   background: var(--accent); opacity: .55; min-width: 2px;
 }
+
+/* ---- the command centre -------------------------------------------------
+ *
+ * A figure with the direction it moved. Green up is wrong here as often as it
+ * is right — takings up is good, a variance up is not — so direction carries
+ * the arrow and the page decides the colour.
+ */
+.cc-move { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; }
+.cc-move.is-up { color: var(--ok); }
+.cc-move.is-down { color: var(--danger); }
+.cc-move.is-flat { color: var(--ink-soft); }
+.cc-move .muted { font-weight: 400; }
+
+/* Against the best branch, so the bar is a comparison rather than decoration. */
+.cc-bar {
+  display: block; height: 8px; border-radius: 4px; opacity: .75; min-width: 2px;
+}
+
+/* The action list. Money on the left because that is what the eye sorts by,
+   and the verb on the right because that is what the hand does next. */
+.cc-actions { list-style: none; margin: 8px 0 0; padding: 0; }
+.cc-action {
+  display: grid; grid-template-columns: 8rem 1fr auto;
+  align-items: center; gap: 4px 16px;
+  padding: 12px 14px; border-radius: var(--radius-sm);
+  border-top: 1px solid var(--line-soft);
+  box-shadow: inset 3px 0 0 var(--line-strong);
+}
+.cc-action:first-child { border-top: 0; }
+.cc-action.is-warn { box-shadow: inset 3px 0 0 var(--warn); }
+.cc-action.is-bad  { box-shadow: inset 3px 0 0 var(--danger); }
+.cc-action-worth b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.cc-action-what { display: flex; flex-direction: column; gap: 2px; }
+.cc-action-what .muted { font-size: var(--t-sm); }
+@media (max-width: 720px) {
+  .cc-action { grid-template-columns: 1fr auto; }
+  .cc-action-worth { grid-column: 1 / -1; }
+}
+
+/* ---- charts on a phone --------------------------------------------------
+ *
+ * Two things forced the Command Centre's cards 12px wider than a 390px screen,
+ * which pushed the whole page sideways.
+ *
+ * The donut's key carries a 190px floor, and beside a 172px ring with a 26px
+ * gap that is already 388px before the card's own padding. It wraps under the
+ * ring instead, where there is the whole width to use.
+ *
+ * The column chart's x labels are real DOM under the SVG — the SVG scales and
+ * the labels do not — so a fortnight of dates came to more than the card. They
+ * are allowed to shrink and to break, since a date is two short words.
+ */
+@media (max-width: 640px) {
+  .donut-key { min-width: 0; width: 100%; }
+  .donut-wrap { gap: 16px; }
+  .chart { padding-left: 44px; }
+  .chart-yaxis { font-size: 9.5px; padding-right: 6px; }
+  .chart-xaxis span { font-size: 9.5px; min-width: 0; overflow-wrap: anywhere; }
+}

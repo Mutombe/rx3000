@@ -272,6 +272,40 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
     counts["test messages"] = (db.query(Message)
                                  .filter(Message.body.like("%Sweep test%"))
                                  .delete(synchronize_session=False))
+
+    # Branches, last, and only the ones nothing points at.
+    #
+    # Products and patients have been cleaned of their fixtures from the
+    # beginning; branches never were. Two called "Crud Branch 634712" and "Crud
+    # Branch 2971BC" sat there until they turned up on the owner's own
+    # dashboard, in the table comparing how each shop is trading. A branch
+    # reaches more screens than either of the others — every scorecard, every
+    # transfer, every cash-up.
+    #
+    # A branch that has taken a sale or held a batch is real however it was
+    # named, so only orphans go.
+    from .models import Branch
+    branch_ids: list[int] = []
+    for pattern in PLACEHOLDER_BRANCHES:
+        branch_ids.extend(b.id for b in db.query(Branch)
+                          .filter(Branch.name.like(pattern)).all())
+    orphans = []
+    for bid in sorted(set(branch_ids)):
+        used = False
+        for table in ("sales", "stock_batches", "shifts", "branch_transfers"):
+            try:
+                if db.execute(text(
+                        f"SELECT 1 FROM {table} WHERE branch_id = :b LIMIT 1"),
+                        {"b": bid}).first():
+                    used = True
+                    break
+            except Exception:                      # noqa: BLE001 - table absent
+                continue
+        if not used:
+            orphans.append(bid)
+    if orphans:
+        counts["test branches"] = _delete_where_in(db, "branches", "id", orphans)
+
     db.commit()
     return {k: v for k, v in counts.items() if v}
 

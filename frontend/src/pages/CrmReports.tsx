@@ -415,7 +415,8 @@ export default function CrmReports() {
           <div className="grid cols-2">
             <div className="card">
               <div className="card-head"><h3>Pipeline sourced by channel</h3></div>
-              <Donut slices={channelMix} format={compact} />
+              <Donut slices={channelMix} format={compact}
+                     empty="No attributed pipeline yet. Campaigns have not sourced a deal." />
             </div>
             <div className="card">
               <div className="card-head">
