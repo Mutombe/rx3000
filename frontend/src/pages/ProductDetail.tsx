@@ -11,6 +11,7 @@ import { ProductDetail as Detail, StockBatch, StockMovement } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
 import AiStreamBlock from "../components/AiStreamBlock";
 import ClaudeIcon from "../components/ClaudeIcon";
+import ProductBarcodes from "../components/ProductBarcodes";
 
 type Tab = "batches" | "movements";
 
@@ -120,6 +121,11 @@ export default function ProductDetail() {
         {/* The rest of the family: other products holding the same molecule. */}
         <Variants productId={p.id} />
       </div>
+
+      {/* Every code that finds this product, and the way to take a wrong one
+          off. A code learned against the wrong medicine is silent and, until
+          now, permanent. */}
+      <ProductBarcodes productId={p.id} />
 
       {/* What to say when this is handed over.
           The endpoint has written these since it was added and nothing could

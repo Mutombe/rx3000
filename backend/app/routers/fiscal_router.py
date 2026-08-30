@@ -137,11 +137,10 @@ def flush(db: Session = Depends(get_db)):
     return fiscal.flush_queue(db)
 
 
-@router.get("/verify")
-def verify(db: Session = Depends(get_db)):
-    """Walk the hash chain, proves no receipt has been altered or removed."""
-    return fiscal.verify_chain(db)
-
+# Walking the hash chain used to be its own route. /fiscal/status computes it
+# and returns it under "chain", which is what the fiscal screen reads and where
+# the alarm is raised — so this was the same walk, reachable twice, with only
+# one of the two ever looked at.
 
 @router.post("/credit-note/{sale_id}")
 def credit_note(sale_id: int, db: Session = Depends(get_db),

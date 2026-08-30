@@ -99,13 +99,11 @@ def list_products_paged(
     )
 
 
-@router.get("/products/barcode/{code}", response_model=schemas.ProductOut)
-def product_by_barcode(code: str, db: Session = Depends(get_db)):
-    product = db.query(Product).filter(or_(Product.barcode == code, Product.nappi_code == code)).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="No product with that barcode")
-    return product
-
+# Looking a product up by barcode used to be here: one query matching the code
+# against two columns. POST /api/scan is the real one — it reads the symbology,
+# resolves a pack multiplier, carries its warnings, and knows about the codes a
+# product has been taught. A till that used the shallow one would scan an outer
+# and sell a single.
 
 @router.get("/products/{product_id}/variants")
 def product_variants(product_id: int, db: Session = Depends(get_db)):

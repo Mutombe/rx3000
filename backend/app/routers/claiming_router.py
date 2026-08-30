@@ -201,24 +201,12 @@ def quote_fee(model_id: int, base: float, db: Session = Depends(get_db)):
 
 
 # ---------- pricing ----------
-@router.post("/price", response_model=schemas.PricedBasket)
-def price(body: schemas.PriceRequest, db: Session = Depends(get_db)):
-    """Price a basket for a scheme. The derived price a claim will carry."""
-    scheme = db.get(MedicalAid, body.medical_aid_id) if body.medical_aid_id else None
-    if body.medical_aid_id and not scheme:
-        raise HTTPException(status_code=404, detail="Medical aid not found")
-    lines = []
-    for item in body.items:
-        product = db.get(Product, item.product_id)
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        lines.append((product, item.quantity))
-    if not lines:
-        raise HTTPException(status_code=400, detail="Nothing to price")
-    return pricing.price_basket(db, lines, scheme)
+# Pricing a basket for a scheme used to live here. /api/quick-price answers the
+# same question and is the one the counter uses — it was written for the
+# question a patient actually asks, which is what this cost them, and this was
+# the same sum reached from the claim engine's side. Two routes returning one
+# figure is how they come to disagree.
 
-
-# ---------- formulary ----------
 @router.get("/formularies", response_model=list[schemas.FormularyOut])
 def list_formularies(db: Session = Depends(get_db)):
     return db.query(Formulary).order_by(Formulary.name).all()

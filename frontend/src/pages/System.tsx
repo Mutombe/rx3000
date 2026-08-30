@@ -40,6 +40,7 @@ const LICENCE_TONE: Record<string, string> = {
 
 export default function System() {
   const [info, setInfo] = useState<Info | null>(null);
+  const [integrations, setIntegrations] = useState<any>(null);
   const [backups, setBackups] = useState<{ status: BackupStatus; files: BackupFile[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -49,6 +50,7 @@ export default function System() {
   function load() {
     setLoading(true);
     api.get<Info>("/api/system/info").then(setInfo).catch((e) => toast.error(errorText(e)));
+    api.get<any>("/api/integrations").then(setIntegrations).catch(() => undefined);
     api
       .get<{ status: BackupStatus; files: BackupFile[] }>("/api/system/backups")
       .then(setBackups)
@@ -164,6 +166,48 @@ export default function System() {
           </>
         )}
       </section>
+
+      {/* What is real and what is pretended, on this installation, right now.
+          The endpoint's own words, and the reason it matters: "the demo
+          worked" is not evidence that anything was filed with a funder or a
+          revenue authority — and this is the answer that decides whether a
+          pharmacy can go live. It was published and unreadable. */}
+      {integrations && (
+        <section className="card">
+          <div className="card-head">
+            <h3>What is connected</h3>
+            <span className={`badge ${integrations.production_ready ? "ok" : "warn"}`}>
+              {integrations.production_ready
+                ? "ready to trade" : "not ready to trade"}
+            </span>
+          </div>
+          <table className="dt">
+            <thead>
+              <tr><th>Integration</th><th>State</th><th>What it needs</th></tr>
+            </thead>
+            <tbody>
+              {integrations.integrations.map((i: any) => (
+                <tr key={i.key} className={i.production_safe ? "" : "row-flag"}>
+                  <td>
+                    <b>{i.name}</b>
+                    <div className="muted small">{i.category}</div>
+                  </td>
+                  <td>
+                    <span className={`badge ${i.production_safe ? "ok" : "warn"}`}>
+                      {i.state}
+                    </span>
+                  </td>
+                  <td className="wrap muted small">
+                    {i.blocked_on?.length
+                      ? `Waiting on ${i.blocked_on.join(", ")}`
+                      : i.notes || (i.production_safe ? "Nothing." : "")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
 
       <section className="card">
         <h3>Station</h3>

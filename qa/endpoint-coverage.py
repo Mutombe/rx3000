@@ -60,6 +60,34 @@ NOT_FOR_THIS_UI = {
     "/api/parity": "an internal consistency probe",
 }
 
+# Individual routes that correctly have no screen. Named one at a time, with
+# the reason, because "no screen calls it" is the right question for finding
+# gaps and the wrong one for finishing: a backfill an administrator runs once
+# and a check the till makes before saving are both correct as they are, and
+# reporting them for ever is how a number stops being read.
+#
+# Anything added here is a claim somebody can disagree with. That is the point.
+NO_SCREEN_ON_PURPOSE = {
+    "/api/ledger/backfill":
+        "posts the history that predates the posting logic — run once by an "
+        "administrator, not a thing a pharmacy does",
+    "/api/periods/postable/check":
+        "the till asks this before saving; it is a guard, not a screen",
+    "/api/auth/demo/state":
+        "tells a demo build how much of its trial is left",
+    "/api/currency/convert":
+        "a conversion helper; every screen that shows money already holds the "
+        "rates and converts locally",
+    "/api/system/interactions/coverage":
+        "what the interaction checker holds. The screening response carries "
+        "its own coverage note on every answer, which is where it has to be "
+        "read — a coverage page nobody opens is worse than none",
+    "/api/repeats/due":
+        "the raw script lines. /repeats/call-sheet is the same question "
+        "answered for a person: who to ring, in what order, and whether the "
+        "shelf can serve them",
+}
+
 
 def frontend_text() -> str:
     parts = []
@@ -101,6 +129,20 @@ def main() -> int:
         area = "/".join(path.split("/")[:3])
         uncalled.setdefault(area, []).append(path)
 
+    # Set the deliberately screenless routes aside before anything is counted,
+    # and keep them so they can be printed. Dropping them quietly would make
+    # this audit agree with itself by hiding its own exceptions, which is worse
+    # than the number it was hiding.
+    on_purpose = []
+    for area, items in list(uncalled.items()):
+        kept = []
+        for route in items:
+            (on_purpose if route in NO_SCREEN_ON_PURPOSE else kept).append(route)
+        if kept:
+            uncalled[area] = kept
+        else:
+            del uncalled[area]
+
     exempt = {a: v for a, v in uncalled.items() if a in NOT_FOR_THIS_UI}
     real = {a: v for a, v in uncalled.items() if a not in NOT_FOR_THIS_UI}
     counted = sum(len(v) for v in real.values())
@@ -115,6 +157,13 @@ def main() -> int:
             print(f"      {path}")
         if not show_all and len(items) > 4:
             print(f"      … and {len(items) - 4} more (--all)")
+
+    if on_purpose:
+        rule = "-" * 72
+        print(f"\n{rule}\nNO SCREEN ON PURPOSE — each with the reason\n{rule}")
+        for route in sorted(on_purpose):
+            print(f"  {route}")
+            print(f"      {NO_SCREEN_ON_PURPOSE[route]}")
 
     if exempt:
         print(f"\n{'-' * 72}\nNOT THIS UI'S JOB — exempt, with the reason\n{'-' * 72}")

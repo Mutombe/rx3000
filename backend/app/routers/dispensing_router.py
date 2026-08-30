@@ -198,27 +198,10 @@ def controlled_log_paged(days: int = 90, page: int = 1,
     return result.envelope(lambda d: schemas.DispensingOut.model_validate(d, from_attributes=True).model_dump())
 
 
-@router.get("/stats")
-def dispensing_stats(days: int = 30, db: Session = Depends(get_db)):
-    since = datetime.utcnow() - timedelta(days=days)
-    controlled = db.query(func.count(Dispensing.id)).filter(
-        Dispensing.dispense_type == "controlled", Dispensing.dispensed_at >= since
-    ).scalar()
-    scripts = db.query(func.count(Dispensing.id)).filter(
-        Dispensing.dispense_type == "prescription", Dispensing.dispensed_at >= since
-    ).scalar()
-    otc = db.query(func.count(OTCSale.id)).filter(OTCSale.created_at >= since).scalar()
-    referrals = db.query(func.count(OTCSale.id)).filter(
-        OTCSale.created_at >= since, OTCSale.referred_to_doctor.is_(True)
-    ).scalar()
-    return {
-        "days": days,
-        "controlled_dispensings": controlled,
-        "prescription_dispensings": scripts,
-        "otc_sales": otc,
-        "otc_referrals": referrals,
-    }
-
+# Four counts over a window — controlled, prescriptions, over the counter, and
+# referrals — all of which the branch scorecard already computes per branch and
+# with the denominators that make them mean something. A total with nothing to
+# compare it against is a number somebody reads once.
 
 @router.post("/interaction-screen")
 def interaction_screen(patient_id: int | None = Body(default=None),

@@ -528,10 +528,10 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
     return sale
 
 
-@router.get("/claims", response_model=list[schemas.ClaimOut])
-def list_claims(limit: int = 100, db: Session = Depends(get_db), _: User = Depends(get_current_user)):
-    return db.query(Claim).order_by(Claim.created_at.desc()).limit(limit).all()
-
+# A bare list of the newest hundred claims used to be here. The claiming
+# screens use /api/claiming/* and /api/claims/*, which page, filter, batch and
+# settle — everything this could not do. An unfiltered list of a table that
+# grows forever is a wrong answer waiting for the pharmacy to get busy.
 
 @router.post("/sales/{sale_id}/transfer-to-account")
 def transfer_to_account(

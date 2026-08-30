@@ -28,6 +28,8 @@ import { useDebounced } from "../hooks/useDebounced";
 import { useToast } from "../components/Toast";
 
 import { EntityLink } from "../components/Filters";
+import { CloudArrowDown } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 type Tab = "outstanding" | "advices" | "import";
 
 interface Line {
@@ -77,6 +79,42 @@ export default function Remittances() {
   const [adviceSearch, setAdviceSearch] = useState("");
   const settledSearch = useDebounced(adviceSearch);
   const [reasons, setReasons] = useState<Reason[]>([]);
+
+  /** Ask each funder's switch for what it has published.
+   *
+   *  Every funder is tried rather than made a choice: a pharmacy does not know
+   *  which scheme paid this morning, and picking one from a list is the step
+   *  that stops anybody doing it at all. Funders with no live connection
+   *  simply return nothing.
+   */
+  async function fetchFromSwitch() {
+    const offices = await api.get<any[]>("/api/claiming/pay-offices").catch(() => []);
+    if (!offices.length) {
+      toast.warn("No pay offices on file to ask.");
+      return;
+    }
+    let imported = 0;
+    const refused: string[] = [];
+    for (const office of offices) {
+      try {
+        const r = await api.post<any>(
+          `/api/remittances/fetch?funder_id=${encodeURIComponent(office.code || office.id)}`, {});
+        imported += (r.imported?.length ?? 0);
+      } catch (e) {
+        // A funder that is not connected is not a failure worth a toast each;
+        // they are counted and named once at the end.
+        refused.push(office.name ?? office.code);
+      }
+    }
+    if (imported) {
+      toast.ok(`${imported} advice${imported === 1 ? "" : "s"} pulled in.`);
+      load();
+    } else {
+      toast.warn(refused.length
+        ? `Nothing new. ${refused.length} of ${offices.length} funders are not connected to the switch.`
+        : "Nothing new to pull.");
+    }
+  }
   const [busy, setBusy] = useState("");
 
   // import
@@ -183,6 +221,16 @@ export default function Remittances() {
           <div className="sub">
             What each scheme actually paid, and where the difference went
           </div>
+        </div>
+        {/* Advices arrive two ways: a CSV somebody downloads and imports, and
+            the switch, where the funder publishes them. The second has existed
+            since the gateway was written and nothing called it, so every
+            pharmacy on a live switch was still importing by hand. */}
+        <div className="page-actions">
+          <BusyButton className="btn" onClick={fetchFromSwitch}
+                      busyLabel="Asking the switch…">
+            <CloudArrowDown size={15} /> Fetch from the switch
+          </BusyButton>
         </div>
       </div>
 
