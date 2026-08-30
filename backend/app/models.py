@@ -185,7 +185,7 @@ class Mixture(Base, TenantMixin):
     """
     __tablename__ = "mixtures"
     id = Column(Integer, primary_key=True)
-    code = Column(String(30), unique=True, nullable=False, index=True)
+    code = Column(String(30), nullable=False, index=True)
     name = Column(String(200), nullable=False)
     form = Column(String(40), default="mixture")   # mixture | ointment | cream | capsules
     yield_quantity = Column(Float, default=1.0)    # how much one preparation makes
@@ -502,7 +502,7 @@ class ProductBarcode(Base, TenantMixin):
 class Prescription(Base, TenantMixin):
     __tablename__ = "prescriptions"
     id = Column(Integer, primary_key=True)
-    rx_number = Column(String(30), unique=True, nullable=True, index=True)
+    rx_number = Column(String(30), nullable=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     # A draft may not know the prescriber yet — that is often the field
     # the pharmacist is still chasing when they are interrupted.
@@ -643,7 +643,7 @@ class OTCSale(Base, TenantMixin):
 class Sale(Base, TenantMixin):
     __tablename__ = "sales"
     id = Column(Integer, primary_key=True)
-    sale_number = Column(String(30), unique=True, nullable=False, index=True)
+    sale_number = Column(String(30), nullable=False, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
     cashier_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
@@ -746,7 +746,7 @@ class ClaimBatch(Base, TenantMixin):
     """
     __tablename__ = "claim_batches"
     id = Column(Integer, primary_key=True)
-    batch_number = Column(String(30), unique=True, nullable=False, index=True)
+    batch_number = Column(String(30), nullable=False, index=True)
     pay_office_id = Column(Integer, ForeignKey("pay_offices.id"), nullable=False, index=True)
     period_from = Column(DateTime, nullable=True)
     period_to = Column(DateTime, nullable=True)
@@ -770,7 +770,7 @@ class ClaimBatch(Base, TenantMixin):
 class Claim(Base, TenantMixin):
     __tablename__ = "claims"
     id = Column(Integer, primary_key=True)
-    claim_number = Column(String(30), unique=True, nullable=False)
+    claim_number = Column(String(30), nullable=False, index=True)
     sale_id = Column(Integer, ForeignKey("sales.id"), nullable=False)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False)
     medical_aid_id = Column(Integer, ForeignKey("medical_aids.id"), nullable=False)
@@ -829,7 +829,7 @@ class StockMovement(Base, TenantMixin):
 class PurchaseOrder(Base, TenantMixin):
     __tablename__ = "purchase_orders"
     id = Column(Integer, primary_key=True)
-    order_number = Column(String(30), unique=True, nullable=False)
+    order_number = Column(String(30), nullable=False, index=True)
     #: Which shop raised it, and which shop the goods are for.
     #:
     #: Purchasing was the one measure on the branch scorecard that genuinely
@@ -1084,7 +1084,7 @@ class Quote(Base, TenantMixin):
     """A versioned quotation generated from an opportunity."""
     __tablename__ = "quotes"
     id = Column(Integer, primary_key=True)
-    quote_number = Column(String(30), unique=True, nullable=False, index=True)
+    quote_number = Column(String(30), nullable=False, index=True)
     deal_id = Column(Integer, ForeignKey("deals.id"), nullable=False)
     version = Column(Integer, default=1)
     status = Column(String(20), default="draft")  # draft | sent | accepted | declined | expired
@@ -1207,7 +1207,7 @@ class Ticket(Base, TenantMixin):
     """A customer-service / help-desk ticket with an SLA target."""
     __tablename__ = "tickets"
     id = Column(Integer, primary_key=True)
-    ticket_number = Column(String(30), unique=True, nullable=False, index=True)
+    ticket_number = Column(String(30), nullable=False, index=True)
     subject = Column(String(200), nullable=False)
     description = Column(Text, default="")
     category = Column(String(30), default="query")  # query | complaint | refund | script_issue | delivery | stock | other
@@ -1469,7 +1469,7 @@ class Message(Base, TenantMixin):
 class Authorisation(Base, TenantMixin):
     __tablename__ = "authorisations"
     id = Column(Integer, primary_key=True)
-    reference = Column(String(40), unique=True, nullable=False, index=True)
+    reference = Column(String(40), nullable=False, index=True)
     authorisation_number = Column(String(60), default="", index=True)  # the funder's own
     funder_id = Column(String(40), default="", index=True)
     switch_id = Column(String(40), default="")
@@ -1534,7 +1534,7 @@ class AuthorisationUse(Base, TenantMixin):
 class Remittance(Base, TenantMixin):
     __tablename__ = "remittances"
     id = Column(Integer, primary_key=True)
-    remittance_number = Column(String(60), unique=True, nullable=False, index=True)
+    remittance_number = Column(String(60), nullable=False, index=True)
     funder_id = Column(String(40), default="", index=True)
     payment_reference = Column(String(60), default="")
     payment_date = Column(Date, nullable=True)
@@ -1598,7 +1598,7 @@ class RemittanceLine(Base, TenantMixin):
 class TradingPeriod(Base, TenantMixin):
     __tablename__ = "trading_periods"
     id = Column(Integer, primary_key=True)
-    code = Column(String(10), unique=True, nullable=False, index=True)   # 202608
+    code = Column(String(10), nullable=False, index=True)   # 202608
     name = Column(String(60), default="")                                # August 2026
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
@@ -1673,7 +1673,7 @@ class OwedItem(Base, TenantMixin):
     """
     __tablename__ = "owed_items"
     id = Column(Integer, primary_key=True)
-    reference = Column(String(30), unique=True, nullable=False, index=True)
+    reference = Column(String(30), nullable=False, index=True)
     prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"),
                                   nullable=True, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True, index=True)
@@ -1823,7 +1823,7 @@ class Account(Base, TenantMixin):
 class JournalEntry(Base, TenantMixin):
     __tablename__ = "journal_entries"
     id = Column(Integer, primary_key=True)
-    reference = Column(String(30), unique=True, nullable=False, index=True)
+    reference = Column(String(30), nullable=False, index=True)
     period_code = Column(String(10), default="", index=True)
     entry_date = Column(Date, nullable=False, index=True)
     description = Column(String(240), default="")
@@ -1873,7 +1873,7 @@ class Waybill(Base, TenantMixin):
     """
     __tablename__ = "waybills"
     id = Column(Integer, primary_key=True)
-    waybill_number = Column(String(30), unique=True, nullable=False, index=True)
+    waybill_number = Column(String(30), nullable=False, index=True)
     sale_id = Column(Integer, ForeignKey("sales.id"), nullable=True, index=True)
     prescription_id = Column(Integer, ForeignKey("prescriptions.id"), nullable=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True, index=True)
@@ -1971,7 +1971,7 @@ class Branch(Base, TenantMixin):
     #: Which business this shop belongs to. The anchor of the whole tenancy:
     #: anything reachable from a branch is reachable from exactly one pharmacy.
     pharmacy_id = Column(Integer, ForeignKey("pharmacies.id"), nullable=True, index=True)
-    code = Column(String(12), unique=True, nullable=False, index=True)
+    code = Column(String(12), nullable=False, index=True)
     name = Column(String(120), nullable=False)
     # Its own registration: a branch is licensed in its own right, and the
     # number that prints on a receipt is the branch's, not the group's.
@@ -2000,7 +2000,7 @@ class BranchTransfer(Base, TenantMixin):
     __tablename__ = "branch_transfers"
 
     id = Column(Integer, primary_key=True)
-    reference = Column(String(30), unique=True, nullable=False, index=True)
+    reference = Column(String(30), nullable=False, index=True)
     from_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
     to_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
@@ -2075,7 +2075,7 @@ class LayBy(Base, TenantMixin):
     """
     __tablename__ = "laybys"
     id = Column(Integer, primary_key=True)
-    layby_number = Column(String(30), unique=True, nullable=False, index=True)
+    layby_number = Column(String(30), nullable=False, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
     # open | completed | cancelled
@@ -2164,7 +2164,7 @@ class StockTake(Base, TenantMixin):
     """
     __tablename__ = "stock_takes"
     id = Column(Integer, primary_key=True)
-    reference = Column(String(30), unique=True, nullable=False, index=True)
+    reference = Column(String(30), nullable=False, index=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
     # open | closed | abandoned
     status = Column(String(12), default="open", index=True)
@@ -2352,7 +2352,7 @@ class SampleReceipt(Base, TenantMixin):
     """
     __tablename__ = "sample_receipts"
     id = Column(Integer, primary_key=True)
-    reference = Column(String(30), unique=True, nullable=False, index=True)
+    reference = Column(String(30), nullable=False, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
     # Who left them. A company and a person, because the company is who the
     # pharmacy deals with and the person is who actually walked in.

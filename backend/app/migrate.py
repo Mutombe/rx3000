@@ -469,6 +469,126 @@ def _untangle_account_codes(conn, inspector, existing_tables: set) -> int:
     return 1
 
 
+#: Document numbers that belong to one pharmacy, not to the estate.
+#:
+#: Every one of these is produced by counting that pharmacy's OWN rows —
+#: `helpers.next_number` does `count() + 1` under the tenant filter, and the
+#: ledger's `next_reference` scans that tenant's highest. So two pharmacies with
+#: the same number of sales in the same month both generate `INV260800001`, and
+#: because the index was unique across the whole database the second one was
+#: refused. Two brand-new pharmacies making their first sale in the same month
+#: is not an edge case; it is opening week, and the failure lands at the till
+#: in the middle of serving somebody.
+#:
+#: `users.username` is deliberately absent: signing in names a user without
+#: naming a pharmacy, so it has to stay unique everywhere. So are the switch's
+#: own transaction id and a step-up token, which are allocated elsewhere.
+PER_TENANT_NUMBERS: list[tuple[str, str]] = [
+    ("sales", "sale_number"),
+    ("prescriptions", "rx_number"),
+    ("purchase_orders", "order_number"),
+    ("claims", "claim_number"),
+    ("claim_batches", "batch_number"),
+    ("waybills", "waybill_number"),
+    ("laybys", "layby_number"),
+    ("quotes", "quote_number"),
+    ("tickets", "ticket_number"),
+    ("stock_takes", "reference"),
+    ("remittances", "remittance_number"),
+    ("authorisations", "reference"),
+    ("branch_transfers", "reference"),
+    ("sample_receipts", "reference"),
+    ("owed_items", "reference"),
+    ("branches", "code"),
+    ("trading_periods", "code"),
+    ("journal_entries", "reference"),
+    ("mixtures", "code"),
+]
+
+
+def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
+    """Move each document number's uniqueness from the estate to the pharmacy.
+
+    Dropping a unique index is safe in the way that adding one is not: nothing
+    that was legal becomes illegal. The composite that replaces it is created
+    only where the data allows — if one pharmacy really does hold the same
+    number twice, that is a data problem to be seen rather than a migration to
+    fail the boot on, so it is logged and the plain index stands.
+    """
+    moved = 0
+    for table, column in PER_TENANT_NUMBERS:
+        if table not in existing_tables:
+            continue
+        columns = {c["name"] for c in inspector.get_columns(table)}
+        if column not in columns or "pharmacy_id" not in columns:
+            continue
+
+        indexes = {i["name"]: i for i in inspector.get_indexes(table)}
+        composite = f"uq_{table}_tenant_{column}"
+        if composite in indexes:
+            continue                                  # already moved
+
+        # A UNIQUE constraint and a unique index are the same thing to read and
+        # different things to drop, and which one you have depends on whether
+        # the model said `index=True` beside `unique=True`.
+        #
+        # Postgres reports a constraint's backing index in get_indexes() as
+        # well, and then refuses to drop it: "cannot drop index … because
+        # constraint … requires it". So the constraint is looked for FIRST and
+        # dropped by name; only a plain index is dropped as an index.
+        constraint = None
+        try:
+            constraint = next(
+                (u["name"] for u in inspector.get_unique_constraints(table)
+                 if u["column_names"] == [column] and u.get("name")), None)
+        except NotImplementedError:                   # pragma: no cover
+            constraint = None
+
+        dropped = False
+        if constraint and conn.dialect.name.startswith("postgres"):
+            conn.execute(text(f'ALTER TABLE {table} DROP CONSTRAINT "{constraint}"'))
+            dropped = True
+        elif constraint:
+            # SQLite cannot drop a table constraint without rebuilding the
+            # table. It is left alone on purpose: a SQLite file here is a
+            # developer's or a desktop install serving one pharmacy, and a
+            # number unique across a database holding one pharmacy is unique
+            # within that pharmacy. Rebuilding a live table at startup to fix
+            # something that cannot happen there is the riskier choice.
+            log.info("%s.%s stays estate-wide on SQLite; it is a table "
+                     "constraint, and one file holds one pharmacy", table, column)
+            continue
+        else:
+            plain = next((n for n, i in indexes.items()
+                          if i.get("unique") and i.get("column_names") == [column]),
+                         None)
+            if plain:
+                conn.execute(text(f"DROP INDEX {plain}"))
+                dropped = True
+
+        if not dropped:
+            continue
+        conn.execute(text(
+            f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
+
+        clash = conn.execute(text(
+            f"SELECT COUNT(*) FROM (SELECT pharmacy_id, {column} FROM {table} "
+            f"WHERE {column} IS NOT NULL "
+            f"GROUP BY pharmacy_id, {column} HAVING COUNT(*) > 1) d")).scalar()
+        if clash:
+            log.warning("%s.%s is duplicated %d time(s) within one pharmacy; "
+                        "left indexed but not unique", table, column, clash)
+            moved += 1
+            continue
+
+        conn.execute(text(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS {composite} "
+            f"ON {table} (pharmacy_id, {column})"))
+        log.info("%s.%s is now unique within each pharmacy", table, column)
+        moved += 1
+    return moved
+
+
 def _create_indexes(conn, inspector, existing_tables: set) -> int:
     """Add the indexes the queries actually need.
 
@@ -623,6 +743,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
+        applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
     # The tidying passes run in their own transactions, and a failure in one is
