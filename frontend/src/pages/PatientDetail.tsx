@@ -23,6 +23,11 @@ type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 interface HistoryLine {
   date: string; product: string; strength: string; quantity: number;
   dosage: string; is_repeat: boolean; rx_number: string; dispensed_by: string;
+  // The ids behind the three names above. The endpoint held all of them and
+  // sent none, so every name in the history table was a dead end.
+  product_id: number | null;
+  prescription_id: number | null;
+  dispensed_by_id: number | null;
 }
 
 export default function PatientDetail() {
@@ -319,14 +324,30 @@ export default function PatientDetail() {
             <thead><tr><th>Date</th><th>Medication</th><th className="num">Qty</th><th>Dosage</th><th>Type</th><th>Script</th><th>By</th></tr></thead>
             <tbody>
               {history.map((h, i) => (
+                // Every name in this row is a record. They were all printed as
+                // text while the endpoint held the ids and sent none of them,
+                // so "which script was this?" meant leaving the patient and
+                // searching by number.
                 <tr key={i}>
                   <td>{fmtDateTime(h.date)}</td>
-                  <td>{h.product} {h.strength}</td>
+                  <td>
+                    <EntityLink kind="product" id={h.product_id}>
+                      {h.product} {h.strength}
+                    </EntityLink>
+                  </td>
                   <td className="num">{h.quantity}</td>
                   <td>{h.dosage}</td>
                   <td>{h.is_repeat ? <span className="badge">Repeat</span> : <span className="badge muted">Original</span>}</td>
-                  <td className="mono">{h.rx_number}</td>
-                  <td>{h.dispensed_by}</td>
+                  <td className="mono">
+                    <EntityLink kind="prescription" id={h.prescription_id}>
+                      {h.rx_number}
+                    </EntityLink>
+                  </td>
+                  <td>
+                    <EntityLink kind="staff" id={h.dispensed_by_id}>
+                      {h.dispensed_by}
+                    </EntityLink>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -343,7 +364,9 @@ export default function PatientDetail() {
               {sales.map((s) => (
                 <tr key={s.id}>
                   <td>{fmtDateTime(s.created_at)}</td>
-                  <td className="mono">{s.sale_number}</td>
+                  <td className="mono">
+                    <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
+                  </td>
                   <td>{s.items.map((i) => i.description).join(", ")}</td>
                   <td>{s.payment_method.replace("_", " ")}</td>
                   <td className="num">{money(s.total)}</td>

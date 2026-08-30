@@ -6,6 +6,7 @@ const WillCall = lazy(() => import("./pages/WillCall"));
 const Samples = lazy(() => import("./pages/Samples"));
 const Recall = lazy(() => import("./pages/Recall"));
 const Payables = lazy(() => import("./pages/Payables"));
+const ClaimBatchDetail = lazy(() => import("./pages/ClaimBatchDetail"));
 const DispensingHistory = lazy(() => import("./pages/DispensingHistory"));
 const MoneyOwed = lazy(() => import("./pages/MoneyOwed"));
 const WillCallBag = lazy(() => import("./pages/WillCallBag"));
@@ -148,6 +149,7 @@ export default function App() {
                 <Route path="/claiming-calendar" element={<SchemeCalendar />} />
                 <Route path="/suppliers/:id" element={<SupplierDetail />} />
                 <Route path="/claims/:id" element={<ClaimDetail />} />
+                <Route path="/claim-batches/:id" element={<ClaimBatchDetail />} />
                 <Route path="/batches/:id" element={<BatchDetail />} />
                 <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
                 <Route path="/staff/:id" element={<StaffDetail />} />

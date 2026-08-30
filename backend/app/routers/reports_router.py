@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth import get_current_user
 from ..config import settings
@@ -181,11 +181,26 @@ def patient_history(patient_id: int, db: Session = Depends(get_db)):
     patient = db.get(Patient, patient_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
+    # Joined for filtering AND loaded for reading.
+    #
+    # The joins below narrow to one patient; they do not populate anything. So
+    # every one of the two hundred rows then went back to the database four
+    # times over — for its line, that line's product, the script it belongs to
+    # and who handed it over. Eight hundred round trips to draw one table. On
+    # SQLite that is invisible; on the hosted database it is over a minute, and
+    # a patient's history is opened at the counter with somebody waiting.
     dispensings = (
         db.query(Dispensing)
         .join(Dispensing.prescription_item)
         .join(PrescriptionItem.prescription)
         .filter_by(patient_id=patient_id)
+        .options(
+            joinedload(Dispensing.prescription_item)
+            .joinedload(PrescriptionItem.product),
+            joinedload(Dispensing.prescription_item)
+            .joinedload(PrescriptionItem.prescription),
+            joinedload(Dispensing.dispensed_by),
+        )
         .order_by(Dispensing.dispensed_at.desc())
         .limit(200)
         .all()
@@ -193,13 +208,20 @@ def patient_history(patient_id: int, db: Session = Depends(get_db)):
     return [
         {
             "date": d.dispensed_at.isoformat(),
+            # Every name here is a record somebody will want to open. The ids
+            # were all in hand and none of them were sent, so a pharmacist
+            # asking "which script was this?" had to go and search for it by
+            # number on another screen.
             "product": d.prescription_item.product.name,
+            "product_id": d.prescription_item.product_id,
             "strength": d.prescription_item.product.strength,
             "quantity": d.quantity,
             "dosage": d.prescription_item.dosage_instructions,
             "is_repeat": d.is_repeat,
             "rx_number": d.prescription_item.prescription.rx_number,
+            "prescription_id": d.prescription_item.prescription_id,
             "dispensed_by": d.dispensed_by.full_name if d.dispensed_by else "",
+            "dispensed_by_id": d.dispensed_by_id,
         }
         for d in dispensings
     ]

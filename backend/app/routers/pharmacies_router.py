@@ -165,22 +165,14 @@ def update_pharmacy(pharmacy_id: int, body: dict, db: Session = Depends(get_db),
         return _out(pharmacy, _counts(db))
 
 
-@router.get("/{pharmacy_id}/users")
-def pharmacy_users(pharmacy_id: int, db: Session = Depends(get_db),
-                   _: User = Depends(require_platform_admin)):
-    """Who belongs to this pharmacy."""
-    with tenancy.unscoped():
-        if db.get(Pharmacy, pharmacy_id) is None:
-            raise HTTPException(status_code=404, detail="No such pharmacy.")
-        rows = (db.query(User).filter(User.pharmacy_id == pharmacy_id)
-                .order_by(User.full_name).all())
-        return {"items": [{
-            "id": u.id, "username": u.username, "full_name": u.full_name,
-            "role": u.role, "active": bool(u.active),
-            "is_platform_admin": bool(u.is_platform_admin),
-        } for u in rows]}
-
-
+# Declared BEFORE /{pharmacy_id}/users, and it has to stay that way.
+#
+# FastAPI matches paths in the order they are registered, so with the
+# parameterised route first, "unassigned" was handed to it as a pharmacy id.
+# The screen asked for the people who belong to nowhere and got a 422 saying
+# "Input should be a valid integer" — a page that quietly failed, on the one
+# list whose whole purpose is to notice people who would otherwise sign in and
+# see nothing.
 @router.get("/unassigned/users")
 def unassigned_users(db: Session = Depends(get_db),
                      _: User = Depends(require_platform_admin)):
@@ -197,6 +189,22 @@ def unassigned_users(db: Session = Depends(get_db),
         return {"items": [{
             "id": u.id, "username": u.username, "full_name": u.full_name,
             "role": u.role, "active": bool(u.active),
+        } for u in rows]}
+
+
+@router.get("/{pharmacy_id}/users")
+def pharmacy_users(pharmacy_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(require_platform_admin)):
+    """Who belongs to this pharmacy."""
+    with tenancy.unscoped():
+        if db.get(Pharmacy, pharmacy_id) is None:
+            raise HTTPException(status_code=404, detail="No such pharmacy.")
+        rows = (db.query(User).filter(User.pharmacy_id == pharmacy_id)
+                .order_by(User.full_name).all())
+        return {"items": [{
+            "id": u.id, "username": u.username, "full_name": u.full_name,
+            "role": u.role, "active": bool(u.active),
+            "is_platform_admin": bool(u.is_platform_admin),
         } for u in rows]}
 
 

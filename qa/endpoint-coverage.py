@@ -21,10 +21,21 @@ been reported as delivered on the strength of the backend and its reports.
 
 HOW IT DECIDES
 
-A route counts as called if the literal part of its path — everything before the
-first `{` — appears anywhere under frontend/src. A template literal like
-`/api/laybys/${id}/pay` contains `/api/laybys/`, so prefix matching is what works
-against a real front end.
+Every `/api/...` string in the front end is extracted and normalised — `${...}`
+becomes a wildcard, the query string is dropped — and each route is matched
+against those by SHAPE: same number of segments, with each literal segment equal
+and each parameter matching anything.
+
+It used to match on prefix alone: everything before the first `{` appearing
+anywhere under frontend/src. That is too generous in one specific and damaging
+way. `/api/claiming/batches/{batch_id}` reduces to `/api/claiming/batches`, which
+the front end certainly contains — inside the URL for
+`/api/claiming/batches/${id}/submit`. So a route that nothing opened was
+reported as called, on the strength of a longer sibling. That route returned an
+entire claim batch with every claim inside it, and no screen in the product had
+ever asked for it; a pharmacy could see that a batch came back short and had no
+way to find out which claims were cut. The audit said zero gaps while that was
+true, which is worse than no audit.
 
 WHAT A FINDING IS NOT
 
@@ -40,6 +51,7 @@ So this prints a list to read, not a defect count. The value is that a subsystem
 with a dozen uncalled routes is visible immediately, which is how the six above
 were found.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -97,6 +109,47 @@ def frontend_text() -> str:
     return "\n".join(parts)
 
 
+#: Every `/api/...` up to the quote, backtick, whitespace or query that ends it.
+URL = re.compile(r"/api/[A-Za-z0-9_\-./${}\[\]()]*")
+#: A `${...}` interpolation, however nested — collapsed to one wildcard segment.
+INTERP = re.compile(r"\$\{[^}]*\}")
+
+
+def called_shapes(ui: str) -> list[list[str]]:
+    """Every API path the front end mentions, as a list of segments.
+
+    An interpolated segment becomes `*`. A segment that merely *contains* an
+    interpolation (`/api/x/${a}-${b}`) is a wildcard too: what it resolves to is
+    not knowable from here, and guessing would only ever produce false
+    confidence.
+    """
+    shapes = []
+    for raw in URL.findall(ui):
+        # Whatever closed the string in the source, plus a trailing slash.
+        path = raw.split("?")[0].rstrip('''/`"' )''')
+        if not path.startswith("/api"):
+            continue
+        segs = []
+        for seg in path.strip("/").split("/"):
+            segs.append("*" if INTERP.search(seg) or "$" in seg else seg)
+        shapes.append(segs)
+    return shapes
+
+
+def matches(route: list[str], used: list[str]) -> bool:
+    """Would this front-end path reach this route?"""
+    if len(route) != len(used):
+        return False
+    for a, b in zip(route, used):
+        if b == "*":              # the front end interpolates here
+            continue
+        if a.startswith("{"):     # the route takes a parameter here
+            continue
+        if a != b:
+            return False
+    return True
+
+
 def main() -> int:
     show_all = "--all" in sys.argv
 
@@ -121,10 +174,16 @@ def main() -> int:
                   f"matching is broken")
             return 2
 
+    shapes = called_shapes(ui)
+    if len(shapes) < 200:
+        print(f"FAIL: only {len(shapes)} API paths found in the front end — the "
+              f"extraction is broken, so almost everything would look uncalled")
+        return 2
+
     uncalled = {}
     for path in routes:
-        stem = path.split("{")[0].rstrip("/")
-        if stem and stem in ui:
+        segs = path.strip("/").split("/")
+        if any(matches(segs, used) for used in shapes):
             continue
         area = "/".join(path.split("/")[:3])
         uncalled.setdefault(area, []).append(path)

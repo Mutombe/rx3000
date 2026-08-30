@@ -89,11 +89,13 @@ export function Path({ stages, current, onPick, lostKey }: {
 }
 
 /** Key-field strip that sits directly under a record title. */
-export function Highlights({ items }: { items: { label: string; value: ReactNode; hint?: ReactNode }[] }) {
+export function Highlights({ items }: {
+  items: { label: string; value: ReactNode; hint?: ReactNode; tone?: string }[];
+}) {
   return (
     <div className="highlights">
       {items.map((h) => (
-        <div key={h.label} className="highlight">
+        <div key={h.label} className={`highlight${h.tone ? ` is-${h.tone}` : ""}`}>
           <div className="label">{h.label}</div>
           <div className="value">{h.value}</div>
           {h.hint && <div className="hint">{h.hint}</div>}

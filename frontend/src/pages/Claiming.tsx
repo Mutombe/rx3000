@@ -430,7 +430,15 @@ export default function Claiming() {
                     const short = round2(b.total_claimed - b.total_settled);
                     return (
                       <tr key={b.id}>
-                        <td className="mono" title={b.batch_number}>{b.batch_number}</td>
+                        {/* The batch opens. A batch that came back short is a
+                            figure nobody can act on until they can see which
+                            claims were cut, and the endpoint behind that page
+                            had been written since claiming was. */}
+                        <td className="mono" title={b.batch_number}>
+                          <EntityLink kind="claim_batch" id={b.id}>
+                            {b.batch_number}
+                          </EntityLink>
+                        </td>
                         <td>{officeName(b.pay_office_id)}</td>
                         <td className="muted">
                           {b.period_from ? fmtDate(b.period_from) : "—"}

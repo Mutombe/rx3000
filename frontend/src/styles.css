@@ -3743,6 +3743,29 @@ main td > .badge:only-child { margin-top: 0; }
 .cbx-hint { font-size: var(--t-sm); color: var(--ink-soft); }
 /* Stacked checkboxes in a form need the same rhythm as fields do. */
 .cbx-spaced { margin-bottom: var(--s3); }
+
+/* A finger is not a mouse pointer.
+ *
+ * The drawn box is 18px because that is the right size to look at. The thing
+ * you touch is the label, and on a phone that came to 19px tall — half what a
+ * thumb can reliably hit, and worse on the row-selection column where there is
+ * no text beside the box to widen it. Nine of them side by side on the leads
+ * screen, each one 18px square.
+ *
+ * The box stays 18px; the touchable area grows around it with a pseudo-element,
+ * so nothing moves and nothing else has to be re-laid-out. Only under a coarse
+ * pointer — on a desktop the 18px target is already easy, and a 44px invisible
+ * hit area there would swallow clicks meant for the row behind it. */
+@media (pointer: coarse) {
+  .cbx { position: relative; align-items: center; min-height: 28px; }
+  .cbx::before {
+    content: ""; position: absolute; left: -9px; top: 50%;
+    width: 36px; height: 36px; transform: translateY(-50%);
+  }
+  /* Where the label carries text, the text is already part of the target and
+     the box only needs vertical room. */
+  .cbx .cbx-box { margin-top: 0; }
+}
 /* The shared check row no longer nests a label inside a label. */
 .check-row { display: flex; align-items: flex-start; gap: var(--s3); }
 .check-row label { margin: 0; font-weight: 400; }
@@ -4191,7 +4214,26 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 
 /* Setting a PIN: two codes and a password, side by side where there is room. */
 .pin-setup { display: flex; gap: var(--s5); flex-wrap: wrap; align-items: flex-end; }
-.pin-setup .lock-field input[type="password"] { min-width: 14rem; height: 54px; }
+/* The direct child only.
+ *
+ * A PIN box IS an input[type="password"] — that is how the digits are masked —
+ * so the unscoped selector below gave all eight of them a 224px minimum. Two
+ * four-digit PINs came to 1792px of boxes on a screen 390px wide, which pushed
+ * the whole profile page sideways and looked, on a desktop, like three enormous
+ * empty fields. The password field is a direct child of its label; a PIN box
+ * sits inside `.pin`, so `>` separates them exactly. */
+.pin-setup .lock-field > input[type="password"] { min-width: 14rem; height: 54px; }
+
+/* On a phone the three fields stack. Side by side they cannot fit, and
+   `flex-wrap` alone leaves the last one half a screen wide. */
+@media (max-width: 640px) {
+  .pin-setup { flex-direction: column; align-items: stretch; gap: var(--s4); }
+  .pin-setup .lock-field > input[type="password"] { min-width: 0; width: 100%; }
+  /* Four boxes across a narrow screen, sharing what room there is rather than
+     each insisting on 46px and overflowing together. */
+  .pin { display: flex; }
+  .pin-box { width: auto; flex: 1 1 0; min-width: 0; max-width: 72px; }
+}
 
 /* ---------- the assistant's state, while it is in it ----------
    A label that shimmers rather than a spinner that turns. The reader is waiting
@@ -5528,3 +5570,13 @@ table.dt.sub th { font-size: var(--t-xs); }
 .coa-group .dt { margin-top: 0; }
 .coa-group tr.is-muted td { opacity: .55; }
 .coa-group .badge { margin-left: 6px; }
+
+/* A highlight whose figure is the wrong way round.
+ *
+ * The rail, not the number: a coloured heading reads as decoration, a coloured
+ * edge reads as a flag. Same vocabulary as the table rows, so a red rail means
+ * the same thing wherever it appears. */
+.highlight.is-bad    { box-shadow: inset 3px 0 0 var(--danger); }
+.highlight.is-bad .value { color: var(--danger); }
+.highlight.is-warn   { box-shadow: inset 3px 0 0 var(--warn); }
+.highlight.is-ok     { box-shadow: inset 3px 0 0 var(--ok); }

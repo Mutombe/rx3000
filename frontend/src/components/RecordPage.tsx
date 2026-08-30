@@ -18,6 +18,11 @@ export interface Fact {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
+  /** "ok" | "warn" | "bad" — for a figure that is the wrong way round.
+   *
+   *  Sparingly. If every highlight is coloured then none of them is, and the
+   *  one that means somebody must act today stops being findable. */
+  tone?: string;
 }
 
 export default function RecordPage({

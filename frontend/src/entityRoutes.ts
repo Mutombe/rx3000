@@ -11,6 +11,10 @@ export const ENTITY_ROUTES = {
   campaign: (id: Id) => `/campaigns/${id}`,
   case: (id: Id) => `/cases/${id}`,
   claim: (id: Id) => `/claims/${id}`,
+  // The claim batch, not the stock batch above it. Two different
+  // things called a batch in one pharmacy, and conflating them sends
+  // somebody chasing a wholesaler's lot number for a short payment.
+  claim_batch: (id: Id) => `/claim-batches/${id}`,
   contact: (id: Id) => `/contacts/${id}`,
   deal: (id: Id) => `/deals/${id}`,
   invoice: (id: Id) => `/payables/invoices/${id}`,

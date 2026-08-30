@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import desc, func, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, icd10, schemas
 from ..auth import get_current_user, require_role
@@ -380,16 +380,80 @@ def settle_batch(batch_id: int, body: schemas.BatchSettlement, db: Session = Dep
     return batch
 
 
-@router.get("/batches/{batch_id}", response_model=schemas.ClaimBatchDetail)
+@router.get("/batches/{batch_id}")
 def get_batch(batch_id: int, db: Session = Depends(get_db)):
+    """One batch, and every claim inside it — with who each one is for.
+
+    A batch that came back four hundred dollars short is a number nobody can
+    act on. The question is always which claims were cut and by how much, and
+    answering it needs the patient's name beside the figure: a claim number on
+    its own is a reference to something the pharmacist then has to go and look
+    up one at a time.
+
+    This returned bare ClaimOut rows — number, amount, status — and no screen
+    called it, so a short-paid batch could be seen and never opened.
+    """
     batch = db.get(ClaimBatch, batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
-    shortfall = round(batch.total_claimed - batch.total_settled, 2) if batch.settled_at else 0.0
+
+    # Loaded, not walked. One query for the patients and one for the sales
+    # rather than two per claim; a month's batch runs to hundreds of lines.
+    claims = (db.query(Claim)
+              .filter(Claim.batch_id == batch_id)
+              .options(joinedload(Claim.patient), joinedload(Claim.sale))
+              .order_by(Claim.id).all())
+
+    settled = bool(batch.settled_at)
+    lines = []
+    for c in claims:
+        # Per claim, the same arithmetic the batch does in total. Only once the
+        # batch is settled: a claim that has not been paid yet is not short, it
+        # is outstanding, and colouring it red teaches staff to ignore red.
+        short = round(c.amount_claimed - c.settled_amount, 2) if settled else 0.0
+        lines.append({
+            "id": c.id,
+            "claim_number": c.claim_number,
+            "status": c.status,
+            "patient": (f"{c.patient.first_name} {c.patient.last_name}".strip()
+                        if c.patient else ""),
+            "patient_id": c.patient_id,
+            "sale_id": c.sale_id,
+            "sale_number": c.sale.sale_number if c.sale else "",
+            "gross": round(c.gross, 2),
+            "levy": round(c.levy, 2),
+            "amount_claimed": round(c.amount_claimed, 2),
+            "amount_approved": round(c.amount_approved, 2),
+            "settled_amount": round(c.settled_amount, 2),
+            "shortfall": short if short > 0.005 else 0.0,
+            "patient_liable": round(c.patient_liable, 2),
+            "response_message": c.response_message or "",
+            "created_at": c.created_at,
+        })
+
+    shortfall = round(batch.total_claimed - batch.total_settled, 2) if settled else 0.0
+    short_lines = [l for l in lines if l["shortfall"] > 0.005]
     return {
-        "batch": batch,
+        "batch": schemas.ClaimBatchOut.model_validate(batch),
+        "settled": settled,
         "shortfall": shortfall,
-        "claims": batch.claims,
+        # The difference between what the batch is short overall and what the
+        # named lines account for. It should be nought; when it is not, the
+        # scheme has deducted something that is not attributable to any single
+        # claim — a levy adjustment, an old recovery — and that is worth seeing
+        # rather than absorbing into a rounding difference.
+        "unattributed": round(shortfall - sum(l["shortfall"] for l in short_lines), 2),
+        "short_count": len(short_lines),
+        "rejected": len([l for l in lines if l["status"] == "rejected"]),
+        # The batch keeps its own count. When it disagrees with the claims
+        # actually attached, something detached them — a reversal, a migration
+        # from another system, a partial import — and the totals on the batch
+        # are then describing claims nobody can see. Reported rather than
+        # papered over: a page that shows "5 claims" beside an empty table has
+        # told the reader two things and left them to pick.
+        "counted_on_batch": batch.claim_count or 0,
+        "found": len(lines),
+        "claims": lines,
     }
 
 
