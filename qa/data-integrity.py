@@ -22,6 +22,10 @@ WHAT IT FOUND
   * Sixty-nine claim batches recording 450 claims between them, with not one
     claim attached to any of them.
 
+Rows carry their pharmacy where a table has one. On a shared database "1,029
+products disagree" is not a sentence any single pharmacy can act on, and a
+number that belongs to nobody is a number nobody works down.
+
 A finding here is not automatically a bug in the code — data can be imported,
 corrected by hand, or migrated from another system. It is a place where two
 numbers that must match do not, which is always worth a look.
@@ -53,7 +57,8 @@ CHECKS: list[tuple[str, str, str]] = [
         "product's own count. Where they differ the two describe the same shelf "
         "differently.",
         """
-        SELECT p.id, p.name, p.quantity_on_hand AS own_count,
+        SELECT p.id, p.pharmacy_id AS pharmacy, p.name,
+               p.quantity_on_hand AS own_count,
                COALESCE(b.held, 0) AS in_batches,
                p.quantity_on_hand - COALESCE(b.held, 0) AS out_by
         FROM products p
@@ -69,7 +74,7 @@ CHECKS: list[tuple[str, str, str]] = [
         "A shelf cannot hold minus seven of anything. It is arithmetic showing "
         "through, and it reaches a dispenser as a stock figure.",
         """
-        SELECT id, name, quantity_on_hand
+        SELECT id, pharmacy_id AS pharmacy, name, quantity_on_hand
         FROM products WHERE quantity_on_hand < 0 ORDER BY quantity_on_hand
         """,
     ),
@@ -98,7 +103,8 @@ CHECKS: list[tuple[str, str, str]] = [
         "The total is what was charged and banked; the lines are what was sold. "
         "A sale where they differ cannot be reconciled against either.",
         """
-        SELECT s.id, s.sale_number, ROUND(s.total, 2) AS charged,
+        SELECT s.id, s.pharmacy_id AS pharmacy, s.sale_number,
+               ROUND(s.total, 2) AS charged,
                ROUND(COALESCE(i.lines, 0), 2) AS lines_come_to
         FROM sales s
         LEFT JOIN (SELECT sale_id, SUM(line_total) AS lines
