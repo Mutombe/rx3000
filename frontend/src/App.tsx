@@ -7,6 +7,7 @@ const Samples = lazy(() => import("./pages/Samples"));
 const Recall = lazy(() => import("./pages/Recall"));
 const Payables = lazy(() => import("./pages/Payables"));
 const ClaimBatchDetail = lazy(() => import("./pages/ClaimBatchDetail"));
+const WaybillDetail = lazy(() => import("./pages/WaybillDetail"));
 const DispensingHistory = lazy(() => import("./pages/DispensingHistory"));
 const MoneyOwed = lazy(() => import("./pages/MoneyOwed"));
 const WillCallBag = lazy(() => import("./pages/WillCallBag"));
@@ -169,6 +170,7 @@ export default function App() {
                 <Route path="/pharmacies" element={<Pharmacies />} />
                 <Route path="/remittances/:id" element={<RemittanceDetail />} />
                 <Route path="/deliveries" element={<Deliveries />} />
+                <Route path="/waybills/:id" element={<WaybillDetail />} />
                 <Route path="/repeats" element={<Repeats />} />
                 <Route path="/ledger" element={<Ledger />} />
                 <Route path="/ledger/entries/:id" element={<JournalDetail />} />

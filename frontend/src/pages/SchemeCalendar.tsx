@@ -42,12 +42,29 @@ function when(days: number | null, on: string | null): string {
   return `${days} days · ${fmtDate(on)}`;
 }
 
+/** How a funder has actually behaved, out of our own claim history.
+ *
+ *  Everything here is a fact about what we sent and what came back — no
+ *  estimate, no projection — because somebody deciding whether to keep
+ *  supplying a scheme on credit is owed figures they could check themselves.
+ */
+interface Standing {
+  scheme: string; claims: number; claimed: number; settled: number;
+  outstanding: number; rejected: number; recovery: number | null;
+  overdue_claims: number; overdue_value: number;
+  // A ratio, not a percentage — 0.1277 means 13%. The existing panel already
+  // multiplies; getting it wrong here printed "0.1277%" beside a credit limit.
+  oldest_overdue_days: number | null; late_after_days: number;
+  settles_in: string; verdict: string; why: string;
+}
+
 export default function SchemeCalendar() {
   const [data, setData] = useState<Calendar | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [editing, setEditing] = useState<Scheme | null>(null);
+  const [standing, setStanding] = useState<Standing | null>(null);
   const [form, setForm] = useState({
     cutoff: "", settle: "", terms: "", ref: "", note: "",
     levyFixed: "", levyPercent: "", discount: "", markup: "", credit: "",
@@ -69,6 +86,15 @@ export default function SchemeCalendar() {
 
   function open(scheme: Scheme) {
     setEditing(scheme);
+    // How this funder has paid us, beside the terms we agreed with them. The
+    // endpoint has existed since insurance standing was written and nothing
+    // called it, so the screen where somebody sets a credit limit had no idea
+    // whether the scheme settles at all.
+    setStanding(null);
+    api.get<Standing>(`/api/medical-aids/${scheme.id}/standing`)
+      .then(setStanding)
+      // A standing that cannot be read must not stop anybody editing terms.
+      .catch(() => setStanding(null));
     setForm({
       cutoff: scheme.claim_cutoff_day ? String(scheme.claim_cutoff_day) : "",
       settle: scheme.settlement_day ? String(scheme.settlement_day) : "",
@@ -259,6 +285,47 @@ export default function SchemeCalendar() {
         <div className="modal-backdrop" onClick={() => setEditing(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editing.name}</h2>
+
+            {standing && standing.claims > 0 && (
+              // Facts before terms. Setting a credit limit for a funder that
+              // has settled 42% of what it was sent is a different decision
+              // from setting one for a funder that settles everything.
+              <div className={`sc-standing is-${standing.verdict}`}>
+                <div className="sc-standing-head">
+                  <b>How they have actually paid</b>
+                  <span className="muted small">
+                    {standing.claims.toLocaleString()} claims
+                    {standing.settles_in ? ` · settles in ${standing.settles_in}` : ""}
+                  </span>
+                </div>
+                <div className="sc-standing-facts">
+                  <div>
+                    <span className="muted small">Recovered</span>
+                    <b>{standing.recovery === null
+                      ? <span className="muted">not yet</span>
+                      : `${Math.round(standing.recovery * 100)}%`}</b>
+                  </div>
+                  <div>
+                    <span className="muted small">Outstanding</span>
+                    <b>{money(standing.outstanding)}</b>
+                  </div>
+                  <div>
+                    <span className="muted small">
+                      Late past {standing.late_after_days} days
+                    </span>
+                    <b className={standing.overdue_value > 0.005 ? "neg" : undefined}>
+                      {money(standing.overdue_value)}
+                    </b>
+                  </div>
+                  <div>
+                    <span className="muted small">Refused</span>
+                    <b>{standing.rejected}</b>
+                  </div>
+                </div>
+                <p className="muted small">{standing.why}</p>
+              </div>
+            )}
+
             <p className="muted">
               What was agreed with this funder. A day of the month for each,
               or terms in days where the memorandum is written that way.

@@ -5580,3 +5580,87 @@ table.dt.sub th { font-size: var(--t-xs); }
 .highlight.is-bad .value { color: var(--danger); }
 .highlight.is-warn   { box-shadow: inset 3px 0 0 var(--warn); }
 .highlight.is-ok     { box-shadow: inset 3px 0 0 var(--ok); }
+
+/* ---- chain of custody ---------------------------------------------------
+ *
+ * A step that has not happened yet is shown greyed rather than hidden. "Not
+ * dispatched" is the answer to "where is it"; an absent row answers nothing.
+ */
+.wb-steps { list-style: none; margin: 0; padding: 0; }
+.wb-step {
+  display: grid; align-items: baseline; gap: 4px 14px;
+  grid-template-columns: 12rem 14rem 1fr;
+  padding: 10px 0 10px 18px; position: relative;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink-soft);
+}
+.wb-step:last-child { border-bottom: 0; }
+/* The rail and the node, so three rows read as one sequence. */
+.wb-step::before {
+  content: ""; position: absolute; left: 3px; top: 16px;
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 2px solid var(--line-strong); background: var(--surface);
+}
+.wb-step::after {
+  content: ""; position: absolute; left: 7px; top: 25px; bottom: -1px;
+  width: 1px; background: var(--line);
+}
+.wb-step:last-child::after { display: none; }
+.wb-step.is-done { color: var(--ink); }
+.wb-step.is-done::before { border-color: var(--accent); background: var(--accent); }
+.wb-step-label { font-weight: 600; }
+.wb-step-when { font-variant-numeric: tabular-nums; }
+.wb-step-who { font-size: var(--t-sm); }
+.wb-step-note { grid-column: 2 / -1; font-size: var(--t-sm); }
+@media (max-width: 720px) {
+  .wb-step { grid-template-columns: 1fr; gap: 2px; }
+  .wb-step-note { grid-column: 1; }
+}
+
+/* The department control on a product record. Beside the name rather than
+   buried in a tab: an unfiled product is the commonest reason a stock report
+   shows a large "uncategorised" line nobody can explain, and it is fixed in
+   the two seconds somebody is already looking at the product. */
+.pd-department {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+}
+.pd-department .sel-trigger { min-width: 12rem; }
+
+/* ---- how a funder has actually paid -------------------------------------
+ *
+ * Shown above the terms, not below them. Setting a credit limit for a scheme
+ * that has settled 42% of what it was sent is a different decision from
+ * setting one for a scheme that settles everything, and the order on the page
+ * is what makes that obvious.
+ */
+.sc-standing {
+  margin: 12px 0 16px; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--line-strong);
+}
+.sc-standing.is-good  { box-shadow: inset 3px 0 0 var(--ok); }
+.sc-standing.is-slow  { box-shadow: inset 3px 0 0 var(--warn); }
+.sc-standing.is-poor,
+.sc-standing.is-bad   { box-shadow: inset 3px 0 0 var(--danger); }
+.sc-standing-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; margin-bottom: 8px;
+}
+.sc-standing-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 10px 16px; margin-bottom: 6px;
+}
+.sc-standing-facts > div { display: flex; flex-direction: column; gap: 1px; }
+.sc-standing-facts b { font-variant-numeric: tabular-nums; }
+
+/* Try a price against a fee model's bands. A five-tier table is arithmetic
+   nobody does correctly in their head, and the band a price falls into is the
+   thing people read off by one. */
+.fm-try {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 10px 0 4px;
+}
+.fm-try input { max-width: 8rem; }
+.fm-quote { font-size: var(--t-sm); }
+.fm-quote b { font-variant-numeric: tabular-nums; }

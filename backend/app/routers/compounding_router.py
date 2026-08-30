@@ -47,12 +47,9 @@ def create_mixture(body: schemas.MixtureCreate, db: Session = Depends(get_db)):
     return mixture
 
 
-@router.get("/mixtures/{mixture_id}", response_model=schemas.MixtureOut)
-def get_mixture(mixture_id: int, db: Session = Depends(get_db)):
-    mixture = db.get(Mixture, mixture_id)
-    if not mixture:
-        raise HTTPException(status_code=404, detail="Mixture not found")
-    return mixture
+# GET /mixtures/{id} was here. The screen reads the whole list and then
+# /mixtures/{id}/cost for the one it opens, so a second fetch of the same
+# record answered a question nothing asked.
 
 
 @router.get("/mixtures/{mixture_id}/cost")

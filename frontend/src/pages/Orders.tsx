@@ -2,12 +2,13 @@ import { Fragment, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { api, fmtDateTime, money, errorText  } from "../api";
+import NewOrder from "../components/NewOrder";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, PurchaseOrder } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
-import { Lightning } from "@phosphor-icons/react";
+import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 
 interface ReceiveLine {
@@ -31,6 +32,7 @@ export default function Orders() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [raising, setRaising] = useState(false);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
   const [receiveLines, setReceiveLines] = useState<ReceiveLine[]>([]);
 
@@ -117,8 +119,19 @@ export default function Orders() {
           <h1>Procurement</h1>
           <div className="sub">Purchase orders fully integrated with stock control</div>
         </div>
-        <button onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
+        <div className="page-actions">
+          {/* The sweep covers the routine. This covers every reason a pharmacy
+              actually telephones a wholesaler, none of which is routine. */}
+          <button className="btn primary" onClick={() => setRaising(true)}>
+            <Plus size={15} weight="bold" /> New order
+          </button>
+          <button className="secondary" onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
+        </div>
       </div>
+
+      {raising && (
+        <NewOrder onClose={() => setRaising(false)} onCreated={load} />
+      )}
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

@@ -178,10 +178,9 @@ def _controlled_query(db: Session, days: int):
             .order_by(Dispensing.dispensed_at.desc()))
 
 
-@router.get("/controlled/log", response_model=list[schemas.DispensingOut])
-def controlled_log(days: int = 90, limit: int = 200, db: Session = Depends(get_db)):
-    """Every controlled-substance hand-over with its compliance record."""
-    return _controlled_query(db, days).limit(limit).all()
+# GET /controlled/log was here, capped at 200. /controlled/log/paged
+# replaced it — this is the list an inspector reads, and a silent cap on it
+# is not a presentation choice.
 
 
 @router.get("/controlled/log/paged")

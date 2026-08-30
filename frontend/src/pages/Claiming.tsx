@@ -118,6 +118,12 @@ export default function Claiming() {
   const [unbatched, setUnbatched] = useState<Unbatched[] | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [models, setModels] = useState<FeeModel[] | null>(null);
+  /* Try a price against a model's bands. A table of tiers is arithmetic
+     somebody has to do in their head to know what it charges, and the band a
+     price falls into is exactly the thing people read off by one. */
+  const [tryBase, setTryBase] = useState<Record<number, string>>({});
+  const [quoted, setQuoted] = useState<Record<number, {
+    base: number; fee: number; total: number; basis: string } | null>>({});
   const [offices, setOffices] = useState<PayOffice[]>([]);
   const [busy, setBusy] = useState("");
   // Recording a payment is a form, not a browser prompt: the amount needs a
@@ -291,6 +297,25 @@ export default function Claiming() {
       toast.error(errorText(err));
     } finally {
       setBusy("");
+    }
+  }
+
+  /** What this model charges on a given base price.
+   *
+   *  The endpoint calls it a sanity check on the bands, which is exactly right:
+   *  a five-tier table is arithmetic nobody does correctly in their head, and
+   *  the band a price falls into is the thing people read off by one. It had
+   *  been there since fee models were, and nothing asked it anything.
+   */
+  async function quoteFee(model: FeeModel) {
+    const base = Number(tryBase[model.id]);
+    if (!(base > 0)) return;
+    try {
+      const r = await api.get<{ base: number; fee: number; total: number; basis: string }>(
+        `/api/claiming/fee-models/${model.id}/quote?base=${base}`);
+      setQuoted((q) => ({ ...q, [model.id]: r }));
+    } catch (e) {
+      toast.error(errorText(e, "That could not be priced."));
     }
   }
 
@@ -826,6 +851,32 @@ export default function Claiming() {
                   ))}
                 </tbody>
               </table>
+
+              {/* Try a price against the bands above. */}
+              <div className="fm-try">
+                <label className="muted small" htmlFor={`try-${m.id}`}>
+                  What would it charge on
+                </label>
+                <input
+                  id={`try-${m.id}`} type="number" min="0" step="0.01"
+                  className="tender-amount"
+                  value={tryBase[m.id] ?? ""}
+                  onChange={(e) => setTryBase((t) => ({ ...t, [m.id]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === "Enter") quoteFee(m); }}
+                  placeholder="40.00"
+                />
+                <button className="btn small secondary" onClick={() => quoteFee(m)}
+                        disabled={!(Number(tryBase[m.id]) > 0)}>
+                  Work it out
+                </button>
+                {quoted[m.id] && (
+                  <span className="fm-quote">
+                    fee <b>{money(quoted[m.id]!.fee)}</b>
+                    {" · "}total <b>{money(quoted[m.id]!.total)}</b>
+                    <span className="muted"> on {quoted[m.id]!.basis}</span>
+                  </span>
+                )}
+              </div>
 
               <div className="check-row fm-mmap">
                 <Checkbox

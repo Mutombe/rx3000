@@ -1,4 +1,5 @@
 import { ChangeEvent, useEffect, useState } from "react";
+import { Trash } from "@phosphor-icons/react";
 import { useToast } from "../components/Toast";
 import FileDrop from "../components/FileDrop";
 import CurrencyRates from "../components/CurrencyRates";
@@ -12,6 +13,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import { TableSkeleton } from "../components/Skeleton";
+import { useConfirm } from "../components/Confirm";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -105,6 +107,11 @@ export default function Admin() {
   const [noticeMeta, setNoticeMeta] = useState<Paged<Notice> | null>(null);
   const [noticePage, setNoticePage] = useState(1);
   const [noticeActive, setNoticeActive] = useState(true);
+  const [raising, setRaising] = useState(false);
+  const [notice, setNotice] = useState({
+    scope: "patient", target_id: "", severity: "warn", category: "",
+    body: "", expires_on: "",
+  });
   const [submitted, setSubmitted] = useState<Submitted[]>([]);
   const [auditUser, setAuditUser] = useState("");
   const [backups, setBackups] = useState<Backup[]>([]);
@@ -119,6 +126,7 @@ export default function Admin() {
     name: "", category: "campaign", channel: "sms", subject: "", body: "",
   });
   const toast = useToast();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -139,13 +147,7 @@ export default function Admin() {
         )
         .then((r) => { setTxns(r.items); setTxnMeta(r); if (r.page !== txnPage) setTxnPage(r.page); })
         .catch((e) => toast.error(errorText(e)));
-    if (tab === "notices")
-      api
-        .get<Paged<Notice>>(
-          `/api/counter-messages/paged?active_only=${noticeActive}&page=${noticePage}&per_page=50`,
-        )
-        .then((r) => { setNotices(r.items); setNoticeMeta(r); if (r.page !== noticePage) setNoticePage(r.page); })
-        .catch((e) => toast.error(errorText(e)));
+    if (tab === "notices") loadNotices();
     if (tab === "backups") loadBackups();
     if (tab === "automation") { loadRules(); api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }
     if (tab === "templates") loadTemplates();
@@ -165,8 +167,109 @@ export default function Admin() {
 
   useEffect(() => setTxnPage(1), [txnKind]);
   useEffect(() => setNoticePage(1), [noticeActive]);
+
+  /** Stop showing a counter notice.
+   *
+   *  Retired, not deleted: it was shown to somebody, and why it was shown last
+   *  month is a question that gets asked. The endpoint has said exactly that in
+   *  its own docstring since it was written, and no screen offered it — so a
+   *  notice raised against a patient who has since been cleared went on warning
+   *  every dispenser forever, and the only way to stop it was the database.
+   */
+  async function retireNotice(n: Notice) {
+    const ok = await confirm({
+      title: "Stop showing this notice?",
+      body: <>
+        <b>{n.body}</b>
+        <p className="muted">
+          It stays on the record — retired rather than deleted — so it can still
+          be read if anyone asks why it was shown. Dispensers will not see it
+          again.
+        </p>
+      </>,
+      confirmLabel: "Retire it",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/counter-messages/${n.id}/retire`, {});
+      toast.ok("Retired. It will not be shown again.");
+      loadNotices();
+    } catch (e) {
+      toast.error(errorText(e, "That notice could not be retired."));
+    }
+  }
+
+  async function deleteTemplate(t: EmailTemplate) {
+    const ok = await confirm({
+      title: `Delete "${t.name}"?`,
+      body: <>
+        Any automation rule that sends this template will stop sending anything.
+        Nothing already sent is affected.
+      </>,
+      confirmLabel: "Delete it",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.delete(`/api/crm/templates/${t.id}`);
+      toast.ok(`"${t.name}" deleted.`);
+      loadTemplates();
+    } catch (e) {
+      toast.error(errorText(e, "That template could not be deleted."));
+    }
+  }
+
   // A narrowed username filter can leave you past the end of a smaller set.
   useEffect(() => setAuditPage(1), [auditUser]);
+
+  /** Named rather than inline in the effect, so retiring a notice can reload
+   *  the list it just changed. */
+  /** Raise a notice a dispenser will see at the counter.
+   *
+   *  The endpoint has been there since counter messages were written and no
+   *  screen offered it, so the only notices in the system were the ones the
+   *  software raised itself. A pharmacist who learns something at the counter —
+   *  this patient is not to be given codeine, this batch is being recalled, this
+   *  scheme is refusing everything this month — had nowhere to put it except a
+   *  sticky note on the till.
+   */
+  async function raiseNotice() {
+    if (!notice.body.trim()) return;
+    try {
+      await api.post("/api/counter-messages", {
+        scope: notice.scope,
+        target_id: notice.target_id ? Number(notice.target_id) : null,
+        severity: notice.severity,
+        category: notice.category.trim(),
+        body: notice.body.trim(),
+        expires_on: notice.expires_on || null,
+      });
+      toast.ok(notice.severity === "block"
+        ? "Raised. Dispensing will stop on this until somebody signs for it."
+        : "Raised. Dispensers will see it at the counter.");
+      setRaising(false);
+      setNotice({ scope: "patient", target_id: "", severity: "warn",
+                  category: "", body: "", expires_on: "" });
+      loadNotices();
+    } catch (e) {
+      // The server checks the scope and the severity against its own lists and
+      // names the valid ones. Shown as written.
+      toast.error(errorText(e, "That notice could not be raised."));
+    }
+  }
+
+  function loadNotices() {
+    api
+      .get<Paged<Notice>>(
+        `/api/counter-messages/paged?active_only=${noticeActive}&page=${noticePage}&per_page=50`,
+      )
+      .then((r) => {
+        setNotices(r.items);
+        setNoticeMeta(r);
+        if (r.page !== noticePage) setNoticePage(r.page);
+      })
+      .catch((e) => toast.error(errorText(e)));
+  }
 
   function loadRules() {
     api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(errorText(e)));
@@ -377,7 +480,7 @@ export default function Admin() {
           <div className="card">
             <h3>Message templates</h3>
             <table>
-              <thead><tr><th>Name</th><th>Category</th><th>Channel</th><th>Content</th></tr></thead>
+              <thead><tr><th>Name</th><th>Category</th><th>Channel</th><th>Content</th><th className="actions" /></tr></thead>
               <tbody>
                 {templates.map((t) => (
                   <tr key={t.id}>
@@ -387,6 +490,11 @@ export default function Admin() {
                     <td style={{ maxWidth: 480 }}>
                       {t.subject && <b>{t.subject}<br /></b>}
                       <span className="muted">{t.body}</span>
+                    </td>
+                    <td className="actions">
+                      <button className="btn small ghost" onClick={() => deleteTemplate(t)}>
+                        <Trash size={14} />
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -649,7 +757,71 @@ export default function Admin() {
         <div className="card">
           <div className="toolbar">
             <Checkbox checked={noticeActive} onChange={setNoticeActive}>Active only</Checkbox>
+            <button className="btn primary small" style={{ marginLeft: "auto" }}
+                    onClick={() => setRaising((v) => !v)}>
+              {raising ? "Cancel" : "Raise a notice"}
+            </button>
           </div>
+
+          {raising && (
+            <div className="card sub">
+              <div className="form-row">
+                <div className="field span-3">
+                  <label>About</label>
+                  <Select value={notice.scope}
+                          onChange={(v) => setNotice((n) => ({ ...n, scope: v }))}
+                          ariaLabel="Scope"
+                          options={[
+                            { value: "patient", label: "A patient" },
+                            { value: "member", label: "A scheme member" },
+                            { value: "scheme", label: "A scheme" },
+                            { value: "product", label: "A product" },
+                            { value: "doctor", label: "A prescriber" },
+                          ]} />
+                </div>
+                <div className="field span-3">
+                  <label>Which one</label>
+                  <input value={notice.target_id} inputMode="numeric"
+                         onChange={(e) => setNotice((n) => ({ ...n, target_id: e.target.value }))}
+                         placeholder="record number" />
+                  <span className="hint">
+                    Leave blank to warn on every {notice.scope}.
+                  </span>
+                </div>
+                <div className="field span-3">
+                  <label>How loud</label>
+                  <Select value={notice.severity}
+                          onChange={(v) => setNotice((n) => ({ ...n, severity: v }))}
+                          ariaLabel="Severity"
+                          options={[
+                            { value: "info", label: "Note", hint: "shown, no interruption" },
+                            { value: "warn", label: "Warning", hint: "shown prominently" },
+                            { value: "block", label: "Stop", hint: "dispensing halts until signed for" },
+                          ]} />
+                </div>
+                <div className="field span-3">
+                  <label>Until <span className="muted">optional</span></label>
+                  <input type="date" value={notice.expires_on}
+                         onChange={(e) => setNotice((n) => ({ ...n, expires_on: e.target.value }))} />
+                </div>
+              </div>
+              <div className="field">
+                <label>What the dispenser should know</label>
+                <input value={notice.body} maxLength={400}
+                       onChange={(e) => setNotice((n) => ({ ...n, body: e.target.value }))}
+                       placeholder="Not to be supplied codeine — agreed with Dr Moyo, 14 Aug" />
+                <span className="hint">
+                  Written for whoever is standing at the counter at nine on a
+                  Saturday, who has not read anything else about this.
+                </span>
+              </div>
+              <BusyButton className="btn primary" onClick={raiseNotice}
+                          disabled={notice.body.trim().length < 4}
+                          busyLabel="Raising…">
+                Raise it
+              </BusyButton>
+            </div>
+          )}
           <p className="muted small">
             Notices raised at the counter. The warnings a dispenser sees against a
             patient, a product or a funder. Expired ones are kept, because why a
@@ -660,6 +832,7 @@ export default function Admin() {
               <tr>
                 <th>Raised</th><th>Scope</th><th>Severity</th>
                 <th>Message</th><th>Expires</th><th>By</th>
+                <th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -679,6 +852,15 @@ export default function Admin() {
                   <td>{n.body}</td>
                   <td>{n.expires_on ? fmtDate(n.expires_on) : "—"}</td>
                   <td>{n.created_by || "—"}</td>
+                  <td className="actions">
+                    {n.active === false ? (
+                      <span className="badge muted">retired</span>
+                    ) : (
+                      <button className="btn small ghost" onClick={() => retireNotice(n)}>
+                        Retire
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

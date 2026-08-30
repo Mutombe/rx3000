@@ -191,12 +191,10 @@ def trial_balance(period_code: str = "", upto: date | None = None,
     return ledger.trial_balance(db, period_code=period_code, upto=upto)
 
 
-@router.get("/subledgers/{name}")
-def subledger(name: str, period_code: str = "", db: Session = Depends(get_db)):
-    try:
-        return ledger.subledger(db, name, period_code=period_code)
-    except ledger.LedgerError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+# GET /subledgers/{name} was here — the raw party balances. The screen reads
+# /subledgers/{name}/reconcile, which returns those same balances plus the
+# only thing worth knowing about them: whether they agree with the control
+# account. A figure without that check is one nobody can act on.
 
 
 @router.get("/subledgers/{name}/reconcile")

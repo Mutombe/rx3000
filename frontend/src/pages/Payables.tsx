@@ -71,6 +71,8 @@ export default function Payables() {
   const [waiting, setWaiting] = useState<Uninvoiced[]>([]);
   const [open, setOpen] = useState<Invoice | null>(null);
   const [querying, setQuerying] = useState(false);
+  const [find, setFind] = useState("");
+  const [hits, setHits] = useState<Invoice[] | null>(null);
   const [queryNote, setQueryNote] = useState("");
   const [failed, setFailed] = useState("");
   const [paying, setPaying] = useState<AgeSupplier | null>(null);
@@ -141,6 +143,27 @@ export default function Payables() {
       toast.error(errorText(e, "That could not be approved."));
     }
   }
+
+  /** Find one invoice, across every supplier.
+   *
+   *  The ageing lists what is still owed and the supplier record lists that
+   *  supplier's bills. Neither answers the question a wholesaler asks on the
+   *  telephone — "what happened to 44001?" — because a settled invoice is on
+   *  neither. The endpoint has taken a search term since it was written and no
+   *  screen sent one, so the answer was to guess which supplier it belonged to
+   *  and read down their list.
+   */
+  useEffect(() => {
+    const term = find.trim();
+    if (term.length < 2) { setHits(null); return; }
+    const t = window.setTimeout(() => {
+      api.get<{ items: Invoice[] }>(
+        `/api/payables/invoices?q=${encodeURIComponent(term)}&limit=25`)
+        .then((r) => setHits(r.items))
+        .catch(() => setHits([]));
+    }, 250);
+    return () => window.clearTimeout(t);
+  }, [find]);
 
   /** Dispute an invoice with the supplier.
    *
@@ -358,6 +381,79 @@ export default function Payables() {
                   ))}
                 </tbody>
               </table>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <h3>Find an invoice</h3>
+              <span className="muted small">
+                By number or by note, across every supplier — settled ones too
+              </span>
+            </div>
+            <input
+              className="page-search"
+              value={find}
+              onChange={(e) => setFind(e.target.value)}
+              placeholder="Invoice number, or a word from its note"
+            />
+            {hits !== null && (
+              hits.length === 0 ? (
+                <div className="empty">
+                  <b>Nothing matches &ldquo;{find.trim()}&rdquo;</b>
+                  <p>
+                    An invoice that has never been recorded will not be here.
+                    Goods received with no bill against them are listed further
+                    down.
+                  </p>
+                </div>
+              ) : (
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Invoice</th><th>Supplier</th><th>Dated</th>
+                      <th>Status</th>
+                      <th className="num">Total</th>
+                      <th className="num">Outstanding</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hits.map((i) => (
+                      <tr key={i.id}>
+                        <td className="mono">
+                          <EntityLink kind="invoice" id={i.id}>
+                            {i.invoice_number}
+                          </EntityLink>
+                        </td>
+                        <td>
+                          <EntityLink kind="supplier" id={i.supplier_id}>
+                            {i.supplier}
+                          </EntityLink>
+                        </td>
+                        <td>{fmtDate(i.invoice_date)}</td>
+                        <td>
+                          <span className={`badge ${i.status === "queried" ? "warn"
+                            : i.status === "paid" ? "ok" : "muted"}`}>
+                            {i.status}
+                          </span>
+                        </td>
+                        <td className="num">{money(i.total)}</td>
+                        <td className="num">
+                          {i.outstanding > 0.005
+                            ? money(i.outstanding)
+                            : <span className="muted">settled</span>}
+                        </td>
+                        <td className="actions">
+                          <button className="btn small" onClick={() => show(i.id)}>
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
             )}
           </div>
 

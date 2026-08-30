@@ -3,7 +3,9 @@ import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import Variants from "../components/Variants";
-import { api, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import Select from "../components/Select";
+import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
@@ -27,6 +29,9 @@ export default function ProductDetail() {
   const { id } = useParams();
   const [data, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  const [filing, setFiling] = useState(false);
+  const toast = useToast();
 
   const TABS: TabDef<Tab>[] = [
     { key: "batches", label: "Batches on hand", count: data?.batches.length },
@@ -37,6 +42,40 @@ export default function ProductDetail() {
   useEffect(() => {
     api.get<Detail>(`/api/products/${id}`).then(setData).catch((e) => setError(e.message));
   }, [id]);
+
+  // The departments, for the control below. Fetched once rather than per
+  // product: they change about as often as the shop is re-laid-out.
+  useEffect(() => {
+    api.get<{ id: number; name: string }[]>("/api/stock-categories")
+      .then(setDepartments).catch(() => setDepartments([]));
+  }, []);
+
+  /** File this product under a department.
+   *
+   *  `category` on the product is free text for the therapeutic class;
+   *  `category_id` is the department the shop is laid out by and that every
+   *  stock report groups on. The endpoint to set it has existed since
+   *  departments did, and no screen offered it — so a product created outside
+   *  the department screen stayed unfiled, and "uncategorised" quietly became
+   *  the largest department in the shop.
+   */
+  async function file(value: string) {
+    if (!data) return;
+    setFiling(true);
+    try {
+      await api.post(`/api/products/${data.product.id}/category`,
+                     { category_id: value ? Number(value) : null });
+      const fresh = await api.get<Detail>(`/api/products/${id}`);
+      setData(fresh);
+      toast.ok(value
+        ? `Filed under ${departments.find((d) => String(d.id) === value)?.name}.`
+        : "Removed from its department.");
+    } catch (e) {
+      toast.error(errorText(e, "That could not be filed."));
+    } finally {
+      setFiling(false);
+    }
+  }
 
   if (error)
     return (
@@ -94,6 +133,21 @@ export default function ProductDetail() {
             <div className="sub">
               {p.dosage_form || "—"} · {p.category}
               {p.schedule > 0 && <> · <span className="badge sched">S{p.schedule}</span></>}
+            </div>
+            {/* The department, where it is set and not merely displayed. An
+                unfiled product is the commonest reason a stock report shows a
+                large "uncategorised" line nobody can explain. */}
+            <div className="pd-department">
+              <span className="muted small">Department</span>
+              <Select
+                value={p.category_id == null ? "" : String(p.category_id)}
+                onChange={file}
+                disabled={filing}
+                ariaLabel="Department"
+                options={[{ value: "", label: "Not filed" },
+                          ...departments.map((d) => ({
+                            value: String(d.id), label: d.name }))]}
+              />
             </div>
           </div>
         </div>

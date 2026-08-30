@@ -57,6 +57,9 @@ export interface Patient {
 }
 
 export interface Product {
+  /** The department it is filed under — as against `category`, which is free
+   *  text for the therapeutic class. This is the one the shop is laid out by. */
+  category_id?: number | null;
   id: number;
   name: string;
   nappi_code: string;
@@ -104,6 +107,12 @@ export interface PrescriptionItem {
 export interface Prescription {
   id: number;
   rx_number: string;
+  /** A draft has no Rx number — the register is a numbered sequence and an
+   *  unfinished script must not consume one — so it carries a working
+   *  reference instead, and its status says which it is. Both were on the
+   *  model and in the response, and typed nowhere. */
+  draft_ref?: string;
+  status?: string;
   patient_id: number;
   doctor_id: number;
   date_prescribed: string;

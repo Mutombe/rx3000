@@ -155,7 +155,11 @@ export default function Deliveries() {
                   className={w.requires_id_check ? "row-flag" : ""}
                 >
                   <td className="mono">
-                    {w.waybill_number}
+                    {/* The waybill, not the patient. The row already opens the
+                        patient; the chain of custody — dispatched when, signed
+                        by whom, why it failed — lives only on the waybill, and
+                        nothing linked to it. */}
+                    <EntityLink kind="waybill" id={w.id}>{w.waybill_number}</EntityLink>
                     {/* The driver needs to know this before they leave, not on
                         arrival at a locked gate. */}
                     {w.requires_id_check && (

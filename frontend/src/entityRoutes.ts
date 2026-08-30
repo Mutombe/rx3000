@@ -15,6 +15,7 @@ export const ENTITY_ROUTES = {
   // things called a batch in one pharmacy, and conflating them sends
   // somebody chasing a wholesaler's lot number for a short payment.
   claim_batch: (id: Id) => `/claim-batches/${id}`,
+  waybill: (id: Id) => `/waybills/${id}`,
   contact: (id: Id) => `/contacts/${id}`,
   deal: (id: Id) => `/deals/${id}`,
   invoice: (id: Id) => `/payables/invoices/${id}`,

@@ -314,7 +314,8 @@ export default function Dispense() {
    *  so the worklist could not go down however many people you served. It is
    *  cleared the moment the basket stops matching the script, because at that
    *  point what is on screen is no longer the thing that was queued. */
-  const [fromRx, setFromRx] = useState<{ id: number; number: string } | null>(null);
+  const [fromRx, setFromRx] = useState<
+    { id: number; number: string; draft?: boolean } | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   // A blocking counter message stops the dispense. The server enforces this
   // too; the button is disabled so the pharmacist is not invited to try.
@@ -528,10 +529,85 @@ export default function Dispense() {
         return;
       }
       setItems(ready);
-      setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}` });
+      // Whether it is a draft governs what can be done with it. A draft has
+      // no Rx number and the server refuses to dispense one — so if this is not
+      // carried, opening a draft leads to a button that cannot work.
+      setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
+                  draft: rx.status === "draft" });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
       toast.error(errorText(e, "That queued line could not be opened."));
+    }
+  }
+
+  /** What is on screen, in the shape the draft endpoints want. */
+  function scriptPayload() {
+    return {
+      patient_id: patient?.id ?? null,
+      doctor_id: doctorId === "" ? null : doctorId,
+      notes: complianceNotes,
+      items: items.map((i) => ({
+        product_id: i.product.id, quantity: i.quantity,
+        dosage_instructions: i.dosage_instructions,
+        repeats_allowed: i.repeats_allowed,
+        repeat_interval_days: i.repeat_interval_days,
+        auto_refill: i.auto_refill, icd10_code: i.icd10_code,
+      })),
+    };
+  }
+
+  /** Put a half-captured script down and come back to it.
+   *
+   *  A pharmacist gets interrupted — the telephone, a query at the till, a
+   *  delivery — and until now the only ways out of a part-typed script were to
+   *  dispense it or to lose it. Drafts have existed since prescriptions did,
+   *  and could be created and re-opened; there was no way to save one back, so
+   *  re-opening a draft led to a screen whose only button the server refuses.
+   */
+  async function saveDraft() {
+    if (!patient) {
+      toast.error("A draft still needs to be against a patient, or nobody can find it again.");
+      return;
+    }
+    setBusy(true);
+    try {
+      if (fromRx?.draft) {
+        await api.put(`/api/prescriptions/${fromRx.id}/draft`, scriptPayload());
+        toast.ok(`${fromRx.number} saved. It is waiting on the worklist.`);
+      } else {
+        const rx = await api.post<any>("/api/prescriptions",
+                                       { ...scriptPayload(), draft: true });
+        setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
+                    draft: true });
+        toast.ok("Saved for later. It is on the worklist as an unfinished script.");
+      }
+    } catch (e) {
+      toast.error(errorText(e, "That could not be saved."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** Turn a draft into a real script, so it can be dispensed.
+   *
+   *  Finalising is where the checks skipped while it was a draft happen, and
+   *  where it takes its Rx number — the register is a numbered sequence and a
+   *  draft must not consume one.
+   */
+  async function finaliseDraft() {
+    if (!fromRx?.draft) return;
+    setBusy(true);
+    try {
+      await api.put(`/api/prescriptions/${fromRx.id}/draft`, scriptPayload());
+      const rx = await api.post<any>(`/api/prescriptions/${fromRx.id}/finalise`, {});
+      setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}`, draft: false });
+      toast.ok(`${rx.rx_number} finished. It can be dispensed now.`);
+    } catch (e) {
+      // The server refuses a script with no prescriber, no items, or a
+      // prohibited schedule, and names which. Shown as written.
+      toast.error(errorText(e, "That draft could not be finished."));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -1288,6 +1364,18 @@ export default function Dispense() {
                 </div>
               )}
 
+              {fromRx?.draft && (
+                <div className="alert warn">
+                  <Warning size={16} weight="fill" />
+                  <span>
+                    <b>{fromRx.number} is an unfinished script.</b> It has no Rx
+                    number yet and cannot be dispensed. Finish capturing it —
+                    that is where it takes its number and where the checks
+                    happen — or save it and come back.
+                  </span>
+                </div>
+              )}
+
               {/* The one act this page exists for, and beside it the reason
                   it cannot happen yet. */}
               <div className="disp-commit">
@@ -1302,12 +1390,38 @@ export default function Dispense() {
                       button rather than the same one in a different mood — the
                       one thing that must never happen by accident on this
                       screen is dispensing when somebody meant to price. */}
+                  {/* Put it down and come back to it. A pharmacist gets
+                      interrupted, and the only ways out of a part-typed script
+                      were to dispense it or lose it. Not offered while quoting:
+                      a quote is not a script and saving one as a draft would
+                      put a price enquiry on the dispensing worklist. */}
+                  {!quoting && (
+                    <BusyButton className="btn secondary" busyLabel="Saving…"
+                                disabled={!patient || items.length === 0}
+                                onClick={saveDraft}>
+                      {fromRx?.draft ? "Save the draft" : "Save for later"}
+                    </BusyButton>
+                  )}
                   {quoting ? (
                     <button className="btn primary disp-go"
                             disabled={items.length === 0}
                             onClick={printQuote}>
                       Print the quote
                     </button>
+                  ) : fromRx?.draft ? (
+                    // A draft has no Rx number and the server will not dispense
+                    // one. Finishing it is a separate act — it is where the
+                    // checks skipped during capture happen and where the script
+                    // takes its number — so it is a separate button, and the
+                    // dispense appears only once it is a real script.
+                    <BusyButton
+                      className="btn primary disp-go"
+                      busyLabel="Finishing…"
+                      disabled={!patient || items.length === 0 || doctorId === ""}
+                      onClick={finaliseDraft}
+                    >
+                      Finish capturing
+                    </BusyButton>
                   ) : (
                     <BusyButton
                       className="btn primary disp-go"

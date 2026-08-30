@@ -236,12 +236,9 @@ def pay(supplier_id: int = Body(...), amount: float = Body(...),
     return result
 
 
-@router.get("/payments/{payment_id}/remittance")
-def remittance_advice(payment_id: int, db: Session = Depends(get_db)):
-    advice = payables.remittance(db, payment_id)
-    if not advice:
-        raise HTTPException(404, "No such payment.")
-    return advice
+# GET /payments/{id}/remittance was here. /payments already returns each
+# payment's remittance with the row, so the screen has it before it is
+# asked for.
 
 
 @router.get("/uninvoiced")

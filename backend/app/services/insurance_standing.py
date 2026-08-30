@@ -99,7 +99,11 @@ def scheme_standing(db: Session, medical_aid_id: int) -> dict:
         verdict, why = "unknown", "Nothing has been claimed from this scheme yet."
     elif overdue_count and _money(overdue_value) > 0.005:
         verdict = "lagging"
-        why = (f"{_money(overdue_value):,.2f} has been outstanding for more than "
+        # With its currency. A bare "20.90 has been outstanding" beside a
+        # scheme that settles in ZiG reads as dollars to everybody who sees it,
+        # and the two are not the same money.
+        why = (f"{aid.currency_code or 'USD'} {_money(overdue_value):,.2f} has "
+               f"been outstanding for more than "
                f"{LATE_AFTER_DAYS} days across {int(overdue_count)} claim"
                f"{'' if overdue_count == 1 else 's'}"
                + (f", the oldest {oldest_days} days old." if oldest_days else "."))
