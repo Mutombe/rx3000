@@ -18,7 +18,7 @@ from ..database import get_db
 from ..models import (
     MedicalAid, Patient, Prescription, Product, Sale, User, Waybill,
 )
-from ..services import pricing, branches, repeat_performance
+from ..services import pricing, branches, churn, repeat_performance
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -501,6 +501,24 @@ def repeats_performance(days: int = 30, db: Session = Depends(get_db)):
     next month and the line stops appearing.
     """
     return repeat_performance.performance(db, days=days)
+
+
+@router.get("/repeats/churn")
+def prescription_churn(days: int = 90, db: Session = Depends(get_db)):
+    """Who was a regular and stopped coming, and what that costs a month.
+
+    The one number a takings report cannot contain: everybody it counts is
+    somebody who came. The people who stopped leave no record at all — which is
+    exactly why a pharmacy loses a patient a week for a year and concludes the
+    economy is bad.
+    """
+    return churn.churn(db, days=days)
+
+
+@router.get("/repeats/churn/therapies")
+def therapy_churn(days: int = 90, db: Session = Depends(get_db)):
+    """Which medicines patients stopped taking, rather than which patients left."""
+    return churn.chronic_churn(db, days=days)
 
 
 @router.get("/repeats/daily")

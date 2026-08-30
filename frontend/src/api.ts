@@ -240,11 +240,17 @@ async function request<T>(
     res = await fetch(BASE + path, {
     method,
     headers: {
-      "Content-Type": "application/json",
+      /* A file upload must NOT carry a Content-Type we chose. Multipart needs
+         a boundary token, the browser generates it while serialising the body,
+         and stating "multipart/form-data" without one produces a request the
+         server cannot split back apart. Letting fetch fill it in is the only
+         correct thing to do here. */
+      ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(stepUp ? { "X-Step-Up": stepUp } : {}),
     },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined
+      : body instanceof FormData ? body : JSON.stringify(body),
     });
   } catch (cause) {
     // fetch rejects for exactly one class of reason: the request never got an

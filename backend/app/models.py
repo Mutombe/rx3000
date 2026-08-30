@@ -1779,9 +1779,20 @@ class Reprint(Base, TenantMixin):
 # ---------------------------------------------------------------------------
 
 class Account(Base, TenantMixin):
+    # A code is unique WITHIN a pharmacy, not across the estate.
+    #
+    # It was globally unique, which reads as harmless until you notice what it
+    # means on a shared database: the first pharmacy to start seeds "1000 Cash
+    # on hand" and every pharmacy after it fails to seed anything at all,
+    # because 1000 is taken. Seventeen pharmacies on this database and exactly
+    # one of them had a chart of accounts. Every ledger screen for the other
+    # sixteen was empty and nothing anywhere said why.
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "code", name="uq_accounts_tenant_code"),
+    )
     __tablename__ = "accounts"
     id = Column(Integer, primary_key=True)
-    code = Column(String(10), unique=True, nullable=False, index=True)
+    code = Column(String(10), nullable=False, index=True)
     name = Column(String(120), nullable=False)
     # asset | liability | equity | income | expense
     type = Column(String(12), nullable=False, index=True)

@@ -9,6 +9,8 @@
  *  had ever shown it.
  */
 import { fmtDate, money } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 
 export interface RemittanceData {
   payment_id: number; supplier: string; paid_on: string; amount: number;
@@ -20,6 +22,43 @@ export interface RemittanceData {
 export default function Remittance({ data, onClose }: {
   data: RemittanceData; onClose: () => void;
 }) {
+  /** Send it as a document, not as a picture of a modal.
+   *
+   *  This one leaves the building — it goes to the wholesaler's accounts
+   *  department, and it is the thing that stops them guessing which invoices
+   *  the money was for. A remittance that arrives looking like a screenshot
+   *  gets treated like one.
+   */
+  async function print() {
+    const head = await letterhead();
+    printDocument(head, {
+      kind: "Remittance advice",
+      to: [data.supplier],
+      meta: [
+        { label: "Paid on", value: fmtDate(data.paid_on) },
+        { label: "Method", value: data.method },
+        { label: "Reference", value: data.reference || "—" },
+        { label: "Amount", value: money(data.amount), strong: true },
+      ],
+      columns: [
+        { key: "invoice", label: "Invoice", width: "34mm" },
+        { key: "dated", label: "Dated", width: "26mm" },
+        { key: "total", label: "Invoice total", numeric: true, width: "30mm" },
+        { key: "paid", label: "Allocated", numeric: true, width: "30mm" },
+      ],
+      rows: data.lines.map((l) => ({
+        invoice: l.invoice_number, dated: fmtDate(l.invoice_date),
+        total: money(l.invoice_total), paid: money(l.allocated),
+      })),
+      totals: { invoice: "Total paid", paid: money(data.amount) },
+      note: data.on_account > 0.005
+        ? `${money(data.on_account)} of this payment is not allocated to an `
+          + `invoice and sits on the account. Please apply it to the oldest `
+          + `balance unless we advise otherwise.`
+        : "Please allocate this payment to the invoices listed above.",
+    });
+  }
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-wide print-area" onClick={(e) => e.stopPropagation()}>
@@ -65,7 +104,7 @@ export default function Remittance({ data, onClose }: {
 
         <div className="modal-actions no-print">
           <button className="btn ghost" onClick={onClose}>Close</button>
-          <button className="btn" onClick={() => window.print()}>Print it</button>
+          <button className="btn" onClick={print}>Print it</button>
         </div>
       </div>
     </div>

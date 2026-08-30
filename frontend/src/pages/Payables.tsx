@@ -152,7 +152,7 @@ export default function Payables() {
     <>
       <div className="page-head">
         <div>
-          <h1>Supplier accounts</h1>
+          <h1>Creditors</h1>
           <div className="sub">What was billed, what arrived, and what is still owed</div>
         </div>
         <button className="btn secondary" onClick={load}>

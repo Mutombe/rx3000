@@ -12,6 +12,8 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
@@ -104,6 +106,44 @@ export default function Periods() {
     } catch (e: any) {
       toast.error(errorText(e));
     }
+  }
+
+  /** The VAT return, as a document a revenue officer would accept.
+   *
+   *  This one may be read by ZIMRA. A screen print of a modal — with the
+   *  backdrop, the Close button and the browser's own header on it — is not a
+   *  return; it is a photograph of a computer. The basis is stated on the face
+   *  of it, because a pharmacy has two VAT figures (this one from the posted
+   *  accounts, and Analytics' from till sales) and filing the wrong one is a
+   *  correction letter.
+   */
+  async function printVat() {
+    if (!vat) return;
+    const head = await letterhead();
+    printDocument(head, {
+      kind: `VAT return — ${vat.period_name}`,
+      meta: [
+        { label: "From", value: fmtDate(vat.from) },
+        { label: "To", value: fmtDate(vat.to) },
+        { label: "Rate", value: `${(vat.vat_rate * 100).toFixed(0)}%` },
+        { label: vat.direction, value: money(Math.abs(vat.payable)), strong: true },
+      ],
+      columns: [
+        { key: "item", label: "" },
+        { key: "amount", label: "Amount", numeric: true, width: "36mm" },
+      ],
+      rows: [
+        { item: "Turnover excluding VAT", amount: money(vat.turnover_excluding_vat) },
+        { item: "Output tax — charged on sales", amount: money(vat.output_tax) },
+        { item: "Input tax — paid on purchases", amount: money(vat.input_tax) },
+      ],
+      totals: { item: vat.direction, amount: money(Math.abs(vat.payable)) },
+      note: [
+        "Prepared from the posted income accounts, so it ties to the ledger "
+        + "rather than to the till.",
+        vat.warning,
+      ].filter(Boolean).join(" "),
+    });
   }
 
   return (
@@ -305,7 +345,7 @@ export default function Periods() {
             </table>
 
             <div className="modal-actions">
-              <IconButton action="print" onClick={() => window.print()} />
+              <IconButton action="print" onClick={printVat} />
               <button className="btn primary" onClick={() => setVat(null)}>Close</button>
             </div>
           </div>

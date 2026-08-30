@@ -14,11 +14,16 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   Buildings,
   FloppyDisk,
+  Image as ImageIcon,
   Key,
   Password,
+  Printer,
+  Trash,
   UserCircle,
 } from "@phosphor-icons/react";
 import { api, errorText  } from "../api";
+import { printDocument } from "../document";
+import { forgetLetterhead, letterhead } from "../letterhead";
 import { useToast } from "../components/Toast";
 import { Block } from "../components/Skeleton";
 import PinInput from "../components/PinInput";
@@ -36,6 +41,8 @@ export default function Profile() {
   const [editable, setEditable] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [savingCompany, setSavingCompany] = useState(false);
+  const [logo, setLogo] = useState<string | null>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
   const [pw, setPw] = useState({ current_password: "", new_password: "", confirm: "" });
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
@@ -72,6 +79,9 @@ export default function Profile() {
     api.get<{ fields: CompanyField[]; editable: boolean }>("/api/profile/company")
       .then((c) => { setFields(c.fields); setEditable(c.editable); })
       .catch((e) => toast.error(errorText(e)));
+    api.get<{ logo?: string }>("/api/profile/company/letterhead")
+      .then((h) => setLogo(h.logo || ""))
+      .catch(() => setLogo(""));
   }, []);
 
   async function saveName(e: FormEvent) {
@@ -105,6 +115,87 @@ export default function Profile() {
     } catch (e: any) {
       toast.error(errorText(e));
     }
+  }
+
+  /** Put the pharmacy's mark on everything it prints.
+   *
+   *  Read back as a data URI rather than trusted from the file the browser
+   *  holds: what the server stored is what will print, and showing the local
+   *  copy instead is how a preview and a document come to differ.
+   */
+  async function uploadLogo(file: File) {
+    setLogoBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await api.post<{ message: string }>("/api/profile/company/logo", form);
+      forgetLetterhead();
+      const head = await letterhead();
+      setLogo(head.logo || "");
+      toast.ok(r.message);
+    } catch (e) {
+      toast.error(errorText(e, "That logo could not be uploaded."));
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  async function removeLogo() {
+    setLogoBusy(true);
+    try {
+      const r = await api.delete<{ message: string }>("/api/profile/company/logo");
+      forgetLetterhead();
+      setLogo("");
+      toast.ok(r.message);
+    } catch (e) {
+      toast.error(errorText(e, "That logo could not be removed."));
+    } finally {
+      setLogoBusy(false);
+    }
+  }
+
+  /** What a document will actually look like, with today's branding on it.
+   *
+   *  Guessing from a logo thumbnail whether a letterhead is right is how a
+   *  pharmacy discovers its address is missing on the fiftieth statement. The
+   *  sample carries invented figures and says so.
+   */
+  async function previewDocument() {
+    forgetLetterhead();
+    const head = await letterhead();
+    printDocument(head, {
+      kind: "Sample document",
+      to: ["Example Wholesalers (Pvt) Ltd", "12 Samora Machel Avenue", "Harare"],
+      meta: [
+        { label: "Account", value: "CR0001" },
+        { label: "Date", value: new Date().toLocaleDateString() },
+        { label: "Amount due", value: "1,240.00", strong: true },
+      ],
+      columns: [
+        { key: "date", label: "Date", width: "22mm" },
+        { key: "reference", label: "Reference", width: "30mm" },
+        { key: "description", label: "Description" },
+        { key: "debit", label: "Debit", numeric: true, width: "24mm" },
+        { key: "credit", label: "Credit", numeric: true, width: "24mm" },
+        { key: "balance", label: "Balance", numeric: true, width: "26mm" },
+      ],
+      opening: { description: "Balance brought forward", balance: "820.00" },
+      rows: [
+        { date: "01/06", reference: "INV-1042", description: "Invoice",
+          debit: "620.00", credit: "", balance: "1,440.00" },
+        { date: "14/06", reference: "EFT-8891", description: "Payment — thank you",
+          debit: "", credit: "200.00", balance: "1,240.00" },
+      ],
+      totals: { description: "Closing balance", debit: "620.00",
+                credit: "200.00", balance: "1,240.00" },
+      ageing: [
+        { label: "90 days", value: "0.00" }, { label: "60 days", value: "0.00" },
+        { label: "30 days", value: "820.00" }, { label: "Current", value: "420.00" },
+        { label: "Amount due", value: "1,240.00", strong: true },
+      ],
+      note: "These figures are invented. This page is here to show how the "
+          + "branding, address and bank details will sit on a real document.",
+    });
   }
 
   async function saveCompany(e: FormEvent) {
@@ -275,6 +366,69 @@ export default function Profile() {
             </div>
           )}
         </form>
+      </section>
+
+      {/* Branding. Separate from the company profile because it is not a field
+          you type — and because the only way to know it is right is to look at
+          a document, which is what the preview is for. */}
+      <section className="card">
+        <h3 className="card-title"><ImageIcon size={18} /> Brand</h3>
+        <p className="muted small" style={{ marginTop: -4 }}>
+          The mark and the details above print on every statement, remittance,
+          claim schedule and report this pharmacy produces.
+        </p>
+
+        <div className="brand-row">
+          <div className="brand-mark">
+            {logo === null
+              ? <Block h={90} round="md" />
+              : logo
+                ? <img src={logo} alt="The pharmacy's logo" />
+                : <div className="brand-empty">
+                    <ImageIcon size={22} />
+                    <span>No logo yet</span>
+                  </div>}
+          </div>
+
+          <div className="brand-actions">
+            {editable ? (
+              <>
+                <label className="btn secondary" style={{ cursor: "pointer" }}>
+                  <ImageIcon size={15} /> {logo ? "Replace logo" : "Upload logo"}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    style={{ display: "none" }}
+                    disabled={logoBusy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      // Cleared so choosing the same file twice still fires.
+                      e.target.value = "";
+                      if (f) uploadLogo(f);
+                    }}
+                  />
+                </label>
+                {logo && (
+                  <button className="btn secondary" onClick={removeLogo}
+                          disabled={logoBusy}>
+                    <Trash size={15} /> Remove
+                  </button>
+                )}
+              </>
+            ) : (
+              <span className="muted small">
+                Only an administrator can change the branding.
+              </span>
+            )}
+            <button className="btn secondary" onClick={previewDocument}>
+              <Printer size={15} /> Preview a document
+            </button>
+            <span className="muted small">
+              PNG, JPEG, SVG or WebP, under 512KB. It prints about two
+              centimetres wide, so a wordmark reads better than a photograph.
+            </span>
+          </div>
+        </div>
       </section>
     </div>
   );

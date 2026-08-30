@@ -86,7 +86,7 @@ export default function InvoiceDetail() {
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
-              { label: "Supplier accounts", to: "/payables" },
+              { label: "Creditors", to: "/payables" },
               { label: d?.invoice_number ?? "This invoice" }]}
       eyebrow="Supplier invoice"
       title={d?.invoice_number ?? ""}

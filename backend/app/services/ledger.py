@@ -40,27 +40,81 @@ from . import periods
 # Debits increase these; credits increase the rest.
 DEBIT_POSITIVE = ("asset", "expense")
 
+#: The chart a pharmacy starts with.
+#:
+#: Six columns rather than four. `section` and `is_cash` have been on the model
+#: from the beginning and were seeded by nothing, so every account fell into the
+#: default and the balance sheet grouped by `type` alone — which puts the stock
+#: on the shelf and a delivery van in one undifferentiated pile of "assets", and
+#: gives a reader no way to see working capital at all.
 CHART = [
-    # code, name, type, subledger
-    ("1000", "Cash on hand", "asset", ""),
-    ("1010", "Bank", "asset", ""),
-    ("1100", "Trade debtors", "asset", "debtors"),
-    ("1110", "Medical scheme debtors", "asset", "debtors"),
-    ("1200", "Stock on hand", "asset", "stock"),
-    ("1300", "VAT input", "asset", "vat"),
-    ("2000", "Trade creditors", "liability", "creditors"),
-    ("2100", "VAT output", "liability", "vat"),
-    ("2200", "VAT control", "liability", "vat"),
-    ("3000", "Owner's equity", "equity", ""),
-    ("3100", "Retained earnings", "equity", ""),
-    ("4000", "Dispensary revenue", "income", ""),
-    ("4010", "Front shop revenue", "income", ""),
-    ("4900", "Discounts allowed", "income", ""),
-    ("5000", "Cost of goods sold", "expense", ""),
-    ("5100", "Stock write-offs", "expense", ""),
-    ("6000", "Professional fees earned", "income", ""),
-    ("8000", "Bad debts written off", "expense", ""),
+    # code, name, type, subledger, section, is_cash
+    ("1000", "Cash on hand", "asset", "", "current_asset", True),
+    ("1010", "Bank", "asset", "", "current_asset", True),
+    ("1020", "Mobile money float", "asset", "", "current_asset", True),
+    ("1100", "Trade debtors", "asset", "debtors", "current_asset", False),
+    ("1110", "Medical scheme debtors", "asset", "debtors", "current_asset", False),
+    ("1200", "Stock on hand", "asset", "stock", "current_asset", False),
+    ("1300", "VAT input", "asset", "vat", "current_asset", False),
+    # The things a pharmacy owns for longer than a year. Absent until now, so a
+    # shopfitting or a delivery vehicle had nowhere to go but an expense — which
+    # understates both the profit of the year it was bought and the worth of the
+    # business ever after.
+    ("1500", "Fixtures and fittings", "asset", "", "non_current_asset", False),
+    ("1510", "Dispensary equipment", "asset", "", "non_current_asset", False),
+    ("1520", "Motor vehicles", "asset", "", "non_current_asset", False),
+    ("1590", "Accumulated depreciation", "asset", "", "non_current_asset", False),
+    ("2000", "Trade creditors", "liability", "creditors", "current_liability", False),
+    ("2100", "VAT output", "liability", "vat", "current_liability", False),
+    ("2200", "VAT control", "liability", "vat", "current_liability", False),
+    ("2300", "PAYE and NSSA payable", "liability", "", "current_liability", False),
+    ("2400", "Accruals", "liability", "", "current_liability", False),
+    ("2600", "Bank overdraft", "liability", "", "current_liability", False),
+    ("2800", "Long-term loans", "liability", "", "non_current_liability", False),
+    ("3000", "Owner's equity", "equity", "", "equity", False),
+    ("3100", "Retained earnings", "equity", "", "equity", False),
+    ("3200", "Drawings", "equity", "", "equity", False),
+    ("4000", "Dispensary revenue", "income", "", "revenue", False),
+    ("4010", "Front shop revenue", "income", "", "revenue", False),
+    ("4900", "Discounts allowed", "income", "", "revenue", False),
+    ("5000", "Cost of goods sold", "expense", "", "cogs", False),
+    ("5100", "Stock write-offs", "expense", "", "cogs", False),
+    ("6000", "Professional fees earned", "income", "", "revenue", False),
+    ("6100", "Salaries and wages", "expense", "", "operating_expense", False),
+    ("6200", "Rent", "expense", "", "operating_expense", False),
+    ("6300", "Electricity and water", "expense", "", "operating_expense", False),
+    ("6400", "Telephone and internet", "expense", "", "operating_expense", False),
+    ("6500", "Licences and subscriptions", "expense", "", "operating_expense", False),
+    ("6600", "Repairs and maintenance", "expense", "", "operating_expense", False),
+    ("6700", "Depreciation", "expense", "", "operating_expense", False),
+    ("6800", "Bank charges", "expense", "", "operating_expense", False),
+    ("8000", "Bad debts written off", "expense", "", "other_expense", False),
 ]
+
+#: What a section is called on a statement, and the order a reader expects.
+SECTIONS = [
+    ("current_asset", "Current assets", "asset"),
+    ("non_current_asset", "Non-current assets", "asset"),
+    ("current_liability", "Current liabilities", "liability"),
+    ("non_current_liability", "Non-current liabilities", "liability"),
+    ("equity", "Equity", "equity"),
+    ("revenue", "Revenue", "income"),
+    ("cogs", "Cost of sales", "expense"),
+    ("operating_expense", "Operating expenses", "expense"),
+    ("other_income", "Other income", "income"),
+    ("other_expense", "Other expenses", "expense"),
+]
+
+#: Where an account goes when whoever created it did not say. Not a guess made
+#: silently: the chart screen shows the section it landed in, so a wrong one is
+#: visible rather than only discovered when a balance sheet reads oddly.
+DEFAULT_SECTION = {
+    "asset": "current_asset",
+    "liability": "current_liability",
+    "equity": "equity",
+    "income": "revenue",
+    "expense": "operating_expense",
+}
 
 
 class LedgerError(ValueError):
@@ -78,14 +132,38 @@ class Line:
 
 
 def ensure_chart(db: Session) -> int:
+    """Seed the chart, and give the accounts already there their section.
+
+    The backfill matters as much as the seed. Every pharmacy already running
+    this software has the original twenty accounts with an empty `section`, and
+    a chart that groups half its rows under "unclassified" is one nobody reads.
+    Only ever fills a blank — an account somebody has since moved stays moved.
+    """
     created = 0
-    existing = {a.code for a in db.query(Account).all()}
-    for code, name, kind, subledger in CHART:
-        if code in existing:
+    have = {a.code: a for a in db.query(Account).all()}
+    touched = False
+    for code, name, kind, subledger, section, is_cash in CHART:
+        account = have.get(code)
+        if account is None:
+            db.add(Account(code=code, name=name, type=kind, subledger=subledger,
+                           section=section, is_cash=is_cash))
+            created += 1
             continue
-        db.add(Account(code=code, name=name, type=kind, subledger=subledger))
-        created += 1
-    if created:
+        if not account.section:
+            account.section = section
+            touched = True
+        if is_cash and not account.is_cash:
+            account.is_cash = True
+            touched = True
+
+    # Anything hand-created before sections existed, or since. Placed by type
+    # rather than left out of the statements entirely.
+    for account in have.values():
+        if not account.section:
+            account.section = DEFAULT_SECTION.get(account.type, "")
+            touched = touched or bool(account.section)
+
+    if created or touched:
         db.commit()
     return created
 

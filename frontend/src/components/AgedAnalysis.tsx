@@ -17,7 +17,10 @@
  *  action — which is how a list stops being read.
  */
 import { useEffect, useState } from "react";
-import { api, money } from "../api";
+import { Printer } from "@phosphor-icons/react";
+import { api, fmtDate, money } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { TableSkeleton } from "./Skeleton";
 
 interface Party {
@@ -52,6 +55,48 @@ export default function AgedAnalysis() {
 
   const active = LEDGERS.find((l) => l.key === subledger);
 
+  /** The ageing as a document — the one a bookkeeper walks into a meeting with.
+   *
+   *  The bucket columns are built from whatever the server sent rather than
+   *  hard-coded, so a change to the bands on the server does not silently
+   *  produce a printed report with the wrong headings on the right figures,
+   *  which is the worst kind of wrong a financial document can be.
+   */
+  async function print() {
+    if (!data) return;
+    const head = await letterhead();
+    const buckets = data.buckets;
+    printDocument(head, {
+      kind: subledger === "debtors" ? "Aged debtors" : "Aged creditors",
+      meta: [
+        { label: "As at", value: fmtDate(data.as_at) },
+        { label: "Accounts", value: String(data.parties.length) },
+        { label: "Past due", value: `${money(data.overdue)} · ${data.overdue_percent}%` },
+        { label: "Total outstanding", value: money(data.total), strong: true },
+      ],
+      columns: [
+        { key: "name", label: "Account" },
+        ...buckets.map((b) => ({ key: b, label: b, numeric: true, width: "24mm" })),
+        { key: "__total", label: "Total", numeric: true, width: "26mm" },
+      ],
+      rows: data.parties.map((party) => ({
+        name: party.name,
+        ...Object.fromEntries(buckets.map((b) => [b, money(party.buckets[b] ?? 0)])),
+        __total: money(party.total),
+      })),
+      totals: {
+        name: "Total",
+        ...Object.fromEntries(buckets.map((b) => [b, money(data.totals[b] ?? 0)])),
+        __total: money(data.total),
+      },
+      note: subledger === "debtors"
+        ? "Amounts shown are what remains unpaid at the date above, aged from "
+          + "the date of the sale or claim."
+        : "Amounts shown are what remains unpaid at the date above, aged from "
+          + "each invoice's due date where terms are recorded.",
+    });
+  }
+
   return (
     <div className="card">
       <div className="st-controls">
@@ -71,6 +116,10 @@ export default function AgedAnalysis() {
           <input type="date" value={asof} onChange={(e) => setAsof(e.target.value)} />
         </label>
         {active && <span className="muted">{active.blurb}</span>}
+        <button className="btn secondary small" onClick={print} disabled={!data}
+                style={{ marginLeft: "auto" }}>
+          <Printer size={15} /> Print
+        </button>
       </div>
 
       {error ? (

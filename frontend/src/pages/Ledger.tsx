@@ -21,6 +21,7 @@ import BusyButton from "../components/BusyButton";
 import ExportButton from "../components/ExportButton";
 import { EntityLink } from "../components/Filters";
 import NewJournal from "../components/NewJournal";
+import ChartOfAccounts from "../components/ChartOfAccounts";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -64,7 +65,7 @@ interface BankRecon {
                     entry_date: string; description: string; amount: number }[];
 }
 
-type Tab = "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "bank" | "unposted" | "provision";
+type Tab = "chart" | "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "bank" | "unposted" | "provision";
 
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
@@ -93,6 +94,10 @@ export default function Ledger() {
   const toast = useToast();
 
   const TABS: TabDef<Tab>[] = [
+    // First, because it is the question asked before any figure is read:
+    // where does this go. Everything after it is an answer about amounts.
+    { key: "chart", label: "Chart of accounts",
+      hint: "Every account in the business, grouped as a balance sheet groups them" },
     { key: "trial", label: "Trial balance", count: tb?.lines.length },
     { key: "income", label: "Income statement",
       hint: "Revenue, cost of sales and profit for the financial year" },
@@ -198,12 +203,13 @@ export default function Ledger() {
         {/* An accountant does not read a trial balance on a screen; they take
             it away and tie it to something else. Which dataset leaves follows
             whichever tab is open, so the button is never a guess. */}
-        {(tab === "trial" || tab === "journal" || tab === "recon") && (
+        {(tab === "trial" || tab === "journal" || tab === "recon"
+          || tab === "chart") && (
           <ExportButton
             dataset={tab === "journal" ? "journal"
-              : tab === "recon" ? "accounts" : "trial-balance"}
+              : (tab === "recon" || tab === "chart") ? "accounts" : "trial-balance"}
             label={tab === "journal" ? "Journal as a spreadsheet"
-              : tab === "recon" ? "Chart of accounts"
+              : (tab === "recon" || tab === "chart") ? "Chart as a spreadsheet"
                 : "Trial balance as a spreadsheet"}
           />
         )}
@@ -223,6 +229,7 @@ export default function Ledger() {
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
+      {tab === "chart" && <ChartOfAccounts />}
       {tab === "income" && <Statements kind="income" />}
       {tab === "balance" && <Statements kind="balance" />}
       {tab === "cash" && <CashFlow />}

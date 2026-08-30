@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useSearchParams } from "react-router-dom";
 import { api, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 import { TableSkeleton } from "../components/Skeleton";
@@ -84,6 +86,150 @@ export default function CrmReports() {
     return worst;
   }, [funnel]);
 
+  /** Print the tab that is open, as a document.
+   *
+   *  This one is taken into a sales meeting, so it has to survive being handed
+   *  round a table. A screen print of a dashboard does not — half of it is
+   *  navigation, and the figures somebody is being asked to commit to are
+   *  sitting next to a sidebar.
+   */
+  async function printTab() {
+    const head = await letterhead();
+    const today = new Date().toLocaleDateString();
+
+    if (tab === "forecast" && forecast.length) {
+      printDocument(head, {
+        kind: "Revenue forecast",
+        meta: [
+          { label: "Prepared", value: today },
+          { label: "Months", value: String(forecast.length) },
+          { label: "Weighted pipeline",
+            value: money(forecast.reduce((n, m2) => n + m2.weighted_value, 0)),
+            strong: true },
+        ],
+        columns: [
+          { key: "month", label: "Month", width: "28mm" },
+          { key: "deals", label: "Deals", numeric: true, width: "20mm" },
+          { key: "open", label: "Open value", numeric: true, width: "30mm" },
+          { key: "weighted", label: "Weighted", numeric: true, width: "30mm" },
+          { key: "won", label: "Won", numeric: true, width: "30mm" },
+        ],
+        rows: forecast.map((m2) => ({
+          month: m2.month, deals: String(m2.deals),
+          open: money(m2.open_value), weighted: money(m2.weighted_value),
+          won: money(m2.won_value),
+        })),
+        totals: {
+          month: "Total",
+          deals: String(forecast.reduce((n, m2) => n + m2.deals, 0)),
+          open: money(forecast.reduce((n, m2) => n + m2.open_value, 0)),
+          weighted: money(forecast.reduce((n, m2) => n + m2.weighted_value, 0)),
+          won: money(forecast.reduce((n, m2) => n + m2.won_value, 0)),
+        },
+        note: "Weighted value is each deal's value multiplied by the probability "
+            + "of its stage. It is a forecast, not an order book.",
+      });
+      return;
+    }
+
+    if (tab === "funnel" && funnel) {
+      printDocument(head, {
+        kind: "Conversion funnel",
+        meta: [
+          { label: "Prepared", value: today },
+          { label: "Disqualified", value: String(funnel.disqualified) },
+          { label: "Lead to customer",
+            value: `${funnel.lead_to_customer_rate}%`, strong: true },
+        ],
+        columns: [
+          { key: "stage", label: "Stage" },
+          { key: "count", label: "At this stage", numeric: true, width: "30mm" },
+          { key: "conversion", label: "Carried forward", numeric: true, width: "32mm" },
+        ],
+        rows: funnel.stages.map((st) => ({
+          stage: st.stage, count: String(st.count),
+          conversion: `${st.conversion}%`,
+        })),
+        note: "Carried forward is the share of the previous stage that reached "
+            + "this one.",
+      });
+      return;
+    }
+
+    if (tab === "owners" && owners.length) {
+      printDocument(head, {
+        kind: "Performance by owner",
+        meta: [
+          { label: "Prepared", value: today },
+          { label: "People", value: String(owners.length) },
+          { label: "Won",
+            value: money(owners.reduce((n, o) => n + o.won_value, 0)),
+            strong: true },
+        ],
+        columns: [
+          { key: "name", label: "Owner" },
+          { key: "open", label: "Open deals", numeric: true, width: "24mm" },
+          { key: "pipeline", label: "Pipeline", numeric: true, width: "28mm" },
+          { key: "weighted", label: "Weighted", numeric: true, width: "28mm" },
+          { key: "won", label: "Won", numeric: true, width: "28mm" },
+          { key: "rate", label: "Win rate", numeric: true, width: "22mm" },
+          { key: "overdue", label: "Overdue", numeric: true, width: "22mm" },
+        ],
+        rows: owners.map((o) => ({
+          name: o.name, open: String(o.open_deals),
+          pipeline: money(o.pipeline_value), weighted: money(o.weighted_value),
+          won: money(o.won_value), rate: `${o.win_rate}%`,
+          overdue: String(o.overdue_tasks),
+        })),
+        totals: {
+          name: "Total",
+          open: String(owners.reduce((n, o) => n + o.open_deals, 0)),
+          pipeline: money(owners.reduce((n, o) => n + o.pipeline_value, 0)),
+          weighted: money(owners.reduce((n, o) => n + o.weighted_value, 0)),
+          won: money(owners.reduce((n, o) => n + o.won_value, 0)),
+          overdue: String(owners.reduce((n, o) => n + o.overdue_tasks, 0)),
+        },
+      });
+      return;
+    }
+
+    if (tab === "campaigns" && roi.length) {
+      printDocument(head, {
+        kind: "Campaign returns",
+        meta: [
+          { label: "Prepared", value: today },
+          { label: "Campaigns", value: String(roi.length) },
+          { label: "Won from campaigns",
+            value: money(roi.reduce((n, c) => n + c.won_value, 0)), strong: true },
+        ],
+        columns: [
+          { key: "name", label: "Campaign" },
+          { key: "channel", label: "Channel", width: "24mm" },
+          { key: "sent", label: "Sent", numeric: true, width: "20mm" },
+          { key: "leads", label: "Leads", numeric: true, width: "20mm" },
+          { key: "rate", label: "Response", numeric: true, width: "24mm" },
+          { key: "pipeline", label: "Pipeline", numeric: true, width: "28mm" },
+          { key: "won", label: "Won", numeric: true, width: "28mm" },
+        ],
+        rows: roi.map((c) => ({
+          name: c.name, channel: c.channel, sent: String(c.sent),
+          leads: String(c.leads), rate: `${c.response_rate}%`,
+          pipeline: money(c.pipeline_value), won: money(c.won_value),
+        })),
+        totals: {
+          name: "Total",
+          sent: String(roi.reduce((n, c) => n + c.sent, 0)),
+          leads: String(roi.reduce((n, c) => n + c.leads, 0)),
+          pipeline: money(roi.reduce((n, c) => n + c.pipeline_value, 0)),
+          won: money(roi.reduce((n, c) => n + c.won_value, 0)),
+        },
+      });
+      return;
+    }
+
+    toast.warn("There is nothing on this tab to print yet.");
+  }
+
   return (
     <>
       <div className="page-head">
@@ -91,7 +237,7 @@ export default function CrmReports() {
           <h1>Revenue Intelligence</h1>
           <div className="sub">Forecast, conversion economics, rep performance and campaign attribution</div>
         </div>
-        <button className="secondary" onClick={() => window.print()}>Print report</button>
+        <button className="secondary" onClick={printTab}>Print report</button>
       </div>
 
       <div className="pill-tabs">

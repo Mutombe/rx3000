@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ReportCatalogue from "../components/ReportCatalogue";
 import { Patient } from "../types";
@@ -57,6 +59,115 @@ export default function Reports() {
     api.get(`/api/reports/patient/${p.id}/tax`).then(setTaxReport).catch((e) => toast.error(errorText(e)));
   }
 
+  /** Print what is on the tab, as a document.
+   *
+   *  One button that printed the whole browser window regardless of which tab
+   *  was open — so the takings report, the VAT summary and the stock valuation
+   *  all came out as a photograph of a web page with the navigation down the
+   *  side. The dataset that leaves now follows the tab, which is the only thing
+   *  the button could ever have honestly meant.
+   */
+  async function printTab() {
+    const head = await letterhead();
+    const period = { label: "Period",
+                     value: `${dateFrom || "last 30 days"}${dateTo ? ` to ${dateTo}` : ""}` };
+
+    if (tab === "daily" && daily.length) {
+      const sum = (pick: (d: any) => number) =>
+        daily.reduce((n, d) => n + (pick(d) || 0), 0);
+      printDocument(head, {
+        kind: "Daily takings",
+        meta: [period, { label: "Days", value: String(daily.length) },
+               { label: "Total", value: money(sum((d) => d.total)), strong: true }],
+        columns: [
+          { key: "day", label: "Day", width: "26mm" },
+          { key: "transactions", label: "Sales", numeric: true, width: "20mm" },
+          { key: "cash", label: "Cash", numeric: true, width: "26mm" },
+          { key: "card", label: "Card", numeric: true, width: "26mm" },
+          { key: "aid", label: "Medical aid", numeric: true, width: "28mm" },
+          { key: "vat", label: "VAT", numeric: true, width: "24mm" },
+          { key: "total", label: "Total", numeric: true, width: "28mm" },
+        ],
+        rows: daily.map((d) => ({
+          day: d.day, transactions: String(d.transactions),
+          cash: money(d.by_method.cash ?? 0), card: money(d.by_method.card ?? 0),
+          aid: money(d.by_method.medical_aid ?? 0),
+          vat: money(d.vat), total: money(d.total),
+        })),
+        totals: {
+          day: "Total",
+          transactions: String(sum((d) => d.transactions)),
+          cash: money(sum((d) => d.by_method.cash ?? 0)),
+          card: money(sum((d) => d.by_method.card ?? 0)),
+          aid: money(sum((d) => d.by_method.medical_aid ?? 0)),
+          vat: money(sum((d) => d.vat)),
+          total: money(sum((d) => d.total)),
+        },
+        note: "Paid sales only. A sale dispensed and not yet settled appears on "
+            + "the day it is paid, not the day it went out.",
+      });
+      return;
+    }
+
+    if (tab === "vat" && vat) {
+      printDocument(head, {
+        kind: "VAT summary",
+        meta: [{ label: "From", value: vat.date_from },
+               { label: "To", value: vat.date_to },
+               { label: "Rate", value: `${(vat.vat_rate * 100).toFixed(0)}%` },
+               { label: "VAT collected", value: money(vat.vat_collected),
+                 strong: true }],
+        columns: [{ key: "item", label: "" },
+                  { key: "amount", label: "Amount", numeric: true, width: "36mm" }],
+        rows: [
+          { item: "Sales including VAT", amount: money(vat.sales_inc_vat) },
+          { item: "Sales excluding VAT", amount: money(vat.sales_ex_vat) },
+          { item: "Transactions", amount: String(vat.transactions) },
+        ],
+        totals: { item: "VAT collected", amount: money(vat.vat_collected) },
+        // Two VAT figures exist in this software and only one is filed. Saying
+        // so on the face of the paper is the difference between a summary and
+        // a return somebody submits by mistake.
+        note: "Worked out from till sales. This is a management summary — the "
+            + "return to file is the one under Periods, which is drawn from the "
+            + "posted accounts and will differ while anything is unposted.",
+      });
+      return;
+    }
+
+    if (tab === "valuation" && valuation) {
+      printDocument(head, {
+        kind: "Stock valuation",
+        meta: [{ label: "As at", value: new Date().toLocaleDateString() },
+               { label: "Lines", value: String(valuation.lines.length) },
+               { label: "At retail", value: money(valuation.total_at_retail) },
+               { label: "At cost", value: money(valuation.total_at_cost),
+                 strong: true }],
+        columns: [
+          { key: "product", label: "Product" },
+          { key: "on_hand", label: "On hand", numeric: true, width: "22mm" },
+          { key: "cost", label: "Cost", numeric: true, width: "24mm" },
+          { key: "at_cost", label: "Value at cost", numeric: true, width: "30mm" },
+          { key: "at_retail", label: "Value at retail", numeric: true, width: "30mm" },
+        ],
+        // Every line, not the page on screen. A valuation that stops at
+        // twenty-five products is not a valuation.
+        rows: valuation.lines.map((l: any) => ({
+          product: l.product, on_hand: String(l.on_hand),
+          cost: money(l.cost_price), at_cost: money(l.value_at_cost),
+          at_retail: money(l.value_at_retail),
+        })),
+        totals: { product: "Total", at_cost: money(valuation.total_at_cost),
+                  at_retail: money(valuation.total_at_retail) },
+        note: "Valued at the cost last paid for each line. Stock held at a "
+            + "branch is included.",
+      });
+      return;
+    }
+
+    toast.warn("There is nothing on this tab to print yet.");
+  }
+
   return (
     <>
       <div className="page-head">
@@ -64,7 +175,7 @@ export default function Reports() {
           <h1>Analytics</h1>
           <div className="sub">Automated daily totals, VAT, stock valuation and patient tax statements</div>
         </div>
-        <button className="secondary" onClick={() => window.print()}>Print report</button>
+        <button className="secondary" onClick={printTab}>Print report</button>
       </div>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

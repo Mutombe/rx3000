@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, fmtDate, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import Pagination from "./Pagination";
@@ -158,6 +160,72 @@ export default function ReportRunner({
     }
   }
 
+  /** Print the report as a document, not as a photograph of this screen.
+   *
+   *  `window.print()` put the browser's own header, the navigation and a page
+   *  break through the middle of a table onto paper, and a pharmacy handing
+   *  that to an accountant is handing over a screenshot. This is the same
+   *  figures on a letterhead, with the parameters it was run under stated —
+   *  because a report whose date range is not printed on it is a report nobody
+   *  can check a month later.
+   *
+   *  Every row, not the visible page. A printed report that silently stops at
+   *  a hundred lines is worse than one that refuses to print.
+   */
+  async function printReport() {
+    if (!result) return;
+    setRunning(true);
+    try {
+      const q = new URLSearchParams(query);
+      q.set("page", "1");
+      // The server caps this; asking for more than it allows returns what it
+      // allows, and `truncated` below says so rather than hiding it.
+      q.set("per_page", "2000");
+      if (sort) { q.set("sort", sort); q.set("desc", String(desc)); }
+      const full = await api.get<RunResult>(`/api/reports/run/${report.key}?${q}`);
+      const head = await letterhead();
+
+      const stated = report.params
+        .map((param) => ({ label: param.label, value: values[param.key] ?? "" }))
+        .filter((entry) => entry.value !== "");
+
+      const truncated = full.rows.length < full.total;
+
+      printDocument(head, {
+        kind: report.title,
+        meta: [
+          ...stated,
+          { label: "Rows", value: full.total.toLocaleString() },
+          { label: "Run", value: new Date(full.generated_at).toLocaleString() },
+        ],
+        columns: full.columns.map((c) => ({
+          key: c.key,
+          label: c.header,
+          numeric: c.align === "right" || c.kind === "money" || c.kind === "number",
+        })),
+        rows: full.rows.map((row) => Object.fromEntries(
+          full.columns.map((c) => [c.key, render(row[c.key], c.kind)]))),
+        totals: full.columns.some((c) => c.total)
+          ? Object.fromEntries(full.columns.map((c, i) => [
+              c.key,
+              i === 0 ? `Total (${full.total.toLocaleString()})`
+                      : c.total ? render(full.totals[c.key], c.kind) : "",
+            ]))
+          : undefined,
+        note: [report.purpose,
+               truncated
+                 ? `Showing the first ${full.rows.length.toLocaleString()} of `
+                   + `${full.total.toLocaleString()} rows. Export to a spreadsheet `
+                   + `for the whole set.`
+                 : ""].filter(Boolean).join(" "),
+      });
+    } catch (e) {
+      toast.error(errorText(e, "That report could not be printed."));
+    } finally {
+      setRunning(false);
+    }
+  }
+
   function toggleSort(key: string) {
     if (sort === key) setDesc((d) => !d);
     else { setSort(key); setDesc(true); }
@@ -179,7 +247,7 @@ export default function ReportRunner({
           <BusyButton className="small" onClick={() => exportAs("xlsx")} disabled={!result}>
             Excel
           </BusyButton>
-          <IconButton action="print" onClick={() => window.print()} disabled={!result} />
+          <IconButton action="print" onClick={printReport} disabled={!result} />
         </div>
       </div>
 

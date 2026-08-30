@@ -17,7 +17,10 @@
  *  something is wrong, and hiding it destroys the only evidence.
  */
 import { useEffect, useState } from "react";
-import { api, money } from "../api";
+import { Printer } from "@phosphor-icons/react";
+import { api, fmtDate, money } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { TableSkeleton } from "./Skeleton";
 import Checkbox from "./Checkbox";
 
@@ -102,6 +105,65 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
     );
   }
 
+  /** The statement as a document.
+   *
+   *  These two are the pages a pharmacy hands to a bank, a landlord or a
+   *  prospective buyer, and until now the only way to get one on paper was to
+   *  print the screen — browser header, navigation and all. An accountant
+   *  receiving that reads it as a business with no accounting system.
+   *
+   *  The section headings survive as rows of their own, and every account under
+   *  them prints whether or not it was expanded on screen: a statement a reader
+   *  cannot decompose is one they cannot check.
+   */
+  async function print() {
+    if (!data) return;
+    const head = await letterhead();
+    const rows: Record<string, unknown>[] = [];
+    data.sections.forEach((section) => {
+      rows.push({ name: section.heading.toUpperCase(), amount: "" });
+      section.accounts.forEach((line) => rows.push({
+        code: line.code, name: line.name, amount: money(line.amount),
+      }));
+      rows.push({ name: `Total ${section.heading.toLowerCase()}`,
+                  amount: money(section.total) });
+    });
+
+    printDocument(head, {
+      kind: kind === "income" ? "Income statement" : "Balance sheet",
+      meta: kind === "income" && income
+        ? [{ label: "From", value: fmtDate(income.from) },
+           { label: "To", value: fmtDate(income.to) },
+           { label: "Gross margin", value: `${income.gross_margin}%` },
+           { label: income.net_profit >= 0 ? "Net profit" : "Net loss",
+             value: money(income.net_profit), strong: true }]
+        : balance
+          ? [{ label: "As at", value: fmtDate(balance.as_at) },
+             { label: "Total assets", value: money(balance.total_assets) },
+             { label: "Liabilities and equity",
+               value: money(balance.total_liabilities + balance.total_equity),
+               strong: true }]
+          : [],
+      columns: [
+        { key: "code", label: "Code", width: "20mm" },
+        { key: "name", label: "" },
+        { key: "amount", label: "Amount", numeric: true, width: "34mm" },
+      ],
+      rows,
+      totals: kind === "income" && income
+        ? { name: income.net_profit >= 0 ? "Net profit" : "Net loss",
+            amount: money(income.net_profit) }
+        : balance
+          ? { name: "Liabilities and equity",
+              amount: money(balance.total_liabilities + balance.total_equity) }
+          : undefined,
+      // The balance sheet says either way whether it balances. A statement
+      // that only speaks up when it is wrong leaves a reader unable to tell
+      // "checked and fine" from "never checked".
+      note: kind === "balance" && balance ? balance.note : undefined,
+    });
+  }
+
   return (
     <div className="card">
       <div className="st-controls">
@@ -119,6 +181,10 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
             {income.from} to {income.to}
           </span>
         )}
+        <button className="btn secondary small" onClick={print} disabled={!data}
+                style={{ marginLeft: "auto" }}>
+          <Printer size={15} /> Print
+        </button>
       </div>
 
       {!data ? (

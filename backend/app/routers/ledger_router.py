@@ -9,7 +9,8 @@ from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import paging
 from ..models import Account, JournalEntry, User
-from ..services import bank_recon, ledger, posting, reporting, statements, writedowns
+from ..services import (bank_recon, chart_of_accounts, ledger, posting,
+                        reporting, statements, writedowns)
 
 router = APIRouter(prefix="/api/ledger", tags=["ledger"],
                    dependencies=[Depends(get_current_user)])
@@ -32,6 +33,57 @@ def accounts(subledger: str = "", db: Session = Depends(get_db)):
              "subledger": a.subledger,
              "balance": sums.get(a.code, 0.0)}
             for a in rows]
+
+
+@router.get("/chart")
+def chart(include_inactive: bool = False, db: Session = Depends(get_db)):
+    """The chart of accounts, grouped the way a statement groups it."""
+    return chart_of_accounts.chart(db, include_inactive=include_inactive)
+
+
+@router.post("/accounts")
+def create_account(code: str = Body(...), name: str = Body(...),
+                   type: str = Body(...), section: str = Body(default=""),
+                   subledger: str = Body(default=""),
+                   parent_code: str = Body(default=""),
+                   is_cash: bool = Body(default=False),
+                   notes: str = Body(default=""),
+                   db: Session = Depends(get_db),
+                   _: User = Depends(require_role("admin"))):
+    """Add an account.
+
+    Restricted to an administrator: the chart decides where every future figure
+    lands, and an account added carelessly is not noticed until a statement is
+    read months later.
+    """
+    try:
+        account = chart_of_accounts.create(
+            db, code=code, name=name, type=type, section=section,
+            subledger=subledger, parent_code=parent_code, is_cash=is_cash,
+            notes=notes)
+    except chart_of_accounts.ChartError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"code": account.code, "name": account.name, "type": account.type,
+            "section": account.section, "subledger": account.subledger,
+            "parent_code": account.parent_code, "is_cash": account.is_cash,
+            "notes": account.notes, "active": True, "balance": 0.0,
+            "protected": False, "posted_to": False,
+            "message": f"{account.code} {account.name} added to the chart."}
+
+
+@router.patch("/accounts/{code}")
+def update_account(code: str, changes: dict = Body(...),
+                   db: Session = Depends(get_db),
+                   _: User = Depends(require_role("admin"))):
+    try:
+        account = chart_of_accounts.update(db, code, **changes)
+    except chart_of_accounts.ChartError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"code": account.code, "name": account.name, "type": account.type,
+            "section": account.section, "subledger": account.subledger,
+            "is_cash": account.is_cash, "active": account.active,
+            "notes": account.notes,
+            "message": f"{account.code} updated."}
 
 
 @router.post("/entries")

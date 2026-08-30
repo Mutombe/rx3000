@@ -5,6 +5,8 @@ import TermSelect from "../components/TermSelect";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import AiStreamBlock from "../components/AiStreamBlock";
 import ConsentPanel from "../components/ConsentPanel";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -141,6 +143,53 @@ export default function PatientDetail() {
     } catch (e) {
       toast.error(errorText(e, "That could not be saved."));
     }
+  }
+
+  /** The medical expense statement, as something a patient can hand to ZIMRA.
+   *
+   *  A tax authority is the least forgiving reader a pharmacy has. A screen
+   *  print with a browser header on it is not a statement from a pharmacy; it
+   *  is a picture of one, and a patient who submits it gets the deduction
+   *  refused and comes back cross. This is the same figures on the pharmacy's
+   *  letterhead, addressed to the patient, with the tax year stated.
+   */
+  async function printTaxStatement() {
+    if (!tax) return;
+    const head = await letterhead();
+    printDocument(head, {
+      kind: `Medical expense statement — tax year ${tax.tax_year}`,
+      to: [patient ? `${patient.first_name} ${patient.last_name}` : "Patient",
+           patient?.address ?? "", patient?.phone ?? ""].filter(Boolean),
+      meta: [
+        { label: "Tax year", value: String(tax.tax_year) },
+        { label: "Total spent", value: money(tax.total_spent) },
+        { label: "Medical aid paid", value: money(tax.total_medical_aid_paid) },
+        { label: "Out of pocket", value: money(tax.total_out_of_pocket),
+          strong: true },
+      ],
+      columns: [
+        { key: "date", label: "Date", width: "24mm" },
+        { key: "invoice", label: "Invoice", width: "28mm" },
+        { key: "items", label: "Dispensed" },
+        { key: "total", label: "Total", numeric: true, width: "24mm" },
+        { key: "aid", label: "Aid paid", numeric: true, width: "24mm" },
+        { key: "own", label: "Out of pocket", numeric: true, width: "28mm" },
+      ],
+      rows: tax.lines.map((l: any) => ({
+        date: l.date, invoice: l.invoice, items: l.items.join(", "),
+        total: money(l.total), aid: money(l.medical_aid_paid),
+        own: money(l.out_of_pocket),
+      })),
+      totals: {
+        items: "Total for the year",
+        total: money(tax.total_spent),
+        aid: money(tax.total_medical_aid_paid),
+        own: money(tax.total_out_of_pocket),
+      },
+      note: "Issued at the patient's request in support of a medical expenses "
+          + "claim. Only amounts actually paid by the patient appear in the "
+          + "out-of-pocket column.",
+    });
   }
 
   return (
@@ -330,7 +379,9 @@ export default function PatientDetail() {
             </tbody>
           </table>
           <div style={{ marginTop: 12 }}>
-            <button className="secondary" onClick={() => window.print()}>Print statement</button>
+            <button className="secondary" onClick={printTaxStatement}>
+              Print statement
+            </button>
           </div>
         </div>
       )}

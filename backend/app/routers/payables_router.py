@@ -11,7 +11,7 @@ from ..models import (
     PurchaseOrder, Supplier, SupplierInvoice, SupplierInvoiceItem,
     SupplierPayment, User,
 )
-from ..services import payables
+from ..services import creditor_statement, payables
 
 router = APIRouter(prefix="/api/payables", tags=["payables"],
                    dependencies=[Depends(get_current_user)])
@@ -186,6 +186,23 @@ def approve_invoice(invoice_id: int, db: Session = Depends(get_db),
 @router.get("/ageing")
 def creditor_ageing(asof: date | None = None, db: Session = Depends(get_db)):
     return payables.ageing(db, asof=asof)
+
+
+@router.get("/suppliers/{supplier_id}/statement")
+def creditor_statement_for(supplier_id: int,
+                           since: date | None = None,
+                           upto: date | None = None,
+                           db: Session = Depends(get_db)):
+    """One creditor account, movement by movement, ready to print.
+
+    The document a pharmacy has to be able to put beside the wholesaler's own
+    statement. Everything the letterhead needs comes from the profile in one
+    call, so this returns only the account.
+    """
+    doc = creditor_statement.statement(db, supplier_id, since=since, upto=upto)
+    if not doc:
+        raise HTTPException(404, "No such creditor.")
+    return doc
 
 
 @router.get("/payments")

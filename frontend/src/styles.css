@@ -528,6 +528,13 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    all, so the worst tier of every rate rendered as a plain grey badge — the
    one figure that most needed to be seen was the only one without a colour. */
 .badge.bad { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
+/* One word for one meaning. Rows and figures already say `danger`; badges said
+   `bad`, so a tone carried from the server had to be translated at every call
+   site, and one of them would always forget. Both spellings now paint. */
+.badge.danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
+/* A figure that is the wrong way round: an overdraft, a negative margin, money
+   walking out. Not an alarm — the number itself is the alarm. */
+.neg { color: var(--danger); }
 
 /* ------------------------------------------------------------- row tone
    A whole row carrying a status, for lists somebody scans rather than reads.
@@ -5462,3 +5469,62 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .sc-margin:hover:not(:disabled) { border-color: var(--line); }
 .sc-margin:focus { background: var(--surface); border-color: var(--accent); }
+
+/* ---- Brand assets -------------------------------------------------------
+ *
+ * The mark is shown on a chequerboard rather than on the card: almost every
+ * logo uploaded here is a transparent PNG, and a white mark on a white card
+ * looks exactly like a failed upload.
+ */
+.brand-row {
+  display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap;
+  margin-top: 14px;
+}
+.brand-mark {
+  width: 190px; min-height: 96px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface-2);
+  background-image:
+    linear-gradient(45deg, rgba(128,128,150,.10) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(128,128,150,.10) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(128,128,150,.10) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(128,128,150,.10) 75%);
+  background-size: 14px 14px;
+  background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+}
+.brand-mark img { max-width: 100%; max-height: 72px; object-fit: contain; }
+.brand-empty {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--muted); font-size: 12px;
+}
+.brand-actions {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+  max-width: 30rem;
+}
+.brand-actions .btn { flex: none; }
+@media (max-width: 640px) {
+  .brand-mark { width: 100%; }
+  .brand-actions { max-width: none; }
+}
+
+/* ---- Chart of accounts --------------------------------------------------
+ *
+ * Section headings carry their own total on the right. A chart read without
+ * them is an alphabetical list, and an alphabetical list is what the pharmacy
+ * already had in a spreadsheet.
+ */
+.coa-group { margin-top: 18px; }
+.coa-group-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; padding: 0 2px 6px;
+  border-bottom: 1px solid var(--line);
+}
+.coa-group-head h4 {
+  margin: 0; font-size: 12px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted);
+}
+.coa-group-head b { font-variant-numeric: tabular-nums; }
+.coa-group .dt { margin-top: 0; }
+.coa-group tr.is-muted td { opacity: .55; }
+.coa-group .badge { margin-left: 6px; }

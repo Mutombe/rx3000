@@ -5,9 +5,13 @@
  *  no answer short of running three reports.
  */
 import { useEffect, useState } from "react";
+import { Printer } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 
 interface Order {
@@ -32,8 +36,72 @@ interface Data {
 
 export default function SupplierDetail() {
   const { id } = useParams();
+  const toast = useToast();
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
+  const [printing, setPrinting] = useState(false);
+
+  /** The statement, as a document rather than a screenshot of a table.
+   *
+   *  This is the thing a pharmacy puts beside the wholesaler's own statement
+   *  once a month, so it has to carry the same furniture: the account it is
+   *  for, a brought-forward, a running balance that ties, and the ageing.
+   */
+  const printStatement = async () => {
+    setPrinting(true);
+    try {
+      const [head, doc] = await Promise.all([
+        letterhead(),
+        api.get<any>(`/api/payables/suppliers/${id}/statement`),
+      ]);
+      printDocument(head, {
+        kind: "Statement of account",
+        to: [doc.supplier, doc.contact, doc.phone, doc.email].filter(Boolean),
+        meta: [
+          { label: "Account", value: doc.account_code },
+          { label: "Date", value: fmtDate(doc.to) },
+          { label: "Period from", value: fmtDate(doc.from) },
+          { label: "Amount due", value: money(doc.amount_due), strong: true },
+        ],
+        columns: [
+          { key: "date", label: "Date", width: "22mm" },
+          { key: "reference", label: "Reference", width: "30mm" },
+          { key: "description", label: "Description" },
+          { key: "debit", label: "Debit", numeric: true, width: "24mm" },
+          { key: "credit", label: "Credit", numeric: true, width: "24mm" },
+          { key: "balance", label: "Balance", numeric: true, width: "26mm" },
+        ],
+        opening: {
+          description: "Balance brought forward",
+          balance: money(doc.brought_forward),
+        },
+        rows: doc.lines.map((l: any) => ({
+          date: fmtDate(l.date),
+          reference: l.reference,
+          description: l.description,
+          debit: l.debit == null ? "" : money(l.debit),
+          credit: l.credit == null ? "" : money(l.credit),
+          balance: money(l.balance),
+        })),
+        totals: {
+          description: "Closing balance",
+          debit: money(doc.debits),
+          credit: money(doc.credits),
+          balance: money(doc.closing),
+        },
+        ageing: [
+          ...doc.ageing.map((a: any) => ({ label: a.label, value: money(a.value) })),
+          { label: "Amount due", value: money(doc.amount_due), strong: true },
+        ],
+        note: head.terms
+          || "Please quote the account number shown above on every remittance.",
+      });
+    } catch (e) {
+      toast.error(errorText(e, "That statement could not be produced."));
+    } finally {
+      setPrinting(false);
+    }
+  };
 
   useEffect(() => {
     setD(null);
@@ -47,13 +115,18 @@ export default function SupplierDetail() {
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
-              { label: "Supplier accounts", to: "/payables" },
+              { label: "Creditors", to: "/payables" },
               { label: d?.name ?? "This supplier" }]}
       eyebrow="Supplier"
       title={d?.name ?? ""}
       subtitle={d && [d.contact_person, d.phone, d.email].filter(Boolean).join(" · ")}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <button className="btn secondary" onClick={printStatement} disabled={printing}>
+          <Printer size={15} /> {printing ? "Preparing…" : "Statement"}
+        </button>
+      )}
       facts={d ? [
         { label: "Owed now", value: money(d.owed),
           hint: d.owed > 0 ? "unpaid invoices" : "nothing outstanding" },

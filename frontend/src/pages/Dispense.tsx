@@ -4,6 +4,8 @@ import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import AiOutput from "../components/AiOutput";
 import CounterMessages from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
@@ -647,6 +649,87 @@ export default function Dispense() {
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
 
+  /** The quote, as something a patient can take away and think about.
+   *
+   *  A quote is the one thing on this screen that leaves the building without
+   *  any medicine attached to it. It is read at a kitchen table, compared
+   *  against another pharmacy's, and brought back a week later — so it needs
+   *  the pharmacy's name on it and a date it expires, or it comes back in a
+   *  month with last month's prices on it and an argument attached.
+   *
+   *  Priced through the same endpoint the till uses, on the patient's own
+   *  scheme. A quote worked out differently from the sale is worse than no
+   *  quote at all.
+   */
+  async function printQuote() {
+    if (items.length === 0) return;
+    try {
+      const priced = await Promise.all(items.map(async (line: any) => {
+        const q = await api.post<any>("/api/quick-price", {
+          product_id: line.product.id,
+          quantity: line.quantity,
+          medical_aid_id: patient?.medical_aid_id ?? null,
+        });
+        return { line, q };
+      }));
+      const head = await letterhead();
+      // `scheme_price` where there is a scheme — the regulated price including
+      // the dispensing fee — and the shelf price where there is not. Quoting
+      // the shelf price to somebody on a scheme is quoting a figure the till
+      // will not charge.
+      const lineTotal = (q: any) => q.scheme ? q.scheme_price : q.cash_price;
+      const total = priced.reduce((n, r) => n + (lineTotal(r.q) ?? 0), 0);
+      const scheme = priced.reduce((n, r) => n + (r.q.scheme_pays ?? 0), 0);
+      const own = priced.reduce((n, r) => n + (r.q.patient_pays ?? 0), 0);
+      // A fortnight. Long enough to think it over, short enough that the price
+      // on the paper is still the price in the system.
+      const expires = new Date(Date.now() + 14 * 86_400_000);
+
+      printDocument(head, {
+        kind: "Quotation",
+        to: [patient ? `${patient.first_name} ${patient.last_name}` : "Customer",
+             patient?.phone ?? ""].filter(Boolean),
+        meta: [
+          { label: "Date", value: new Date().toLocaleDateString() },
+          { label: "Valid until", value: expires.toLocaleDateString() },
+          ...(patient?.medical_aid
+            ? [{ label: "Scheme",
+                 value: `${patient.medical_aid.name}`
+                      + (patient.medical_aid_number
+                         ? ` · ${patient.medical_aid_number}` : "") }]
+            : []),
+          { label: "To pay", value: money(own), strong: true },
+        ],
+        columns: [
+          { key: "item", label: "Medicine" },
+          { key: "directions", label: "Directions" },
+          { key: "qty", label: "Qty", numeric: true, width: "16mm" },
+          { key: "price", label: "Price", numeric: true, width: "26mm" },
+          { key: "scheme", label: "Scheme pays", numeric: true, width: "28mm" },
+          { key: "own", label: "You pay", numeric: true, width: "26mm" },
+        ],
+        rows: priced.map(({ line, q }) => ({
+          item: `${line.product.name} ${line.product.strength ?? ""}`.trim(),
+          directions: line.dosage_instructions || "—",
+          qty: String(line.quantity),
+          price: money(lineTotal(q) ?? 0),
+          scheme: money(q.scheme_pays ?? 0),
+          own: money(q.patient_pays ?? 0),
+        })),
+        totals: {
+          directions: "Total",
+          price: money(total), scheme: money(scheme), own: money(own),
+        },
+        note: "This is a quotation, not an invoice. Nothing has been dispensed "
+            + "and no stock has been set aside. Prices hold until the date "
+            + "above and are subject to the medicine being in stock and, where "
+            + "a scheme is shown, to that scheme's authorisation on the day.",
+      });
+    } catch (e) {
+      toast.error(errorText(e, "That quote could not be priced."));
+    }
+  }
+
   return (
     <>
       <KeyMap keys={hotkeys} open={showKeys} onClose={() => setShowKeys(false)} />
@@ -1222,7 +1305,7 @@ export default function Dispense() {
                   {quoting ? (
                     <button className="btn primary disp-go"
                             disabled={items.length === 0}
-                            onClick={() => window.print()}>
+                            onClick={printQuote}>
                       Print the quote
                     </button>
                   ) : (

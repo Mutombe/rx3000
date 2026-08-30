@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDateTime, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, errorText  } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import { RegisterEntry } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -57,6 +59,67 @@ export default function Register() {
       .then(setReprints).catch(() => setReprints([]));
   }, []);
 
+  /** The register as a document, because an inspector may ask for it on paper.
+   *
+   *  This is a statutory record. A screen print of it — browser chrome, the
+   *  navigation, a table cut through the middle by a page break — is not a
+   *  register, and an inspector handed one draws exactly the conclusion you
+   *  would expect about the rest of the controls.
+   *
+   *  The whole filtered range prints, not the visible page: a controlled-drugs
+   *  register that stops at row twenty-five is not a register at all.
+   */
+  async function printRegister() {
+    try {
+      const q = new URLSearchParams();
+      if (schedule) q.set("schedule", String(schedule));
+      if (dateFrom) q.set("date_from", dateFrom);
+      if (dateTo) q.set("date_to", dateTo);
+      // `limit`, not `per_page`: this endpoint answers with a plain list. Set
+      // far above any real month so the printed register is the whole filtered
+      // range rather than the page on screen.
+      q.set("limit", "2000");
+      const rows = await api.get<RegisterEntry[]>(`/api/register?${q}`);
+      const head = await letterhead();
+      printDocument(head, {
+        kind: "Controlled substances register",
+        meta: [
+          { label: "Schedule", value: schedule ? `S${schedule}` : "5 and 6" },
+          { label: "From", value: dateFrom ? fmtDate(dateFrom) : "the beginning" },
+          { label: "To", value: dateTo ? fmtDate(dateTo) : "today" },
+          { label: "Entries", value: String(rows.length) },
+        ],
+        columns: [
+          { key: "when", label: "Date and time", width: "32mm" },
+          { key: "substance", label: "Substance" },
+          { key: "sched", label: "Sch.", width: "12mm" },
+          { key: "type", label: "Entry", width: "22mm" },
+          { key: "qty", label: "Qty", numeric: true, width: "16mm" },
+          { key: "balance", label: "Balance", numeric: true, width: "18mm" },
+          { key: "patient", label: "Patient", width: "34mm" },
+          { key: "prescriber", label: "Prescriber", width: "30mm" },
+          { key: "reference", label: "Reference", width: "26mm" },
+        ],
+        rows: rows.map((e) => ({
+          when: fmtDateTime(e.created_at),
+          substance: `${e.product?.name ?? ""} ${e.product?.strength ?? ""}`.trim(),
+          sched: `S${e.schedule}`,
+          type: e.entry_type,
+          qty: e.quantity_delta > 0 ? `+${e.quantity_delta}` : String(e.quantity_delta),
+          balance: String(e.balance_after),
+          patient: e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "—",
+          prescriber: e.doctor?.name ?? "—",
+          reference: e.reference,
+        })),
+        note: "Every entry in this register is written once and never altered. "
+            + "A correction appears as a further entry, never as a change to an "
+            + "existing one.",
+      });
+    } catch (e) {
+      toast.error(errorText(e, "The register could not be printed."));
+    }
+  }
+
   return (
     <>
       <div className="page-head">
@@ -64,7 +127,7 @@ export default function Register() {
           <h1>Controlled Register</h1>
           <div className="sub">Fully electronic S5 / S6 controlled-substance register, immutable audit trail</div>
         </div>
-        <button className="secondary" onClick={() => window.print()}>Print register</button>
+        <button className="secondary" onClick={printRegister}>Print register</button>
       </div>
 
       <div className="card">

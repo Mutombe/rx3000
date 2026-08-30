@@ -12,6 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
+import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -50,7 +51,7 @@ interface Quote {
   note: string;
 }
 
-type Tab = "due" | "value" | "price";
+type Tab = "due" | "value" | "churn" | "price";
 
 /** Where a lost repeat went, in the pharmacy's words, and what colour it
  *  earns. Red is reserved for the two that are genuinely gone; a repeat that
@@ -103,6 +104,10 @@ export default function Repeats() {
       hint: "Overdue first. The order somebody would telephone in" },
     { key: "value", label: "What it is worth",
       hint: "How much of its own repeat book this pharmacy keeps" },
+    // Beside the value tab, because they are two halves of one question: what
+    // the repeat book is worth, and who has quietly walked out of it.
+    { key: "churn", label: "Churn",
+      hint: "Regulars who stopped coming, and treatments that stopped" },
     { key: "price", label: "Quick price",
       hint: "What will this cost on my scheme?" },
   ];
@@ -562,6 +567,8 @@ export default function Repeats() {
           )}
         </>
       )}
+
+      {tab === "churn" && <Churn />}
 
       {tab === "price" && (
         <div className="quick-price">

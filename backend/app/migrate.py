@@ -402,6 +402,52 @@ WANTED_INDEXES: list[tuple[str, str, tuple[str, ...]]] = [
 ]
 
 
+def _untangle_account_codes(conn, inspector, existing_tables: set) -> int:
+    """Make an account code unique per pharmacy rather than per database.
+
+    The original index was UNIQUE on accounts(code) alone. On one pharmacy that
+    is right; on a shared database it means the first tenant to boot claims
+    "1000" and no other tenant can ever seed a chart of accounts. Sixteen of
+    seventeen pharmacies here had none, and the only symptom was an empty ledger.
+
+    Dropping a unique index is safe in a way that adding one is not: nothing
+    that was legal becomes illegal. The composite that replaces it is created
+    only if the data allows — if two rows in one pharmacy really do share a
+    code, that is a data problem to be seen rather than a migration to fail the
+    boot on, so it is logged and the plain index stands.
+    """
+    if "accounts" not in existing_tables:
+        return 0
+    columns = {c["name"] for c in inspector.get_columns("accounts")}
+    if "pharmacy_id" not in columns:
+        return 0
+
+    indexes = {i["name"]: i for i in inspector.get_indexes("accounts")}
+    old = indexes.get("ix_accounts_code")
+    if not (old and old.get("unique")):
+        return 0
+
+    conn.execute(text("DROP INDEX ix_accounts_code"))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_accounts_code ON accounts (code)"))
+    log.info("Account codes are no longer unique across every pharmacy")
+
+    clash = conn.execute(text(
+        "SELECT COUNT(*) FROM (SELECT pharmacy_id, code FROM accounts "
+        "GROUP BY pharmacy_id, code HAVING COUNT(*) > 1) d")).scalar()
+    if clash:
+        log.warning(
+            "%d account code(s) are duplicated within one pharmacy; the "
+            "per-pharmacy unique index was not created", clash)
+        return 1
+
+    conn.execute(text(
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_accounts_tenant_code "
+        "ON accounts (pharmacy_id, code)"))
+    log.info("Account codes are now unique within each pharmacy")
+    return 1
+
+
 def _create_indexes(conn, inspector, existing_tables: set) -> int:
     """Add the indexes the queries actually need.
 
@@ -555,6 +601,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _add_tenant_columns(conn, inspector, existing_tables)
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
+        applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
     # The tidying passes run in their own transactions, and a failure in one is
