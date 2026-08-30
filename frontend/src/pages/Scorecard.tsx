@@ -18,6 +18,7 @@ import { api, errorText, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
+import { rateTone } from "../tone";
 
 interface Money { count: number; amount: number }
 interface Branch {
@@ -59,8 +60,10 @@ const WINDOWS = [
 /** A percentage, or the reason there is not one. */
 function pct(value: number | null, good = 90): JSX.Element {
   if (value === null) return <span className="muted">not counted</span>;
-  const tone = value >= good ? "ok" : value >= good - 20 ? "warn" : "bad";
-  return <span className={`badge ${tone}`}>{value}%</span>;
+  // Through the shared rule rather than a copy of it. Two screens each with
+  // their own thresholds is how a 79% comes to be amber on one page and green
+  // on the next, which teaches a reader to distrust the colour.
+  return <span className={`badge ${rateTone(value, good)}`}>{value}%</span>;
 }
 
 export default function Scorecard() {

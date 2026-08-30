@@ -142,7 +142,13 @@ export default function RemittanceDetail() {
                 <dd className="mono">{advice.payment_reference || "—"}</dd>
                 <dt>Currency</dt><dd>{advice.currency_code}</dd>
                 <dt>Lines</dt><dd>{advice.line_count}</dd>
-                <dt>State</dt><dd>{advice.status}</dd>
+                <dt>State</dt>
+                <dd>
+                  <span className={`badge ${advice.status === "settled" ? "ok"
+                    : advice.status === "rejected" ? "danger" : "warn"}`}>
+                    {advice.status}
+                  </span>
+                </dd>
               </dl>
             </Panel>
 

@@ -77,8 +77,9 @@ def performance(db: Session, *, days: int = 30) -> dict:
         .all()
     )
 
-    due = captured = late = lapsed = blocked = 0
+    due = captured = late = lapsed = blocked = waiting = 0
     due_value = captured_value = late_value = lapsed_value = blocked_value = 0.0
+    waiting_value = 0.0
     at_risk: list[dict] = []
 
     for item, product, rx in rows:
@@ -121,6 +122,12 @@ def performance(db: Session, *, days: int = 30) -> dict:
         elif overdue_days > GRACE_DAYS:
             late += 1
             late_value += line_value
+        else:
+            # Due, unfilled, and not yet late enough to chase. Counted so the
+            # split adds up: a breakdown that accounts for 85% of a loss and
+            # says nothing about the rest is a breakdown nobody trusts.
+            waiting += 1
+            waiting_value += line_value
 
         if overdue_days > GRACE_DAYS:
             at_risk.append({
@@ -145,6 +152,18 @@ def performance(db: Session, *, days: int = 30) -> dict:
     rate = round(captured / due, 4) if due else None
     value_rate = round(captured_value / due_value, 4) if due_value > 0.005 else None
 
+    lost = due - captured
+    lost_value = _money(due_value - captured_value)
+
+    # What is due today, on its own. A pharmacy plans the morning against this
+    # one figure and it is buried inside a thirty-day total otherwise.
+    today_rows = [r for r in rows
+                  if r[0].next_repeat_date == today
+                  and r[2].status not in ("draft", "cancelled")]
+    today_value = _money(sum(
+        (product.unit_price or 0.0) * (item.quantity or 0)
+        for item, product, _ in today_rows if product))
+
     return {
         "as_at": today,
         "days": days,
@@ -154,11 +173,57 @@ def performance(db: Session, *, days: int = 30) -> dict:
         "due_value": _money(due_value),
         "captured_value": _money(captured_value),
         "value_capture_rate": value_rate,
-        "lost_value": _money(due_value - captured_value),
+
+        # ---- what was lost, said as its own thing -----------------------
+        #
+        # "We lose about ten per cent" is a sentence nobody can act on. Ten per
+        # cent of what, worth what, and lost how? These are the same figures
+        # from the other side, because a loss rate without the money behind it
+        # is a statistic and the money is the argument.
+        "lost": lost,
+        "lost_value": lost_value,
+        "loss_rate": round(lost / due, 4) if due else None,
+        "value_loss_rate": (round((due_value - captured_value) / due_value, 4)
+                            if due_value > 0.005 else None),
+
+        # What one repeat is worth on average, which is what turns a count into
+        # a decision: forty missed repeats matters differently at four dollars
+        # than at forty.
+        "average_value": _money(due_value / due) if due else 0.0,
+        "average_captured": _money(captured_value / captured) if captured else 0.0,
+
+        # Today, on its own.
+        "due_today": len(today_rows),
+        "due_today_value": today_value,
+
         # The three different jobs.
         "late": late, "late_value": _money(late_value),
         "lapsed": lapsed, "lapsed_value": _money(lapsed_value),
         "cannot_supply": blocked, "cannot_supply_value": _money(blocked_value),
+
+        # Where the loss went, as a share of the loss rather than of the book —
+        # a manager choosing what to fix first needs the split of what is
+        # actually going wrong, not each piece against a total that dwarfs it.
+        "still_in_hand": waiting, "still_in_hand_value": _money(waiting_value),
+        "loss_split": ([
+            {"reason": "still in hand", "count": waiting,
+             "value": _money(waiting_value),
+             "share": round(waiting_value / (due_value - captured_value), 4),
+             "fix": f"Due but not yet {GRACE_DAYS} days late. Nothing to do "
+                    f"except be open when they come."},
+            {"reason": "late", "count": late, "value": _money(late_value),
+             "share": round(late_value / (due_value - captured_value), 4),
+             "fix": "A telephone call, today."},
+            {"reason": "cannot supply", "count": blocked,
+             "value": _money(blocked_value),
+             "share": round(blocked_value / (due_value - captured_value), 4),
+             "fix": "An order. The only one the pharmacy causes itself."},
+            {"reason": "lapsed", "count": lapsed, "value": _money(lapsed_value),
+             "share": round(lapsed_value / (due_value - captured_value), 4),
+             "fix": f"More than {LAPSED_DAYS} days past due. Assume they are "
+                    f"being served elsewhere, and ask why."},
+        ] if (due_value - captured_value) > 0.005 else []),
+
         "at_risk": at_risk[:100],
         "at_risk_total": len(at_risk),
         "grace_days": GRACE_DAYS,

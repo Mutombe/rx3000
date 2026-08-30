@@ -22,6 +22,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
 import { DetailSkeleton } from "../components/Skeleton";
+import { rateTone } from "../tone";
 
 const WINDOWS = [
   { value: "7", label: "Last 7 days" },
@@ -36,8 +37,7 @@ function pct(value: number | null, good = 90) {
   if (value === null || value === undefined) {
     return <span className="muted">not counted</span>;
   }
-  const tone = value >= good ? "ok" : value >= good - 20 ? "warn" : "bad";
-  return <span className={`badge ${tone}`}>{value}%</span>;
+  return <span className={`badge ${rateTone(value, good)}`}>{value}%</span>;
 }
 
 /** One figure, with what it is measured against underneath it.

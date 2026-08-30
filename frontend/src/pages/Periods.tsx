@@ -148,7 +148,11 @@ export default function Periods() {
                   {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
                 </td>
                 <td>
-                  <span className={`badge ${p.status === "open" ? "ok" : p.status === "locked" ? "warn" : ""}`}>
+                  {/* "closed" used to fall through to an empty tone and
+                      render grey-on-grey, which on the row that says the books
+                      are shut is the one status worth seeing. */}
+                  <span className={`badge ${p.status === "open" ? "ok"
+                    : p.status === "locked" ? "warn" : "muted"}`}>
                     {p.status}
                   </span>
                   <div className="muted small clip-2" title={STATUS_HINT[p.status]}>{STATUS_HINT[p.status]}</div>

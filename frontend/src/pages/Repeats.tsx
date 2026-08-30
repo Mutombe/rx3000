@@ -23,6 +23,7 @@ import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
+import { overdueTone, rateTone } from "../tone";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -50,6 +51,27 @@ interface Quote {
 }
 
 type Tab = "due" | "value" | "price";
+
+/** Where a lost repeat went, in the pharmacy's words, and what colour it
+ *  earns. Red is reserved for the two that are genuinely gone; a repeat that
+ *  is merely due today has done nothing wrong. */
+const LOSS_LABEL: Record<string, string> = {
+  "still in hand": "Due, not yet late",
+  late: "Late, still ours",
+  "cannot supply": "Could not be supplied",
+  lapsed: "Lapsed",
+};
+/* The server owns these thresholds and returns them with the figures; these
+   are the fallbacks for the due list, which does not carry them. */
+const GRACE = 7;
+const LAPSED = 45;
+
+const LOSS_TONE: Record<string, string> = {
+  "still in hand": "muted",
+  late: "warn",
+  "cannot supply": "danger",
+  lapsed: "danger",
+};
 
 export default function Repeats() {
   const [due, setDue] = useState<Due | null>(null);
@@ -262,7 +284,15 @@ export default function Repeats() {
                   {dueRows.items.map((i) => (
                     <RowLink key={i.item_id} to={`/patients/${i.patient_id}`}
                       prefetch={prefetchRoute}
-                      className={i.overdue ? "row-flag" : ""}>
+                      /* Green until it is late, amber while a telephone call
+                         still works, red once the patient has almost certainly
+                         been served somewhere else — or once the shelf cannot
+                         serve them, which is the same loss for a different
+                         reason. Read down the edge without reading the rows. */
+                      className={`row-${
+                        !i.can_supply ? "danger"
+                          : overdueTone(i.days_overdue,
+                                        GRACE, LAPSED)}`}>
                       <td>
                         <EntityLink kind="patient" id={i.patient_id}>{i.patient_name}</EntityLink>
                         {i.patient_phone && (
@@ -348,56 +378,83 @@ export default function Repeats() {
               <>
                 <div className="wc-bands">
                   <div className="wl-stat">
-                    <b>{money(perf.due_value)}</b><span>the book was worth</span>
+                    <b>{money(perf.due_value)}</b>
+                    <span>the book was worth · {perf.due} repeats</span>
                   </div>
                   <div className="wl-stat">
-                    <b>{money(perf.captured_value)}</b><span>we filled</span>
+                    <b className="tone-ok">{money(perf.captured_value)}</b>
+                    <span>we filled · {perf.captured}</span>
                   </div>
+                  {/* The number the whole view exists for, said as money and
+                      as a share, because "we lose about ten per cent" is a
+                      sentence nobody can act on. */}
                   <div className={`wl-stat${perf.lost_value > 0.005 ? " wc-stale" : ""}`}>
-                    <b>{money(perf.lost_value)}</b><span>went unfilled</span>
+                    <b className={`tone-${rateTone(
+                      100 - (perf.value_loss_rate ?? 0) * 100, 80)}`}>
+                      {money(perf.lost_value)}
+                    </b>
+                    <span>
+                      lost · {perf.lost} repeats
+                      {perf.value_loss_rate !== null
+                        && ` · ${Math.round(perf.value_loss_rate * 100)}% of the value`}
+                    </span>
                   </div>
                   <div className="wl-stat">
-                    <b>{perf.value_capture_rate === null
-                        ? "—" : `${Math.round(perf.value_capture_rate * 100)}%`}</b>
+                    <b className={`tone-${rateTone(
+                      (perf.value_capture_rate ?? 0) * 100, 80)}`}>
+                      {perf.value_capture_rate === null
+                        ? "—" : `${Math.round(perf.value_capture_rate * 100)}%`}
+                    </b>
                     <span>of the value kept</span>
+                  </div>
+                  <div className="wl-stat">
+                    <b>{money(perf.average_value)}</b>
+                    <span>what one repeat is worth</span>
+                  </div>
+                  <div className="wl-stat">
+                    <b>{money(perf.due_today_value)}</b>
+                    <span>due today · {perf.due_today}</span>
                   </div>
                 </div>
 
                 {/* Three different jobs, so three separate figures. Telling a
                     manager "you lost 39,000" is not actionable; telling them
                     17,000 of it was an empty shelf is. */}
+                {/* Every lost repeat lands in exactly one row and the column
+                    sums to the loss above. A breakdown that accounts for most
+                    of a number and says nothing about the rest is a breakdown
+                    nobody trusts. */}
                 <table className="dt" style={{ marginTop: "var(--s4)" }}>
                   <thead>
                     <tr>
                       <th>Where it went</th><th className="num">Repeats</th>
-                      <th className="num">Worth</th><th>What fixes it</th>
+                      <th className="num">Worth</th>
+                      <th className="num">Share</th><th>What fixes it</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td><b>Late, still ours</b></td>
-                      <td className="num">{perf.late}</td>
-                      <td className="num">{money(perf.late_value)}</td>
-                      <td className="muted">A telephone call, today.</td>
-                    </tr>
-                    <tr className={perf.cannot_supply > 0 ? "row-flag" : ""}>
-                      <td><b>Could not be supplied</b></td>
-                      <td className="num">{perf.cannot_supply}</td>
-                      <td className="num">{money(perf.cannot_supply_value)}</td>
-                      <td className="muted">
-                        An order. This is the only one the pharmacy causes itself.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><b>Lapsed</b></td>
-                      <td className="num">{perf.lapsed}</td>
-                      <td className="num">{money(perf.lapsed_value)}</td>
-                      <td className="muted">
-                        More than {perf.lapsed_after_days} days past due. Assume
-                        they are being served somewhere else, and ask why.
-                      </td>
-                    </tr>
+                    {perf.loss_split.map((r: any) => (
+                      <tr key={r.reason}
+                          className={`row-${LOSS_TONE[r.reason] ?? "warn"}`}>
+                        <td><b>{LOSS_LABEL[r.reason] ?? r.reason}</b></td>
+                        <td className="num">{r.count}</td>
+                        <td className="num">{money(r.value)}</td>
+                        <td className={`num tone-${LOSS_TONE[r.reason] ?? "warn"}`}>
+                          {Math.round(r.share * 100)}%
+                        </td>
+                        <td className="muted wrap">{r.fix}</td>
+                      </tr>
+                    ))}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td><b>Lost altogether</b></td>
+                      <td className="num"><b>{perf.lost}</b></td>
+                      <td className="num"><b>{money(perf.lost_value)}</b></td>
+                      <td className="num"><b>100%</b></td>
+                      <td />
+                    </tr>
+                  </tfoot>
                 </table>
               </>
             )}
@@ -468,7 +525,9 @@ export default function Repeats() {
                   </thead>
                   <tbody>
                     {perf.at_risk.map((r: any) => (
-                      <tr key={r.item_id} className={!r.can_supply ? "row-flag" : ""}>
+                      <tr key={r.item_id}
+                          className={`row-${r.state === "cannot supply" ? "danger"
+                            : r.state === "lapsed" ? "danger" : "warn"}`}>
                         <td>
                           <EntityLink kind="patient" id={r.patient_id}>
                             <b>{r.patient}</b>

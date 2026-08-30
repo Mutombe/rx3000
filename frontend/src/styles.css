@@ -524,6 +524,27 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .badge.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line); }
 .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
 .badge.danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
+/* `bad` was used on the scorecard and the branch pages and had no style at
+   all, so the worst tier of every rate rendered as a plain grey badge — the
+   one figure that most needed to be seen was the only one without a colour. */
+.badge.bad { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
+
+/* ------------------------------------------------------------- row tone
+   A whole row carrying a status, for lists somebody scans rather than reads.
+   A tinted left edge rather than a filled row: a table where every row is a
+   block of colour is harder to read than one with none, and the eye still
+   finds the edge. */
+.row-ok     { box-shadow: inset 3px 0 0 var(--ok); }
+.row-warn   { box-shadow: inset 3px 0 0 var(--warn); }
+.row-danger { box-shadow: inset 3px 0 0 var(--danger); }
+.row-muted  { box-shadow: inset 3px 0 0 var(--line-strong, var(--line)); }
+.dt td:first-child { position: relative; }
+
+/* The same three, for a figure rather than a row. */
+.tone-ok     { color: var(--ok); }
+.tone-warn   { color: var(--warn); }
+.tone-danger { color: var(--danger); }
+.tone-muted  { color: var(--ink-soft); }
 .badge.muted { background: var(--surface-sunk); color: var(--ink-soft); border-color: var(--line); }
 .badge.sched { background: var(--sched-soft); color: var(--sched); border-color: color-mix(in srgb, var(--sched) 32%, transparent); }
 
