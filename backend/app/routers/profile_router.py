@@ -72,6 +72,19 @@ def _get(db: Session, key: str) -> str:
     return row.value if row else ""
 
 
+def _many(db: Session, keys: list[str]) -> dict[str, str]:
+    """Several settings in one query, not one query each.
+
+    The letterhead reads twenty of them and is fetched before every document
+    this pharmacy prints. Twenty round trips is nothing on SQLite and close to
+    two seconds on the hosted database — two seconds of a blank window while
+    somebody waits to print a statement.
+    """
+    rows = db.query(Setting).filter(Setting.key.in_(keys)).all()
+    found = {r.key: r.value for r in rows}
+    return {k: found.get(k, "") for k in keys}
+
+
 def _set(db: Session, key: str, value: str) -> None:
     row = db.query(Setting).filter(Setting.key == key).first()
     if row:
@@ -189,10 +202,11 @@ def letterhead(db: Session = Depends(get_db),
     settings lookups — which is how one document ends up showing the VAT number
     and another does not.
     """
-    values = {k: _get(db, f"company.{k}") for k in COMPANY_FIELDS}
+    stored = _many(db, [f"company.{k}" for k in COMPANY_FIELDS] + [LOGO_KEY])
+    values = {k: stored[f"company.{k}"] for k in COMPANY_FIELDS}
     return {
         **values,
-        "logo": _get(db, LOGO_KEY) or "",
+        "logo": stored[LOGO_KEY] or "",
         # The name to print. A pharmacy trades under one name and is registered
         # under another, and a statement carries the trading name with the legal
         # entity beneath it.
@@ -213,9 +227,10 @@ def get_company(
 
     Writing is what is restricted.
     """
+    stored = _many(db, [f"company.{k}" for k in COMPANY_FIELDS])
     return {
         "fields": [
-            {"key": k, "label": label, "value": _get(db, f"company.{k}")}
+            {"key": k, "label": label, "value": stored[f"company.{k}"]}
             for k, label in COMPANY_FIELDS.items()
         ],
         "editable": user.role == "admin",

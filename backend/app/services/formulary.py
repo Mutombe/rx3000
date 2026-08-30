@@ -93,9 +93,22 @@ def _alternatives(db: Session, formulary: Formulary, product: Product,
     return out[:limit]
 
 
+#: Distinguishes "nobody looked it up" from "looked it up and there is none".
+#: `None` is a real answer here — a product absent from a formulary falls to the
+#: default rule — so a plain default of None would silently skip the lookup.
+_NOT_LOOKED_UP = object()
+
+
 def check(db: Session, scheme: MedicalAid | None, product: Product,
-          quantity: int = 1) -> Coverage:
-    """Where this product stands with this scheme, and what to do about it."""
+          quantity: int = 1, entry=_NOT_LOOKED_UP) -> Coverage:
+    """Where this product stands with this scheme, and what to do about it.
+
+    `entry` lets a caller that is checking several lines hand over the formulary
+    entry it has already fetched. Checking a ten-item script one line at a time
+    cost thirteen round trips, and this runs on every basket change while
+    somebody is dispensing — about a second of nothing happening on a hosted
+    database, on the busiest screen in the product.
+    """
     if not scheme or not scheme.formulary_id:
         return Coverage(
             product_id=product.id,
@@ -113,12 +126,13 @@ def check(db: Session, scheme: MedicalAid | None, product: Product,
             reason="The scheme's formulary is inactive, nothing is enforced.",
         )
 
-    entry = (
-        db.query(FormularyEntry)
-        .filter(FormularyEntry.formulary_id == formulary.id,
-                FormularyEntry.product_id == product.id)
-        .first()
-    )
+    if entry is _NOT_LOOKED_UP:
+        entry = (
+            db.query(FormularyEntry)
+            .filter(FormularyEntry.formulary_id == formulary.id,
+                    FormularyEntry.product_id == product.id)
+            .first()
+        )
 
     status = entry.status if entry else formulary.default_rule
     claimable = status in CLAIMABLE
@@ -163,7 +177,27 @@ def check(db: Session, scheme: MedicalAid | None, product: Product,
 
 def check_basket(db: Session, scheme: MedicalAid | None,
                  lines: list[tuple[Product, int]]) -> dict:
-    results = [check(db, scheme, product, qty) for product, qty in lines]
+    # Every line's formulary entry in one query rather than one query a line.
+    # `_alternatives` below still costs a query, but only for a line that has a
+    # problem — which is the minority, and the point at which somebody is
+    # willing to wait a moment for an answer.
+    entries: dict[int, object] = {}
+    looked_up = bool(scheme and scheme.formulary_id and lines)
+    if looked_up:
+        rows = (db.query(FormularyEntry)
+                .filter(FormularyEntry.formulary_id == scheme.formulary_id,
+                        FormularyEntry.product_id.in_([p.id for p, _ in lines]))
+                .all())
+        entries = {r.product_id: r for r in rows}
+
+    # `None` from the map is a real answer — the product is not on the
+    # formulary and falls to its default rule — so it is only passed when the
+    # lookup actually ran.
+    results = [
+        check(db, scheme, product, qty,
+              entry=entries.get(product.id) if looked_up else _NOT_LOOKED_UP)
+        for product, qty in lines
+    ]
     blocked = [r for r in results if not r.claimable]
     needs_auth = [r for r in results if r.requires_authorisation]
     return {

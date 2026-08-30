@@ -100,8 +100,11 @@ def create(body: LayByIn, db: Session = Depends(get_db),
 
     total = 0.0
     priced: list[tuple[Product, int, float]] = []
+    # One query, and `db.get` rather than the removed `Query.get`.
+    held = {p.id: p for p in db.query(Product)
+            .filter(Product.id.in_([l.product_id for l in body.items])).all()}
     for line in body.items:
-        product = db.query(Product).get(line.product_id)
+        product = held.get(line.product_id)
         if not product:
             raise HTTPException(status_code=404,
                                 detail=f"Product {line.product_id} no longer exists.")

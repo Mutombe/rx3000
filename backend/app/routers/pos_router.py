@@ -246,8 +246,12 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
     db.flush()
 
     subtotal = vat_total = 0.0
+    # One query for the basket rather than one a line: a ten-item sale was ten
+    # round trips before the till could total it.
+    basket = {p.id: p for p in db.query(Product)
+              .filter(Product.id.in_([l.product_id for l in body.items])).all()}
     for line in body.items:
-        product = db.get(Product, line.product_id)
+        product = basket.get(line.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {line.product_id} not found")
         line_total = round(product.unit_price * line.quantity, 2)

@@ -270,14 +270,24 @@ def coverage(body: schemas.PriceRequest, db: Session = Depends(get_db)):
     scheme = db.get(MedicalAid, body.medical_aid_id) if body.medical_aid_id else None
     if body.medical_aid_id and not scheme:
         raise HTTPException(status_code=404, detail="Medical aid not found")
-    lines = []
-    for item in body.items:
-        product = db.get(Product, item.product_id)
-        if not product:
-            raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
-        lines.append((product, item.quantity))
-    if not lines:
+    if not body.items:
         raise HTTPException(status_code=400, detail="Nothing to check")
+
+    # Every product in one query, not one query a line.
+    #
+    # This runs on every basket change while somebody is dispensing, so a query
+    # per line is a round trip per line on the busiest screen in the product:
+    # a ten-item script cost thirteen of them, which is about a second of
+    # nothing happening on the hosted database, repeated on every keystroke
+    # that changes the basket.
+    wanted = [i.product_id for i in body.items]
+    found = {p.id: p for p in
+             db.query(Product).filter(Product.id.in_(wanted)).all()}
+    missing = [i for i in wanted if i not in found]
+    if missing:
+        raise HTTPException(status_code=404,
+                            detail=f"Product {missing[0]} not found")
+    lines = [(found[i.product_id], i.quantity) for i in body.items]
     return formulary_service.check_basket(db, scheme, lines)
 
 

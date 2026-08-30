@@ -17,6 +17,13 @@ test the machinery — it tests the outcome, across every GET endpoint the
 application exposes, from the point of view of a tenant that owns nothing. Any
 number it comes back with is somebody else's.
 
+One endpoint legitimately breaks the premise: reading the chart of accounts
+seeds one for a pharmacy that has none, so a brand-new tenant gets thirty-six
+rows of its own. That is listed in SEEDED_ON_FIRST_READ and printed, not
+skipped — the sweep's headline says "every row below belongs to another
+pharmacy", and an accusation that turns out to be false is how a check like
+this comes to be ignored.
+
     python qa/tenant-leak-sweep.py            # against a running server
 """
 import json
@@ -55,6 +62,25 @@ SHARED = (
     # Empty period buckets: twelve months of zeros is a shape, not a leak.
     "/api/crm/reports/forecast",
 )
+
+#: Endpoints that give a new pharmacy something of its own on first read.
+#:
+#: These break the premise of this sweep in a way that is correct: a pharmacy
+#: that has never traded is *supposed* to start with a chart of accounts, and
+#: reading it is what creates one. The rows that come back carry the asking
+#: pharmacy's own id — they are not another tenant's.
+#:
+#: Kept apart from SHARED and printed rather than quietly skipped, because the
+#: distinction matters: SHARED means "the same answer for everybody", this
+#: means "its own answer, seeded on demand". An exemption nobody can see is how
+#: a real leak ends up on this list one day.
+SEEDED_ON_FIRST_READ = {
+    "/api/ledger/accounts":
+        "seeds the chart of accounts for a pharmacy that has none — the rows "
+        "returned are its own",
+    "/api/ledger/chart":
+        "the same chart, grouped; the same seeding on first read",
+}
 
 
 
@@ -148,7 +174,7 @@ status, spec = call("/openapi.json")
 paths = [p for p in (spec or {}).get("paths", {})
          if "get" in spec["paths"][p] and "{" not in p]
 
-leaks, checked = [], 0
+leaks, seeded, checked = [], [], 0
 for path in sorted(paths):
     if path in SHARED:
         continue
@@ -157,10 +183,19 @@ for path in sorted(paths):
         continue                      # a refusal is not a leak
     checked += 1
     n = sized(payload)
-    if n:
+    if not n:
+        continue
+    if path in SEEDED_ON_FIRST_READ:
+        seeded.append((path, n))
+    else:
         leaks.append((path, n))
 
 print(f"{checked} endpoints asked, as a pharmacy that owns nothing\n")
+if seeded:
+    print("SEEDED ON FIRST READ — its own rows, not somebody else's:")
+    for path, n in seeded:
+        print(f"  {path:52} {n:>4}  {SEEDED_ON_FIRST_READ[path]}")
+    print()
 if leaks:
     print(f"{len(leaks)} LEAKING — every row below belongs to another pharmacy:")
     for path, n in leaks:

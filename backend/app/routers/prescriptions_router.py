@@ -111,8 +111,11 @@ def create_prescription(
     )
     db.add(rx)
     db.flush()
+    # The whole script's products in one query.
+    on_script = {p.id: p for p in db.query(Product)
+                 .filter(Product.id.in_([i.product_id for i in body.items])).all()}
     for item in body.items:
-        product = db.get(Product, item.product_id)
+        product = on_script.get(item.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {item.product_id} not found")
         policy = schedule_policy.policy_for(product.schedule)

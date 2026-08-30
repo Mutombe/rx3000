@@ -329,8 +329,15 @@ def script_totals(items: list[dict] = Body(...),
         "claim": 0.0, "cost": 0.0,
     }
 
+    # Every product in one query. This is recomputed on every basket change
+    # while a script is being written, so a query a line is a round trip a line
+    # on the screen a pharmacy spends its day on.
+    wanted = [int(r.get("product_id", 0)) for r in items]
+    found = {p.id: p for p in
+             db.query(Product).filter(Product.id.in_(wanted)).all()}
+
     for row in items:
-        product = db.get(Product, int(row.get("product_id", 0)))
+        product = found.get(int(row.get("product_id", 0)))
         if not product:
             raise HTTPException(status_code=404,
                                 detail=f"Product {row.get('product_id')} not found")
