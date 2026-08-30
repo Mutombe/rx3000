@@ -114,6 +114,7 @@ export default function Repeats() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "due");
   const [perf, setPerf] = useState<any>(null);
   const [daily, setDaily] = useState<any[]>([]);
+  const [weekly, setWeekly] = useState<any[]>([]);
   const [perfDays, setPerfDays] = useState("30");
 
   useEffect(() => {
@@ -122,6 +123,8 @@ export default function Repeats() {
       .then(setPerf).catch(() => setPerf(null));
     api.get<any>("/api/repeats/daily?days=14")
       .then((d) => setDaily(d.days ?? [])).catch(() => setDaily([]));
+    api.get<any>("/api/repeats/weekly?weeks=8")
+      .then((d) => setWeekly(d.weeks ?? [])).catch(() => setWeekly([]));
   }, [tab, perfDays]);
 
 
@@ -388,8 +391,25 @@ export default function Repeats() {
                   </div>
                   <div className="wl-stat">
                     <b className="tone-ok">{money(perf.captured_value)}</b>
-                    <span>we filled · {perf.captured}</span>
+                    <span>
+                      we filled · {perf.captured}
+                      {/* On time is the half that decides whether they come
+                          back. A pharmacy filling everything three weeks late
+                          has kept the money and is one bad month from losing
+                          the patient. */}
+                      {perf.on_time_rate !== null && perf.on_time_rate !== undefined
+                        && ` · ${Math.round(perf.on_time_rate * 100)}% on time`}
+                    </span>
                   </div>
+                  {perf.filled_late > 0 && (
+                    <div className="wl-stat wc-stale">
+                      <b className="tone-warn">{money(perf.filled_late_value)}</b>
+                      <span>
+                        filled late · {perf.filled_late} · kept, but the patient
+                        went without
+                      </span>
+                    </div>
+                  )}
                   {/* The number the whole view exists for, said as money and
                       as a share, because "we lose about ten per cent" is a
                       sentence nobody can act on. */}
@@ -468,6 +488,66 @@ export default function Repeats() {
           {/* Day by day, either side of today. A fortnight of this is what
               tells a pharmacy whether Monday is quietly worse than Thursday —
               and the week ahead is what somebody staffs and orders against. */}
+          {weekly.length > 0 && (
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <h3>How many repeats we are filling, week by week</h3>
+                  <span className="muted small">
+                    What actually went out, counted and priced. A week is the
+                    unit a pharmacy orders in and staffs to.
+                  </span>
+                </div>
+              </div>
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Week</th>
+                    <th className="num">Repeats filled</th>
+                    <th className="num">Worth</th>
+                    <th className="num">Average</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {weekly.map((w: any) => {
+                    // Against the best full week, so the bar is a comparison
+                    // rather than decoration.
+                    const peak = Math.max(...weekly.filter((x: any) => !x.current)
+                                           .map((x: any) => x.value), 1);
+                    return (
+                      <tr key={w.from} className={w.current ? "row-ok" : undefined}>
+                        <td>
+                          {fmtDate(w.from)} – {fmtDate(w.to)}
+                          {w.current && (
+                            <div className="muted small">
+                              this week · {w.days_so_far} day
+                              {w.days_so_far === 1 ? "" : "s"} so far
+                            </div>
+                          )}
+                        </td>
+                        <td className="num">{w.filled}</td>
+                        <td className="num"><b>{money(w.value)}</b></td>
+                        <td className="num">{money(w.average)}</td>
+                        <td style={{ width: "14rem" }}>
+                          <span className="rw-bar"
+                                style={{ width: `${Math.min(100, (w.value / peak) * 100)}%` }} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <p className="muted small">
+                This is what was filled, not what fell due — a repeat's due date
+                moves forward every time it is handed over, so the book does not
+                remember what was outstanding in July. How much of the book is
+                being kept is the capture rate above, which is worked out line
+                by line.
+              </p>
+            </div>
+          )}
+
           {daily.length > 0 && (
             <div className="card">
               <div className="card-head">

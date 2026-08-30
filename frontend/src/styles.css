@@ -5664,3 +5664,48 @@ table.dt.sub th { font-size: var(--t-xs); }
 .fm-try input { max-width: 8rem; }
 .fm-quote { font-size: var(--t-sm); }
 .fm-quote b { font-variant-numeric: tabular-nums; }
+
+/* ---- repeats due, at the counter ----------------------------------------
+ *
+ * Not a card among cards: a strip that interrupts, because the whole point is
+ * that it is read while somebody is standing there. Quiet when nothing is
+ * overdue, amber when something is.
+ */
+.rd {
+  margin: 14px 0; padding: 12px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.rd.is-overdue { box-shadow: inset 3px 0 0 var(--warn); }
+.rd-head { display: flex; justify-content: space-between; gap: 10px; }
+.rd-head > div { display: flex; flex-direction: column; gap: 2px; }
+.rd-head b { display: flex; align-items: center; gap: 6px; }
+.rd-short {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: 8px 0 0; font-size: var(--t-sm); color: var(--danger);
+}
+.rd-list { list-style: none; margin: 10px 0 0; padding: 0; }
+.rd-item {
+  display: grid; align-items: center; gap: 4px 12px;
+  grid-template-columns: 1fr 8rem 8rem auto;
+  padding: 8px 10px; border-radius: var(--r-sm);
+  border-top: 1px solid var(--line-soft);
+}
+.rd-item:first-child { border-top: 0; }
+.rd-what, .rd-when, .rd-worth { display: flex; flex-direction: column; gap: 1px; }
+.rd-when, .rd-worth { text-align: right; }
+.rd-worth b { font-variant-numeric: tabular-nums; }
+.rd-worth .badge { align-self: flex-end; margin-top: 2px; }
+@media (max-width: 720px) {
+  .rd-item { grid-template-columns: 1fr auto; }
+  .rd-when, .rd-worth { text-align: left; grid-column: 1; }
+  .rd-when { flex-direction: row; gap: 6px; align-items: baseline; }
+}
+
+/* A bar inside a table cell, measured against the best full week — a
+   comparison rather than decoration. */
+.rw-bar {
+  display: block; height: 8px; border-radius: 4px;
+  background: var(--accent); opacity: .55; min-width: 2px;
+}

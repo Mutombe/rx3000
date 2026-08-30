@@ -69,17 +69,29 @@ def performance(db: Session, *, days: int = 30) -> dict:
         .all()
     )
 
-    # What was actually handed over in the window, per line.
-    filled = dict(
-        db.query(Dispensing.prescription_item_id, func.count(Dispensing.id))
+    # What was handed over in the window, and *when* — not merely whether.
+    #
+    # "Captured" on its own flatters the pharmacy. A repeat due on the first and
+    # collected on the twenty-eighth was kept, but the patient went most of a
+    # month without their medicine, and a pharmacy that fills everything three
+    # weeks late is one bad month away from losing the lot. On time is the
+    # number worth managing; filled late is the early warning.
+    filled = {
+        item_id: (int(n), first)
+        for item_id, n, first in
+        db.query(Dispensing.prescription_item_id,
+                 func.count(Dispensing.id),
+                 func.min(Dispensing.dispensed_at))
         .filter(Dispensing.dispensed_at >= datetime.combine(since, datetime.min.time()))
         .group_by(Dispensing.prescription_item_id)
         .all()
-    )
+    }
 
     due = captured = late = lapsed = blocked = waiting = 0
     due_value = captured_value = late_value = lapsed_value = blocked_value = 0.0
     waiting_value = 0.0
+    on_time = filled_late = 0
+    on_time_value = filled_late_value = 0.0
     at_risk: list[dict] = []
 
     for item, product, rx in rows:
@@ -89,7 +101,9 @@ def performance(db: Session, *, days: int = 30) -> dict:
         line_value = _money((product.unit_price or 0.0) * (item.quantity or 0)) \
             if product else 0.0
 
-        was_filled = filled.get(item.id, 0) > 0
+        hit = filled.get(item.id)
+        was_filled = bool(hit and hit[0] > 0)
+        filled_on = hit[1].date() if hit and hit[1] else None
 
         # Due in the window: either the date fell inside it, or it is already
         # past and still outstanding.
@@ -105,6 +119,15 @@ def performance(db: Session, *, days: int = 30) -> dict:
         if was_filled:
             captured += 1
             captured_value += line_value
+            # Within the grace period counts as on time: a repeat due on a
+            # Sunday and collected on the Monday was not late in any sense the
+            # patient would recognise.
+            if filled_on is not None and (filled_on - when).days > GRACE_DAYS:
+                filled_late += 1
+                filled_late_value += line_value
+            else:
+                on_time += 1
+                on_time_value += line_value
             continue
 
         overdue_days = (today - when).days if when < today else 0
@@ -192,6 +215,14 @@ def performance(db: Session, *, days: int = 30) -> dict:
         "average_value": _money(due_value / due) if due else 0.0,
         "average_captured": _money(captured_value / captured) if captured else 0.0,
 
+        # Of what was kept, how much was kept *on time* — which is what the
+        # patient experienced and what decides whether they come back.
+        "on_time": on_time,
+        "on_time_value": _money(on_time_value),
+        "on_time_rate": round(on_time / captured, 4) if captured else None,
+        "filled_late": filled_late,
+        "filled_late_value": _money(filled_late_value),
+
         # Today, on its own.
         "due_today": len(today_rows),
         "due_today_value": today_value,
@@ -264,5 +295,72 @@ def daily(db: Session, *, days: int = 14) -> list[dict]:
             "value": value,
             "past": when < today,
             "today": when == today,
+        })
+    return out
+
+
+def weekly(db: Session, *, weeks: int = 8) -> list[dict]:
+    """How many repeats the pharmacy filled each week, and what they were worth.
+
+    A week is the unit a pharmacy orders in, staffs to and is paid on. A day is
+    too short: a repeat due on a Saturday is collected on the Monday, and the
+    daily chart shows a hole and a spike where nothing went wrong.
+
+    **This counts what was filled, not what fell due**, and the distinction is
+    not a detail. `next_repeat_date` moves forward every time a repeat is
+    handed over, so the database does not remember what was due in July — only
+    what is due next. A first version of this compared dispensings in a week
+    against the due dates still on file for that week and produced weeks
+    reading "140 filled against 0 due", and a capture rate of 100% for a book
+    it was in fact losing. Two unrelated populations divided by one another.
+
+    So the honest weekly figure is the one that is actually recorded: repeats
+    that went out, counted and priced. The capture rate — what fell due against
+    what was kept — is computed line by line in `performance()` above, which
+    reads each line's own due date against its own dispensing history, and that
+    is where it should be read.
+    """
+    weeks = max(1, min(weeks, 52))
+    today = date.today()
+    starts = [today - timedelta(days=7 * (n + 1) - 1) for n in range(weeks)][::-1]
+    since = starts[0]
+
+    rows = (
+        db.query(func.date(Dispensing.dispensed_at),
+                 func.count(Dispensing.id),
+                 func.coalesce(func.sum(Product.unit_price * Dispensing.quantity), 0.0))
+        .join(PrescriptionItem,
+              Dispensing.prescription_item_id == PrescriptionItem.id)
+        .outerjoin(Product, PrescriptionItem.product_id == Product.id)
+        .filter(Dispensing.dispensed_at >= datetime.combine(since, datetime.min.time()),
+                Dispensing.is_repeat.is_(True))
+        .group_by(func.date(Dispensing.dispensed_at))
+        .all())
+
+    def as_date(v):
+        return v if isinstance(v, date) else date.fromisoformat(str(v)[:10])
+
+    by_day = {as_date(d): (int(n), _money(v)) for d, n, v in rows if d}
+
+    out = []
+    for start in starts:
+        end = start + timedelta(days=6)
+        filled = 0
+        value = 0.0
+        for offset in range(7):
+            n, v = by_day.get(start + timedelta(days=offset), (0, 0.0))
+            filled += n
+            value += v
+        out.append({
+            "from": start,
+            "to": end,
+            "filled": filled,
+            "value": _money(value),
+            "average": _money(value / filled) if filled else 0.0,
+            # The current week is short — it is however many days have happened
+            # so far — so a bar shorter than last week's may mean nothing at
+            # all. Said, rather than left for somebody to work out.
+            "current": end >= today,
+            "days_so_far": min(7, (today - start).days + 1) if end >= today else 7,
         })
     return out

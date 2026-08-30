@@ -400,6 +400,87 @@ def script_totals(items: list[dict] = Body(...),
 # /repeats/due already exists and returns the raw script lines. This is a
 # different thing with a different name: the call sheet — who to telephone,
 # in what order, and whether the shelf can actually serve them.
+@router.get("/patients/{patient_id}/repeats")
+def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
+    """What this patient has due, for the moment they are standing in front of you.
+
+    The call sheet answers "who should we telephone". This answers the question
+    that actually captures the money, and it is only ever asked at a counter:
+    *this* person is here now — what else of theirs is due?
+
+    A repeat is lost silently. Nobody cancels; the line simply stops appearing
+    next month. Every report in this system tells a pharmacy about that
+    afterwards, when the patient has already gone elsewhere. This is the one
+    place it can still be prevented, and it costs nothing: they are already
+    here, the script already exists, and the medicine is on the shelf or it is
+    not.
+    """
+    from ..models import PrescriptionItem
+
+    today = date.today()
+    rows = (db.query(PrescriptionItem)
+            .options(joinedload(PrescriptionItem.prescription),
+                     joinedload(PrescriptionItem.product))
+            .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+            .filter(Prescription.patient_id == patient_id,
+                    PrescriptionItem.next_repeat_date.isnot(None),
+                    PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed,
+                    Prescription.status.notin_(("draft", "cancelled")))
+            .order_by(PrescriptionItem.next_repeat_date)
+            .all())
+
+    out, value, overdue_value = [], 0.0, 0.0
+    for item in rows:
+        product = item.product
+        if product is None:
+            continue
+        due = item.next_repeat_date
+        days = (today - due).days
+        worth = round((product.unit_price or 0.0) * (item.quantity or 0), 2)
+        # Only what is due or overdue. A repeat due in three weeks is not
+        # something to offer somebody at the counter today — dispensing it early
+        # is how a patient ends up with two months of medicine and a scheme
+        # rejects the second claim.
+        if days < 0:
+            continue
+        can_supply = (product.quantity_on_hand or 0) >= (item.quantity or 0)
+        value += worth
+        if days > 0:
+            overdue_value += worth
+        out.append({
+            "item_id": item.id,
+            "prescription_id": item.prescription_id,
+            "rx_number": item.prescription.rx_number if item.prescription else "",
+            "product_id": product.id,
+            "product": f"{product.name} {product.strength or ''}".strip(),
+            "quantity": item.quantity,
+            "dosage_instructions": item.dosage_instructions or "",
+            "icd10_code": item.icd10_code or "",
+            "repeats_allowed": item.repeats_allowed,
+            "repeats_used": item.repeats_used,
+            "repeats_left": max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0)),
+            "repeat_interval_days": item.repeat_interval_days or 30,
+            "due": due,
+            "days_overdue": max(0, days),
+            "value": worth,
+            # Whether it can go out today. "Could not be supplied" is the one
+            # loss the pharmacy causes itself, and the counter is where it is
+            # noticed in time to order rather than a month later in a report.
+            "can_supply": can_supply,
+            "on_hand": product.quantity_on_hand or 0,
+        })
+
+    return {
+        "patient_id": patient_id,
+        "due": len(out),
+        "value": round(value, 2),
+        "overdue": sum(1 for r in out if r["days_overdue"] > 0),
+        "overdue_value": round(overdue_value, 2),
+        "cannot_supply": sum(1 for r in out if not r["can_supply"]),
+        "items": out,
+    }
+
+
 @router.get("/repeats/call-sheet")
 def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
                 limit: int = 200, db: Session = Depends(get_db)):
@@ -526,6 +607,17 @@ def prescription_churn(days: int = 90, db: Session = Depends(get_db)):
 def therapy_churn(days: int = 90, db: Session = Depends(get_db)):
     """Which medicines patients stopped taking, rather than which patients left."""
     return churn.chronic_churn(db, days=days)
+
+
+@router.get("/repeats/weekly")
+def repeats_weekly(weeks: int = 8, db: Session = Depends(get_db)):
+    """How many repeats were filled each week, and what they were worth.
+
+    A week is the unit a pharmacy orders in and staffs to. A day is too short —
+    a repeat due on a Saturday is collected on the Monday, and the daily chart
+    shows a hole and a spike where nothing went wrong.
+    """
+    return {"weeks": repeat_performance.weekly(db, weeks=weeks)}
 
 
 @router.get("/repeats/daily")

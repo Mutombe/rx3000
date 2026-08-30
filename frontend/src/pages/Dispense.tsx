@@ -39,6 +39,7 @@ import {
 } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
+import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
 import PatientForm, { draftFrom } from "../components/PatientForm";
 import ScriptTotals from "../components/ScriptTotals";
 import { TableSkeleton } from "../components/Skeleton";
@@ -538,6 +539,37 @@ export default function Dispense() {
     } catch (e) {
       toast.error(errorText(e, "That queued line could not be opened."));
     }
+  }
+
+  /** Put a repeat that is due onto the script being written.
+   *
+   *  Carried across whole — the directions, the diagnosis, what is left of the
+   *  repeats — because retyping them is how a repeat comes to be dispensed with
+   *  different directions from the one before it, and because the claim needs
+   *  the diagnosis that was on the original.
+   *
+   *  It is added as a fresh line rather than dispensed against the original
+   *  item, so everything below still applies: the interaction screen runs, the
+   *  schedule policy is enforced, and the pharmacist records their initials.
+   *  Offering a repeat is not the same as waving it through.
+   */
+  function addDueRepeat(r: DueRepeat) {
+    if (items.some((i) => i.product.id === r.product_id)) return;
+    api.get<Product>(`/api/products/${r.product_id}`)
+      .then((full: any) => {
+        const product = full.product ?? full;
+        setItems((rows) => [...rows, {
+          product,
+          quantity: r.quantity,
+          dosage_instructions: r.dosage_instructions,
+          repeats_allowed: r.repeats_left,
+          repeat_interval_days: r.repeat_interval_days,
+          auto_refill: false,
+          icd10_code: r.icd10_code,
+        }]);
+        toast.ok(`${r.product} added — ${money(r.value)} of theirs that was waiting.`);
+      })
+      .catch(() => toast.error("That repeat could not be added to the script."));
   }
 
   /** What is on screen, in the shape the draft endpoints want. */
@@ -1064,6 +1096,18 @@ export default function Dispense() {
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
               {patient && <InsuranceStanding patientId={patient.id} />}
+
+              {/* What else of theirs is waiting. Every other repeat screen in
+                  this system reports a loss after it has happened; this is the
+                  only place one can still be prevented, and it costs nothing —
+                  the patient is here and the script already exists. */}
+              {patient && !quoting && (
+                <RepeatsDue
+                  patientId={patient.id}
+                  alreadyOn={items.map((i) => i.product.id)}
+                  onAdd={addDueRepeat}
+                />
+              )}
 
               <div className="field" style={{ marginTop: 14 }}>
                 <label>Prescribing doctor</label>
