@@ -211,7 +211,15 @@ def load(path: str, *, limit: int = 0) -> dict:
                     dispensed_by_id=actor.id if actor else None,
                     # The person who actually handed it over, as the incumbent
                     # recorded them. They are not users here.
-                    pharmacist_initial=line["dispenser"][:10].upper(),
+                    #
+                    # Eight characters, because that is what the column is.
+                    # This sliced at ten and SQLite accepted it without a word
+                    # — it does not enforce a VARCHAR length — so it loaded
+                    # cleanly here and failed on the first batch against
+                    # Postgres with "value too long for type character
+                    # varying(8)". The dialect that accepts more is always the
+                    # one you develop against.
+                    pharmacist_initial=line["dispenser"][:8].upper(),
                     is_repeat=False,
                     script_sighted=True,
                     compliance_notes="Imported from CareXpress",
