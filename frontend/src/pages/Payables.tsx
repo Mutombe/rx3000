@@ -12,10 +12,10 @@
  *  where it is read at the moment somebody is deciding whether to pay.
  */
 import { useCallback, useEffect, useState } from "react";
-import {
-  ArrowClockwise, CheckCircle, Question, Receipt, Warning,
-} from "@phosphor-icons/react";
+import { ArrowClockwise, CheckCircle, Printer, Question, Receipt, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
+import { printDocument } from "../document";
+import { letterhead } from "../letterhead";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
@@ -140,6 +140,59 @@ export default function Payables() {
     }
   }
 
+  /** One creditor's statement, from the row that names them.
+   *
+   *  This is the month-end job: put ours beside theirs and find the invoice
+   *  that never arrived or the payment that was never allocated. Reaching it
+   *  from the ageing row is the point — the question "what is behind this two
+   *  thousand dollars" is asked while looking at the two thousand dollars.
+   */
+  async function printStatement(supplierId: number) {
+    try {
+      const [head, doc] = await Promise.all([
+        letterhead(),
+        api.get<any>(`/api/payables/suppliers/${supplierId}/statement`),
+      ]);
+      printDocument(head, {
+        kind: "Statement of account",
+        to: [doc.supplier, doc.contact, doc.phone, doc.email].filter(Boolean),
+        meta: [
+          { label: "Account", value: doc.account_code },
+          { label: "Date", value: fmtDate(doc.to) },
+          { label: "Period from", value: fmtDate(doc.from) },
+          { label: "Amount due", value: money(doc.amount_due), strong: true },
+        ],
+        columns: [
+          { key: "date", label: "Date", width: "22mm" },
+          { key: "reference", label: "Reference", width: "30mm" },
+          { key: "description", label: "Description" },
+          { key: "debit", label: "Debit", numeric: true, width: "24mm" },
+          { key: "credit", label: "Credit", numeric: true, width: "24mm" },
+          { key: "balance", label: "Balance", numeric: true, width: "26mm" },
+        ],
+        opening: { description: "Balance brought forward",
+                   balance: money(doc.brought_forward) },
+        rows: doc.lines.map((l: any) => ({
+          date: fmtDate(l.date), reference: l.reference,
+          description: l.description,
+          debit: l.debit == null ? "" : money(l.debit),
+          credit: l.credit == null ? "" : money(l.credit),
+          balance: money(l.balance),
+        })),
+        totals: { description: "Closing balance", debit: money(doc.debits),
+                  credit: money(doc.credits), balance: money(doc.closing) },
+        ageing: [
+          ...doc.ageing.map((a: any) => ({ label: a.label, value: money(a.value) })),
+          { label: "Amount due", value: money(doc.amount_due), strong: true },
+        ],
+        note: head.terms
+          || "Please quote the account number shown above on every remittance.",
+      });
+    } catch (e) {
+      toast.error(errorText(e, "That statement could not be produced."));
+    }
+  }
+
   if (failed) return <div className="alert error">{failed}</div>;
 
   const late = ageing
@@ -259,6 +312,13 @@ export default function Payables() {
                       <td className="actions">
                         {/* Inside a RowLink, so the click has to be stopped or
                             paying a supplier navigates away from the form. */}
+                        <button className="btn small ghost" title="Statement of account"
+                                onClick={(e) => {
+                                  e.preventDefault(); e.stopPropagation();
+                                  printStatement(s.supplier_id);
+                                }}>
+                          <Printer size={14} />
+                        </button>
                         <button className="btn small"
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setPaying(s); }}>
                           Pay

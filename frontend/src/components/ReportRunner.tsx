@@ -185,9 +185,19 @@ export default function ReportRunner({
       const full = await api.get<RunResult>(`/api/reports/run/${report.key}?${q}`);
       const head = await letterhead();
 
+      /* The parameters, written the way a person would say them. A document
+         that prints "failures_only false" has put a variable on paper. A date
+         goes on as a date, a switch that is off is simply not mentioned, and a
+         switch that is on says what it did. */
       const stated = report.params
-        .map((param) => ({ label: param.label, value: values[param.key] ?? "" }))
-        .filter((entry) => entry.value !== "");
+        .map((param) => {
+          const raw = values[param.key] ?? "";
+          if (raw === "" || raw === "false") return null;
+          if (param.kind === "bool") return { label: param.label, value: "Yes" };
+          if (param.kind === "date") return { label: param.label, value: fmtDate(raw) };
+          return { label: param.label, value: raw };
+        })
+        .filter(Boolean) as { label: string; value: string }[];
 
       const truncated = full.rows.length < full.total;
 

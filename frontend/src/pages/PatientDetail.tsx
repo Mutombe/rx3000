@@ -157,7 +157,7 @@ export default function PatientDetail() {
     if (!tax) return;
     const head = await letterhead();
     printDocument(head, {
-      kind: `Medical expense statement — tax year ${tax.tax_year}`,
+      kind: "Medical expense statement",
       to: [patient ? `${patient.first_name} ${patient.last_name}` : "Patient",
            patient?.address ?? "", patient?.phone ?? ""].filter(Boolean),
       meta: [

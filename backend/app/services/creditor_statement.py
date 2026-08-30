@@ -137,8 +137,12 @@ def statement(db: Session, supplier_id: int, *,
     return {
         "supplier": supplier.name,
         "supplier_id": supplier.id,
-        "account_code": supplier.code or "",
-        "address": [line for line in (supplier.address or "").split("\n") if line.strip()],
+        # A supplier record here carries no account code of its own — the
+        # wholesaler allocates that, and we have nowhere to keep it yet.
+        # Ours is at least stable and quotable over the telephone, which is
+        # what an account reference is for.
+        "account_code": f"CR{supplier.id:04d}",
+        "contact": supplier.contact_person or "",
         "phone": supplier.phone or "",
         "email": supplier.email or "",
         "from": since,
