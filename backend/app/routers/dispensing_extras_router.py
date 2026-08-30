@@ -8,7 +8,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schedule_policy
 from ..auth import get_current_user
@@ -18,7 +18,7 @@ from ..database import get_db
 from ..models import (
     MedicalAid, Patient, Prescription, Product, Sale, User, Waybill,
 )
-from ..services import pricing, branches
+from ..services import pricing, branches, repeat_performance
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -407,7 +407,17 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
 
     today = date.today()
     horizon = today + __import__("datetime").timedelta(days=max(0, within_days))
+    # Every relation this loop reads, fetched with the rows rather than one at a
+    # time. It was 486 queries for 200 people — the prescription per line, the
+    # patient per prescription, the product per line — which is half a second on
+    # SQLite and the better part of a minute against a hosted database, and is
+    # the whole reason this page felt broken.
     rows = (db.query(PrescriptionItem)
+            .options(
+                joinedload(PrescriptionItem.prescription)
+                .joinedload(Prescription.patient),
+                joinedload(PrescriptionItem.product),
+            )
             .filter(PrescriptionItem.next_repeat_date.isnot(None),
                     PrescriptionItem.next_repeat_date <= horizon,
                     PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed)
@@ -444,16 +454,59 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
             "in_stock": item.product.quantity_on_hand if item.product else 0,
             "can_supply": bool(item.product
                                and item.product.quantity_on_hand >= item.quantity),
+            # What this one repeat is worth if the patient comes in for it.
+            # A call sheet without it is a list of names; with it, it is a list
+            # of names in the order worth telephoning.
+            "value": round((item.product.unit_price or 0.0) * (item.quantity or 0), 2)
+                     if item.product else 0.0,
+            "cost": round((item.product.cost_price or 0.0) * (item.quantity or 0), 2)
+                    if item.product else 0.0,
         })
     # Overdue first, then soonest — the order somebody would telephone in.
     out.sort(key=lambda r: (not r["overdue"], r["due_on"]))
+    shown = out[:limit]
+
+    # What is on the table, and what is already slipping off it. These are the
+    # two numbers an owner asks for: what the repeat book is worth this
+    # fortnight, and how much of it is late enough that somebody else may
+    # already have filled it.
+    due_value = round(sum(r["value"] for r in out), 2)
+    overdue_value = round(sum(r["value"] for r in out if r["overdue"]), 2)
+    blocked_value = round(sum(r["value"] for r in out if not r["can_supply"]), 2)
     return {
         "as_at": today,
         "within_days": within_days,
-        "count": len(out[:limit]),
+        "count": len(shown),
         "overdue": sum(1 for r in out if r["overdue"]),
-        "items": out[:limit],
+        # Totals are over everything due, not over the page. A figure that
+        # silently means "the first two hundred" is the wrong-answer bug this
+        # project has removed from eleven other endpoints.
+        "total_due": len(out),
+        "due_value": due_value,
+        "overdue_value": overdue_value,
+        # Repeats we could not fill today even if the patient walked in. This
+        # is the one on the list the pharmacy loses by its own doing.
+        "cannot_supply": sum(1 for r in out if not r["can_supply"]),
+        "blocked_value": blocked_value,
+        "items": shown,
     }
+
+
+@router.get("/repeats/performance")
+def repeats_performance(days: int = 30, db: Session = Depends(get_db)):
+    """How much of its own repeat book the pharmacy is actually keeping.
+
+    The number nobody can read off a takings report, because a repeat that was
+    not filled leaves no record anywhere — the patient simply goes elsewhere
+    next month and the line stops appearing.
+    """
+    return repeat_performance.performance(db, days=days)
+
+
+@router.get("/repeats/daily")
+def repeats_daily(days: int = 14, db: Session = Depends(get_db)):
+    """What the repeat book is worth day by day, either side of today."""
+    return {"days": repeat_performance.daily(db, days=days)}
 
 
 # ---------------------------------------------------------------------------

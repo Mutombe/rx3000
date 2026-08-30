@@ -31,8 +31,15 @@ interface DueItem {
   repeats_used: number; repeats_allowed: number; repeats_left: number;
   due_on: string; days_overdue: number; overdue: boolean;
   in_stock: number; can_supply: boolean;
+  /** What this one repeat is worth if the patient comes in for it. */
+  value: number; cost: number;
 }
-interface Due { as_at: string; count: number; overdue: number; items: DueItem[] }
+interface Due {
+  as_at: string; count: number; overdue: number; items: DueItem[];
+  /** Totals over everything due, not over the page shown. */
+  total_due: number; due_value: number; overdue_value: number;
+  cannot_supply: number; blocked_value: number;
+}
 
 interface Quote {
   product: string; quantity: number; classification: string; route: string;
@@ -42,7 +49,7 @@ interface Quote {
   note: string;
 }
 
-type Tab = "due" | "price";
+type Tab = "due" | "value" | "price";
 
 export default function Repeats() {
   const [due, setDue] = useState<Due | null>(null);
@@ -72,10 +79,21 @@ export default function Repeats() {
   const TABS: TabDef<Tab>[] = [
     { key: "due", label: "Repeats due", count: due?.count,
       hint: "Overdue first. The order somebody would telephone in" },
+    { key: "value", label: "What it is worth",
+      hint: "How much of its own repeat book this pharmacy keeps" },
     { key: "price", label: "Quick price",
       hint: "What will this cost on my scheme?" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "due");
+  const [perf, setPerf] = useState<any>(null);
+  const [perfDays, setPerfDays] = useState("30");
+
+  useEffect(() => {
+    if (tab !== "value") return;
+    api.get<any>(`/api/repeats/performance?days=${perfDays}`)
+      .then(setPerf).catch(() => setPerf(null));
+  }, [tab, perfDays]);
+
 
   function load() {
     setLoading(true);
@@ -183,6 +201,29 @@ export default function Repeats() {
 
       {tab === "due" && (
         <>
+          {/* What the fortnight is worth, before the list of names. A call
+              sheet without it is a list; with it, it is a list in the order
+              worth telephoning. */}
+          {due && (
+            <div className="wc-bands">
+              <div className="wl-stat">
+                <b>{money(due.due_value ?? 0)}</b><span>due, all of it</span>
+              </div>
+              <div className={`wl-stat${(due.overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
+                <b>{money(due.overdue_value ?? 0)}</b>
+                <span>{due.overdue} already overdue</span>
+              </div>
+              {/* The one the pharmacy loses by its own doing. */}
+              <div className={`wl-stat${(due.cannot_supply ?? 0) > 0 ? " wc-abandoned" : ""}`}>
+                <b>{money(due.blocked_value ?? 0)}</b>
+                <span>{due.cannot_supply} cannot be filled today</span>
+              </div>
+              <div className="wl-stat">
+                <b>{due.total_due ?? due.count}</b><span>repeats due</span>
+              </div>
+            </div>
+          )}
+
           <div className="dt-filters">
             <label>
               Within
@@ -279,6 +320,138 @@ export default function Repeats() {
             </div>
           </Refreshable>
           </div>
+        </>
+      )}
+
+      {tab === "value" && (
+        <>
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <h3>How much of its own repeat book this pharmacy keeps</h3>
+                <span className="muted small">
+                  A repeat that was not filled leaves no record anywhere — the
+                  patient simply goes elsewhere next month and the line stops
+                  appearing. This is the one figure a takings report cannot show.
+                </span>
+              </div>
+              <Select value={perfDays} onChange={setPerfDays}
+                      options={[{ value: "7", label: "Last 7 days" },
+                                { value: "30", label: "Last 30 days" },
+                                { value: "90", label: "Last quarter" }]} />
+            </div>
+
+            {!perf ? <TableSkeleton cols={4} rows={3} /> : (
+              <>
+                <div className="wc-bands">
+                  <div className="wl-stat">
+                    <b>{money(perf.due_value)}</b><span>the book was worth</span>
+                  </div>
+                  <div className="wl-stat">
+                    <b>{money(perf.captured_value)}</b><span>we filled</span>
+                  </div>
+                  <div className={`wl-stat${perf.lost_value > 0.005 ? " wc-stale" : ""}`}>
+                    <b>{money(perf.lost_value)}</b><span>went unfilled</span>
+                  </div>
+                  <div className="wl-stat">
+                    <b>{perf.value_capture_rate === null
+                        ? "—" : `${Math.round(perf.value_capture_rate * 100)}%`}</b>
+                    <span>of the value kept</span>
+                  </div>
+                </div>
+
+                {/* Three different jobs, so three separate figures. Telling a
+                    manager "you lost 39,000" is not actionable; telling them
+                    17,000 of it was an empty shelf is. */}
+                <table className="dt" style={{ marginTop: "var(--s4)" }}>
+                  <thead>
+                    <tr>
+                      <th>Where it went</th><th className="num">Repeats</th>
+                      <th className="num">Worth</th><th>What fixes it</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><b>Late, still ours</b></td>
+                      <td className="num">{perf.late}</td>
+                      <td className="num">{money(perf.late_value)}</td>
+                      <td className="muted">A telephone call, today.</td>
+                    </tr>
+                    <tr className={perf.cannot_supply > 0 ? "row-flag" : ""}>
+                      <td><b>Could not be supplied</b></td>
+                      <td className="num">{perf.cannot_supply}</td>
+                      <td className="num">{money(perf.cannot_supply_value)}</td>
+                      <td className="muted">
+                        An order. This is the only one the pharmacy causes itself.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><b>Lapsed</b></td>
+                      <td className="num">{perf.lapsed}</td>
+                      <td className="num">{money(perf.lapsed_value)}</td>
+                      <td className="muted">
+                        More than {perf.lapsed_after_days} days past due. Assume
+                        they are being served somewhere else, and ask why.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </>
+            )}
+          </div>
+
+          {perf?.at_risk?.length > 0 && (
+            <div className="card">
+              <div className="card-head">
+                <h3>Worth ringing first</h3>
+                <span className="muted small">
+                  {perf.at_risk_total} overdue, the most valuable at the top
+                </span>
+              </div>
+              <div className="dt-scroll">
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Patient</th><th>Medicine</th><th>Due</th>
+                      <th className="num">Worth</th><th>State</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perf.at_risk.map((r: any) => (
+                      <tr key={r.item_id} className={!r.can_supply ? "row-flag" : ""}>
+                        <td>
+                          <EntityLink kind="patient" id={r.patient_id}>
+                            <b>{r.patient}</b>
+                          </EntityLink>
+                          {r.phone && <div className="muted small">{r.phone}</div>}
+                        </td>
+                        <td>{r.product}</td>
+                        <td>
+                          {fmtDate(r.due_on)}
+                          <div className="muted small">{r.days_overdue} days ago</div>
+                        </td>
+                        <td className="num"><b>{money(r.value)}</b></td>
+                        <td>
+                          <span className={`badge ${r.state === "cannot supply" ? "danger"
+                            : r.state === "lapsed" ? "warn" : "muted"}`}>
+                            {r.state}
+                          </span>
+                        </td>
+                        <td className="actions">
+                          {r.phone && (
+                            <a className="btn small secondary" href={`tel:${r.phone}`}>
+                              Call
+                            </a>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
 

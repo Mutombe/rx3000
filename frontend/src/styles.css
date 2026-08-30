@@ -5379,3 +5379,10 @@ table.dt.sub th { font-size: var(--t-xs); }
 .st-toggle { margin-top: var(--s3); }
 .st-lines { margin-top: var(--s2); }
 .st-lines .is-bad { color: var(--danger); }
+/* The ways into a screen, beside its heading. A page whose only entry point is
+   scrolling to find the right box is a page people navigate away from. */
+.page-actions { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
+@media (max-width: 640px) {
+  .page-actions { width: 100%; }
+  .page-actions .btn { flex: 1; justify-content: center; }
+}

@@ -40,6 +40,8 @@ import InsuranceStanding from "../components/InsuranceStanding";
 import PatientForm, { draftFrom } from "../components/PatientForm";
 import ScriptTotals from "../components/ScriptTotals";
 import { TableSkeleton } from "../components/Skeleton";
+import AlterScript from "../components/AlterScript";
+import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -284,6 +286,24 @@ export default function Dispense() {
   const [showKeys, setShowKeys] = useState(false);
   /** Somebody at the counter who is not on file yet. */
   const [newPatient, setNewPatient] = useState(false);
+  const [altering, setAltering] = useState(false);
+  /** Pricing a basket for somebody deciding, rather than dispensing it.
+   *
+   *  A quote is the same capture with nothing committed: no stock moves, no
+   *  claim is raised, no register entry is written. Pharmacies are asked for
+   *  one several times a day — "what would this cost me" — and the only way to
+   *  answer was to capture the script and not press the button, which leaves a
+   *  draft behind for somebody else to wonder about. */
+  const [quoting, setQuoting] = useState(false);
+
+  /** Start again, cleanly. */
+  function newScript() {
+    setItems([]); setPatient(null); setPatientQ(""); setDoneSale(null);
+    setFromRx(null); setQuoting(false); aiCheck.reset();
+    setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
+    setInitials(""); setIdNumber(""); setComplianceNotes("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   /** The queued script this screen was opened from, if any.
    *
    *  Without it, picking a line off the worklist loaded only the patient and
@@ -641,9 +661,22 @@ export default function Dispense() {
             script several times a day — "did she collect it", "was that one
             paid for", "print that label again" — and the only way to answer
             was to know the patient and open their record. */}
-        <Link className="btn secondary" to="/dispensing-history">
-          <ClockCounterClockwise size={15} /> Dispensing history
-        </Link>
+        {/* The three things somebody starts on this screen, where the hand
+            already is. Everything below is the work; these are the ways in. */}
+        <div className="page-actions">
+          <button className="btn" onClick={newScript}>
+            <Plus size={14} weight="bold" /> New script
+          </button>
+          <button className="btn secondary" onClick={() => { newScript(); setQuoting(true); }}>
+            <Receipt size={14} /> New quote
+          </button>
+          <button className="btn secondary" onClick={() => setAltering(true)}>
+            <PencilSimpleLine size={14} /> Alter script
+          </button>
+          <Link className="btn secondary" to="/dispensing-history">
+            <ClockCounterClockwise size={15} /> History
+          </Link>
+        </div>
       </div>
 
       {/* Work on the left, worklist on the right. The queue has to be in view
@@ -656,6 +689,21 @@ export default function Dispense() {
         <LabelSheet rxId={reprintRx} onClose={closeReprint} />
       )}
 
+
+      {/* Nothing on this screen commits while it is a quote, so it says so
+          once, plainly, at the top — a mode you cannot see is a mode somebody
+          forgets they are in. */}
+      {quoting && (
+        <div className="alert warn no-print">
+          <span>
+            <b>This is a quote.</b> Nothing will be dispensed, no stock moves
+            and no claim is raised. Price it, print it, and the patient decides.
+          </span>
+          <button className="btn ghost small" onClick={() => setQuoting(false)}>
+            Turn it into a script
+          </button>
+        </div>
+      )}
 
       {/* Which route is being dispensed governs the whole screen below it, so
           it floats rather than scrolling away. */}
@@ -1166,14 +1214,27 @@ export default function Dispense() {
                           disabled={!aiCheck.streaming && (!patient || items.length === 0)}>
                     {aiCheck.streaming ? "Stop" : <><ClaudeIcon size={14} /> AI interaction check</>}
                   </button>
-                  <BusyButton
-                    className="btn primary disp-go"
-                    busyLabel="Dispensing…"
-                    disabled={!patient || items.length === 0 || !complianceReady}
-                    onClick={createAndDispense}
-                  >
-                    Dispense {items.length} item{items.length === 1 ? "" : "s"}
-                  </BusyButton>
+                  {/* A quote commits nothing: no stock moves, no claim is
+                      raised, no register entry is written. So it is a different
+                      button rather than the same one in a different mood — the
+                      one thing that must never happen by accident on this
+                      screen is dispensing when somebody meant to price. */}
+                  {quoting ? (
+                    <button className="btn primary disp-go"
+                            disabled={items.length === 0}
+                            onClick={() => window.print()}>
+                      Print the quote
+                    </button>
+                  ) : (
+                    <BusyButton
+                      className="btn primary disp-go"
+                      busyLabel="Dispensing…"
+                      disabled={!patient || items.length === 0 || !complianceReady}
+                      onClick={createAndDispense}
+                    >
+                      Dispense {items.length} item{items.length === 1 ? "" : "s"}
+                    </BusyButton>
+                  )}
                 </div>
                 {blockedBecause() && (
                   <p className="disp-blocked">
@@ -1282,6 +1343,11 @@ export default function Dispense() {
         onClose={() => setNewPatient(false)}
         onSaved={(p) => { setPatient(p); setPatients([]); setPatientQ(""); }}
       />
+
+      {altering && (
+        <AlterScript onClose={() => setAltering(false)}
+                     onAltered={() => setWorklistNonce((n) => n + 1)} />
+      )}
 
       <DispensaryWorklist
         reloadOn={worklistNonce}
