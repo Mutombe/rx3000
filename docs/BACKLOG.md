@@ -8,6 +8,10 @@
 | `qa/endpoint-coverage.py` — endpoints no screen calls | **0 of 349** (was 38) |
 | `qa/loading-states.py` — screens with no loading state | **0 of 68** (was 26) |
 
+`useOptimisticList` is now fully exercised: `create` on Stock departments,
+`remove` on product barcodes, `update` on the department target margin — each
+against a real screen with the network held open and a refusal.
+
 All three are pinned: the loading budget fails at one, and the coverage audit
 now separates "no screen and should have one" from "no screen on purpose",
 each of the latter named with its reason so the exemption can be argued with.
@@ -29,9 +33,6 @@ resolver that reads symbology and pack multipliers), `/fiscal/verify`.
 
 ## Still open
 
-- **`useOptimisticList.update()` is written and never called.** `remove()` is
-  now exercised by the barcode panel; `update()` is not. Unproven code that
-  looks finished.
 - **Desktop 1.4.3.** 1.4.2 predates everything since: payments, sale reversal,
   bank reconciliation, the modal redesign, insurance standing, script totals,
   the repeat value work.

@@ -624,6 +624,54 @@ def create_stock_category(body: dict, db: Session = Depends(get_db),
     return {"id": cat.id, "name": cat.name, "code": cat.code or ""}
 
 
+@router.put("/stock-categories/{category_id}")
+def update_stock_category(category_id: int, body: dict, db: Session = Depends(get_db),
+                          _: User = Depends(require_role("admin", "manager"))):
+    """Change a department: its name, its code, or what it should earn.
+
+    The target margin is the one that gets edited. It is a commercial decision
+    that moves — a department carrying more consignment stock this quarter than
+    last should not be measured against a figure somebody typed once — and it
+    could be set when the department was created and never again.
+    """
+    from ..models import StockCategory
+
+    cat = db.get(StockCategory, category_id)
+    if cat is None:
+        raise HTTPException(status_code=404, detail="No such department.")
+
+    if "name" in body:
+        name = " ".join((body.get("name") or "").split())
+        if len(name) < 2:
+            raise HTTPException(status_code=400, detail="Give the department a name.")
+        clash = (db.query(StockCategory)
+                 .filter(func.lower(StockCategory.name) == name.lower(),
+                         StockCategory.id != cat.id).first())
+        if clash:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{clash.name} already uses that name.")
+        cat.name = name
+    if "code" in body:
+        cat.code = (body.get("code") or "").strip()[:20]
+    if "target_margin" in body:
+        margin = float(body.get("target_margin") or 0)
+        # A margin above a hundred per cent is a keying slip — 30 typed as 300 —
+        # and it would quietly mark every line in the department as failing.
+        if margin < 0 or margin > 100:
+            raise HTTPException(
+                status_code=400,
+                detail="A target margin is a percentage between 0 and 100.")
+        cat.target_margin = margin
+    if "active" in body:
+        cat.active = bool(body.get("active"))
+
+    db.commit()
+    db.refresh(cat)
+    return {"id": cat.id, "name": cat.name, "code": cat.code or "",
+            "target_margin": cat.target_margin, "active": cat.active}
+
+
 @router.post("/products/{product_id}/category")
 def tag_product(product_id: int, body: dict, db: Session = Depends(get_db),
                 _: User = Depends(require_role("admin", "manager", "pharmacist"))):

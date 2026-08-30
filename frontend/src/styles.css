@@ -3014,8 +3014,12 @@ img { -webkit-user-drag: none; user-select: none; }
 
      Stuck below the top bar rather than at zero, or it slides underneath it. */
   position: sticky;
-  top: calc(var(--topbar-h) + var(--s4));
-  max-height: calc(100vh - var(--topbar-h) - var(--s8));
+  /* Same correction: measured against `main`, which is what scrolls. */
+  top: calc(var(--s8) * -1);
+  /* Fits inside the scrollport rather than merely nearly fitting: taller than
+     the room available and the rail scrolls away with the page at the very
+     bottom, which is the one moment somebody is looking for the next name. */
+  max-height: calc(100vh - var(--topbar-h) - var(--s12));
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
@@ -5237,7 +5241,25 @@ table.dt.sub th { font-size: var(--t-xs); }
    screen where dispensing against the wrong one matters most. */
 .disp-routes {
   position: sticky;
-  top: var(--topbar-h);
+  /* Zero, not the height of the top bar. `main` is the scrolling element and
+     the top bar sits outside it, so its scrollport already begins below the
+     bar — offsetting by 56px again pushed the tabs down into the page and left
+     them looking as though the floating had given up. A sticky offset is
+     measured against the thing that scrolls, which here is never the window.
+
+     The negative margin cancels `main`'s own top padding so the strip meets
+     the bar rather than hovering under it. */
+  /* Negative, because a sticky offset is measured from the scrollport's
+     padding edge and `main` carries a generous top padding — at 0 the strip
+     pinned a full 32px down the page with a band of empty canvas above it,
+     which reads as a bug rather than as a heading. This puts it flush under
+     the top bar. */
+  top: calc(var(--s8) * -1);
+  /* The padding is the band of canvas the strip paints over what is scrolling
+     beneath it. Matched to the offset so nothing shows through above the tabs
+     — a two-pixel sliver of a card sliding past a pinned heading is the sort
+     of thing that reads as the page being broken. */
+  padding-top: var(--s8);
   z-index: 12;
   background: var(--canvas, var(--surface));
   padding: var(--s3) 0;
@@ -5411,3 +5433,11 @@ table.dt.sub th { font-size: var(--t-xs); }
 .rp-date { font-size: 9px; color: var(--ink-faint); white-space: nowrap; }
 .rp-day.is-today .rp-date { color: var(--warn); font-weight: 700; }
 .rp-value { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+/* Edited in place, so it has to read as a figure first and a field second. */
+.sc-margin {
+  width: 5.5rem; text-align: right; padding: 4px 8px;
+  font-variant-numeric: tabular-nums;
+  background: transparent; border-color: transparent;
+}
+.sc-margin:hover:not(:disabled) { border-color: var(--line); }
+.sc-margin:focus { background: var(--surface); border-color: var(--accent); }

@@ -155,10 +155,38 @@ export default function StockCategories() {
                   )}
                 </td>
                 <td className="num"><b>{money(c.at_cost)}</b></td>
+                {/* Edited where it is read. A target margin is a commercial
+                    decision that moves — a department carrying more
+                    consignment stock this quarter than last should not be
+                    measured against a figure somebody typed once — and it
+                    could be set when the department was created and never
+                    again. The change shows at once and reverts if the server
+                    refuses it. */}
                 <td className="num">
-                  {c.target_margin
-                    ? `${c.target_margin}%`
-                    : <span className="muted">not set</span>}
+                  <input
+                    type="number" min={0} max={100} className="sc-margin"
+                    /* Keyed on the value it is showing. The field is
+                       uncontrolled so typing stays smooth, which means a
+                       rollback restores the row in state and leaves the
+                       refused number sitting in the box — the screen saying
+                       77 while the record says 42. Re-keying remounts it with
+                       whatever the row actually holds. */
+                    key={`${c.id}-${c.target_margin}`}
+                    defaultValue={c.target_margin || ""}
+                    placeholder="not set"
+                    disabled={list.isPending(c)}
+                    onBlur={(e) => {
+                      const next = Number(e.target.value) || 0;
+                      if (next === (c.target_margin || 0)) return;
+                      list.update(
+                        c.id,
+                        { target_margin: next },
+                        () => api.put(`/api/stock-categories/${c.id}`,
+                                      { target_margin: next }),
+                        `${c.name} now aims at ${next}%.`,
+                      );
+                    }}
+                  />
                 </td>
                 <td className="actions">
                   {/* Nothing to look at yet on a department the server has not
