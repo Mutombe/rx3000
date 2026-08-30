@@ -16,6 +16,8 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import BusyButton from "../components/BusyButton";
+import NewDelivery from "../components/NewDelivery";
+import { Plus } from "@phosphor-icons/react";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -30,6 +32,7 @@ type Tab = "pending" | "out" | "delivered" | "failed";
 
 export default function Deliveries() {
   const [rows, setRows] = useState<Record<string, Waybill[]>>({});
+  const [raising, setRaising] = useState(false);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState<Waybill | null>(null);
   const [failing, setFailing] = useState<Waybill | null>(null);
@@ -113,7 +116,19 @@ export default function Deliveries() {
           <h1>Deliveries</h1>
           <p className="muted">{headline}</p>
         </div>
+        {/* Deliveries only ever arrived here already made. The request usually
+            arrives by telephone, and the endpoint to raise one has existed
+            since deliveries were built with nothing calling it. */}
+        <div className="page-actions">
+          <button className="btn" onClick={() => setRaising(true)}>
+            <Plus size={14} weight="bold" /> New delivery
+          </button>
+        </div>
       </header>
+
+      {raising && (
+        <NewDelivery onClose={() => setRaising(false)} onRaised={load} />
+      )}
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

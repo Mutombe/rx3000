@@ -23,6 +23,8 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
+import NewToFollow from "../components/NewToFollow";
+import { Plus } from "@phosphor-icons/react";
 
 interface Owed {
   id: number;
@@ -56,6 +58,7 @@ type Tab = "ready" | "all" | "settled";
 
 export default function ToFollows() {
   const [ready, setReady] = useState<Owed[]>([]);
+  const [promising, setPromising] = useState(false);
   const [all, setAll] = useState<Owed[]>([]);
   const [settled, setSettled] = useState<Owed[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
@@ -167,8 +170,21 @@ export default function ToFollows() {
           <h1>To follows</h1>
           <p className="muted">{headline}</p>
         </div>
-        <ExportButton dataset="to-follows" label="Spreadsheet" />
+        <div className="page-actions">
+          {/* Most of these are raised by a dispensing that came up short. This
+              is the other half: asked for at the counter, promised for Friday,
+              and until now written on whatever was to hand — which is the
+              paper list this feature exists to replace. */}
+          <button className="btn" onClick={() => setPromising(true)}>
+            <Plus size={14} weight="bold" /> Owe something
+          </button>
+          <ExportButton dataset="to-follows" label="Spreadsheet" />
+        </div>
       </header>
+
+      {promising && (
+        <NewToFollow onClose={() => setPromising(false)} onPromised={load} />
+      )}
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

@@ -61,6 +61,37 @@ def create(product_id: int = Body(...), quantity: int = Body(...),
     return to_follows.summarise(owed)
 
 
+@router.post("")
+def promise(product_id: int = Body(...), quantity: int = Body(...),
+            patient_id: int | None = Body(default=None),
+            promised_for: date | None = Body(default=None),
+            notes: str = Body(default=""),
+            db: Session = Depends(get_db),
+            user: User = Depends(get_current_user)):
+    """Record a promise made at the counter.
+
+    Most of these are raised by a dispensing that came up short, and that is
+    the common case. This is the other one: somebody asks for something the
+    shelf does not have, is told it will be in on Friday, and walks out. Until
+    now that promise lived in whatever the pharmacy writes it on, which is the
+    paper list this whole feature exists to replace — so the one route into it
+    that a person actually uses was the one that was missing.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if patient_id and not db.get(Patient, patient_id):
+        raise HTTPException(status_code=404, detail="Patient not found")
+    try:
+        owed = to_follows.record(
+            db, product=product, quantity_owed=int(quantity),
+            patient_id=patient_id, user_id=user.id,
+            promised_for=promised_for, notes=notes.strip())
+    except to_follows.OwedError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return to_follows.summarise(owed)
+
+
 @router.get("/{owed_id}")
 def detail(owed_id: int, db: Session = Depends(get_db)):
     owed = db.get(OwedItem, owed_id)
