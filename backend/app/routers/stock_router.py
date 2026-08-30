@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -250,6 +250,59 @@ def update_product(product_id: int, body: schemas.ProductBase, db: Session = Dep
 
 
 # ---------- movements / adjustments ----------
+@router.post("/stock/upload")
+def stock_upload(csv_text: str = Body(..., embed=True),
+                 apply: bool = Body(default=False, embed=True),
+                 reference: str = Body(default="", embed=True),
+                 branch_id: int | None = Body(default=None, embed=True),
+                 db: Session = Depends(get_db),
+                 user: User = Depends(require_role("admin", "pharmacist", "manager"))):
+    """Load a catalogue or a delivery from a spreadsheet.
+
+    Two steps, always: `apply=false` returns exactly what would happen and
+    writes nothing. The price import beside this can only update; this one
+    creates as well, which is the half a pharmacy needs on the day it arrives
+    from another system.
+    """
+    from ..services import stock_upload as up
+
+    try:
+        rows, mapping = up.read(csv_text)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    lines = up.plan(db, rows, mapping, branch_id=branch_id)
+    counts = {a: sum(1 for l in lines if l.action == a)
+              for a in ("create", "update", "skip", "refuse")}
+    result = {
+        "applied": False,
+        "columns_read": sorted(mapping.keys()),
+        "columns_ignored": [c for c in (rows[0].keys() if rows else [])
+                            if c not in mapping.values()],
+        "rows": len(rows),
+        **counts,
+        "units": sum(l.quantity for l in lines if l.action in ("create", "update")),
+        "lines": [{
+            "row": l.row, "key": l.key, "name": l.name, "action": l.action,
+            "reason": l.reason, "product_id": l.product_id,
+            "changes": l.changes, "quantity": l.quantity,
+            "batch": l.batch, "expiry": l.expiry,
+        } for l in lines[:400]],
+        "truncated": len(lines) > 400,
+    }
+    if not apply:
+        return result
+
+    written = up.apply(db, rows, mapping, lines, user_id=user.id,
+                       branch_id=branch_id, reference=reference)
+    result["applied"] = True
+    result.update(written)
+    result["message"] = (
+        f"{written['created']} product(s) created, {written['updated']} updated, "
+        f"{written['units']:,} unit(s) received into {written['batches']} batch(es).")
+    return result
+
+
 @router.post("/stock/adjust")
 def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     product = db.get(Product, body.product_id)

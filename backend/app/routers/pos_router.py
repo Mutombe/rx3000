@@ -203,7 +203,44 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
         sale.amount_tendered = claim.patient_liable
     elif payment_method == "cash":
         if amount_tendered + 0.005 < amount_due:
-            raise HTTPException(status_code=400, detail="Amount tendered is less than the amount due")
+            # Short, and sometimes that is the answer — the same judgement the
+            # split-tender path above already makes.
+            #
+            # It was not made here. `part_payment` was honoured only when the
+            # till sent a list of tenders, so the identical request expressed as
+            # a single cash amount was refused outright. One intention, two
+            # settlement paths, and only one of them had heard of it: a counter
+            # taking twenty of fifty-seven got "Amount tendered is less than the
+            # amount due" and no way past it, which is how the whole thing gets
+            # rung up as cash and the difference lost where nobody can find it.
+            if not getattr(body_tenders, "part_payment", False):
+                short = round(amount_due - amount_tendered, 2)
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Tendered {amount_tendered:.2f} of {amount_due:.2f}, "
+                           f"short by {short:.2f}. Mark it as a part payment to "
+                           f"let the patient owe the balance.")
+            if not sale.patient_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="A balance has to be owed by somebody — link the "
+                           "patient before taking a part payment.")
+            # Recorded as a tender, not merely stamped on the sale.
+            #
+            # A settled sale can get away with `amount_tendered` alone because
+            # nothing asks it again. A part payment is asked again by
+            # definition: /owed works out the balance from the tenders, so
+            # money taken and not recorded here reads as nothing paid — the
+            # patient hands over twenty and the screen still says they owe the
+            # whole fifty-seven.
+            currency.record_tender(
+                db, sale, method="cash",
+                currency_code=currency.base_code(), amount=amount_tendered,
+                reference="part payment")
+            sale.amount_tendered = amount_tendered
+            sale.change_due = 0.0
+            sale.status = "part_paid"
+            return
         sale.amount_tendered = amount_tendered
         sale.change_due = round(amount_tendered - amount_due, 2)
     else:  # card / account (EFTPOS integration point)

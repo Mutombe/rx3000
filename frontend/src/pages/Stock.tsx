@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import StockUpload from "../components/StockUpload";
 import StockReconcile from "../components/StockReconcile";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
@@ -15,7 +16,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "batches" | "movements" | "reconcile";
+type Tab = "products" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -61,6 +62,8 @@ export default function Stock() {
     // two counts disagree and the history is where the reason is.
     { key: "reconcile", label: "Reconciliation",
       hint: "Whether each product's own count agrees with the batches behind it" },
+    { key: "upload", label: "Upload",
+      hint: "Load a catalogue or a delivery note from a spreadsheet" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "products");
   const [showForm, setShowForm] = useState(false);
@@ -376,6 +379,8 @@ export default function Stock() {
       )}
 
       {tab === "reconcile" && <StockReconcile />}
+
+      {tab === "upload" && <StockUpload onDone={load} />}
 
       {tab === "movements" && (
         <DataTable

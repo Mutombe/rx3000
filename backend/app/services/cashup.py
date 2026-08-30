@@ -29,7 +29,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from ..models import Sale, SaleTender, Shift
@@ -125,10 +125,31 @@ def system_totals(db: Session, shift: Shift) -> dict[str, float]:
         totals[method] = round(totals.get(method, 0.0) + float(amount or 0), 2)
 
     # Sales that recorded only a payment method, with no tender breakdown.
+    #
+    # What was TAKEN, not what was owed. This summed `Sale.total` for anything
+    # not void, which counts money that never reached the drawer:
+    #
+    #   a `pending` sale is a dispensing waiting to be paid for at the till —
+    #   nothing was taken, and on a busy morning there are dozens of them;
+    #
+    #   a `part_paid` sale took what the patient could find and left the rest
+    #   owing, so its total is the wrong figure by exactly the balance.
+    #
+    # A shift with one pending sale of 80 and one part payment of 20 against 60
+    # expected 190 in a drawer holding 70, and told the cashier they were 120
+    # short. A cash-up that accuses people of what the software got wrong is
+    # worse than no cash-up: the real shortfalls get lost in the noise, and
+    # staff learn to sign off a variance without reading it.
     simple = (
-        db.query(Sale.payment_method, func.sum(Sale.total))
+        db.query(
+            Sale.payment_method,
+            func.sum(case((Sale.status == "part_paid",
+                           func.coalesce(Sale.amount_tendered, 0.0)),
+                          else_=Sale.total)))
         .filter(Sale.created_at >= start, Sale.created_at <= end)
-        .filter(Sale.status != "void")
+        # Settled or part settled. A pending sale has taken nothing yet, and a
+        # credit note is money going the other way against a different shift.
+        .filter(Sale.status.in_(("paid", "part_paid")))
         .filter(~Sale.id.in_(seen_sale_ids) if seen_sale_ids else True)
         .group_by(Sale.payment_method)
         .all()

@@ -36,6 +36,9 @@ from ..database import SessionLocal
 from ..models import Doctor, MedicalAid, Patient, Pharmacy
 from ..tenancy import unscoped
 
+#: What the incumbent writes where a funder would go, when there is none.
+CASH = {"PR", "PRIVATE", "CASH", "PRIVATE PATIENT"}
+
 HEADER_ROW = 8
 TENANT = "CareXpress Pharmacy"
 
@@ -119,7 +122,17 @@ def run(path: str) -> dict:
             # ---- the scheme -------------------------------------------------
             aid = None
             aid_name = _clean(cell(row, "Medical Aid"))
-            if aid_name and aid_name.upper() != "PRIVATE":
+            aid_code = _clean(cell(row, "Medical Aid CD")).upper()
+            # `PR` / `PRIVATE` is not a funder. It is the incumbent's way of
+            # writing "this one paid cash", on 32,926 of the 53,206 lines — and
+            # a scheme called Private would put two thirds of the register on a
+            # medical aid that will never pay a claim, then age the money and
+            # chase somebody for it.
+            #
+            # Both spellings are checked. The guard read the name alone, so a
+            # row carrying the code and no name would have slipped through and
+            # created it.
+            if aid_name and aid_name.upper() not in CASH and aid_code not in CASH:
                 key = aid_name.upper()
                 aid = aids.get(key)
                 if aid is None:
