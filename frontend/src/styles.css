@@ -5386,3 +5386,28 @@ table.dt.sub th { font-size: var(--t-xs); }
   .page-actions { width: 100%; }
   .page-actions .btn { flex: 1; justify-content: center; }
 }
+
+/* -------------------------------------------- repeats, day by day
+   A fortnight either side of today. Not a chart library: fourteen bars whose
+   only job is to show which days carry the money, and today marked so the eye
+   lands on the boundary between what was and what is coming. */
+.rp-days {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 8rem; padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line);
+}
+.rp-day {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; height: 100%; gap: 2px;
+}
+.rp-bar {
+  width: 100%; border-radius: var(--r-xs) var(--r-xs) 0 0;
+  background: var(--accent); opacity: 0.75;
+}
+/* What has already happened reads quieter than what is coming, because only
+   one of the two can still be acted on. */
+.rp-day.is-past .rp-bar { background: var(--ink-faint); opacity: 0.45; }
+.rp-day.is-today .rp-bar { background: var(--warn); opacity: 1; }
+.rp-date { font-size: 9px; color: var(--ink-faint); white-space: nowrap; }
+.rp-day.is-today .rp-date { color: var(--warn); font-weight: 700; }
+.rp-value { font-size: 10px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }

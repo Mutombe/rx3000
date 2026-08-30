@@ -86,12 +86,15 @@ export default function Repeats() {
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "due");
   const [perf, setPerf] = useState<any>(null);
+  const [daily, setDaily] = useState<any[]>([]);
   const [perfDays, setPerfDays] = useState("30");
 
   useEffect(() => {
     if (tab !== "value") return;
     api.get<any>(`/api/repeats/performance?days=${perfDays}`)
       .then(setPerf).catch(() => setPerf(null));
+    api.get<any>("/api/repeats/daily?days=14")
+      .then((d) => setDaily(d.days ?? [])).catch(() => setDaily([]));
   }, [tab, perfDays]);
 
 
@@ -399,6 +402,52 @@ export default function Repeats() {
               </>
             )}
           </div>
+
+          {/* Day by day, either side of today. A fortnight of this is what
+              tells a pharmacy whether Monday is quietly worse than Thursday —
+              and the week ahead is what somebody staffs and orders against. */}
+          {daily.length > 0 && (
+            <div className="card">
+              <div className="card-head">
+                <h3>What is due, day by day</h3>
+                <span className="muted small">
+                  A fortnight either side of today. The bar is what that day is
+                  worth.
+                </span>
+              </div>
+              <div className="rp-days">
+                {daily.map((d: any) => {
+                  const peak = Math.max(...daily.map((x: any) => x.value), 1);
+                  return (
+                    <div key={d.date}
+                         className={`rp-day${d.today ? " is-today" : ""}${d.past ? " is-past" : ""}`}
+                         title={`${d.due} repeats · ${money(d.value)}`}>
+                      <span className="rp-bar"
+                            style={{ height: `${Math.max(2, (d.value / peak) * 100)}%` }} />
+                      <span className="rp-date">{fmtDate(d.date).slice(0, 6)}</span>
+                      <span className="rp-value">{d.due || ""}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="wc-bands" style={{ marginTop: "var(--s3)" }}>
+                <div className="wl-stat">
+                  <b>{money(daily.filter((d: any) => d.past || d.today)
+                        .reduce((n: number, d: any) => n + d.value, 0))}</b>
+                  <span>the fortnight behind</span>
+                </div>
+                <div className="wl-stat">
+                  <b>{money(daily.filter((d: any) => !d.past && !d.today)
+                        .reduce((n: number, d: any) => n + d.value, 0))}</b>
+                  <span>the fortnight ahead</span>
+                </div>
+                <div className="wl-stat">
+                  <b>{money(daily.find((d: any) => d.today)?.value ?? 0)}</b>
+                  <span>due today</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {perf?.at_risk?.length > 0 && (
             <div className="card">

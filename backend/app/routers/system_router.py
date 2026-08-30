@@ -17,9 +17,10 @@ def info(db: Session = Depends(get_db)):
     return station.info(db)
 
 
-@router.get("/licence")
-def licence():
-    return station.licence()
+# The licence used to be readable here on its own. /api/system/info embeds it
+# and the System page reads that, so this was a second door to one fact —
+# and the sort that drifts, because only one of the two gets updated when the
+# shape of a licence changes.
 
 
 @router.get("/backups")

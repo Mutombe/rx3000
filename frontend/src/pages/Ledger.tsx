@@ -20,6 +20,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import BusyButton from "../components/BusyButton";
 import ExportButton from "../components/ExportButton";
 import { EntityLink } from "../components/Filters";
+import NewJournal from "../components/NewJournal";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -80,6 +81,13 @@ export default function Ledger() {
   const [receipts, setReceipts] = useState<UnpostedReceipts | null>(null);
   const receiptPage = useClientPage(receipts?.orders ?? [], 25);
   const [statement, setStatement] = useState("");
+  const [journalling, setJournalling] = useState(false);
+  /* The chart, for the journal form. The trial balance already carries every
+     account with a code and a name, so it is read off that rather than fetched
+     a second time. */
+  const accounts = (tb?.lines ?? []).map((l) => ({
+    code: l.code, name: l.name, type: l.type,
+  }));
   const [bank, setBank] = useState<BankRecon | null>(null);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
@@ -179,6 +187,14 @@ export default function Ledger() {
               : ""}
           </p>
         </div>
+        <div className="page-actions">
+          {/* Almost everything here is posted by something else, and that is
+              right — but a bank charge nothing raised, a correction, an owner's
+              drawing all need a hand. The endpoint has existed since the ledger
+              was written and the only way to reach it was curl. */}
+          <button className="btn" onClick={() => setJournalling(true)}>
+            New journal
+          </button>
         {/* An accountant does not read a trial balance on a screen; they take
             it away and tie it to something else. Which dataset leaves follows
             whichever tab is open, so the button is never a guess. */}
@@ -191,7 +207,16 @@ export default function Ledger() {
                 : "Trial balance as a spreadsheet"}
           />
         )}
+        </div>
       </header>
+
+      {journalling && (
+        <NewJournal
+          accounts={accounts}
+          onClose={() => setJournalling(false)}
+          onPosted={load}
+        />
+      )}
 
       {tb && !tb.balanced && <div className="alert error">{tb.message}</div>}
       {unposted?.count ? <div className="alert warn">{unposted.message}</div> : null}
