@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useAsk } from "../components/Confirm";
 import { DetailSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -40,6 +41,7 @@ export default function DealDetail() {
   const [taskSubject, setTaskSubject] = useState("");
   const [taskDue, setTaskDue] = useState("");
   const toast = useToast();
+  const ask = useAsk();
 
   const TABS: TabDef<Tab>[] = [
     { key: "lines", label: "Line items", count: deal?.items.length },
@@ -81,7 +83,22 @@ export default function DealDetail() {
 
   async function moveStage(stage: string) {
     let lost_reason = "";
-    if (stage === "lost") lost_reason = window.prompt("Why was this deal lost?") ?? "";
+    if (stage === "lost") {
+    // Required. A lost deal with no reason is a loss nobody learns from,
+    // and `window.prompt` took Cancel and an empty box as the same answer.
+    const answer = await ask({
+      title: "Why was this deal lost?",
+      body: "Recorded against the deal, and read back in the pipeline "
+          + "report as the pattern in what the business does not win.",
+      field: "Reason",
+      placeholder: "Price, chose a competitor, no longer trading",
+      required: true,
+      confirmLabel: "Mark it lost",
+      destructive: true,
+    });
+    if (!answer.ok) return;
+    lost_reason = answer.value;
+    }
     try {
       await api.post(`/api/crm/deals/${id}/stage`, { stage, lost_reason });
       load();

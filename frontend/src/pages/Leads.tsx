@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
@@ -61,6 +62,7 @@ export default function Leads() {
     create_company: true, create_deal: true, deal_title: "", deal_value: 0, account_type: "business",
   });
   const toast = useToast();
+  const ask = useAsk();
   const navigate = useNavigate();
 
   function load() {
@@ -129,7 +131,22 @@ export default function Leads() {
 
   async function setStatusOf(lead: Lead, next: string) {
     let reason = "";
-    if (next === "disqualified") reason = window.prompt("Why is this lead disqualified?") ?? "";
+    if (next === "disqualified") {
+      // Required now. `window.prompt` accepted an empty answer, so a lead
+      // could be disqualified for a reason of nothing — and a pipeline whose
+      // losses have no reasons cannot be learned from.
+      const answer = await ask({
+        title: "Why is this lead disqualified?",
+        body: "The reason is what makes the loss worth anything later.",
+        field: "Reason",
+        placeholder: "No budget, went elsewhere, not a pharmacy",
+        required: true,
+        confirmLabel: "Disqualify",
+        destructive: true,
+      });
+      if (!answer.ok) return;
+      reason = answer.value;
+    }
     try {
       await api.post(`/api/crm/leads/${lead.id}/status`, { status: next, disqualified_reason: reason });
       load();

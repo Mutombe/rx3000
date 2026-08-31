@@ -119,6 +119,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     },
   }), [push]);
 
+  // Hand the imperative API to the module-level handle above, so a plain
+  // module can raise a toast instead of an `alert`.
+  useEffect(() => {
+    imperative = api;
+    return () => { imperative = null; };
+  });
+
   return (
     <Ctx.Provider value={api}>
       {children}
@@ -165,6 +172,33 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     </Ctx.Provider>
   );
 }
+
+/** The same toasts, for code that is not a component.
+ *
+ *  `print.ts` is a plain module — it opens a window and writes HTML into it,
+ *  and it cannot hold a hook. It was reaching for `alert()` when a pop-up
+ *  blocker refused the print window, which is the one moment the operator is
+ *  standing at a counter waiting for a receipt: a native box that freezes the
+ *  application until somebody clicks OK.
+ *
+ *  Set once by the provider, so there is still exactly one toast stack and
+ *  nothing has to be passed down through five call sites to reach a printer.
+ *  Silently does nothing before the provider mounts, which is correct — a
+ *  message raised before there is anywhere to show it has nowhere to go, and
+ *  throwing there would take down the application over a notification.
+ */
+let imperative: ToastApi | null = null;
+
+export const toast: ToastApi = {
+  ok: (m) => imperative?.ok(m),
+  warn: (m) => imperative?.warn(m),
+  error: (m) => imperative?.error(m),
+  // `report` awaits work and announces the outcome. Before the provider is
+  // mounted the work still has to run and its result still has to reach the
+  // caller — only the announcement is lost, which is the right thing to drop.
+  report: async (work, success) =>
+    (imperative ? imperative.report(work, success) : work.catch(() => undefined)),
+};
 
 export function useToast(): ToastApi {
   const api = useContext(Ctx);

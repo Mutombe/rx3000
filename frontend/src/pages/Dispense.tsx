@@ -745,7 +745,11 @@ export default function Dispense() {
       setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
       setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
       loadLists();
-      alert(`Sold ${record.quantity} × ${record.product?.name}. Recorded in the pharmacy-medicine register.`);
+      // A toast, not `alert`. The native box blocks the whole application
+      // until it is dismissed — on a counter that means the next customer
+      // waits for somebody to click OK on a message about the last one.
+      toast.ok(`Sold ${record.quantity} × ${record.product?.name}. `
+               + "Recorded in the pharmacy-medicine register.");
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 

@@ -5966,3 +5966,15 @@ table.dt.sub th { font-size: var(--t-xs); }
     max-width: none; flex-wrap: wrap;
   }
 }
+
+/* A field inside the confirm dialog, for the four places that were asking
+   through `window.prompt` — an unstyled operating-system box with no label and
+   no way to require an answer, on one occasion collecting who took a
+   controlled substance. */
+.cf-field { display: block; margin: var(--s4) 0 0; }
+.cf-field > span {
+  display: block; margin-bottom: var(--s2);
+  font-size: var(--t-sm); font-weight: 500; color: var(--ink-soft);
+}
+.cf-field input { width: 100%; }
+.cf-required { color: var(--danger); font-weight: 600; }

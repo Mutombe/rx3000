@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate } from "react-router-dom";
 import { api, fmtDate, money, currentCurrency, errorText  } from "../api";
@@ -39,6 +40,7 @@ export default function Pipeline() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<any>({ ...EMPTY });
   const toast = useToast();
+  const ask = useAsk();
   const navigate = useNavigate();
 
   function load() {
@@ -59,7 +61,20 @@ export default function Pipeline() {
     if (!deal || deal.stage === stage) return;
     let lost_reason = "";
     if (stage === "lost") {
-      lost_reason = window.prompt("Why was this deal lost?") ?? "";
+      // Required. A lost deal with no reason is a loss nobody learns from,
+      // and `window.prompt` took Cancel and an empty box as the same answer.
+      const answer = await ask({
+        title: "Why was this deal lost?",
+        body: "Recorded against the deal, and read back in the pipeline "
+            + "report as the pattern in what the business does not win.",
+        field: "Reason",
+        placeholder: "Price, chose a competitor, no longer trading",
+        required: true,
+        confirmLabel: "Mark it lost",
+        destructive: true,
+      });
+      if (!answer.ok) return;
+      lost_reason = answer.value;
     }
     // optimistic
     setDeals((ds) => ds.map((d) => (d.id === dealId ? { ...d, stage } : d)));

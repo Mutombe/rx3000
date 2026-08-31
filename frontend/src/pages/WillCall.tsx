@@ -18,7 +18,7 @@ import { Phone } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money, prefetchRoute } from "../api";
 import BusyButton from "../components/BusyButton";
 import RowLink, { RowActions } from "../components/RowLink";
-import { useConfirm } from "../components/Confirm";
+import { useAsk, useConfirm } from "../components/Confirm";
 import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
@@ -62,6 +62,7 @@ export default function WillCall() {
   const [failed, setFailed] = useState("");
   const [band, setBand] = useState("");
   const toast = useToast();
+  const ask = useAsk();
   const confirm = useConfirm();
 
   const load = useCallback(() =>
@@ -93,12 +94,31 @@ export default function WillCall() {
     });
     if (!ok) return;
 
-    const takenBy = bag.needs_id
-      ? window.prompt("Who is taking it? (name as given)")?.trim() ?? ""
-      : "";
-    if (bag.needs_id && !takenBy) {
-      toast.error("A Schedule 5 or 6 item cannot be handed over without a name.");
-      return;
+    // Who took it, asked properly. This was a `window.prompt` — an unstyled
+    // operating-system box with no label and no way to require an answer —
+    // collecting the legal record of who received a controlled substance.
+    // Cancel returned an empty string indistinguishable from a blank answer,
+    // so the only thing standing between a schedule 6 handover and no name at
+    // all was a toast after the fact.
+    let takenBy = "";
+    if (bag.needs_id) {
+      const answer = await ask({
+        title: `Who is taking ${bag.product}?`,
+        body: (
+          <>
+            This is a Schedule {bag.schedule} item. The name of whoever
+            physically receives it is part of the record, and it is the answer
+            to "who had it" if the question is ever asked.
+          </>
+        ),
+        field: "Name, as given",
+        placeholder: "Full name",
+        required: true,
+        maxLength: 120,
+        confirmLabel: "Record the handover",
+      });
+      if (!answer.ok) return;
+      takenBy = answer.value;
     }
     try {
       await api.post(`/api/dispensing/will-call/${bag.dispensing_id}/collect`,

@@ -1,12 +1,18 @@
 import { Label, Sale } from "./types";
 import { money } from "./api";
+import { toast } from "./components/Toast";
 
 /** Open a print window with standalone HTML — keeps thermal/label output
  *  independent of the app's screen styling. */
 function printHtml(title: string, css: string, body: string) {
   const win = window.open("", "_blank", "width=420,height=640");
   if (!win) {
-    alert("Please allow pop-ups for this site to print.");
+    // A toast, not `alert`. This fires exactly when somebody is standing at a
+    // counter waiting for a receipt, and a native box freezes the whole
+    // application until it is dismissed — so the till stops responding at the
+    // one moment it must not.
+    toast.error("The print window was blocked. Allow pop-ups for this site "
+                + "and print again.");
     return;
   }
   win.document.write(
