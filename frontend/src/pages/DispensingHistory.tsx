@@ -12,8 +12,9 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Printer } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { prefetchRoute, api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
+import RowLink from "../components/RowLink";
 import LabelSheet from "../components/LabelSheet";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -180,7 +181,8 @@ export default function DispensingHistory() {
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id}>
+                  <RowLink key={r.id} to={`/dispensings/${r.id}`}
+                           prefetch={prefetchRoute}>
                     <td>{fmtDateTime(r.dispensed_at)}</td>
                     <td className="mono">
                       <EntityLink kind="prescription" id={r.prescription_id}>
@@ -244,7 +246,7 @@ export default function DispensingHistory() {
                         <Printer size={13} /> Labels
                       </button>
                     </td>
-                  </tr>
+                  </RowLink>
                 ))}
               </tbody>
             </table>

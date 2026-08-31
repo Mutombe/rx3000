@@ -11,8 +11,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
 import { ProductDetail as Detail, StockBatch, StockMovement } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
-import AiStreamBlock from "../components/AiStreamBlock";
-import ClaudeIcon from "../components/ClaudeIcon";
+import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
 
 type Tab = "batches" | "movements";
@@ -194,16 +193,13 @@ export default function ProductDetail() {
           reach it, so the counselling half of dispensing lived entirely in
           whatever the pharmacist happened to remember. Read to the patient,
           not filed: how to take it, what to expect, what would worry you. */}
-      <div className="card">
-        <h3><ClaudeIcon size={16} /> Counselling points</h3>
-        <AiStreamBlock
-          path={`/api/ai/counseling/${p.id}/stream`}
-          label="Draft counselling points"
-          title={`Counselling — ${p.name}`}
-          context={`${p.name} ${p.strength ?? ""}`.trim()}
-          empty="What a pharmacist covers at hand-out — how to take it, common side effects, key warnings, storage — in language that can be read straight to a patient."
-        />
-      </div>
+      {/* The same block the dispensing screen now shows on a selected line,
+          so the two cannot drift into saying different things about the same
+          medicine. Expanded here, because a product page is opened on purpose
+          and has room; folded at the counter, where four of them would bury
+          the fields being typed into. */}
+      <CounsellingPoints productId={p.id}
+        name={`${p.name} ${p.strength ?? ""}`.trim()} />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

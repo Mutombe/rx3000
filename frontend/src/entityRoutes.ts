@@ -18,6 +18,7 @@ export const ENTITY_ROUTES = {
   waybill: (id: Id) => `/waybills/${id}`,
   contact: (id: Id) => `/contacts/${id}`,
   deal: (id: Id) => `/deals/${id}`,
+  dispensing: (id: Id) => `/dispensings/${id}`,
   driver: (id: Id) => `/drivers/${id}`,
   invoice: (id: Id) => `/payables/invoices/${id}`,
   journal: (id: Id) => `/ledger/journal/${id}`,
@@ -29,6 +30,10 @@ export const ENTITY_ROUTES = {
   prescriber: (id: Id) => `/prescribers/${id}`,
   prescription: (id: Id) => `/prescriptions/${id}`,
   product: (id: Id) => `/products/${id}`,
+  // The repeat is a prescription LINE, not the script. Two
+  // different things a pharmacy calls a repeat, and sending
+  // somebody to the script loses which line they asked about.
+  repeat: (id: Id) => `/repeats/${id}`,
   sale: (id: Id) => `/sales/${id}`,
   shift: (id: Id) => `/shifts/${id}`,
   staff: (id: Id) => `/staff/${id}`,

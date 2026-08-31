@@ -225,7 +225,12 @@ export default function ToFollows() {
                 /* A walk-in has no patient record, so the row leads to the
                    medicine instead. Fabricating /patients/ for a missing id
                    would land on a page that cannot exist. */
-                to={o.patient_id ? `/patients/${o.patient_id}` : `/products/${o.product_id}`}
+                // The to-follow, not the patient. Its own page has
+                // existed since to-follows did and only the reference cell
+                // reached it — so clicking the row you were reading took you
+                // somewhere else, and the promise date, the stock position and
+                // the settle button were behind a link the width of a word.
+                to={`/to-follows/${o.id}`}
                 prefetch={prefetchRoute}
                 className={[o.overdue ? "row-flag" : "",
                             saving.has(o.id) ? "is-saving" : ""].filter(Boolean).join(" ")}

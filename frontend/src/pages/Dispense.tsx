@@ -17,6 +17,7 @@ import { useTypewriter } from "../hooks/useTypewriter";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import Variants from "../components/Variants";
+import CounsellingPoints from "../components/CounsellingPoints";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
 import * as roll from "../shellPrinter";
@@ -974,6 +975,15 @@ export default function Dispense() {
                 <input value={indication} onChange={(e) => setIndication(e.target.value)}
                   placeholder="e.g. Headache for 2 days, no red flags" />
               </div>
+              {/* The tick claims a conversation happened. Until now nothing
+                  on the screen said what that conversation should cover, which
+                  makes it a tick about the pharmacist's memory rather than
+                  about the medicine. */}
+              {otcProduct && (
+                <CounsellingPoints productId={otcProduct.id}
+                  name={`${otcProduct.name} ${otcProduct.strength ?? ""}`.trim()}
+                  compact />
+              )}
               <Checkbox checked={counselled} onChange={setCounselled}>Patient counselled on dose, duration and side effects</Checkbox>
               <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
               <div className="field"><label>Notes</label>
@@ -1152,6 +1162,17 @@ export default function Dispense() {
                         name, and what it costs. The substitution conversation
                         happens here, with the script in hand — not later. */}
                     <Variants productId={it.product.id} />
+                    {/* And what to say when it is handed over. This lived only
+                        on the product page, which is the one place a pharmacist
+                        is not standing when they need it — at the counter they
+                        have the script in hand and no reason to open a
+                        catalogue, so the counselling half of dispensing lived
+                        in whatever they happened to remember. Folded shut: four
+                        expanded blocks would bury the fields being typed into,
+                        and it must never fire on its own. */}
+                    <CounsellingPoints productId={it.product.id}
+                      name={`${it.product.name} ${it.product.strength ?? ""}`.trim()}
+                      compact />
                     <div className="form-row">
                       {/* On the twelve-column grid rather than a pixel width.
                           `maxWidth: 90` made the quantity a stub beside a

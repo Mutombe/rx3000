@@ -64,6 +64,8 @@ const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
 const Deliveries = lazy(() => import("./pages/Deliveries"));
 const Drivers = lazy(() => import("./pages/Drivers"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
+const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
+const RepeatDetail = lazy(() => import("./pages/RepeatDetail"));
 const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
 const DriverDetail = lazy(() => import("./pages/DriverDetail"));
 const Dispense = lazy(() => import("./pages/Dispense"));
@@ -148,6 +150,7 @@ export default function App() {
                 <Route path="/recall" element={<Recall />} />
                 <Route path="/payables" element={<Payables />} />
                 <Route path="/dispensing-history" element={<DispensingHistory />} />
+                <Route path="/dispensings/:id" element={<DispensingDetail />} />
                 <Route path="/money-owed" element={<MoneyOwed />} />
                 <Route path="/will-call/:id" element={<WillCallBag />} />
                 <Route path="/to-follows/:id" element={<ToFollowDetail />} />
@@ -178,6 +181,7 @@ export default function App() {
                 <Route path="/drivers" element={<Drivers />} />
                 <Route path="/drivers/:id" element={<DriverDetail />} />
                 <Route path="/repeats" element={<Repeats />} />
+                <Route path="/repeats/:id" element={<RepeatDetail />} />
                 <Route path="/ledger" element={<Ledger />} />
                 <Route path="/ledger/entries/:id" element={<JournalDetail />} />
                 <Route path="/ledger/accounts/:code" element={<AccountLedger />} />

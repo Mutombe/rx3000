@@ -5815,3 +5815,27 @@ table.dt.sub th { font-size: var(--t-xs); }
 .recon-card.is-off { border-left: 3px solid var(--danger); }
 .recon-card.is-unrun { border-left: 3px solid var(--warn); }
 .recon-card.is-clean { border-left: 3px solid var(--ok); }
+
+/* ---------- Counselling points, folded ----------
+   On a script with four lines this appears four times, so it opens on a press
+   rather than sitting expanded. The toggle is a button, not a div with a click
+   handler: it has to be reachable by keyboard, and a pharmacist working a
+   counter queue is on the keyboard. */
+.cp-inline {
+  margin: var(--s3) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+}
+.cp-toggle {
+  display: flex; align-items: center; gap: var(--s2);
+  width: 100%; padding: var(--s2) var(--s3);
+  background: transparent; border: 0; text-align: left;
+  color: var(--ink-soft); font-size: var(--t-sm); font-weight: 500;
+  cursor: pointer;
+}
+.cp-toggle:hover { color: var(--ink); }
+.cp-inline .cp-toggle[aria-expanded="true"] { border-bottom: 1px solid var(--line); }
+.cp-inline > div:not(.cp-toggle) { padding: var(--s3); }
+/* On the product page it is a card, and the toggle is that card's heading. */
+.card > .cp-toggle { padding: 0 0 var(--s3); }

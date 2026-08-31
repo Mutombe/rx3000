@@ -290,7 +290,12 @@ export default function Repeats() {
                 </thead>
                 <tbody>
                   {dueRows.items.map((i) => (
-                    <RowLink key={i.item_id} to={`/patients/${i.patient_id}`}
+                    // The repeat line, not the person holding it. Clicking a
+                    // repeat used to open the patient, which answers a
+                    // different question — the one being asked is about this
+                    // line: how many are left, what it is worth, and whether
+                    // there is stock to fill it this morning.
+                    <RowLink key={i.item_id} to={`/repeats/${i.item_id}`}
                       prefetch={prefetchRoute}
                       /* Green until it is late, amber while a telephone call
                          still works, red once the patient has almost certainly

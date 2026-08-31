@@ -512,3 +512,248 @@ def will_call_bag(dispensing_id: int, db: Session = Depends(get_db)):
         "scheme_pays": round(claim.amount_approved, 2) if claim else 0.0,
         "alongside": alongside,
     }
+
+
+# --------------------------------------------------------------- dispensing
+
+@router.get("/dispensings/{dispensing_id}")
+def dispensing_detail(dispensing_id: int, db: Session = Depends(get_db)):
+    """One handover, in full.
+
+    The dispensing history listed thousands of these and opened none of them.
+    Every column on that list was a link to something *else* — the script, the
+    patient, the prescriber — and the dispensing itself, which is the record of
+    what a named pharmacist actually handed to a named person on a named day,
+    was the one thing you could not read.
+
+    That is the wrong way round. On a controlled item this row IS the legal
+    record, and "who had it, checked by whom, against which script" is a
+    question asked by an inspector rather than out of curiosity.
+    """
+    d = _found(
+        db.query(Dispensing)
+          .options(joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.product),
+                   joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.patient),
+                   joinedload(Dispensing.prescription_item)
+                   .joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.doctor),
+                   joinedload(Dispensing.dispensed_by),
+                   joinedload(Dispensing.collected_by))
+          .filter(Dispensing.id == dispensing_id).first(),
+        "dispensing")
+
+    item = d.prescription_item
+    rx = item.prescription if item else None
+    product = item.product if item else None
+    sale = db.get(Sale, d.sale_id) if d.sale_id else None
+
+    # What was charged for this line, rather than the whole sale. A script of
+    # four items settled as one figure says nothing about this one.
+    line_value = 0.0
+    if sale is not None and product is not None:
+        from ..models import SaleItem
+
+        line = (db.query(SaleItem)
+                  .filter(SaleItem.sale_id == sale.id,
+                          SaleItem.product_id == product.id).first())
+        line_value = round(float(line.line_total or 0.0), 2) if line else 0.0
+
+    # The rest of the script, so this handover can be read in context: a bag
+    # with one of three items in it is a different thing from a completed
+    # script, and only the siblings say which.
+    siblings = []
+    if rx is not None:
+        for other in (db.query(Dispensing)
+                        .options(joinedload(Dispensing.prescription_item)
+                                 .joinedload(PrescriptionItem.product))
+                        .join(PrescriptionItem,
+                              PrescriptionItem.id == Dispensing.prescription_item_id)
+                        .filter(PrescriptionItem.prescription_id == rx.id,
+                                Dispensing.id != d.id)
+                        .order_by(Dispensing.dispensed_at.desc()).limit(20).all()):
+            sibling_product = (other.prescription_item.product
+                               if other.prescription_item else None)
+            siblings.append({
+                "id": other.id,
+                "product": sibling_product.name if sibling_product else "—",
+                "quantity": other.quantity,
+                "dispensed_at": other.dispensed_at,
+                "collected_at": other.collected_at,
+            })
+
+    # Where this sits in the repeat cycle. A fill is not just an event; it is
+    # the third of six, and that is what tells somebody whether the patient is
+    # keeping up.
+    repeat = None
+    if item is not None and (item.repeats_allowed or 0) > 0:
+        repeat = {
+            "item_id": item.id,
+            "allowed": item.repeats_allowed or 0,
+            "used": item.repeats_used or 0,
+            "left": max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0)),
+            "next_due": item.next_repeat_date,
+            "interval_days": item.repeat_interval_days or 0,
+        }
+
+    return {
+        "id": d.id,
+        "quantity": d.quantity,
+        "dispensed_at": d.dispensed_at,
+        "is_repeat": bool(d.is_repeat),
+        "dispensed_by": (d.dispensed_by.full_name if d.dispensed_by else ""),
+        "dispensed_by_id": d.dispensed_by_id,
+        "pharmacist_initial": d.pharmacist_initial or "",
+        # ---- the controlled-substance record ----------------------------
+        #
+        # Present on every dispensing rather than only on scheduled ones, so a
+        # blank identity check on an S5 is visible as a blank rather than as a
+        # missing section somebody has to notice is absent.
+        "dispense_type": d.dispense_type or "prescription",
+        "schedule": d.schedule or 0,
+        "id_verified": bool(d.id_verified),
+        "id_number_seen": d.id_number_seen or "",
+        "script_sighted": bool(d.script_sighted),
+        "prescriber_verified": bool(d.prescriber_verified),
+        "compliance_notes": d.compliance_notes or "",
+        # ---- collection ---------------------------------------------------
+        "collected_at": d.collected_at,
+        "collected_name": d.collected_name or "",
+        "collected_by": (d.collected_by.full_name if d.collected_by else ""),
+        "days_waiting": ((datetime.utcnow() - d.dispensed_at).days
+                         if d.dispensed_at and not d.collected_at else None),
+        # ---- what and for whom --------------------------------------------
+        "product": ({"id": product.id,
+                     "name": f"{product.name} {product.strength or ''}".strip(),
+                     "form": product.dosage_form or "",
+                     "schedule": product.schedule or 0}
+                    if product else None),
+        "patient": _person(rx.patient if rx else None),
+        "prescription": ({"id": rx.id, "number": rx.rx_number or "",
+                          "date": rx.date_prescribed,
+                          "doctor": (rx.doctor.name if rx.doctor else ""),
+                          "doctor_id": rx.doctor_id}
+                         if rx else None),
+        "directions": item.dosage_instructions if item else "",
+        "icd10_code": item.icd10_code if item else "",
+        "sale": ({"id": sale.id, "number": sale.sale_number,
+                  "status": sale.status, "total": round(sale.total or 0.0, 2),
+                  "line_value": line_value}
+                 if sale else None),
+        "repeat": repeat,
+        "siblings": siblings,
+    }
+
+
+# ------------------------------------------------------------------- repeat
+
+@router.get("/repeats/item/{item_id}")
+def repeat_detail(item_id: int, db: Session = Depends(get_db)):
+    """One repeat: what it is worth, how it has run, and whether it can be filled.
+
+    Named `/repeats/item/{id}` rather than `/repeats/{id}` deliberately. There
+    are already `/repeats/call-sheet`, `/repeats/performance` and
+    `/repeats/churn`, and a bare `{id}` above them would swallow all three and
+    answer 422 "not a valid integer" for the rest of its life. That has
+    happened here before.
+    """
+    item = _found(
+        db.query(PrescriptionItem)
+          .options(joinedload(PrescriptionItem.product),
+                   joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.patient),
+                   joinedload(PrescriptionItem.prescription)
+                   .joinedload(Prescription.doctor))
+          .filter(PrescriptionItem.id == item_id).first(),
+        "repeat")
+
+    rx = item.prescription
+    product = item.product
+    allowed = item.repeats_allowed or 0
+    used = item.repeats_used or 0
+
+    fills = (db.query(Dispensing)
+               .options(joinedload(Dispensing.dispensed_by))
+               .filter(Dispensing.prescription_item_id == item.id)
+               .order_by(Dispensing.dispensed_at.desc()).all())
+
+    # What one fill is worth. The whole point of the repeat book is that it is
+    # money, and a queue that does not say what a line is worth cannot be
+    # worked in the order that pays.
+    unit = float(product.unit_price or 0.0) if product else 0.0
+    per_fill = round(unit * (item.quantity or 0), 2)
+
+    # Can it actually be supplied? Against unexpired batches, because that is
+    # what dispensing draws from. The product's own count is the figure most
+    # screens show and the one dispensing does not obey — reading it here said
+    # "none on hand" for a medicine with 267 usable units.
+    on_hand = 0
+    if product is not None:
+        on_hand = int(
+            db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+              .filter(StockBatch.product_id == product.id,
+                      StockBatch.quantity_remaining > 0)
+              .filter((StockBatch.expiry_date.is_(None))
+                      | (StockBatch.expiry_date >= date.today()))
+              .scalar() or 0)
+
+    due = item.next_repeat_date
+    overdue_days = (date.today() - due).days if due and due < date.today() else 0
+
+    # The gap the patient actually keeps, against the one the script asks for.
+    # Two fills 45 days apart on a 30-day script is a patient running out for a
+    # fortnight every month, and nothing said so.
+    gaps = []
+    dates = sorted([f.dispensed_at for f in fills if f.dispensed_at])
+    for earlier, later in zip(dates, dates[1:]):
+        gaps.append((later - earlier).days)
+    average_gap = round(sum(gaps) / len(gaps)) if gaps else None
+
+    return {
+        "item_id": item.id,
+        "patient": _person(rx.patient if rx else None),
+        "product": ({"id": product.id,
+                     "name": f"{product.name} {product.strength or ''}".strip(),
+                     "form": product.dosage_form or "",
+                     "schedule": product.schedule or 0,
+                     "unit_price": round(unit, 2)}
+                    if product else None),
+        "prescription": ({"id": rx.id, "number": rx.rx_number or "",
+                          "date": rx.date_prescribed,
+                          "doctor": (rx.doctor.name if rx.doctor else ""),
+                          "doctor_id": rx.doctor_id}
+                         if rx else None),
+        "directions": item.dosage_instructions or "",
+        "icd10_code": item.icd10_code or "",
+        "quantity": item.quantity or 0,
+        "supply_days": item.supply_days or 0,
+        "interval_days": item.repeat_interval_days or 0,
+        "auto_refill": bool(item.auto_refill),
+        # ---- where it has got to ------------------------------------------
+        "allowed": allowed,
+        "used": used,
+        "left": max(0, allowed - used),
+        "exhausted": allowed > 0 and used >= allowed,
+        "next_due": due,
+        "overdue_days": overdue_days,
+        # ---- what it is worth ---------------------------------------------
+        "value_per_fill": per_fill,
+        "value_remaining": round(per_fill * max(0, allowed - used), 2),
+        "value_filled": round(per_fill * used, 2),
+        # ---- can we supply it ---------------------------------------------
+        "on_hand": on_hand,
+        "can_supply": on_hand >= (item.quantity or 0),
+        # ---- how the patient has actually run it ---------------------------
+        "average_gap_days": average_gap,
+        "keeping_up": (None if average_gap is None or not item.repeat_interval_days
+                       else average_gap <= (item.repeat_interval_days or 0) + 7),
+        "fills": [{
+            "id": f.id, "quantity": f.quantity,
+            "dispensed_at": f.dispensed_at,
+            "collected_at": f.collected_at,
+            "by": f.dispensed_by.full_name if f.dispensed_by else "",
+            "is_repeat": bool(f.is_repeat),
+        } for f in fills],
+    }
