@@ -99,6 +99,12 @@ def build(book: dict, *, pharmacy: str, branch: str = "",
     st = _styles()
     buf = io.BytesIO()
 
+    # A single-branch pharmacy usually names its branch after itself, and the
+    # header then read "RX5000 Pharmacy Central · RX5000 Pharmacy Central".
+    # Saying it twice does not make it truer.
+    if branch.strip().lower() == pharmacy.strip().lower():
+        branch = ""
+
     def furniture(canvas, doc):
         canvas.saveState()
         canvas.setStrokeColor(LINE)
