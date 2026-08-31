@@ -6208,3 +6208,32 @@ table.dt.sub th { font-size: var(--t-xs); }
   font-family: var(--font-mono);
   letter-spacing: 0.02em; color: var(--ink);
 }
+
+/* ------------------------------------------------------- the split bill
+   Who pays what, said at the dispensary rather than discovered at the till.
+
+   Colours declared, not inherited: this sits inside the commit card, which
+   carries its own ink. */
+.split-bill {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s3) var(--s5);
+  padding: var(--s3); margin-bottom: var(--s3);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-left: 3px solid var(--accent);
+  border-radius: var(--r-md);
+}
+.split-part { display: flex; align-items: baseline; gap: var(--s2); }
+.split-part > span { font-size: var(--t-sm); color: var(--ink-mid); }
+.split-part > b {
+  font-size: var(--t-lg, 1.05rem); font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* The figure the patient is about to be asked for. The only one on the row
+   that has to survive being read across a counter. */
+.split-lead > b { font-size: 1.3rem; }
+.split-where {
+  font-size: var(--t-xs) !important; color: var(--ink-soft) !important;
+}
+.split-note {
+  flex: 1 1 100%; margin: 0;
+  font-size: var(--t-xs); line-height: 1.4; color: var(--ink-soft);
+}

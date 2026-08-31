@@ -49,7 +49,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
 import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
-import { DRAFT_SCRIPT } from "../terms";
+import { DRAFT_SCRIPT, TERMS } from "../terms";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -94,7 +94,11 @@ function patientPortion(sale: Sale): number {
 }
 
 const PAY_CHOICES = [
-  { key: "till", label: "Send to till", hint: "Raise the invoice; settle at the front shop" },
+  // "the shortfall" rather than "the invoice": on a scheme member the till
+  // collects the patient's share, not the gross, and the choice should say so
+  // where the choice is made.
+  { key: "till", label: "Send to till",
+    hint: "Raise it now; the patient settles their share at the front shop" },
   { key: "now", label: "Take payment now", hint: "Cash, card, mobile or a mix of them" },
 ];
 
@@ -784,9 +788,26 @@ export default function Dispense() {
                 .filter(Boolean).join(" "),
             })),
           });
-          toast.ok(due < sale.total - 0.005
-            ? `${money(due)} taken from the patient, ${money(sale.total - due)} on the scheme.`
-            : `${money(due)} taken. ${sale.sale_number} is settled.`);
+          // What was actually collected, against what the scheme actually
+          // allowed. `due` is the server's figure after adjudication, and the
+          // tenders were typed against the estimate shown while the script was
+          // being built. Those agree almost always — and when they do not, it
+          // is because the scheme allowed less than its terms suggested, which
+          // is precisely the case somebody has to be told about rather than
+          // congratulated on. Saying "settled" over a sale that is short is how
+          // a patient walks out owing money nobody mentioned.
+          const took = lines.reduce((n, t) => n + Number(t.amount || 0), 0);
+          const short = Math.round((due - took) * 100) / 100;
+          toast.ok(
+            short > 0.005
+              ? `${money(took)} taken, ${money(short)} still owed — `
+                + `${patient?.medical_aid?.name ?? "the scheme"} allowed less `
+                + `than its terms suggested. It is on the till as `
+                + `${sale.sale_number}.`
+              : due < sale.total - 0.005
+                ? `${money(due)} taken from the patient, `
+                  + `${money(sale.total - due)} on the scheme.`
+                : `${money(due)} taken. ${sale.sale_number} is settled.`);
         } catch (err) {
           // The medicine has already gone out and the invoice exists — the
           // dispensing is not undone because the card machine declined. It
@@ -842,13 +863,6 @@ export default function Dispense() {
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
 
-  // What the tender rows are settling. The basket's own total, since the claim
-  // has not been raised yet at this point — the confirmation afterwards shows
-  // the scheme's share once the server has worked it out.
-  useEffect(() => {
-    setDueNow(items.reduce((n, i) => n + (i.product.unit_price || 0) * (i.quantity || 0), 0));
-  }, [items]);
-
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
 
@@ -870,6 +884,54 @@ export default function Dispense() {
   const pricing = useScriptPricing(pricedItems, patient?.medical_aid_id ?? null);
   const marginFor = (productId: number) =>
     pricing?.lines.find((l) => l.product_id === productId);
+
+  /** What the scheme will carry and what the patient will owe.
+   *
+   *  Asked of the server, from the same rule the adjudication uses, so the
+   *  figure quoted here is the figure the till collects. Two implementations
+   *  of "what does the scheme cover" would disagree eventually, and the day
+   *  they disagreed somebody would be asked for the wrong amount.
+   *
+   *  It is emphatically NOT `pricing.totals.patient_pays`, which was the
+   *  obvious source and would have been a bad bug. That service models the
+   *  scheme's *regulated* price — fee model, professional fee, levy, MMAP cap
+   *  — while the sale a claim is raised against is billed at shelf price. Two
+   *  coherent calculations of two different things; showing one as the other
+   *  is arithmetic on mismatched data, wrong by a plausible-looking margin on
+   *  every scheme line.
+   */
+  const [split, setSplit] = useState<{
+    total: number; scheme_pays: number; patient_pays: number;
+    covered: boolean; scheme?: string; why?: string;
+  } | null>(null);
+
+  const splitKey = JSON.stringify(pricedItems) + `|${patient?.id ?? ""}`;
+  useEffect(() => {
+    if (!items.length) { setSplit(null); return; }
+    let live = true;
+    api.post<typeof split>("/api/claim-estimate", {
+      patient_id: patient?.id ?? null, items: pricedItems,
+    })
+      .then((d) => { if (live) setSplit(d); })
+      // A figure that cannot be worked out must not stop anybody dispensing.
+      // The split simply does not appear and the till does what it always did.
+      .catch(() => { if (live) setSplit(null); });
+    return () => { live = false; };
+  }, [splitKey]);
+
+  // What the tender rows are settling: the SHORTFALL, not the gross.
+  //
+  //  This used to be the basket at shelf prices. Choosing "Take payment now"
+  //  for a scheme member therefore put the gross in front of the dispenser as
+  //  the amount owed. Collecting it takes the funder's money out of the
+  //  member's pocket while the claim for that same money is raised half a
+  //  second later — the patient pays twice and the pharmacy is paid twice,
+  //  which is the worst thing a till can do to somebody unwell and queueing.
+  useEffect(() => {
+    const gross = items.reduce(
+      (n, i) => n + (i.product.unit_price || 0) * (i.quantity || 0), 0);
+    setDueNow(split ? split.patient_pays : gross);
+  }, [items, split]);
 
   /** The same conditions again, as a trail across the top of the screen.
    *
@@ -1603,6 +1665,49 @@ export default function Dispense() {
                   </span>
                 </div>
               )}
+
+              {/* The split, said before anybody collects anything.
+                  The dispenser hands the bag over and says "that is four
+                  dollars at the till" — which they can only do if the figure is
+                  in front of them here, at the dispensary, rather than being
+                  discovered by the till operator in front of the customer. */}
+              {items.length > 0 && split && split.covered && (
+                <div className="split-bill">
+                  <div className="split-part">
+                    <span>{split.scheme || "The scheme"} pays</span>
+                    <b>{money(split.scheme_pays)}</b>
+                  </div>
+                  <div className="split-part split-lead">
+                    <span>{TERMS.shortfall}</span>
+                    <b>{money(split.patient_pays)}</b>
+                    <span className="split-where">
+                      {payHow === "till" ? "to collect at the till" : "to collect here"}
+                    </span>
+                  </div>
+                  <p className="split-note">
+                    An estimate from {split.scheme || "the scheme"}&rsquo;s terms
+                    on file, worked out the same way the claim will be. The claim
+                    is raised by the dispensing itself, and the funder&rsquo;s own
+                    adjudication is what the receipt settles against — if it comes
+                    back short, the difference joins the{" "}
+                    {TERMS.shortfall.toLowerCase()}.
+                  </p>
+                </div>
+              )}
+
+              {/* A patient the pharmacy has filed as a scheme member, whose
+                  membership will not carry anything. Better said here, while
+                  the bag is being packed, than at the till in front of a
+                  queue. */}
+              {items.length > 0 && split && !split.covered && split.why && (
+                <div className="alert warn">
+                  <Warning size={16} weight="fill" />
+                  <span>
+                    <b>{split.why}</b> {money(split.patient_pays)} to collect
+                    {payHow === "till" ? " at the till." : " here."}
+                  </span>
+                </div>
+              )}
               {/* Built out of the pieces it was actually paid with, rather than
                   a single word. "Card now" recorded no bank and no currency,
                   which on a counter taking USD and ZiG across three wallets is
@@ -1618,9 +1723,10 @@ export default function Dispense() {
                     {...currencyWorld(currencyState)}
                   />
                   <p className="muted small">
-                    The medical aid is not listed here: the claim is raised by
-                    the dispensing itself, so this is only what the patient
-                    hands over.
+                    The medical aid is not listed here, and the amount is the
+                    patient&rsquo;s share alone: the claim is raised by the
+                    dispensing itself, so asking for the gross would be
+                    collecting the scheme&rsquo;s money as well as theirs.
                   </p>
                 </div>
               )}

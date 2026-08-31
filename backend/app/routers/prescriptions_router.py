@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
@@ -58,6 +58,30 @@ def list_prescriptions(
         query = query.filter(Prescription.patient_id == patient_id)
     return query.order_by(Prescription.created_at.desc()).limit(limit).all()
 
+
+
+@router.post("/claim-estimate")
+def claim_estimate(patient_id: int | None = Body(default=None),
+                   items: list[dict] = Body(default=[]),
+                   db: Session = Depends(get_db),
+                   _: User = Depends(get_current_user)):
+    """What the scheme will carry and what the patient will owe, before dispensing.
+
+    Asked while the script is being built, so the dispenser can hand over the
+    bag and say "that is four dollars at the till" instead of the till operator
+    discovering it in front of a queue.
+
+    It calls the same rule the adjudication calls. Two implementations of "what
+    does the scheme cover" would disagree eventually, and the day they disagreed
+    somebody would be asked for the wrong amount.
+    """
+    patient = db.get(Patient, patient_id) if patient_id else None
+    rows = []
+    for line in items:
+        product = db.get(Product, int(line.get("product_id") or 0))
+        if product:
+            rows.append((product, int(line.get("quantity") or 1)))
+    return claims_engine.estimate(db, patient, rows)
 
 
 # ---------------------------------------------------------------------------
