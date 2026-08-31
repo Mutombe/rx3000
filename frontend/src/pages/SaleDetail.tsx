@@ -253,7 +253,7 @@ export default function SaleDetail() {
         {sale.claim && (
           <div className={sale.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 14 }}>
             Claim {sale.claim.claim_number}: <b>{sale.claim.status.toUpperCase()}</b>. {sale.claim.response_message}
-            {sale.claim.patient_liable > 0 && <> Patient pays <b>{money(sale.claim.patient_liable)}</b>.</>}
+            {sale.claim.patient_liable > 0 && <> Shortfall <b>{money(sale.claim.patient_liable)}</b>.</>}
           </div>
         )}
       </div>

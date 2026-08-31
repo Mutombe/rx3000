@@ -48,3 +48,8 @@ backend/dist/
 # QA harnesses build throwaway databases; SCRATCH normally puts them
 # elsewhere, but a run without it should not offer them for commit.
 *.sqlite
+
+# Generated from the code book by /api/dosage-abbreviations/sheet.pdf. A copy
+# committed here would go stale the first time a pharmacy edits a code, and the
+# whole point of the sheet is that it matches the dispensary.
+dispensing-shorthand*.pdf

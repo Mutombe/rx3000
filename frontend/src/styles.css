@@ -3394,6 +3394,71 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 .sig-book button:hover { background: var(--hover); }
 
+/* The find bar and the empty note span the whole panel: they are about all of
+   it, and as grid cells they sat in the first column pretending to be a
+   category. */
+.sig-find, .sig-none { grid-column: 1 / -1; }
+.sig-find {
+  position: sticky; top: calc(var(--s3) * -1); z-index: 1;
+  display: flex; align-items: center; gap: var(--s2);
+  margin: calc(var(--s3) * -1) calc(var(--s3) * -1) 0;
+  padding: var(--s2) var(--s3);
+  background: var(--surface); border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.sig-find input {
+  flex: 1 1 auto; min-width: 0; height: auto; padding: 2px 0;
+  border: 0; background: none; color: var(--ink);
+  font: inherit; font-size: .82rem;
+}
+.sig-find input:focus { outline: none; }
+.sig-clear {
+  flex: 0 0 auto; display: flex; padding: 2px; height: auto;
+  background: none; border: 0; color: var(--ink-soft); cursor: pointer;
+}
+.sig-clear:hover { color: var(--ink); }
+.sig-none {
+  margin: 0; padding: var(--s2) 0; font-size: .8rem; color: var(--ink-soft);
+}
+
+/* The printed copy, offered from inside the panel rather than buried in
+   settings: the moment somebody is reading the codes is the moment they want
+   one on paper. */
+.sig-sheet {
+  grid-column: 1 / -1;
+  margin: 0; padding-top: var(--s2);
+  border-top: 1px solid var(--line);
+  font-size: .78rem;
+}
+
+/* Where a code can be read two ways. Under the code rather than beside it —
+   beside it, the line wraps and the caution is what gets truncated. */
+.sig-caution {
+  display: flex; align-items: flex-start; gap: 4px;
+  margin-top: 2px; font-size: .72rem; line-height: 1.3;
+  color: var(--warn, var(--ink-soft));
+}
+.sig-caution svg { flex: 0 0 auto; margin-top: 2px; }
+
+/* The sentence that will print, while it is still being typed.
+   Bordered on the leading edge in the accent, because it is the one line on
+   this control that is about the patient rather than about the dispenser. */
+.sig-preview {
+  margin: var(--s2) 0 0; padding: var(--s2) var(--s3);
+  background: var(--surface-sunk);
+  border-left: 3px solid var(--accent); border-radius: var(--r-sm);
+  font-size: .82rem; color: var(--ink);
+}
+.sig-preview-label {
+  display: block; margin-bottom: 1px;
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+.sig-preview b { font-weight: 600; color: var(--ink); }
+.sig-unknown {
+  display: block; margin-top: 3px; font-size: .74rem; color: var(--ink-soft);
+}
+
 /* --------------------------------------------------------------- petty cash */
 .pc-form {
   padding: var(--s3); margin: var(--s3) 0;

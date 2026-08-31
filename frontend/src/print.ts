@@ -81,7 +81,7 @@ export function printReceipt(
          <tr><td>Medical aid claim</td><td class="r">${sale.claim.claim_number}</td></tr>
          <tr><td>Status</td><td class="r">${sale.claim.status.toUpperCase()}</td></tr>
          <tr><td>Scheme paid</td><td class="r">${money(sale.claim.amount_approved)}</td></tr>
-         <tr><td>Patient portion</td><td class="r">${money(sale.claim.patient_liable)}</td></tr>
+         <tr><td>Shortfall</td><td class="r">${money(sale.claim.patient_liable)}</td></tr>
        </table>`
     : "";
 

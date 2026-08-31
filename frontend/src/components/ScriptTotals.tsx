@@ -18,6 +18,7 @@
 import { useEffect, useState } from "react";
 import { CaretDown, CaretRight, Warning } from "@phosphor-icons/react";
 import { api, money } from "../api";
+import { TERMS, patientOwes } from "../terms";
 
 interface Line {
   product_id: number; description: string; quantity: number;
@@ -73,12 +74,21 @@ export default function ScriptTotals({ items, medicalAidId }: {
         {t.claim > 0.005 && (
           <div><span>{data.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b></div>
         )}
+        {/* A shortfall only exists where a scheme was billed and did not
+            cover it all. A private patient paying cash is paying the price,
+            not a shortfall, and calling it one would be wrong on every cash
+            sale — which is most of them. */}
         <div className="st-lead">
-          <span>Patient pays</span><b>{money(t.patient_pays)}</b>
+          <span>{patientOwes(!!data.scheme)}</span><b>{money(t.patient_pays)}</b>
         </div>
-        {t.levy > 0.005 && <div><span>Levy</span><b>{money(t.levy)}</b></div>}
+        {/* The two halves of it, kept apart because a patient querying the
+            amount is querying one and not the other: the levy is a term of
+            their cover, the excess is a consequence of what was dispensed. */}
+        {t.levy > 0.005 && (
+          <div><span>{TERMS.levy}</span><b>{money(t.levy)}</b></div>
+        )}
         {t.surcharge > 0.005 && (
-          <div><span>Above reference</span><b>{money(t.surcharge)}</b></div>
+          <div><span>{TERMS.aboveRate}</span><b>{money(t.surcharge)}</b></div>
         )}
         <div><span>VAT</span><b>{money(t.vat)}</b></div>
         <div><span>Cost</span><b>{money(t.cost)}</b></div>

@@ -16,8 +16,8 @@ from .periods_router import require_step_up
 from ..config import settings
 from ..database import get_db
 from ..models import (
-    Driver, MedicalAid, Patient, Prescription, Product, Sale, Shift, User,
-    Waybill,
+    Driver, MedicalAid, Patient, Pharmacy, Prescription, Product, Sale,
+    Shift, User, Waybill,
 )
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
                         repeat_performance)
@@ -1038,22 +1038,49 @@ def dosage_abbreviations(db: Session = Depends(get_db)):
     Returned in full rather than searched, because the list is short and a
     dispenser learning the shorthand wants to see it, not query it.
     """
-    from ..models import DosageAbbreviation
     from ..services import sig
 
     sig.seed_if_empty(db)
-    rows = (
-        db.query(DosageAbbreviation)
-        .filter(DosageAbbreviation.active)
-        .order_by(DosageAbbreviation.category, DosageAbbreviation.code)
-        .all()
+    # Corrections reach a database that was seeded before them. `instil` became
+    # `instill` after inspection, and a pharmacy already running would otherwise
+    # have kept printing the old spelling for ever: seeding only ever ran on an
+    # empty table. This replaces wording that is still exactly what an earlier
+    # version shipped and leaves anything the pharmacy edited alone.
+    sig.refresh(db)
+    return sig.book(db)
+
+
+@router.get("/dosage-abbreviations/sheet.pdf")
+def dosage_sheet(db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
+    """The code book as a sheet for the inspector, or for a new dispenser.
+
+    Generated from the same `sig.book()` the picker on screen reads, so the
+    printed copy and the software cannot disagree — a code sheet an inspector
+    holds that does not match the dispensary is worse than no sheet.
+    """
+    from fastapi.responses import Response
+
+    from ..services import sig, sig_sheet
+
+    sig.seed_if_empty(db)
+    sig.refresh(db)
+    pharmacy = db.get(Pharmacy, user.pharmacy_id)
+    # A user is not pinned to a branch — `branch_id` lives on a permission
+    # grant, not on the person — so the sheet is headed with the branch the
+    # dispensary is working in, the same one `helpers` stamps a record with.
+    branch = branches.default_branch(db)
+    pdf = sig_sheet.build(
+        sig.book(db),
+        pharmacy=pharmacy.name if pharmacy else "Pharmacy",
+        branch=branch.name if branch else "",
+        printed_by=user.full_name or "",
     )
-    grouped: dict[str, list[dict]] = {}
-    for row in rows:
-        grouped.setdefault(row.category or "other", []).append(
-            {"code": row.code, "expansion": row.expansion, "meaning": row.meaning}
-        )
-    return {"count": len(rows), "groups": grouped}
+    stamp = date.today().isoformat()
+    return Response(
+        pdf, media_type="application/pdf",
+        headers={"Content-Disposition":
+                 f'inline; filename="dispensing-shorthand-{stamp}.pdf"'})
 
 
 @router.post("/dosage-abbreviations/expand")

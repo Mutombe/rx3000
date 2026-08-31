@@ -14,6 +14,10 @@ log = logging.getLogger("rx5000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    # Where a shorthand code is read two ways, said beside the code.
+    "dosage_abbreviations": {
+        "caution": "VARCHAR(200) DEFAULT ''",
+    },
     # Authority in a pharmacy is bounded, and the bound is the point.
     "user_permissions": {
         "limit_value": "FLOAT DEFAULT 0",

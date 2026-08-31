@@ -115,8 +115,12 @@ def price_line(db: Session, product: Product, quantity: int,
 
     notes = ""
     if mmap_excess:
-        notes = (f"Priced above the reference price, the patient pays the"
-                 f"{mmap_excess:.2f} difference, which is not claimable.")
+        # "Shortfall" because that is what the pharmacy, the patient and the
+        # scheme all call it. It also read "the patient pays the5.00
+        # difference": two adjacent f-strings with the space at neither end.
+        notes = (f"Priced above the reference price. The {mmap_excess:.2f} "
+                 f"difference is a shortfall the patient settles at the "
+                 f"counter, and is not claimable.")
 
     return PricedLine(
         product_id=product.id,

@@ -12,3 +12,8 @@ python-multipart>=0.0.9
 # has no wheel for it — pinning it meant pip had nothing to install and the
 # build died. A floor, not a pin.
 psycopg[binary]>=3.2.10
+
+# The dispensing shorthand code book prints to PDF for MCAZ inspection. Pure
+# Python, no system libraries, which is why this rather than WeasyPrint: a
+# pharmacy server should not need GTK installed to produce a one-page sheet.
+reportlab>=4.0

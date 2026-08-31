@@ -1068,7 +1068,7 @@ export default function POS() {
             {receipt.claim && (
               <div className={receipt.claim.status === "approved" ? "success-banner" : "error-banner"} style={{ marginTop: 12 }}>
                 Claim {receipt.claim.claim_number}: <b>{receipt.claim.status.toUpperCase()}</b>. {receipt.claim.response_message}
-                {receipt.claim.patient_liable > 0 && <> Patient pays <b>{money(receipt.claim.patient_liable)}</b>.</>}
+                {receipt.claim.patient_liable > 0 && <> Shortfall <b>{money(receipt.claim.patient_liable)}</b> to settle here.</>}
               </div>
             )}
             <div style={{ marginTop: 10, display: "flex", gap: 8 }}>

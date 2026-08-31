@@ -2670,6 +2670,14 @@ class DosageAbbreviation(Base):
     # Latin or trade origin, for a dispenser who wants to know what it means.
     meaning = Column(String(120), default="")
     category = Column(String(30), default="")   # frequency | route | timing | quantity
+    # Where a code is known to be read two ways. ISMP publishes a list of
+    # abbreviations implicated in real dispensing errors, and several of them
+    # are in daily use in Zimbabwean practice — `od` is once-daily here and the
+    # right eye in the ophthalmic literature. This system never prints a code on
+    # a label, which removes most of that risk, but the ambiguity is still there
+    # at the moment somebody types it. So it is written down beside the code
+    # rather than left to whoever trained the dispenser.
+    caution = Column(String(200), default="")
     active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

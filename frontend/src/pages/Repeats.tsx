@@ -29,6 +29,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import { overdueTone, rateTone } from "../tone";
+import { patientOwes } from "../terms";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -827,8 +828,10 @@ export default function Repeats() {
                     <dt>Levy</dt><dd className="num">{money(quote.levy)}</dd>
                   </>
                 )}
-                {/* The figure the patient standing there actually asked for. */}
-                <dt><strong>Patient pays</strong></dt>
+                {/* The figure the patient standing there actually asked
+                    for, called what they and every pharmacy in the country
+                    call it. */}
+                <dt><strong>{patientOwes(!!quote.scheme)}</strong></dt>
                 <dd className="num"><strong>{money(quote.patient_pays)}</strong></dd>
               </dl>
               <p className={quote.can_supply ? "muted small" : "alert warn"}>

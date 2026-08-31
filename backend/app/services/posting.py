@@ -107,7 +107,10 @@ def post_sale(db: Session, sale: Sale, user_id: int | None = None) -> dict:
         if patient_share:
             lines.append(ledger.Line(
                 account_code=TENDER_ACCOUNT.get(sale.payment_method, "1000"),
-                debit=patient_share, description="Patient portion",
+                # The ledger says what the counter says. A bookkeeper matching a
+                # journal against a till slip should not have to work out that
+                # "patient portion" and "shortfall" are the same money.
+                debit=patient_share, description="Shortfall",
                 party_type="patient", party_id=sale.patient_id))
     else:
         account = TENDER_ACCOUNT.get(sale.payment_method or "cash", "1000")
