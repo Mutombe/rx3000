@@ -5922,3 +5922,20 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* On a detail page, where it is the headline rather than a column. */
 .rv-hero .rv-now { font-size: 1.3rem; }
 .rv-hero .rv-later { font-size: .8rem; }
+
+/* ---------- The year, as twelve cells ----------
+   The shape of a season is read, not inferred from a peak and a trough. Twelve
+   cells left to right, January to December, each shaded by how far above a
+   typical month it runs — so a reader sees "busy from November through March"
+   in one glance rather than assembling it from two numbers. */
+.season-strip { display: inline-flex; gap: 2px; align-items: center; }
+.season-cell {
+  width: 7px; height: 18px; border-radius: 1px;
+  background: var(--accent); display: inline-block;
+}
+/* A month never observed is not a quiet month. Drawn as an outline so the two
+   cannot be confused — the difference between "nothing sold" and "we were not
+   trading yet" is the whole reliability of the row. */
+.season-cell.is-blank {
+  background: transparent; border: 1px dashed var(--line-strong);
+}

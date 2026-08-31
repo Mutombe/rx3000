@@ -47,6 +47,7 @@ from .routers import (
     samples_router,
     instruments_router,
     recon_router,
+    seasons_router,
 )
 from .seed import (
     seed, seed_claiming_if_empty, seed_crm_if_empty, seed_formulary_if_empty,
@@ -191,6 +192,7 @@ for router_module in (
     pharmacies_router,
     instruments_router,
     recon_router,
+    seasons_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

@@ -41,6 +41,7 @@ import {
   Van,
   Vault,
   IdentificationCard,
+  Basket,
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -176,6 +177,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // where every other "how are we doing" screen already lives.
       { to: "/scorecard", label: "Branch performance", icon: ChartBar, tier: 1 },
       { to: "/reports", label: "Analytics", icon: ChartLineUp },
+      // What a repeat patient is worth beyond the line, and what to have
+      // on the shelf before the month that sells it.
+      { to: "/seasons", label: "Basket & seasons", icon: Basket },
       { to: "/assistant", label: "Pulse AI", icon: ClaudeIcon },
     ],
   },
