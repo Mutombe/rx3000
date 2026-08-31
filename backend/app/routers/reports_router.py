@@ -178,7 +178,15 @@ def patient_history(patient_id: int, db: Session = Depends(get_db)):
     )
     return [
         {
+            # The dispensing's own id, which is what the row IS.
+            #
+            # The comment below was written about the product, the script and
+            # the dispenser, and it missed the one record the row is actually
+            # about: the handover itself, which now has a page. Every name on
+            # the row opened something and the row itself opened nothing.
+            "id": d.id,
             "date": d.dispensed_at.isoformat(),
+            "collected_at": d.collected_at.isoformat() if d.collected_at else None,
             # Every name here is a record somebody will want to open. The ids
             # were all in hand and none of them were sent, so a pharmacist
             # asking "which script was this?" had to go and search for it by

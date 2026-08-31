@@ -5994,3 +5994,33 @@ table.dt.sub th { font-size: var(--t-xs); }
   border-radius: var(--r-sm); border: 1px solid var(--line-strong);
   box-shadow: var(--e2); font-size: var(--t-sm);
 }
+
+/* ---------- A filter bar ----------
+   It had no styling at all. The search box, two dropdowns and two toggles sat
+   in a bare div with the browser's own inline spacing — cramped, unaligned,
+   and wrapping into a heap on anything narrower than a laptop. It is the first
+   thing anybody touches on the screen. */
+.filter-bar {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--s3);
+  margin-bottom: var(--s5);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--line);
+}
+/* The search takes the room; everything else takes what it needs. */
+.filter-search {
+  flex: 1 1 18rem; min-width: 12rem;
+  height: var(--control);
+}
+/* A dropdown sized to its own content rather than stretched by the flex row —
+   "Any schedule" and "Last 7 days" are different widths and should look it. */
+.filter-dim { flex: 0 0 auto; }
+.filter-dim > * { min-width: 9rem; }
+.filter-bar .btn { flex: 0 0 auto; height: var(--control); }
+@media (max-width: 720px) {
+  /* On a phone the search takes its own line and the rest sit under it, rather
+     than every control shrinking to the width of its own text. */
+  .filter-search { flex: 1 1 100%; }
+  .filter-dim { flex: 1 1 45%; }
+  .filter-dim > * { min-width: 0; width: 100%; }
+}

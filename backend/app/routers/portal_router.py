@@ -26,10 +26,10 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from .. import auth
+from .. import auth, tenancy
 from ..database import get_db
 from ..models import Doctor, Patient, Prescription, PrescriptionItem, Product, Sale, User
-from ..services import portal_tokens
+from ..services import patient_portal, portal_tokens
 
 # Unauthenticated by design — the link or the prescriber login is the credential.
 router = APIRouter(prefix="/api/portal", tags=["portals"])
@@ -51,14 +51,51 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
             "This patient has no phone number on file, so there is nowhere to "
             "send the link. Add one first.")
     token = portal_tokens.issue(kind="patient", subject_id=patient.id)
+
+    # A code goes with the link, and is kept if one already exists — a patient
+    # who has learned their four digits should not be given new ones every time
+    # somebody re-sends the link.
+    code = patient.portal_code or patient_portal.set_code(db, patient)
+    db.commit()
+
     return {
         "token": token,
         "path": f"/portal/patient/{token}",
+        "code": code,
         "send_to": patient.phone,
+        "patient": f"{patient.first_name} {patient.last_name}".strip(),
         "expires_in_days": portal_tokens.DEFAULT_TTL // 86400,
-        "message": "Link created. Send it to the patient's own number, not a "
-                   "shared one, it opens their record.",
+        # Written to be sent as it stands. A pharmacy that has to compose the
+        # message itself sends a bare URL with no explanation, and the patient
+        # does not open it.
+        "share_text": (
+            f"Hello {patient.first_name}, here is your {{pharmacy}} record: "
+            f"{{link}}\n\nYour code is {code}. Please keep it to yourself — "
+            f"it opens your prescriptions."),
+        "message": ("Link and code created. Send them to the patient's own "
+                    "number, not a shared one — together they open their "
+                    "record."),
     }
+
+
+@admin.post("/links/patient/{patient_id}/new-code")
+def reset_patient_code(patient_id: int, code: str = Body(default="", embed=True),
+                       db: Session = Depends(get_db)):
+    """Give a patient a new code — a lost phone, or one they cannot remember.
+
+    The old one stops working the moment this is called, which is the point.
+    """
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
+    try:
+        fresh = patient_portal.set_code(db, patient, code)
+    except patient_portal.PortalError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    db.commit()
+    return {"code": fresh,
+            "message": (f"{patient.first_name}'s code is now {fresh}. The old "
+                        f"one has stopped working.")}
 
 
 @admin.post("/links/doctor/{doctor_id}")
@@ -77,82 +114,114 @@ def issue_doctor_link(doctor_id: int, db: Session = Depends(get_db)):
 
 
 def _patient_from(token: str, db: Session) -> Patient:
+    """The patient a signed link names, and their pharmacy put in force.
+
+    This read the patient through the ordinary tenant-scoped session, and a
+    portal request carries no session — nobody is signed in, so no pharmacy is
+    in force, so the filter matched nothing and every link answered "this
+    record is no longer available". The portal was returning that to every
+    patient who opened it.
+
+    The token is the authority here, exactly as a staff token is: it is signed,
+    it names one patient, and it expires. So the patient is read unscoped —
+    deliberately, and only here — and their pharmacy is then set, so everything
+    the portal reads afterwards is scoped to the shop that issued the link and
+    cannot reach another tenant's data.
+    """
     try:
         pid = portal_tokens.read(token, expect="patient")
     except portal_tokens.TokenError as e:
         raise HTTPException(401, str(e))
-    patient = db.get(Patient, pid)
+
+    with tenancy.unscoped():
+        patient = db.get(Patient, pid)
     if not patient:
         raise HTTPException(404, "This record is no longer available.")
+
+    # From here on the session is the patient's own pharmacy, so a script, a
+    # dispensing or a delivery read below belongs to the shop that sent the
+    # link and to nobody else.
+    if patient.pharmacy_id:
+        tenancy.set_current_pharmacy(patient.pharmacy_id)
+        tenancy.stamp(db)
     return patient
 
 
 # ------------------------------------------------------------- patient portal
 @router.get("/patient/{token}")
 def patient_overview(token: str, db: Session = Depends(get_db)):
-    """What a patient sees on opening the link, before proving anything.
+    """What shows on opening the link, before the code is entered.
 
-    Deliberately thin. A collection status and a balance are the two things they
-    opened the link for, and neither says what the medicine is — so a link that
-    reaches the wrong phone has not disclosed a diagnosis.
+    Deliberately thin, and the thinness is the design: whether something is
+    waiting is what they opened it for, and it says nothing about what the
+    medicine is. A link that reaches the wrong phone has disclosed that
+    somebody uses this pharmacy, which the message itself already did.
     """
     patient = _patient_from(token, db)
-    scripts = (db.query(Prescription)
-               .filter(Prescription.patient_id == patient.id,
-                       Prescription.status == "active")
-               .order_by(Prescription.date_prescribed.desc()).limit(5).all())
-    return {
-        "greeting": patient.first_name,
-        "pharmacy_ready": sum(1 for s in scripts if s.status == "active"),
-        "active_scripts": len(scripts),
-        "requires_confirmation": True,
-        "note": "To see what was dispensed, confirm your date of birth.",
-    }
+    return patient_portal.teaser(db, patient)
 
 
 @router.post("/patient/{token}/confirm")
-def patient_confirm(token: str, date_of_birth: str = Body(embed=True),
+def patient_confirm(token: str, code: str = Body(default="", embed=True),
+                    date_of_birth: str = Body(default="", embed=True),
                     db: Session = Depends(get_db)):
-    """The second factor for anything clinical.
+    """The second factor, and then their whole record.
 
-    A WhatsApp link gets forwarded. Collection status surviving that is a
-    nuisance; a chronic medication list surviving it is a disclosure. One date
-    the patient knows and a forwarder generally does not is proportionate — this
-    is not protecting a bank account.
+    A four-digit code the pharmacy handed over, not a date of birth. A
+    forwarded message usually reaches somebody who already knows the birthday —
+    a spouse, a child, a colleague — so it protected against almost nobody who
+    would actually receive it, and a patient who mistyped it was told their own
+    date of birth was wrong.
+
+    The date is still accepted where a record has no code yet, so a link sent
+    last week does not stop working today.
     """
     patient = _patient_from(token, db)
-    if not patient.date_of_birth:
-        raise HTTPException(
-            400,
-            "We cannot confirm your identity from the details we hold. Please "
-            "contact the pharmacy.")
-    try:
-        given = date.fromisoformat(date_of_birth)
-    except ValueError:
-        raise HTTPException(400, "Enter the date as YYYY-MM-DD.")
-    if given != patient.date_of_birth:
-        raise HTTPException(401, "That date does not match our records.")
 
-    scripts = (db.query(Prescription)
-               .filter(Prescription.patient_id == patient.id)
-               .order_by(Prescription.date_prescribed.desc()).limit(10).all())
+    if code:
+        try:
+            patient_portal.verify(db, patient, code)
+        except patient_portal.PortalError as exc:
+            db.commit()   # the failure count is part of the protection
+            raise HTTPException(401, str(exc)) from exc
+    elif date_of_birth:
+        if not patient.date_of_birth:
+            raise HTTPException(
+                400,
+                "We cannot confirm your identity from what we hold. Please "
+                "ring the pharmacy.")
+        try:
+            given = date.fromisoformat(date_of_birth)
+        except ValueError:
+            raise HTTPException(400, "Enter the date as YYYY-MM-DD.") from None
+        if given != patient.date_of_birth:
+            raise HTTPException(401, "That date does not match our records.")
+        patient.portal_last_seen = datetime.utcnow()
+    else:
+        raise HTTPException(400, "Enter the code the pharmacy gave you.")
+
+    db.commit()
+    return patient_portal.record(db, patient)
+
+
+@admin.get("/patient/{patient_id}/preview")
+def preview_as_patient(patient_id: int, db: Session = Depends(get_db)):
+    """See the portal exactly as this patient sees it.
+
+    Staff answering "it does not show my tablets" cannot do so from a
+    description, and asking the patient to read their code down the telephone
+    teaches them to give it away. This is the same record the portal builds,
+    through a staff session that is already authenticated and already audited.
+    """
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(404, "Patient not found")
     return {
-        "patient": f"{patient.first_name} {patient.last_name}",
-        "allergies": patient.allergies or "",
-        "loyalty_points": patient.loyalty_points or 0,
-        "scripts": [{
-            "rx_number": s.rx_number,
-            "date": s.date_prescribed,
-            "status": s.status,
-            "doctor": s.doctor.name if s.doctor else "",
-            "items": [{
-                "product": i.product.name if i.product else "",
-                "instructions": i.dosage_instructions,
-                "quantity": i.quantity,
-                "repeats_left": max(0, (i.repeats_allowed or 0) - (i.repeats_used or 0)),
-                "next_repeat": i.next_repeat_date,
-            } for i in s.items],
-        } for s in scripts],
+        **patient_portal.record(db, patient),
+        "impersonated": True,
+        "code": patient.portal_code or "",
+        "note": ("This is what the patient sees. Nothing here is a live "
+                 "portal session — it is their record, read through your own."),
     }
 
 

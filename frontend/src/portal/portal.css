@@ -1,128 +1,187 @@
 /* The portals' own stylesheet.
  *
  * Deliberately not the staff design system. These pages are read on a phone, on
- * a slow connection, often outdoors, by someone who has never seen the software
- * before and will use it for ninety seconds. That asks for larger type, fewer
- * lines, and touch targets a thumb can hit — not the dense, information-rich
- * layout that suits a dispenser at a counter all day.
+ * a slow connection, often outdoors, by somebody who has never seen the
+ * software before and will use it for ninety seconds. That asks for larger
+ * type, fewer lines and touch targets a thumb can hit — not the dense,
+ * information-rich layout that suits a dispenser at a counter all day.
  *
- * Self-contained: system fonts, no imports, nothing fetched.
+ * Self-contained: system fonts, no imports, nothing fetched. A patient on a
+ * Zimbabwean mobile connection should not wait on a font.
  */
 
 .pp {
   --pp-ink: #16161d;
   --pp-mid: #55545f;
-  --pp-line: #e2e2e8;
-  --pp-surface: #ffffff;
-  --pp-canvas: #f5f5f7;
-  --pp-accent: #1b1b22;
+  --pp-faint: #8b8a94;
+  --pp-line: #e6e6ea;
+  --pp-bg: #f6f6f8;
+  --pp-card: #ffffff;
+  --pp-accent: #16414a;
   --pp-ok: #2f6f3c;
-  --pp-ok-soft: #e6f2e8;
-  --pp-danger: #a8341f;
-  --pp-danger-soft: #fbe9e5;
+  --pp-ok-bg: #e8f3ea;
+  --pp-warn: #8a5a12;
+  --pp-warn-bg: #fbf1de;
+  --pp-bad: #a8341f;
+  --pp-bad-bg: #fbeae7;
 
-  max-width: 34rem;
-  margin: 0 auto;
-  padding: 1rem 1rem 3rem;
-  color: var(--pp-ink);
-  background: var(--pp-canvas);
   min-height: 100vh;
-  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  margin: 0;
+  padding: 16px 14px 48px;
+  background: var(--pp-bg);
+  color: var(--pp-ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
-.pp-wide { max-width: 46rem; }
-
-.pp-head { padding: 1.25rem 0 0.5rem; }
-.pp-brand {
-  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
-  color: var(--pp-mid);
-}
-.pp h1 { font-size: 1.6rem; margin: 0.35rem 0 0; line-height: 1.2; }
-.pp h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
-
-.pp-card {
-  background: var(--pp-surface);
-  border: 1px solid var(--pp-line);
-  border-radius: 14px;
-  padding: 1rem;
-  margin-top: 0.85rem;
-}
-
-/* The one number the patient opened the link for. It is the largest thing on
- * the page because it is the answer to their question. */
-.pp-status { display: flex; align-items: center; gap: 0.9rem; }
-.pp-big { font-size: 2.6rem; font-weight: 700; line-height: 1; }
-
-.pp-muted { color: var(--pp-mid); margin: 0.25rem 0; }
-.pp-fine { color: var(--pp-mid); font-size: 0.82rem; margin-top: 0.75rem; }
-
-.pp-error, .pp-ok {
-  border-radius: 12px; padding: 0.75rem 0.9rem; margin: 0.85rem 0 0;
-}
-.pp-error { background: var(--pp-danger-soft); color: var(--pp-danger); }
-.pp-ok { background: var(--pp-ok-soft); color: var(--pp-ok); }
-
-.pp label { display: block; margin: 0.75rem 0; color: var(--pp-mid); font-size: 0.86rem; }
-.pp input, .pp textarea {
-  display: block; width: 100%; margin-top: 0.3rem;
-  /* 16px minimum, or iOS zooms the whole page on focus. */
-  font: inherit; font-size: 16px;
-  padding: 0.7rem 0.75rem;
-  border: 1px solid var(--pp-line); border-radius: 10px;
-  background: #fff; color: var(--pp-ink);
-}
-.pp input:focus, .pp textarea:focus { outline: 2px solid var(--pp-accent); outline-offset: -1px; }
-
-.pp button {
-  width: 100%; margin-top: 0.5rem;
-  /* 48px: a thumb target, not a mouse target. */
-  min-height: 48px; padding: 0 1rem;
-  font: inherit; font-weight: 600;
-  border: 1px solid var(--pp-accent); border-radius: 10px;
-  background: var(--pp-accent); color: #fff; cursor: pointer;
-}
-.pp button:disabled { opacity: 0.45; cursor: not-allowed; }
-.pp .pp-ghost { background: none; color: var(--pp-ink); border-color: var(--pp-line); }
-
-.pp-row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.pp-tag {
-  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.04em; padding: 0.15rem 0.5rem; border-radius: 999px;
-  background: #ececf1; color: var(--pp-mid);
-}
-.pp-tag.ok { background: var(--pp-ok-soft); color: var(--pp-ok); }
-
-.pp-items { list-style: none; margin: 0.6rem 0 0; padding: 0; }
-.pp-items li { padding: 0.65rem 0; border-top: 1px solid var(--pp-line); }
-.pp-items li:first-child { border-top: none; }
-
-.pp-allergy {
-  background: var(--pp-danger-soft); color: var(--pp-danger);
-  border-radius: 10px; padding: 0.6rem 0.75rem; margin: 0.5rem 0;
-  font-weight: 600;
-}
-
-/* One line per field on a phone; two columns once there is room for them. */
-.pp-line {
-  border-top: 1px solid var(--pp-line); padding-top: 0.5rem; margin-top: 0.75rem;
-}
-@media (min-width: 34rem) {
-  .pp-line { display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.75rem; }
-}
-
-.pp-foot {
-  color: var(--pp-mid); font-size: 0.8rem; text-align: center;
-  margin-top: 1.5rem;
-}
+/* One column, and a ceiling on the width so it is still readable if somebody
+   opens it on a laptop — which they will, once. */
+.pp > * { max-width: 34rem; margin-left: auto; margin-right: auto; }
 
 @media (prefers-color-scheme: dark) {
   .pp {
-    --pp-ink: #f2f2f5; --pp-mid: #a3a2ad; --pp-line: #2c2c35;
-    --pp-surface: #17171d; --pp-canvas: #0f0f14; --pp-accent: #f2f2f5;
-    --pp-ok: #7fc86d; --pp-ok-soft: #17301a;
-    --pp-danger: #f0a08e; --pp-danger-soft: #331714;
+    --pp-ink: #f3f3f6; --pp-mid: #b9b8c2; --pp-faint: #8b8a94;
+    --pp-line: #2c2c35; --pp-bg: #121218; --pp-card: #191920;
+    --pp-accent: #7fb2bd;
+    --pp-ok: #6fbf82; --pp-ok-bg: #16281b;
+    --pp-warn: #e3b45c; --pp-warn-bg: #2a2113;
+    --pp-bad: #f18d7d; --pp-bad-bg: #2c1512;
   }
-  .pp button { color: #0f0f14; }
-  .pp input, .pp textarea { background: #0f0f14; color: var(--pp-ink); }
-  .pp-tag { background: #24242c; }
+}
+
+/* ---------- the mark ---------- */
+.pp-mark {
+  width: 52px; height: 52px; margin: 0 auto 14px;
+  display: grid; place-items: center;
+  border-radius: 16px; background: var(--pp-accent); color: #fff;
+  font-size: 26px; font-weight: 600;
+}
+.pp-mark-sm { width: 34px; height: 34px; margin: 0 0 8px;
+  border-radius: 10px; font-size: 17px; }
+
+/* ---------- cards ---------- */
+.pp-card {
+  background: var(--pp-card);
+  border: 1px solid var(--pp-line);
+  border-radius: 16px;
+  padding: 18px 16px;
+  margin-bottom: 12px;
+}
+.pp-centre { text-align: center; padding: 30px 20px; margin-top: 6vh; }
+.pp h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -0.02em; }
+.pp h2 { margin: 0 0 12px; font-size: 0.82rem; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--pp-faint); font-weight: 600; }
+.pp-head { padding: 4px 2px 14px; }
+.pp-muted { color: var(--pp-mid); font-size: 0.9rem; margin: 2px 0 0; display: block; }
+.pp-lead { font-size: 1.05rem; margin: 6px 0 22px; color: var(--pp-mid); }
+.pp-big { display: block; font-size: 1.4rem; font-weight: 650;
+  font-variant-numeric: tabular-nums; }
+
+/* ---------- the code box ----------
+   Wide, spaced characters and a numeric keypad. A four-digit box that brings
+   up a full keyboard on a phone is a four-digit box people mistype. */
+.pp-label { display: block; margin: 8px 0 8px; font-weight: 600;
+  font-size: 0.95rem; }
+.pp-code {
+  width: 100%; box-sizing: border-box;
+  padding: 16px 12px; margin-bottom: 12px;
+  border: 2px solid var(--pp-line); border-radius: 14px;
+  background: var(--pp-bg); color: var(--pp-ink);
+  font-size: 2rem; font-weight: 650; text-align: center;
+  letter-spacing: 0.5em; text-indent: 0.5em;
+  font-variant-numeric: tabular-nums;
+}
+.pp-code:focus { outline: none; border-color: var(--pp-accent); }
+.pp-code::placeholder { letter-spacing: 0.4em; color: var(--pp-faint); }
+
+/* ---------- the button ----------
+   Full width and 52px tall: a thumb on a moving kombi, not a mouse. */
+.pp-btn {
+  width: 100%; min-height: 52px;
+  border: 0; border-radius: 14px;
+  background: var(--pp-accent); color: #fff;
+  font-size: 1.02rem; font-weight: 600; cursor: pointer;
+}
+.pp-btn:disabled { opacity: 0.45; }
+
+.pp-error {
+  margin: 0 0 12px; padding: 10px 12px;
+  border-radius: 12px; background: var(--pp-bad-bg); color: var(--pp-bad);
+  font-size: 0.92rem; font-weight: 500;
+}
+.pp-fine { margin: 14px 0 0; color: var(--pp-faint); font-size: 0.82rem; }
+
+/* ---------- alerts ---------- */
+.pp-alert {
+  display: block; padding: 14px 16px; margin-bottom: 12px;
+  border-radius: 14px; border: 1px solid transparent;
+}
+.pp-alert b { display: block; font-size: 1rem; }
+.pp-alert span { display: block; margin-top: 2px; font-size: 0.88rem;
+  opacity: 0.85; }
+.pp-alert-bad { background: var(--pp-bad-bg); color: var(--pp-bad);
+  border-color: var(--pp-bad); }
+.pp-alert-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
+
+/* ---------- tabs ----------
+   Scroll rather than wrap on a narrow phone, so the page content does not
+   start below the fold. */
+.pp-tabs {
+  display: flex; gap: 6px; margin-bottom: 12px;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+.pp-tabs::-webkit-scrollbar { display: none; }
+.pp-tabs button {
+  flex: 0 0 auto; min-height: 42px; padding: 0 16px;
+  border: 1px solid var(--pp-line); border-radius: 999px;
+  background: var(--pp-card); color: var(--pp-mid);
+  font-size: 0.92rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.pp-tabs button.on {
+  background: var(--pp-accent); border-color: var(--pp-accent); color: #fff;
+  font-weight: 600;
+}
+
+/* ---------- rows ---------- */
+.pp-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--pp-line);
+}
+.pp-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.pp-row:first-of-type { padding-top: 0; }
+.pp-row b { display: block; font-size: 0.98rem; }
+.pp-row-head { border-bottom: 1px solid var(--pp-line); margin-bottom: 4px; }
+.pp-item { padding: 12px 0; border-bottom: 1px solid var(--pp-line); }
+.pp-item:last-child { border-bottom: 0; padding-bottom: 0; }
+/* The directions, in the words on the label. This is what a patient came to
+   check, so it is the one thing here set larger than its neighbours. */
+.pp-directions {
+  display: block; margin: 4px 0 2px; padding: 8px 10px;
+  background: var(--pp-bg); border-radius: 10px;
+  font-size: 0.95rem; color: var(--pp-ink);
+}
+.pp-split { display: flex; gap: 28px; }
+
+.pp-pill {
+  flex: 0 0 auto; padding: 5px 11px; border-radius: 999px;
+  background: var(--pp-bg); color: var(--pp-mid);
+  font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+}
+.pp-pill-ok { background: var(--pp-ok-bg); color: var(--pp-ok); }
+.pp-pill-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
+.pp-pill-bad { background: var(--pp-bad-bg); color: var(--pp-bad); }
+
+.pp-foot {
+  margin-top: 22px; padding: 0 6px;
+  color: var(--pp-faint); font-size: 0.82rem; text-align: center;
+}
+
+.pp-spinner {
+  width: 28px; height: 28px; margin: 30px auto;
+  border: 3px solid var(--pp-line); border-top-color: var(--pp-accent);
+  border-radius: 50%; animation: pp-spin 0.7s linear infinite;
+}
+@keyframes pp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pp-spinner { animation-duration: 2.4s; }
 }

@@ -357,6 +357,25 @@ class Patient(Base, TenantMixin):
     medical_aid_number = Column(String(40), default="")
     dependent_code = Column(String(10), default="00")
     loyalty_points = Column(Integer, default=0)
+
+    # ---- the portal ---------------------------------------------------
+    #
+    # A four-digit code, given to the patient with the link.
+    #
+    # The link used to be secured by date of birth, which is the wrong second
+    # factor twice over: a forwarded WhatsApp message usually reaches somebody
+    # who knows the patient's birthday, and a patient who mistypes it is told
+    # their own date of birth is wrong, which is the most insulting error a
+    # system can produce. A code the pharmacy hands over is known by exactly
+    # the people who should know it, and can be changed the moment a phone is
+    # lost.
+    portal_code = Column(String(8), default="")
+    portal_code_set_at = Column(DateTime, nullable=True)
+    #: Wrong codes in a row. A link that reaches the wrong phone should not be
+    #: guessable at ten thousand tries; five is generous for four digits.
+    portal_failed = Column(Integer, default=0)
+    portal_locked_until = Column(DateTime, nullable=True)
+    portal_last_seen = Column(DateTime, nullable=True)
     # Who looks after this patient. Not next of kin and not an emergency
     # contact: the person who actually collects the medicine, signs for a
     # delivery, takes the reminder call and answers the survey. For an elderly

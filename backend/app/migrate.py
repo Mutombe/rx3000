@@ -118,6 +118,13 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "currency_code": "VARCHAR(5) DEFAULT ''",
     },
     "patients": {
+        # The portal's own second factor, replacing date of birth — which a
+        # forwarded message usually reaches somebody who already knows.
+        "portal_code": "VARCHAR(8) DEFAULT ''",
+        "portal_code_set_at": "DATETIME",
+        "portal_failed": "INTEGER DEFAULT 0",
+        "portal_locked_until": "DATETIME",
+        "portal_last_seen": "DATETIME",
         "marketing_opt_in": "BOOLEAN DEFAULT 1",
         "caregiver_name": "VARCHAR(120)",
         "caregiver_phone": "VARCHAR(30)",

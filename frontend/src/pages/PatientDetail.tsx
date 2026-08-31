@@ -4,7 +4,7 @@ import BusyButton from "../components/BusyButton";
 import TermSelect from "../components/TermSelect";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import AiStreamBlock from "../components/AiStreamBlock";
@@ -18,10 +18,16 @@ import ClaudeIcon from "../components/ClaudeIcon";
 import { CalendarBlank, CheckSquare, PencilSimpleLine, PhoneCall } from "@phosphor-icons/react";
 
 import { EntityLink } from "../components/Filters";
+import RowLink from "../components/RowLink";
+import { usePharmacy } from "../hooks/usePharmacy";
+import SharePortalLink, { PortalLink } from "../components/SharePortalLink";
+import PatientPortalPreview from "../components/PatientPortalPreview";
 import RepeatValue from "../components/RepeatValue";
 type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 
 interface HistoryLine {
+  id: number;
+  collected_at: string | null;
   date: string; product: string; strength: string; quantity: number;
   dosage: string; is_repeat: boolean; rx_number: string; dispensed_by: string;
   // The ids behind the three names above. The endpoint held all of them and
@@ -34,6 +40,9 @@ interface HistoryLine {
 export default function PatientDetail() {
   const { id } = useParams();
   const toast = useToast();
+  const pharmacy = usePharmacy();
+  const [link, setLink] = useState<PortalLink | null>(null);
+  const [asPatient, setAsPatient] = useState<any | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [clinical, setClinical] =
     useState<{ allergies: string; chronic_conditions: string } | null>(null);
@@ -103,18 +112,33 @@ export default function PatientDetail() {
     }
   }
 
+  /** Open the share sheet, rather than copying silently.
+   *
+   *  This used to put the URL on the clipboard and say so in a toast, which
+   *  asks the person at the counter to remember the number, open WhatsApp,
+   *  find the chat and paste — four steps with a patient standing there, and
+   *  the message that eventually goes is a bare URL nobody opens.
+   */
   async function sendPortalLink() {
     try {
-      const r = await api.post<{ path: string; send_to: string; expires_in_days: number }>(
-        `/api/portal-admin/links/patient/${id}`);
-      // Copied rather than sent: this pharmacy messages patients on WhatsApp,
-      // and pasting a link into the chat they already have open beats building
-      // a sending integration nobody asked for.
-      const url = `${window.location.origin}${r.path}`;
-      await navigator.clipboard?.writeText(url).catch(() => undefined);
-      toast.ok(
-        `Link copied, send it to ${r.send_to}. It works for ${r.expires_in_days} days.`);
+      setLink(await api.post<PortalLink>(
+        `/api/portal-admin/links/patient/${id}`));
     } catch (e: any) {
+      toast.error(errorText(e));
+    }
+  }
+
+  /** See the portal as they see it.
+   *
+   *  "It does not show my tablets" cannot be answered from a description, and
+   *  asking the patient to read their code down the telephone teaches them to
+   *  give it away. Their record, through a staff session already audited.
+   */
+  async function viewAsPatient() {
+    try {
+      setAsPatient(await api.get<any>(
+        `/api/portal-admin/patient/${id}/preview`));
+    } catch (e) {
       toast.error(errorText(e));
     }
   }
@@ -223,6 +247,9 @@ export default function PatientDetail() {
             and the first thing you did was search for the person you had just
             been reading about. */}
         <Link to={`/dispense?patient=${patient.id}`} className="btn">New Script</Link>
+        <button className="btn secondary" onClick={viewAsPatient}>
+          See it as they do
+        </button>
       </div>
 
       {/* The banner is where anybody looks for this, so it is also where it is
@@ -345,7 +372,11 @@ export default function PatientDetail() {
                 // text while the endpoint held the ids and sent none of them,
                 // so "which script was this?" meant leaving the patient and
                 // searching by number.
-                <tr key={i}>
+                // The row opens the handover itself. Every name on it opened
+                // something and the row opened nothing — which is the same
+                // fault the comment above describes, one level up.
+                <RowLink key={i} to={`/dispensings/${h.id}`}
+                         prefetch={prefetchRoute}>
                   <td>{fmtDateTime(h.date)}</td>
                   <td>
                     <EntityLink kind="product" id={h.product_id}>
@@ -365,7 +396,7 @@ export default function PatientDetail() {
                       {h.dispensed_by}
                     </EntityLink>
                   </td>
-                </tr>
+                </RowLink>
               ))}
             </tbody>
           </table>
@@ -539,6 +570,15 @@ export default function PatientDetail() {
           </div>
           <ConsentPanel subjectType="patient" subjectId={Number(id)} />
         </div>
+      )}
+      {link && (
+        <SharePortalLink link={link} pharmacy={pharmacy.name}
+          patientId={Number(id)} onClose={() => setLink(null)}
+          onNewCode={(code) => setLink((l) => (l ? { ...l, code } : l))} />
+      )}
+      {asPatient && (
+        <PatientPortalPreview record={asPatient}
+          onClose={() => setAsPatient(null)} />
       )}
     </>
   );
