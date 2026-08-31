@@ -5978,3 +5978,19 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .cf-field input { width: 100%; }
 .cf-required { color: var(--danger); font-weight: 600; }
+
+/* The estate, drawn. Tall enough to be a map rather than a strip — a map you
+   have to scroll inside tells you less than the table under it. */
+.hq-map {
+  height: 420px; width: 100%;
+  border-radius: var(--r-md); overflow: hidden;
+  border: 1px solid var(--line);
+}
+@media (max-width: 640px) { .hq-map { height: 280px; } }
+/* Leaflet ships its own light styling; these keep its chrome inside the
+   product rather than looking like a component somebody dropped in. */
+.hq-map .leaflet-container { font: inherit; background: var(--surface-sunk); }
+.hq-map .leaflet-tooltip {
+  border-radius: var(--r-sm); border: 1px solid var(--line-strong);
+  box-shadow: var(--e2); font-size: var(--t-sm);
+}

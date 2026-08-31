@@ -1285,9 +1285,24 @@ class AuditLog(Base, TenantMixin):
     summary = Column(String(200), default="")         # human-readable description
     status_code = Column(Integer, default=0)
     ip_address = Column(String(45), default="")
+
+    # Who was REALLY doing this.
+    #
+    # When head office signs in as a branch user to see what they see, every
+    # row they write would otherwise be attributed to that user — so the trail
+    # would say a cashier in Bulawayo voided a sale at two in the morning when
+    # it was actually somebody at head office. An impersonated action has to
+    # name both people or the audit log is actively misleading, which is worse
+    # than not having one.
+    acted_as_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    acted_as = Column(String(50), default="")
+
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
-    user = relationship("User")
+    # Two columns point at users now — who the action was recorded against,
+    # and who was really doing it — so the join has to say which one it means.
+    user = relationship("User", foreign_keys=[user_id])
+    acted_as_user = relationship("User", foreign_keys=[acted_as_id])
 
 
 class FiscalDay(Base, TenantMixin):
@@ -2105,9 +2120,108 @@ class Branch(Base, TenantMixin):
     responsible_pharmacist = Column(String(120), default="")
     is_default = Column(Boolean, default=False)
     active = Column(Boolean, default=True)
+
+    # ---- stopped from head office -------------------------------------
+    #
+    # Distinct from `active`, which means "this shop exists". Frozen means the
+    # shop exists and nobody there may write anything: no sale, no dispensing,
+    # no stock movement, no cash-up. It is what head office reaches for when a
+    # branch is under investigation, when a stock take must not move underneath
+    # the counters, or when a manager has walked out with the keys.
+    #
+    # Reading is deliberately still allowed. A frozen branch that cannot even
+    # look up a patient's allergies is a branch that will find a way around the
+    # freeze, and the point is to stop the money moving rather than to stop the
+    # pharmacists thinking.
+    frozen = Column(Boolean, default=False, index=True)
+    frozen_at = Column(DateTime, nullable=True)
+    frozen_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    #: Never optional in the API. A branch stopped without a stated reason is
+    #: an argument nobody can settle afterwards.
+    frozen_reason = Column(String(300), default="")
+
+    #: Where the shop is, for the map. Nullable because a pharmacy that has not
+    #: pinned its branches yet should not be shown at latitude nought, which is
+    #: in the Gulf of Guinea.
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     pharmacy = relationship("Pharmacy", back_populates="branches")
+    frozen_by = relationship("User", foreign_keys=[frozen_by_id])
+
+
+class UserPermission(Base, TenantMixin):
+    """One thing a person may do that their role does not already allow.
+
+    A role is a good default and a bad rule. Every pharmacy has the assistant
+    who is trusted to void a sale, the locum pharmacist who must not touch
+    pricing, the manager who runs two branches and the owner's daughter who
+    does the banking on Fridays — and none of them fits a five-word role.
+
+    What happens without this is not that those people are refused. It is that
+    somebody gives them an administrator's login, because that is the only
+    thing that works, and from then on the audit trail says "admin" for
+    everything and the whole control structure is decoration.
+
+    So a grant is one capability, on one person, optionally on one branch, from
+    somebody named, with a reason. `allow=False` is the other direction: a
+    role that permits something this person specifically may not do.
+    """
+    __tablename__ = "user_permissions"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    #: See services.permissions.CAPABILITIES.
+    capability = Column(String(60), nullable=False, index=True)
+    #: Scoped to one shop where it should be. A manager who may authorise a
+    #: write-off at Avondale should not thereby authorise one in Bulawayo.
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    #: False takes the capability away from somebody whose role would grant it.
+    allow = Column(Boolean, default=True)
+    reason = Column(String(300), default="")
+
+    # ---- the dimensions a yes/no cannot express ------------------------
+    #
+    # Real authority in a pharmacy is bounded, and the bound is the whole
+    # point. "May void a sale" is not how anybody actually delegates: it is
+    # "may void a sale under twenty dollars, at this branch, until the locum
+    # leaves, and anything larger needs me". A permission model that can only
+    # say yes or no forces every one of those into a yes — which is how an
+    # assistant ends up able to void a five-hundred-dollar sale because
+    # somebody needed them to void a five-dollar one.
+    #
+    #: The ceiling, in base currency or in units depending on the capability.
+    #: Nought means no ceiling.
+    limit_value = Column(Float, default=0.0)
+    #: Per day rather than per act, where that is the sensible bound — four
+    #: small voids in an afternoon is a pattern a single-transaction limit
+    #: cannot see.
+    daily_limit = Column(Float, default=0.0)
+    #: Above the ceiling, may they proceed with somebody else's approval, or
+    #: not at all? A refusal that cannot be escalated is one people work around.
+    escalates = Column(Boolean, default=True)
+    #: Requires a second named person every time, whatever the amount. For the
+    #: acts where one signature was never enough.
+    dual_approval = Column(Boolean, default=False)
+    #: Only during the hours this person is on. Blank means any time.
+    #: "00:00-23:59" style, kept as text because a pharmacy that trades over
+    #: midnight makes a time column into two columns and an argument.
+    hours = Column(String(20), default="")
+    #: Which days, as initials — "MTWTFSS" with blanks for the days off.
+    #: Blank means any day.
+    days = Column(String(7), default="")
+
+    granted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    granted_at = Column(DateTime, default=datetime.utcnow)
+    #: A locum's grant should die with the locum. Nullable for a standing one.
+    expires_on = Column(Date, nullable=True, index=True)
+    active = Column(Boolean, default=True, index=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    granted_by = relationship("User", foreign_keys=[granted_by_id])
+    branch = relationship("Branch", foreign_keys=[branch_id])
 
 
 class ComplianceDocument(Base, TenantMixin):

@@ -14,6 +14,31 @@ log = logging.getLogger("rx5000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    # Authority in a pharmacy is bounded, and the bound is the point.
+    "user_permissions": {
+        "limit_value": "FLOAT DEFAULT 0",
+        "daily_limit": "FLOAT DEFAULT 0",
+        "escalates": "BOOLEAN DEFAULT 1",
+        "dual_approval": "BOOLEAN DEFAULT 0",
+        "hours": "VARCHAR(20) DEFAULT ''",
+        "days": "VARCHAR(7) DEFAULT ''",
+    },
+    # A branch head office can stop dead, and where it sits on a map.
+    "branches": {
+        "frozen": "BOOLEAN DEFAULT 0",
+        "frozen_at": "DATETIME",
+        "frozen_by_id": "INTEGER",
+        "frozen_reason": "VARCHAR(300) DEFAULT ''",
+        "latitude": "FLOAT",
+        "longitude": "FLOAT",
+    },
+    # Who was REALLY doing it. Without this, an action taken by head office
+    # while signed in as a branch user is recorded against that user — so the
+    # trail says a cashier voided a sale at two in the morning.
+    "audit_logs": {
+        "acted_as_id": "INTEGER",
+        "acted_as": "VARCHAR(50) DEFAULT ''",
+    },
     # Suppliers and prescribers could be created and listed and never changed
     # or retired. Bank details that cannot be corrected, and a struck-off
     # prescriber who stays in the picker forever.

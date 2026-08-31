@@ -55,12 +55,19 @@ class AuditMiddleware(BaseHTTPMiddleware):
             return response
 
         username, user_id = "", None
+        # Who was REALLY doing it. An impersonated token carries both, and
+        # without recording the second the trail says a cashier in Bulawayo
+        # voided a sale at two in the morning when it was head office.
+        acted_as_id, acted_as = None, ""
         auth = request.headers.get("authorization", "")
         if auth.lower().startswith("bearer "):
             try:
                 payload = jwt.decode(auth[7:], settings.SECRET_KEY, algorithms=["HS256"])
                 username = payload.get("username", "")
                 user_id = int(payload["sub"])
+                if payload.get("imp"):
+                    acted_as_id = int(payload["imp"])
+                    acted_as = str(payload.get("imp_name", ""))[:50]
             except jwt.PyJWTError:
                 username = "(invalid token)"
 
@@ -69,6 +76,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             db.add(AuditLog(
                 user_id=user_id,
                 username=username,
+                acted_as_id=acted_as_id,
+                acted_as=acted_as,
                 action=method,
                 path=path,
                 summary=_describe(method, path),

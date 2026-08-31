@@ -211,6 +211,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // A pharmacy's own administrator gets a 403 and the page explains why, so
       // it sits in Administration rather than under Stock, where it had no
       // business being at all.
+      // The estate, and the controls above it: freezing a branch, acting
+      // as somebody, and bounded authority.
+      { to: "/head-office", label: "Head office", icon: Buildings },
       { to: "/pharmacies", label: "Pharmacies", icon: Buildings },
     ],
   },

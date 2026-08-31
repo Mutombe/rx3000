@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from .middleware_tenancy import TenancyMiddleware
+from .middleware_freeze import BranchFreezeMiddleware
 from fastapi.responses import JSONResponse
 
 from . import schedule_policy
@@ -49,6 +50,7 @@ from .routers import (
     recon_router,
     seasons_router,
     compliance_router,
+    hq_router,
 )
 from .seed import (
     seed, seed_claiming_if_empty, seed_crm_if_empty, seed_formulary_if_empty,
@@ -149,6 +151,10 @@ app = FastAPI(title="RX5000 Pharmacy Management System", version="1.0.0", lifesp
 # what is recorded is what was actually served.
 # Outermost of the application middlewares, so the pharmacy is in force before
 # anything else — including the audit log — reads a row.
+# Inside tenancy, so the pharmacy is already in force, and before
+# anything writes. A freeze enforced in each router is a freeze missing
+# from the one endpoint nobody remembered.
+app.add_middleware(BranchFreezeMiddleware)
 app.add_middleware(TenancyMiddleware)
 app.add_middleware(RequestSizeLimit)
 
@@ -195,6 +201,7 @@ for router_module in (
     recon_router,
     seasons_router,
     compliance_router,
+    hq_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

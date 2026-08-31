@@ -66,6 +66,7 @@ const Drivers = lazy(() => import("./pages/Drivers"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const Seasons = lazy(() => import("./pages/Seasons"));
 const Compliance = lazy(() => import("./pages/Compliance"));
+const HeadOffice = lazy(() => import("./pages/HeadOffice"));
 const Settlements = lazy(() => import("./pages/Settlements"));
 const StockPerformance = lazy(() => import("./pages/StockPerformance"));
 const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
@@ -213,6 +214,7 @@ export default function App() {
                 <Route path="/seasons" element={<Seasons />} />
                 <Route path="/stock-performance" element={<StockPerformance />} />
                 <Route path="/compliance" element={<Compliance />} />
+                <Route path="/head-office" element={<HeadOffice />} />
                 <Route path="/reconciliation/settlements" element={<Settlements />} />
                 <Route path="/reconciliation" element={<Reconciliation />} />
                 <Route path="/reconciliation/card" element={<CardReconciliation />} />
