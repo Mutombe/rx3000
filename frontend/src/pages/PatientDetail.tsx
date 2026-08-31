@@ -218,7 +218,11 @@ export default function PatientDetail() {
             <b>{patient.loyalty_points} loyalty pts</b>
           </div>
         </div>
-        <Link to="/dispense" className="btn">New Script</Link>
+        {/* The patient travels with the link. This was a bare `/dispense`,
+            so pressing it from somebody's record opened an empty dispensary
+            and the first thing you did was search for the person you had just
+            been reading about. */}
+        <Link to={`/dispense?patient=${patient.id}`} className="btn">New Script</Link>
       </div>
 
       {/* The banner is where anybody looks for this, so it is also where it is

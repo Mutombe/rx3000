@@ -12,7 +12,7 @@
  *  written and nothing asked for it.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -22,7 +22,12 @@ interface Waybill {
   id: number; waybill_number: string; status: string;
   sale_id: number | null; patient_id: number | null;
   recipient: string; address: string; phone: string; instructions: string;
-  driver: string; received_by: string; failure_reason: string;
+  driver: string; driver_profile_id: number | null; driver_phone: string;
+  received_by: string; failure_reason: string;
+  // The money side, added when deliveries grew one. A waybill that does not
+  // say what it is collecting is a parcel with an unknown value attached.
+  delivery_fee: number; cod_amount: number; cod_collected: number;
+  cod_outstanding: number; cod_settled_at: string | null;
   requires_id_check: boolean; id_number_seen: string;
   created_at: string; dispatched_at: string | null; delivered_at: string | null;
   created_by: string;
@@ -76,6 +81,33 @@ export default function WaybillDetail() {
         .filter(Boolean).join(" · ")}
       loading={!w && !error}
       error={error}
+      // Every delivery action lived on the list. Opening a waybill to check an
+      // address and then having to go back to the list to send it out is the
+      // shape of a report, not a work screen.
+      actions={w && (
+        <div className="page-actions">
+          {w.status === "pending" && (
+            <Link className="btn primary" to="/deliveries?status=pending">
+              Send it out
+            </Link>
+          )}
+          {w.status === "out" && (
+            <Link className="btn primary" to="/deliveries?status=out">
+              Sign for it
+            </Link>
+          )}
+          {w.driver_profile_id && (
+            <Link className="btn secondary" to={`/drivers/${w.driver_profile_id}`}>
+              The driver
+            </Link>
+          )}
+          {w.patient_id && (
+            <Link className="btn secondary" to={`/patients/${w.patient_id}`}>
+              The patient
+            </Link>
+          )}
+        </div>
+      )}
       facts={w ? [
         { label: "Status", value: w.status,
           tone: TONE[w.status] || undefined,

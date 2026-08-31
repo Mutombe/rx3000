@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
@@ -491,6 +491,74 @@ export default function Dispense() {
    *  directions, diagnosis and repeats already captured — so pressing Dispense
    *  satisfies that script rather than writing a new one beside it.
    */
+  /** Arriving from another screen with a script to work on.
+   *
+   *  The repeats book can supply a line in one press, which is right for the
+   *  common case and cannot express the others: a fortnight instead of a
+   *  month, something added, a dose the prescriber has changed. Those need the
+   *  capture screen, and the only route to it was to abandon the repeat and
+   *  start the script again from the patient.
+   *
+   *  `?rx=` loads it here instead, using the same function the worklist uses,
+   *  so a script opened from a repeat behaves exactly like one opened from the
+   *  queue. The parameter is cleared once it has been read, or a refresh
+   *  reloads a script the pharmacist has since changed on screen.
+   */
+  /** Arriving with a patient, to write them a new script.
+   *
+   *  "New Script" on a patient's record was a bare link to /dispense. It
+   *  opened an empty dispensary — the patient whose record you were reading
+   *  did not travel, so the first thing you did was search for them by name,
+   *  having just been looking at them. The record has to go with the link or
+   *  it is not a handover, it is a menu item.
+   */
+  const openedPatient = useRef(0);
+  useEffect(() => {
+    const patientId = Number(params.get("patient"));
+    if (!Number.isFinite(patientId) || patientId <= 0
+        || openedPatient.current === patientId) return;
+    openedPatient.current = patientId;
+
+    api.get<Patient>(`/api/patients/${patientId}`)
+      .then((p) => {
+        setPatient(p);
+        setPatientQ("");
+        setPatients([]);
+      })
+      .catch(() => toast.error("That patient could not be opened."))
+      .finally(() => {
+        const next = new URLSearchParams(params);
+        next.delete("patient");
+        setParams(next, { replace: true });
+      });
+  }, [params]);
+
+  const openedRx = useRef(0);
+  useEffect(() => {
+    const rxId = Number(params.get("rx"));
+    if (!Number.isFinite(rxId) || rxId <= 0 || openedRx.current === rxId) return;
+    openedRx.current = rxId;
+
+    (async () => {
+      try {
+        const rx = await api.get<any>(`/api/prescriptions/${rxId}`);
+        await openQueued({
+          patient_id: rx.patient_id,
+          prescription_id: rx.id,
+          schedule: Math.max(0, ...(rx.items ?? [])
+            .map((i: any) => i.product?.schedule ?? 0)),
+        });
+      } catch (e) {
+        toast.error(errorText(e, "That script could not be opened."));
+      } finally {
+        const next = new URLSearchParams(params);
+        next.delete("rx");
+        next.delete("item");
+        setParams(next, { replace: true });
+      }
+    })();
+  }, [params]);
+
   async function openQueued(row: { patient_id: number | null; prescription_id: number;
                                    schedule: number }) {
     if (!row.patient_id) {

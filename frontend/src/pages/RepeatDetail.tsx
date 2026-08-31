@@ -16,13 +16,16 @@
  *  script is somebody running out for a fortnight every month. The script says
  *  30, the behaviour says 45, and nothing anywhere compared the two.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import RepeatValue from "../components/RepeatValue";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { CheckCircle, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 
 interface Detail {
   item_id: number;
@@ -47,12 +50,90 @@ export default function RepeatDetail() {
   const { id } = useParams();
   const [r, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
+  const navigate = useNavigate();
+  const toast = useToast();
+  const ask = useAsk();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.get<Detail>(`/api/repeats/item/${id}`)
       .then(setData)
       .catch((e) => setError(errorText(e)));
   }, [id]);
+  useEffect(load, [load]);
+
+  /** Supply it, and hand over to the till.
+   *
+   *  The page said what the repeat was worth and offered no way to fill it, so
+   *  reading it ended in going back to the list to press the button there —
+   *  which is a detail page behaving like a printout.
+   *
+   *  Dispensing raises a sale that is still waiting to be paid, so this ends at
+   *  the till with that sale in the address rather than at a toast. The patient
+   *  is standing there; it is one movement of work, not two.
+   */
+  async function supply() {
+    if (!r) return;
+    const answer = await ask({
+      title: `Supply ${r.product?.name ?? "this repeat"}?`,
+      body: (
+        <>
+          <p>
+            {r.quantity} for {r.patient.name}, worth{" "}
+            <b>{money(r.value_per_fill)}</b>. This is repeat {r.used + 1} of{" "}
+            {r.allowed}.
+          </p>
+          <p className="muted">
+            Your initials go on the record as the person who checked it.
+          </p>
+        </>
+      ),
+      field: "Your initials",
+      placeholder: "e.g. TM",
+      required: true,
+      maxLength: 8,
+      confirmLabel: "Dispense it",
+    });
+    if (!answer.ok) return;
+    try {
+      const sale = await api.post<{ id: number; total: number }>(
+        `/api/prescriptions/${r.prescription?.id}/dispense`, {
+          item_ids: [r.item_id],
+          payment_method: "cash",
+          supply: {},
+          id_verified: false, script_sighted: false,
+          prescriber_verified: false, id_number_seen: "",
+          pharmacist_initial: answer.value,
+          compliance_notes: "",
+        });
+      if (sale?.id) {
+        toast.ok(`Dispensed. Taking you to the till to bill `
+                 + `${money(sale.total ?? r.value_per_fill)}.`);
+        navigate(`/pos?settle=${sale.id}&tab=pending`);
+        return;
+      }
+      toast.ok("Dispensed.");
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be dispensed."));
+    }
+  }
+
+  /** Ring them, from the page that says what the call is worth. */
+  async function remind() {
+    if (!r?.patient.id) return;
+    try {
+      await api.post("/api/messages", {
+        patient_id: r.patient.id,
+        channel: "sms",
+        subject: "Your repeat is due",
+        body: `Good day ${r.patient.name}. Your ${r.product?.name ?? "repeat"} `
+            + "is due for collection. Please come in when you can.",
+      });
+      toast.ok(`Reminder sent to ${r.patient.name}.`);
+    } catch (e) {
+      toast.error(errorText(e, "The reminder could not be sent."));
+    }
+  }
 
   const due = r?.next_due ? new Date(r.next_due) : null;
   const dueSoon = !!r && due !== null && !r.overdue_days
@@ -73,6 +154,37 @@ export default function RepeatDetail() {
       )}
       loading={!r && !error}
       error={error}
+      // In the header, where somebody looks for what they can do. Ordered by
+      // how often it is the answer: most repeats are supplied as written, some
+      // need changing first, and the rest are people who have not come in.
+      actions={r && (
+        <div className="page-actions">
+          {!r.exhausted && r.can_supply && (
+            <BusyButton className="btn primary" onClick={supply}
+                        busyLabel="Dispensing…">
+              Dispense {money(r.value_per_fill)}
+            </BusyButton>
+          )}
+          {/* Not every repeat goes out as written — a fortnight instead of a
+              month, something added, a dose the prescriber has changed. The
+              one-press supply cannot express any of that, so this opens the
+              dispensary with the script already loaded rather than making
+              somebody abandon the repeat and start again. */}
+          {r.prescription && (
+            <button className="btn"
+              onClick={() => navigate(`/dispense?rx=${r.prescription!.id}`
+                                      + `&item=${r.item_id}`)}>
+              Alter in the dispensary
+            </button>
+          )}
+          {r.patient.phone && (r.overdue_days > 0 || dueSoon) && (
+            <BusyButton className="btn secondary" onClick={remind}
+                        busyLabel="Sending…">
+              Remind them
+            </BusyButton>
+          )}
+        </div>
+      )}
       facts={r ? [
         { label: "Repeats used", value: `${r.used} of ${r.allowed}`,
           hint: r.exhausted ? "none left" : `${r.left} left`,

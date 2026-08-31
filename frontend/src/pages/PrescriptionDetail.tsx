@@ -10,7 +10,7 @@ import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 interface Item {
   id: number; product_id: number; dosage_instructions: string;
@@ -32,6 +32,7 @@ interface Data {
 
 export default function PrescriptionDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
@@ -68,6 +69,32 @@ export default function PrescriptionDetail() {
       )}
       loading={!d && !error}
       error={error}
+      // A script you could read and not act on. The one thing anybody opens a
+      // script to do is dispense it, and the route was to go back to the
+      // dispensary and find it again by patient.
+      actions={d && (
+        <div className="page-actions">
+          {d.status !== "cancelled" && repeatsLeft >= 0 && (
+            <button className="btn primary"
+              onClick={() => navigate(`/dispense?rx=${d.id}`)}>
+              {d.status === "draft" ? "Finish capturing it" : "Dispense it"}
+            </button>
+          )}
+          {/* Labels are asked for again far more often than they are printed
+              the first time — a bag re-bagged, a label that smudged. */}
+          {d.status !== "draft" && (
+            <button className="btn"
+              onClick={() => navigate(`/dispense?reprint=${d.id}`)}>
+              Reprint labels
+            </button>
+          )}
+          {d.patient?.id && (
+            <Link className="btn secondary" to={`/patients/${d.patient.id}`}>
+              The patient
+            </Link>
+          )}
+        </div>
+      )}
       facts={d ? [
         { label: "Status", value: d.status },
         { label: "Items", value: d.items.length },

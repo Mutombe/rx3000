@@ -11,6 +11,7 @@
  *  telephones a patient they cannot serve.
  */
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -91,6 +92,7 @@ export default function Repeats() {
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
+  const navigate = useNavigate();
   const confirm = useConfirm();
   // What the dispensing record needs before it can be written: who checked it,
   // and whether the script it repeats was actually looked at.
@@ -183,21 +185,38 @@ export default function Repeats() {
     if (!item) return;
     setBusy(true);
     try {
-      await api.post(`/api/prescriptions/${item.prescription_id}/dispense`, {
-        item_ids: [item.item_id],
-        payment_method: "cash",
-        supply: {},
-        id_verified: false,
-        script_sighted: sighted,
-        prescriber_verified: false,
-        id_number_seen: "",
-        pharmacist_initial: initials.trim(),
-        compliance_notes: "",
-      });
-      toast.ok(`${item.product} dispensed for ${item.patient_name}.`);
+      const sale = await api.post<{ id: number; total: number }>(
+        `/api/prescriptions/${item.prescription_id}/dispense`, {
+          item_ids: [item.item_id],
+          payment_method: "cash",
+          supply: {},
+          id_verified: false,
+          script_sighted: sighted,
+          prescriber_verified: false,
+          id_number_seen: "",
+          pharmacist_initial: initials.trim(),
+          compliance_notes: "",
+        });
       setSupplying(null);
       setInitials("");
       setSighted(false);
+
+      // Dispensing hands the medicine over and raises a sale that is still
+      // waiting to be paid. This screen used to stop here — a toast, and the
+      // operator left on the repeats list with a pending sale nobody had told
+      // them about. The stock had gone out and the money was collected only if
+      // somebody remembered to go and find the invoice.
+      //
+      // So it goes where the dispensary already goes: the till, with the sale
+      // in the address, on the list it is in. The patient is still standing
+      // there — this is one movement of work, not two.
+      if (sale?.id) {
+        toast.ok(`${item.product} dispensed. Taking you to the till to bill `
+                 + `${money(sale.total ?? item.value ?? 0)}.`);
+        navigate(`/pos?settle=${sale.id}&tab=pending`);
+        return;
+      }
+      toast.ok(`${item.product} dispensed for ${item.patient_name}.`);
       load();
     } catch (e) {
       toast.error(errorText(e, "That could not be dispensed."));
@@ -428,6 +447,23 @@ export default function Repeats() {
                         ) : (
                           <span className="badge warn">not enough stock</span>
                         )}
+                        {/* Not every repeat goes out as written. The patient
+                            wants a fortnight rather than a month, or something
+                            added, or the prescriber has changed the dose — and
+                            the one-press supply above cannot express any of
+                            that. This opens the dispensary with the script
+                            already loaded, so the alteration is made where
+                            capture belongs rather than by abandoning the
+                            repeat and starting again. */}
+                        <button className="btn ghost sm"
+                          title="Open the script in the dispensary to change it"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/dispense?rx=${i.prescription_id}`
+                                     + `&item=${i.item_id}`);
+                          }}>
+                          Alter
+                        </button>
                         {/* The other half of the job. Half of a repeat queue is
                             people who have not come in, and telephoning them is
                             the work — so the message is here rather than on a
