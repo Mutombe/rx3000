@@ -187,17 +187,24 @@ export default function DispensaryWorklist({
         </button>
       </div>
 
+      {/* Label and count as separate elements rather than one string.
+          The count is the half that changes and the half worth reading, and
+          keeping them apart lets the number stay legible when the rail is
+          narrow enough to clip the word. */}
       <div className="wl-tabs">
-        {([["queue", `Queue ${counts.waiting}`],
-           ["chronics", `Chronic ${data.chronics.length}`],
-           ["due", `Due ${data.reminders.length}`],
-           ["drafts", `Unfinished ${drafts.length}`]] as [Panel, string][]).map(([key, label]) => (
+        {([["queue", "Queue", counts.waiting],
+           ["chronics", "Chronic", data.chronics.length],
+           ["due", "Due", data.reminders.length],
+           ["drafts", "Unfinished", drafts.length]] as [Panel, string, number][])
+          .map(([key, label, n]) => (
           <button
             key={key}
             className={panel === key ? "on" : ""}
             onClick={() => setPanel(key)}
+            title={`${label} — ${n}`}
           >
-            {label}
+            <span>{label}</span>
+            <span className="wl-tab-n">{n}</span>
           </button>
         ))}
       </div>
@@ -262,7 +269,10 @@ export default function DispensaryWorklist({
                 {row.schedule >= 5 && <span className="wl-tag wl-tag-sched">S{row.schedule}</span>}
                 {/* Days waiting, not the date. "8 days" is actionable; a date
                     means arithmetic. */}
-                <span className="wl-wait">
+                <span className={`wl-wait${row.waiting_days > 14 ? " is-stale" : ""}`}
+                      title={row.waiting_days <= 0
+                        ? "Booked in today"
+                        : `Waiting ${row.waiting_days} days`}>
                   {row.waiting_days <= 0 ? "today" : `${row.waiting_days}d`}
                 </span>
               </span>

@@ -21,7 +21,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Plus, X } from "@phosphor-icons/react";
+import { Plus, X } from "@phosphor-icons/react";
 import { api, errorText } from "../api";
 import { useToast } from "./Toast";
 
@@ -267,9 +267,16 @@ export default function TermSelect({
                         </span>
                       )}
                     </span>
+                    {/* A tick means SELECTED, everywhere. Marking "this is a
+                        common one" with the same glyph put a column of ticks
+                        beside things nobody had chosen — on a picker whose
+                        whole job is to show what has been chosen. Said in a
+                        word instead, which cannot be misread as a state. */}
                     {have
                       ? <span className="term-had">already recorded</span>
-                      : o.common && <Check size={12} className="term-tick" />}
+                      : o.common
+                        ? <span className="term-common">common</span>
+                        : null}
                   </button>
                 );
               })}

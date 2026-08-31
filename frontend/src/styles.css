@@ -3078,17 +3078,34 @@ img { -webkit-user-drag: none; user-select: none; }
 .wl-stat.is-on:hover { border-color: var(--accent); }
 /* Only a non-zero urgent count is loud. A permanent red zero is furniture. */
 .wl-stat.is-urgent b { color: var(--danger); }
-.wl-tabs { display: flex; gap: 2px; }
+/* Four tabs in a 320px rail.
+   `flex: 1` with `nowrap` cannot shrink below its own text, so the strip
+   overflowed and "Unfinished 0" was sliced in half by the edge of the panel —
+   a filter you cannot see is a filter nobody uses. Two rows of two, which fits
+   at every rail width, instead of one row that fits at none. */
+.wl-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .wl-tabs button {
-  flex: 1; height: var(--control-sm); padding: 0 var(--s2);
+  height: var(--control-sm); padding: 0 var(--s2);
   font-size: .72rem; background: transparent; color: var(--ink-soft);
-  border: 1px solid var(--line); border-radius: var(--r-sm); white-space: nowrap;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  /* The count may wrap under the word rather than be cut off. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+/* The number is the changing half, so it is the half that stands out. */
+.wl-tabs button .wl-tab-n {
+  font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink);
 }
 .wl-tabs button:hover { background: var(--hover); color: var(--ink); border-color: var(--line-strong); }
 .wl-tabs button.on { background: var(--accent-soft); color: var(--ink); border-color: var(--accent); }
 .wl-list {
   display: flex; flex-direction: column; gap: var(--s2);
-  overflow-y: auto; overscroll-behavior: contain; padding-right: 2px;
+  overflow-y: auto; overscroll-behavior: contain;
+  /* Room reserved for the scrollbar rather than 2px of hope. Without it the
+     native bar is drawn over the right edge of every card, clipping the
+     quantity and the days-waiting figure — the two numbers on the row. */
+  scrollbar-gutter: stable;
+  padding-right: var(--s1);
 }
 .wl-row {
   display: flex; flex-direction: column; gap: 2px; width: 100%;
@@ -3114,7 +3131,14 @@ img { -webkit-user-drag: none; user-select: none; }
    A distinct but quiet tint, so the eye can sort the queue without the panel
    turning into a colour chart. */
 .wl-tag-repeat { background: var(--indigo-soft, rgba(90, 90, 160, 0.14)); color: var(--ink-mid); }
-.wl-wait { font-size: .7rem; color: var(--ink-faint); margin-left: auto; }
+/* Days waiting. Right-aligned so the column can be read down the list rather
+   than hunted for on each row, and tabular so 8d and 64d line up. */
+.wl-wait {
+  font-size: .7rem; color: var(--ink-faint); margin-left: auto;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* Past a fortnight it stops being a queue position and becomes a question. */
+.wl-wait.is-stale { color: var(--danger); font-weight: 600; }
 .wl-call { font-size: .72rem; color: var(--brand-deep); text-decoration: none; }
 .wl-call:hover { text-decoration: underline; }
 .wl-empty { font-size: .78rem; color: var(--ink-faint); margin: var(--s2) 0; }
@@ -5005,14 +5029,35 @@ table.dt.sub th { font-size: var(--t-xs); }
   display: flex; align-items: center; justify-content: space-between; gap: var(--s2);
   width: 100%; padding: var(--s2); border-radius: var(--r-sm);
   font-size: var(--t-sm); text-align: left; color: var(--ink);
+  /* Explicit, and the reason this row exists.
+     `.term-option` is a <button>, and the base `button, .btn` rule fills every
+     button with `--accent` — which is near-black. Setting only a colour left
+     dark ink on a dark fill: every allergy and every chronic condition in the
+     picker was unreadable except the one under the pointer, which got
+     `--hover` and so happened to be legible. On the one field whose entire
+     purpose is to fire a safety warning.
+     Any button-shaped control that is not a button MUST declare its own
+     background. Inheriting is not a default here, it is the accent fill. */
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 500;
 }
-.term-option.is-on { background: var(--hover); }
+.term-option:hover:not(:disabled) { background: var(--hover); }
+.term-option.is-on { background: var(--hover); border-color: var(--line); }
 .term-option:disabled { opacity: 0.6; }
 .term-syn {
   display: block; color: var(--ink-faint); font-size: var(--t-xs);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.term-tick { color: var(--ink-faint); flex-shrink: 0; }
+/* What "common" looks like.
+   It used to be a tick, and a tick means *selected* — so a panel where every
+   row was a common term showed a column of ticks against things nobody had
+   chosen, which is the worst possible thing for a list you pick from. A word
+   cannot be misread as a state. */
+.term-common {
+  flex-shrink: 0; font-size: var(--t-xs); color: var(--ink-faint);
+  text-transform: lowercase; letter-spacing: .02em;
+}
 /* The row that keeps the vocabulary open. Separated by a line because it is a
    different kind of act from picking: it writes to the catalogue. */
 .term-add {
