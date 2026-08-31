@@ -277,6 +277,137 @@ def is_locked(db: Session, sale: Sale) -> bool:
     return bool(receipt and receipt.status in ("accepted", "submitted"))
 
 
+def z_report(db: Session, day_id: int) -> dict:
+    """One fiscal day in full: the Z-report, and the chain across it.
+
+    The list of days carried four totals and no way to open one. That is the
+    wrong way round — the totals are a summary of the statutory document, and
+    the document is what a pharmacy is asked for. ZIMRA's own query, and an
+    auditor's, is about a *day*: which receipts, in what order, at which tax
+    rates, in which currencies, and does the chain across them hold.
+
+    WHAT IS COMPUTED HERE RATHER THAN STORED
+
+    The day carries `total_sales`, `total_vat` and `total_credit_notes` as
+    running figures. The breakdowns are not stored, because storing a
+    denormalised split invites it to disagree with the receipts it summarises,
+    and the first time somebody notices is during an audit. They are read off
+    the receipts each time.
+
+    A credit note is subtracted, never deleted. Zimbabwe does not have voids:
+    a receipt filed with the authority stays filed, and a correction is a
+    second document pointing at the first. So the counts here are of documents
+    issued, and the money is net.
+    """
+    day = db.get(FiscalDay, day_id)
+    if day is None:
+        raise ValueError("That fiscal day does not exist.")
+
+    receipts = (db.query(FiscalReceipt)
+                .filter(FiscalReceipt.fiscal_day_id == day.id)
+                .order_by(FiscalReceipt.receipt_counter).all())
+
+    sales = [r for r in receipts if r.receipt_type != "credit_note"]
+    notes = [r for r in receipts if r.receipt_type == "credit_note"]
+
+    # By currency. A counter here takes USD and ZiG across the same day, and a
+    # single total in one of them answers nothing an auditor asks.
+    by_currency: dict[str, dict] = {}
+    for r in receipts:
+        code = (r.currency_code or "").upper() or "—"
+        row = by_currency.setdefault(
+            code, {"currency": code, "receipts": 0, "sales": 0.0,
+                   "vat": 0.0, "credit_notes": 0.0})
+        row["receipts"] += 1
+        if r.receipt_type == "credit_note":
+            row["credit_notes"] = round(row["credit_notes"] + (r.total or 0.0), 2)
+        else:
+            row["sales"] = round(row["sales"] + (r.total or 0.0), 2)
+        row["vat"] = round(row["vat"] + (r.vat_amount or 0.0), 2)
+
+    # By tax rate, derived from each receipt rather than assumed. A receipt with
+    # no VAT on it is zero-rated or exempt, and the two are different things
+    # legally — but nothing on the receipt distinguishes them, so this reports
+    # "no VAT charged" rather than picking one and being wrong in a filing.
+    rated = [r for r in sales if (r.vat_amount or 0.0) > 0.005]
+    unrated = [r for r in sales if (r.vat_amount or 0.0) <= 0.005]
+    taxed_total = round(sum(r.total or 0.0 for r in rated), 2)
+    taxed_vat = round(sum(r.vat_amount or 0.0 for r in rated), 2)
+
+    # The chain across this day alone, so a break can be attributed to a day
+    # rather than only to the register as a whole.
+    broken_at = None
+    previous = None
+    for r in receipts:
+        if previous is not None and (r.previous_hash or "") != (previous.receipt_hash or ""):
+            broken_at = r.receipt_counter
+            break
+        previous = r
+
+    counters = [r.global_counter for r in receipts if r.global_counter]
+    return {
+        "id": day.id,
+        "day_number": day.day_number,
+        "device_id": day.device_id or "",
+        "status": day.status,
+        "opened_at": day.opened_at,
+        "closed_at": day.closed_at,
+        "submitted_at": day.submitted_at,
+        "response_ref": day.response_ref or "",
+        "error": day.error or "",
+
+        "receipt_count": len(receipts),
+        "sale_count": len(sales),
+        "credit_note_count": len(notes),
+        "total_sales": round(sum(r.total or 0.0 for r in sales), 2),
+        "total_vat": round(sum(r.vat_amount or 0.0 for r in receipts), 2),
+        "total_credit_notes": round(sum(r.total or 0.0 for r in notes), 2),
+        "net": round(sum(r.total or 0.0 for r in sales)
+                     - sum(r.total or 0.0 for r in notes), 2),
+
+        "by_currency": sorted(by_currency.values(),
+                              key=lambda r: -r["sales"]),
+        "by_rate": [
+            {"label": "Standard rated", "receipts": len(rated),
+             "total": taxed_total, "vat": taxed_vat},
+            {"label": "No VAT charged", "receipts": len(unrated),
+             "total": round(sum(r.total or 0.0 for r in unrated), 2),
+             "vat": 0.0},
+        ],
+
+        # What the authority's own record should show for this day.
+        "first_counter": min(counters) if counters else None,
+        "last_counter": max(counters) if counters else None,
+        "opening_hash": receipts[0].previous_hash if receipts else "",
+        "closing_hash": receipts[-1].receipt_hash if receipts else "",
+        "chain_holds": broken_at is None,
+        "chain_broken_at": broken_at,
+
+        # The ones that have not reached the authority. A day closed with these
+        # outstanding is filed short, and nothing said so.
+        "not_filed": [
+            {"id": r.id, "receipt_counter": r.receipt_counter,
+             "global_counter": r.global_counter, "total": round(r.total or 0.0, 2),
+             "status": r.status, "response_message": r.response_message or ""}
+            for r in receipts if r.status in ("queued", "rejected")
+        ],
+        "receipts": [
+            {"id": r.id, "sale_id": r.sale_id,
+             "receipt_counter": r.receipt_counter,
+             "global_counter": r.global_counter,
+             "receipt_type": r.receipt_type,
+             "currency_code": r.currency_code or "",
+             "total": round(r.total or 0.0, 2),
+             "vat_amount": round(r.vat_amount or 0.0, 2),
+             "status": r.status,
+             "receipt_hash": r.receipt_hash or "",
+             "verification_url": r.verification_url or "",
+             "created_at": r.created_at}
+            for r in receipts
+        ],
+    }
+
+
 def verify_chain(db: Session, limit: int = 0) -> dict:
     """Walk the hash chain and report the first break.
 

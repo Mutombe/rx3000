@@ -198,6 +198,81 @@ def branch_register(db: Session, branch_id: int) -> dict:
     }
 
 
+def document(db: Session, document_id: int) -> dict:
+    """One certificate, with the chain of the ones it replaced.
+
+    A register answers "are we licensed today". This answers the other
+    question, which is the one an audit actually asks: **were we licensed in
+    March**. A pharmacy holds a renewal every year and the previous certificate
+    is the proof it was trading lawfully last year, so nothing here is ever
+    deleted — a superseded document keeps its dates, its file and its uploader
+    and simply stops being the current one.
+
+    The chain is walked in both directions. From any certificate you can reach
+    the one it replaced and the one that replaced it, because somebody handed a
+    lapsed number by an inspector needs to get from that number to the current
+    document without knowing which of eight rows is the live one.
+    """
+    doc = db.get(ComplianceDocument, document_id)
+    if doc is None:
+        raise ValueError("That document is not on file.")
+
+    known = BY_KEY.get(doc.kind)
+    branch = db.get(Branch, doc.branch_id)
+    state, days = _state(doc)
+
+    # Backwards: what this one replaced, oldest last.
+    replaced: list[dict] = []
+    seen = {doc.id}
+    cursor = (db.query(ComplianceDocument)
+              .filter(ComplianceDocument.superseded_by_id == doc.id).first())
+    while cursor is not None and cursor.id not in seen:
+        seen.add(cursor.id)
+        replaced.append({**_document_row(cursor), "state": _state(cursor)[0]})
+        cursor = (db.query(ComplianceDocument)
+                  .filter(ComplianceDocument.superseded_by_id == cursor.id)
+                  .first())
+
+    # Forwards: what replaced this one. Usually nothing, but a document opened
+    # from an old link must be able to say "there is a newer one, here".
+    replaced_by = None
+    if doc.superseded_by_id:
+        newer = db.get(ComplianceDocument, doc.superseded_by_id)
+        if newer is not None:
+            replaced_by = {**_document_row(newer), "state": _state(newer)[0]}
+
+    # Whether this is the branch's current one of its kind. Not the same as
+    # `active`: two active certificates of one kind can sit side by side while
+    # a renewal is filed early, and only the later expiry is the one in force.
+    current = (db.query(ComplianceDocument)
+               .filter(ComplianceDocument.branch_id == doc.branch_id,
+                       ComplianceDocument.kind == doc.kind,
+                       ComplianceDocument.active.is_(True))
+               .order_by(ComplianceDocument.expires_on.desc()).first())
+
+    return {
+        **_document_row(doc),
+        "kind": doc.kind,
+        "name": known[1] if known else (doc.title or doc.kind),
+        "title": doc.title or "",
+        "expected_issuer": known[2] if known else "",
+        "renewal_months": known[3] if known else 0,
+        "critical": bool(known[4]) if known else False,
+        "why": known[5] if known else "Added by this pharmacy.",
+        "state": state,
+        "days_left": days,
+        "active": bool(doc.active),
+        "is_current": current is not None and current.id == doc.id,
+        "file_type": doc.file_type or "",
+        "file_bytes": doc.file_bytes or 0,
+        "branch_id": doc.branch_id,
+        "branch": branch.name if branch else "",
+        "branch_code": branch.code if branch else "",
+        "replaced": replaced,
+        "replaced_by": replaced_by,
+    }
+
+
 def _document_row(doc: ComplianceDocument | None) -> dict:
     if doc is None:
         return {"id": None, "reference": "", "issuer": "", "issued_on": None,

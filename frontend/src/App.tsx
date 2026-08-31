@@ -66,6 +66,7 @@ const Drivers = lazy(() => import("./pages/Drivers"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const Seasons = lazy(() => import("./pages/Seasons"));
 const Compliance = lazy(() => import("./pages/Compliance"));
+const ComplianceDocument = lazy(() => import("./pages/ComplianceDocument"));
 const HeadOffice = lazy(() => import("./pages/HeadOffice"));
 const Settlements = lazy(() => import("./pages/Settlements"));
 const StockPerformance = lazy(() => import("./pages/StockPerformance"));
@@ -96,6 +97,7 @@ const Reports = lazy(() => import("./pages/Reports"));
 const SaleDetail = lazy(() => import("./pages/SaleDetail"));
 const Shifts = lazy(() => import("./pages/Shifts"));
 const Fiscal = lazy(() => import("./pages/Fiscal"));
+const FiscalDay = lazy(() => import("./pages/FiscalDay"));
 const Claiming = lazy(() => import("./pages/Claiming"));
 const StockTake = lazy(() => import("./pages/StockTake"));
 const LayBys = lazy(() => import("./pages/LayBys"));
@@ -203,6 +205,7 @@ export default function App() {
                 <Route path="/reminders" element={<Reminders />} />
                 <Route path="/shifts" element={<Shifts />} />
                 <Route path="/fiscal" element={<Fiscal />} />
+                <Route path="/fiscal/days/:id" element={<FiscalDay />} />
                 <Route path="/claiming" element={<Claiming />} />
                 <Route path="/stock-take" element={<StockTake />} />
                 <Route path="/laybys" element={<LayBys />} />
@@ -216,6 +219,7 @@ export default function App() {
                 <Route path="/seasons" element={<Seasons />} />
                 <Route path="/stock-performance" element={<StockPerformance />} />
                 <Route path="/compliance" element={<Compliance />} />
+                <Route path="/compliance/documents/:id" element={<ComplianceDocument />} />
                 <Route path="/head-office" element={<HeadOffice />} />
                 <Route path="/reconciliation/settlements" element={<Settlements />} />
                 <Route path="/reconciliation" element={<Reconciliation />} />

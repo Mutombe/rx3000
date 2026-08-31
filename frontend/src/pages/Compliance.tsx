@@ -34,6 +34,9 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useConfirm } from "../components/Confirm";
+import { Link, useSearchParams } from "react-router-dom";
+import SectionNav from "../components/SectionNav";
+import { BRANCH_TABS } from "../branchTabs";
 
 interface Doc {
   id: number | null; kind: string; name: string; expected_issuer: string;
@@ -110,6 +113,50 @@ export default function Compliance() {
       .catch((e) => toast.error(errorText(e)));
   }, []);
 
+  /** Arrive on one branch's register from its row on the Branches table.
+   *
+   *  The link carries the branch, so a manager who clicked "cannot trade" on
+   *  the shop list lands on the certificates that say why rather than on a
+   *  summary of all six shops with theirs somewhere in it.
+   */
+  const [params, setParams] = useSearchParams();
+  const wanted = Number(params.get("branch") || 0);
+  useEffect(() => {
+    if (wanted) openBranch(wanted);
+    // Read once and cleared, so refreshing the page later does not silently
+    // reopen a branch somebody has since closed.
+    if (wanted) { params.delete("branch"); setParams(params, { replace: true }); }
+  }, [wanted]);
+
+  /** `?renew=<kind>` opens the upload already knowing what is being renewed.
+   *
+   *  A renewal is recorded as a new document rather than by editing the old
+   *  one — editing an expiry in place overwrites the proof of what was held
+   *  before it, which is the one thing this register exists to keep. So the
+   *  button on a certificate's own page arrives here with the kind in hand.
+   */
+  const renewing = params.get("renew") || "";
+  useEffect(() => {
+    if (!renewing || !register) return;
+    const row = register.documents.find((d) => d.kind === renewing);
+    if (row) setAdding({ ...row, id: null });
+    params.delete("renew");
+    setParams(params, { replace: true });
+  }, [renewing, register]);
+
+  /** Open a certificate with the session's credentials attached. */
+  async function openFile(doc: Doc) {
+    if (!doc.id) return;
+    try {
+      const file = await api.blob(`/api/compliance/documents/${doc.id}/file`);
+      const url = URL.createObjectURL(file.body);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      toast.error(errorText(e, "That certificate could not be opened."));
+    }
+  }
+
   async function remove(doc: Doc) {
     if (!doc.id) return;
     const ok = await confirm({
@@ -140,6 +187,9 @@ export default function Compliance() {
             {overview?.headline
               ?? "What each branch must hold to trade, and when it expires."}
           </p>
+        </div>
+        <div className="page-actions">
+          <SectionNav tabs={BRANCH_TABS} end="/compliance" />
         </div>
       </header>
 
@@ -280,7 +330,13 @@ export default function Compliance() {
                           : d.state === "missing" && d.critical ? "row-flag"
                           : undefined}>
                       <td>
-                        <b>{d.name}</b>
+                        {/* The record, where the chain of what this replaced
+                            lives. A register says what is current; only the
+                            record can say what was current in March, which is
+                            the question an inspection actually asks. */}
+                        {d.id
+                          ? <Link to={`/compliance/documents/${d.id}`}><b>{d.name}</b></Link>
+                          : <b>{d.name}</b>}
                         {d.critical && (
                           <span className="badge bad"> the shop closes without it</span>
                         )}
@@ -314,11 +370,17 @@ export default function Compliance() {
                           // behind it is a claim, and an inspector asks to see
                           // the licence rather than a system that says there
                           // is one.
-                          <a className="row-link"
-                             href={`/api/compliance/documents/${d.id}/file`}
-                             target="_blank" rel="noreferrer">
+                          //
+                          // Fetched, not linked. This was an `<a href>` at the
+                          // API path, which cannot carry the session's
+                          // Authorization header — so every attempt to open a
+                          // licence from this register was refused, on the one
+                          // screen whose entire purpose is producing the
+                          // document when somebody asks for it.
+                          <button className="linkish"
+                                  onClick={() => openFile(d)}>
                             <FileText size={13} /> {d.file_name || "open"}
-                          </a>
+                          </button>
                         ) : d.id ? (
                           <span className="muted small">details only</span>
                         ) : <span className="muted">—</span>}
@@ -358,14 +420,19 @@ export default function Compliance() {
                   <tbody>
                     {register.history.map((d) => (
                       <tr key={d.id} className="row-muted">
-                        <td>{d.name}</td>
+                        <td>
+                          {/* Superseded, and still the proof the branch was
+                              licensed for the period it covered — which is
+                              what an audit asks about. */}
+                          <Link to={`/compliance/documents/${d.id}`}>{d.name}</Link>
+                        </td>
                         <td className="mono small">{d.reference || "—"}</td>
                         <td>{d.expires_on ? fmtDate(d.expires_on) : "—"}</td>
                         <td>
                           {d.has_file && (
-                            <a className="row-link"
-                               href={`/api/compliance/documents/${d.id}/file`}
-                               target="_blank" rel="noreferrer">open</a>
+                            <button className="linkish" onClick={() => openFile(d)}>
+                              open
+                            </button>
                           )}
                         </td>
                       </tr>

@@ -25,6 +25,7 @@ import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { EntityLink } from "../components/Filters";
+import RowLink from "../components/RowLink";
 
 interface FiscalReceipt {
   id: number; sale_id: number; receipt_type: string; global_counter: number;
@@ -384,7 +385,10 @@ export default function Fiscal() {
               </thead>
               <tbody>
                 {days.map((d) => (
-                  <tr key={d.id}>
+                  // The day opens. It carried four totals and no way to reach
+                  // the document they summarise — and ZIMRA's own query, and
+                  // an auditor's, is about a day rather than about a total.
+                  <RowLink key={d.id} to={`/fiscal/days/${d.id}`}>
                     <td className="mono">{d.day_number}</td>
                     <td>{fmtDateTime(d.opened_at)}</td>
                     <td>
@@ -402,7 +406,7 @@ export default function Fiscal() {
                           ? <span className="mono">{d.response_ref}</span>
                           : <span className="muted">—</span>}
                     </td>
-                  </tr>
+                  </RowLink>
                 ))}
               </tbody>
             </table>

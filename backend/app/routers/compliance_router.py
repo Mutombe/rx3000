@@ -141,6 +141,20 @@ async def upload(branch_id: int,
                            f"covered." if previous else ""))}
 
 
+@router.get("/documents/{document_id}")
+def document(document_id: int, db: Session = Depends(get_db)):
+    """One certificate, with the chain of the ones it replaced.
+
+    Registered above the file route, which is the more specific path and so is
+    matched first regardless — but keeping the plain record above its own
+    sub-resources is the order somebody reads them in.
+    """
+    try:
+        return compliance.document(db, document_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
 @router.get("/documents/{document_id}/file")
 def download(document_id: int, db: Session = Depends(get_db)):
     """The certificate itself, for showing an inspector."""

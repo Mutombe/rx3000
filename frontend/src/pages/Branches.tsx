@@ -25,6 +25,25 @@ import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { EntityLink } from "../components/Filters";
+import { Link } from "react-router-dom";
+import SectionNav from "../components/SectionNav";
+import { BRANCH_TABS } from "../branchTabs";
+
+/** A verdict, in the badge tone it deserves. Only two of the four are alarms:
+ *  a shop that may not trade, and one that cannot prove it may. */
+const VERDICT_TONE: Record<string, string> = {
+  "cannot trade": "danger",
+  "cannot be proved": "warn",
+  "renewals due": "warn",
+  "in order": "ok",
+};
+
+interface Standing {
+  branch_id: number;
+  verdict: string;
+  says: string;
+  next: { name: string; days: number } | null;
+}
 
 interface Branch {
   id: number; code: string; name: string; registration_no: string;
@@ -82,6 +101,26 @@ export default function Branches() {
   }, [toast]);
 
   useEffect(load, [load]);
+
+  /** Each branch's licence standing, for the column on its row.
+   *
+   *  One request for every branch, not one per row: this table is read by a
+   *  manager comparing shops, and a query per row is the thing that makes a
+   *  page slower every time the business grows.
+   */
+  const [standing, setStanding] = useState<Record<number, Standing>>({});
+  useEffect(() => {
+    let live = true;
+    api.get<{ branches: Standing[] }>("/api/compliance/overview")
+      .then((d) => {
+        if (!live) return;
+        setStanding(Object.fromEntries(d.branches.map((b) => [b.branch_id, b])));
+      })
+      // The column stays blank. A licence figure that cannot be fetched must
+      // not take down the page somebody opened to move stock.
+      .catch(() => undefined);
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     if (productQ.trim().length < 2) { setProducts([]); return; }
@@ -215,12 +254,15 @@ export default function Branches() {
             stock moving between them
           </div>
         </div>
-        <button className="btn primary" onClick={() => {
-          setMoving(true);
-          setFromId(branches?.find((b) => b.is_default)?.id ?? "");
-        }}>
-          Transfer stock
-        </button>
+        <div className="page-actions">
+          <SectionNav tabs={BRANCH_TABS} end="/branches" />
+          <button className="btn primary" onClick={() => {
+            setMoving(true);
+            setFromId(branches?.find((b) => b.is_default)?.id ?? "");
+          }}>
+            Transfer stock
+          </button>
+        </div>
       </div>
 
       {transit.length > 0 && (
@@ -280,7 +322,12 @@ export default function Branches() {
               <thead>
                 <tr>
                   <th>Code</th><th>Branch</th><th>City</th>
-                  <th>Responsible pharmacist</th><th>Registration</th><th className="actions" />
+                  <th>Responsible pharmacist</th><th>Registration</th>
+                  {/* Whether the shop may lawfully open. It was three sections
+                      away under its own sidebar entry, so a manager reading
+                      this table had no way to know that the branch on row two
+                      has no premises licence on file. */}
+                  <th>Licences</th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -305,6 +352,30 @@ export default function Branches() {
                       </span>
                     </td>
                     <td className="mono muted">{b.registration_no || "—"}</td>
+                    <td>
+                      {/* The one figure that decides whether the shop opens,
+                          linked to the register that explains it. Silent while
+                          it loads rather than showing a reassuring dash: a
+                          blank that means "not known yet" and a blank that
+                          means "nothing wrong" must not look the same on a
+                          compliance column. */}
+                      {standing[b.id] ? (
+                        <Link to={`/compliance?branch=${b.id}`}
+                              className="lic-cell"
+                              title={standing[b.id]!.says}>
+                          <span className={`badge ${
+                            VERDICT_TONE[standing[b.id]!.verdict] ?? "muted"}`}>
+                            {standing[b.id]!.verdict}
+                          </span>
+                          {standing[b.id]!.next && (
+                            <span className="muted small">
+                              {standing[b.id]!.next!.name} in{" "}
+                              {standing[b.id]!.next!.days} days
+                            </span>
+                          )}
+                        </Link>
+                      ) : <span className="muted">—</span>}
+                    </td>
                     <td className="num lb-actions">
                       <button className="small ghost" onClick={() => showStock(b)}>
                         {viewing === b.id ? "Hide stock" : "Stock"}

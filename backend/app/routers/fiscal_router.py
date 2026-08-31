@@ -90,6 +90,19 @@ def _receipt_row(r):
     }
 
 
+@router.get("/days/{day_id}")
+def z_report(day_id: int, db: Session = Depends(get_db)):
+    """One fiscal day in full — the Z-report, and the chain across it.
+
+    Registered above /receipts, which is a different path entirely, but kept
+    beside /days so the two read together.
+    """
+    try:
+        return fiscal.z_report(db, day_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
 @router.get("/receipts")
 def list_receipts(status_filter: str = "", sale_id: int = 0, limit: int = 200,
                   db: Session = Depends(get_db)):
