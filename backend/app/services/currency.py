@@ -94,8 +94,20 @@ def rate_table(db: Session, at: datetime | None = None) -> dict[str, float]:
 
 
 def record_tender(db: Session, sale: Sale, *, method: str, currency_code: str,
-                  amount: float, reference: str = "", is_change: bool = False) -> SaleTender:
-    """Attach one payment (or one lot of change) to a sale."""
+                  amount: float, reference: str = "", is_change: bool = False,
+                  instrument: str = "") -> SaleTender:
+    """Attach one payment (or one lot of change) to a sale.
+
+    The instrument -- which wallet, which bank -- is stored as a column rather
+    than left in the front of the reference for a screen to parse back out.
+    Where the caller does not name one it is resolved from the method, the
+    currency and the reference, and where it genuinely cannot be resolved it is
+    left empty. An empty instrument shows in the cash-up under its family,
+    which is honest; a guessed one sends somebody looking for money in a
+    statement it was never in.
+    """
+    from .instruments import resolve
+
     code = (currency_code or base_code()).upper()
     rate = current_rate(db, code)
     signed = -abs(amount) if is_change else amount
@@ -104,6 +116,8 @@ def record_tender(db: Session, sale: Sale, *, method: str, currency_code: str,
         amount=quantise(signed, code), rate_used=rate,
         amount_in_base=to_base(signed, code, rate),
         is_change=is_change, reference=reference,
+        instrument=resolve(db, instrument=instrument, method=method,
+                           currency_code=code, reference=reference),
     )
     db.add(tender)
     return tender

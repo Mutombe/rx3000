@@ -243,23 +243,44 @@ class CountIn(BaseModel):
 
 
 @router.get("/cashup/denominations")
-def cashup_denominations(currency: str = ""):
-    """The notes and coins to count, biggest first.
+def cashup_denominations(currency: str = "", db: Session = Depends(get_db),
+                         user: User = Depends(get_current_user)):
+    """The notes and coins to count, biggest first, and what to count them into.
 
-    From the jurisdiction pack rather than hard-coded. The system we are
-    replacing lists pounds, which is a locale default nobody ever changed, and
-    a Zimbabwean drawer holds neither pounds nor a single currency.
+    Denominations from the jurisdiction pack rather than hard-coded. The system
+    we are replacing lists pounds, which is a locale default nobody ever
+    changed, and a Zimbabwean drawer holds neither pounds nor a single
+    currency.
+
+    The tender columns come from the pharmacy's own instrument list — the same
+    list the till offers when it takes the money. They used to come from a
+    constant in the cash-up service, which is how a cashier could take a
+    payment on a tender there was then no column to count it into.
     """
     from ..config import settings
+    from ..services import instruments as instrument_svc
 
     pack = settings.jurisdiction
     codes = [c.code for c in pack.currencies]
     chosen = (currency or pack.base_currency.code).upper()
+
+    if instrument_svc.ensure(db, user.pharmacy_id):
+        db.commit()
+    offered = [
+        {"method": i.method, "instrument": i.code, "label": i.name,
+         "currencies": i.currency_list,
+         "is_cash_drawer": bool(i.is_cash_drawer),
+         # Money a driver is holding is not counted against this drawer. It is
+         # offered here so it can be seen, and marked so it is not typed into
+         # the count by somebody being helpful.
+         "is_delivery": bool(i.is_delivery)}
+        for i in instrument_svc.listing(db)
+    ]
     return {
         "currencies": codes,
         "currency": chosen,
         "denominations": cashup_svc.denominations(chosen),
-        "tenders": [{"method": m, "label": l} for m, l in cashup_svc.TENDERS],
+        "tenders": offered,
     }
 
 

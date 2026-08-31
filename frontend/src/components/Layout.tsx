@@ -42,6 +42,7 @@ import {
   Users,
   Van,
   Vault,
+  IdentificationCard,
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -111,6 +112,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/compounding", label: "Compounding", icon: Flask },
       { to: "/register", label: "Controlled Register", icon: Notebook },
       { to: "/deliveries", label: "Deliveries", icon: Van },
+      { to: "/drivers", label: "Drivers", icon: IdentificationCard },
       { to: "/reminders", label: "Patient Adherence", icon: BellRinging },
     ],
   },

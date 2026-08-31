@@ -18,6 +18,7 @@ export const ENTITY_ROUTES = {
   waybill: (id: Id) => `/waybills/${id}`,
   contact: (id: Id) => `/contacts/${id}`,
   deal: (id: Id) => `/deals/${id}`,
+  driver: (id: Id) => `/drivers/${id}`,
   invoice: (id: Id) => `/payables/invoices/${id}`,
   journal: (id: Id) => `/ledger/journal/${id}`,
   layby: (id: Id) => `/laybys/${id}`,

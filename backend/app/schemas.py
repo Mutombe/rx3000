@@ -472,6 +472,9 @@ class TenderIn(BaseModel):
     currency_code: str = ""       # defaults to the base currency
     amount: float = 0.0
     reference: str = ""
+    #: Which EcoCash, which bank. Resolved from the method and the reference
+    #: where the till does not send one, so older clients keep working.
+    instrument: str = ""
 
 
 class TenderOut(ORM):
@@ -483,6 +486,7 @@ class TenderOut(ORM):
     amount_in_base: float
     is_change: bool
     reference: str
+    instrument: str = ""
 
 
 # ---------- POS ----------

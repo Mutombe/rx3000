@@ -62,6 +62,8 @@ const StockCategories = lazy(() => import("./pages/StockCategories"));
 const Pharmacies = lazy(() => import("./pages/Pharmacies"));
 const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
 const Deliveries = lazy(() => import("./pages/Deliveries"));
+const Drivers = lazy(() => import("./pages/Drivers"));
+const DriverDetail = lazy(() => import("./pages/DriverDetail"));
 const Dispense = lazy(() => import("./pages/Dispense"));
 const HelpDesk = lazy(() => import("./pages/HelpDesk"));
 const AccountLedger = lazy(() => import("./pages/AccountLedger"));
@@ -171,6 +173,8 @@ export default function App() {
                 <Route path="/remittances/:id" element={<RemittanceDetail />} />
                 <Route path="/deliveries" element={<Deliveries />} />
                 <Route path="/waybills/:id" element={<WaybillDetail />} />
+                <Route path="/drivers" element={<Drivers />} />
+                <Route path="/drivers/:id" element={<DriverDetail />} />
                 <Route path="/repeats" element={<Repeats />} />
                 <Route path="/ledger" element={<Ledger />} />
                 <Route path="/ledger/entries/:id" element={<JournalDetail />} />

@@ -9,8 +9,9 @@
  *  check identity at the door.
  */
 import { useEffect, useMemo, useState } from "react";
-import { api, fmtDateTime, prefetchRoute, errorText  } from "../api";
+import { api, fmtDateTime, money, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
+import Select from "../components/Select";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -23,9 +24,16 @@ interface Waybill {
   id: number; waybill_number: string; status: string;
   sale_id: number | null; patient_id: number | null;
   recipient: string; address: string; phone: string; instructions: string;
-  driver: string; received_by: string; failure_reason: string;
+  driver: string; driver_profile_id: number | null; driver_phone: string;
+  received_by: string; failure_reason: string;
   requires_id_check: boolean; id_number_seen: string;
+  delivery_fee: number; cod_amount: number; cod_collected: number;
+  cod_outstanding: number; cod_settled_at: string | null;
   created_at: string; dispatched_at: string | null; delivered_at: string | null;
+}
+interface DriverOption {
+  id: number; full_name: string; phone: string;
+  licence_expired: boolean; over_cod_limit: boolean; cash_holding: number;
 }
 
 type Tab = "pending" | "out" | "delivered" | "failed";
@@ -39,6 +47,13 @@ export default function Deliveries() {
   const [receivedBy, setReceivedBy] = useState("");
   const [idSeen, setIdSeen] = useState("");
   const [reason, setReason] = useState("");
+  // What the driver came back with. Separate from what they were sent to
+  // collect, because the two are not always the same number and the difference
+  // is the only thing worth recording.
+  const [collected, setCollected] = useState("");
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [sending, setSending] = useState<Waybill | null>(null);
+  const [driverId, setDriverId] = useState("");
   const toast = useToast();
 
   const TABS: TabDef<Tab>[] = [
@@ -61,17 +76,24 @@ export default function Deliveries() {
       .then((all) => setRows(Object.fromEntries(all)))
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
+    api.get<DriverOption[]>("/api/drivers").then(setDrivers).catch(() => {});
   }
   useEffect(load, []);
 
   const list = rows[tab] ?? [];
 
-  async function dispatch(w: Waybill) {
+  async function dispatch() {
+    if (!sending) return;
     try {
-      await api.post(`/api/waybills/${w.id}/dispatch`, {});
-      toast.ok(`${w.waybill_number} is out for delivery.`);
+      await api.post(`/api/waybills/${sending.id}/dispatch`, {
+        driver_profile_id: driverId ? Number(driverId) : null,
+      });
+      toast.ok(`${sending.waybill_number} is out for delivery.`);
+      setSending(null); setDriverId("");
       load();
     } catch (e: any) {
+      // The server refuses an expired licence and a driver already over their
+      // cash limit, and says which. Shown as written.
       toast.error(errorText(e));
     }
   }
@@ -81,9 +103,12 @@ export default function Deliveries() {
     try {
       await api.post(`/api/waybills/${signing.id}/deliver`, {
         received_by: receivedBy, id_number_seen: idSeen,
+        collected: signing.cod_amount
+          ? (collected === "" ? signing.cod_amount : Number(collected))
+          : null,
       });
       toast.ok(`${signing.waybill_number} signed for by ${receivedBy}.`);
-      setSigning(null); setReceivedBy(""); setIdSeen("");
+      setSigning(null); setReceivedBy(""); setIdSeen(""); setCollected("");
       load();
     } catch (e: any) {
       toast.error(errorText(e));
@@ -143,7 +168,8 @@ export default function Deliveries() {
             <thead>
               <tr>
                 <th>Waybill</th><th>Recipient</th><th>Address</th>
-                <th>Driver</th><th>Raised</th><th className="actions" />
+                <th>Driver</th><th className="num">To collect</th>
+                <th>Raised</th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -174,13 +200,47 @@ export default function Deliveries() {
                     {w.address}
                     {w.instructions && <div className="muted small">{w.instructions}</div>}
                   </td>
-                  <td>{w.driver || <span className="muted">—</span>}</td>
+                  <td>
+                    {/* The driver's name opens the driver. It was a string
+                        that led nowhere, which is no use when the question is
+                        "ring them" or "what else are they carrying". */}
+                    {w.driver_profile_id
+                      ? <EntityLink kind="driver" id={w.driver_profile_id}>
+                          {w.driver}
+                        </EntityLink>
+                      : w.driver || <span className="muted">—</span>}
+                    {w.driver_phone && (
+                      <div className="muted small">{w.driver_phone}</div>
+                    )}
+                  </td>
+                  <td className="num mono">
+                    {w.cod_amount
+                      ? <>
+                          {money(w.cod_amount)}
+                          {w.delivery_fee > 0 && (
+                            <div className="muted small">
+                              incl. {money(w.delivery_fee)} delivery
+                            </div>
+                          )}
+                        </>
+                      : w.delivery_fee
+                        ? <span className="muted small">
+                            {money(w.delivery_fee)} fee
+                          </span>
+                        : <span className="muted">—</span>}
+                    {w.cod_collected > 0 && !w.cod_settled_at && (
+                      <div><span className="badge warn">
+                        {money(w.cod_collected)} not handed in
+                      </span></div>
+                    )}
+                  </td>
                   <td>{fmtDateTime(w.created_at)}</td>
                   <RowActions>
                     {w.status === "pending" && (
-                      <BusyButton className="btn primary sm" onClick={() => dispatch(w)}>
+                      <button className="btn primary sm"
+                        onClick={() => { setSending(w); setDriverId(""); }}>
                         Send out
-                      </BusyButton>
+                      </button>
                     )}
                     {w.status === "out" && (
                       <button className="btn primary sm" onClick={() => setSigning(w)}>
@@ -205,7 +265,7 @@ export default function Deliveries() {
                 </RowLink>
               ))}
               {!list.length && !loading && (
-                <tr><td colSpan={6} className="muted pad">Nothing here.</td></tr>
+                <tr><td colSpan={7} className="muted pad">Nothing here.</td></tr>
               )}
             </tbody>
           </table>
@@ -238,6 +298,24 @@ export default function Deliveries() {
                 <input value={idSeen} onChange={(e) => setIdSeen(e.target.value)} />
               </label>
             )}
+            {signing.cod_amount > 0 && (
+              <>
+                <label>
+                  Collected at the door
+                  <input type="number" step="0.01" value={collected}
+                    onChange={(e) => setCollected(e.target.value)}
+                    placeholder={signing.cod_amount.toFixed(2)} />
+                </label>
+                <p className="muted small">
+                  {money(signing.cod_amount)} to collect
+                  {signing.delivery_fee > 0
+                    && `, including ${money(signing.delivery_fee)} for the delivery`}.
+                  This stays with the driver until the round is handed in — it
+                  is not counted against the counter's till, because it is not
+                  in the counter's till.
+                </p>
+              </>
+            )}
             <div className="modal-actions">
               <button className="btn ghost" onClick={() => setSigning(null)}>Cancel</button>
               <button className="btn primary"
@@ -246,6 +324,55 @@ export default function Deliveries() {
                 onClick={sign}>
                 Delivered
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sending && (
+        <div className="modal-backdrop" onClick={() => setSending(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Send out {sending.waybill_number}</h2>
+            <p className="muted">
+              To {sending.recipient} · {sending.address}
+            </p>
+            {sending.cod_amount > 0 && (
+              <p className="alert warn">
+                The driver is to collect {money(sending.cod_amount)} at the door
+                {sending.delivery_fee > 0
+                  && `, of which ${money(sending.delivery_fee)} is the delivery fee`}.
+              </p>
+            )}
+            <label>
+              Driver
+              <Select
+                value={driverId}
+                onChange={setDriverId}
+                options={[
+                  { value: "", label: "Not assigned yet" },
+                  ...drivers.map((d) => ({
+                    value: String(d.id),
+                    // Said here rather than only in the refusal, so nobody
+                    // picks a name and then finds out why they cannot.
+                    label: d.full_name
+                      + (d.licence_expired ? " · licence expired" : "")
+                      + (d.over_cod_limit ? " · over cash limit" : ""),
+                  })),
+                ]}
+              />
+            </label>
+            {!drivers.length && (
+              <p className="muted small">
+                No drivers are set up. A delivery can still go out unassigned,
+                but nothing then records who had it.
+              </p>
+            )}
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setSending(null)}>Cancel</button>
+              <BusyButton className="btn primary" onClick={dispatch}
+                busyLabel="Sending…">
+                Send out
+              </BusyButton>
             </div>
           </div>
         </div>

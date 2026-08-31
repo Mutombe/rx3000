@@ -64,6 +64,9 @@ def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> No
                 db, sale, method=line.method,
                 currency_code=line.currency_code or currency.base_code(),
                 amount=line.amount, reference=line.reference,
+                # The till has known which wallet since the day the mobile
+                # money screen was built. It just had nowhere to put it.
+                instrument=getattr(line, "instrument", "") or getattr(line, "wallet", ""),
             )
             collected += tender.amount_in_base
 

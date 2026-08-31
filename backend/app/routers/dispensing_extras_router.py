@@ -16,9 +16,11 @@ from .periods_router import require_step_up
 from ..config import settings
 from ..database import get_db
 from ..models import (
-    MedicalAid, Patient, Prescription, Product, Sale, User, Waybill,
+    Driver, MedicalAid, Patient, Prescription, Product, Sale, Shift, User,
+    Waybill,
 )
-from ..services import pricing, branches, churn, repeat_performance
+from ..services import (pricing, branches, churn, deliveries as delivery_svc,
+                        repeat_performance)
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -82,18 +84,7 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
 # ---------------------------------------------------------------------------
 
 def _row(w: Waybill) -> dict:
-    return {
-        "id": w.id, "waybill_number": w.waybill_number, "status": w.status,
-        "sale_id": w.sale_id, "patient_id": w.patient_id,
-        "recipient": w.recipient, "address": w.address, "phone": w.phone,
-        "instructions": w.instructions,
-        "driver": w.driver.full_name if w.driver else "",
-        "received_by": w.received_by, "failure_reason": w.failure_reason,
-        "requires_id_check": w.requires_id_check, "id_number_seen": w.id_number_seen,
-        "created_at": w.created_at, "dispatched_at": w.dispatched_at,
-        "delivered_at": w.delivered_at,
-        "created_by": w.created_by.full_name if w.created_by else "",
-    }
+    return delivery_svc.waybill_row(w)
 
 
 @router.post("/waybills")
@@ -101,6 +92,9 @@ def create_waybill(sale_id: int | None = Body(default=None),
                    patient_id: int | None = Body(default=None),
                    recipient: str = Body(default=""), address: str = Body(default=""),
                    phone: str = Body(default=""), instructions: str = Body(default=""),
+                   delivery_fee: float = Body(default=0.0),
+                   cod_amount: float | None = Body(default=None),
+                   driver_profile_id: int | None = Body(default=None),
                    db: Session = Depends(get_db),
                    user: User = Depends(get_current_user)):
     """Raise a delivery note for a dispensed sale."""
@@ -136,6 +130,18 @@ def create_waybill(sale_id: int | None = Body(default=None),
         instructions=instructions,
         requires_id_check=controlled,
         created_by_id=user.id,
+        delivery_fee=round(float(delivery_fee or 0), 2),
+        driver_profile_id=driver_profile_id,
+        # What the driver is to collect at the door. Given outright where the
+        # caller knows; otherwise taken from the sale, because a delivery
+        # against an unpaid sale IS a cash-on-delivery whether or not anybody
+        # typed the figure -- and a driver sent out without knowing what to ask
+        # for comes back with nothing.
+        cod_amount=round(float(
+            cod_amount if cod_amount is not None
+            else (sale.total or 0.0) + float(delivery_fee or 0)
+            if sale is not None and sale.status in ("pending", "part_paid")
+            else 0.0), 2),
     )
     db.add(waybill)
     db.commit()
@@ -144,11 +150,94 @@ def create_waybill(sale_id: int | None = Body(default=None),
 
 
 @router.get("/waybills")
-def list_waybills(status: str = "", limit: int = 200, db: Session = Depends(get_db)):
-    query = db.query(Waybill)
+def list_waybills(status: str = "", driver_id: int | None = None,
+                  limit: int = 200, db: Session = Depends(get_db)):
+    query = db.query(Waybill).options(
+        joinedload(Waybill.patient), joinedload(Waybill.driver_profile),
+        joinedload(Waybill.driver), joinedload(Waybill.created_by))
     if status:
         query = query.filter(Waybill.status == status)
+    if driver_id:
+        query = query.filter(Waybill.driver_profile_id == driver_id)
     return [_row(w) for w in query.order_by(desc(Waybill.created_at)).limit(limit).all()]
+
+
+@router.get("/deliveries/on-the-road")
+def deliveries_on_the_road(db: Session = Depends(get_db)):
+    """Who is out, for how long, and holding how much.
+
+    Deliberately above the parameterised waybill route: a path that starts with
+    a word gets shadowed by one that takes an id, and the endpoint answers 422
+    "not a valid integer" for the rest of its life.
+    """
+    return delivery_svc.on_the_road(db)
+
+
+# ---------------------------------------------------------------------------
+# Drivers
+# ---------------------------------------------------------------------------
+
+@router.get("/drivers")
+def list_drivers(include_retired: bool = False, db: Session = Depends(get_db)):
+    return delivery_svc.drivers(db, include_retired=include_retired)
+
+
+@router.post("/drivers")
+def create_driver(body: dict = Body(...), db: Session = Depends(get_db)):
+    driver = Driver()
+    try:
+        delivery_svc.save_driver(db, driver, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.add(driver)
+    db.commit()
+    db.refresh(driver)
+    return delivery_svc.driver_row(db, driver)
+
+
+@router.get("/drivers/{driver_id}")
+def get_driver(driver_id: int, db: Session = Depends(get_db)):
+    driver = db.get(Driver, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return delivery_svc.driver_row(db, driver, deep=True)
+
+
+@router.put("/drivers/{driver_id}")
+def update_driver(driver_id: int, body: dict = Body(...),
+                  db: Session = Depends(get_db)):
+    driver = db.get(Driver, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    try:
+        delivery_svc.save_driver(db, driver, body)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return delivery_svc.driver_row(db, driver, deep=True)
+
+
+@router.delete("/drivers/{driver_id}")
+def retire_driver(driver_id: int, db: Session = Depends(get_db)):
+    """Retired, never deleted.
+
+    A driver's name is on every waybill they ever carried, and those are the
+    record of who had a controlled substance and when. Deleting the row does
+    not remove the deliveries -- it removes the ability to say who made them.
+    """
+    driver = db.get(Driver, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    holding = delivery_svc.driver_row(db, driver)
+    if holding["cash_holding"] or holding["out"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{driver.full_name} is out with {holding['out']} "
+                   f"delivery(ies) and holding {holding['cash_holding']:.2f}. "
+                   f"Settle the round before retiring the driver.")
+    driver.active = False
+    db.commit()
+    return {"ok": True, "message": f"{driver.full_name} retired."}
 
 
 @router.get("/waybills/{waybill_id}")
@@ -160,23 +249,56 @@ def get_waybill(waybill_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/waybills/{waybill_id}/dispatch")
-def dispatch(waybill_id: int, driver_id: int | None = Body(default=None, embed=True),
+def dispatch(waybill_id: int, driver_id: int | None = Body(default=None),
+             driver_profile_id: int | None = Body(default=None),
              db: Session = Depends(get_db)):
     w = db.get(Waybill, waybill_id)
     if not w:
         raise HTTPException(status_code=404, detail="Waybill not found")
     if w.status != "pending":
         raise HTTPException(status_code=400, detail=f"Waybill is {w.status}, not pending.")
+
+    driver = db.get(Driver, driver_profile_id) if driver_profile_id else None
+    if driver_profile_id and not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    if driver:
+        # An expired licence is a driver who should not be on the road, and
+        # nobody finds that out from a filing cabinet at half past four.
+        if driver.licence_expiry and driver.licence_expiry < date.today():
+            raise HTTPException(
+                status_code=400,
+                detail=f"{driver.full_name}: licence expired on "
+                       f"{driver.licence_expiry:%d %b %Y}. Renew it or send "
+                       f"somebody else.")
+        if not driver.active:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{driver.full_name} is retired and cannot be sent out.")
+        row = delivery_svc.driver_row(db, driver)
+        going_out = round(row["cash_holding"] + (w.cod_amount or 0.0), 2)
+        if driver.cod_limit and going_out > driver.cod_limit:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{driver.full_name} would be carrying {going_out:.2f} "
+                       f"against a limit of {driver.cod_limit:.2f}. Have them "
+                       f"hand in what they are holding first.")
+        w.driver_profile_id = driver.id
+        if driver.user_id:
+            w.driver_id = driver.user_id
+    if driver_id:
+        w.driver_id = driver_id
     w.status = "out"
-    w.driver_id = driver_id
     w.dispatched_at = datetime.utcnow()
     db.commit()
     return _row(w)
 
 
 @router.post("/waybills/{waybill_id}/deliver")
-def deliver(waybill_id: int, received_by: str = Body(..., embed=True),
-            id_number_seen: str = Body(default="", embed=True),
+def deliver(waybill_id: int, received_by: str = Body(...),
+            id_number_seen: str = Body(default=""),
+            collected: float | None = Body(default=None),
+            cod_instrument: str = Body(default="cod"),
+            cod_reference: str = Body(default=""),
             db: Session = Depends(get_db)):
     """Close a delivery. Somebody has to have signed for it."""
     w = db.get(Waybill, waybill_id)
@@ -194,12 +316,78 @@ def deliver(waybill_id: int, received_by: str = Body(..., embed=True),
             status_code=400,
             detail="This delivery contains a controlled substance. The recipient's "
                    "identity must be verified at the door and recorded.")
+    # What came back with the driver. Recorded against the delivery, not into
+    # a till: the money is on a motorbike until somebody hands it in, and a
+    # cashier counted against it is short by the size of the round.
+    if w.cod_amount or collected is not None:
+        try:
+            delivery_svc.collect(
+                db, w, amount=(w.cod_amount if collected is None else collected),
+                instrument=cod_instrument, reference=cod_reference)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     w.status = "delivered"
     w.received_by = received_by.strip()
     w.id_number_seen = id_number_seen.strip()
     w.delivered_at = datetime.utcnow()
     db.commit()
     return _row(w)
+
+
+@router.post("/deliveries/hand-in")
+def hand_in(driver_profile_id: int = Body(...),
+            shift_id: int | None = Body(default=None),
+            counted: float | None = Body(default=None),
+            db: Session = Depends(get_db),
+            user: User = Depends(get_current_user)):
+    """A driver hands the round in and the money becomes the till's.
+
+    Counted, not assumed. The whole reason to count at a hand-over is that the
+    two figures sometimes differ; a system that quietly writes the expected
+    figure over the counted one has thrown away the only fact worth keeping.
+    """
+    driver = db.get(Driver, driver_profile_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+
+    shift = db.get(Shift, shift_id) if shift_id else (
+        db.query(Shift).filter(Shift.user_id == user.id,
+                               Shift.status == "open")
+        .order_by(desc(Shift.opened_at)).first())
+    if not shift:
+        raise HTTPException(
+            status_code=400,
+            detail="Money handed in has to land in an open till. Open a shift "
+                   "first, or say which one is receiving it.")
+    if shift.status != "open":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Till {shift.till_no or shift.id} is already cashed up. "
+                   f"Handing money into a closed run puts it in a "
+                   f"reconciliation somebody has already signed.")
+
+    outstanding = (
+        db.query(Waybill)
+        .filter(Waybill.driver_profile_id == driver.id,
+                Waybill.cod_settled_at.is_(None),
+                Waybill.cod_collected > 0).all())
+    if not outstanding:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{driver.full_name} is not holding anything to hand in.")
+
+    result = delivery_svc.settle(db, outstanding, shift, counted=counted)
+    db.commit()
+    result["driver"] = driver.full_name
+    short = result["variance"]
+    result["message"] = (
+        f"{driver.full_name} handed in {result['handed_in']:.2f} from "
+        f"{result['deliveries']} delivery(ies) into till "
+        f"{shift.till_no or shift.id}."
+        + (f" Short by {abs(short):.2f} - recorded." if short < -0.005 else
+           f" Over by {short:.2f} - recorded." if short > 0.005 else ""))
+    return result
 
 
 @router.post("/waybills/{waybill_id}/fail")

@@ -1364,6 +1364,12 @@ class SaleTender(Base, TenantMixin):
     amount_in_base = Column(Float, default=0.0)
     is_change = Column(Boolean, default=False)       # change given back, held as a negative tender
     reference = Column(String(60), default="")       # auth code, EcoCash reference…
+    # WHICH ecocash, WHICH bank. The wallet used to be parsed back out of the
+    # first word of `reference`, which meant a cashier typing "Ecocash-0779"
+    # moved the money to a wallet the pharmacy does not have — silently, and
+    # only on the screen that did the parsing. It is a fact about the payment,
+    # so it is a column. See PaymentInstrument.
+    instrument = Column(String(30), default="", index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     sale = relationship("Sale", back_populates="tenders")
@@ -1897,11 +1903,101 @@ class Waybill(Base, TenantMixin):
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     dispatched_at = Column(DateTime, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+
+    # ---- what the round is worth, and what comes back from it ------------
+    #
+    # A delivery moves two sums of money and the shop needs both. The fee is
+    # revenue the pharmacy earns for driving; the COD is the sale itself, paid
+    # at the door instead of at the counter. Neither was recorded anywhere, so
+    # a shop running twenty deliveries a day could not say what delivering cost
+    # it, what it charged for it, or how much of its takings was in a driver's
+    # pocket rather than in a till.
+    delivery_fee = Column(Float, default=0.0)
+    #: What the driver is to collect. Zero on a delivery already paid for.
+    cod_amount = Column(Float, default=0.0)
+    #: What the driver actually came back with. Not the same figure — that is
+    #: the entire point of recording both.
+    cod_collected = Column(Float, default=0.0)
+    cod_instrument = Column(String(30), default="")
+    cod_reference = Column(String(60), default="")
+    #: Handed in and reconciled. Until this is set, the money is on the road,
+    #: which is why it must not be counted against the counter's drawer.
+    cod_settled_at = Column(DateTime, nullable=True)
+    cod_shift_id = Column(Integer, ForeignKey("shifts.id"), nullable=True, index=True)
+
+    #: The driver as a person the pharmacy employs or contracts, which is not
+    #: the same as a login. See Driver.
+    driver_profile_id = Column(Integer, ForeignKey("drivers.id"),
+                               nullable=True, index=True)
 
     sale = relationship("Sale")
     patient = relationship("Patient")
     driver = relationship("User", foreign_keys=[driver_id])
     created_by = relationship("User", foreign_keys=[created_by_id])
+    driver_profile = relationship("Driver", back_populates="waybills")
+
+    @property
+    def cod_outstanding(self) -> float:
+        """What this delivery still owes the shop."""
+        if self.cod_settled_at:
+            return 0.0
+        return round((self.cod_amount or 0.0) - (self.cod_collected or 0.0), 2)
+
+
+class Driver(Base, TenantMixin):
+    """Somebody who carries medicine out of the shop.
+
+    A driver was a foreign key to `users`, which meant a driver had to be a
+    person with a login — and most are not. The runner on the motorbike does
+    not use the dispensing system, the courier the shop uses on Saturdays is
+    not staff at all, and neither should need a seat licence to be named on a
+    waybill.
+
+    It also meant there was nowhere to keep the things you actually need about
+    a driver: which vehicle, whose licence, whether it is still valid, what
+    their phone number is when a patient has been waiting two hours. And no way
+    to ask the questions a delivery operation is run on — who is out right now,
+    who is holding cash, whose deliveries fail.
+
+    The `user_id` link stays optional. A driver who is also a staff member gets
+    one; a contractor does not.
+    """
+    __tablename__ = "drivers"
+    id = Column(Integer, primary_key=True)
+    code = Column(String(20), default="", index=True)
+    full_name = Column(String(120), nullable=False)
+    phone = Column(String(30), default="")
+    alternate_phone = Column(String(30), default="")
+    national_id = Column(String(30), default="")
+
+    #: A staff driver has a login; a contracted one does not.
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+
+    #: motorbike | car | van | bicycle | on_foot
+    vehicle_type = Column(String(20), default="motorbike")
+    vehicle_registration = Column(String(20), default="")
+    licence_number = Column(String(40), default="")
+    #: A licence that expired last month is a driver who should not be sent
+    #: out, and nobody finds that out from a filing cabinet.
+    licence_expiry = Column(Date, nullable=True)
+
+    #: Cash the driver holds to make change with on a round. Reconciled the
+    #: same way a till float is.
+    cash_float = Column(Float, default=0.0)
+    #: Above this in uncollected COD the driver should be back at the shop.
+    #: A round carrying eight hundred dollars is a different risk from one
+    #: carrying forty, and somebody should have set the line in advance.
+    cod_limit = Column(Float, default=0.0)
+
+    active = Column(Boolean, default=True, index=True)
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    branch = relationship("Branch", foreign_keys=[branch_id])
+    waybills = relationship("Waybill", back_populates="driver_profile")
 
 
 class Setting(Base):
@@ -2016,6 +2112,62 @@ class BranchTransfer(Base, TenantMixin):
     from_branch = relationship("Branch", foreign_keys=[from_branch_id])
     to_branch = relationship("Branch", foreign_keys=[to_branch_id])
     product = relationship("Product")
+
+
+class PaymentInstrument(Base, TenantMixin):
+    """One thing money can arrive on, named the way the pharmacy names it.
+
+    "Mobile money 119.00" is not a figure anybody can reconcile. EcoCash, Omari
+    and InnBucks are three different businesses that settle into three
+    different accounts on three different timetables, and the incumbent's own
+    cash-up sheet has a column for each — USD, EcoCash USD, Swipe USD, Swipe
+    ZWG, EcoCash ZWG — because that is what the bank statements look like.
+
+    The till already knew this and had nowhere to put it, so it wrote the
+    wallet into the front of the tender's free-text reference and the takings
+    screen read it back out by splitting on the first space. That works until
+    somebody types "Ecocash-0779", or a part payment writes "part payment"
+    into the same field, and then the money moves to a wallet nobody has, in
+    silence. An instrument is a fact about a payment, not a note about it.
+
+    A row rather than a constant because the list is not the same in two
+    pharmacies: one banks with CBZ and one with Stanbic, one takes InnBucks and
+    one does not, and a new wallet appearing in the market should not need a
+    release. Both the till and the cash-up read this table, which is the point
+    — they cannot disagree about what the columns are if there is only one list.
+    """
+    __tablename__ = "payment_instruments"
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "code", name="uq_instrument_code"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    code = Column(String(30), nullable=False, index=True)
+    name = Column(String(60), nullable=False)
+    #: Which of the coarse tender families this belongs to. The ledger and the
+    #: existing reports group on this, so it stays.
+    method = Column(String(20), default="cash", index=True)
+    #: Comma-separated currency codes this instrument can actually take.
+    #: InnBucks is USD only; offering ZiG on it produces a payment the customer
+    #: cannot make.
+    currencies = Column(String(60), default="")
+    #: Where it lands. A wallet number, a merchant code, a bank account — what
+    #: somebody needs in order to tick this column off against a statement.
+    settles_to = Column(String(120), default="")
+    #: Does this one physically sit in the drawer at close of trade? Cash does.
+    #: A swipe does not, and asking somebody to count it is how a cash-up comes
+    #: to be signed off without being read.
+    is_cash_drawer = Column(Boolean, default=False)
+    #: Money the driver collects at the door. Never in the till while the round
+    #: is out, and reconciled against the driver rather than the cashier.
+    is_delivery = Column(Boolean, default=False)
+    active = Column(Boolean, default=True, index=True)
+    sort_order = Column(Integer, default=100)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    @property
+    def currency_list(self) -> list:
+        return [c.strip().upper() for c in (self.currencies or "").split(",") if c.strip()]
 
 
 class PettyCash(Base, TenantMixin):

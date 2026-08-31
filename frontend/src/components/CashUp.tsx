@@ -21,20 +21,26 @@ import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
 import Select from "./Select";
 
-interface Tender { method: string; label: string }
+interface Tender {
+  method: string; instrument: string; label: string;
+  currencies: string[]; is_cash_drawer: boolean; is_delivery: boolean;
+}
 interface Setup {
   currencies: string[]; currency: string;
   denominations: number[]; tenders: Tender[];
 }
 interface Line {
-  method: string; label: string;
+  method: string; instrument: string; label: string; currency: string;
   counted: number; system: number; difference: number;
+  counted_in_drawer: boolean; is_delivery: boolean; unnamed: boolean;
 }
+interface OnRoad { label: string; currency: string; amount: number; count: number }
 interface Result {
   lines: Line[]; opening_float: number;
   expected_cash: number; counted_cash: number; cash_variance: number;
   total_counted: number; total_system: number; variance: number;
   unattributed: number;
+  on_the_road: OnRoad[]; on_the_road_total: number; unnamed_total: number;
   // Till / Run / Draw — what the run is keyed on, and what somebody quotes when
   // they come back to ask about it.
   till_no?: string | null; run_number?: number | null;
@@ -172,11 +178,25 @@ export default function CashUp(
               </tr>
             </thead>
             <tbody>
-              {result.lines.map((l) => {
+              {result.lines.filter(
+                (l) => l.counted || l.system || Math.abs(l.difference) >= 0.01,
+              ).map((l) => {
                 const off = Math.abs(l.difference) >= 0.01;
                 return (
-                  <tr key={l.method} className={off ? "is-off" : ""}>
-                    <td>{l.label}</td>
+                  <tr key={`${l.instrument || l.method}-${l.currency}`}
+                      className={off ? "is-off" : ""}>
+                    <td>
+                      {l.label}
+                      {/* The wallet or the bank is the whole point of the
+                          split — "Mobile money 119.00" is not something
+                          anybody can tick off against a statement. */}
+                      {l.currency && l.currency !== currency && (
+                        <span className="muted small"> · {l.currency}</span>
+                      )}
+                      {l.is_delivery && (
+                        <span className="muted small"> · on the road</span>
+                      )}
+                    </td>
                     <td className="st-amount mono">{money(l.counted)}</td>
                     <td className="st-amount mono">{money(l.system)}</td>
                     <td className={`st-amount mono${off ? " cu-diff" : ""}`}>
@@ -204,6 +224,31 @@ export default function CashUp(
               ? `The drawer is over by ${money(result.variance)}. Recorded against your name.`
               : `The drawer is short by ${money(Math.abs(result.variance))}. Recorded against your name.`}
         </p>
+
+        {result.on_the_road_total > 0 && (
+          // Beside the variance, not inside it. Cash on delivery is cash, and
+          // it is on a motorbike somewhere — counted against this drawer it
+          // tells a cashier they are short by the size of the round, and
+          // people stop reading variances they know are wrong.
+          <p className="st-note">
+            {money(result.on_the_road_total)} is out with drivers and not in
+            this drawer:{" "}
+            {result.on_the_road.map((r) => (
+              `${r.count} on ${r.label.toLowerCase()}`
+            )).join(", ")}. It lands in a till when the round is handed in.
+          </p>
+        )}
+
+        {result.unnamed_total > 0 && (
+          // Not an error and not hidden. The money is in the totals; it just
+          // cannot be matched to a wallet or a bank until whatever sent it is
+          // fixed, and saying so is how that gets fixed.
+          <p className="st-note is-bad">
+            {money(result.unnamed_total)} came in without an instrument, so it
+            is grouped under its payment type and cannot be ticked off against
+            a statement.
+          </p>
+        )}
 
         {result.unattributed > 0 && (
           // Named rather than absorbed. Money we cannot attribute to a tender
@@ -344,14 +389,20 @@ export default function CashUp(
 
       <h4 className="cu-section">Other tenders</h4>
       <div className="cu-others">
-        {setup.tenders.filter((t) => t.method !== "cash").map((t) => (
-          <label key={t.method} className="rr-param">
+        {/* The pharmacy's own instruments, from the same list the till offers.
+            Cash is counted by denomination above; anything a driver is holding
+            is not this drawer's to count and is left off entirely rather than
+            offered to somebody being helpful. */}
+        {setup.tenders.filter((t) => !t.is_cash_drawer && !t.is_delivery)
+          .map((t) => (
+          <label key={t.instrument} className="rr-param">
             <span>{t.label}</span>
             <input
               type="number"
               step="0.01"
-              value={others[t.method] ?? ""}
-              onChange={(e) => setOthers((o) => ({ ...o, [t.method]: e.target.value }))}
+              value={others[t.instrument] ?? ""}
+              onChange={(e) => setOthers(
+                (o) => ({ ...o, [t.instrument]: e.target.value }))}
               placeholder="0.00"
             />
           </label>

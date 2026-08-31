@@ -14,6 +14,23 @@ log = logging.getLogger("rx5000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    # Which EcoCash, which bank. Used to be parsed back out of the front of the
+    # tender's free-text reference, which is not a data model.
+    "sale_tenders": {
+        "instrument": "VARCHAR(30) DEFAULT ''",
+    },
+    # Money the driver collects at the door, and what the round is worth.
+    "waybills": {
+        "delivery_fee": "FLOAT DEFAULT 0",
+        "cod_amount": "FLOAT DEFAULT 0",
+        "cod_collected": "FLOAT DEFAULT 0",
+        "cod_instrument": "VARCHAR(30) DEFAULT ''",
+        "cod_reference": "VARCHAR(60) DEFAULT ''",
+        "cod_settled_at": "DATETIME",
+        "cod_shift_id": "INTEGER",
+        "driver_profile_id": "INTEGER",
+        "branch_id": "INTEGER",
+    },
     "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0"},
     # Till PINs. Nullable throughout: every user that existed before this has no
     # PIN, and the password path has to keep working for them rather than
@@ -589,6 +606,89 @@ def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
     return moved
 
 
+def _name_the_instruments(conn, inspector, existing_tables: set) -> int:
+    """Give every pharmacy the instrument list, and name the tenders already on file.
+
+    Two things, both one-off.
+
+    The list itself: without it the cash-up has no columns and every pharmacy
+    that upgrades sees a blank sheet. Seeded per pharmacy rather than globally
+    because one banks with CBZ and one with Stanbic, and the list is theirs to
+    change afterwards.
+
+    Then the history. Years of tenders carry the wallet in the front of their
+    reference — "EcoCash 0779…", "Stanbic ••4417" — because that is where the
+    till had to put it. Those are read once, here, and written into the column
+    where they belong. Anything that cannot be read confidently is **left
+    empty**: it shows in the cash-up under its family, which is what it did
+    before, rather than being assigned to a wallet it may never have been on.
+    A wrong attribution is worse than a missing one — somebody goes looking for
+    money in a statement it was never in.
+    """
+    if "payment_instruments" not in existing_tables or "pharmacies" not in existing_tables:
+        return 0
+    from .services.instruments import DEFAULTS
+
+    applied = 0
+    pharmacies = [r[0] for r in conn.execute(text("SELECT id FROM pharmacies")).all()]
+    have = {(r[0], r[1]) for r in conn.execute(
+        text("SELECT pharmacy_id, code FROM payment_instruments")).all()}
+    for pharmacy_id in pharmacies:
+        for code, name, method, currencies, drawer, delivery, order in DEFAULTS:
+            if (pharmacy_id, code) in have:
+                continue
+            conn.execute(text(
+                "INSERT INTO payment_instruments "
+                "(pharmacy_id, code, name, method, currencies, settles_to, "
+                " is_cash_drawer, is_delivery, active, sort_order) "
+                "VALUES (:p, :c, :n, :m, :cur, '', :d, :dl, :a, :o)"),
+                {"p": pharmacy_id, "c": code, "n": name, "m": method,
+                 "cur": currencies, "d": _true(conn, drawer),
+                 "dl": _true(conn, delivery), "a": _true(conn, True), "o": order})
+            applied += 1
+
+    if "sale_tenders" not in existing_tables:
+        return applied
+    columns = {c["name"] for c in inspector.get_columns("sale_tenders")}
+    if "instrument" not in columns:
+        return applied
+
+    # Only rows that have not been named yet, and only where the reference
+    # begins with something that matches an instrument this pharmacy has.
+    named = 0
+    rows = conn.execute(text(
+        "SELECT id, pharmacy_id, method, currency_code, reference "
+        "FROM sale_tenders "
+        "WHERE (instrument IS NULL OR instrument = '') "
+        "  AND reference IS NOT NULL AND reference != ''")).all()
+    lookup: dict[int, dict] = {}
+    for pharmacy_id, code, name in conn.execute(text(
+            "SELECT pharmacy_id, code, name FROM payment_instruments")).all():
+        lookup.setdefault(pharmacy_id, {})[code.replace("_", "")] = code
+        lookup[pharmacy_id][name.lower().replace(" ", "")] = code
+    for tender_id, pharmacy_id, method, code, reference in rows:
+        first = (reference or "").strip().split(" ")[0].strip("-:").lower()
+        squashed = first.replace("-", "").replace("_", "")
+        found = lookup.get(pharmacy_id, {}).get(squashed)
+        if not found and method == "cash" and code:
+            found = lookup.get(pharmacy_id, {}).get(f"cash{code.lower()}")
+        if not found:
+            continue
+        conn.execute(text("UPDATE sale_tenders SET instrument = :i WHERE id = :t"),
+                     {"i": found, "t": tender_id})
+        named += 1
+    if named:
+        log.info("Named the instrument on %s existing tenders", named)
+    return applied + named
+
+
+def _true(conn, value: bool):
+    """TRUE and 1 are not the same thing to Postgres, and 1 is what broke it."""
+    if conn.dialect.name == "sqlite":
+        return 1 if value else 0
+    return bool(value)
+
+
 def _create_indexes(conn, inspector, existing_tables: set) -> int:
     """Add the indexes the queries actually need.
 
@@ -744,6 +844,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
+        applied += _name_the_instruments(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
     # The tidying passes run in their own transactions, and a failure in one is
