@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 from ..models import (
     CounterMessage as Message, MessageAcknowledgement, Patient, Product,
 )
+from . import conditions, refill_timing
 
 SEVERITIES = ("info", "warn", "stop")
 _RANK = {"stop": 0, "warn": 1, "info": 2}
@@ -172,6 +173,18 @@ def for_dispensing(db: Session, *, patient_id: int | None = None,
             or_(Message.target_id == patient.id, Message.target_id.is_(None)))).all()
         out += [_row(m, "patient") for m in rows]
         out += _allergy_rows(db, patient, products)
+        # What the patient is recorded as living with, against what is being
+        # handed over. The field existed, the picker offered Pregnancy and
+        # Breastfeeding as its own entries, a pharmacist filled it in because
+        # they knew it mattered — and nothing on the dispensing path read it.
+        # Recorded and ignored is the worst shape a safety gap takes: the hard
+        # part was already done.
+        out += conditions.check(db, patient, products)
+        # Collected materially before it is due. Every fact needed to ask was
+        # already on file — when it last went out, how long that was meant to
+        # last — and nothing asked. On a schedule 5 that question is the whole
+        # reason a controlled register is kept.
+        out += refill_timing.check(db, patient, products)
         aid_id = medical_aid_id or patient.medical_aid_id
     else:
         aid_id = medical_aid_id

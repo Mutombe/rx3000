@@ -95,6 +95,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "finalised_at": "DATETIME",
     },
     "sale_items": {
+        # A customer bringing one of four things back. Void and the fiscal
+        # credit note both take back the whole sale, so this was done on paper
+        # and the stock drifted.
+        "quantity_returned": "INTEGER DEFAULT 0",
         "unit_cost": "FLOAT DEFAULT 0",
         "prescription_item_id": "INTEGER",
     },

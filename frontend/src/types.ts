@@ -140,6 +140,8 @@ export interface SaleItem {
   unit_price: number;
   vat_rate: number;
   line_total: number;
+  /** How much of this line has already come back over the counter. */
+  quantity_returned?: number;
 }
 
 export interface Sale {

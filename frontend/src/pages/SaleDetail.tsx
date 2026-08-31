@@ -12,6 +12,7 @@ import { usePharmacy } from "../hooks/usePharmacy";
 import { ArrowLeft, ArrowUUpLeft, Receipt, UserCircle } from "@phosphor-icons/react";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useConfirm } from "../components/Confirm";
+import ReturnLines from "../components/ReturnLines";
 import { useToast } from "../components/Toast";
 
 /** What the tax authority holds against this sale. */
@@ -26,6 +27,7 @@ export default function SaleDetail() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
+  const [returning, setReturning] = useState(false);
   const { guarded, prompt } = useStepUp();
   const confirm = useConfirm();
   const toast = useToast();
@@ -182,6 +184,17 @@ export default function SaleDetail() {
               <UserCircle size={14} weight="bold" /> Put on account
             </button>
           )}
+          {/* Part of it, rather than all of it. A customer bringing one of
+              four things back had no route through this screen: both buttons
+              beside it reverse the whole sale, so the till reversed all four
+              and rang three up again — new receipt number, claim reversed,
+              loyalty earned twice. It was done on paper instead, and the
+              stock drifted. */}
+          {!reversed && sale.status === "paid" && (sale.items?.length ?? 0) > 0 && (
+            <button className="btn secondary" onClick={() => setReturning(true)}>
+              <ArrowUUpLeft size={13} weight="bold" /> Return part
+            </button>
+          )}
           {!reversed && (
             <button className="btn danger" onClick={reverse}>
               <ArrowUUpLeft size={13} weight="bold" />
@@ -291,6 +304,11 @@ export default function SaleDetail() {
 
       <DataTable columns={cols} rows={sale.items} rowKey={(i) => i.id} totals
         empty="This sale has no lines" />
+      {returning && sale && (
+        <ReturnLines saleId={sale.id} items={sale.items ?? []}
+          onClose={() => setReturning(false)}
+          onDone={load} />
+      )}
       {prompt}
     </>
   );

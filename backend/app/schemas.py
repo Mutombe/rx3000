@@ -538,6 +538,9 @@ class SaleItemOut(ORM):
     unit_cost: float = 0.0
     vat_rate: float
     line_total: float
+    # How much of this line has come back over the counter, so the return
+    # screen cannot offer more than is left and the sale reads honestly.
+    quantity_returned: int = 0
     # Which script line this came from, where there was one. Exposed because a
     # sale that cannot be traced to what was prescribed cannot be queried, and
     # the per-line billing decisions live on the script.

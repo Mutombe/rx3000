@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -576,6 +576,59 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
 # screens use /api/claiming/* and /api/claims/*, which page, filter, batch and
 # settle — everything this could not do. An unfiltered list of a table that
 # grows forever is a wrong answer waiting for the pharmacy to get busy.
+
+@router.post("/sales/{sale_id}/return")
+def return_lines(sale_id: int,
+                 lines: list[dict] = Body(default_factory=list),
+                 apply: bool = Body(default=False),
+                 reason: str = Body(default=""),
+                 restock: bool = Body(default=True),
+                 db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
+    """Take part of a sale back.
+
+    Preview first. A return moves money and stock at once and both are awkward
+    to undo, so nothing is written until somebody has read what would happen.
+
+    Everything coming back is a full reversal and has its own route — void, or
+    a credit note where the receipt has been filed. This says so rather than
+    quietly doing something subtly different from either.
+    """
+    from ..services import returns
+
+    sale = db.get(Sale, sale_id)
+    if not sale:
+        raise HTTPException(status_code=404, detail="Sale not found")
+    if sale.status in ("void", "credited"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"This sale is already {sale.status} — there is nothing "
+                   f"left on it to return.")
+    if sale.status == "pending":
+        raise HTTPException(
+            status_code=400,
+            detail="This sale has not been paid for yet. Take the line off the "
+                   "sale rather than returning it.")
+
+    if not apply:
+        return returns.plan(db, sale, lines)
+
+    preview = returns.plan(db, sale, lines)
+    if preview["is_whole_sale"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Every line is coming back, which is a reversal of the "
+                   "whole sale. Void it, or issue a credit note if the receipt "
+                   "has been filed with ZIMRA — either keeps the claim and the "
+                   "loyalty points right, which a line-by-line return does not.")
+    try:
+        result = returns.apply(db, sale, lines, user_id=user.id,
+                               reason=reason, restock=restock)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return result
+
 
 @router.post("/sales/{sale_id}/transfer-to-account")
 def transfer_to_account(

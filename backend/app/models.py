@@ -719,6 +719,16 @@ class SaleItem(Base, TenantMixin):
     unit_price = Column(Float, default=0.0)   # inc VAT
     vat_rate = Column(Float, default=0.15)
     line_total = Column(Float, default=0.0)   # inc VAT
+    # How much of this line has come back over the counter.
+    #
+    # A customer returning one of four things was impossible: void and the
+    # fiscal credit note both take back the whole sale, so the pharmacy
+    # reversed all four and rang three up again — which changes the receipt
+    # number, reverses the claim, earns the loyalty points twice and counts the
+    # day's sales wrong in both directions. In practice it was done on paper,
+    # and the stock drifted. Held per line so a second return cannot take back
+    # more than was sold.
+    quantity_returned = Column(Integer, default=0)
     # What the goods cost *at the moment they were sold*. Frozen here rather
     # than read from the product later, because a product's cost price changes
     # every time stock is bought — and computing last month's margin from this
