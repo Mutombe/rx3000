@@ -718,6 +718,51 @@ def update_stock_category(category_id: int, body: dict, db: Session = Depends(ge
             "target_margin": cat.target_margin, "active": cat.active}
 
 
+@router.post("/stock-categories/tag")
+def tag_everything(apply: bool = Body(default=False, embed=True),
+                   retag: bool = Body(default=False, embed=True),
+                   db: Session = Depends(get_db),
+                   user: User = Depends(require_role("admin", "manager", "pharmacist"))):
+    """Put every product that has no department into one.
+
+    Preview first, always. A department is what every stock report groups on,
+    so placing four thousand products wrongly is worse than leaving them
+    unplaced — the totals would look right and be wrong.
+    """
+    from ..services import stock_tagging
+
+    if user.pharmacy_id is None:
+        raise HTTPException(400, "This account belongs to no pharmacy.")
+    return stock_tagging.tag(db, pharmacy_id=user.pharmacy_id,
+                             apply=apply, retag=retag)
+
+
+@router.get("/stock-categories/unplaced")
+def unplaced_products(limit: int = 200, db: Session = Depends(get_db)):
+    """Products in no department, worth most first.
+
+    The ones the rules cannot place are not a failure to be hidden — they are a
+    short list somebody can work down, and the value on the shelf says which to
+    do first.
+    """
+    rows = (db.query(Product)
+            .filter(Product.active, Product.category_id.is_(None))
+            .order_by((Product.quantity_on_hand * Product.cost_price).desc())
+            .limit(limit).all())
+    total = (db.query(func.count(Product.id))
+             .filter(Product.active, Product.category_id.is_(None)).scalar())
+    return {
+        "total": int(total or 0),
+        "showing": len(rows),
+        "items": [{
+            "id": p.id, "name": f"{p.name} {p.strength or ''}".strip(),
+            "stock_code": p.stock_code or "", "schedule": p.schedule or 0,
+            "on_hand": p.quantity_on_hand or 0,
+            "value": round((p.quantity_on_hand or 0) * (p.cost_price or 0.0), 2),
+        } for p in rows],
+    }
+
+
 @router.post("/products/{product_id}/category")
 def tag_product(product_id: int, body: dict, db: Session = Depends(get_db),
                 _: User = Depends(require_role("admin", "manager", "pharmacist"))):
