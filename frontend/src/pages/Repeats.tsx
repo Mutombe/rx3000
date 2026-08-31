@@ -15,6 +15,7 @@ import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
+import RepeatValue from "../components/RepeatValue";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Checkbox from "../components/Checkbox";
@@ -285,6 +286,11 @@ export default function Repeats() {
                 <thead>
                   <tr>
                     <th>Patient</th><th>Medicine</th><th>Due</th>
+                    {/* The row already carried this figure and the table never
+                        showed it — while the comment below said the question
+                        being asked is "what is it worth". A queue without money
+                        cannot be worked in the order that pays. */}
+                    <th className="num">Worth</th>
                     <th className="num">Repeats left</th>
                     <th className="num">In stock</th><th className="actions" /></tr>
                 </thead>
@@ -325,6 +331,10 @@ export default function Repeats() {
                             {i.days_overdue} days overdue
                           </span></div>
                         )}
+                      </td>
+                      <td className="num">
+                        <RepeatValue value={i.value}
+                          remaining={i.value * i.repeats_left} />
                       </td>
                       <td className="num">{i.repeats_left} of {i.repeats_allowed}</td>
                       <td className="num">{i.in_stock}</td>

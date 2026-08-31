@@ -450,6 +450,87 @@ def create_supplier(body: schemas.SupplierBase, db: Session = Depends(get_db)):
     return supplier
 
 
+@router.put("/suppliers/{supplier_id}", response_model=schemas.SupplierOut)
+def update_supplier(supplier_id: int, body: dict = Body(...),
+                    db: Session = Depends(get_db),
+                    _: User = Depends(require_role("admin", "manager"))):
+    """Correct a supplier.
+
+    Suppliers could be created and listed and never changed. A wholesaler
+    changes its bank account — which they do, and which is exactly the message
+    a fraudster imitates — and the pharmacy had nowhere to record the new one
+    except a note beside the old one. A payment made against a stale account
+    number is not a data-entry problem.
+    """
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    if "name" in body:
+        name = str(body["name"] or "").strip()
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="A supplier needs a name — it is on every order and "
+                       "every invoice they send.")
+        supplier.name = name[:160]
+    for field, width in (("contact_person", 120), ("phone", 30), ("email", 120),
+                         ("account_number", 60), ("payment_terms", 60),
+                         ("notes", 400)):
+        if field in body and hasattr(supplier, field):
+            setattr(supplier, field, str(body[field] or "").strip()[:width])
+    if "active" in body and hasattr(supplier, "active"):
+        supplier.active = bool(body["active"])
+    db.commit()
+    db.refresh(supplier)
+    return supplier
+
+
+@router.delete("/suppliers/{supplier_id}")
+def retire_supplier(supplier_id: int, db: Session = Depends(get_db),
+                    _: User = Depends(require_role("admin", "manager"))):
+    """Retire a supplier. Never deleted — their name is on every order.
+
+    Refused while money is still owed. A supplier taken off the list with an
+    outstanding balance is a debt that stops appearing on the creditors ageing,
+    and a debt nobody can see is one nobody pays.
+    """
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+    if not hasattr(supplier, "active"):
+        raise HTTPException(
+            status_code=400,
+            detail="Suppliers on this database cannot be retired.")
+
+    # What is still owed, from the invoices themselves. Computed here rather
+    # than trusting a stored balance, because a stored balance is the thing
+    # that drifts and this is the one moment it must not.
+    from ..models import SupplierInvoice
+
+    # By status rather than by a paid-to-date column, because there is no such
+    # column: payments are allocated to invoices in their own table, and an
+    # invoice is "paid" when that allocation covers it. Summing the unsettled
+    # ones is the same question asked the way the schema answers it.
+    owed = float(
+        db.query(func.coalesce(func.sum(SupplierInvoice.total), 0.0))
+        .filter(SupplierInvoice.supplier_id == supplier.id,
+                SupplierInvoice.status.notin_(
+                    ("paid", "cancelled", "written_off")))
+        .scalar() or 0.0)
+    if owed and abs(owed) > 0.005:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{supplier.name} is still owed {owed:.2f}. Settle or write "
+                   f"it off first — retiring them takes the balance off the "
+                   f"creditors ageing, and a debt nobody can see is one nobody "
+                   f"pays.")
+    supplier.active = False
+    db.commit()
+    return {"ok": True, "message": f"{supplier.name} retired."}
+
+
+
 # ---------- purchase orders ----------
 # GET /orders was here: the same list capped at 100, superseded by
 # /orders/paged, which every screen uses. Two hundred and seventeen orders

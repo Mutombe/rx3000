@@ -14,6 +14,15 @@ log = logging.getLogger("rx5000.migrate")
 
 # table -> column -> DDL type (must be nullable / have a default for ALTER TABLE)
 ADDED_COLUMNS: dict[str, dict[str, str]] = {
+    # Suppliers and prescribers could be created and listed and never changed
+    # or retired. Bank details that cannot be corrected, and a struck-off
+    # prescriber who stays in the picker forever.
+    "suppliers": {
+        "account_number": "VARCHAR(60) DEFAULT ''",
+        "payment_terms": "VARCHAR(60) DEFAULT ''",
+        "notes": "TEXT DEFAULT ''",
+        "active": "BOOLEAN DEFAULT 1",
+    },
     # Which EcoCash, which bank. Used to be parsed back out of the front of the
     # tender's free-text reference, which is not a data model.
     "sale_tenders": {
@@ -57,6 +66,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "stock_batches": {"branch_id": "INTEGER"},
     "stock_movements": {"branch_id": "INTEGER"},
     "doctors": {
+        # A prescriber who has retired, moved abroad or been struck off should
+        # leave the picker while every script they wrote still names them.
+        "active": "BOOLEAN DEFAULT 1",
         # Prescriber portal sign-in. Null and false on every existing row, so an
         # upgrade never silently grants a prescriber the ability to write in.
         "portal_password_hash": "VARCHAR(255)",

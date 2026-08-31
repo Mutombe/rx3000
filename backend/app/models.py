@@ -335,6 +335,10 @@ class Doctor(Base, TenantMixin):
     # self-service signup.
     portal_password_hash = Column(String(255))
     portal_active = Column(Boolean, default=False)
+    # A prescriber who has retired, moved abroad or been struck off should stop
+    # appearing when a script is captured, while every script they ever wrote
+    # still says who wrote it. Retired, never deleted.
+    active = Column(Boolean, default=True, index=True)
 
 
 class Patient(Base, TenantMixin):
@@ -378,6 +382,18 @@ class Supplier(Base, TenantMixin):
     contact_person = Column(String(120), default="")
     phone = Column(String(30), default="")
     email = Column(String(120), default="")
+    # Where money is sent, and on what terms.
+    #
+    # A supplier record with no bank details is one where the details live in
+    # somebody's email — which is exactly the message a fraudster imitates, and
+    # a wholesaler genuinely changing its account is indistinguishable from one
+    # pretending to. Held here, changed deliberately, and visible to whoever
+    # pays.
+    account_number = Column(String(60), default="")
+    payment_terms = Column(String(60), default="")
+    notes = Column(Text, default="")
+    # Retired, never deleted: the name is on every order they ever fulfilled.
+    active = Column(Boolean, default=True, index=True)
 
 
 class StockCategory(Base, TenantMixin):

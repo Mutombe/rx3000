@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -208,3 +208,59 @@ def create_doctor(body: schemas.DoctorBase, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(doctor)
     return doctor
+
+
+@router.put("/doctors/{doctor_id}", response_model=schemas.DoctorOut)
+def update_doctor(doctor_id: int, body: dict = Body(...),
+                  db: Session = Depends(get_db)):
+    """Correct a prescriber.
+
+    Prescribers could be created and listed and never changed. A practice
+    number typed wrong was permanent, and a practice number is what a funder
+    adjudicates on — so every claim carrying that prescriber was rejected for
+    as long as the record stood, and the only way out was a second prescriber
+    record with the same name.
+    """
+    doctor = db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Prescriber not found")
+
+    if "name" in body:
+        name = str(body["name"] or "").strip()
+        if not name:
+            raise HTTPException(status_code=400,
+                                detail="A prescriber needs a name.")
+        doctor.name = name[:120]
+    for field, width in (("practice_number", 40), ("phone", 30),
+                         ("email", 120), ("speciality", 80), ("address", 300),
+                         ("hpa_number", 40), ("notes", 400)):
+        if field in body and hasattr(doctor, field):
+            setattr(doctor, field, str(body[field] or "").strip()[:width])
+    if "active" in body and hasattr(doctor, "active"):
+        doctor.active = bool(body["active"])
+    db.commit()
+    db.refresh(doctor)
+    return doctor
+
+
+@router.delete("/doctors/{doctor_id}")
+def retire_doctor(doctor_id: int, db: Session = Depends(get_db)):
+    """Retire a prescriber. Never deleted — their name is on every script.
+
+    A prescriber who has retired, moved abroad or been struck off should stop
+    appearing in the picker, and every script they ever wrote must still say
+    who wrote it. Those are not in tension; deleting the row breaks the second
+    to achieve the first.
+    """
+    doctor = db.get(Doctor, doctor_id)
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Prescriber not found")
+    if not hasattr(doctor, "active"):
+        raise HTTPException(
+            status_code=400,
+            detail="Prescribers on this database cannot be retired.")
+    doctor.active = False
+    db.commit()
+    return {"ok": True,
+            "message": (f"{doctor.name} will not appear when capturing a "
+                        f"script. Their name stays on the ones they wrote.")}

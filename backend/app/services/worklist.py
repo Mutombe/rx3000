@@ -214,11 +214,35 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             "repeats_used": item.repeats_used or 0,
             "repeats_allowed": item.repeats_allowed or 0,
             "repeats_left": max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0)),
+            # What this line is worth, and what the rest of the repeat is
+            # worth after it. The queue said "REPEAT 2/5" and nothing about
+            # money, so a rail with two hundred names on it could not be worked
+            # in the order that pays — and the whole argument for a repeat book
+            # is that it is money the shop can see coming.
+            #
+            # Free here: the product is already loaded to print its name.
+            "value": _value(product, outstanding),
+            "value_remaining": _value(
+                product, item.quantity or 0,
+                times=max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0))),
         })
     # Severity band first, then how long it has been waiting. Within a band the
     # oldest booking goes first, which is the only fair reading of a queue.
     out.sort(key=lambda r: (r["band"], -r["waiting_days"], r["patient"]))
     return out[:limit], len(out), out
+
+
+def _value(product, quantity: int, *, times: int = 1) -> float:
+    """What `quantity` of this product is worth, `times` over.
+
+    At the product's selling price, which is what the shop would take today. A
+    repeat's worth is an estimate by nature — the price may move before the
+    patient comes in — and presenting it to the penny would be a false
+    precision. It is right enough to sort a queue by, which is what it is for.
+    """
+    if product is None:
+        return 0.0
+    return round(float(product.unit_price or 0.0) * (quantity or 0) * times, 2)
 
 
 def band_counts(rows: list[dict]) -> dict[str, int]:
@@ -264,9 +288,19 @@ def chronic_patients(db: Session, *, limit: int = 50) -> list[dict]:
         return []
 
     due = {}
-    for item, script in (
-        db.query(PrescriptionItem, Prescription)
+    # What each patient's repeat book is worth per cycle, gathered in the same
+    # pass. A chronic list ordered by name treats a patient worth four dollars a
+    # month and one worth ninety exactly alike, and a pharmacy ringing round on
+    # a short-staffed morning needs to know which is which.
+    #
+    # The product is joined rather than fetched per line: this walks every open
+    # repeat in the shop, and a query inside that loop is the difference between
+    # a panel that loads and one nobody waits for.
+    cycle_value: dict[int, float] = {}
+    for item, script, product in (
+        db.query(PrescriptionItem, Prescription, Product)
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .join(Product, Product.id == PrescriptionItem.product_id)
         .filter(PrescriptionItem.next_repeat_date.isnot(None))
         .filter(PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed)
         .all()
@@ -274,6 +308,9 @@ def chronic_patients(db: Session, *, limit: int = 50) -> list[dict]:
         current = due.get(script.patient_id)
         if current is None or item.next_repeat_date < current:
             due[script.patient_id] = item.next_repeat_date
+        cycle_value[script.patient_id] = round(
+            cycle_value.get(script.patient_id, 0.0)
+            + _value(product, item.quantity or 0), 2)
 
     out = []
     for patient in people:
@@ -283,6 +320,10 @@ def chronic_patients(db: Session, *, limit: int = 50) -> list[dict]:
             "patient_id": patient.id,
             "patient": _clip(f"{patient.first_name} {patient.last_name}".strip(), 22),
             "conditions": _clip(patient.chronic_conditions or "", 34),
+            # What this patient's repeat book is worth to the shop each cycle.
+            # A chronic list ordered by name treats a patient worth four
+            # dollars a month and one worth ninety the same way.
+            "value": round(cycle_value.get(patient.id, 0.0), 2),
             "next_due": next_due.isoformat() if next_due else "",
             "days_to_due": days,
             # The state a dispenser acts on, said in a word rather than left to
@@ -363,6 +404,14 @@ def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> lis
                       if patient and patient.contact_caregiver_first
                       else ((patient.phone or patient.caregiver_phone or "") if patient else "")),
             "repeats_left": (item.repeats_allowed or 0) - (item.repeats_used or 0),
+            # A call sheet without money cannot be worked in the order that
+            # pays, and a short-staffed morning is exactly when that order
+            # matters. `value` is this collection; `value_remaining` is what
+            # walks out of the door for good if the patient goes elsewhere.
+            "value": _value(product, item.quantity or 0),
+            "value_remaining": _value(
+                product, item.quantity or 0,
+                times=max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0))),
         })
     out.sort(key=lambda r: r["days"])
     return out

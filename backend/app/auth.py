@@ -109,6 +109,12 @@ def get_current_user(
     return user
 
 
+#: The roles a staff member can hold, so a role can be validated rather than
+#: accepted as free text. A user set to "pharmasist" is a user with no
+#: permissions at all, silently, and it took a database to find out why.
+ROLES = ("admin", "pharmacist", "assistant", "cashier", "manager")
+
+
 def require_role(*roles: str):
     def checker(user: User = Depends(get_current_user)) -> User:
         if user.role not in roles and user.role != "admin":

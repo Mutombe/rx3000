@@ -6,8 +6,9 @@
  *  could not look at.
  */
 import { useEffect, useState } from "react";
-import { api, errorText, fmtDate, fmtDateTime } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
+import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
 
@@ -17,7 +18,8 @@ interface Item {
   repeat_interval_days: number; next_repeat_date: string | null;
   auto_refill: boolean; icd10_code: string; supply_days: number;
   no_claim: boolean; not_dispensed: boolean;
-  product?: { id: number; name: string; strength?: string; schedule?: number } | null;
+  product?: { id: number; name: string; strength?: string; schedule?: number;
+              unit_price?: number } | null;
 }
 interface Data {
   id: number; rx_number: string | null; status: string;
@@ -44,6 +46,11 @@ export default function PrescriptionDetail() {
     ? `${d.patient.first_name} ${d.patient.last_name}`.trim() : "";
   const repeatsLeft = d?.items.reduce(
     (n, i) => n + Math.max(0, (i.repeats_allowed || 0) - (i.repeats_used || 0)), 0) ?? 0;
+  // What the script still has in it. The figure a shop would want on the day a
+  // patient says they are moving away, and nothing anywhere produced it.
+  const worthToCome = d?.items.reduce(
+    (n, i) => n + (i.product?.unit_price ?? 0) * (i.quantity ?? 0)
+      * Math.max(0, (i.repeats_allowed || 0) - (i.repeats_used || 0)), 0) ?? 0;
 
   return (
     <RecordPage
@@ -66,6 +73,11 @@ export default function PrescriptionDetail() {
         { label: "Items", value: d.items.length },
         { label: "Repeats left", value: repeatsLeft,
           hint: repeatsLeft ? "across all items" : "none remaining" },
+        // What is still in the script. The figure a shop wants on the day a
+        // patient says they are moving away, and nothing produced it.
+        { label: "Still to come", value: money(worthToCome),
+          hint: repeatsLeft ? "if the patient keeps returning"
+                            : "the script is used up" },
         { label: "Written", value: fmtDate(d.date_prescribed) },
       ] : undefined}
     >
@@ -78,6 +90,11 @@ export default function PrescriptionDetail() {
                 <tr>
                   <th>Medicine</th><th>Directions</th>
                   <th className="num">Qty</th><th className="num">Repeats</th>
+                  {/* A script listing four repeats and no money cannot answer
+                      what the script is worth if the patient keeps coming
+                      back — which is the only commercial question anybody asks
+                      of one. */}
+                  <th className="num">Worth</th>
                   <th>Next due</th>
                 </tr>
               </thead>
@@ -103,6 +120,11 @@ export default function PrescriptionDetail() {
                       <td className="num">{i.quantity}</td>
                       <td className="num">
                         {left} <span className="muted">of {i.repeats_allowed}</span>
+                      </td>
+                      <td className="num">
+                        <RepeatValue
+                          value={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)}
+                          remaining={(i.product?.unit_price ?? 0) * (i.quantity ?? 0) * left} />
                       </td>
                       <td>
                         {i.next_repeat_date ? fmtDate(i.next_repeat_date)

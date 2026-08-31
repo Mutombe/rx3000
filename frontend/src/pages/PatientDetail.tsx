@@ -18,6 +18,7 @@ import ClaudeIcon from "../components/ClaudeIcon";
 import { CalendarBlank, CheckSquare, PencilSimpleLine, PhoneCall } from "@phosphor-icons/react";
 
 import { EntityLink } from "../components/Filters";
+import RepeatValue from "../components/RepeatValue";
 type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 
 interface HistoryLine {
@@ -299,7 +300,13 @@ export default function PatientDetail() {
                 🖨 Labels
               </button>
               <table style={{ marginTop: 6 }}>
-                <thead><tr><th>Medication</th><th>Dosage</th><th className="num">Qty</th><th>Repeats</th><th>Next repeat</th><th>Auto-refill</th></tr></thead>
+                {/* What each line is worth per collection, and what the rest
+                    of the script is worth behind it. A patient record that
+                    lists four repeats and no money cannot answer the one
+                    question a shop asks about a patient — what they are worth
+                    if they keep coming back, and what walks out with them if
+                    they do not. */}
+                <thead><tr><th>Medication</th><th>Dosage</th><th className="num">Qty</th><th>Repeats</th><th className="num">Worth</th><th>Next repeat</th><th>Auto-refill</th></tr></thead>
                 <tbody>
                   {rx.items.map((i) => (
                     <tr key={i.id}>
@@ -307,6 +314,12 @@ export default function PatientDetail() {
                       <td>{i.dosage_instructions || "—"}</td>
                       <td className="num">{i.quantity}</td>
                       <td>{i.repeats_used}/{i.repeats_allowed}</td>
+                      <td className="num">
+                        <RepeatValue
+                          value={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)}
+                          remaining={(i.product?.unit_price ?? 0) * (i.quantity ?? 0)
+                            * Math.max(0, (i.repeats_allowed ?? 0) - (i.repeats_used ?? 0))} />
+                      </td>
                       <td>{fmtDate(i.next_repeat_date)}</td>
                       <td>{i.auto_refill ? <span className="badge ok">Yes</span> : "—"}</td>
                     </tr>

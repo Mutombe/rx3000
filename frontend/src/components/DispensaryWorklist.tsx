@@ -14,12 +14,14 @@ import { api, errorText } from "../api";
 import { useToast } from "./Toast";
 import { ArrowsClockwise, Phone } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
+import RepeatValue from "./RepeatValue";
 
 interface QueueRow {
   item_id: number; prescription_id: number; rx_number: string;
   patient_id: number | null; patient: string; product: string;
   quantity: number; band: number; band_label: string; reason: string;
   booked_for: string; waiting_days: number; schedule: number; chronic: boolean;
+  value: number; value_remaining: number;
   /** Whether this line has gone out before, and how much of the script is left.
    *  A repeat is checked differently from a first dispensing, and the queue used
    *  to say nothing — you had to open the script to find out. */
@@ -29,10 +31,13 @@ interface ChronicRow {
   patient_id: number; patient: string; conditions: string;
   next_due: string; days_to_due: number | null; state: string;
   call: string; phone: string;
+  /** What this patient's repeat book is worth each cycle. */
+  value: number;
 }
 export interface ReminderRow {
   patient_id: number; patient: string; product: string; due: string;
   days: number; overdue: boolean; call: string; phone: string;
+  value: number; value_remaining: number;
   repeats_left: number;
   /** Enough to open the line rather than only read it. */
   item_id: number; prescription_id: number; product_id: number;
@@ -255,14 +260,25 @@ export default function DispensaryWorklist({
             >
               <span className="wl-row-top">
                 <span className="wl-patient">{row.patient}</span>
-                <span className="wl-qty">×{row.quantity}</span>
+                {/* Beside the quantity, where the eye already goes for a
+                    number. The rail listed two hundred names and no money, so
+                    it could not be worked in the order that pays — which on a
+                    short-staffed morning is the only question. */}
+                <span className="wl-qty">
+                  <RepeatValue value={row.value} size="chip" />
+                  {" "}×{row.quantity}
+                </span>
               </span>
               <span className="wl-row-mid">{row.product}</span>
               <span className="wl-row-foot">
                 <span className="wl-tag">{row.band_label}</span>
                 {row.is_repeat && (
                   <span className="wl-tag wl-tag-repeat"
-                        title={`Repeat ${row.repeats_used} of ${row.repeats_allowed}`}>
+                        title={`Repeat ${row.repeats_used} of ${row.repeats_allowed}`
+                               + (row.value_remaining
+                                  ? ` · ${row.repeats_left} left, worth `
+                                    + row.value_remaining.toFixed(2)
+                                  : "")}>
                     repeat {row.repeats_used}/{row.repeats_allowed}
                   </span>
                 )}
@@ -295,6 +311,9 @@ export default function DispensaryWorklist({
             <div key={row.patient_id} className={`wl-row wl-state-${row.state.replace(/\s+/g, "-")}`}>
               <span className="wl-row-top">
                 <span className="wl-patient">{row.patient}</span>
+                {/* A chronic list ordered by name treats a patient worth four
+                    dollars a month and one worth ninety exactly alike. */}
+                <RepeatValue value={row.value} size="chip" />
                 <span className="wl-tag">{row.state}</span>
               </span>
               <span className="wl-row-mid">{row.conditions}</span>
@@ -330,7 +349,13 @@ export default function DispensaryWorklist({
             >
               <span className="wl-row-top">
                 <span className="wl-patient">{row.patient}</span>
-                <span className="wl-qty">{row.repeats_left} left</span>
+                {/* What this collection is worth. A call sheet without money
+                    cannot be worked in the order that pays, and a
+                    short-staffed morning is exactly when that order matters. */}
+                <span className="wl-qty">
+                  <RepeatValue value={row.value} size="chip" />
+                  {" "}{row.repeats_left} left
+                </span>
               </span>
               <span className="wl-row-mid">{row.product}</span>
               <span className="wl-row-foot">
@@ -338,7 +363,14 @@ export default function DispensaryWorklist({
                     and a tag reading "repeat" are the same thing said twice in
                     two vocabularies; one word, used everywhere, is how somebody
                     learns the screen once. */}
-                <span className="wl-tag wl-tag-repeat">repeat</span>
+                <span className="wl-tag wl-tag-repeat"
+                      title={row.value_remaining
+                        ? `${row.repeats_left} repeat(s) left, worth `
+                          + row.value_remaining.toFixed(2)
+                          + " if this patient keeps coming back"
+                        : "A repeat"}>
+                  repeat
+                </span>
                 {row.phone
                   ? (
                     // The row opens the work; the number rings the patient.

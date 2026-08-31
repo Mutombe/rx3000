@@ -57,6 +57,108 @@ def list_users(db: Session = Depends(get_db), _: User = Depends(auth.require_rol
     return db.query(User).filter(User.is_demo.is_(False)).all()
 
 
+@router.put("/users/{user_id}", response_model=schemas.UserOut)
+def update_user(user_id: int, body: dict = Body(...),
+                db: Session = Depends(get_db),
+                actor: User = Depends(auth.require_role("admin"))):
+    """Correct a staff record: their name, their role, whether they still work here.
+
+    Staff could be created and listed and never changed. Two consequences, and
+    the second is a control failure rather than an inconvenience:
+
+    A role typed wrong was permanent. Somebody set up as an assistant who
+    qualifies as a pharmacist needed a second account, and now two logins
+    belong to one person and the register cannot say which of them checked a
+    controlled item.
+
+    **A staff member who left could not be deactivated.** Their login stayed
+    live for as long as the pharmacy existed. That is the single most ordinary
+    security failure in a small business — the departed employee who can still
+    sign in — and nothing here could prevent it.
+    """
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+
+    if "full_name" in body and str(body["full_name"]).strip():
+        user.full_name = str(body["full_name"]).strip()[:120]
+    if "role" in body and body["role"]:
+        role = str(body["role"]).strip()
+        if role not in auth.ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{role} is not a role. Choose one of: "
+                       f"{', '.join(sorted(auth.ROLES))}.")
+        # The last administrator cannot demote themselves. A pharmacy locked
+        # out of its own user management has to be recovered from the database,
+        # which on a hosted install means somebody else's engineer.
+        if user.role == "admin" and role != "admin":
+            others = (db.query(User)
+                      .filter(User.role == "admin", User.active.is_(True),
+                              User.id != user.id).count())
+            if not others:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This is the only active administrator. Give "
+                           "somebody else the role first, or the pharmacy "
+                           "locks itself out of its own user management.")
+        user.role = role
+    if "active" in body:
+        active = bool(body["active"])
+        if not active:
+            if user.id == actor.id:
+                raise HTTPException(
+                    status_code=400,
+                    detail="You cannot deactivate the account you are signed "
+                           "in with.")
+            if user.role == "admin":
+                others = (db.query(User)
+                          .filter(User.role == "admin", User.active.is_(True),
+                                  User.id != user.id).count())
+                if not others:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This is the only active administrator.")
+        user.active = active
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/users/{user_id}")
+def deactivate_user(user_id: int, db: Session = Depends(get_db),
+                    actor: User = Depends(auth.require_role("admin"))):
+    """Retire a staff member. Never deleted.
+
+    Their name is on every dispensing they checked, every controlled-register
+    entry they signed and every till they cashed up. Deleting the row does not
+    remove those — it removes the ability to say who did them, which is the
+    opposite of what a pharmacy record is for.
+    """
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    if user.id == actor.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot deactivate the account you are signed in with.")
+    if user.role == "admin":
+        others = (db.query(User)
+                  .filter(User.role == "admin", User.active.is_(True),
+                          User.id != user.id).count())
+        if not others:
+            raise HTTPException(
+                status_code=400,
+                detail="This is the only active administrator. Give somebody "
+                       "else the role first.")
+    user.active = False
+    db.commit()
+    return {"ok": True,
+            "message": (f"{user.full_name} can no longer sign in. Their name "
+                        f"stays on everything they did.")}
+
+
 # ---------------------------------------------------------------- shared tills
 @router.post("/pin")
 def set_own_pin(pin: str = Body(...), password: str = Body(...),

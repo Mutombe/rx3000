@@ -5884,3 +5884,41 @@ table.dt.sub th { font-size: var(--t-xs); }
 .cp-inline > div:not(.cp-toggle) { padding: var(--s3); }
 /* On the product page it is a card, and the toggle is that card's heading. */
 .card > .cp-toggle { padding: 0 0 var(--s3); }
+
+/* ---------- What a repeat is worth ----------
+   Used by the queue, the call sheet, the chronic panel, the repeats tables and
+   the patient record, so the figure looks the same everywhere it appears. The
+   repeat book is the only revenue a pharmacy can see coming and none of those
+   screens showed it. */
+.rv {
+  display: inline-flex; align-items: baseline; gap: var(--s2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.rv-pos {
+  padding: 1px 5px; border-radius: var(--r-xs);
+  background: var(--accent-soft); color: var(--ink-mid);
+  font-size: .64rem; letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+/* This collection: the number the queue is actually sorted and worked on. */
+.rv-now { font-weight: 650; color: var(--ink); }
+/* What is still to come — quieter, because a queue is read for the first
+   figure and audited on the second. */
+.rv-later { font-size: .72rem; color: var(--ink-faint); }
+.rv-later::before { content: ""; }
+/* No price on the product. Not nothing — unpriced, which is a different fact,
+   and printing 0.00 would state the first while meaning the second. */
+.rv-none { color: var(--ink-faint); }
+
+.rv-row .rv-now { font-size: .82rem; }
+/* On a card in a narrow rail. The position badge is already on the card, so
+   the chip carries the money alone. */
+.rv-chip {
+  padding: 1px 6px; border-radius: var(--r-xs);
+  background: var(--ok-soft); border: 1px solid var(--ok-line);
+}
+.rv-chip .rv-now { font-size: .7rem; color: var(--ok); }
+.rv-chip .rv-pos { background: transparent; padding: 0; color: var(--ok); }
+/* On a detail page, where it is the headline rather than a column. */
+.rv-hero .rv-now { font-size: 1.3rem; }
+.rv-hero .rv-later { font-size: .8rem; }
