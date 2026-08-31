@@ -16,6 +16,7 @@
  *  they were asked.
  */
 import { useEffect, useState } from "react";
+import RepeatValue from "./RepeatValue";
 import { ArrowClockwise, Plus, Warning } from "@phosphor-icons/react";
 import { api, fmtDate, money } from "../api";
 import { overdueTone } from "../tone";
@@ -104,7 +105,14 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn }: {
               <span className="muted small">{fmtDate(r.due)}</span>
             </div>
             <div className="rd-worth">
-              <b>{money(r.value)}</b>
+              {/* The shared chip rather than a bare figure, so this reads
+                  the same as the queue, the call sheet and the repeats table.
+                  Six spellings of "worth" is how two screens come to disagree
+                  about money. */}
+              <RepeatValue value={r.value}
+                remaining={r.value * (r.repeats_left ?? 0)}
+                used={(r.repeats_allowed ?? 0) - (r.repeats_left ?? 0)}
+                allowed={r.repeats_allowed} />
               {!r.can_supply && (
                 // Stock can be negative when more has gone out than the system
                 // knew it had. "only -7 on hand" is arithmetic showing through;

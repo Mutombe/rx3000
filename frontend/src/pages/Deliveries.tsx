@@ -12,10 +12,13 @@ import { useEffect, useMemo, useState } from "react";
 import { api, fmtDateTime, money, prefetchRoute, errorText  } from "../api";
 import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
+import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
+import { useSelection } from "../hooks/useSelection";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
 import NewDelivery from "../components/NewDelivery";
 import { Plus } from "@phosphor-icons/react";
@@ -54,7 +57,9 @@ export default function Deliveries() {
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [sending, setSending] = useState<Waybill | null>(null);
   const [driverId, setDriverId] = useState("");
+  const [bulkDriver, setBulkDriver] = useState("");
   const toast = useToast();
+  const confirm = useConfirm();
 
   const TABS: TabDef<Tab>[] = [
     { key: "pending", label: "To go out", count: rows.pending?.length,
@@ -81,6 +86,69 @@ export default function Deliveries() {
   useEffect(load, []);
 
   const list = rows[tab] ?? [];
+
+  // A driver's round IS a bulk operation. Sending twelve deliveries out one at
+  // a time is why the assignment gets written on paper instead — and a round
+  // recorded on paper is a round the system cannot tell you the value of, or
+  // who is holding the cash from.
+  const picked = useSelection(list, (w) => w.id);
+
+  /** Send the whole round out to one driver. */
+  async function dispatchAll() {
+    if (!bulkDriver) return;
+    const driver = drivers.find((d) => String(d.id) === bulkDriver);
+    const round = picked.rows.filter((w) => w.status === "pending");
+    const cod = round.reduce((n, w) => n + (w.cod_amount ?? 0), 0);
+
+    const ok = await confirm({
+      title: `Send ${round.length} out with ${driver?.full_name ?? "this driver"}?`,
+      body: (
+        <>
+          <p>
+            {round.length} deliver{round.length === 1 ? "y" : "ies"} go out on
+            one round.
+          </p>
+          {cod > 0 && (
+            <p>
+              They are to collect <b>{money(cod)}</b> between them. That stays
+              with the driver until the round is handed in — it is not counted
+              against the counter's till.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: `Send ${round.length} out`,
+    });
+    if (!ok) return;
+
+    // One at a time, because each dispatch is checked separately — an expired
+    // licence or a driver already over their cash limit must refuse the round
+    // rather than have it slip through as part of a batch. The refusals are
+    // collected and shown, so a partial send is visible as a partial send.
+    let sent = 0;
+    const refused: string[] = [];
+    for (const w of round) {
+      try {
+        await api.post(`/api/waybills/${w.id}/dispatch`, {
+          driver_profile_id: Number(bulkDriver),
+        });
+        sent += 1;
+      } catch (e: any) {
+        refused.push(`${w.waybill_number}: ${errorText(e)}`);
+      }
+    }
+    picked.clear();
+    setBulkDriver("");
+    if (refused.length) {
+      // Said in full rather than as a count. "3 failed" on a delivery round is
+      // three parcels nobody can name.
+      toast.warn(`${sent} sent. ${refused.length} refused — ${refused[0]}`);
+    } else {
+      toast.ok(`${sent} deliver${sent === 1 ? "y" : "ies"} out with `
+               + `${driver?.full_name ?? "the driver"}.`);
+    }
+    load();
+  }
 
   async function dispatch() {
     if (!sending) return;
@@ -167,6 +235,7 @@ export default function Deliveries() {
           <table className="dt">
             <thead>
               <tr>
+                <SelectAll checked={picked.allChosen} onChange={picked.all} />
                 <th>Waybill</th><th>Recipient</th><th>Address</th>
                 <th>Driver</th><th className="num">To collect</th>
                 <th>Raised</th><th className="actions" />
@@ -180,6 +249,8 @@ export default function Deliveries() {
                   prefetch={prefetchRoute}
                   className={w.requires_id_check ? "row-flag" : ""}
                 >
+                  <SelectRow checked={picked.has(w.id)}
+                             onChange={() => picked.toggle(w.id)} />
                   <td className="mono">
                     {/* The waybill, not the patient. The row already opens the
                         patient; the chain of custody — dispatched when, signed
@@ -265,7 +336,7 @@ export default function Deliveries() {
                 </RowLink>
               ))}
               {!list.length && !loading && (
-                <tr><td colSpan={7} className="muted pad">Nothing here.</td></tr>
+                <tr><td colSpan={8} className="muted pad">Nothing here.</td></tr>
               )}
             </tbody>
           </table>
@@ -400,6 +471,36 @@ export default function Deliveries() {
           </div>
         </div>
       )}
+      <BulkBar count={picked.count} noun="delivery" onClear={picked.clear}>
+        <Select
+          value={bulkDriver}
+          onChange={setBulkDriver}
+          ariaLabel="Driver for the round"
+          options={[
+            { value: "", label: "Pick a driver…" },
+            ...drivers.map((d) => ({
+              value: String(d.id),
+              label: d.full_name
+                + (d.licence_expired ? " · licence expired" : "")
+                + (d.over_cod_limit ? " · over cash limit" : ""),
+            })),
+          ]}
+        />
+        <BusyButton className="btn primary sm" onClick={dispatchAll}
+                    disabled={!bulkDriver
+                      || !picked.rows.some((w) => w.status === "pending")}
+                    busyLabel="Sending…">
+          Send the round out
+        </BusyButton>
+        {/* What the round is carrying. A supervisor deciding who to send
+            should see the number before they choose, not after. */}
+        {picked.rows.some((w) => w.cod_amount) && (
+          <span className="bulk-count">
+            collecting{" "}
+            <b>{money(picked.rows.reduce((n, w) => n + (w.cod_amount ?? 0), 0))}</b>
+          </span>
+        )}
+      </BulkBar>
     </div>
   );
 }

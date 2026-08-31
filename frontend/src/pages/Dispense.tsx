@@ -18,6 +18,7 @@ import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
+import RepeatValue from "../components/RepeatValue";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
 import * as roll from "../shellPrinter";
@@ -1243,6 +1244,20 @@ export default function Dispense() {
                           onChange={(e) => updateItem(idx, {
                             repeats_allowed: Math.min(maxRepeats, Math.max(0, Number(e.target.value))),
                           })} />
+                        {/* What is being written into the book, priced.
+                            Setting "3 repeats" is a commercial decision as
+                            well as a clinical one — it is future business the
+                            shop is agreeing to, and the number was invisible
+                            at the moment it was chosen. */}
+                        {it.repeats_allowed > 0 && (
+                          <span className="hint">
+                            <RepeatValue
+                              value={(it.product.unit_price ?? 0) * (it.quantity ?? 0)}
+                              remaining={(it.product.unit_price ?? 0)
+                                * (it.quantity ?? 0) * it.repeats_allowed} />
+                            {" "}each, and to come on this script
+                          </span>
+                        )}
                       </div>
                       <div className="field span-3">
                         <label>Interval (days)</label>

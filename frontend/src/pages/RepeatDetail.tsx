@@ -17,6 +17,7 @@
  *  30, the behaviour says 45, and nothing anywhere compared the two.
  */
 import { useEffect, useState } from "react";
+import RepeatValue from "../components/RepeatValue";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
@@ -100,6 +101,16 @@ export default function RepeatDetail() {
     >
       {r && (
         <>
+          {/* The figure this page exists for, said once at the top and in the
+              same shape it appears in everywhere else. */}
+          <p>
+            <RepeatValue size="hero" value={r.value_per_fill}
+              remaining={r.value_remaining}
+              used={r.used} allowed={r.allowed} />
+            <span className="muted small">
+              {" "}each collection · {r.left} still to come
+            </span>
+          </p>
           {/* Overdue, exhausted and out of stock are three different problems
               with three different answers. Putting them in one grey line is how
               none of them gets acted on. */}

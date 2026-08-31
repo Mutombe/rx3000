@@ -5939,3 +5939,30 @@ table.dt.sub th { font-size: var(--t-xs); }
 .season-cell.is-blank {
   background: transparent; border: 1px dashed var(--line-strong);
 }
+
+/* ---------- Acting on many rows ----------
+   Fixed to the bottom, not above the table: the row somebody ticks last is as
+   likely to be at the bottom of a long list as the top, and an action bar that
+   has scrolled off is an action nobody takes. */
+.bulk-bar {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: var(--s5); z-index: 300;
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s3) var(--s4);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg); box-shadow: var(--e3);
+  max-width: calc(100vw - var(--s6));
+}
+.bulk-count { font-size: var(--t-sm); color: var(--ink-soft); white-space: nowrap; }
+.bulk-count b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.bulk-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
+.bulk-tick { width: 2.2rem; text-align: center; }
+.bulk-tick input { cursor: pointer; }
+@media (max-width: 640px) {
+  /* On a phone it spans the width rather than floating in the middle, and the
+     actions wrap under the count instead of being pushed off the edge. */
+  .bulk-bar {
+    left: var(--s3); right: var(--s3); transform: none;
+    max-width: none; flex-wrap: wrap;
+  }
+}

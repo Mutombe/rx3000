@@ -16,6 +16,8 @@ import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
 import RepeatValue from "../components/RepeatValue";
+import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
+import { useSelection } from "../hooks/useSelection";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Checkbox from "../components/Checkbox";
@@ -80,6 +82,11 @@ export default function Repeats() {
   // The endpoint returns the whole call sheet — `count` and `overdue` are over
   // all of it and must stay that way — so only the render is bounded.
   const dueRows = useClientPage<DueItem>(due?.items ?? [], 25);
+  // Which rows are ticked. Anything that leaves the list — a filter change,
+  // or the send itself — is dropped from the selection, so an action can never
+  // reach a row the operator can no longer see.
+  const picked = useSelection(dueRows?.items ?? [], (r) => r.item_id);
+
   const [horizon, setHorizon] = useState(14);
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -200,6 +207,69 @@ export default function Repeats() {
   }
 
   /** Tell the patient their repeat is due. */
+  /** Telephoning two hundred overdue repeats one row at a time telephones
+   *  about nine of them. The remind endpoint existed and the only way to reach
+   *  it was one button per row, which for the screen this book is worked from
+   *  is the same as not having it.
+   */
+  async function remindAll() {
+    const rows = picked.rows.filter((r) => r.patient_phone);
+    const without = picked.count - rows.length;
+    if (!rows.length) {
+      toast.error("None of the selected patients has a telephone number.");
+      return;
+    }
+    const ok = await confirm({
+      title: `Remind ${rows.length} patient${rows.length === 1 ? "" : "s"}?`,
+      body: (
+        <>
+          <p>
+            A message goes to each of them saying their repeat is due — worth{" "}
+            <b>{money(rows.reduce((n, r) => n + (r.value ?? 0), 0))}</b> if they
+            all come in.
+          </p>
+          {without > 0 && (
+            <p className="muted">
+              {without} of the selected have no number on file and will be
+              skipped. They are still on the list to be rung by hand.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: `Send ${rows.length}`,
+    });
+    if (!ok) return;
+
+    // Sent one at a time rather than as one call, because there is no bulk
+    // endpoint and inventing one to save a round trip would mean a partial
+    // failure nobody could see. Counted, so the result is the truth rather
+    // than an optimistic "sent".
+    let sent = 0;
+    const failed: string[] = [];
+    for (const r of rows) {
+      try {
+        await api.post("/api/messages", {
+          patient_id: r.patient_id,
+          channel: "sms",
+          subject: "Your repeat is due",
+          body: `Good day ${r.patient_name}. Your ${r.product} is due for `
+              + `collection. Please come in when you can.`,
+        });
+        sent += 1;
+      } catch {
+        failed.push(r.patient_name);
+      }
+    }
+    picked.clear();
+    if (failed.length) {
+      toast.warn(`${sent} sent. ${failed.length} did not go: `
+                 + `${failed.slice(0, 3).join(", ")}`
+                 + (failed.length > 3 ? ` and ${failed.length - 3} more.` : "."));
+    } else {
+      toast.ok(`${sent} reminder${sent === 1 ? "" : "s"} sent.`);
+    }
+  }
+
   async function remind(item: DueItem) {
     try {
       await api.post("/api/messages", {
@@ -285,6 +355,7 @@ export default function Repeats() {
               <table className="dt">
                 <thead>
                   <tr>
+                    <SelectAll checked={picked.allChosen} onChange={picked.all} />
                     <th>Patient</th><th>Medicine</th><th>Due</th>
                     {/* The row already carried this figure and the table never
                         showed it — while the comment below said the question
@@ -312,6 +383,8 @@ export default function Repeats() {
                         !i.can_supply ? "danger"
                           : overdueTone(i.days_overdue,
                                         GRACE, LAPSED)}`}>
+                      <SelectRow checked={picked.has(i.item_id)}
+                                 onChange={() => picked.toggle(i.item_id)} />
                       <td>
                         <EntityLink kind="patient" id={i.patient_id}>{i.patient_name}</EntityLink>
                         {i.patient_phone && (
@@ -775,6 +848,17 @@ export default function Repeats() {
           </div>
         </div>
       )}
+      <BulkBar count={picked.count} noun="repeat" onClear={picked.clear}>
+        <BusyButton className="btn primary sm" onClick={remindAll}
+                    busyLabel="Sending…">
+          Remind them all
+        </BusyButton>
+        {/* What the selection is worth, beside the action that chases it —
+            so the decision to spend a morning on it is made on the money. */}
+        <span className="bulk-count">
+          worth <b>{money(picked.rows.reduce((n, r) => n + (r.value ?? 0), 0))}</b>
+        </span>
+      </BulkBar>
     </div>
   );
 }
