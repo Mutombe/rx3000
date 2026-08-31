@@ -3359,9 +3359,18 @@ img { -webkit-user-drag: none; user-select: none; }
 .sig-row { display: flex; gap: var(--s2); align-items: center; }
 .sig-row input { flex: 1 1 auto; min-width: 0; }
 .sig-note { margin: var(--s1) 0 0; font-size: .78rem; color: var(--ink-soft); }
+/* A button that reads as a link, inside a sentence.
+ *
+ * It used to paint `--accent-ink`, which is the ink for text sitting ON the
+ * accent fill — white in light mode, near-black in dark. This class removes the
+ * background, so that ink landed on the ordinary surface: white on white by
+ * day, black on black by night. Invisible in both themes, which is why nobody
+ * reported it as a colour problem — the Undo in the sig expander simply looked
+ * like it did not exist. `--accent` is the emphasis colour for text on the
+ * surface, and inverts with the theme the right way round. */
 .linkish {
   background: none; border: 0; padding: 0; height: auto;
-  font: inherit; color: var(--accent-ink, inherit); text-decoration: underline;
+  font: inherit; color: var(--accent); text-decoration: underline;
   cursor: pointer;
 }
 .sig-book {
@@ -6023,4 +6032,63 @@ table.dt.sub th { font-size: var(--t-xs); }
   .filter-search { flex: 1 1 100%; }
   .filter-dim { flex: 1 1 45%; }
   .filter-dim > * { min-width: 0; width: 100%; }
+}
+
+/* ------------------------------------------------------------ the step trail
+   Where a dispense stands, across the top of the screen it belongs to.
+
+   Every colour and every background here is declared, never inherited. Each
+   step is a `<button>` for keyboard and screen-reader reasons and is not meant
+   to look like one, so it has to say so: `button, .btn` fills every button in
+   the product with the accent, and a control that sets only a text colour gets
+   its own ink on the primary fill. That is how the allergy picker shipped as
+   near-black on near-black. See qa/button-contrast.py and
+   qa/inherited-colour.py. */
+.trail {
+  display: flex; flex-wrap: wrap; gap: var(--s2);
+  list-style: none; margin: 0 0 var(--s4); padding: 0;
+}
+.trail-step { flex: 1 1 12rem; min-width: 0; margin: 0; }
+.trail-step button {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  width: 100%; padding: var(--s3);
+  text-align: left; cursor: pointer;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink-mid);
+  font: inherit; letter-spacing: 0; height: auto;
+}
+.trail-step button:hover { background: var(--surface-sunk); }
+.trail-mark { flex: 0 0 auto; display: flex; margin-top: 1px; }
+.trail-text { min-width: 0; }
+.trail-text b {
+  display: block; font-size: var(--t-sm); font-weight: 600;
+  color: var(--ink); overflow: hidden; text-overflow: ellipsis;
+}
+.trail-needs {
+  display: block; margin-top: 2px;
+  font-size: var(--t-xs); line-height: 1.35; color: var(--ink-soft);
+}
+
+/* Finished: stated quietly. A tick that shouts competes with the step that
+   still wants something, which is the only one worth looking at. */
+.trail-done .trail-mark { color: var(--ok); }
+.trail-done .trail-text b { color: var(--ink-mid); font-weight: 500; }
+
+/* The step being worked. The one thing on the strip meant to catch the eye. */
+.trail-now button {
+  border-color: var(--accent); background: var(--surface);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.trail-now .trail-mark { color: var(--accent); }
+.trail-now .trail-text b { color: var(--ink); font-weight: 700; }
+.trail-now .trail-needs { color: var(--ink-mid); }
+
+.trail-todo button { background: var(--surface-sunk); }
+.trail-todo .trail-mark { color: var(--line-strong); }
+.trail-todo .trail-text b { color: var(--ink-soft); font-weight: 500; }
+
+@media (max-width: 720px) {
+  /* Two up rather than four across, and the sentence still shown: on a narrow
+     screen a four-across strip is four truncated words. */
+  .trail-step { flex: 1 1 45%; }
 }

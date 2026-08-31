@@ -47,6 +47,7 @@ import ScriptTotals from "../components/ScriptTotals";
 import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
 import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
+import StepTrail, { Step, goToStep } from "../components/StepTrail";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -409,6 +410,24 @@ export default function Dispense() {
     if (ixMajor > 0 && !ixAcknowledged)
       return "Acknowledge the interaction finding above before dispensing.";
     return "";
+  };
+
+  /** The card holding whatever `blockedBecause` just named.
+   *
+   *  Naming the missing thing beside the button that will not go was half the
+   *  fix. The other half is that on a screen this long the field being named is
+   *  usually off the top of it, so the sentence sends somebody scrolling to
+   *  look for a tickbox they have to find by eye. Same order of conditions, so
+   *  the two can never point at different things.
+   */
+  const blockedAt = (): string => {
+    if (!patient) return "step-patient";
+    if (items.length === 0) return "step-items";
+    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
+      return "step-compliance";
+    if (needsInitials && !initials.trim())
+      return route === "controlled" ? "step-compliance" : "step-dispense";
+    return "step-dispense";
   };
 
   useEffect(() => {
@@ -831,6 +850,51 @@ export default function Dispense() {
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
 
+  /** The same conditions again, as a trail across the top of the screen.
+   *
+   *  Read from the live state on every render rather than stored, so a card
+   *  edited after its step went green turns amber again. A stored cursor is
+   *  the thing that makes a wizard lie.
+   *
+   *  Derived from the same expressions the dispense button is disabled on —
+   *  `complianceReady`, `needsInitials`, `blockedBecause` — because a progress
+   *  display that can disagree with the button is worse than none: it tells
+   *  somebody they are finished while the one control they want stays grey.
+   */
+  const steps: Step[] = route === "otc"
+    ? [
+      { n: 1, title: "Medicine", anchor: "step-otc-medicine",
+        done: !!otcProduct, needs: "Search for the medicine being sold." },
+      { n: 2, title: "Consultation", anchor: "step-otc-record",
+        done: !!otcProduct && (!otcPolicy?.counselling_required || counselled),
+        needs: otcPolicy?.counselling_required && !counselled
+          ? "Confirm the patient was counselled before this can be handed over."
+          : "Record who it is for and what it is for." },
+    ]
+    : [
+      { n: 1, title: "Patient & prescriber", anchor: "step-patient",
+        done: !!patient && doctorId !== "",
+        needs: !patient ? "Find the patient, or add them if they are new."
+          : "Choose the prescribing doctor." },
+      { n: 2, title: "Script items", anchor: "step-items",
+        done: items.length > 0,
+        needs: "Add the medicines on the script." },
+      ...(route === "controlled" ? [{
+        n: 3, title: "Compliance record", anchor: "step-compliance",
+        done: items.length > 0 && idVerified && scriptSighted
+          && prescriberVerified && (!needsInitials || initials.trim() !== ""),
+        needs: items.length === 0
+          ? "Add a medicine first — the record is about what is being supplied."
+          : "Tick the script, the prescriber and the patient's identity, and "
+            + "initial it.",
+      }] : []),
+      { n: route === "controlled" ? 4 : 3, title: "Safety check & dispense",
+        anchor: "step-dispense",
+        // Never "done" until it has happened; the screen clears when it does.
+        done: false,
+        needs: blockedBecause() || "Ready to dispense." },
+    ];
+
   /** The quote, as something a patient can take away and think about.
    *
    *  A quote is the one thing on this screen that leaves the building without
@@ -980,13 +1044,21 @@ export default function Dispense() {
         ))}
       </div>
 
+      {/* Where you are, and what the step you are on is waiting for.
+          In the flow rather than pinned: the route strip above was sticky once
+          and taken down for eating the top of the screen on the one page that
+          is long by nature. The same objection applies here, and the reason it
+          costs nothing is that the bottom of the page already carries the
+          missing condition beside the button that will not go. */}
+      <StepTrail steps={steps} />
+
       {route === "otc" ? (
         <div className="disp-work">
           {/* One column. It was a two-column grid because there was a second
               column to hold; with the work alone, splitting it only made the
               work narrower. */}
           <div>
-            <div className="card">
+            <div className="card" id="step-otc-medicine">
               <h3>1 · Choose a pharmacy medicine</h3>
               <input data-hk="product" type="search" placeholder="Search S0–S2 medicines…" value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
@@ -1009,7 +1081,7 @@ export default function Dispense() {
               )}
             </div>
 
-            <div className="card">
+            <div className="card" id="step-otc-record">
               <h3>2 · Consultation record</h3>
               <div className="form-row">
                 <div className="field" style={{ maxWidth: 110 }}>
@@ -1134,7 +1206,7 @@ export default function Dispense() {
               </div>
             )}
 
-            <div className="card">
+            <div className="card" id="step-patient">
               <h3>1 · Patient &amp; prescriber</h3>
               {patient ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1202,7 +1274,7 @@ export default function Dispense() {
               </div>
             </div>
 
-            <div className="card">
+            <div className="card" id="step-items">
               <h3>2 · Script items {route === "controlled" && <span className="badge sched">S5–S6 only</span>}</h3>
               <input data-hk="product" type="search"
                 placeholder={`Search ${route === "controlled" ? "controlled substances" : "prescription medicines"}…`}
@@ -1379,7 +1451,7 @@ export default function Dispense() {
             </div>
 
             {route === "controlled" && items.length > 0 && (
-              <div className="card" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
+              <div className="card" id="step-compliance" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
                 <h3>3 · Compliance record {activePolicy && <span className="badge danger">{activePolicy.label}</span>}</h3>
                 <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
                 <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
@@ -1416,7 +1488,7 @@ export default function Dispense() {
               onBlockingChange={setBlocked}
             />
 
-            <div className="card">
+            <div className="card" id="step-dispense">
               <h3>{route === "controlled" ? "4" : "3"} · Safety check &amp; dispense</h3>
               {/* Asked wherever it is required. The controlled route has its own
                   copy inside the compliance record; on an ordinary prescription
@@ -1588,7 +1660,13 @@ export default function Dispense() {
                 {blockedBecause() && (
                   <p className="disp-blocked">
                     <Warning size={14} weight="fill" />
-                    <span>{blockedBecause()}</span>
+                    <span>
+                      {blockedBecause()}{" "}
+                      <button type="button" className="linkish"
+                              onClick={() => goToStep(blockedAt())}>
+                        Take me there
+                      </button>
+                    </span>
                   </p>
                 )}
               </div>
