@@ -43,6 +43,7 @@ import {
   IdentificationCard,
   Basket,
   SealCheck,
+  TrendUp,
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -135,6 +136,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     links: [
       { to: "/stock", label: "Inventory", icon: Package },
       { to: "/stock-categories", label: "Departments", icon: ChartBar },
+      // What each line earns against the money it ties up. The buying
+      // conversation, which units sold alone cannot have.
+      { to: "/stock-performance", label: "Stock performance", icon: TrendUp },
       { to: "/orders", label: "Procurement", icon: Truck },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
       { to: "/samples", label: "Samples", icon: Gift },

@@ -67,6 +67,7 @@ const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const Seasons = lazy(() => import("./pages/Seasons"));
 const Compliance = lazy(() => import("./pages/Compliance"));
 const Settlements = lazy(() => import("./pages/Settlements"));
+const StockPerformance = lazy(() => import("./pages/StockPerformance"));
 const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
 const RepeatDetail = lazy(() => import("./pages/RepeatDetail"));
 const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
@@ -210,6 +211,7 @@ export default function App() {
                     claims and stock keep the screens they already had and
                     are reached from the same strip. */}
                 <Route path="/seasons" element={<Seasons />} />
+                <Route path="/stock-performance" element={<StockPerformance />} />
                 <Route path="/compliance" element={<Compliance />} />
                 <Route path="/reconciliation/settlements" element={<Settlements />} />
                 <Route path="/reconciliation" element={<Reconciliation />} />

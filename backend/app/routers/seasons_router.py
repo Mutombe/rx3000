@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import basket, seasonality
+from ..services import basket, movement, seasonality
 
 router = APIRouter(prefix="/api/insight", tags=["insight"],
                    dependencies=[Depends(get_current_user)])
@@ -51,3 +51,29 @@ def seasons_group(limit: int = 15, db: Session = Depends(get_db)):
     for.
     """
     return seasonality.group(db, limit=limit)
+
+
+@router.get("/movement")
+def stock_movement(days: int = 90, branch_id: int | None = None,
+                   category_id: int | None = None, limit: int = 200,
+                   db: Session = Depends(get_db)):
+    """Which lines earn their shelf space, and which are eating the float.
+
+    Money comes only from lines that carry money. A dispensing that never
+    reached a sale has a known quantity and an unknown price, and pricing it
+    anyway produced a gross profit of minus the cost — this estate's 180 days
+    read as a 1.9 million loss. Usage is counted for those; margin is not
+    guessed at, and the response says how many rows that applies to.
+    """
+    return movement.analyse(db, days=days, branch_id=branch_id,
+                            category_id=category_id, limit=limit)
+
+
+@router.get("/movement/branches")
+def movement_by_branch(days: int = 90, db: Session = Depends(get_db)):
+    """The same question per shop, and consolidated.
+
+    A line that flies in one branch and is dead in another averages to
+    "steady", which describes nothing and buys wrongly in both shops.
+    """
+    return movement.by_branch(db, days=days)
