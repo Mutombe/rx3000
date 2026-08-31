@@ -33,14 +33,20 @@ interface Totals {
 }
 interface Reply { lines: Line[]; totals: Totals; scheme: string; warning: string }
 
-export default function ScriptTotals({ items, medicalAidId }: {
-  /** What is on the script now. Recomputed as it changes. */
-  items: { product_id: number; quantity: number; no_claim?: boolean }[];
-  medicalAidId?: number | null;
-}) {
+/** The priced lines for a basket, fetched once and shared.
+ *
+ *  Extracted from the component because the same numbers are wanted in two
+ *  places: along the bottom of the script, and on each line as it is built.
+ *  Two components each doing their own POST would price the same basket twice
+ *  on every keystroke, and could disagree with each other for a render — which
+ *  on a margin figure somebody is about to grant a discount against is worse
+ *  than not showing it.
+ */
+export function useScriptPricing(
+  items: { product_id: number; quantity: number; no_claim?: boolean }[],
+  medicalAidId?: number | null,
+): Reply | null {
   const [data, setData] = useState<Reply | null>(null);
-  const [open, setOpen] = useState(false);
-
   const key = JSON.stringify(items) + `|${medicalAidId ?? ""}`;
   useEffect(() => {
     if (!items.length) { setData(null); return; }
@@ -50,10 +56,20 @@ export default function ScriptTotals({ items, medicalAidId }: {
     })
       .then((d) => { if (live) setData(d); })
       // A pricing figure that cannot be worked out must not stop anybody
-      // dispensing. The bar simply does not appear.
+      // dispensing. It simply does not appear.
       .catch(() => { if (live) setData(null); });
     return () => { live = false; };
   }, [key]);
+  return data;
+}
+
+export default function ScriptTotals({ items, medicalAidId }: {
+  /** What is on the script now. Recomputed as it changes. */
+  items: { product_id: number; quantity: number; no_claim?: boolean }[];
+  medicalAidId?: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const data = useScriptPricing(items, medicalAidId);
 
   if (!data) return null;
   const t = data.totals;

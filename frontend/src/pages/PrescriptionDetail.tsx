@@ -4,8 +4,25 @@
  *  recalls, claims, to-follows — and not one of them opened. The script is the
  *  document a dispensary organises itself around, and it was the one record you
  *  could not look at.
+ *
+ *  WHAT CHANGED, AND WHAT HAS GONE OUT
+ *
+ *  Two things the page did not say and the record has always known.
+ *
+ *  `ScriptChange` has recorded every correction — per field, with the old
+ *  value, the new value, a reason and a name — since the alter endpoint was
+ *  written, and nothing read it back except a report nobody opens on the day it
+ *  matters. "What did this used to say" is asked about one script at a time,
+ *  usually with somebody on the telephone.
+ *
+ *  And what has actually left the shelf, which is the difference between a
+ *  script and a supply. It also decides whether a line can still be corrected:
+ *  not a matter of permission but of fact, because a dispensed line records
+ *  something that physically happened and editing it would make the register
+ *  disagree with the medicine.
  */
 import { useEffect, useState } from "react";
+import { ArrowsClockwise, PencilSimpleLine } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RepeatValue from "../components/RepeatValue";
@@ -30,10 +47,35 @@ interface Data {
   doctor?: { id: number; name: string; practice_number?: string } | null;
 }
 
+interface Alteration {
+  id: number; item_id: number | null; field: string;
+  old_value: string; new_value: string; reason: string;
+  changed_at: string; changed_by: string;
+}
+interface Dispensed {
+  id: number; dispensed_at: string; quantity: number; product: string;
+  is_repeat: boolean; dispensed_by: string; sale_id: number | null;
+}
+interface Trail {
+  script_id: string;
+  alterations: Alteration[];
+  dispensings: Dispensed[];
+  items: { id: number; alterable: boolean }[];
+}
+
+/** Field names as a dispenser would say them, not as the column is spelt. */
+const FIELD_NAMES: Record<string, string> = {
+  quantity: "Quantity",
+  dosage_instructions: "Directions",
+  icd10_code: "Diagnosis",
+  supply_days: "Days of supply",
+};
+
 export default function PrescriptionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [d, setD] = useState<Data | null>(null);
+  const [trail, setTrail] = useState<Trail | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -41,6 +83,16 @@ export default function PrescriptionDetail() {
     api.get<Data>(`/api/prescriptions/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That prescription could not be opened.")));
+    // A second request rather than a heavier first one: the capture shape is
+    // what the dispensing screen asks for on every keystroke of a script being
+    // built, and hanging an alteration history off it would make that request
+    // carry a trail nobody is looking at yet.
+    setTrail(null);
+    api.get<Trail>(`/api/prescriptions/${id}/full`)
+      .then(setTrail)
+      // The trail is an addition to this page, not the page. Failing to load it
+      // must not blank a script somebody opened to read.
+      .catch(() => setTrail(null));
   }, [id]);
 
   const patientName = d?.patient
@@ -59,7 +111,12 @@ export default function PrescriptionDetail() {
               { label: "Dispensary", to: "/dispense" },
               { label: d?.rx_number || "This script" }]}
       eyebrow="Prescription"
-      title={d?.rx_number || "Unnumbered"}
+      // The number on the paper, whichever kind it is. An N-Repeat
+      // carries a draft reference rather than an Rx number, and titling
+      // that page "Unnumbered" told somebody holding one they had the
+      // wrong script.
+      title={<span className="script-id">
+        {d?.rx_number || trail?.script_id || "Unnumbered"}</span>}
       subtitle={d && (
         <>
           <EntityLink kind="patient" id={d.patient_id}>{patientName || "Walk-in"}</EntityLink>
@@ -106,6 +163,12 @@ export default function PrescriptionDetail() {
           hint: repeatsLeft ? "if the patient keeps returning"
                             : "the script is used up" },
         { label: "Written", value: fmtDate(d.date_prescribed) },
+        // Only when there is something to say. A zero here would be a fifth
+        // figure competing with four that change a decision.
+        ...(trail && trail.alterations.length ? [{
+          label: "Altered", value: trail.alterations.length,
+          tone: "warn", hint: "corrected since capture — see below",
+        }] : []),
       ] : undefined}
     >
       {d && (
@@ -164,6 +227,77 @@ export default function PrescriptionDetail() {
               </tbody>
             </table>
           </Panel>
+
+          {/* What has actually left the shelf. A script and a supply are not
+              the same thing, and this page said nothing about the difference. */}
+          {trail && (
+            <Panel title="What has gone out" count={trail.dispensings.length}
+                   empty="Nothing on this script has been dispensed yet.">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>When</th><th>Medicine</th>
+                    <th className="num">Qty</th><th>Dispensed by</th><th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trail.dispensings.map((x) => (
+                    <tr key={x.id}>
+                      <td>{fmtDateTime(x.dispensed_at)}</td>
+                      <td>
+                        <Link to={`/dispensings/${x.id}`}>{x.product}</Link>
+                        {x.is_repeat && (
+                          <span className="badge muted" style={{ marginLeft: 6 }}>
+                            <ArrowsClockwise size={10} /> repeat
+                          </span>
+                        )}
+                      </td>
+                      <td className="num">{x.quantity}</td>
+                      <td className="muted">{x.dispensed_by || "—"}</td>
+                      <td>
+                        {x.sale_id && (
+                          <Link to={`/sales/${x.sale_id}`} className="muted small">
+                            the sale
+                          </Link>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+          )}
+
+          {/* Newest first: somebody checking a script wants the last thing
+              that happened to it and reads backwards from there. */}
+          {trail && (
+            <Panel title="Alterations" count={trail.alterations.length}
+                   empty="Nothing on this script has been changed since it was captured.">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>When</th><th>Field</th><th>From</th><th>To</th>
+                    <th>Reason</th><th>By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trail.alterations.map((a) => (
+                    <tr key={a.id}>
+                      <td>{fmtDateTime(a.changed_at)}</td>
+                      <td>{FIELD_NAMES[a.field] ?? a.field}</td>
+                      {/* The old value in full. "Directions changed" is exactly
+                          the note that is useless when somebody asks what they
+                          used to say. */}
+                      <td className="muted">{a.old_value || <em>blank</em>}</td>
+                      <td><b>{a.new_value || <em>blank</em>}</b></td>
+                      <td>{a.reason || <span className="muted">—</span>}</td>
+                      <td className="muted">{a.changed_by || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Panel>
+          )}
 
           <div className="grid cols-2">
             <Panel title="Who it is for">

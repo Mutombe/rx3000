@@ -156,7 +156,8 @@ def reprint(kind: str = Body(...), prescription_id: int | None = Body(default=No
         raise HTTPException(status_code=404, detail="Prescription not found")
     if rx and rx.status == "draft":
         raise HTTPException(status_code=400,
-                            detail="An unfinished script has nothing to reprint.")
+                            detail="An N-Repeat has nothing to reprint — it has no Rx "
+                                   "number and nothing has been dispensed.")
     if sale_id and not db.get(Sale, sale_id):
         raise HTTPException(status_code=404, detail="Sale not found")
 

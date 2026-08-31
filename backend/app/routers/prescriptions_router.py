@@ -22,7 +22,7 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import branches, claims_engine, messages, sig, to_follows
+from ..services import branches, claims_engine, messages, paging, sig, to_follows
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
@@ -58,6 +58,48 @@ def list_prescriptions(
         query = query.filter(Prescription.patient_id == patient_id)
     return query.order_by(Prescription.created_at.desc()).limit(limit).all()
 
+
+
+# ---------------------------------------------------------------------------
+# The script table
+#
+# Every script the pharmacy holds, searchable by the number on it. See
+# services/scripts.py for why there was no such screen and what a script ID is.
+# ---------------------------------------------------------------------------
+
+# Registered above /prescriptions/{rx_id}, which would otherwise match "table"
+# as an id and answer 422 to a perfectly good request.
+@router.get("/prescriptions/table")
+def script_table(q: str = "", status: str = "", patient_id: int = 0,
+                 doctor_id: int = 0, days: int = 0, altered_only: bool = False,
+                 page: int = 1, per_page: int = paging.DEFAULT_PER_PAGE,
+                 db: Session = Depends(get_db),
+                 _: User = Depends(get_current_user)):
+    """Scripts, newest first, searched by number, patient, ID or prescriber."""
+    from ..services import scripts
+
+    query = scripts.search(db, q=q, status=status, patient_id=patient_id,
+                           doctor_id=doctor_id, days=days,
+                           altered_only=altered_only)
+    result = paging.page(query, page=page, per_page=per_page)
+    return {**result.envelope(), "items": scripts.rows(db, result.items)}
+
+
+@router.get("/prescriptions/{rx_id}/full")
+def script_detail(rx_id: int, db: Session = Depends(get_db),
+                  _: User = Depends(get_current_user)):
+    """One script: its lines, what has been dispensed, and every alteration.
+
+    A separate path from `/prescriptions/{rx_id}`, which answers the capture
+    shape the dispensing screen expects. Changing that one to carry the trail
+    would put an alteration history on every keystroke of a script being built.
+    """
+    from ..services import scripts
+
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Script not found")
+    return scripts.detail(db, rx)
 
 
 def _default_icd10(db: Session) -> str:
@@ -170,8 +212,8 @@ def dispense(
     if rx and rx.status == "draft":
         raise HTTPException(
             status_code=400,
-            detail=f"{rx.draft_ref} is an unfinished script. Finish capturing it "
-                   "before dispensing. A draft has no Rx number and cannot be "
+            detail=f"{rx.draft_ref} is an N-Repeat. Finish capturing it "
+                   "before dispensing. It has no Rx number yet and cannot be "
                    "entered in the register.")
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
@@ -605,7 +647,11 @@ def repeats_due(days: int = 7, db: Session = Depends(get_db), _: User = Depends(
 
 
 # ---------------------------------------------------------------------------
-# Unfinished scripts
+# N-Repeats — scripts captured but not finished, so holding no Rx number
+#
+# Called "unfinished" until the dispensary asked for the trade's own name. The
+# route keeps its path: an endpoint is not a label, and renaming a URL breaks
+# every bookmark, integration and cached client for a word nobody sees.
 #
 # A capture interrupted by the phone, a query, or a patient who has gone back to
 # the car for their card. The alternative to resuming is re-keying, and re-keying

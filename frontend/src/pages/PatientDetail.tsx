@@ -12,6 +12,7 @@ import ConsentPanel from "../components/ConsentPanel";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { printLabels } from "../print";
 import { Label, Patient, Prescription, Sale, TimelineEntry } from "../types";
+import { DRAFT_SCRIPT } from "../terms";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import ClaudeIcon from "../components/ClaudeIcon";
@@ -325,7 +326,23 @@ export default function PatientDetail() {
           {scripts.length === 0 && <div className="empty">No prescriptions on file</div>}
           {scripts.map((rx) => (
             <div key={rx.id} style={{ marginBottom: 18 }}>
-              <b>{rx.rx_number}</b> · {fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
+              {/* The number was plain text on the one screen where somebody is
+                  looking at a patient's scripts and wants to open one. Every
+                  other screen in the product links an Rx number; this did not.
+                  An N-Repeat carries a draft reference instead of an Rx number,
+                  and rendered blank here — so a half-captured script showed as
+                  a date and a doctor with nothing to identify it. */}
+              <EntityLink kind="prescription" id={rx.id}>
+                <b className="script-id">
+                  {rx.rx_number || rx.draft_ref || `#${rx.id}`}
+                </b>
+              </EntityLink>
+              {!rx.rx_number && (
+                <span className="badge warn" style={{ marginLeft: 6 }}>
+                  {DRAFT_SCRIPT}
+                </span>
+              )}
+              {" · "}{fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
               <button className="ghost small" onClick={() =>
                 api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`).then(printLabels)}>
                 🖨 Labels

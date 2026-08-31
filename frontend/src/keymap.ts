@@ -62,7 +62,8 @@ export const NAV_KEYS: KeyBinding[] = [
   { combo: "Ctrl+P", label: "Reprint script", incumbent: "Reprint Script", group: "Dispensing" },
   { combo: "Ctrl+L", label: "Reprint labels", incumbent: "Reprint Labels", group: "Dispensing" },
   { combo: "Ctrl+T", label: "To follows", incumbent: "To Follows", group: "Dispensing" },
-  { combo: "Ctrl+U", label: "Unfinished scripts", incumbent: "Unfinished Scripts", group: "Dispensing" },
+  // `incumbent` records what THEIR menu says, so it keeps the old wording.
+  { combo: "Ctrl+U", label: "N-Repeats", incumbent: "Unfinished Scripts", group: "Dispensing" },
 ];
 
 /** Ours. Chosen on keys the incumbent leaves free, so nothing is displaced. */

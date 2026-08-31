@@ -44,6 +44,23 @@ export function patientOwesPhrase(onScheme: boolean): string {
   return onScheme ? "shortfall" : "patient pays";
 }
 
+/** A script captured but not yet finished, so it holds no Rx number.
+ *
+ *  It was called "unfinished". Renamed on instruction to **N-Repeat**, and put
+ *  here rather than typed into six screens so that changing it again is one
+ *  edit.
+ *
+ *  Worth knowing what it actually denotes, because the new name does not say
+ *  it: this is the *draft* state — a script half-captured when the phone rang,
+ *  holding no Rx number, unable to be dispensed until it is finished. It is not
+ *  about repeats outstanding. The incumbent's own menu reads "Dispensing >
+ *  Unfinished Scripts", so the parity register keeps that wording under
+ *  `incumbent`, where it records what their screen says rather than what ours
+ *  does.
+ */
+export const DRAFT_SCRIPT = "N-Repeat";
+export const DRAFT_SCRIPT_PLURAL = "N-Repeats";
+
 /** The trade's word for each figure, so one edit changes every screen. */
 export const TERMS = {
   shortfall: "Shortfall",

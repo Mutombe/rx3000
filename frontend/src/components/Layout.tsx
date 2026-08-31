@@ -109,6 +109,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // What has already gone out, as against what is still to go. A
       // dispensary is asked about yesterday several times a day.
       { to: "/dispensing-history", label: "Dispensing history", icon: ClockCounterClockwise },
+      // Scripts by their number. The history above lists dispensings —
+      // the events — so a script supplied over four visits appears four
+      // times there and one never dispensed appears not at all.
+      { to: "/scripts", label: "Scripts", icon: Prescription },
       { to: "/repeats", label: "Repeats", icon: ArrowsClockwise },
       { to: "/compounding", label: "Compounding", icon: Flask },
       { to: "/register", label: "Controlled Register", icon: Notebook },

@@ -15,6 +15,7 @@ import { useToast } from "./Toast";
 import { ArrowsClockwise, Phone } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
 import RepeatValue from "./RepeatValue";
+import { DRAFT_SCRIPT } from "../terms";
 
 interface QueueRow {
   item_id: number; prescription_id: number; rx_number: string;
@@ -77,7 +78,8 @@ export default function DispensaryWorklist({
    *  which is what lets a keyboard shortcut on the page open "Due". */
   panel?: Panel;
   onPanelChange?: (panel: Panel) => void;
-  /** Called when a dispenser opens an unfinished script. */
+  /** Called when a dispenser opens an N-Repeat — a script captured but not
+   *  yet finished, so it holds no Rx number. */
   onPickDraft?: (draft: any) => void;
   /** Called when a dispenser clicks a queued line, so the page can open it. */
   onPick?: (row: QueueRow) => void;
@@ -200,7 +202,7 @@ export default function DispensaryWorklist({
         {([["queue", "Queue", counts.waiting],
            ["chronics", "Chronic", data.chronics.length],
            ["due", "Due", data.reminders.length],
-           ["drafts", "Unfinished", drafts.length]] as [Panel, string, number][])
+           ["drafts", DRAFT_SCRIPT, drafts.length]] as [Panel, string, number][])
           .map(([key, label, n]) => (
           <button
             key={key}

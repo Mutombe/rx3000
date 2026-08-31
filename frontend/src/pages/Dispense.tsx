@@ -43,11 +43,13 @@ import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
 import PatientForm, { draftFrom } from "../components/PatientForm";
-import ScriptTotals from "../components/ScriptTotals";
+import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
+import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
 import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
+import { DRAFT_SCRIPT } from "../terms";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -700,7 +702,7 @@ export default function Dispense() {
                                        { ...scriptPayload(), draft: true });
         setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                     draft: true });
-        toast.ok("Saved for later. It is on the worklist as an unfinished script.");
+        toast.ok(`Saved for later. It is on the worklist as ${"an " + DRAFT_SCRIPT}.`);
       }
     } catch (e) {
       toast.error(errorText(e, "That could not be saved."));
@@ -849,6 +851,25 @@ export default function Dispense() {
 
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
+
+  /** What each line on the script makes, priced as the totals bar prices it.
+   *
+   *  Read here rather than inside each row so the basket is priced once. The
+   *  figure is per line and it is on the line, because a discount is granted
+   *  against one medicine and the margin that decides it used to be two
+   *  scrolls down behind a toggle.
+   */
+  //
+  //  `no_claim` used to be passed here as `(i as any).no_claim`. `DraftItem`
+  //  has no such field and nothing on this screen sets one, so it was always
+  //  undefined — a cast that stopped the compiler asking and hid the fact that
+  //  the flag does not exist. Dropped rather than left looking supported.
+  const pricedItems = items.map((i) => ({
+    product_id: i.product.id, quantity: i.quantity,
+  }));
+  const pricing = useScriptPricing(pricedItems, patient?.medical_aid_id ?? null);
+  const marginFor = (productId: number) =>
+    pricing?.lines.find((l) => l.product_id === productId);
 
   /** The same conditions again, as a trail across the top of the screen.
    *
@@ -1285,7 +1306,18 @@ export default function Dispense() {
                     <b>{p.name}</b> {p.strength} <span className="muted">{p.dosage_form}</span>
                     <span className={`badge ${p.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>S{p.schedule}</span>
                   </span>
-                  <span className="muted">{money(p.unit_price)} · {p.quantity_on_hand} in stock</span>
+                  <span className="muted">
+                    {money(p.unit_price)} · {p.quantity_on_hand} in stock
+                    {/* The cash margin, before anything is on the script. This
+                        is where a substitution is decided — the generic beside
+                        the brand — and deciding it needs the two margins side
+                        by side, not a report afterwards. */}
+                    {(() => {
+                      const m = shelfMargin(p.unit_price, p.cost_price);
+                      return m === null ? null
+                        : <MarginTag percent={m} compact />;
+                    })()}
+                  </span>
                 </div>
               ))}
               {items.map((it, idx) => {
@@ -1300,6 +1332,12 @@ export default function Dispense() {
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
                       </b>
+                      {(() => {
+                        const l = marginFor(it.product.id);
+                        return l ? <MarginTag percent={l.margin_percent}
+                                              profit={l.gross - l.cost}
+                                              gross={l.gross} /> : null;
+                      })()}
                       <IconButton action="remove" title="Take this line off the script"
                         onClick={() => setItems(items.filter((_, i) => i !== idx))} />
                     </div>
@@ -1429,13 +1467,12 @@ export default function Dispense() {
               {/* The dozen figures the incumbent prints along the bottom of a
                   script, read before it is finished rather than in a report
                   next month — by which time the medicine has gone. */}
+              {/* Given the same array the lines are priced from, so the basket
+                  is priced once and the bar can never disagree with a badge on
+                  a line above it. */}
               {items.length > 0 && (
                 <ScriptTotals
-                  items={items.map((i: any) => ({
-                    product_id: i.product.id,
-                    quantity: i.quantity,
-                    no_claim: !!i.no_claim,
-                  }))}
+                  items={pricedItems}
                   medicalAidId={patient?.medical_aid_id ?? null}
                 />
               )}
@@ -1592,10 +1629,11 @@ export default function Dispense() {
                 <div className="alert warn">
                   <Warning size={16} weight="fill" />
                   <span>
-                    <b>{fromRx.number} is an unfinished script.</b> It has no Rx
-                    number yet and cannot be dispensed. Finish capturing it —
-                    that is where it takes its number and where the checks
-                    happen — or save it and come back.
+                    <b>{fromRx.number} is {DRAFT_SCRIPT === "N-Repeat" ? "an" : "a"}{" "}
+                    {DRAFT_SCRIPT}.</b> It has no Rx number yet and cannot be
+                    dispensed. Finish capturing it — that is where it takes its
+                    number and where the checks happen — or save it and come
+                    back.
                   </span>
                 </div>
               )}

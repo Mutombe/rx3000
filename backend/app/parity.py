@@ -97,7 +97,10 @@ register(Feature(
            "is the call list rather than the ledger."))
 
 register(Feature(
-    key="disp.unfinished", name="Unfinished scripts", area="dispensing",
+    # `name` is what our screen says, `incumbent` what theirs says. They differ
+    # here on purpose: the dispensary asked for "N-Repeat", and the register is
+    # only useful if it keeps reporting the incumbent's wording accurately.
+    key="disp.unfinished", name="N-Repeats", area="dispensing",
     state="done", incumbent="Dispensing > Unfinished Scripts", shortcut="Ctrl+U",
     why_it_matters="A script half-captured when the phone rings must be resumable. "
                    "Without it the pharmacist re-keys everything, and re-keying is "

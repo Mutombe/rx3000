@@ -6157,3 +6157,54 @@ table.dt.sub th { font-size: var(--t-xs); }
      screen a four-across strip is four truncated words. */
   .trail-step { flex: 1 1 45%; }
 }
+
+/* -------------------------------------------------------------- margin tag
+   What a line makes, on the line, while the script is being built.
+
+   Every colour and background declared. These sit inside `.product-pick` and
+   `.rx-item-head`, both of which carry their own ink, and a tag that inherited
+   would take whichever won — see qa/inherited-colour.py. */
+.mtag {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: var(--s2); padding: 1px 7px;
+  border-radius: 999px; border: 1px solid transparent;
+  font-size: var(--t-xs); font-weight: 600; line-height: 1.5;
+  white-space: nowrap; letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.mtag b { font-weight: 700; }
+.mtag-money { font-weight: 500; opacity: 0.75; }
+
+/* The semantic tokens, not invented ones. `--bad-bg` and `--warn-bg` do not
+   exist in this sheet; written with hex fallbacks they would have rendered
+   correctly in light mode and kept the light tint in dark, which is the same
+   near-invisible failure as the portal heading. The tokens that do exist are
+   `--ok-soft` / `--warn-soft` / `--danger-soft` and invert with the theme. */
+
+/* Below cost. The only band meant to catch the eye across the room, because it
+   is the only one where the right answer is to stop. */
+.mtag-loss {
+  background: var(--danger-soft); color: var(--danger);
+  border-color: var(--danger-line);
+}
+/* Thin: a discount here mostly comes out of the pharmacy. */
+.mtag-thin {
+  background: var(--warn-soft); color: var(--warn);
+  border-color: var(--warn-line);
+}
+/* Ordinary and healthy are stated quietly. A screen where every line shouts is
+   a screen where the one that matters does not. */
+.mtag-ok   { background: var(--surface-sunk); color: var(--ink-soft); }
+.mtag-good { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line); }
+
+.mtag svg { flex: 0 0 auto; }
+
+/* ------------------------------------------------------------- the script id
+   The number on the paper. Monospace and tracked out, because it is read off a
+   script and typed, or read down a telephone digit by digit — and the failure
+   mode is a 0 taken for an O in the middle of a call. Colour declared: this
+   sits inside a table cell and a page title, which set different inks. */
+.script-id {
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em; color: var(--ink);
+}
