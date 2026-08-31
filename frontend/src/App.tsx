@@ -66,6 +66,7 @@ const Drivers = lazy(() => import("./pages/Drivers"));
 const Reconciliation = lazy(() => import("./pages/Reconciliation"));
 const Seasons = lazy(() => import("./pages/Seasons"));
 const Compliance = lazy(() => import("./pages/Compliance"));
+const Settlements = lazy(() => import("./pages/Settlements"));
 const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
 const RepeatDetail = lazy(() => import("./pages/RepeatDetail"));
 const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
@@ -210,6 +211,7 @@ export default function App() {
                     are reached from the same strip. */}
                 <Route path="/seasons" element={<Seasons />} />
                 <Route path="/compliance" element={<Compliance />} />
+                <Route path="/reconciliation/settlements" element={<Settlements />} />
                 <Route path="/reconciliation" element={<Reconciliation />} />
                 <Route path="/reconciliation/card" element={<CardReconciliation />} />
                 <Route path="/reconciliation/bank" element={<BankReconciliation />} />

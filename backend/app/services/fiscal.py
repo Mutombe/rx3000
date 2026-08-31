@@ -277,30 +277,90 @@ def is_locked(db: Session, sale: Sale) -> bool:
     return bool(receipt and receipt.status in ("accepted", "submitted"))
 
 
-def verify_chain(db: Session, limit: int = 5000) -> dict:
+def verify_chain(db: Session, limit: int = 0) -> dict:
     """Walk the hash chain and report the first break.
 
-    This is what proves nothing has been altered or removed after the fact.
+    This is what proves nothing has been altered or removed after the fact, and
+    it is the whole evidentiary value of fiscalising at all.
+
+    WHAT WAS WRONG WITH THIS, AND WHY IT MATTERED MORE THAN A BUG
+
+    It read the first 5,000 receipts — `order_by(global_counter).limit(5000)` —
+    and the screen above it said "All 12,431 receipts verify. Each carries the
+    hash of the one before it, so none has been altered or removed."
+
+    Two failures in one sentence. The count was the capped count, so the claim
+    described more than was examined. And the 5,000 it read were the OLDEST,
+    which are the least interesting receipts in the register: a receipt somebody
+    edits is one from last week, and every one of those went unchecked forever.
+
+    An integrity check that quietly stops looking, under a sentence promising it
+    looked at everything, is worse than no check. It is the thing a pharmacy
+    would point an auditor at.
+
+    Now the whole chain, always. Three columns rather than whole ORM objects, so
+    a register of a hundred thousand receipts is one query and a walk rather
+    than a hundred thousand instantiated rows — the reason a cap looked
+    necessary in the first place. `limit` is kept for a caller that genuinely
+    wants a sample, and when it is used the answer says so instead of implying
+    completeness.
     """
-    receipts = (
-        db.query(FiscalReceipt)
-        .order_by(FiscalReceipt.global_counter)
-        .limit(limit)
-        .all()
-    )
+    query = (db.query(FiscalReceipt.global_counter,
+                      FiscalReceipt.previous_hash,
+                      FiscalReceipt.receipt_hash)
+             .order_by(FiscalReceipt.global_counter))
+    total = db.query(func.count(FiscalReceipt.id)).scalar() or 0
+
+    if limit:
+        # A deliberate sample takes the MOST RECENT, not the oldest. If only
+        # part of the register can be read, it must be the part somebody would
+        # have tampered with.
+        query = (db.query(FiscalReceipt.global_counter,
+                          FiscalReceipt.previous_hash,
+                          FiscalReceipt.receipt_hash)
+                 .order_by(FiscalReceipt.global_counter.desc())
+                 .limit(limit))
+        rows = list(reversed(query.all()))
+    else:
+        rows = query.all()
+
+    partial = bool(limit) and total > len(rows)
     expected_counter = None
     previous_hash = ""
-    for receipt in receipts:
+    for counter, prior, own in rows:
         if expected_counter is None:
-            expected_counter = receipt.global_counter
-        if receipt.global_counter != expected_counter:
-            return {"ok": False, "checked": len(receipts),
-                    "broken_at": receipt.global_counter,
-                    "reason": f"counter gap, expected {expected_counter}"}
-        if receipt.previous_hash != previous_hash:
-            return {"ok": False, "checked": len(receipts),
-                    "broken_at": receipt.global_counter,
-                    "reason": "previous hash does not match the preceding receipt"}
-        previous_hash = receipt.receipt_hash
+            expected_counter = counter
+            # A sample starts mid-chain, so the first row's `previous_hash`
+            # points at a receipt that was not read. Believed rather than
+            # checked, and the answer says the check was partial.
+            previous_hash = prior if partial else ""
+        if counter != expected_counter:
+            return _broken(counter, len(rows), total, partial,
+                           f"counter gap, expected {expected_counter}")
+        if prior != previous_hash:
+            return _broken(counter, len(rows), total, partial,
+                           "previous hash does not match the preceding receipt")
+        previous_hash = own
         expected_counter += 1
-    return {"ok": True, "checked": len(receipts), "broken_at": None, "reason": ""}
+
+    return {
+        "ok": True, "checked": len(rows), "total": total,
+        "partial": partial, "broken_at": None, "reason": "",
+        "says": (
+            f"All {total:,} receipts verify. Each carries the hash of the one "
+            f"before it, so none has been altered or removed."
+            if not partial else
+            f"The most recent {len(rows):,} of {total:,} receipts verify. The "
+            f"earlier ones were not read on this pass."),
+    }
+
+
+def _broken(counter: int, checked: int, total: int, partial: bool,
+            reason: str) -> dict:
+    return {
+        "ok": False, "checked": checked, "total": total, "partial": partial,
+        "broken_at": counter, "reason": reason,
+        "says": (f"The chain breaks at receipt {counter}. {reason}. Every "
+                 f"receipt from there onwards is unproven, and this is what an "
+                 f"auditor looks for."),
+    }

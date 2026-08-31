@@ -41,8 +41,34 @@ REASONS = {
     "DUPLICATE":        "Treated as a duplicate of an earlier claim.",
     "STALE":            "Submitted outside the funder's claiming window.",
     "MEMBER_INVALID":   "The member was not active on the service date.",
+    "SUSPENDED":        "Held by the funder pending a query — not rejected, "
+                        "and not paid.",
+    "PENDING_DOCS":     "Held pending documents the funder has asked for.",
+    "UNDER_REVIEW":     "Held for clinical or forensic review.",
     "UNKNOWN":          "No reason was supplied by the funder.",
 }
+
+#: Reason codes that mean the funder is HOLDING the claim rather than refusing
+#: it, however the money reads.
+#:
+#: This distinction is the one the whole module was missing. A rejected claim
+#: is a decision — it is billed to the patient or written off, and either way
+#: it is finished. A suspended claim is a claim still in play: it will be paid
+#: when a query is answered, and a pharmacy that files it with the rejections
+#: writes off money the funder was always going to pay.
+#:
+#: The wording differs by funder, so several spellings map onto one state.
+SUSPENDED_CODES = {
+    "SUSPENDED", "SUSPEND", "SUSPENSE", "HELD", "ON_HOLD", "HOLD",
+    "PENDING", "PENDING_DOCS", "PENDING_DOCUMENTS", "AWAITING_DOCS",
+    "UNDER_REVIEW", "REVIEW", "QUERY", "QUERIED", "INVESTIGATION",
+}
+
+
+def _suspended(code: str) -> bool:
+    """Is the funder holding this, rather than refusing it?"""
+    squashed = (code or "").upper().replace(" ", "_").replace("-", "_")
+    return squashed in SUSPENDED_CODES
 
 # A payment within this of the claim is treated as paid in full — funders round.
 TOLERANCE = 0.01
@@ -132,6 +158,18 @@ def classify(line: dict) -> tuple[str, str]:
     claimed = line.get("amount_claimed") or 0.0
     paid = line.get("amount_paid") or 0.0
     code = (line.get("reason_code") or "").upper()
+
+    # Held is not refused, and the money cannot tell them apart.
+    #
+    # A suspended line pays nothing this cycle and looks exactly like a
+    # rejection to anything reading the figures — which is why the funder's own
+    # code has to be read here, and only here. Filing a held claim with the
+    # rejections means billing a patient for something the scheme was always
+    # going to pay, or writing it off; both lose the money and one of them
+    # loses the patient too.
+    if _suspended(code):
+        squashed = code.replace(" ", "_").replace("-", "_")
+        return "suspended", (squashed if squashed in REASONS else "SUSPENDED")
 
     if paid <= 0:
         status = "rejected"
@@ -271,11 +309,21 @@ def reconcile(db: Session, advice: Remittance) -> dict:
     for line in lines:
         buckets.setdefault(line.status, []).append(line)
 
+    # Suspended is deliberately NOT in the shortfall.
+    #
+    # A shortfall is money the funder has decided not to pay: it goes to the
+    # patient or to a write-off, and both are decisions the pharmacy makes.
+    # Suspended money is money the funder has not decided about yet — it is
+    # still in play, and the action is to answer their query, not to bill
+    # anybody. Adding it to the shortfall would have a pharmacy chasing
+    # patients for amounts the scheme was always going to pay.
     shortfall = round(sum(l.variance for l in lines
                           if l.status in ("short_paid", "rejected")), 2)
     outstanding = round(sum(l.variance for l in lines
                             if l.status in ("short_paid", "rejected")
                             and not l.written_off and not l.patient_billed), 2)
+    held = [l for l in lines if l.status == "suspended"]
+    held_value = round(sum(l.amount_claimed or 0.0 for l in held), 2)
 
     by_reason: dict[str, dict] = {}
     for line in lines:
@@ -302,6 +350,16 @@ def reconcile(db: Session, advice: Remittance) -> dict:
         "total_claimed": advice.total_claimed,
         "total_paid": advice.total_paid,
         "shortfall": shortfall,
+        # Neither paid nor refused: the funder is holding it. Its own figure,
+        # because its own action follows — answer the query, do not bill.
+        "held": len(held),
+        "held_value": held_value,
+        "held_says": (
+            f"{len(held)} claim(s) worth {held_value:,.2f} are held by the "
+            f"funder pending a query. They are not rejections — they pay when "
+            f"the query is answered, and filing them with the write-offs gives "
+            f"away money the scheme was always going to pay."
+            if held else ""),
         "outstanding": outstanding,
         "counts": {status: len(rows) for status, rows in sorted(buckets.items())},
         "unmatched": len(buckets.get("unmatched", [])),

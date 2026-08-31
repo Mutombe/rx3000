@@ -61,7 +61,13 @@ interface Status {
   open_day: OpenDay | null;
   queued_receipts: number;
   rejected_receipts: number;
-  chain: { ok: boolean; checked: number; broken_at: number | null; reason: string };
+  chain: {
+    ok: boolean; checked: number; total: number; partial: boolean;
+    broken_at: number | null; reason: string;
+    /** The sentence, from the server — it is the only thing that knows how
+     *  much of the register was actually read. */
+    says?: string;
+  };
 }
 interface Day {
   id: number; day_number: number; status: string;
@@ -260,11 +266,22 @@ export default function Fiscal() {
         {/* Each receipt carries the hash of the one before it, so a deleted or
             edited receipt breaks the chain at a known point. That is the whole
             evidentiary value, and it is worth stating what "ok" means. */}
-        <p className={`st-note ${status.chain.ok ? "is-ok" : "is-bad"}`}>
-          {status.chain.ok
-            ? `All ${status.chain.checked.toLocaleString()} receipts verify. Each carries `
-              + `the hash of the one before it, so none has been altered or removed.`
-            : `The chain breaks at receipt ${status.chain.broken_at}. ${status.chain.reason}`}
+        {/* The sentence comes from the server now, because the server is the
+            only thing that knows how much it actually read.
+
+            This used to be assembled here as "All N receipts verify" — and N
+            was the CAPPED count, from a check that read the first five
+            thousand. So a register of twelve thousand reported a clean bill
+            over five thousand of the oldest receipts, and every recent one,
+            which is the only kind anybody edits, went unchecked under a
+            sentence promising otherwise. */}
+        <p className={`st-note ${status.chain.ok
+          ? (status.chain.partial ? "is-warn" : "is-ok") : "is-bad"}`}>
+          {status.chain.says
+            ?? (status.chain.ok
+              ? `${status.chain.checked.toLocaleString()} receipts verify.`
+              : `The chain breaks at receipt ${status.chain.broken_at}. `
+                + `${status.chain.reason}`)}
         </p>
       </div>
 

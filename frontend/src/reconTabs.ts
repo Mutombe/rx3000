@@ -23,6 +23,8 @@ export const RECON_TABS: SectionTab[] = [
     hint: "The bank statement against the ledger" },
   { to: "/remittances", label: "Claims",
     hint: "What was claimed against what the funder paid" },
+  { to: "/reconciliation/settlements", label: "Settlements",
+    hint: "Is each funder paying us, in full, on time" },
   { to: "/shifts", label: "Cash",
     hint: "Counted drawers against what passed through the till" },
   { to: "/stock?tab=reconcile", label: "Stock",

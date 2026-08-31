@@ -308,6 +308,33 @@ def fetch_remittances(funder_id: str, since: date | None = None,
 # GET /remittances was here, capped at 100. /remittances/paged replaced it.
 
 
+@router.get("/settlements")
+def settlements(days: int = 180, db: Session = Depends(get_db)):
+    """Is each funder paying us, in full, on time.
+
+    Three questions with three different answers, and a pharmacy carries a slow
+    one for sixty days without noticing because each claim is small and the
+    delay is invisible one claim at a time. It becomes visible when the working
+    capital has gone.
+    """
+    from ..services import settlements as settlement_svc
+
+    return settlement_svc.by_funder(db, days=days)
+
+
+@router.get("/settlements/held")
+def held(funder_id: str = "", limit: int = 200, db: Session = Depends(get_db)):
+    """Claims the funder is holding, so somebody can answer the query.
+
+    This list did not exist, because a held claim was classified as a rejection
+    and went into the write-off pile — which is the pharmacy giving away money
+    the scheme had not refused.
+    """
+    from ..services import settlements as settlement_svc
+
+    return settlement_svc.held_lines(db, funder_id=funder_id, limit=limit)
+
+
 @router.get("/remittances/outstanding")
 def outstanding(funder_id: str = "", page: int = 1,
                 per_page: int = paging.DEFAULT_PER_PAGE,
