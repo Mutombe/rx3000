@@ -1,187 +1,258 @@
 /* The portals' own stylesheet.
  *
- * Deliberately not the staff design system. These pages are read on a phone, on
- * a slow connection, often outdoors, by somebody who has never seen the
- * software before and will use it for ninety seconds. That asks for larger
- * type, fewer lines and touch targets a thumb can hit — not the dense,
- * information-rich layout that suits a dispenser at a counter all day.
+ * Read on a phone, outdoors, on a slow connection, by somebody who has never
+ * seen the software before and will use it for ninety seconds. That asks for
+ * larger type, fewer lines and touch targets a thumb can hit — not the dense
+ * layout that suits a dispenser at a counter all day.
  *
- * Self-contained: system fonts, no imports, nothing fetched. A patient on a
- * Zimbabwean mobile connection should not wait on a font.
+ * EVERY COLOUR IS DECLARED, NEVER INHERITED
+ *
+ * The first version set a colour on `.pp` and let its children inherit. They
+ * did not: these pages are routes inside the staff application, so the staff
+ * stylesheet is loaded too, and it carries `h1 { color: var(--ink) }` and
+ * `label { color: var(--ink-mid) }`. An element selector always beats an
+ * inherited value — so the heading and the field label took the STAFF ink over
+ * the portal's own dark card, and "Hello Memory" rendered as near-black text on
+ * a near-black panel. The patient's own name was invisible on their own page.
+ *
+ * That is the third appearance of this shape: `.term-option` inheriting the
+ * primary button fill, the counter messages inheriting theirs, and now this.
+ * The rule that prevents all three is the same — a component that must look a
+ * certain way declares that way, and does not hope to inherit it.
+ *
+ * BRANDED, AND WHY IT IS THE SAME BRAND
+ *
+ * It used to carry its own invented palette, which made the one page a patient
+ * ever sees look like it belonged to a different company. The tokens below are
+ * the product's own — the same wash, the same brand colour, the same card — at
+ * phone scale. It is still self-contained: no import, no fetched font, nothing
+ * that costs a round trip on a Zimbabwean mobile connection.
  */
 
 .pp {
+  /* The product's own palette, restated locally so this file stands alone if
+     it is ever served without the staff sheet. */
+  --pp-brand: #5d5878;
+  --pp-brand-deep: #3b3e56;
   --pp-ink: #16161d;
   --pp-mid: #55545f;
   --pp-faint: #8b8a94;
   --pp-line: #e6e6ea;
-  --pp-bg: #f6f6f8;
+  --pp-canvas: #f4f4f7;
   --pp-card: #ffffff;
-  --pp-accent: #16414a;
-  --pp-ok: #2f6f3c;
-  --pp-ok-bg: #e8f3ea;
-  --pp-warn: #8a5a12;
-  --pp-warn-bg: #fbf1de;
-  --pp-bad: #a8341f;
-  --pp-bad-bg: #fbeae7;
+  --pp-wash-1: rgba(93, 88, 120, 0.14);
+  --pp-wash-2: rgba(126, 140, 168, 0.13);
+  --pp-wash-3: rgba(168, 150, 160, 0.10);
+  --pp-ok: #2f6f3c;      --pp-ok-bg: #e8f3ea;
+  --pp-warn: #8a5a12;    --pp-warn-bg: #fbf1de;
+  --pp-bad: #a8341f;     --pp-bad-bg: #fbeae7;
 
   min-height: 100vh;
   margin: 0;
-  padding: 16px 14px 48px;
-  background: var(--pp-bg);
+  padding: 20px 14px 48px;
   color: var(--pp-ink);
   font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* The same colour fusion the sign-in screen uses, so a patient opening their
+     link recognises where they are. */
+  background:
+    radial-gradient(700px 520px at 20% 10%, var(--pp-wash-1), transparent 60%),
+    radial-gradient(760px 560px at 85% 20%, var(--pp-wash-2), transparent 60%),
+    radial-gradient(640px 520px at 70% 95%, var(--pp-wash-3), transparent 60%),
+    var(--pp-canvas);
 }
-/* One column, and a ceiling on the width so it is still readable if somebody
-   opens it on a laptop — which they will, once. */
 .pp > * { max-width: 34rem; margin-left: auto; margin-right: auto; }
+
+/* The gate is centred the way the staff sign-in is — one card in the middle of
+   the screen, not a card pinned near the top of an empty page. `safe center`
+   so a card taller than a short landscape screen scrolls rather than being
+   clipped at both ends. */
+.pp-gate {
+  min-height: 100vh; margin: 0; padding: 20px 14px;
+  display: grid; place-items: safe center;
+}
+.pp-gate > form { width: min(26rem, 100%); }
 
 @media (prefers-color-scheme: dark) {
   .pp {
+    --pp-brand: #a9a3c8; --pp-brand-deep: #8f8ab0;
     --pp-ink: #f3f3f6; --pp-mid: #b9b8c2; --pp-faint: #8b8a94;
-    --pp-line: #2c2c35; --pp-bg: #121218; --pp-card: #191920;
-    --pp-accent: #7fb2bd;
-    --pp-ok: #6fbf82; --pp-ok-bg: #16281b;
+    --pp-line: #2c2c35; --pp-canvas: #101016; --pp-card: #191920;
+    --pp-wash-1: rgba(93, 88, 120, 0.22);
+    --pp-wash-2: rgba(126, 140, 168, 0.16);
+    --pp-wash-3: rgba(168, 150, 160, 0.12);
+    --pp-ok: #6fbf82;   --pp-ok-bg: #16281b;
     --pp-warn: #e3b45c; --pp-warn-bg: #2a2113;
-    --pp-bad: #f18d7d; --pp-bad-bg: #2c1512;
+    --pp-bad: #f18d7d;  --pp-bad-bg: #2c1512;
   }
 }
 
 /* ---------- the mark ---------- */
-.pp-mark {
-  width: 52px; height: 52px; margin: 0 auto 14px;
+.pp .pp-mark {
+  width: 56px; height: 56px; margin: 0 auto 16px;
   display: grid; place-items: center;
-  border-radius: 16px; background: var(--pp-accent); color: #fff;
-  font-size: 26px; font-weight: 600;
+  border-radius: 18px;
+  background: linear-gradient(140deg, var(--pp-brand), var(--pp-brand-deep));
+  color: #fff; font-size: 26px; font-weight: 600; line-height: 1;
 }
-.pp-mark-sm { width: 34px; height: 34px; margin: 0 0 8px;
-  border-radius: 10px; font-size: 17px; }
+.pp .pp-mark-sm { width: 36px; height: 36px; margin: 0 0 10px;
+  border-radius: 12px; font-size: 18px; }
 
 /* ---------- cards ---------- */
-.pp-card {
+.pp .pp-card {
   background: var(--pp-card);
   border: 1px solid var(--pp-line);
-  border-radius: 16px;
-  padding: 18px 16px;
+  border-radius: 18px;
+  padding: 20px 18px;
   margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(16, 16, 22, 0.04);
 }
-.pp-centre { text-align: center; padding: 30px 20px; margin-top: 6vh; }
-.pp h1 { margin: 0 0 4px; font-size: 1.5rem; letter-spacing: -0.02em; }
-.pp h2 { margin: 0 0 12px; font-size: 0.82rem; text-transform: uppercase;
-  letter-spacing: 0.07em; color: var(--pp-faint); font-weight: 600; }
-.pp-head { padding: 4px 2px 14px; }
-.pp-muted { color: var(--pp-mid); font-size: 0.9rem; margin: 2px 0 0; display: block; }
-.pp-lead { font-size: 1.05rem; margin: 6px 0 22px; color: var(--pp-mid); }
-.pp-big { display: block; font-size: 1.4rem; font-weight: 650;
-  font-variant-numeric: tabular-nums; }
+.pp .pp-centre { text-align: center; padding: 32px 22px; }
 
-/* ---------- the code box ----------
-   Wide, spaced characters and a numeric keypad. A four-digit box that brings
-   up a full keyboard on a phone is a four-digit box people mistype. */
-.pp-label { display: block; margin: 8px 0 8px; font-weight: 600;
-  font-size: 0.95rem; }
-.pp-code {
+/* Colour stated on every one of these, never inherited — see the note at the
+   top of this file. The staff sheet styles bare `h1`, `h2` and `label`, and an
+   element selector beats an inherited value every time. */
+.pp h1 {
+  margin: 0 0 6px; font-size: 1.55rem; font-weight: 700;
+  letter-spacing: -0.02em; color: var(--pp-ink);
+  font-family: inherit;
+}
+.pp h2 {
+  margin: 0 0 12px; font-size: 0.8rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--pp-faint); font-family: inherit;
+}
+.pp .pp-head { padding: 4px 2px 16px; }
+.pp .pp-muted {
+  display: block; margin: 2px 0 0;
+  color: var(--pp-mid); font-size: 0.9rem;
+}
+.pp .pp-lead {
+  margin: 8px 0 24px; font-size: 1.05rem; color: var(--pp-mid);
+}
+.pp .pp-lead b { color: var(--pp-ink); }
+.pp .pp-big {
+  display: block; font-size: 1.45rem; font-weight: 650;
+  color: var(--pp-ink); font-variant-numeric: tabular-nums;
+}
+
+/* ---------- the code box ---------- */
+.pp .pp-label {
+  display: block; margin: 10px 0 10px;
+  font-size: 0.95rem; font-weight: 600; color: var(--pp-ink);
+}
+.pp .pp-code {
   width: 100%; box-sizing: border-box;
   padding: 16px 12px; margin-bottom: 12px;
   border: 2px solid var(--pp-line); border-radius: 14px;
-  background: var(--pp-bg); color: var(--pp-ink);
-  font-size: 2rem; font-weight: 650; text-align: center;
+  background: var(--pp-canvas); color: var(--pp-ink);
+  font-family: inherit; font-size: 2rem; font-weight: 700; text-align: center;
   letter-spacing: 0.5em; text-indent: 0.5em;
   font-variant-numeric: tabular-nums;
 }
-.pp-code:focus { outline: none; border-color: var(--pp-accent); }
-.pp-code::placeholder { letter-spacing: 0.4em; color: var(--pp-faint); }
+.pp .pp-code:focus {
+  outline: none; border-color: var(--pp-brand);
+  box-shadow: 0 0 0 4px rgba(93, 88, 120, 0.18);
+}
+.pp .pp-code::placeholder { letter-spacing: 0.4em; color: var(--pp-faint); }
 
 /* ---------- the button ----------
-   Full width and 52px tall: a thumb on a moving kombi, not a mouse. */
-.pp-btn {
-  width: 100%; min-height: 52px;
+   Full width and 54px tall: a thumb on a moving kombi, not a mouse. Every
+   property declared, because the staff sheet fills every `button` with the
+   primary accent. */
+.pp .pp-btn {
+  display: block; width: 100%; min-height: 54px; padding: 0 18px;
   border: 0; border-radius: 14px;
-  background: var(--pp-accent); color: #fff;
-  font-size: 1.02rem; font-weight: 600; cursor: pointer;
+  background: linear-gradient(140deg, var(--pp-brand), var(--pp-brand-deep));
+  color: #fff; font-family: inherit; font-size: 1.02rem; font-weight: 600;
+  letter-spacing: 0; cursor: pointer;
 }
-.pp-btn:disabled { opacity: 0.45; }
+.pp .pp-btn:disabled { opacity: 0.4; cursor: default; }
 
-.pp-error {
-  margin: 0 0 12px; padding: 10px 12px;
-  border-radius: 12px; background: var(--pp-bad-bg); color: var(--pp-bad);
-  font-size: 0.92rem; font-weight: 500;
+.pp .pp-error {
+  margin: 0 0 12px; padding: 11px 13px;
+  border-radius: 12px; border: 1px solid var(--pp-bad);
+  background: var(--pp-bad-bg); color: var(--pp-bad);
+  font-size: 0.92rem; font-weight: 500; text-align: left;
 }
-.pp-fine { margin: 14px 0 0; color: var(--pp-faint); font-size: 0.82rem; }
+.pp .pp-fine { margin: 16px 0 0; color: var(--pp-faint); font-size: 0.82rem; }
 
 /* ---------- alerts ---------- */
-.pp-alert {
+.pp .pp-alert {
   display: block; padding: 14px 16px; margin-bottom: 12px;
   border-radius: 14px; border: 1px solid transparent;
 }
-.pp-alert b { display: block; font-size: 1rem; }
-.pp-alert span { display: block; margin-top: 2px; font-size: 0.88rem;
-  opacity: 0.85; }
-.pp-alert-bad { background: var(--pp-bad-bg); color: var(--pp-bad);
-  border-color: var(--pp-bad); }
-.pp-alert-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
+.pp .pp-alert b { display: block; font-size: 1rem; }
+.pp .pp-alert span {
+  display: block; margin-top: 3px; font-size: 0.88rem; opacity: 0.9;
+}
+.pp .pp-alert-bad {
+  background: var(--pp-bad-bg); color: var(--pp-bad);
+  border-color: var(--pp-bad);
+}
+.pp .pp-alert-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
 
-/* ---------- tabs ----------
-   Scroll rather than wrap on a narrow phone, so the page content does not
-   start below the fold. */
-.pp-tabs {
+/* ---------- tabs ---------- */
+.pp .pp-tabs {
   display: flex; gap: 6px; margin-bottom: 12px;
   overflow-x: auto; -webkit-overflow-scrolling: touch;
 }
-.pp-tabs::-webkit-scrollbar { display: none; }
-.pp-tabs button {
+.pp .pp-tabs::-webkit-scrollbar { display: none; }
+.pp .pp-tabs button {
   flex: 0 0 auto; min-height: 42px; padding: 0 16px;
   border: 1px solid var(--pp-line); border-radius: 999px;
   background: var(--pp-card); color: var(--pp-mid);
-  font-size: 0.92rem; font-weight: 500; cursor: pointer; white-space: nowrap;
+  font-family: inherit; font-size: 0.92rem; font-weight: 500;
+  cursor: pointer; white-space: nowrap; letter-spacing: 0;
 }
-.pp-tabs button.on {
-  background: var(--pp-accent); border-color: var(--pp-accent); color: #fff;
-  font-weight: 600;
+.pp .pp-tabs button.on {
+  background: var(--pp-brand-deep); border-color: var(--pp-brand-deep);
+  color: #fff; font-weight: 600;
 }
 
 /* ---------- rows ---------- */
-.pp-row {
+.pp .pp-row {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--pp-line);
+  gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--pp-line);
 }
-.pp-row:last-child { border-bottom: 0; padding-bottom: 0; }
-.pp-row:first-of-type { padding-top: 0; }
-.pp-row b { display: block; font-size: 0.98rem; }
-.pp-row-head { border-bottom: 1px solid var(--pp-line); margin-bottom: 4px; }
-.pp-item { padding: 12px 0; border-bottom: 1px solid var(--pp-line); }
-.pp-item:last-child { border-bottom: 0; padding-bottom: 0; }
-/* The directions, in the words on the label. This is what a patient came to
+.pp .pp-row:last-child { border-bottom: 0; padding-bottom: 0; }
+.pp .pp-row:first-of-type { padding-top: 0; }
+.pp .pp-row b { display: block; font-size: 0.98rem; color: var(--pp-ink); }
+.pp .pp-row-head { margin-bottom: 4px; }
+.pp .pp-item { padding: 13px 0; border-bottom: 1px solid var(--pp-line); }
+.pp .pp-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.pp .pp-item b { color: var(--pp-ink); }
+/* The directions, in the words on the label — what a patient actually came to
    check, so it is the one thing here set larger than its neighbours. */
-.pp-directions {
-  display: block; margin: 4px 0 2px; padding: 8px 10px;
-  background: var(--pp-bg); border-radius: 10px;
+.pp .pp-directions {
+  display: block; margin: 5px 0 3px; padding: 9px 11px;
+  background: var(--pp-canvas); border-radius: 10px;
+  border-left: 3px solid var(--pp-brand);
   font-size: 0.95rem; color: var(--pp-ink);
 }
-.pp-split { display: flex; gap: 28px; }
+.pp .pp-split { display: flex; gap: 30px; }
 
-.pp-pill {
+.pp .pp-pill {
   flex: 0 0 auto; padding: 5px 11px; border-radius: 999px;
-  background: var(--pp-bg); color: var(--pp-mid);
+  background: var(--pp-canvas); color: var(--pp-mid);
   font-size: 0.78rem; font-weight: 600; white-space: nowrap;
 }
-.pp-pill-ok { background: var(--pp-ok-bg); color: var(--pp-ok); }
-.pp-pill-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
-.pp-pill-bad { background: var(--pp-bad-bg); color: var(--pp-bad); }
+.pp .pp-pill-ok { background: var(--pp-ok-bg); color: var(--pp-ok); }
+.pp .pp-pill-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
+.pp .pp-pill-bad { background: var(--pp-bad-bg); color: var(--pp-bad); }
 
-.pp-foot {
-  margin-top: 22px; padding: 0 6px;
+.pp .pp-foot {
+  margin-top: 24px; padding: 0 6px;
   color: var(--pp-faint); font-size: 0.82rem; text-align: center;
 }
 
-.pp-spinner {
+.pp .pp-spinner {
   width: 28px; height: 28px; margin: 30px auto;
-  border: 3px solid var(--pp-line); border-top-color: var(--pp-accent);
+  border: 3px solid var(--pp-line); border-top-color: var(--pp-brand);
   border-radius: 50%; animation: pp-spin 0.7s linear infinite;
 }
 @keyframes pp-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .pp-spinner { animation-duration: 2.4s; }
+  .pp .pp-spinner { animation-duration: 2.4s; }
 }

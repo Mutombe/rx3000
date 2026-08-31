@@ -110,25 +110,33 @@ export default function PatientPortal() {
 
   if (error && !teaser) {
     return (
-      <div className="pp">
-        <div className="pp-card pp-centre">
+      <div className="pp pp-gate">
+        <form className="pp-card pp-centre" onSubmit={(e) => e.preventDefault()}>
           <div className="pp-mark">℞</div>
           <h1>This link has expired</h1>
           <p className="pp-muted">{error}</p>
-        </div>
+        </form>
       </div>
     );
   }
 
   if (!teaser) {
-    return <div className="pp"><div className="pp-card pp-centre">
-      <div className="pp-spinner" /></div></div>;
+    return (
+      <div className="pp pp-gate">
+        <form className="pp-card pp-centre" onSubmit={(e) => e.preventDefault()}>
+          <div className="pp-spinner" />
+        </form>
+      </div>
+    );
   }
 
   // ---- the gate ---------------------------------------------------------
   if (!record) {
     return (
-      <div className="pp">
+      // Centred in the screen, like the sign-in the staff use. It used to sit
+      // near the top of an empty page, which reads as a form somebody forgot
+      // to finish rather than as the front door.
+      <div className="pp pp-gate">
         <form className="pp-card pp-centre" onSubmit={confirm}>
           <div className="pp-mark">℞</div>
           <h1>Hello {teaser.greeting}</h1>
