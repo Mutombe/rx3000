@@ -70,6 +70,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # PIN, and the password path has to keep working for them rather than
     # locking them out of a prompt they have always answered with a password.
     "users": {
+        # Which door somebody arrives by. Staff, patient or prescriber.
+        "user_type": "VARCHAR(16) DEFAULT 'staff'",
+        "patient_id": "INTEGER",
+        "doctor_id": "INTEGER",
         "is_platform_admin": "BOOLEAN DEFAULT 0",
         "pin_hash": "VARCHAR(255)",
         "pin_set_at": "TIMESTAMP",

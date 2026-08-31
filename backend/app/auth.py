@@ -95,6 +95,29 @@ def get_current_user(
         user = db.get(User, int(payload["sub"]))
     if user is None or not user.active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
+    # Only staff reach the application.
+    #
+    # A patient's login belongs to their own record and a prescriber's to the
+    # prescribing portal. Neither has a role that means anything here, and a
+    # patient login treated as staff would default to `assistant` — which is a
+    # real set of permissions over somebody else's pharmacy.
+    #
+    # Asked as a positive: is this staff. A user type nobody has thought of yet
+    # must be refused the application rather than admitted by falling through a
+    # list of exclusions.
+    from .services import user_types
+
+    if not user_types.may_use_application(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=("This sign-in belongs to "
+                    + ("a patient" if user_types.of(user) == "patient"
+                       else "a prescriber")
+                    + ", not to a member of staff. "
+                    + ("Open the link the pharmacy sent you instead."
+                       if user_types.of(user) == "patient"
+                       else "Use the prescriber portal instead.")))
     # Checked here rather than only at login, so a demo ends four hours after it
     # started and not four hours after the last sign-in. The message is written
     # for the person reading it, because for a prospect this is the last thing

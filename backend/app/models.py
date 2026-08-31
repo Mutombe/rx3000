@@ -18,6 +18,31 @@ class User(Base, TenantMixin):
     full_name = Column(String(120), nullable=False)
     role = Column(String(20), nullable=False, default="assistant")  # admin | pharmacist | assistant | cashier
     active = Column(Boolean, default=True)
+
+    # ---- what KIND of user this is -------------------------------------
+    #
+    # `role` says what a member of staff may do. It cannot say what somebody
+    # IS, and the three kinds who sign in here are not variations of one
+    # another — they arrive by different doors, prove themselves differently,
+    # and reach different halves of the system.
+    #
+    #   staff       username and password, then a PIN at the till. Reaches the
+    #               application; `role` and the capability grants decide how
+    #               much of it.
+    #   patient     a signed link and a four-digit code. Reaches their own
+    #               record and nothing else — never the application.
+    #   prescriber  their own account tied to a practice number, because a
+    #               link that can prescribe is a prescription pad held by
+    #               everybody it was ever forwarded to.
+    #
+    # Held as a column rather than inferred from whether `patient_id` is set,
+    # because "this is a patient login" is a fact somebody decided, and a fact
+    # inferred from a null is a fact that changes when somebody fixes a null.
+    user_type = Column(String(16), nullable=False, default="staff", index=True)
+    #: The patient this login belongs to, where it is a patient's.
+    patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True, index=True)
+    #: The prescriber it belongs to, where it is a prescriber's.
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=True, index=True)
     # A short code for the till, hashed like any other secret.
     #
     # Not a replacement for the password: the password starts a session, the PIN

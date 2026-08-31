@@ -16,7 +16,7 @@ from ..auth import get_current_user, require_role
 from ..config import settings
 from ..database import get_db
 from ..models import AuditLog, Branch, Sale, User, UserPermission
-from ..services import hq, permissions
+from ..services import hq, permissions, user_types
 from ..tenancy import unscoped
 
 router = APIRouter(prefix="/api/hq", tags=["head office"],
@@ -314,3 +314,28 @@ def check(capability: str = Body(...), amount: float = Body(default=0.0),
     offers a button somebody cannot press."""
     return permissions.check(db, user, capability,
                              branch_id=branch_id, amount=amount)
+
+
+# ------------------------------------------------------- who can sign in ----
+
+@router.get("/user-types")
+def types(db: Session = Depends(get_db)):
+    """Everybody who can reach anything, by the door they arrive through.
+
+    Staff were listable and the other two were not, so "who can see this
+    pharmacy's data" had no answer that included the patient holding a live
+    portal link.
+    """
+    return user_types.directory(db)
+
+
+@router.get("/pins")
+def pins(db: Session = Depends(get_db)):
+    """Which staff can sign in their own name, and which cannot.
+
+    A member of staff with no PIN is not a preference somebody expressed. It
+    means every dispensing they check is recorded against whoever opened the
+    till that morning — so the controlled register names the wrong person,
+    quietly, on every line they touched.
+    """
+    return user_types.pin_report(db)

@@ -41,17 +41,35 @@ interface BranchRow {
   frozen: boolean; frozen_reason: string; frozen_by: string;
   taken: number; sales: number; previous: number; change: number | null;
 }
+interface PinReport {
+  staff: number; with_pin: number;
+  without_pin: { id: number; full_name: string; username: string;
+                 role: string; signs_controlled: boolean }[];
+  locked_out: { id: number; full_name: string; until: string }[];
+  says: string;
+}
+interface Directory {
+  types: { user_type: string; what: string; signs_in_with: string;
+           reaches: string; needs_pin: boolean }[];
+  users: Record<string, { id: number; full_name: string; username: string;
+                          role: string; active: boolean; has_pin: boolean }[]>;
+  counts: Record<string, number>;
+  patients_with_portal_access: number;
+  note: string;
+}
 interface Estate {
   days: number; branches: BranchRow[]; total: number;
   unpinned: string[]; frozen: string[]; quiet: string[]; headline: string;
 }
 
-type Tab = "map" | "people" | "authority";
+type Tab = "map" | "people" | "authority" | "logins";
 
 export default function HeadOffice() {
   const [estate, setEstate] = useState<Estate | null>(null);
   const [days, setDays] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [pins, setPins] = useState<PinReport | null>(null);
+  const [types, setTypes] = useState<Directory | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
   const ask = useAsk();
@@ -63,11 +81,15 @@ export default function HeadOffice() {
       hint: "Who works where, and what each may do" },
     { key: "authority", label: "Authority",
       hint: "One person, one capability, bounded" },
+    { key: "logins", label: "Who signs in", count: pins?.without_pin.length,
+      hint: "The three kinds of login, and who cannot sign in their own name" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "map");
 
   const load = useCallback(() => {
     setLoading(true);
+    api.get<PinReport>("/api/hq/pins").then(setPins).catch(() => undefined);
+    api.get<Directory>("/api/hq/user-types").then(setTypes).catch(() => undefined);
     api.get<Estate>(`/api/hq/overview?days=${days}`)
       .then(setEstate)
       .catch((e) => toast.error(errorText(e)))
@@ -269,6 +291,7 @@ export default function HeadOffice() {
 
         {estate && tab === "people" && <BranchPeople branches={estate.branches} />}
         {tab === "authority" && <HqPermissions />}
+        {tab === "logins" && <WhoSignsIn pins={pins} types={types} />}
       </Refreshable>
     </div>
   );
@@ -404,6 +427,101 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
             </tbody>
           </table>
         </div>
+      )}
+    </>
+  );
+}
+
+
+/** The three doors into this pharmacy, and who cannot sign for their own work.
+ *
+ *  Staff were listable and the other two were not, so "who can reach this
+ *  pharmacy's data" had no answer that included the patient holding a live
+ *  portal link.
+ *
+ *  The PIN list underneath is the finding. A member of staff without one is not
+ *  somebody who declined a convenience — every dispensing they check is
+ *  recorded against whoever opened the till that morning, so the controlled
+ *  register names the wrong person on every line they touched.
+ */
+function WhoSignsIn({ pins, types }: {
+  pins: PinReport | null; types: Directory | null;
+}) {
+  if (!types) return <TableSkeleton cols={4} rows={5} />;
+  return (
+    <>
+      <div className="dt-scroll">
+        <table className="dt">
+          <thead>
+            <tr><th>Kind</th><th className="num">How many</th>
+              <th>How they prove it</th><th>What they reach</th></tr>
+          </thead>
+          <tbody>
+            {types.types.map((t) => (
+              <tr key={t.user_type}>
+                <td>
+                  <b>{t.what}</b>
+                  <div className="muted small mono">{t.user_type}</div>
+                  {t.needs_pin && (
+                    <span className="badge warn">needs a till PIN</span>
+                  )}
+                </td>
+                <td className="num">
+                  {t.user_type === "patient"
+                    ? types.patients_with_portal_access.toLocaleString()
+                    : (types.counts[t.user_type] ?? 0)}
+                </td>
+                <td className="wrap muted small">{t.signs_in_with}</td>
+                <td className="wrap muted small">{t.reaches}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted small">{types.note}</p>
+
+      {pins && (
+        <>
+          <h4 className="cu-section">Signing in their own name</h4>
+          <div className={`alert ${pins.without_pin.length ? "warn" : ""}`}>
+            <Warning size={16} weight="fill" /> <span>{pins.says}</span>
+          </div>
+          {pins.without_pin.length > 0 && (
+            <div className="dt-scroll">
+              <table className="dt">
+                <thead>
+                  <tr><th>Nobody can tell it was them</th><th>Role</th>
+                    <th>Why it matters</th></tr>
+                </thead>
+                <tbody>
+                  {pins.without_pin.map((u) => (
+                    <tr key={u.id}
+                        className={u.signs_controlled ? "row-flag" : undefined}>
+                      <td>
+                        <b>{u.full_name}</b>
+                        <div className="muted small mono">{u.username}</div>
+                      </td>
+                      <td>{u.role}</td>
+                      <td className="wrap muted small">
+                        {u.signs_controlled
+                          ? "They sign for controlled medicines. Without a PIN "
+                            + "the register names whoever opened the till."
+                          : "Their work is recorded against whoever opened the "
+                            + "till that morning."}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="hint">
+            A PIN is set by the person themselves, in their own profile — head
+            office cannot set it for them, because a PIN somebody else chose is
+            a PIN two people know, and the whole point is that it identifies
+            one.
+          </p>
+        </>
       )}
     </>
   );
