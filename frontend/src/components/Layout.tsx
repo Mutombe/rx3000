@@ -42,6 +42,7 @@ import {
   Vault,
   IdentificationCard,
   Basket,
+  SealCheck,
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -139,6 +140,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/samples", label: "Samples", icon: Gift },
       { to: "/recall", label: "Recall", icon: Siren },
       { to: "/branches", label: "Branches", icon: Storefront },
+      // The paper a branch trades on, and when it dies. Three of these
+      // lapsing closes the shop.
+      { to: "/compliance", label: "Licences", icon: SealCheck },
     ],
   },
   {

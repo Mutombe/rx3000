@@ -2110,6 +2110,81 @@ class Branch(Base, TenantMixin):
     pharmacy = relationship("Pharmacy", back_populates="branches")
 
 
+class ComplianceDocument(Base, TenantMixin):
+    """A licence, certificate or clearance a branch must hold, and when it dies.
+
+    A pharmacy in Zimbabwe trades on a stack of paper that all expires: the
+    MCAZ premises licence, the responsible pharmacist's practice certificate,
+    the city health shop licence, fire brigade clearance, the ZIMRA tax
+    clearance, the dangerous drugs permit. Each has its own issuer, its own
+    renewal month and its own consequence for lapsing — and the consequence for
+    the first two is that the shop closes.
+
+    Every pharmacy manages this in a lever-arch file and a diary, and the
+    failure is always the same: nobody notices a certificate expired until an
+    inspector does, or until a wholesaler refuses an order because the licence
+    number on file has lapsed. The renewal is rarely difficult. Knowing it is
+    due is the whole problem.
+
+    WHY THE DOCUMENT IS STORED HERE AND NOT ONLY THE DATE
+
+    A date without the certificate behind it is a claim. An inspector asks to
+    see the licence, not to see a system saying there is one — and the copy in
+    the file is at head office while the inspection is at the branch. The file
+    is held as bytes on the row for the same reason the logo is: a pharmacy
+    running one machine in a back office has no object store, and a path into a
+    filesystem is a broken link the first time somebody restores a backup onto
+    a different box.
+    """
+    __tablename__ = "compliance_documents"
+
+    id = Column(Integer, primary_key=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False, index=True)
+    #: Which of the known kinds this is — see services.compliance.KINDS. Free
+    #: text rather than an enum so a pharmacy can hold a document nobody
+    #: anticipated without waiting for a release.
+    kind = Column(String(40), nullable=False, index=True)
+    #: What it is called where a kind does not cover it.
+    title = Column(String(160), default="")
+    #: The number on the certificate — the thing a wholesaler or an inspector
+    #: asks for, and the reason a lapsed one blocks an order.
+    reference = Column(String(80), default="")
+    issuer = Column(String(120), default="")
+    issued_on = Column(Date, nullable=True)
+    #: The date everything here exists for. Nullable because some documents do
+    #: not expire, and pretending they do puts a false renewal in a diary.
+    expires_on = Column(Date, nullable=True, index=True)
+    #: What it costs to renew, so a year of compliance can be budgeted rather
+    #: than discovered a certificate at a time.
+    renewal_cost = Column(Float, default=0.0)
+
+    #: The certificate itself. A date without the document behind it is a
+    #: claim; an inspector asks to see the licence.
+    file_name = Column(String(200), default="")
+    file_type = Column(String(80), default="")
+    file_data = Column(Text, default="")          # base64 data URI
+    file_bytes = Column(Integer, default=0)
+
+    notes = Column(Text, default="")
+    #: Superseded rather than deleted. Last year's certificate is the proof the
+    #: shop was licensed last year, which is exactly what an audit asks about.
+    superseded_by_id = Column(Integer, ForeignKey("compliance_documents.id"),
+                              nullable=True)
+    active = Column(Boolean, default=True, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    branch = relationship("Branch")
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+    @property
+    def days_left(self) -> int | None:
+        if not self.expires_on:
+            return None
+        return (self.expires_on - date.today()).days
+
+
 class BranchTransfer(Base, TenantMixin):
     """Stock moving from one branch to another.
 
