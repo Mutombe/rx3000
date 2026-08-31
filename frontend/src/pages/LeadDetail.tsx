@@ -5,10 +5,13 @@
  *  status, and the company, contact and deal it turned into were unreachable
  *  from it.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 
 interface Data {
@@ -34,16 +37,73 @@ export default function LeadDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/crm/leads/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That lead could not be opened.")));
   }, [id]);
+  useEffect(load, [load]);
 
   const name = d ? `${d.first_name} ${d.last_name}`.trim() : "";
   const owner = d?.owner?.full_name || d?.owner?.name || "";
 
+  const toast = useToast();
+  const ask = useAsk();
+  const confirm = useConfirm();
+  /** The two things anybody does to a lead, from the page that describes it.
+   *
+   *  Both endpoints existed and only the list reached them, so reading a lead
+   *  and acting on it were two screens.
+   */
+  async function setStatus(next: string) {
+    if (!d) return;
+    let reason = "";
+    if (next === "disqualified") {
+      const answer = await ask({
+        title: "Why is this lead disqualified?",
+        body: "The reason is what makes the loss worth anything later.",
+        field: "Reason",
+        placeholder: "No budget, went elsewhere, not a pharmacy",
+        required: true,
+        confirmLabel: "Disqualify",
+        destructive: true,
+      });
+      if (!answer.ok) return;
+      reason = answer.value;
+    }
+    try {
+      await api.post(`/api/leads/${d.id}/status`, { status: next, reason });
+      toast.ok(`Marked ${next}.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
+
+  async function convert() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Convert ${d.first_name} ${d.last_name}?`,
+      body: (
+        <>
+          They become an account and a contact, and the lead is closed as won.
+          {d.estimated_value > 0 && (
+            <> An opportunity worth <b>{money(d.estimated_value)}</b> is opened
+              alongside them.</>
+          )}
+        </>
+      ),
+      confirmLabel: "Convert",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/leads/${d.id}/convert`, {});
+      toast.ok("Converted.");
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That lead could not be converted."));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -54,6 +114,26 @@ export default function LeadDetail() {
       subtitle={d && [d.job_title, d.company_name].filter(Boolean).join(" · ")}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          {d.status !== "converted" && d.status !== "disqualified" && (
+            <>
+              <BusyButton className="btn primary" onClick={convert}
+                          busyLabel="Converting…">
+                Convert
+              </BusyButton>
+              <BusyButton className="btn" busyLabel="Saving…"
+                          onClick={() => setStatus("contacted")}>
+                Mark contacted
+              </BusyButton>
+              <BusyButton className="btn ghost" busyLabel="Saving…"
+                          onClick={() => setStatus("disqualified")}>
+                Disqualify
+              </BusyButton>
+            </>
+          )}
+        </div>
+      )}
       facts={d ? [
         { label: "Status", value: d.status,
           hint: d.converted_at ? "converted" : undefined },

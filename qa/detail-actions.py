@@ -48,6 +48,31 @@ DETAIL = [
     "WillCallBag", "MessageDetail", "JournalDetail", "InvoiceDetail",
 ]
 
+#: Pages that are read-only on purpose, and why.
+#:
+#: This list is the difference between a report people read and one they learn
+#: to scroll past. A page that will never have actions, listed as a gap every
+#: time the check runs, trains the reader to skip the section — and then the
+#: real gap in it goes unread too. Each entry states the reason, so the
+#: judgement can be argued with rather than inherited.
+READ_ONLY_ON_PURPOSE = {
+    "ClaimDetail":
+        "a claim is acted on through its batch — submitted, settled and "
+        "reversed there — and there is no per-claim endpoint to call",
+    "ShiftDetail":
+        "a cashed-up shift is a signed document. Editing one after the count "
+        "is exactly what the blind count exists to prevent",
+    "AccountDetail":
+        "a ledger account is changed by posting to it, never by editing the "
+        "balance. The chart of accounts is where the account itself is edited",
+    "MessageDetail":
+        "a message that has been sent cannot be unsent, and one that has not "
+        "is managed from the campaign that queued it",
+    "ContactDetail":
+        "editing lives on the account the contact belongs to, so the "
+        "relationship and the person are changed in one place",
+}
+
 #: A control in the header, which is where somebody looks for the actions.
 # `actions=` anywhere, because `RecordPage` takes it as a prop and the prop
 # is rarely on the same line as the tag. The first version required both
@@ -94,14 +119,14 @@ def main() -> int:
         carries = bool(CARRIES.search(text))
         bare = bool(BARE.search(text))
 
-        if not acts:
+        if not acts and name not in READ_ONLY_ON_PURPOSE:
             read_only.append(name)
-        elif not header:
+        elif not header and name not in READ_ONLY_ON_PURPOSE:
             no_header.append(name)
         if bare:
             bare_links.append(name)
 
-        gap = not acts or not header or bare
+        gap = ((not acts or not header) and name not in READ_ONLY_ON_PURPOSE) or bare
         row = (f"  {name:<22}"
                f"{('Y' if header else '·'):<9}"
                f"{('Y' if acts else '·'):<7}"
@@ -111,13 +136,24 @@ def main() -> int:
             print(row)
 
     print()
-    print(f"  {seen} detail pages read")
+    print(f"  {seen} detail pages read, "
+          f"{len(READ_ONLY_ON_PURPOSE)} read-only on purpose")
     if read_only:
         print(f"\n  read-only — you can look at it and not act on it:")
         for n in read_only:
             print(f"    {n}")
+    if "--why" in sys.argv:
+        print("\n  read-only on purpose:")
+        for n, why in sorted(READ_ONLY_ON_PURPOSE.items()):
+            print(f"    {n:<18} {why}")
     if no_header:
-        print(f"\n  actions exist but not in the header, where the eye goes:")
+        # An observation, not a defect. An action that needs a field beside it
+        # — settle *how many*, file it under *which* department — belongs where
+        # the field is, and hoisting it into the header would separate the
+        # control from the thing it controls. Listed so each one can be
+        # checked as deliberate; not called a failure.
+        print(f"\n  actions in the body rather than the header. Right where the "
+              f"action needs a field beside it, worth a look where it does not:")
         for n in no_header:
             print(f"    {n}")
     if bare_links:

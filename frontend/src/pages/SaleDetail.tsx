@@ -177,7 +177,11 @@ export default function SaleDetail() {
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        {/* The standard container, not an inline style. Six detail pages had
+            their own idea of how a header's actions are spaced, which is six
+            places to change when the answer moves and one of them always gets
+            missed. */}
+        <div className="page-actions">
           <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
           {sale.status === "pending" && !sale.transferred_at && (
             <button className="btn secondary" onClick={toAccount}>

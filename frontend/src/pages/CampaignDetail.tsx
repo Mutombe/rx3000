@@ -5,10 +5,13 @@
  *  the number that matters: a campaign that "sent" four hundred and failed a
  *  hundred and eighty is not a campaign that worked.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 
 interface Sent {
@@ -29,15 +32,46 @@ export default function CampaignDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/marketing/campaigns/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That campaign could not be opened.")));
   }, [id]);
+  useEffect(load, [load]);
 
   const failed = d?.by_status.failed ?? 0;
 
+  const toast = useToast();
+  const confirm = useConfirm();
+  /** Send it. The endpoint existed and only the campaigns list reached it. */
+  async function send() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Send "${d.name}"?`,
+      body: (
+        <>
+          <p>
+            It goes by {d.channel} to everybody in the {d.segment} segment.
+            This cannot be recalled once it has gone.
+          </p>
+          {d.sent_count > 0 && (
+            <p className="muted">
+              {d.sent_count} message(s) have already gone out on this campaign.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: "Send it",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/campaigns/${d.id}/send`, {});
+      toast.ok("Queued for sending.");
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That campaign could not be sent."));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -48,6 +82,16 @@ export default function CampaignDetail() {
       subtitle={d && `${d.channel} · ${d.segment}`}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          {d.status !== "sent" && (
+            <BusyButton className="btn primary" onClick={send}
+                        busyLabel="Sending…">
+              Send it
+            </BusyButton>
+          )}
+        </div>
+      )}
       facts={d ? [
         { label: "Messages", value: d.sent_count },
         { label: "Delivered", value: d.by_status.sent ?? 0 },

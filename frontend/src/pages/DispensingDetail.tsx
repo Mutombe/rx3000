@@ -13,13 +13,16 @@
  *  blank identity check on an S5 has to read as a blank; a section that
  *  disappears when it is empty is a section nobody notices is missing.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import RepeatValue from "../components/RepeatValue";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle, Warning, XCircle } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 
 interface Detail {
   id: number; quantity: number; dispensed_at: string; is_repeat: boolean;
@@ -60,15 +63,50 @@ export default function DispensingDetail() {
   const [d, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api.get<Detail>(`/api/dispensings/${id}`)
       .then(setData)
       .catch((e) => setError(errorText(e)));
   }, [id]);
+  useEffect(load, [load]);
 
   const controlled = !!d && ((d.schedule || 0) >= 5 || d.dispense_type === "controlled");
   const incomplete = controlled && !(d!.id_verified && d!.script_sighted);
 
+  const toast = useToast();
+  const ask = useAsk();
+  /** Hand the bag over from the will-call shelf.
+   *
+   *  This page says a bag has been sitting there for eleven days and had no
+   *  way to close it — the collection lived only on the will-call screen, so
+   *  reading the record and acting on it were two places.
+   */
+  async function collect() {
+    if (!d) return;
+    const controlledItem = (d.schedule || 0) >= 5;
+    const answer = await ask({
+      title: `Who is taking ${d.product?.name ?? "this"}?`,
+      body: controlledItem
+        ? `This is a schedule ${d.schedule} item. The name of whoever `
+          + "physically receives it is the answer to \"who had it\"."
+        : "Often not the patient — a relative, a driver, a neighbour going "
+          + "that way. Recorded as given.",
+      field: "Name, as given",
+      placeholder: d.patient.name,
+      required: true,
+      maxLength: 120,
+      confirmLabel: "Hand it over",
+    });
+    if (!answer.ok) return;
+    try {
+      await api.post(`/api/dispensing/will-call/${d.id}/collect`,
+                     { taken_by: answer.value, id_seen: "" });
+      toast.ok(`Handed to ${answer.value}.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be recorded."));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dispensing history", to: "/dispensing-history" },
@@ -84,6 +122,27 @@ export default function DispensingDetail() {
       )}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          {!d.collected_at && (
+            <BusyButton className="btn primary" onClick={collect}
+                        busyLabel="Recording…">
+              Hand it over
+            </BusyButton>
+          )}
+          {d.sale && (
+            <Link className="btn secondary" to={`/sales/${d.sale.id}`}>
+              The sale
+            </Link>
+          )}
+          {d.prescription && (
+            <Link className="btn secondary"
+                  to={`/prescriptions/${d.prescription.id}`}>
+              The script
+            </Link>
+          )}
+        </div>
+      )}
       facts={d ? [
         { label: "Dispensed", value: d.quantity,
           hint: d.product?.form || undefined },

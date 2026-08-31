@@ -5,10 +5,13 @@
  *  write, so their habits are here alongside the list — a surgery that sends
  *  the same three medicines every week is a stock decision, not just a name.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 
 interface Script {
@@ -28,13 +31,64 @@ export default function PrescriberDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/doctors/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That prescriber could not be opened.")));
   }, [id]);
+  useEffect(load, [load]);
 
+  const toast = useToast();
+  const ask = useAsk();
+  const confirm = useConfirm();
+  /** Correct the practice number, which is what a funder adjudicates on.
+   *
+   *  Typed wrong it was permanent, and every claim carrying this prescriber
+   *  was rejected for as long as the record stood — the only escape being a
+   *  second prescriber with the same name.
+   */
+  async function editField(field: "practice_number" | "phone" | "speciality",
+                           label: string, current: string) {
+    if (!d) return;
+    const answer = await ask({
+      title: `${label} for ${d.name}`,
+      body: field === "practice_number"
+        ? "This is what a funder adjudicates on. A claim carrying the wrong "
+          + "one is rejected every time."
+        : undefined,
+      field: label,
+      placeholder: current || undefined,
+      required: field === "practice_number",
+      confirmLabel: "Save",
+    });
+    if (!answer.ok) return;
+    try {
+      await api.put(`/api/doctors/${d.id}`, { [field]: answer.value });
+      toast.ok(`${label} saved.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
+
+  async function retire() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Retire ${d.name}?`,
+      body: `They stop appearing when a script is captured. The `
+          + `${d.script_count} script(s) they wrote still say who wrote them.`,
+      confirmLabel: "Retire them",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      const r = await api.delete<{ message: string }>(`/api/doctors/${d.id}`);
+      toast.ok(r.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -46,6 +100,23 @@ export default function PrescriberDetail() {
         .filter(Boolean).join(" · ")}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          <BusyButton className="btn"
+            onClick={() => editField("practice_number", "Practice number",
+                                     d.practice_number)}
+            busyLabel="Saving…">
+            {d.practice_number ? "Practice number" : "Add a practice number"}
+          </BusyButton>
+          <BusyButton className="btn" busyLabel="Saving…"
+            onClick={() => editField("phone", "Phone", d.phone)}>
+            Phone
+          </BusyButton>
+          <BusyButton className="btn ghost" onClick={retire} busyLabel="Retiring…">
+            Retire
+          </BusyButton>
+        </div>
+      )}
       facts={d ? [
         { label: "Scripts sent in", value: d.script_count },
         { label: "Practice number",

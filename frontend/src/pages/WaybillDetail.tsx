@@ -17,6 +17,9 @@ import { Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -70,6 +73,62 @@ export default function WaybillDetail() {
   }, [id]);
   useEffect(() => { setW(null); load(); }, [load]);
 
+  const toast = useToast();
+  const ask = useAsk();
+
+  /** Send it out, sign for it, or record that it did not go.
+   *
+   *  The first version of this page linked back to the deliveries list to do
+   *  each of these, which is not acting on the record — it is sending somebody
+   *  to the list to act on it there, with the waybill they were reading held
+   *  in their head. Every one of these endpoints already existed.
+   */
+  async function act(what: "dispatch" | "deliver" | "fail") {
+    if (!w) return;
+    try {
+      if (what === "dispatch") {
+        await api.post(`/api/waybills/${w.id}/dispatch`, {});
+        toast.ok(`${w.waybill_number} is out for delivery.`);
+      } else if (what === "deliver") {
+        const answer = await ask({
+          title: `Who took ${w.waybill_number}?`,
+          body: w.requires_id_check
+            ? "This delivery contains a controlled substance. The recipient's "
+              + "identity must be checked at the door and recorded."
+            : "A parcel signed for by nobody is a missing parcel with a tick "
+              + "against it.",
+          field: "Received by",
+          placeholder: w.recipient || "Full name of whoever took it",
+          required: true, maxLength: 120,
+          confirmLabel: "Delivered",
+        });
+        if (!answer.ok) return;
+        await api.post(`/api/waybills/${w.id}/deliver`, {
+          received_by: answer.value, id_number_seen: "",
+          collected: w.cod_amount || null,
+        });
+        toast.ok(`Signed for by ${answer.value}.`);
+      } else {
+        const answer = await ask({
+          title: `${w.waybill_number} did not deliver`,
+          body: "The medicine is still the pharmacy's and still owed to the "
+              + "patient. Say what happened so somebody can try again.",
+          field: "What happened",
+          placeholder: "Nobody home, gate locked",
+          required: true,
+          confirmLabel: "Record the failure",
+          destructive: true,
+        });
+        if (!answer.ok) return;
+        await api.post(`/api/waybills/${w.id}/fail`, { reason: answer.value });
+        toast.warn("Recorded. The medicine is still ours.");
+      }
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
+
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -87,14 +146,16 @@ export default function WaybillDetail() {
       actions={w && (
         <div className="page-actions">
           {w.status === "pending" && (
-            <Link className="btn primary" to="/deliveries?status=pending">
-              Send it out
-            </Link>
+            <BusyButton className="btn primary" onClick={() => act("dispatch")}
+                        busyLabel="Sending…">Send it out</BusyButton>
           )}
           {w.status === "out" && (
-            <Link className="btn primary" to="/deliveries?status=out">
-              Sign for it
-            </Link>
+            <BusyButton className="btn primary" onClick={() => act("deliver")}
+                        busyLabel="Recording…">Sign for it</BusyButton>
+          )}
+          {(w.status === "pending" || w.status === "out") && (
+            <BusyButton className="btn" onClick={() => act("fail")}
+                        busyLabel="Recording…">Did not deliver</BusyButton>
           )}
           {w.driver_profile_id && (
             <Link className="btn secondary" to={`/drivers/${w.driver_profile_id}`}>

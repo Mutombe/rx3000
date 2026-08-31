@@ -19,11 +19,14 @@
  *  adjustment, an old recovery — that is the most important number on the page,
  *  and rounding it into the total is how it stays undiscovered for a year.
  */
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDate, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 
 interface Line {
   id: number; claim_number: string; status: string;
@@ -63,18 +66,50 @@ export default function ClaimBatchDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/claiming/batches/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That batch could not be opened.")));
   }, [id]);
+  useEffect(load, [load]);
 
   const b = d?.batch;
   const period = b?.period_from
     ? `${fmtDate(b.period_from)}${b.period_to ? ` – ${fmtDate(b.period_to)}` : ""}`
     : "";
 
+  const toast = useToast();
+  const confirm = useConfirm();
+  /** Send the batch to the funder, or record what came back.
+   *
+   *  Both endpoints have existed since claiming was built and the batch's own
+   *  page could not reach either — so the screen that shows what is in a batch
+   *  could not send it, and somebody went back to the claiming list to press
+   *  the same button against a row.
+   */
+  async function submit() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Submit ${d.batch.batch_number}?`,
+      body: (
+        <>
+          {d.batch.claim_count} claim(s) worth{" "}
+          <b>{money(d.batch.total_claimed)}</b> go to{" "}
+          {d.batch.pay_office?.name ?? "the funder"}. Nothing in the batch can
+          be changed afterwards.
+        </>
+      ),
+      confirmLabel: "Submit it",
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/claiming/batches/${d.batch.id}/submit`, {});
+      toast.ok(`${d.batch.batch_number} submitted.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That batch could not be submitted."));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -88,6 +123,23 @@ export default function ClaimBatchDetail() {
                           : "not sent yet"].filter(Boolean).join(" · ")}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          {d.batch.status === "draft" && d.batch.claim_count > 0 && (
+            <BusyButton className="btn primary" onClick={submit}
+                        busyLabel="Submitting…">
+              Submit {d.batch.claim_count} claim(s)
+            </BusyButton>
+          )}
+          {d.shortfall > 0.005 && (
+            // Where the money went. A batch page that shows a shortfall and
+            // no way to work it is the report shape again.
+            <Link className="btn" to="/remittances">
+              Work the {money(d.shortfall)} shortfall
+            </Link>
+          )}
+        </div>
+      )}
       facts={d && b ? [
         { label: "Claimed", value: money(b.total_claimed),
           hint: `${b.claim_count} claim${b.claim_count === 1 ? "" : "s"}` },

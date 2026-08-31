@@ -5,12 +5,15 @@
  *  notices something odd about a batch should not have to go to the recall
  *  screen and search for it again to find out where it went.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
-import { useParams } from "react-router-dom";
+import { useToast } from "../components/Toast";
+import { useAsk, useConfirm } from "../components/Confirm";
+import BusyButton from "../components/BusyButton";
+import { Link, useParams } from "react-router-dom";
 
 interface Recipient {
   patient_id: number | null; patient: string; phone: string; quantity: number;
@@ -36,15 +39,53 @@ export default function BatchDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/stock/batches/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That batch could not be opened.")));
   }, [id]);
+  useEffect(() => { setD(null); load(); }, [load]);
 
   const expiry = d?.days_to_expiry;
 
+  const toast = useToast();
+  const confirm = useConfirm();
+  /** Write off what is left of a batch — expired, damaged, recalled.
+   *
+   *  The endpoint has existed since batches did and only the stock screen
+   *  reached it, so the page that shows an expiry date could not act on it.
+   */
+  async function writeOff() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Write off ${d.quantity_remaining} of ${d.product}?`,
+      body: (
+        <>
+          <p>
+            Batch <b>{d.batch_number}</b>
+            {d.expiry_date && <>, expiring {fmtDate(d.expiry_date)}</>}. Worth{" "}
+            <b>{money(d.value_on_hand)}</b> at cost. The stock leaves the shelf
+            and the loss is recorded against it.
+          </p>
+          <p className="muted">
+            This cannot be undone. It is the right answer for expired or
+            damaged stock and the wrong one for a miscount, which is a stock
+            take.
+          </p>
+        </>
+      ),
+      confirmLabel: "Write it off",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.post(`/api/stock/batches/${d.id}/write-off`, {});
+      toast.ok("Written off.");
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That could not be written off."));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -55,6 +96,19 @@ export default function BatchDetail() {
       subtitle={d && <EntityLink kind="product" id={d.product_id}>{d.product}</EntityLink>}
       loading={!d && !error}
       error={error}
+      actions={d && (
+        <div className="page-actions">
+          {d.quantity_remaining > 0 && (
+            <BusyButton className="btn danger" onClick={writeOff}
+                        busyLabel="Writing off…">
+              Write off {d.quantity_remaining}
+            </BusyButton>
+          )}
+          <Link className="btn secondary" to={`/products/${d.product_id}`}>
+            The product
+          </Link>
+        </div>
+      )}
       facts={d ? [
         { label: "On the shelf", value: d.quantity_remaining,
           hint: `of ${d.quantity_received} received` },

@@ -6,10 +6,13 @@
  *  actually done", which is what you want when a query lands on a dispensing
  *  from three weeks ago.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
+import { useAsk, useConfirm } from "../components/Confirm";
+import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 
 interface Dispensed {
@@ -34,13 +37,89 @@ export default function StaffDetail() {
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    setD(null);
+  const load = useCallback(() => {
     api.get<Data>(`/api/users/${id}`)
       .then(setD)
       .catch((e) => setError(errorText(e, "That member of staff could not be opened.")));
   }, [id]);
+  useEffect(load, [load]);
 
+  const toast = useToast();
+  const ask = useAsk();
+  const confirm = useConfirm();
+  /** A staff member who leaves must stop being able to sign in.
+   *
+   *  The endpoint was built and no screen called it, so the most ordinary
+   *  security failure a small business has — the departed employee whose login
+   *  still works — had no cure in the application.
+   */
+  async function deactivate() {
+    if (!d) return;
+    const ok = await confirm({
+      title: `Stop ${d.full_name} signing in?`,
+      body: (
+        <>
+          <p>
+            Their name stays on the {d.dispensed_count} dispensing(s) they
+            checked and the {d.shift_count} till(s) they cashed up — those are
+            the record of who did them.
+          </p>
+          <p className="muted">
+            They are retired, never deleted. Deleting the row would not remove
+            the work; it would remove the ability to say who did it.
+          </p>
+        </>
+      ),
+      confirmLabel: "Stop the login",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      const r = await api.delete<{ message: string }>(`/api/auth/users/${d.id}`);
+      toast.ok(r.message);
+      load();
+    } catch (e) {
+      // The server refuses the last administrator and the signed-in account,
+      // and says which. Shown as written.
+      toast.error(errorText(e));
+    }
+  }
+
+  async function changeRole() {
+    if (!d) return;
+    const answer = await ask({
+      title: `What is ${d.full_name}'s role?`,
+      body: "admin, pharmacist, manager, assistant or cashier. A role typed "
+          + "wrong used to be permanent, so a qualified pharmacist set up as "
+          + "an assistant needed a second account — and then two logins "
+          + "belonged to one person and the register could not say which of "
+          + "them checked a controlled item.",
+      field: "Role",
+      placeholder: d.role,
+      required: true,
+      maxLength: 20,
+      confirmLabel: "Change it",
+    });
+    if (!answer.ok) return;
+    try {
+      await api.put(`/api/auth/users/${d.id}`, { role: answer.value.toLowerCase() });
+      toast.ok(`${d.full_name} is now a ${answer.value.toLowerCase()}.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
+
+  async function reactivate() {
+    if (!d) return;
+    try {
+      await api.put(`/api/auth/users/${d.id}`, { active: true });
+      toast.ok(`${d.full_name} can sign in again.`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
@@ -51,6 +130,24 @@ export default function StaffDetail() {
       subtitle={d && `${d.role}${d.active ? "" : " · no longer active"}`}
       loading={!d && !error}
       error={error}
+      actions={d && !d.is_demo && (
+        <div className="page-actions">
+          <BusyButton className="btn" onClick={changeRole} busyLabel="Saving…">
+            Change role
+          </BusyButton>
+          {d.active ? (
+            <BusyButton className="btn danger" onClick={deactivate}
+                        busyLabel="Stopping…">
+              Stop the login
+            </BusyButton>
+          ) : (
+            <BusyButton className="btn primary" onClick={reactivate}
+                        busyLabel="Restoring…">
+              Let them sign in again
+            </BusyButton>
+          )}
+        </div>
+      )}
       facts={d ? [
         { label: "Dispensings", value: d.dispensed_count },
         { label: "Till sessions", value: d.shift_count },
