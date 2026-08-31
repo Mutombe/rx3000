@@ -11,6 +11,8 @@
  *  one with a date on it is the one to act on today.
  */
 import { useCallback, useEffect, useState } from "react";
+import SectionNav from "../components/SectionNav";
+import { CLAIMING_TABS } from "../reconTabs";
 import { ArrowClockwise, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
@@ -165,10 +167,13 @@ export default function SchemeCalendar() {
             When each funder wants its claims, and when it settles
           </div>
         </div>
-        <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-          Refresh
-        </button>
+        <div className="page-actions">
+          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {failed && <div className="alert error">{failed}</div>}

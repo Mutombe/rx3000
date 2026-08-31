@@ -24,6 +24,8 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import ExportButton from "../components/ExportButton";
+import SectionNav from "../components/SectionNav";
+import { CLAIMING_TABS } from "../reconTabs";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
@@ -368,9 +370,12 @@ export default function Claiming() {
             how a claim is priced
           </div>
         </div>
-        {/* A pharmacy reconciles what a funder paid against what was claimed in
-            Excel, whatever the software offers. */}
-        <ExportButton dataset="claims" label="Claims as a spreadsheet" />
+        <div className="page-actions">
+          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
+          {/* A pharmacy reconciles what a funder paid against what was claimed
+              in Excel, whatever the software offers. */}
+          <ExportButton dataset="claims" label="Claims as a spreadsheet" />
+        </div>
       </div>
 
       <div className="pill-tabs">

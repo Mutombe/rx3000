@@ -5752,3 +5752,66 @@ table.dt.sub th { font-size: var(--t-xs); }
   .chart-yaxis { font-size: 9.5px; padding-right: 6px; }
   .chart-xaxis span { font-size: 9.5px; min-width: 0; overflow-wrap: anywhere; }
 }
+
+/* ---------- Section nav ----------
+   Tabs across the top of a family of pages, so the sidebar does not have to
+   carry four entries for one area. Same segmented look as .pill-tabs, but
+   links rather than buttons: a tab you cannot send to a colleague is half a
+   tab, and half the reason somebody opens Authorisations is a pasted link. */
+.section-nav {
+  display: inline-flex; flex-wrap: wrap; gap: 2px;
+  padding: 3px; background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.section-nav a {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  height: var(--control-sm); padding: 0 var(--s4);
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  color: var(--ink-soft); text-decoration: none;
+  font-size: var(--t-base); font-weight: 500; white-space: nowrap;
+}
+.section-nav a:hover { background: var(--surface); color: var(--ink); }
+.section-nav a.active {
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  border-color: var(--line); box-shadow: var(--e1);
+}
+.section-nav-count {
+  padding: 0 var(--s2); border-radius: var(--r-sm);
+  background: var(--tint-weak); font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+.section-nav a.active .section-nav-count {
+  background: var(--accent-soft); color: var(--accent);
+}
+/* On a phone the strip scrolls rather than wrapping to three rows and pushing
+   the page content below the fold. */
+@media (max-width: 640px) {
+  .section-nav {
+    display: flex; flex-wrap: nowrap; overflow-x: auto;
+    max-width: 100%; -webkit-overflow-scrolling: touch;
+  }
+  .section-nav::-webkit-scrollbar { display: none; }
+}
+
+/* The reconciliation hub: one row per thing that has two records of it. */
+.recon-grid {
+  display: grid; gap: var(--s4);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.recon-card {
+  display: block; padding: var(--s5); text-decoration: none; color: inherit;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.recon-card:hover { border-color: var(--accent); box-shadow: var(--e1); }
+.recon-card h4 { margin: 0 0 var(--s2); font-size: var(--t-base); }
+.recon-card .recon-value {
+  font-size: var(--t-xl); font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.recon-card .recon-says {
+  margin-top: var(--s2); font-size: var(--t-sm); color: var(--ink-soft);
+}
+.recon-card.is-off { border-left: 3px solid var(--danger); }
+.recon-card.is-unrun { border-left: 3px solid var(--warn); }
+.recon-card.is-clean { border-left: 3px solid var(--ok); }

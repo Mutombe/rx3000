@@ -25,12 +25,10 @@ import {
   Notebook,
   Package,
   PaperPlaneTilt,
-  PauseCircle,
   Prescription,
   Presentation,
   Receipt,
   Scales,
-  SealCheck,
   SignOut,
   Siren,
   SlidersHorizontal,
@@ -147,13 +145,16 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
     links: [
       // Batching and sending claims is the weekly round; "Claims held" is the
       // exception queue for ones that could not go. Sending comes first.
+      // Claiming calendar, Authorisations and Claims held used to be three
+      // more entries here. They are things you do from inside claiming, not
+      // siblings of it, and in a list of fifty everything looks equally
+      // important. They are tabs across the top of the claiming pages now.
       { to: "/claiming", label: "Claiming", icon: PaperPlaneTilt },
       // When each funder wants its claims and when it pays. A cut-off
       // missed costs a whole cycle, so it belongs beside the claiming.
-      { to: "/claiming-calendar", label: "Claiming calendar", icon: CalendarCheck },
-      { to: "/authorisations", label: "Authorisations", icon: SealCheck },
-      { to: "/claims-held", label: "Claims held", icon: PauseCircle },
       { to: "/remittances", label: "Remittances", icon: Coins },
+      // Everything with two records of one fact: card, bank, claims, cash,
+      // stock, and money out with drivers. They were in five places.
       { to: "/reconciliation", label: "Reconciliation", icon: ArrowsLeftRight },
       // Creditors sit beside the ledger rather than under Stock:
       // procurement is about getting the goods, this is about what is owed

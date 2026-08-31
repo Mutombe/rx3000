@@ -11,6 +11,8 @@
  *  queue in a state nobody can reason about.
  */
 import { useEffect, useMemo, useState } from "react";
+import SectionNav from "../components/SectionNav";
+import { CLAIMING_TABS } from "../reconTabs";
 import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { EntityLink } from "../components/Filters";
 import RowLink, { RowActions } from "../components/RowLink";
@@ -111,6 +113,9 @@ export default function DeferredClaims() {
         <div>
           <h1>Claims held</h1>
           <p className="muted">{headline}</p>
+        </div>
+        <div className="page-actions">
+          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
         </div>
         {!!rows.length && (
           <button className="btn primary" disabled={busy !== null} onClick={submitAll}>

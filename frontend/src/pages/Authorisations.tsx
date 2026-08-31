@@ -16,6 +16,8 @@
  *  over an authorisation that lapsed last month.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import SectionNav from "../components/SectionNav";
+import { CLAIMING_TABS } from "../reconTabs";
 import { api, errorText, fmtDate, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import LookupInput, { LookupItem } from "../components/LookupInput";
@@ -287,6 +289,7 @@ export default function Authorisations() {
           </div>
         </div>
         <div className="page-actions">
+          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
           <input
             className="page-search"
             value={search}

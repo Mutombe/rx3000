@@ -45,9 +45,17 @@ export default function ProductDetail() {
 
   // The departments, for the control below. Fetched once rather than per
   // product: they change about as often as the shop is re-laid-out.
+  //
+  // `{items, untagged}`, not a bare list. It used to be a list; it grew a
+  // count of unfiled lines when the departments screen needed one, and this
+  // page kept asserting the old shape — `api.get<T>` tells the compiler what
+  // came back, it does not ask the server. The whole page threw
+  // `.map is not a function` and rendered white. `qa/response-shape.py` now
+  // reads every such assertion against what the handler actually returns.
   useEffect(() => {
-    api.get<{ id: number; name: string }[]>("/api/stock-categories")
-      .then(setDepartments).catch(() => setDepartments([]));
+    api.get<{ items: { id: number; name: string }[] }>("/api/stock-categories")
+      .then((d) => setDepartments(d.items ?? []))
+      .catch(() => setDepartments([]));
   }, []);
 
   /** File this product under a department.

@@ -63,6 +63,8 @@ const Pharmacies = lazy(() => import("./pages/Pharmacies"));
 const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
 const Deliveries = lazy(() => import("./pages/Deliveries"));
 const Drivers = lazy(() => import("./pages/Drivers"));
+const Reconciliation = lazy(() => import("./pages/Reconciliation"));
+const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
 const DriverDetail = lazy(() => import("./pages/DriverDetail"));
 const Dispense = lazy(() => import("./pages/Dispense"));
 const HelpDesk = lazy(() => import("./pages/HelpDesk"));
@@ -197,7 +199,12 @@ export default function App() {
                 <Route path="/authorisations" element={<Authorisations />} />
                 <Route path="/compounding" element={<Compounding />} />
                 <Route path="/branches" element={<Branches />} />
-                <Route path="/reconciliation" element={<CardReconciliation />} />
+                {/* The hub, then the two that need a file uploaded. Cash,
+                    claims and stock keep the screens they already had and
+                    are reached from the same strip. */}
+                <Route path="/reconciliation" element={<Reconciliation />} />
+                <Route path="/reconciliation/card" element={<CardReconciliation />} />
+                <Route path="/reconciliation/bank" element={<BankReconciliation />} />
                 <Route path="/leads" element={<Leads />} />
                 <Route path="/pipeline" element={<Pipeline />} />
                 <Route path="/deals/:id" element={<DealDetail />} />

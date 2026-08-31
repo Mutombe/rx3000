@@ -46,6 +46,7 @@ from .routers import (
     shifts_router, stock_router, system_router, to_follows_router,
     samples_router,
     instruments_router,
+    recon_router,
 )
 from .seed import (
     seed, seed_claiming_if_empty, seed_crm_if_empty, seed_formulary_if_empty,
@@ -189,6 +190,7 @@ for router_module in (
     scorecard_router,
     pharmacies_router,
     instruments_router,
+    recon_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)
