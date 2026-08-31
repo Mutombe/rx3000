@@ -13,6 +13,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import { TableSkeleton } from "../components/Skeleton";
+import PaymentInstruments from "../components/PaymentInstruments";
 import { useConfirm } from "../components/Confirm";
 
 const RULE_TYPES = [
@@ -23,10 +24,11 @@ const RULE_TYPES = [
   ["deal_task", "Deal task creation"],
 ];
 
-type Tab = "prices" | "currency" | "settings" | "scripts" | "audit" | "approvals" | "switch" | "notices" | "backups" | "automation" | "templates";
+type Tab = "prices" | "currency" | "tenders" | "settings" | "scripts" | "audit" | "approvals" | "switch" | "notices" | "backups" | "automation" | "templates";
 
 const TABS: [Tab, string][] = [
   ["prices", "Price file import"], ["currency", "Currency & rates"],
+  ["tenders", "Ways money arrives"],
   ["settings", "Global settings"],
   ["scripts", "Prescriber scripts"],
   ["audit", "Audit log"],
@@ -540,6 +542,8 @@ export default function Admin() {
       )}
 
       {tab === "currency" && <CurrencyRates />}
+      {/* The one list the till and the cash-up both read. */}
+      {tab === "tenders" && <PaymentInstruments />}
 
       {/* Fetches its own rows from the server's declaration, so nothing here
           needs to know which settings exist. */}

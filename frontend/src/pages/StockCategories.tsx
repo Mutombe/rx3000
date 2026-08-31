@@ -21,6 +21,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import TagProducts from "../components/TagProducts";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
@@ -112,10 +113,15 @@ export default function StockCategories() {
             report — not the stocktake sheet, not the margin comparison, not the
             valuation. That is how a product stops being counted without anybody
             deciding it should.{" "}
-            <EntityLink to="/stock">Open the catalogue</EntityLink> to file them.
+            <EntityLink to="/stock">Open the catalogue</EntityLink> to file them
+            one at a time, or use the rules below to do most of it at once.
           </span>
         </div>
       )}
+
+      {/* Ten thousand untagged lines is not a list anybody works through by
+          hand, and it is not a problem MISC solves either. */}
+      {untagged > 0 && <TagProducts onDone={() => list.reload()} />}
 
       <div className="card">
         <Refreshable

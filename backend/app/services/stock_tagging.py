@@ -200,6 +200,10 @@ def tag(db: Session, *, pharmacy_id: int, apply: bool = False,
                 .filter(StockCategory.pharmacy_id == pharmacy_id).all()}
 
     placed: dict[str, int] = {}
+    # Departments this would have to create. Said in the preview, because a
+    # rule table quietly inventing eight new departments in somebody's shop is
+    # a thing they should agree to before it happens, not discover afterwards.
+    created: list[str] = []
     unplaced = 0
     considered = 0
 
@@ -212,6 +216,8 @@ def tag(db: Session, *, pharmacy_id: int, apply: bool = False,
             unplaced += 1
             continue
         where = _department(where, existing)
+        if where.upper() not in existing and where not in created:
+            created.append(where)
         placed[where] = placed.get(where, 0) + 1
         if not apply:
             continue
@@ -235,6 +241,8 @@ def tag(db: Session, *, pharmacy_id: int, apply: bool = False,
         "by_department": sorted(({"department": k, "products": v}
                                  for k, v in placed.items()),
                                 key=lambda r: -r["products"]),
+        "departments": dict(placed),
+        "created": created,
         "message": (
             f"{sum(placed.values()):,} of {considered:,} placed into "
             f"{len(placed)} department(s)."
