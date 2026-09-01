@@ -6476,3 +6476,14 @@ table.dt.sub th { font-size: var(--t-xs); }
   padding-top: 0; background: var(--surface-sunk);
   font-size: var(--t-sm); color: var(--ink-soft);
 }
+
+/* What the driver will collect at the door, stated before the bag leaves.
+   This is the figure they are held to when they come back, so it is set out
+   as a sentence rather than dropped into a form row. */
+.disp-cod {
+  margin: var(--s2) 0 0; padding: var(--s3);
+  background: var(--surface-sunk);
+  border-left: 3px solid var(--accent); border-radius: var(--r-sm);
+  font-size: var(--t-sm); line-height: 1.5; color: var(--ink-mid);
+}
+.disp-cod b { font-size: 1.05rem; color: var(--ink); }

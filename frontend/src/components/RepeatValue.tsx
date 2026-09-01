@@ -20,6 +20,7 @@
  *  the second figure to know what that sentence cost.
  */
 import { money } from "../api";
+import { nRepeat, nRepeatPhrase } from "../terms";
 
 export default function RepeatValue({
   value, remaining, used, allowed, size = "row", title,
@@ -43,15 +44,17 @@ export default function RepeatValue({
     return <span className="rv-none" title="No price on this product yet">—</span>;
   }
 
-  const position = allowed
-    ? `${used ?? 0}/${allowed}`
-    : null;
+  // "3-Repeat" — the dispensary's own name for a script with three
+  // collections still to come, and the number is the point of it. The bare
+  // `2/5` said the same thing in a notation you have to be taught.
+  const left = allowed ? Math.max(0, allowed - (used ?? 0)) : 0;
+  const position = allowed ? (nRepeat(left) || `${used ?? 0}/${allowed}`) : null;
 
   return (
     <span className={`rv rv-${size}`}
-          title={title ?? (later
+          title={title ?? ((allowed ? nRepeatPhrase(left) + " · " : "") + (later
             ? `${money(now)} this collection · ${money(later)} still to come on this script`
-            : `${money(now)} this collection`)}>
+            : `${money(now)} this collection`))}>
       {position && <span className="rv-pos">{position}</span>}
       <span className="rv-now">{money(now)}</span>
       {/* The second figure is the one that answers "what did losing them

@@ -13,7 +13,7 @@ import { CurrencyState, Patient, Product, Sale } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
-import { ClockCounterClockwise, Printer } from "@phosphor-icons/react";
+import { ClockCounterClockwise, Printer, Truck } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
@@ -116,10 +116,30 @@ export default function POS() {
   const [pendingLoading, setPendingLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(true);
 
+  /** Sales a driver is out with, keyed by sale id.
+   *
+   *  A sale on a driver's account looks exactly like one where the patient is
+   *  standing at the counter, and taking payment for it collects money
+   *  somebody else is also collecting: the patient pays twice, or the driver
+   *  returns with cash for a sale the books already show as settled.
+   *
+   *  One request for the whole list rather than a lookup per row.
+   */
+  const [outWith, setOutWith] = useState<Record<string, {
+    waybill_number: string; driver: string; driver_id: number | null;
+    cod_amount: number; status: string;
+  }>>({});
+
   function loadPending() {
     api.get<Sale[]>("/api/pos/sales?status=pending&limit=20")
       .then(setPending)
       .finally(() => setPendingLoading(false));
+    api.get<typeof outWith>("/api/deliveries/out-sales")
+      .then(setOutWith)
+      // The list still renders. A delivery marker that cannot be fetched must
+      // not stop a cashier settling the sales that are genuinely at the
+      // counter.
+      .catch(() => setOutWith({}));
   }
 
   function loadHistory() {
@@ -651,10 +671,20 @@ export default function POS() {
             <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th className="actions" /></tr></thead>
             <tbody>
               {pending.map((s) => (
-                <tr key={s.id} className={settleId === s.id ? "row-flag" : ""}>
+                <tr key={s.id}
+                    className={settleId === s.id ? "row-flag"
+                      : outWith[String(s.id)] ? "row-muted" : ""}>
                   <td className="mono">
                     <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
                     {settleId === s.id && <div className="muted small">just dispensed</div>}
+                    {/* On a driver's account. Said on the row, because the row
+                        is where somebody is about to press Cash. */}
+                    {outWith[String(s.id)] && (
+                      <div className="muted small">
+                        out with {outWith[String(s.id)].driver} ·{" "}
+                        {outWith[String(s.id)].waybill_number}
+                      </div>
+                    )}
                   </td>
                   <td>
                     <EntityLink kind="patient" id={s.patient?.id}>
@@ -684,6 +714,20 @@ export default function POS() {
                         which bank. Settling outright recorded one word, and a
                         drawer counted at five o'clock cannot be matched to a
                         day of sales that each said "cash". */}
+                    {/* A sale a driver is out with is not settled here. The
+                        driver collects at the door and hands it in, and that
+                        hand-in is what settles it — a cashier taking it as
+                        well collects the same money twice. */}
+                    {outWith[String(s.id)] ? (
+                      <span className="badge warn" title={
+                        `${outWith[String(s.id)].driver} is to collect `
+                        + `${money(outWith[String(s.id)].cod_amount)} at the door. `
+                        + `It settles when they hand it in.`}>
+                        <Truck size={11} weight="fill" /> on{" "}
+                        {outWith[String(s.id)].driver}&rsquo;s account
+                      </span>
+                    ) : (
+                      <>
                     <button className="btn small"
                             onClick={() => setSettling({ sale: s, method: "cash" })}>Cash</button>{" "}
                     <button className="btn small secondary"
@@ -696,6 +740,8 @@ export default function POS() {
                             onClick={() => setPartOf(s)}>
                       Part
                     </button>
+                      </>
+                    )}
                   </td>
                 </tr>
               ))}

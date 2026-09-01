@@ -100,6 +100,13 @@ const PAY_CHOICES = [
   { key: "till", label: "Send to till",
     hint: "Raise it now; the patient settles their share at the front shop" },
   { key: "now", label: "Take payment now", hint: "Cash, card, mobile or a mix of them" },
+  // The third thing that actually happens to a dispensed script, and the
+  // screen had no word for it. A delivery leaves the building unpaid: the
+  // driver collects at the door and the money is theirs to account for until
+  // they hand it in, so the sale goes onto the driver's account rather than
+  // sitting on a till nobody is standing at.
+  { key: "delivery", label: "Out for delivery",
+    hint: "The driver collects at the door and hands it in on their return" },
 ];
 
 export default function Dispense() {
@@ -139,6 +146,32 @@ export default function Dispense() {
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
   const [payHow, setPayHow] = useState("till");
+  /** Who is taking it, and where. Only asked for on the delivery route. */
+  const [drivers, setDrivers] = useState<{ id: number; full_name: string;
+    active: boolean; cash_holding?: number; cod_limit?: number;
+    over_cod_limit?: boolean; licence_expired?: boolean }[]>([]);
+  const [driverId, setDriverId] = useState<number | "">("");
+  const [deliverTo, setDeliverTo] = useState("");
+  const [deliveryFee, setDeliveryFee] = useState("");
+
+  useEffect(() => {
+    // Fetched when the route is chosen, not on load: a dispensary that never
+    // delivers should not pay for the request, and the list is short enough
+    // that asking on demand is instant.
+    if (payHow !== "delivery" || drivers.length) return;
+    api.get<typeof drivers>("/api/drivers")
+      .then(setDrivers)
+      .catch(() => setDrivers([]));
+  }, [payHow]);
+
+  // The address it is going to. Taken from the patient the moment a driver is
+  // needed, because a delivery to an address nobody typed is a parcel that
+  // comes back.
+  useEffect(() => {
+    if (payHow === "delivery" && !deliverTo && patient?.address) {
+      setDeliverTo(patient.address);
+    }
+  }, [payHow, patient?.id]);
   const [tenders, setTenders] = useState<TenderLine[]>([]);
   const [currencyState, setCurrencyState] = useState<any>(null);
   /** What the patient will actually hand over, once the claim is off it. */
@@ -706,7 +739,7 @@ export default function Dispense() {
                                        { ...scriptPayload(), draft: true });
         setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                     draft: true });
-        toast.ok(`Saved for later. It is on the worklist as ${"an " + DRAFT_SCRIPT}.`);
+        toast.ok(`Saved for later. It is on the worklist as a ${DRAFT_SCRIPT.toLowerCase()}.`);
       }
     } catch (e) {
       toast.error(errorText(e, "That could not be saved."));
@@ -817,6 +850,40 @@ export default function Dispense() {
             "Dispensed, but the payment did not go through. It is waiting at the till."));
         }
       }
+      // Out for delivery: raise the waybill and put it on the driver's
+      // account. Done after the sale exists, because the waybill has to carry
+      // its number and the amount to collect at the door.
+      if (payHow === "delivery" && driverId !== "") {
+        try {
+          const fee = Number(deliveryFee) || 0;
+          const wb = await api.post<{ id: number; waybill_number: string }>(
+            "/api/waybills", {
+              sale_id: sale.id,
+              patient_id: patient?.id ?? null,
+              address: deliverTo,
+              delivery_fee: fee,
+              driver_profile_id: driverId,
+              // What the driver is to collect. The patient's share plus the
+              // fee — never the gross, which would be asking the member for
+              // the scheme's money at their own front door.
+              cod_amount: Math.round((patientPortion(sale) + fee) * 100) / 100,
+            });
+          await api.post(`/api/waybills/${wb.id}/dispatch`,
+                         { driver_id: driverId });
+          const who = drivers.find((d) => d.id === driverId)?.full_name ?? "the driver";
+          toast.ok(`${wb.waybill_number} is out with ${who}, collecting `
+                   + `${money(patientPortion(sale) + fee)} at the door. `
+                   + `It is on their account until they hand it in.`);
+        } catch (err) {
+          // The medicine has gone out and the sale exists. A waybill that
+          // could not be raised is a delivery that has to be arranged by hand,
+          // which is worth saying plainly rather than failing the dispense.
+          toast.error(errorText(err,
+            "Dispensed, but the delivery note could not be raised. Raise it "
+            + "from Deliveries before the driver leaves."));
+        }
+      }
+
       setDoneSale(finished); setDoneRxId(rx.id);
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
@@ -1713,6 +1780,97 @@ export default function Dispense() {
                   which on a counter taking USD and ZiG across three wallets is
                   a figure nobody can reconcile at cash-up. Same component the
                   till uses, so the question is asked once and asked the same. */}
+              {/* Who is taking it, and what they will collect at the door.
+                  Asked here rather than on a Deliveries screen afterwards: the
+                  bag is being packed now, and a waybill raised an hour later
+                  is one somebody has to remember to raise. */}
+              {items.length > 0 && payHow === "delivery" && (
+                <div className="card" style={{ marginBottom: 12 }}>
+                  <div className="form-row">
+                    <div className="field span-6">
+                      <label>Driver</label>
+                      <Select
+                        value={String(driverId ?? "")}
+                        onChange={(v) => setDriverId(v === "" ? "" : Number(v))}
+                        options={[
+                          { value: "", label: "Choose a driver…" },
+                          ...drivers.filter((d) => d.active).map((d) => ({
+                            value: String(d.id),
+                            // What they are already carrying, on the line where
+                            // they are chosen. A driver over their limit is a
+                            // decision to make before the bag is loaded, not
+                            // after they have left.
+                            label: d.full_name
+                              + (d.cash_holding
+                                 ? ` — holding ${money(d.cash_holding)}` : "")
+                              + (d.over_cod_limit ? " · over limit" : "")
+                              + (d.licence_expired ? " · licence expired" : ""),
+                          })),
+                        ]}
+                      />
+                    </div>
+                    <div className="field span-6">
+                      <label>Delivery fee</label>
+                      <input type="number" step="0.01" value={deliveryFee}
+                             placeholder="0.00"
+                             onChange={(e) => setDeliveryFee(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label>Deliver to</label>
+                    <input value={deliverTo}
+                           placeholder="Street, suburb, and anything the driver needs"
+                           onChange={(e) => setDeliverTo(e.target.value)} />
+                  </div>
+
+                  {/* What goes onto the driver's account. Stated before the
+                      bag leaves, because this is the figure they will be held
+                      to when they come back. */}
+                  <p className="disp-cod">
+                    The driver collects{" "}
+                    <b>{money(dueNow + (Number(deliveryFee) || 0))}</b>
+                    {Number(deliveryFee) > 0 && (
+                      <span className="muted">
+                        {" "}({money(dueNow)} for the medicine
+                        {" "}+ {money(Number(deliveryFee))} delivery)
+                      </span>
+                    )}
+                    {" "}at the door. It sits on their account until they hand
+                    it in, and the sale is settled then — not now.
+                  </p>
+
+                  {(() => {
+                    const d = drivers.find((x) => x.id === driverId);
+                    if (!d) return null;
+                    if (d.licence_expired) {
+                      return (
+                        <p className="alert bad">
+                          <Warning size={15} weight="fill" />
+                          <span>
+                            {d.full_name}&rsquo;s licence has expired. Dispatch
+                            will be refused.
+                          </span>
+                        </p>
+                      );
+                    }
+                    if (d.over_cod_limit) {
+                      return (
+                        <p className="alert warn">
+                          <Warning size={15} weight="fill" />
+                          <span>
+                            {d.full_name} is already carrying{" "}
+                            {money(d.cash_holding ?? 0)} against a limit of{" "}
+                            {money(d.cod_limit ?? 0)}. Dispatch will be refused
+                            until it is handed in.
+                          </span>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+
               {items.length > 0 && payHow === "now" && (
                 <div className="card" style={{ marginBottom: 12 }}>
                   <Tenders
@@ -1735,8 +1893,8 @@ export default function Dispense() {
                 <div className="alert warn">
                   <Warning size={16} weight="fill" />
                   <span>
-                    <b>{fromRx.number} is {DRAFT_SCRIPT === "N-Repeat" ? "an" : "a"}{" "}
-                    {DRAFT_SCRIPT}.</b> It has no Rx number yet and cannot be
+                    <b>{fromRx.number} is a {DRAFT_SCRIPT.toLowerCase()}.</b>{" "}
+                    It has no Rx number yet and cannot be
                     dispensed. Finish capturing it — that is where it takes its
                     number and where the checks happen — or save it and come
                     back.

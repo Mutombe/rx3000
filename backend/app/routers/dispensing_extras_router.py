@@ -335,6 +335,40 @@ def deliver(waybill_id: int, received_by: str = Body(...),
     return _row(w)
 
 
+@router.get("/deliveries/out-sales")
+def sales_out_with_a_driver(db: Session = Depends(get_db)):
+    """Which unpaid sales are on a driver's account right now.
+
+    The till lists everything awaiting payment, and until now a sale a driver
+    was at that moment collecting for looked exactly like one where the patient
+    was standing at the counter. A cashier taking payment for it collects money
+    somebody else is also collecting — the patient pays twice, or the driver
+    comes back with cash for a sale the books already show as settled.
+
+    One request for the whole list rather than a lookup per row: the pending
+    tab renders fifty rows, and fifty extra queries against a hosted database
+    is how a till stops being usable.
+    """
+    rows = (db.query(Waybill)
+            .options(joinedload(Waybill.driver_profile))
+            .filter(Waybill.sale_id.isnot(None),
+                    Waybill.status.in_(("pending", "out")))
+            .all())
+    return {
+        str(w.sale_id): {
+            "waybill_id": w.id,
+            "waybill_number": w.waybill_number,
+            "status": w.status,
+            "driver_id": w.driver_profile_id,
+            "driver": (w.driver_profile.full_name if w.driver_profile
+                       else "not assigned"),
+            "cod_amount": round(w.cod_amount or 0.0, 2),
+            "dispatched_at": w.dispatched_at,
+        }
+        for w in rows
+    }
+
+
 @router.get("/drivers/{driver_id}/account")
 def driver_account_view(driver_id: int, db: Session = Depends(get_db)):
     """What this driver is carrying, what is still out, and what they handed in.

@@ -15,7 +15,7 @@ import { useToast } from "./Toast";
 import { ArrowsClockwise, Phone } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
 import RepeatValue from "./RepeatValue";
-import { DRAFT_SCRIPT } from "../terms";
+import { DRAFT_SCRIPT_PLURAL } from "../terms";
 
 interface QueueRow {
   item_id: number; prescription_id: number; rx_number: string;
@@ -202,7 +202,7 @@ export default function DispensaryWorklist({
         {([["queue", "Queue", counts.waiting],
            ["chronics", "Chronic", data.chronics.length],
            ["due", "Due", data.reminders.length],
-           ["drafts", DRAFT_SCRIPT, drafts.length]] as [Panel, string, number][])
+           ["drafts", DRAFT_SCRIPT_PLURAL, drafts.length]] as [Panel, string, number][])
           .map(([key, label, n]) => (
           <button
             key={key}

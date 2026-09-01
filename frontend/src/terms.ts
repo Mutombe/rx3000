@@ -46,20 +46,39 @@ export function patientOwesPhrase(onScheme: boolean): string {
 
 /** A script captured but not yet finished, so it holds no Rx number.
  *
- *  It was called "unfinished". Renamed on instruction to **N-Repeat**, and put
- *  here rather than typed into six screens so that changing it again is one
- *  edit.
+ *  A **draft**. Its own thing, with its own section.
  *
- *  Worth knowing what it actually denotes, because the new name does not say
- *  it: this is the *draft* state — a script half-captured when the phone rang,
- *  holding no Rx number, unable to be dispensed until it is finished. It is not
- *  about repeats outstanding. The incumbent's own menu reads "Dispensing >
- *  Unfinished Scripts", so the parity register keeps that wording under
- *  `incumbent`, where it records what their screen says rather than what ours
- *  does.
+ *  It was briefly called "N-Repeat" here, which was my misreading: an N-Repeat
+ *  is a repeat with collections still to come (below), and a draft is a script
+ *  that was never finished being typed. They have nothing to do with each
+ *  other — one is about a script's future, the other about its capture — and
+ *  putting one name on both would have been the same fault as calling a
+ *  shortfall a "patient portion": one word over two different facts.
  */
-export const DRAFT_SCRIPT = "N-Repeat";
-export const DRAFT_SCRIPT_PLURAL = "N-Repeats";
+export const DRAFT_SCRIPT = "Draft";
+export const DRAFT_SCRIPT_PLURAL = "Drafts";
+
+/** A repeat with collections still to come — the trade's "3-Repeat".
+ *
+ *  What the dispensary means by an N-Repeat: a script that is not finished
+ *  *being repeated*. Five collections were authorised, two have gone out,
+ *  three are still owed to the patient — that is a 3-Repeat, and the number is
+ *  the point of the name.
+ *
+ *  It is not the same as "due". A 3-Repeat may not be due for a fortnight; it
+ *  is a statement about what the script still holds, not about today's work.
+ */
+export function nRepeat(remaining: number | null | undefined): string {
+  const n = remaining ?? 0;
+  return n > 0 ? `${n}-Repeat` : "";
+}
+
+/** The same, spelt out, where a badge would be too terse. */
+export function nRepeatPhrase(remaining: number | null | undefined): string {
+  const n = remaining ?? 0;
+  if (n <= 0) return "no repeats left";
+  return `${n} repeat${n === 1 ? "" : "s"} still to come`;
+}
 
 /** The trade's word for each figure, so one edit changes every screen. */
 export const TERMS = {
