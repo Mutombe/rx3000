@@ -335,6 +335,35 @@ def deliver(waybill_id: int, received_by: str = Body(...),
     return _row(w)
 
 
+@router.get("/drivers/{driver_id}/account")
+def driver_account_view(driver_id: int, db: Session = Depends(get_db)):
+    """What this driver is carrying, what is still out, and what they handed in.
+
+    Two figures kept apart on purpose: cash collected and not handed in is a
+    debt the driver owes the shop, and money still on the road is owed by
+    nobody yet because the medicine has not changed hands. Added together they
+    make a number that is neither — and that is the number somebody would put
+    in a cash-up.
+    """
+    from ..services import driver_account
+
+    try:
+        return driver_account.account(db, driver_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+# Not /drivers/accounts: that path is registered after /drivers/{driver_id},
+# which would match "accounts" as an id and answer 422 to a perfectly good
+# request. A name that cannot collide beats a comment about ordering.
+@router.get("/driver-accounts")
+def driver_accounts(db: Session = Depends(get_db)):
+    """Every driver holding money for the shop, worst first."""
+    from ..services import driver_account
+
+    return driver_account.ledger(db)
+
+
 @router.post("/deliveries/hand-in")
 def hand_in(driver_profile_id: int = Body(...),
             shift_id: int | None = Body(default=None),

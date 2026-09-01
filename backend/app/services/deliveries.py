@@ -39,7 +39,7 @@ from datetime import date, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from ..models import Driver, PaymentInstrument, Shift, Waybill
+from ..models import Driver, PaymentInstrument, Sale, Shift, Waybill
 
 #: An instrument flagged this way is money a driver holds, not money in a till.
 DELIVERY_CODES = ("cod", "delivery_fee")
@@ -227,11 +227,43 @@ def settle(db: Session, waybills: list[Waybill], shift: Shift,
     differ, and a system that overwrites one with the other has thrown away the
     only fact worth keeping.
     """
+    from . import driver_account
+
     expected = round(sum(w.cod_collected or 0.0 for w in waybills), 2)
     now = datetime.utcnow()
+
+    # The money reaching the till is when the SALE is paid, and nothing used to
+    # do this.
+    #
+    # A driver could collect fifty dollars at a door, hand it to a cashier and
+    # have it counted into the drawer, and the sale stayed `pending` for ever:
+    # the patient still showed as owing money they had already paid, and the
+    # shop's debtors carried cash that was sitting in its own till. The waybill
+    # knew, the sale did not, and nobody was ever going to reconcile the two by
+    # hand.
+    #
+    # Written through the same tender path the counter uses, so there is one
+    # definition of "has this been paid" rather than two that drift.
+    settled: list[dict] = []
+    refused: list[str] = []
     for w in waybills:
         w.cod_settled_at = now
         w.cod_shift_id = shift.id
+        if not w.sale_id or not (w.cod_collected or 0):
+            continue
+        sale = db.get(Sale, w.sale_id)
+        if sale is None or sale.status in ("paid", "reversed", "cancelled"):
+            continue
+        try:
+            settled.append(driver_account.settle_sale(
+                db, sale, amount=w.cod_collected,
+                method=w.cod_instrument or "cash",
+                reference=w.waybill_number or "", shift_id=shift.id))
+        except ValueError as exc:
+            # A collection that does not fit its sale is reported, not
+            # swallowed and not allowed to stop the rest of the round being
+            # handed in. The driver has already given the money over.
+            refused.append(f"{w.waybill_number}: {exc}")
 
     handed_in = expected if counted is None else round(float(counted), 2)
     return {
@@ -241,6 +273,10 @@ def settle(db: Session, waybills: list[Waybill], shift: Shift,
         "variance": round(handed_in - expected, 2),
         "shift_id": shift.id,
         "fees": round(sum(w.delivery_fee or 0.0 for w in waybills), 2),
+        # What this hand-in actually closed. A round that marks eight sales
+        # paid without saying which is a round nobody can check afterwards.
+        "sales_settled": settled,
+        "could_not_settle": refused,
     }
 
 

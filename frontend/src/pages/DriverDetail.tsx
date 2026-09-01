@@ -11,7 +11,7 @@
  *    are they any good — how many deliveries fail, and why.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, PencilSimple, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -21,6 +21,14 @@ import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import type { Driver } from "./Drivers";
+
+/** One hand-in: a round of deliveries turned into money in a till. */
+interface HandIn {
+  settled_at: string;
+  shift_id: number | null;
+  deliveries: number;
+  amount: number;
+}
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -51,6 +59,7 @@ export default function DriverDetail() {
   const [handingIn, setHandingIn] = useState(false);
   const [counted, setCounted] = useState("");
   const toast = useToast();
+  const [handIns, setHandIns] = useState<HandIn[] | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -58,19 +67,37 @@ export default function DriverDetail() {
       .then(setDriver)
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
+    // The account is a second request rather than a fatter first one: the
+    // driver record is what the page needs to render at all, and a hand-in
+    // history that cannot be fetched must not blank the page.
+    api.get<{ hand_ins: HandIn[] }>(`/api/drivers/${id}/account`)
+      .then((a) => setHandIns(a.hand_ins ?? []))
+      .catch(() => setHandIns([]));
   }, [id]);
   useEffect(load, [load]);
 
   async function handIn() {
     try {
-      const r = await api.post<{ message: string }>("/api/deliveries/hand-in", {
+      const r = await api.post<{
+        message: string;
+        sales_settled: { sale_number: string; applied: number }[];
+        could_not_settle: string[];
+      }>("/api/deliveries/hand-in", {
         driver_profile_id: Number(id),
         // Counted, not assumed. The whole reason to count at a hand-over is
         // that the two figures sometimes differ, and a system that writes the
         // expected figure over the counted one has thrown the difference away.
         counted: counted === "" ? null : Number(counted),
       });
-      toast.ok(r.message);
+      // What the hand-in actually closed. Until now the money reached the till
+      // and the sales stayed pending, so the patient went on owing what they
+      // had already paid — and the message said nothing either way.
+      const closed = r.sales_settled?.length ?? 0;
+      toast.ok(r.message
+        + (closed ? ` ${closed} sale${closed === 1 ? "" : "s"} settled.` : ""));
+      // A collection that would not fit its sale is not a detail. Somebody has
+      // the money and the books do not agree about it.
+      (r.could_not_settle ?? []).forEach((why) => toast.error(why));
       setHandingIn(false); setCounted("");
       load();
     } catch (e) {
@@ -185,6 +212,50 @@ export default function DriverDetail() {
           </dd>
           {driver.notes && (<><dt>Notes</dt><dd>{driver.notes}</dd></>)}
         </dl>
+      </div>
+
+      {/* What has already been handed in. A balance with no history behind it
+          is a number somebody has to take on trust, and this is the record a
+          driver points at when a figure is disputed. */}
+      <div className="card">
+        <div className="card-head">
+          <h3>Handed in</h3>
+          <span className="muted small">
+            Each round this driver has brought back and paid over
+          </span>
+        </div>
+        {handIns === null ? <TableSkeleton cols={4} rows={3} />
+          : handIns.length === 0 ? (
+            <div className="empty">
+              <p>
+                Nothing has been handed in yet. Money collected at a door sits
+                on this driver&rsquo;s account until they bring it to a till.
+              </p>
+            </div>
+          ) : (
+            <table className="dt">
+              <thead>
+                <tr>
+                  <th>When</th><th className="num">Deliveries</th>
+                  <th className="num">Amount</th><th>Into till</th>
+                </tr>
+              </thead>
+              <tbody>
+                {handIns.map((h, i) => (
+                  <tr key={i}>
+                    <td>{fmtDateTime(h.settled_at)}</td>
+                    <td className="num">{h.deliveries}</td>
+                    <td className="num">{money(h.amount)}</td>
+                    <td className="muted">
+                      {h.shift_id
+                        ? <Link to={`/shifts/${h.shift_id}`}>shift {h.shift_id}</Link>
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
       </div>
 
       <div className="card">
