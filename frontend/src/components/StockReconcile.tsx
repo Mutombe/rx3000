@@ -8,7 +8,7 @@
  *
  *  It matters because different parts of the software believe different ones.
  *  Dispensing draws against the batches — first expiry first, one branch,
- *  nothing expired — and that is what decides whether medicine can actually go
+ *  nothing expired, and that is what decides whether medicine can actually go
  *  out. Almost every screen shows the product's own count instead. So a
  *  pharmacy can be told it has none of something it has three hundred of, and
  *  reorder it.

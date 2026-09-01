@@ -7,7 +7,7 @@ about why, because it is the shape most systems get wrong.
 An authorisation is a **promise with three limits**: a validity window, a
 quantity, and an amount. A pharmacy holding authorisation number A12345 for six
 months' supply will happily dispense the seventh month, or dispense in March
-against an authorisation that lapsed in February — and the claim is rejected
+against an authorisation that lapsed in February, and the claim is rejected
 weeks later, after the medicine has gone. By then it is a bad debt, not a
 decision.
 
@@ -146,7 +146,7 @@ def release(db: Session, reference: str = "", claim_id: int | None = None) -> in
 
     A void or a credit note means the medicine came back over the counter. If the
     authorisation is not released with it, the patient has silently lost cover
-    they never received — which surfaces as an unexplained rejection the next
+    they never received, which surfaces as an unexplained rejection the next
     time they collect.
     """
     query = db.query(AuthorisationUse).filter(AuthorisationUse.reversed.is_(False))

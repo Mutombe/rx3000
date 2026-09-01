@@ -16,14 +16,14 @@ quantity, the batch and the consequence, and the confirming button should say
 
 **`prompt` cannot require an answer.** It returns a string, and Cancel and an
 empty box are indistinguishable. One of the four found here was collecting the
-name of whoever received a **controlled substance** — a legal record — with
+name of whoever received a **controlled substance**, a legal record, with
 nothing to stop it being blank.
 
 **They look like Windows.** On a machine a pharmacy bought to run one
 application, that is jarring in a way that reads as unfinished.
 
 The replacements are `useConfirm` and `useAsk` in `components/Confirm`, and
-`useToast` — or the imperative `toast` for modules that are not components.
+`useToast`: or the imperative `toast` for modules that are not components.
 
     python qa/no-native-dialogs.py
 """

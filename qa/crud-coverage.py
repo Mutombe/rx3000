@@ -2,7 +2,7 @@
 
 An honest answer to "what have you implemented", measured rather than
 remembered. It is easy to believe a table is finished because it renders, and
-easy to ship one that can be added to and never corrected — which is worse than
+easy to ship one that can be added to and never corrected, which is worse than
 one that cannot be added to at all, because the wrong row is now permanent and
 somebody works around it in a notes field.
 
@@ -24,7 +24,7 @@ WHAT COUNTS AS DELETE
 
 Retiring counts. For most records in a pharmacy an actual DELETE is the wrong
 answer — a supplier's name is on every order they ever fulfilled, a driver's on
-every waybill they carried — so `active = false` is the correct implementation
+every waybill they carried, so `active = false` is the correct implementation
 and is reported as satisfying D. What is reported as missing is having *neither*.
 
     python qa/crud-coverage.py
@@ -215,7 +215,7 @@ def main() -> int:
             print(f"    {g}")
     # Reported, never failed. This is a map of the estate rather than a test:
     # not every record should have every verb — a fiscal receipt must not be
-    # editable, and a dispensing must not be deletable — and a check that
+    # editable, and a dispensing must not be deletable, and a check that
     # demanded five ticks everywhere would be demanding the wrong thing.
     return 0
 

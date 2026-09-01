@@ -16,7 +16,7 @@ names at all, which looked like an empty column rather than a parsing fault.
 
 **Most lines have no stock.** Six thousand one hundred and forty-two products,
 six hundred and fifty-nine with anything on the shelf. That is normal for a
-pharmacy catalogue — the rest are lines they can order — and it means the
+pharmacy catalogue, the rest are lines they can order, and it means the
 catalogue and the stock on hand are two separate imports, not one.
 
 **The departments are the categories.** MISC, OTC, COSMETICS, DISPENSARY,
@@ -57,7 +57,7 @@ BRANCHES = [
 #: Which of the system's three hard categories a department belongs to.
 #:
 #: `Product.category` drives behaviour — airtime is kept out of stocktakes, only
-#: medicines reach the dispensing routes — so it cannot simply be set to the
+#: medicines reach the dispensing routes, so it cannot simply be set to the
 #: department name. Mapped explicitly rather than guessed, and anything
 #: unrecognised falls to front_shop, which is the safe end: a front-shop item
 #: mistakenly treated as a medicine would offer to be dispensed on a script.
@@ -166,7 +166,7 @@ def load(db: Session, path: pathlib.Path, *, pharmacy_name: str = "CareXpress Ph
         db.commit()
 
     # Everything below is this pharmacy's own, so it runs scoped like any
-    # ordinary request would — which also means the rows are stamped for free.
+    # ordinary request would, which also means the rows are stamped for free.
     token = tenancy.set_current_pharmacy(pharmacy.id)
     try:
         tenancy.stamp(db)

@@ -55,7 +55,7 @@ export default function StockCategories() {
    *  Adding a department is a one-line write that cannot fail for any reason
    *  the person could have prevented, so making them watch a spinner buys
    *  nothing. If the server does refuse it, the row goes away again and says
-   *  why — and the figures beside it were never wrong, because the counts a
+   *  why, and the figures beside it were never wrong, because the counts a
    *  new department starts with are all nought.
    */
   function create() {
@@ -164,7 +164,7 @@ export default function StockCategories() {
                 {/* Edited where it is read. A target margin is a commercial
                     decision that moves — a department carrying more
                     consignment stock this quarter than last should not be
-                    measured against a figure somebody typed once — and it
+                    measured against a figure somebody typed once, and it
                     could be set when the department was created and never
                     again. The change shows at once and reverts if the server
                     refuses it. */}
@@ -196,7 +196,7 @@ export default function StockCategories() {
                 </td>
                 <td className="actions">
                   {/* Nothing to look at yet on a department the server has not
-                      confirmed — and its id is a placeholder, so the link would
+                      confirmed, and its id is a placeholder, so the link would
                       filter the catalogue by a number that does not exist. */}
                   {!list.isPending(c) && (
                     <EntityLink to={`/stock?category_id=${c.id}`}>

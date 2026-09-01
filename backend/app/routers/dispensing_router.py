@@ -267,7 +267,7 @@ def interaction_screen(patient_id: int | None = Body(default=None),
     # --- dose ranges, on the same call --------------------------------------
     #
     # One request rather than two, because both screens answer the same
-    # question — is this basket safe to hand over — and two requests firing on
+    # question, is this basket safe to hand over, and two requests firing on
     # every keystroke is two chances for the answers to arrive out of order and
     # contradict each other on screen.
     #

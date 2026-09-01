@@ -8,7 +8,7 @@ the last of those is the one the law cares about, and it is the reason a
 controlled register exists at all.
 
 The pharmacy had every fact needed to ask the question — when it was last
-dispensed, how many days that quantity was meant to last — and never asked it.
+dispensed, how many days that quantity was meant to last, and never asked it.
 There is no early-refill check anywhere in this system. Every incumbent has
 one, and in a market where codeine and benzodiazepines move freely it is not a
 nicety.
@@ -45,7 +45,7 @@ TOLERANCE = 0.25
 
 #: A supply of a week or less is not measured. A short course is not collected
 #: again — somebody finishing a week of antibiotics does not come back for more
-#: — so querying it produces noise on a case that does not arise, and noise is
+#:, so querying it produces noise on a case that does not arise, and noise is
 #: what teaches a pharmacist to dismiss the warning that matters.
 MIN_SUPPLY_DAYS = 7
 

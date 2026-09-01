@@ -177,7 +177,7 @@ def repeat_baskets(db: Session, *, days: int = 90,
     #
     # It must. The basket is the whole visit and the repeat is one line of it,
     # so the multiple cannot be below 1. When it is, the two figures are not
-    # describing the same transaction — which happens when dispensings and
+    # describing the same transaction, which happens when dispensings and
     # sales were loaded from different exports and never tied together, as they
     # were here: 27 of 55,742 dispensings carry a sale.
     #

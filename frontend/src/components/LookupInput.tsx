@@ -9,7 +9,7 @@
  *  weeks later, as a rejected claim nobody can explain.
  *
  *  The field these replaced said `placeholder="e.g. E11.9"`, which is a form
- *  asking somebody to remember a code — and the ones they remember are the four
+ *  asking somebody to remember a code, and the ones they remember are the four
  *  they always use, whether or not those are right for this patient.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { CheckCircle, MagnifyingGlass, Warning, X } from "@phosphor-icons/react"
 import { api } from "../api";
 
 export interface LookupItem {
-  /** What gets stored — a code, or an id as a string. */
+  /** What gets stored: a code, or an id as a string. */
   value: string;
   /** The human name for it. */
   label: string;

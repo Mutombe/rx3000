@@ -62,7 +62,7 @@ def _match_words(db: Session, terms: list[str]) -> list[tuple[str, list[str]]]:
     A patient recorded as allergic to "Penicillin" was getting no warning at all
     for Amoxicillin, Augmentin or Co-amoxiclav. The check matched the recorded
     text against the product, and "penicillin" is simply not a substring of
-    "amoxicillin" — so the one record whose entire purpose is to stop that
+    "amoxicillin", so the one record whose entire purpose is to stop that
     dispensing sat there looking correct and did nothing. It only came to light
     by running a real patient against real products rather than reading the
     matcher.
@@ -96,7 +96,7 @@ def _hits(haystack: str, words: list[str]) -> str | None:
     """The first word that appears in the product, matched whole.
 
     Whole words, not substrings. The synonym lists contain short forms — "asa"
-    for aspirin, "tb", "bp" — and a bare substring test lets those fire inside
+    for aspirin, "tb", "bp", and a bare substring test lets those fire inside
     unrelated names, which trains a dispenser to click past allergy warnings.
     A warning nobody believes is worse than none, because it is the same
     indifference applied to the real one.
@@ -176,13 +176,13 @@ def for_dispensing(db: Session, *, patient_id: int | None = None,
         # What the patient is recorded as living with, against what is being
         # handed over. The field existed, the picker offered Pregnancy and
         # Breastfeeding as its own entries, a pharmacist filled it in because
-        # they knew it mattered — and nothing on the dispensing path read it.
+        # they knew it mattered, and nothing on the dispensing path read it.
         # Recorded and ignored is the worst shape a safety gap takes: the hard
         # part was already done.
         out += conditions.check(db, patient, products)
         # Collected materially before it is due. Every fact needed to ask was
         # already on file — when it last went out, how long that was meant to
-        # last — and nothing asked. On a schedule 5 that question is the whole
+        # last, and nothing asked. On a schedule 5 that question is the whole
         # reason a controlled register is kept.
         out += refill_timing.check(db, patient, products)
         aid_id = medical_aid_id or patient.medical_aid_id

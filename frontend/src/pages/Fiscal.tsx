@@ -11,7 +11,7 @@
  *  evidence: queued and rejected receipts, the chain, and the history of closed
  *  days with their Z-report references.
  *
- *  The route — who actually files with ZIMRA — is stated rather than assumed.
+ *  The route, who actually files with ZIMRA, is stated rather than assumed.
  *  There is no driver to install, and which of the three arrangements a pharmacy
  *  is on is a decision they make before this software arrives. A screen that
  *  hides that behind the word "fiscalised" invites a pharmacy to believe it is
@@ -270,7 +270,7 @@ export default function Fiscal() {
         {/* The sentence comes from the server now, because the server is the
             only thing that knows how much it actually read.
 
-            This used to be assembled here as "All N receipts verify" — and N
+            This used to be assembled here as "All N receipts verify", and N
             was the CAPPED count, from a check that read the first five
             thousand. So a register of twelve thousand reported a clean bill
             over five thousand of the oldest receipts, and every recent one,
@@ -386,7 +386,7 @@ export default function Fiscal() {
               <tbody>
                 {days.map((d) => (
                   // The day opens. It carried four totals and no way to reach
-                  // the document they summarise — and ZIMRA's own query, and
+                  // the document they summarise, and ZIMRA's own query, and
                   // an auditor's, is about a day rather than about a total.
                   <RowLink key={d.id} to={`/fiscal/days/${d.id}`}>
                     <td className="mono">{d.day_number}</td>

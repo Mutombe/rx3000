@@ -1,6 +1,6 @@
 /** Field wrapper.
  *
- *  Owns the label, hint, error slot and — critically — the width. Pages set a
+ *  Owns the label, hint, error slot and, critically, the width. Pages set a
  *  `span` on the 12-column form grid instead of reaching for an inline style,
  *  which is what let control sizing drift in the first place.
  */

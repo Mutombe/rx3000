@@ -1,7 +1,7 @@
 /** One script: who wrote it, who it is for, and what is left on it.
  *
  *  Rx numbers appear on a dozen screens — the will-call shelf, the register,
- *  recalls, claims, to-follows — and not one of them opened. The script is the
+ *  recalls, claims, to-follows, and not one of them opened. The script is the
  *  document a dispensary organises itself around, and it was the one record you
  *  could not look at.
  *
@@ -138,7 +138,7 @@ export default function PrescriptionDetail() {
             </button>
           )}
           {/* Labels are asked for again far more often than they are printed
-              the first time — a bag re-bagged, a label that smudged. */}
+              the first time: a bag re-bagged, a label that smudged. */}
           {d.status !== "draft" && (
             <button className="btn"
               onClick={() => navigate(`/dispense?reprint=${d.id}`)}>
@@ -182,7 +182,7 @@ export default function PrescriptionDetail() {
                   <th className="num">Qty</th><th className="num">Repeats</th>
                   {/* A script listing four repeats and no money cannot answer
                       what the script is worth if the patient keeps coming
-                      back — which is the only commercial question anybody asks
+                      back, which is the only commercial question anybody asks
                       of one. */}
                   <th className="num">Worth</th>
                   <th>Next due</th>

@@ -1,4 +1,4 @@
-/** Money out of the drawer with no sale behind it — and back into it.
+/** Money out of the drawer with no sale behind it, and back into it.
  *
  *  The endpoint was there, step-up gated, and no screen called it. That matters
  *  more than it sounds: the cash-up already adds petty cash into what the drawer
@@ -49,7 +49,7 @@ export default function PettyCash() {
   const [receiptSeen, setReceiptSeen] = useState(false);
   /* Which drawer it came out of. The column has been on the record since it
      was written and the form never set one, so every payout in a pharmacy that
-     runs two currencies was recorded as an amount with no currency — and a ZiG
+     runs two currencies was recorded as an amount with no currency, and a ZiG
      taxi fare taken off a USD drawer is a variance nobody can explain. */
   const [currencyCode, setCurrencyCode] = useState("");
   const [currencies, setCurrencies] = useState<{ code: string; is_base?: boolean }[]>([]);

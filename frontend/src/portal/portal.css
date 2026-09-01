@@ -11,7 +11,7 @@
  * did not: these pages are routes inside the staff application, so the staff
  * stylesheet is loaded too, and it carries `h1 { color: var(--ink) }` and
  * `label { color: var(--ink-mid) }`. An element selector always beats an
- * inherited value — so the heading and the field label took the STAFF ink over
+ * inherited value, so the heading and the field label took the STAFF ink over
  * the portal's own dark card, and "Hello Memory" rendered as near-black text on
  * a near-black panel. The patient's own name was invisible on their own page.
  *
@@ -261,7 +261,7 @@
    Same shell as the patient's, wider, and with a form in it.
 
    These classes were written into DoctorPortal and never defined — `.pp-wide`,
-   `.pp-brand`, `.pp-ok`, `.pp-line`, `.pp-ghost`, `.pp-items` — so the whole
+   `.pp-brand`, `.pp-ok`, `.pp-line`, `.pp-ghost`, `.pp-items`, so the whole
    screen rendered as unstyled inline elements. See qa/dead-classes.py.
 
    The bare `label`, `input`, `textarea` and `button` below matter for the same
@@ -333,7 +333,7 @@
 }
 .pp button:disabled { opacity: 0.4; cursor: default; }
 
-/* A secondary action — "add another medicine" — which must not look like the
+/* A secondary action, "add another medicine", which must not look like the
    one that sends the script. */
 .pp .pp-ghost {
   background: transparent; color: var(--pp-brand);

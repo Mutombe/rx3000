@@ -3,7 +3,7 @@
  *  It did not. Clicking a queued line loaded only the *patient*; the dispenser
  *  then re-typed the medicine, which captured a second prescription and
  *  dispensed that one. The line that was queued was never touched, so the
- *  worklist could not go down however many people you served — and the count
+ *  worklist could not go down however many people you served, and the count
  *  beside "Dispensary" in the sidebar stayed where it was after the one act
  *  that should have moved it.
  *

@@ -2,7 +2,7 @@
  *
  *  These fields hold text the AI drafted and a person then edits before it goes
  *  out. Rendering them as Markdown outright would be wrong — you cannot edit a
- *  rendered heading — but leaving them as a plain textarea means nobody sees
+ *  rendered heading, but leaving them as a plain textarea means nobody sees
  *  what the customer will actually receive until it has been sent.
  *
  *  So both, with editing as the default. The toggle is deliberately not sticky:

@@ -25,7 +25,7 @@ def status():
 # writes the question and the answer to the AI history and these did not,
 # so any caller reaching for the simpler-looking one would have got its
 # answer and left no record that the pharmacy had asked a machine about a
-# patient — which is the one thing that record exists for.
+# patient, which is the one thing that record exists for.
 
 
 class CampaignCopyRequest(schemas.BaseModel):
@@ -58,7 +58,7 @@ def _sse(build, *, log_for: User | None = None, question: str = "",
 
     `build` is a callable returning `(system, prompt)`. It is called *inside* the
     generator on purpose: gathering the context is the slow part — a patient's
-    medication history, a ticket thread, an account's deals — and doing it before
+    medication history, a ticket thread, an account's deals, and doing it before
     the response begins means the screen sits blank for the part of the wait the
     operator most needs explained. Inside, the `reading` phase is already on
     screen while it happens.

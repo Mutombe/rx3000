@@ -152,7 +152,7 @@ export function useOptimisticList<T extends object>({
       // Merged over the placeholder, never substituted for it. A create
       // endpoint commonly answers with the record it wrote rather than the row
       // the list renders — {id, name, code} where the table also wants a count
-      // and a value — and replacing outright left those undefined, which is a
+      // and a value, and replacing outright left those undefined, which is a
       // crash the moment the row is drawn. The reload below fills in whatever
       // the server computed for itself.
       setItems((rows) => rows.map((r) =>

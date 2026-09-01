@@ -49,7 +49,7 @@ export default function SaleDetail() {
    *
    *  Two different operations, and which one is legal is not the cashier's
    *  judgement to make. A receipt already filed with ZIMRA can never be
-   *  withdrawn — the record stands and a credit note is filed against it. One
+   *  withdrawn: the record stands and a credit note is filed against it. One
    *  that was never filed is simply voided. The server enforces this; until
    *  now it enforced it by returning a 400 telling the caller to POST to a
    *  URL, which is a sentence written for somebody with curl.
@@ -111,7 +111,7 @@ export default function SaleDetail() {
           {it.patient
             ? <b>{it.patient.first_name} {it.patient.last_name}</b>
             : "the customer"}'s account, where it will age with everything else
-          they owe. The goods stay gone — this is not a reversal.
+          they owe. The goods stay gone. This is not a reversal.
         </>
       ),
       confirmLabel: "Put it on account",

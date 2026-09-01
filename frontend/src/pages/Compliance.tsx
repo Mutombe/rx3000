@@ -373,7 +373,7 @@ export default function Compliance() {
                           //
                           // Fetched, not linked. This was an `<a href>` at the
                           // API path, which cannot carry the session's
-                          // Authorization header — so every attempt to open a
+                          // Authorization header, so every attempt to open a
                           // licence from this register was refused, on the one
                           // screen whose entire purpose is producing the
                           // document when somebody asks for it.
@@ -422,7 +422,7 @@ export default function Compliance() {
                       <tr key={d.id} className="row-muted">
                         <td>
                           {/* Superseded, and still the proof the branch was
-                              licensed for the period it covered — which is
+                              licensed for the period it covered, which is
                               what an audit asks about. */}
                           <Link to={`/compliance/documents/${d.id}`}>{d.name}</Link>
                         </td>
@@ -578,7 +578,7 @@ function RecordDocument({ branchId, kinds, starting, onClose, onSaved }: {
               onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
             <span className="hint">
               A PDF or a photograph. The date on its own already produces the
-              reminder — the scan is what you show an inspector.
+              reminder: the scan is what you show an inspector.
             </span>
           </div>
           <div className="field span-12">

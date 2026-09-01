@@ -55,7 +55,7 @@ def find_by_username(db: Session, username: str) -> User | None:
 def create_token(user: User) -> str:
     ttl = timedelta(hours=settings.TOKEN_TTL_HOURS)
     # A demo token never outlives the demo. The row is still the authority — see
-    # get_current_user — but issuing an eight-hour token for a four-hour account
+    # get_current_user, but issuing an eight-hour token for a four-hour account
     # would leave the last four hours of it looking valid right up to the point
     # it is rejected, which reads as a bug rather than an expiry.
     if user.is_demo and user.demo_expires_at is not None:
@@ -100,7 +100,7 @@ def get_current_user(
     #
     # A patient's login belongs to their own record and a prescriber's to the
     # prescribing portal. Neither has a role that means anything here, and a
-    # patient login treated as staff would default to `assistant` — which is a
+    # patient login treated as staff would default to `assistant`, which is a
     # real set of permissions over somebody else's pharmacy.
     #
     # Asked as a positive: is this staff. A user type nobody has thought of yet

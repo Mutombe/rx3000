@@ -83,7 +83,7 @@ const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
  *
  *  Not the total. The claim is raised when the script is dispensed, so by the
  *  time this screen is showing a figure the scheme is already carrying most of
- *  it — and asking a member for the funder's money as well as their own is the
+ *  it, and asking a member for the funder's money as well as their own is the
  *  mistake this exists to prevent. Same rule as the till uses.
  */
 function patientPortion(sale: Sale): number {
@@ -181,7 +181,7 @@ export default function Dispense() {
   const [doneRxId, setDoneRxId] = useState<number | null>(null);
   // ?reprint=<rx id> opens the label preview straight away. Without it a reprint
   // is only reachable in the moments after dispensing, in the same browser
-  // session — so nobody could reprint a label for yesterday's script, which is
+  // session, so nobody could reprint a label for yesterday's script, which is
   // when labels are actually asked for again.
   const [params, setParams] = useSearchParams();
   const [reprintRx, setReprintRx] = useState<number | null>(() => {
@@ -226,7 +226,7 @@ export default function Dispense() {
   const [tendered, setTendered] = useState("");
   const [otcLog, setOtcLog] = useState<OTCSale[]>([]);
   /* The two registers on this screen load into empty tables, and an empty
-     controlled register reads as "nothing was dispensed" — which for a
+     controlled register reads as "nothing was dispensed", which for a
      schedule 5 log is the most misleading sentence on the page. */
   const [logsLoading, setLogsLoading] = useState(true);
 
@@ -297,7 +297,7 @@ export default function Dispense() {
   // pack's name for "this needs a second signature". What satisfies it is now
   // the checking pharmacist's initials.
   // Whether an initial is required is a *setting* on the server —
-  // `dispensing.require_pharmacist_initial` — and when it is on it applies to
+  // `dispensing.require_pharmacist_initial`, and when it is on it applies to
   // every dispensing, not only to controlled schedules. This screen used to
   // decide for itself from the schedule alone, so on an ordinary prescription it
   // enabled the button, never asked for initials, and the server refused the
@@ -336,7 +336,7 @@ export default function Dispense() {
    *
    *  A quote is the same capture with nothing committed: no stock moves, no
    *  claim is raised, no register entry is written. Pharmacies are asked for
-   *  one several times a day — "what would this cost me" — and the only way to
+   *  one several times a day, "what would this cost me", and the only way to
    *  answer was to capture the script and not press the button, which leaves a
    *  draft behind for somebody else to wonder about. */
   const [quoting, setQuoting] = useState(false);
@@ -352,7 +352,7 @@ export default function Dispense() {
   /** The queued script this screen was opened from, if any.
    *
    *  Without it, picking a line off the worklist loaded only the patient and
-   *  the dispenser re-typed the medicine — which created a *second*
+   *  the dispenser re-typed the medicine, which created a *second*
    *  prescription and dispensed that one. The queued line was never touched,
    *  so the worklist could not go down however many people you served. It is
    *  cleared the moment the basket stops matching the script, because at that
@@ -526,7 +526,7 @@ export default function Dispense() {
     // It used to belong to the controlled-substance block and nothing else, so
     // on an ordinary prescription a pharmacist could type their initials into a
     // field that existed and still have the dispensing refused for not having
-    // them — the value was collected and then dropped. Three places held an
+    // them: the value was collected and then dropped. Three places held an
     // opinion about when an initial is needed: this function, the field's
     // visibility, and a server setting. Only the server's counted.
     const initial = initials.trim();
@@ -546,7 +546,7 @@ export default function Dispense() {
    *
    *  The whole point of a queue is that working it empties it. This loads the
    *  prescription behind the line — every outstanding item on it, with the
-   *  directions, diagnosis and repeats already captured — so pressing Dispense
+   *  directions, diagnosis and repeats already captured, so pressing Dispense
    *  satisfies that script rather than writing a new one beside it.
    */
   /** Arriving from another screen with a script to work on.
@@ -659,7 +659,7 @@ export default function Dispense() {
       }
       setItems(ready);
       // Whether it is a draft governs what can be done with it. A draft has
-      // no Rx number and the server refuses to dispense one — so if this is not
+      // no Rx number and the server refuses to dispense one, so if this is not
       // carried, opening a draft leads to a button that cannot work.
       setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                   draft: rx.status === "draft" });
@@ -719,7 +719,7 @@ export default function Dispense() {
   /** Put a half-captured script down and come back to it.
    *
    *  A pharmacist gets interrupted — the telephone, a query at the till, a
-   *  delivery — and until now the only ways out of a part-typed script were to
+   *  delivery, and until now the only ways out of a part-typed script were to
    *  dispense it or to lose it. Drafts have existed since prescriptions did,
    *  and could be created and re-opened; there was no way to save one back, so
    *  re-opening a draft led to a screen whose only button the server refuses.
@@ -824,7 +824,7 @@ export default function Dispense() {
           // What was actually collected, against what the scheme actually
           // allowed. `due` is the server's figure after adjudication, and the
           // tenders were typed against the estimate shown while the script was
-          // being built. Those agree almost always — and when they do not, it
+          // being built. Those agree almost always, and when they do not, it
           // is because the scheme allowed less than its terms suggested, which
           // is precisely the case somebody has to be told about rather than
           // congratulated on. Saying "settled" over a sale that is short is how
@@ -891,11 +891,11 @@ export default function Dispense() {
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
-      // very act that should have moved it — which reads as the dispensing not
+      // very act that should have moved it, which reads as the dispensing not
       // having registered at all.
       setWorklistNonce((n) => n + 1);
       // Labels first, then the screen moves. Printing is fire-and-forget — the
-      // browser dialog or the roll takes it from here — so it must be started
+      // browser dialog or the roll takes it from here, so it must be started
       // before navigating away rather than left to a component that is about
       // to unmount.
       printRxLabels(rx.id);
@@ -1049,7 +1049,7 @@ export default function Dispense() {
    *
    *  A quote is the one thing on this screen that leaves the building without
    *  any medicine attached to it. It is read at a kitchen table, compared
-   *  against another pharmacy's, and brought back a week later — so it needs
+   *  against another pharmacy's, and brought back a week later, so it needs
    *  the pharmacy's name on it and a date it expires, or it comes back in a
    *  month with last month's prices on it and an argument attached.
    *
@@ -1070,7 +1070,7 @@ export default function Dispense() {
       }));
       const head = await letterhead();
       // `scheme_price` where there is a scheme — the regulated price including
-      // the dispensing fee — and the shelf price where there is not. Quoting
+      // the dispensing fee, and the shelf price where there is not. Quoting
       // the shelf price to somebody on a scheme is quoting a figure the till
       // will not charge.
       const lineTotal = (q: any) => q.scheme ? q.scheme_price : q.cash_price;
@@ -1138,7 +1138,7 @@ export default function Dispense() {
         </div>
         {/* What has already gone out. A dispensary is asked about yesterday's
             script several times a day — "did she collect it", "was that one
-            paid for", "print that label again" — and the only way to answer
+            paid for", "print that label again", and the only way to answer
             was to know the patient and open their record. */}
         {/* The three things somebody starts on this screen, where the hand
             already is. Everything below is the work; these are the ways in. */}
@@ -1439,7 +1439,7 @@ export default function Dispense() {
                     {money(p.unit_price)} · {p.quantity_on_hand} in stock
                     {/* The cash margin, before anything is on the script. This
                         is where a substitution is decided — the generic beside
-                        the brand — and deciding it needs the two margins side
+                        the brand, and deciding it needs the two margins side
                         by side, not a report afterwards. */}
                     {(() => {
                       const m = shelfMargin(p.unit_price, p.cost_price);
@@ -1705,7 +1705,7 @@ export default function Dispense() {
               {/* How it is paid for is decided before it is dispensed, not
                   after. It changes what pressing the button does — the till
                   route sends the patient to the front shop, taking payment
-                  here does not — and a setting that governs an action reads
+                  here does not, and a setting that governs an action reads
                   as an afterthought when it sits below it. */}
               {items.length > 0 && (
                 <div className="disp-pay">
@@ -1735,7 +1735,7 @@ export default function Dispense() {
 
               {/* The split, said before anybody collects anything.
                   The dispenser hands the bag over and says "that is four
-                  dollars at the till" — which they can only do if the figure is
+                  dollars at the till", which they can only do if the figure is
                   in front of them here, at the dispensary, rather than being
                   discovered by the till operator in front of the customer. */}
               {items.length > 0 && split && split.covered && (
@@ -1896,7 +1896,7 @@ export default function Dispense() {
                     <b>{fromRx.number} is a {DRAFT_SCRIPT.toLowerCase()}.</b>{" "}
                     It has no Rx number yet and cannot be
                     dispensed. Finish capturing it — that is where it takes its
-                    number and where the checks happen — or save it and come
+                    number and where the checks happen, or save it and come
                     back.
                   </span>
                 </div>
@@ -1938,7 +1938,7 @@ export default function Dispense() {
                     // A draft has no Rx number and the server will not dispense
                     // one. Finishing it is a separate act — it is where the
                     // checks skipped during capture happen and where the script
-                    // takes its number — so it is a separate button, and the
+                    // takes its number, so it is a separate button, and the
                     // dispense appears only once it is a real script.
                     <BusyButton
                       className="btn primary disp-go"
@@ -1976,14 +1976,14 @@ export default function Dispense() {
               {/* How it gets paid for, decided here rather than afterwards.
                   Dispensing always raised a pending invoice and sent the
                   patient to the till, even for a two-dollar cash sale where the
-                  same person is standing at the same counter — so a transaction
+                  same person is standing at the same counter, so a transaction
                   that is one act became two screens. The till is still the right
                   answer when somebody else settles, or when it is going on the
                   shelf to be collected later, so it stays the default. */}
               {/* The outcome, where the action was.
                   This used to render at the top of the page. After dispensing,
                   the dispenser is at the bottom — beside the button they just
-                  pressed — so the one message telling them what happened, what
+                  pressed, so the one message telling them what happened, what
                   is owed and where to settle it appeared off screen. On a
                   counter that is indistinguishable from nothing happening. */}
               {doneSale && (
@@ -1997,7 +1997,7 @@ export default function Dispense() {
                     patient
                     {/* The scheme's share, said plainly. A dispenser reading
                         only the total asks a member for the funder's money as
-                        well as their own — and "where is the claim half" was
+                        well as their own, and "where is the claim half" was
                         unanswerable on this screen. */}
                     {patientPortion(doneSale) < doneSale.total - 0.005 && (
                       <> ({money(doneSale.total - patientPortion(doneSale))} of{" "}

@@ -9,7 +9,7 @@
  *
  *  So: scan the pack, and the product, batch and expiry are already filled in.
  *  What is left for a person is the one thing the pack cannot tell us — how
- *  many arrived — and even that is prefilled with what is outstanding on the
+ *  many arrived, and even that is prefilled with what is outstanding on the
  *  order, because that is the answer most of the time.
  */
 import { useCallback, useRef, useState } from "react";

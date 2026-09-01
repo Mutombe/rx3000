@@ -1,4 +1,4 @@
-# Backlog — 30 Aug 2026
+# Backlog: 30 Aug 2026
 
 ## Scores
 
@@ -18,13 +18,13 @@ each of the latter named with its reason so the exemption can be argued with.
 
 ## What closed the last of it
 
-**Given a screen** — barcode management on the product record (a code learned
+**Given a screen**: barcode management on the product record (a code learned
 against the wrong medicine was silent and permanent), the integrations panel on
 System ("what is real and what is pretended, right now"), fetching remittance
 advices from the switch, raising a delivery by hand, owing something to a
 customer, posting a journal by hand, script totals, unfinished scripts.
 
-**Deleted as shallower twins of something better** — nine in all:
+**Deleted as shallower twins of something better**: nine in all:
 `/system/interactions/check` (ignored the medication history), `/shifts/close`
 (no denominations), `/marketing/consent` (overwrote a boolean with no
 evidence), `/system/licence`, `/claiming/price`, `/dispensing/stats`,

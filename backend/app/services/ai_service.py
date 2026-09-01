@@ -206,7 +206,7 @@ def crm_system() -> str:
     Built on call rather than at import. This was a module-level constant that
     named South Africa, Rand and POPIA, so a Zimbabwean pharmacy got copy
     quoting the wrong currency and citing a privacy act that does not apply to
-    it — and because it was frozen at import, setting JURISDICTION would not
+    it, and because it was frozen at import, setting JURISDICTION would not
     have fixed it either.
     """
     return (

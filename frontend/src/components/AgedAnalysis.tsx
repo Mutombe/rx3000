@@ -14,7 +14,7 @@
  *
  *  **A settled party disappears.** Anyone whose balance nets to zero is not a
  *  debtor any more, and leaving them in pads the list with rows that need no
- *  action — which is how a list stops being read.
+ *  action, which is how a list stops being read.
  */
 import { useEffect, useState } from "react";
 import { Printer } from "@phosphor-icons/react";
@@ -55,7 +55,7 @@ export default function AgedAnalysis() {
 
   const active = LEDGERS.find((l) => l.key === subledger);
 
-  /** The ageing as a document — the one a bookkeeper walks into a meeting with.
+  /** The ageing as a document: the one a bookkeeper walks into a meeting with.
    *
    *  The bucket columns are built from whatever the server sent rather than
    *  hard-coded, so a change to the bands on the server does not silently

@@ -11,7 +11,7 @@ Three rules shape it:
 * **Matching is layered, strongest evidence first.** A reference that ties a
   statement line to a journal entry is worth more than an amount that happens to
   agree, and far more than a date that happens to be close. A wrong match is
-  worse than no match — it marks money as accounted for that is not — so the
+  worse than no match — it marks money as accounted for that is not, so the
   weak rules only run when the strong ones have failed, and every match records
   which rule made it.
 

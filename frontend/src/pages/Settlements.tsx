@@ -3,9 +3,9 @@
  *  A remittance answers "what did this deposit cover". This answers the
  *  question above it, and it is three questions rather than one:
  *
- *    **paying** — how much of what was claimed ever arrives
- *    **in full** — where the difference went: short-paid, refused, or held
- *    **on time** — days from submission to money, against the terms the scheme
+ *    **paying**: how much of what was claimed ever arrives
+ *    **in full**: where the difference went: short-paid, refused, or held
+ *    **on time**: days from submission to money, against the terms the scheme
  *    itself states, so "late" is measured against their promise rather than an
  *    opinion
  *
@@ -15,7 +15,7 @@
  *  conversation with the funder is about a number nobody has kept.
  *
  *  **Held is not refused, and this screen exists largely to say so.** A funder
- *  can pay a claim, refuse it, or hold it pending a query — and to the money,
+ *  can pay a claim, refuse it, or hold it pending a query, and to the money,
  *  held and refused look identical: nothing arrived. Everything here used to
  *  read the money and call both a rejection, which sent held claims to the
  *  write-off pile or to a patient whose scheme was always going to pay.
@@ -123,7 +123,7 @@ export default function Settlements() {
                 <b>{money(report.held)}</b>
                 {/* Its own figure, deliberately not inside the shortfall. A
                     held claim is not the patient's to pay and not the shop's
-                    to write off — it is still in play. */}
+                    to write off — it is still in play.   */}
                 <span>held pending a query</span>
               </div>
               <div className="wl-stat">

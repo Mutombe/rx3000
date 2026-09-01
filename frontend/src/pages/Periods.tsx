@@ -1,4 +1,4 @@
-/** Trading periods — the accounting month everything is filed under.
+/** Trading periods: the accounting month everything is filed under.
  *
  *  The screen exists to make one rule visible: a closed period will not accept
  *  a posting. Everything else here is in service of that — the status, the
@@ -63,7 +63,7 @@ export default function Periods() {
   const { guarded, prompt } = useStepUp();
   // The VAT return for one period. Reached from the period it belongs to rather
   // than from a screen of its own, because the figures are only trustworthy once
-  // that period is closed — and the server says so on the return itself.
+  // that period is closed, and the server says so on the return itself.
   const [vat, setVat] = useState<VatReturn | null>(null);
   const [vatBusy, setVatBusy] = useState("");
 

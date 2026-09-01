@@ -3,7 +3,7 @@
  *  Every printed document needs the same eight facts about the pharmacy, and
  *  a document is printed from a dozen different screens. Without one place to
  *  hold them, each screen assembles its own header out of whatever settings it
- *  happens to know about — which is how one statement carries the VAT number
+ *  happens to know about, which is how one statement carries the VAT number
  *  and the next one does not.
  *
  *  Cached at module scope rather than in a store: these change about once a

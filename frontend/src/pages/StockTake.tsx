@@ -2,7 +2,7 @@
  *
  *  Six endpoints, step-up gated, with no way in. A stock take is the largest
  *  single adjustment anybody in the building can make — closing one posts every
- *  variance as a stock movement — and it could not be started.
+ *  variance as a stock movement, and it could not be started.
  *
  *  The count is blind, and the screen has to work at keeping it that way. The
  *  server reveals what it expected only in the reply to a submitted count, so

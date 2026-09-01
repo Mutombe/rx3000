@@ -62,7 +62,7 @@ export default function ProductDetail() {
    *  `category` on the product is free text for the therapeutic class;
    *  `category_id` is the department the shop is laid out by and that every
    *  stock report groups on. The endpoint to set it has existed since
-   *  departments did, and no screen offered it — so a product created outside
+   *  departments did, and no screen offered it, so a product created outside
    *  the department screen stayed unfiled, and "uncategorised" quietly became
    *  the largest department in the shop.
    */

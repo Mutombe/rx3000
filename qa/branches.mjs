@@ -12,7 +12,7 @@ export default async function run(page) {
   out.flagsMissingPharmacist = /nobody named/.test(text);
   out.tableText = text.replace(/\s+/g, " ").slice(0, 160);
 
-  // Set a responsible pharmacist — a field the API accepted and no screen offered.
+  // Set a responsible pharmacist: a field the API accepted and no screen offered.
   await page.getByRole("button", { name: /^edit$/i }).first().click();
   await page.waitForTimeout(700);
   const rp = page.locator(".modal input").filter({ hasNot: page.locator("[type=number]") });

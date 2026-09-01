@@ -129,7 +129,7 @@ def main() -> int:
         #
         # Rule-at-a-time was wrong and noisy: `.pp input, .pp textarea` paints
         # both, and `.pp textarea:focus` then refines the focus ring without
-        # repeating a colour — which is correct CSS and was reported as a
+        # repeating a colour, which is correct CSS and was reported as a
         # collision. Five such findings appeared the moment the prescriber
         # portal's form was styled, all of them false. The question is whether
         # the sheet paints an element ANYWHERE, not whether every rule

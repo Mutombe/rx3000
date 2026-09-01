@@ -5,7 +5,7 @@ exports covering June and July 2026, a claim summary, and a script register.
 What was taken from them is the *shape* of the business, which is the part that
 cannot be invented convincingly:
 
-  * **5,056 cash invoices over 61 days** — a median basket of $5.00, a mean of
+  * **5,056 cash invoices over 61 days**: a median basket of $5.00, a mean of
     $7.84, a ninetieth percentile of $18 and a largest sale of $299. A demo
     seeded with tidy $45 baskets looks like software; this looks like a counter.
   * **The trading day runs 07:00 to 22:00 and peaks at 18:00**, not at lunchtime.
@@ -16,7 +16,7 @@ cannot be invented convincingly:
     were private cash.
 
 **No real patient is reproduced here.** The name pool is genuine — 27 surnames
-and 32 given names as they occur in Zimbabwe — but they are recombined, so every
+and 32 given names as they occur in Zimbabwe, but they are recombined, so every
 person in the seeded database is a new one. Member numbers, ID numbers and
 authorisation codes are generated. Copying a live pharmacy's patients into a
 system shown to their competitors would be a disclosure, and the demo does not

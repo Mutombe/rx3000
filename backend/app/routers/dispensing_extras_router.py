@@ -376,7 +376,7 @@ def driver_account_view(driver_id: int, db: Session = Depends(get_db)):
     Two figures kept apart on purpose: cash collected and not handed in is a
     debt the driver owes the shop, and money still on the road is owed by
     nobody yet because the medicine has not changed hands. Added together they
-    make a number that is neither — and that is the number somebody would put
+    make a number that is neither, and that is the number somebody would put
     in a cash-up.
     """
     from ..services import driver_account
@@ -645,11 +645,11 @@ def script_totals(items: list[dict] = Body(...),
 
 
 # ---------------------------------------------------------------------------
-# Future repeats — who is due, and when
+# Future repeats, who is due, and when
 # ---------------------------------------------------------------------------
 
 # /repeats/due already exists and returns the raw script lines. This is a
-# different thing with a different name: the call sheet — who to telephone,
+# different thing with a different name: the call sheet, who to telephone,
 # in what order, and whether the shelf can actually serve them.
 @router.get("/patients/{patient_id}/repeats")
 def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
@@ -680,7 +680,7 @@ def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
             .order_by(PrescriptionItem.next_repeat_date)
             .all())
 
-    # What could actually be handed over today, from the batches — which is
+    # What could actually be handed over today, from the batches, which is
     # what dispensing draws against, first-expiry-first-out, skipping anything
     # expired. The product's own `quantity_on_hand` is a different number kept
     # in a different place, and on this database the two disagree on half the
@@ -768,7 +768,7 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
     horizon = today + __import__("datetime").timedelta(days=max(0, within_days))
     # Every relation this loop reads, fetched with the rows rather than one at a
     # time. It was 486 queries for 200 people — the prescription per line, the
-    # patient per prescription, the product per line — which is half a second on
+    # patient per prescription, the product per line, which is half a second on
     # SQLite and the better part of a minute against a hosted database, and is
     # the whole reason this page felt broken.
     rows = (db.query(PrescriptionItem)
@@ -821,7 +821,7 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
             "cost": round((item.product.cost_price or 0.0) * (item.quantity or 0), 2)
                     if item.product else 0.0,
         })
-    # Overdue first, then soonest — the order somebody would telephone in.
+    # Overdue first, then soonest: the order somebody would telephone in.
     out.sort(key=lambda r: (not r["overdue"], r["due_on"]))
     shown = out[:limit]
 
@@ -867,7 +867,7 @@ def prescription_churn(days: int = 90, db: Session = Depends(get_db)):
     """Who was a regular and stopped coming, and what that costs a month.
 
     The one number a takings report cannot contain: everybody it counts is
-    somebody who came. The people who stopped leave no record at all — which is
+    somebody who came. The people who stopped leave no record at all, which is
     exactly why a pharmacy loses a patient a week for a year and concludes the
     economy is bad.
     """
@@ -946,7 +946,7 @@ def alter_script(rx_id: int, item_id: int = Body(...),
     changes = []
     # Each change is also written as a row, not only as prose in the notes.
     # A sentence appended to a free-text field cannot be queried, filtered by
-    # field, counted, or aged — so "how often are directions changed after
+    # field, counted, or aged, so "how often are directions changed after
     # capture, and by whom" had no answer despite the information being there.
     recorded: list[ScriptChange] = []
 
@@ -1130,7 +1130,7 @@ def dosage_sheet(db: Session = Depends(get_db),
     sig.refresh(db)
     pharmacy = db.get(Pharmacy, user.pharmacy_id)
     # A user is not pinned to a branch — `branch_id` lives on a permission
-    # grant, not on the person — so the sheet is headed with the branch the
+    # grant, not on the person, so the sheet is headed with the branch the
     # dispensary is working in, the same one `helpers` stamps a record with.
     branch = branches.default_branch(db)
     pdf = sig_sheet.build(

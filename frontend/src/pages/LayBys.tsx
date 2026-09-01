@@ -2,7 +2,7 @@
  *
  *  Five endpoints and no screen. Common in Zimbabwe for anything a customer
  *  cannot pay for at once — a nebuliser, a glucometer, a course of an expensive
- *  medicine — and it was unreachable.
+ *  medicine, and it was unreachable.
  *
  *  Two things about a lay-by that the screen has to keep straight, because
  *  getting either wrong is an accounting error rather than an inconvenience:
@@ -11,7 +11,7 @@
  *    off. It is held for that customer and must not be sold twice.
  *
  *    A deposit is money owed back, not money earned. Until the goods go, the
- *    pharmacy is holding the customer's money — which is why cancelling asks
+ *    pharmacy is holding the customer's money, which is why cancelling asks
  *    what fee to keep rather than assuming the deposit is forfeit.
  */
 import { Fragment, useCallback, useEffect, useState } from "react";

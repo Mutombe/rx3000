@@ -6,7 +6,7 @@
  *
  *  The default is **System**, and nothing is written to storage until a choice is
  *  actually made. A fresh till therefore matches the machine it is running on —
- *  a dispensary that is dark at 6am is dark in here too — and only a deliberate
+ *  a dispensary that is dark at 6am is dark in here too, and only a deliberate
  *  choice overrides it.
  *
  *  What is applied is a `data-theme` attribute on `<html>`, and the stylesheet
@@ -17,7 +17,7 @@
  *  listener involved.
  *
  *  The listener below exists only to tell React that the *resolved* theme moved,
- *  for the parts that read a colour in JavaScript rather than CSS — the charts.
+ *  for the parts that read a colour in JavaScript rather than CSS: the charts.
  */
 import { readStored, writeStored } from "./storage";
 

@@ -185,7 +185,7 @@ def chronic_churn(db: Session, *, days: int = 90) -> dict:
     """Therapies that stopped, medicine by medicine.
 
     Patient churn says somebody stopped coming. This says what they stopped
-    taking — which is the clinically interesting half, and the actionable one:
+    taking, which is the clinically interesting half, and the actionable one:
     a patient who is still buying their diabetes medicine but stopped their
     statin has not left the pharmacy, they have stopped a treatment, and that is
     a call worth making today.

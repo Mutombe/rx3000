@@ -108,7 +108,7 @@ export interface Prescription {
   id: number;
   rx_number: string;
   /** A draft has no Rx number — the register is a numbered sequence and an
-   *  unfinished script must not consume one — so it carries a working
+   *  unfinished script must not consume one, so it carries a working
    *  reference instead, and its status says which it is. Both were on the
    *  model and in the response, and typed nowhere. */
   draft_ref?: string;
@@ -664,7 +664,7 @@ export interface ShiftTakings {
   base_currency: string;
   sales_count: number;
   currencies: ShiftTakingsBucket[];
-  /** What the money actually came in on — the wallet, the bank — rather than
+  /** What the money actually came in on, the wallet, the bank, rather than
    *  the method alone. A teller's own sheet has a column per instrument. */
   instruments?: {
     method: string; instrument: string; currency: string;

@@ -4,7 +4,7 @@
  *  aid line and a cash line. It was laid out in four columns because
  *  `.tender-line` meant two incompatible things in one stylesheet — a grid row
  *  in the till's own split-tender panel, a bordered card in the shared Tenders
- *  component — and neither rule was scoped. The method, the currency and the
+ *  component, and neither rule was scoped. The method, the currency and the
  *  amount stacked into the first column; "Hold this claim — do not send it now"
  *  landed in the fourth and wrapped a word per line outside the dialog.
  *
@@ -116,14 +116,14 @@ for (const width of [1440, 1100, 820, 560, 400]) {
   console.log(`\n=== ${width}px ===`);
   check(!m.sideways, "the dialog does not scroll sideways");
   check(m.escaped.length === 0,
-        `nothing escapes it${m.escaped.length ? ` — ${m.escaped.join("; ")}` : ""}`);
+        `nothing escapes it${m.escaped.length ? `: ${m.escaped.join("; ")}` : ""}`);
   check(m.holdInside, "the hold-this-claim label is inside the dialog");
   check(m.holdRatio < 1,
         `that label is wider than it is tall (ratio ${m.holdRatio.toFixed(2)}), `
         + "not one word per line");
   // The breakpoint is `max-width: 560px`, so 560 itself is already the narrow
   // layout. Above it the row is one line; at or below it deliberately becomes
-  // two, which is the whole point of the media query — so both sides are
+  // two, which is the whole point of the media query, so both sides are
   // asserted rather than only the wide one.
   if (width > 560) {
     check(m.onOneLine, "method, currency and amount sit on one line");

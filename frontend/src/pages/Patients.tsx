@@ -134,7 +134,7 @@ export default function Patients() {
                   </td>
                   {/* Free text in a badge: "penicillin, sulfa, aspirin, latex,
                       iodine…" grew the row past its neighbours. Clipped, with the
-                      full list on hover — and the badge keeps its shape. */}
+                      full list on hover, and the badge keeps its shape. */}
                   <td>
                     {p.allergies
                       ? <span className="badge danger clip" title={p.allergies}

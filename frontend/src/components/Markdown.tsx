@@ -1,6 +1,6 @@
 /** Render what the model actually wrote.
  *
- *  Models reply in Markdown — headings, bold, bullet lists, tables — and every
+ *  Models reply in Markdown, headings, bold, bullet lists, tables, and every
  *  screen here was printing that as literal text inside a `pre-wrap` box. A
  *  pharmacist reading an interaction check saw `## Interactions` and
  *  `**Do not co-prescribe**` rather than a heading and an emphasis, and a table
@@ -8,7 +8,7 @@
  *  there and none of it was legible.
  *
  *  No dependency. What is needed is a defined subset — headings, emphasis,
- *  code, lists, tables, quotes, links, rules — and a parser for that is smaller
+ *  code, lists, tables, quotes, links, rules, and a parser for that is smaller
  *  than the library that would provide it.
  *
  *  **Everything is escaped before any markup is inserted.** The text arrives

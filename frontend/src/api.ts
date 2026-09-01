@@ -3,7 +3,7 @@
  *  Empty in development, where Vite proxies /api to the backend on the same
  *  origin. In a hosted deployment the static site and the API are two different
  *  services on two different hostnames, so a relative path would 404 on every
- *  request — the site would build, deploy, and be completely dead.
+ *  request: the site would build, deploy, and be completely dead.
  *
  *  Trailing slash stripped, because `${BASE}/api/x` with a trailing slash gives
  *  a double slash that some proxies redirect and others reject.
@@ -45,7 +45,7 @@ export function setToken(t: string | null) {
   token = t;
   writeStored("token", t);
   if (t === null) {
-    // The session is over — by logging out or by the token expiring — so the
+    // The session is over, by logging out or by the token expiring, so the
     // per-session layout goes with it. A shared till must not hand the next
     // person a sidebar the last one dragged, and "until the tab closes" is not
     // the same thing as "until this session ends".
@@ -143,7 +143,7 @@ function isUseless(detail: string): boolean {
  *  things: a record that has been deleted, and an address that does not exist
  *  because the front end is asking for the wrong one. Telling a pharmacist
  *  "that record no longer exists" when the truth is that we shipped a typo
- *  sends them looking for a data problem they will never find — which is
+ *  sends them looking for a data problem they will never find, which is
  *  exactly what happened with the switch log, where the URL was missing its
  *  /api prefix and the screen blamed the data.
  *
@@ -302,7 +302,7 @@ async function request<T>(
       /* body was not JSON — the status-based wording carries it instead */
     }
     // Never throw a blank message. HTTP/2 carries no status text, so
-    // `res.statusText` is an empty string on any modern host — which produced a
+    // `res.statusText` is an empty string on any modern host, which produced a
     // toast with a count badge and no words at all. An error nobody can read is
     // worse than no error: it says something is wrong and refuses to say what.
     const clean = detail.trim();

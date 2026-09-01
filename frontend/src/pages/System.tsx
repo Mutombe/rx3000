@@ -7,7 +7,7 @@
  *
  *  The station panel exists for support. "It does not work" is unanswerable
  *  without knowing which of four tills, on what version, against which
- *  database — and a screenshot of this page answers all of it at once.
+ *  database, and a screenshot of this page answers all of it at once.
  */
 import { useEffect, useState } from "react";
 import { api, fmtDateTime, errorText  } from "../api";
@@ -170,7 +170,7 @@ export default function System() {
       {/* What is real and what is pretended, on this installation, right now.
           The endpoint's own words, and the reason it matters: "the demo
           worked" is not evidence that anything was filed with a funder or a
-          revenue authority — and this is the answer that decides whether a
+          revenue authority, and this is the answer that decides whether a
           pharmacy can go live. It was published and unreadable. */}
       {integrations && (
         <section className="card">

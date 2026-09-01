@@ -1,13 +1,13 @@
 /** Dosage directions, typed as shorthand and printed as a sentence.
  *
- *  "the propharm software had it" — and it is the single biggest saving of
+ *  "the propharm software had it", and it is the single biggest saving of
  *  keystrokes in the dispensary. A dispenser types `1t tds pc` and the label
  *  says "Take ONE tablet three times a day after food."
  *
  *  WHY THE EXPANSION IS DONE HERE AND NOT ON THE SERVER
  *
  *  It used to POST the shorthand and wait. The book was already in the browser
- *  — the same book, fetched once for the session — so the round trip bought
+ *  — the same book, fetched once for the session, so the round trip bought
  *  nothing and cost the one thing that matters at a counter: the answer was not
  *  there when the dispenser looked up. On a Zimbabwean connection with the
  *  server in another city that is a visible pause on every script line, dozens
@@ -16,7 +16,7 @@
  *
  *  So it expands locally and immediately. The rule is applied in one place —
  *  `expandLocal` below mirrors `sig.expand` on the server, including the
- *  pluralisation — and the server remains the authority for what actually
+ *  pluralisation, and the server remains the authority for what actually
  *  prints, because the label is rendered there. If the two ever disagree, the
  *  label is right and this was only ever a preview.
  *

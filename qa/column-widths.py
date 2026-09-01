@@ -15,7 +15,7 @@ Two halves, because the bug has two halves.
 
 **What is already stored.** Every String column with a declared length, against
 what the database actually holds. This has to run against SQLite, because those
-rows cannot exist on Postgres — which is exactly why nobody sees them until a
+rows cannot exist on Postgres, which is exactly why nobody sees them until a
 deploy.
 
 **What the code will store.** Every `Model(field=value[:N])` where N is wider

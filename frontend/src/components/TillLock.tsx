@@ -49,7 +49,7 @@ const ACTIVITY = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
  *  These are the screens where somebody hands the keyboard over mid-shift and
  *  where what happens next has to be attributable: the till, the dispensary,
  *  the cash drawer, the controlled register. Everywhere else the session simply
- *  stays open — the same session, on the same machine, doing office work.
+ *  stays open: the same session, on the same machine, doing office work.
  *
  *  A pharmacy whose back-office machine IS a shared counter turns
  *  `lock_everywhere` on in settings and gets the old behaviour deliberately. */

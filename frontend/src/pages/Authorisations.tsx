@@ -222,7 +222,7 @@ export default function Authorisations() {
    *  they never received. It surfaces months later as a refusal nobody can
    *  explain. The endpoint has existed since authorisations were written; the
    *  draws it releases were fetched by this screen, typed in this file, and
-   *  never once rendered — so there was nothing to press.
+   *  never once rendered, so there was nothing to press.
    */
   async function release(a: Auth, use: Use) {
     const ok = await confirm({
@@ -338,7 +338,7 @@ export default function Authorisations() {
                       <td>
                         <span className={`badge ${badge(state)}`}>{state}</span>
                         {/* The reason a funder gave for refusing is the whole
-                            value of a refusal — it says what to fix and resubmit. */}
+                            value of a refusal — it says what to fix and resubmit.   */}
                         {!live && a.decision_reason && (
                           <div className="muted small clip-2" title={a.decision_reason}>
                             {a.decision_reason}
@@ -429,7 +429,7 @@ export default function Authorisations() {
                                   <span className="badge muted">given back</span>
                                 ) : !u.reference && !u.claim_id ? (
                                   // Release works by reference or by claim, and
-                                  // this draw carries neither — so the button
+                                  // this draw carries neither, so the button
                                   // could only ever report that it found
                                   // nothing. Say why instead of offering it.
                                   <span className="muted small">

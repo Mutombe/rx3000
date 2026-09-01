@@ -88,7 +88,7 @@ export default function Deliveries() {
   const list = rows[tab] ?? [];
 
   // A driver's round IS a bulk operation. Sending twelve deliveries out one at
-  // a time is why the assignment gets written on paper instead — and a round
+  // a time is why the assignment gets written on paper instead, and a round
   // recorded on paper is a round the system cannot tell you the value of, or
   // who is holding the cash from.
   const picked = useSelection(list, (w) => w.id);

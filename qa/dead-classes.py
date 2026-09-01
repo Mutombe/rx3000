@@ -19,7 +19,7 @@ exactly like a string that matches something.
 WHAT IT SKIPS, AND WHY THAT IS NOT A LOOPHOLE
 
 Only literal class names are read. A name built by interpolation — `tone-${x}`,
-`is-${on}` — cannot be resolved without running the code, and guessing would
+`is-${on}`: cannot be resolved without running the code, and guessing would
 produce exactly the kind of false alarm that gets an audit ignored. Utility
 names the sheet declares in bulk are matched by the same literal search, so
 they need no exception.
@@ -48,7 +48,7 @@ IGNORE = {
     # Naming hooks that are deliberately unstyled. Each is written beside a
     # class that does the work, and exists so the markup says what the thing is
     # rather than only how it looks. Listed explicitly, with a reason, because
-    # the alternative — leaving them in the report for ever — is a check that
+    # the alternative, leaving them in the report for ever, is a check that
     # always fails and therefore never gets read.
     "page",       # every page's outermost wrapper; the layout is on `.main`
     "accent",     # a modifier on `.value`, kept for meaning

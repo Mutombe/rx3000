@@ -7,7 +7,7 @@
  *
  *  So the lock became a gate. Dismiss it and the till is still locked, but you
  *  can read: browse patients, check stock, look at a report. The moment anything
- *  would *change* — a dispensing, a sale, an edit, a delete — the gate stops the
+ *  would *change*, a dispensing, a sale, an edit, a delete, the gate stops the
  *  request and asks who is at the keyboard. Nothing is lost while it asks: the
  *  request is held, not failed, and it continues the moment the PIN lands.
  *
@@ -16,7 +16,7 @@
  *  something staff work around rather than with.
  */
 /** What a held request is told when the gate finally answers.
- *  `unlocked` — the PIN landed, carry on. `abandoned` — the operator pushed the
+ *  `unlocked`: the PIN landed, carry on. `abandoned` — the operator pushed the
  *  prompt aside; do nothing, and say nothing. */
 export type GateOutcome = "unlocked" | "abandoned";
 
@@ -77,7 +77,7 @@ export const lockGate = {
    *  for the rest of the session.
    *
    *  Resolved as *abandoned* rather than rejected. Rejecting looked right — the
-   *  request did not happen — but nothing was catching it, so pressing "Not now"
+   *  request did not happen, but nothing was catching it, so pressing "Not now"
    *  logged an unhandled failure every time, and on a page with a held save it
    *  produced an error the operator had done nothing to cause. The caller is
    *  told the request was dropped and returns quietly instead. */

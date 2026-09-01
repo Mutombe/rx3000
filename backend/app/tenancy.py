@@ -2,7 +2,7 @@
 
 The system was built for one pharmacy and is being sold to many. Every patient,
 sale, script and stock batch in the database presently belongs to whoever
-happens to be logged in, because there is nothing to say otherwise — so two
+happens to be logged in, because there is nothing to say otherwise, so two
 pharmacies on one deployment would read each other's patient records.
 
 The obvious fix is to add `pharmacy_id` to every table and a `WHERE` to every
@@ -38,7 +38,7 @@ from sqlalchemy.orm import Mapped, Session, declared_attr, with_loader_criteria
 #:
 #: A context variable rather than a global, because a server handles many
 #: requests at once and a module-level "current pharmacy" would be whichever
-#: request set it last — which is precisely the bug this file exists to prevent,
+#: request set it last, which is precisely the bug this file exists to prevent,
 #: reintroduced one level down.
 _current: contextvars.ContextVar[int | None] = contextvars.ContextVar(
     "current_pharmacy_id", default=None)
@@ -112,7 +112,7 @@ def install(session_class: type[Session]) -> None:
     """Make every ORM query on this session class filter by pharmacy.
 
     `with_loader_criteria` applies to the entity wherever it appears — the query
-    root, an eager load, a relationship traversal — so a patient reached through
+    root, an eager load, a relationship traversal, so a patient reached through
     a sale is scoped exactly as a patient queried directly. `include_aliases`
     covers the joins the reporting queries build.
     """
@@ -126,7 +126,7 @@ def install(session_class: type[Session]) -> None:
         pharmacy_id = current_pharmacy_id()
         if pharmacy_id is None:
             # Nothing has said which pharmacy this is. Rather than quietly
-            # showing everything — the failure that loses a patient list — the
+            # showing everything, the failure that loses a patient list, the
             # query is narrowed to nothing. A screen that is empty when it
             # should not be gets reported in an afternoon; a screen showing
             # somebody else's patients might never be.

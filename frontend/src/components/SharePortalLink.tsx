@@ -11,7 +11,7 @@
  *
  *  **The code is shown separately and copied separately, deliberately.** Sending
  *  a link and its code in one message means one forwarded message opens the
- *  record — which is the whole thing the code exists to prevent. The default
+ *  record, which is the whole thing the code exists to prevent. The default
  *  message carries the link; the code is read out, or sent on something else.
  *  Both are here because a pharmacy will sometimes decide otherwise, and it is
  *  their decision to make with a patient in front of them.
@@ -99,7 +99,7 @@ export default function SharePortalLink(
           </div>
         </div>
         <p className="hint">
-          A new code stops the old one working immediately — which is what you
+          A new code stops the old one working immediately, which is what you
           want when a patient has lost their phone.
         </p>
 
@@ -149,7 +149,7 @@ export default function SharePortalLink(
 
         <p className="muted small">
           Sending to <b>{link.send_to || "no number on file"}</b>. Their own
-          number, not a shared one — it opens their record.
+          number, not a shared one. It opens their record.
         </p>
 
         <div className="modal-actions">

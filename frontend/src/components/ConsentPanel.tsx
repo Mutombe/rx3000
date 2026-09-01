@@ -2,7 +2,7 @@
  *
  *  A tick box answers "may we message them" and nothing else. It cannot answer
  *  when they agreed, what they were told, through which channel, who recorded
- *  it, or whether they have since said stop — and those are the questions asked
+ *  it, or whether they have since said stop, and those are the questions asked
  *  when somebody complains, which is the only occasion the answer matters.
  *
  *  So this shows the answer per channel with its provenance beside it, in words.

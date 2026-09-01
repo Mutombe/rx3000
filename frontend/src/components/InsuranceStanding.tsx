@@ -18,7 +18,7 @@
  *    make at the counter, one script at a time.
  *
  *  Advisory, never blocking. A slow funder is a commercial dispute and the
- *  person at the counter cannot resolve it — so this makes sure they know what
+ *  person at the counter cannot resolve it, so this makes sure they know what
  *  they are handing over, and leaves the choice with them.
  */
 import { useEffect, useState } from "react";

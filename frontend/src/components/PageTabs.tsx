@@ -1,7 +1,7 @@
 /** Horizontal page tabs with URL deep-linking.
  *
  *  Every screen shows exactly one dataset at a time. The active tab lives in
- *  `?tab=`, so a view can be linked, bookmarked and reloaded — and the browser
+ *  `?tab=`, so a view can be linked, bookmarked and reloaded, and the browser
  *  back button steps through tabs the way users expect.
  */
 import { useSearchParams } from "react-router-dom";

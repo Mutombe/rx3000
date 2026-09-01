@@ -1,7 +1,7 @@
 """Backups, from inside the product.
 
 A pharmacy will not run its own database backups. If the software does not do
-it, nobody does — and one disk failure ends the business, because the stock
+it, nobody does, and one disk failure ends the business, because the stock
 ledger, the controlled-substances register and every claim live in one file.
 
 Three things here are deliberate:
@@ -46,7 +46,7 @@ BACKUP_DIR = (Path(_BACKUP_DIR_OVERRIDE) if _BACKUP_DIR_OVERRIDE
 
 #: Every spelling a backup has ever been written under. Two routes wrote backups
 #: with two different separators — `POST /api/system/backup` used a hyphen and
-#: `POST /api/admin/backup` an underscore — and each listing globbed only its
+#: `POST /api/admin/backup` an underscore, and each listing globbed only its
 #: own. The result was a pharmacist taking a verified backup and not finding it
 #: on the restore screen, which reads as "my backup did not save". The rename to
 #: RX5000 adds a third and fourth spelling, so this is now the single answer to

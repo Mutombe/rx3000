@@ -26,7 +26,7 @@ export default async function run(page) {
   out.receiptHiddenForTopUp = await page.locator('.pc-form input[type="checkbox"]').count() === 0;
   out.buttonSaysTopUp = await page.getByRole("button", { name: /record the top-up/i }).count() > 0;
 
-  // Back to a payout and save it — this is step-up gated.
+  // Back to a payout and save it. This is step-up gated.
   await page.locator(".pc-form select").first().selectOption({ label: "Out of the drawer" });
   await page.waitForTimeout(400);
   await page.getByRole("button", { name: /record the payout/i }).click();

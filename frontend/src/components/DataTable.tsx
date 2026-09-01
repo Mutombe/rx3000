@@ -48,7 +48,7 @@ export function Truncate({ text, at = 40 }: { text: string; at?: number }) {
 /** How wide each column should be when it does not say.
  *
  *  Fixed layout is what makes a long value clip instead of stretching the table,
- *  but it divides the width equally between unsized columns — which made a
+ *  but it divides the width equally between unsized columns, which made a
  *  product name the same 95px as a quantity.
  *
  *  Pinning the numeric columns in pixels and giving the name a percentage was the
@@ -87,7 +87,7 @@ function isActions<T>(c: Column<T>): boolean {
  *  scroll belongs to the table's container, never to the page. */
 /* Measured against real rows rather than guessed generously.
    These were 200/130/96/136/180, which summed past the width of the box on
-   tables whose widest actual value was far smaller — so the table declared a
+   tables whose widest actual value was far smaller, so the table declared a
    minimum it did not need and the container scrolled. A column that is
    occasionally too narrow shows an ellipsis and its full value on hover, which
    costs a hover; a table that always scrolls sideways costs every row. */
@@ -115,7 +115,7 @@ function widthFor<T>(c: Column<T>, columns: Column<T>[]): string | undefined {
   //
   // A share and a minimum are two different promises, and they were being made
   // separately: the actions column was declared to need 180px and then handed
-  // 1.4/12.4 of the table, which came to 133px — so the minimum was stated,
+  // 1.4/12.4 of the table, which came to 133px, so the minimum was stated,
   // agreed with, and never actually applied to the column it described. Text
   // survives being squeezed below its ideal width; a button just loses its
   // label. So this one column is sized absolutely and the remaining width is
@@ -155,7 +155,7 @@ export default function DataTable<T>({
   /** True until the first answer lands.
    *
    *  Without it this table renders its empty state while the request is still
-   *  in flight, so a screen that is working says "Nothing to show" — which on
+   *  in flight, so a screen that is working says "Nothing to show", which on
    *  a slow connection is indistinguishable from a pharmacy with no records,
    *  and is the first thing a new customer sees. Nine screens share this
    *  component, so they shared the fault.
@@ -167,7 +167,7 @@ export default function DataTable<T>({
   columns: Column<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
-  /** Row click navigates here — this is what makes every row a record. */
+  /** Row click navigates here. This is what makes every row a record. */
   rowHref?: (row: T) => string;
   onRowClick?: (row: T) => void;
   empty?: ReactNode;
@@ -350,7 +350,7 @@ export default function DataTable<T>({
                       : String(defaultValue(row, c.key));
                   // Clipping is the default, not something a column has to ask
                   // for. A guard that must be remembered per column is absent
-                  // from the columns nobody thought about — and those are the
+                  // from the columns nobody thought about, and those are the
                   // ones a 173-character product name lands in.
                   //
                   // The title carries the whole value, so nothing is lost, only

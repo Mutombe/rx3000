@@ -2,7 +2,7 @@
  *
  *  The repeat book is the most valuable thing a pharmacy owns and the only
  *  part of its revenue it can see coming. Every screen that listed repeats
- *  showed the position — "REPEAT 2/5" — and none of them showed the money, so
+ *  showed the position, "REPEAT 2/5", and none of them showed the money, so
  *  a rail with two hundred names on it could not be worked in the order that
  *  pays. On a short-staffed morning that order is the whole question.
  *
@@ -15,7 +15,7 @@
  *
  *  Two numbers, and the distinction is the point. **Now** is what this
  *  collection is worth. **To come** is what the rest of the script is worth if
- *  the patient keeps returning — and therefore what walks out of the door for
+ *  the patient keeps returning, and therefore what walks out of the door for
  *  good if they go somewhere else. A pharmacy losing 10% of its repeats needs
  *  the second figure to know what that sentence cost.
  */

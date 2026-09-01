@@ -3,7 +3,7 @@
  *  Checks the things only a running browser can answer: that the fetch happens
  *  once (an inline onClose in the effect's dependency list would loop forever),
  *  that the directions actually appear on the sticker, and that nothing
- *  overflows a 70×40mm label — the size a real sticker has to be.
+ *  overflows a 70×40mm label: the size a real sticker has to be.
  */
 export default async function run(page, ui) {
   const out = { steps: [] };
@@ -19,7 +19,7 @@ export default async function run(page, ui) {
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForTimeout(3000);
 
-  // RX260801167 — a script with a real dispensing behind it.
+  // RX260801167: a script with a real dispensing behind it.
   await page.goto(new URL("/dispense?reprint=1167", page.url()).href);
   await page.waitForSelector(".lbl", { timeout: 20000 }).catch(() => {});
 

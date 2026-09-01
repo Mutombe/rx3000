@@ -7,7 +7,7 @@ A CORS error was reported from production:
 
 Nothing was wrong with CORS. The handler raised `AttributeError: type object
 'Prescription' has no attribute 'branch_id'`, and an unhandled exception
-returns a response the CORS middleware never decorated — so the browser, which
+returns a response the CORS middleware never decorated, so the browser, which
 can only see that the header is absent, reports the one thing it can see. The
 error named the wrong cause, on a different layer, in a different subsystem.
 

@@ -1,4 +1,4 @@
-/** To follows — the medicine the pharmacy owes, and who can be telephoned today.
+/** To follows: the medicine the pharmacy owes, and who can be telephoned today.
  *
  *  The incumbent has this list. What it cannot do is tell you which of these
  *  can be honoured *now*, because it does not connect a delivery arriving to a
@@ -173,7 +173,7 @@ export default function ToFollows() {
         <div className="page-actions">
           {/* Most of these are raised by a dispensing that came up short. This
               is the other half: asked for at the counter, promised for Friday,
-              and until now written on whatever was to hand — which is the
+              and until now written on whatever was to hand, which is the
               paper list this feature exists to replace. */}
           <button className="btn" onClick={() => setPromising(true)}>
             <Plus size={14} weight="bold" /> Owe something
@@ -227,7 +227,7 @@ export default function ToFollows() {
                    would land on a page that cannot exist. */
                 // The to-follow, not the patient. Its own page has
                 // existed since to-follows did and only the reference cell
-                // reached it — so clicking the row you were reading took you
+                // reached it, so clicking the row you were reading took you
                 // somewhere else, and the promise date, the stock position and
                 // the settle button were behind a link the width of a word.
                 to={`/to-follows/${o.id}`}
@@ -255,7 +255,7 @@ export default function ToFollows() {
                 </td>
                 <RowActions>
                   {/* The verb is constant and the quantity is a chip beside it.
-                      Written as one sentence — "Hand over 2" — the label changed
+                      Written as one sentence, "Hand over 2", the label changed
                       width on every row, so the column read as a ragged
                       paragraph and the number, which is the part being checked
                       against what is in your hand, was the least distinct thing

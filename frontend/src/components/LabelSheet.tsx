@@ -9,7 +9,7 @@
  *  The preview is a preview, not a second implementation. `printLabels` owns the
  *  printed layout and the millimetre sizing; this only shows what it will
  *  produce. The first version of this file drew its own stickers, which meant
- *  two label designs that would drift apart at the first change — and it typed
+ *  two label designs that would drift apart at the first change, and it typed
  *  its own copy of the label fields, which is how it ended up reading a
  *  `pharmacist` field that does not exist while TypeScript stayed quiet.
  */
@@ -36,7 +36,7 @@ export default function LabelSheet({
 
   // The fetch depends on the script and nothing else. Holding the callbacks in a
   // ref rather than in the dependency list means a caller that passes an inline
-  // arrow — the normal way to write this — cannot cause a refetch on every
+  // arrow, the normal way to write this, cannot cause a refetch on every
   // render, which with a state update in the handler is an endless request loop.
   // What hardware this till has. Asked once when the dialog opens rather than
   // at print time, so the button can say where the labels are going before

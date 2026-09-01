@@ -24,7 +24,7 @@ export function useClientPage<T>(rows: T[], perPage = 25): {
   const [page, setPage] = useState(1);
   const pages = Math.max(1, Math.ceil(rows.length / perPage));
 
-  // The set changed under us — a filter, a refresh — and page 9 of the old set
+  // The set changed under us, a filter, a refresh, and page 9 of the old set
   // is not page 9 of this one.
   useEffect(() => { setPage((p) => Math.min(p, pages)); }, [pages]);
 

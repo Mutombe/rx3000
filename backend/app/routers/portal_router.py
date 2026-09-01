@@ -31,7 +31,7 @@ from ..database import get_db
 from ..models import Doctor, Patient, Prescription, PrescriptionItem, Product, Sale, User
 from ..services import patient_portal, portal_tokens
 
-# Unauthenticated by design — the link or the prescriber login is the credential.
+# Unauthenticated by design: the link or the prescriber login is the credential.
 router = APIRouter(prefix="/api/portal", tags=["portals"])
 
 # Issuing links is a staff action, so it sits behind the normal session.
@@ -81,7 +81,7 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
 @admin.post("/links/patient/{patient_id}/new-code")
 def reset_patient_code(patient_id: int, code: str = Body(default="", embed=True),
                        db: Session = Depends(get_db)):
-    """Give a patient a new code — a lost phone, or one they cannot remember.
+    """Give a patient a new code: a lost phone, or one they cannot remember.
 
     The old one stops working the moment this is called, which is the point.
     """
@@ -124,7 +124,7 @@ def _patient_from(token: str, db: Session) -> Patient:
 
     The token is the authority here, exactly as a staff token is: it is signed,
     it names one patient, and it expires. So the patient is read unscoped —
-    deliberately, and only here — and their pharmacy is then set, so everything
+    deliberately, and only here, and their pharmacy is then set, so everything
     the portal reads afterwards is scoped to the shop that issued the link and
     cannot reach another tenant's data.
     """
@@ -169,7 +169,7 @@ def patient_confirm(token: str, code: str = Body(default="", embed=True),
 
     A four-digit code the pharmacy handed over, not a date of birth. A
     forwarded message usually reaches somebody who already knows the birthday —
-    a spouse, a child, a colleague — so it protected against almost nobody who
+    a spouse, a child, a colleague, so it protected against almost nobody who
     would actually receive it, and a patient who mistyped it was told their own
     date of birth was wrong.
 
@@ -327,7 +327,7 @@ def submit_prescription(body: NewScript,
 
     It lands as `submitted`, never `active`. A pharmacist accepts it before it
     can be dispensed, because the prescriber cannot see the stock, the funder
-    rules, or the person standing at the counter — and because what a pharmacy
+    rules, or the person standing at the counter, and because what a pharmacy
     is willing to dispense is the pharmacy's decision to make.
     """
     # The session rides in the header, not the body. Mixing a bearer token into

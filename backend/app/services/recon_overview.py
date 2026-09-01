@@ -49,7 +49,7 @@ def _cash(db: Session, since: datetime) -> dict:
     """Till cash-ups: how many were counted, and how far out they were.
 
     Counted, not merely closed. A shift that was closed without a count has no
-    variance — and reporting that as "no difference" would be the exact lie
+    variance, and reporting that as "no difference" would be the exact lie
     this file is meant to avoid.
     """
     shifts = (db.query(Shift)

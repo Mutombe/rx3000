@@ -3,7 +3,7 @@
  *  Every other repeat screen in this system is a report: who to telephone, what
  *  the book is worth, how much of it was lost last month. All of them describe
  *  something that has already happened. A repeat is lost silently — nobody
- *  cancels, the line simply stops appearing next month — so by the time it is
+ *  cancels, the line simply stops appearing next month, so by the time it is
  *  on a report the patient has already collected somewhere else.
  *
  *  This is the one place it can still be prevented, and it costs nothing: the

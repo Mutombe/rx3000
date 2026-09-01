@@ -32,7 +32,7 @@ def _count(query) -> int:
 
     `query.count()` and not `with_entities(func.count())`, and the difference is
     not stylistic. A bare `func.count()` names no column, which takes the entity
-    out of the statement — and the tenancy filter attaches to entities. The
+    out of the statement, and the tenancy filter attaches to entities. The
     badge counts therefore came back unscoped: a pharmacy created five minutes
     ago showed three hundred and fourteen repeats and two hundred and
     sixty-eight claims, every one of them belonging to somebody else.
@@ -107,7 +107,7 @@ def for_nav(db: Session) -> dict[str, int]:
         .join(MedicalAid, Claim.medical_aid_id == MedicalAid.id)
         .filter(Claim.batch_id.is_(None), MedicalAid.realtime.is_(False)))
 
-    # Authorisations about to lapse — the only ones worth interrupting for.
+    # Authorisations about to lapse: the only ones worth interrupting for.
     out["/authorisations"] = _count(
         db.query(Authorisation).filter(
             Authorisation.status == "approved",

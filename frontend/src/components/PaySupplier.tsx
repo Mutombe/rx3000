@@ -2,7 +2,7 @@
  *
  *  The whole creditor side existed except this. Goods were received, the
  *  invoice was matched line by line and approved, it aged into a bucket and
- *  turned red — and there was no way to pay it. Trade creditors could only
+ *  turned red, and there was no way to pay it. Trade creditors could only
  *  ever grow, and the pharmacy's real position lived in somebody's bank app.
  *
  *  Allocation is the part worth building carefully. A payment nobody splits

@@ -91,7 +91,7 @@ export default function DriverDetail() {
       });
       // What the hand-in actually closed. Until now the money reached the till
       // and the sales stayed pending, so the patient went on owing what they
-      // had already paid — and the message said nothing either way.
+      // had already paid, and the message said nothing either way.
       const closed = r.sales_settled?.length ?? 0;
       toast.ok(r.message
         + (closed ? ` ${closed} sale${closed === 1 ? "" : "s"} settled.` : ""));

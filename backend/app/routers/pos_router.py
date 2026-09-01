@@ -78,7 +78,7 @@ def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> No
             # A patient who can find twenty of fifty-seven today still needs
             # their medicine, and refusing is what makes a counter ring the
             # whole thing up as cash and lose the difference where nobody can
-            # find it. So the shortfall is allowed to become a debt — but only
+            # find it. So the shortfall is allowed to become a debt, but only
             # deliberately, and only with a pharmacist behind it, because the
             # pharmacy is lending money and somebody has to own that.
             if not getattr(body, "part_payment", False):
@@ -383,7 +383,7 @@ def money_owed(patient_id: int = 0, db: Session = Depends(get_db),
 
     A work list, not a report. Every row is medicine the pharmacy has already
     handed over and money it has not been given, and it stays here until
-    somebody collects it — which is exactly why it has to be visible.
+    somebody collects it, which is exactly why it has to be visible.
     """
     query = (db.query(Sale)
                .options(*_sale_graph())
@@ -490,7 +490,7 @@ def _sale_graph():
         # left one query per row to find out which scheme they are on.
         joinedload(Sale.patient).joinedload(Patient.medical_aid),
         # SaleItemOut carries the batch allocations, and AllocationOut carries
-        # the batch itself — so each line cost two more round trips, which is
+        # the batch itself, so each line cost two more round trips, which is
         # where the bulk of the 266 actually went. Serialisation walks whatever
         # the schema declares, so the eager load has to reach as deep as the
         # schema does.
@@ -553,7 +553,7 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
             status_code=400,
             # Written for whoever is standing at the till with a customer, not
             # for somebody holding curl. The sale screen offers the credit note
-            # itself now, so nobody should reach this — but an error message is
+            # itself now, so nobody should reach this, but an error message is
             # read precisely when something unexpected happened.
             detail="This sale was filed with ZIMRA and cannot be voided. A "
                    "filed receipt stands; it is reversed by a credit note "
@@ -639,7 +639,7 @@ def transfer_to_account(
     The third thing that can happen to a COD, after being paid and being
     cancelled. The goods have gone, the customer is not paying today, and the
     debt moves from "money expected at the door" to "money owed on an account"
-    — which is where it can be aged, chased and eventually provided against.
+   , which is where it can be aged, chased and eventually provided against.
 
     It needs a customer, because an account balance with nobody attached to it
     cannot be collected. That is the same unattributed debt the aged analysis

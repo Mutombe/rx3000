@@ -3,7 +3,7 @@
 A script for a scheme member is settled in two places on purpose. The claim is
 raised at the dispensary, where somebody knows the medicine and the membership;
 the patient walks to the till and settles what is left. That split is right —
-it is how a pharmacy works — and it has exactly one failure mode, which is
+it is how a pharmacy works, and it has exactly one failure mode, which is
 asking for the wrong half.
 
 THE BUG THIS WAS WRITTEN FOR
@@ -84,7 +84,7 @@ def main() -> int:
         estimate = claims_engine.estimate(db, member, basket)
 
         # The same basket as a sale, adjudicated the way a real dispensing
-        # adjudicates it. Rolled back — nothing here is a real claim.
+        # adjudicates it. Rolled back. Nothing here is a real claim.
         sale = Sale(sale_number="QA-SPLIT", patient_id=member.id,
                     status="pending", subtotal=0.0, vat_amount=0.0,
                     total=estimate["total"])

@@ -356,7 +356,7 @@ def seed_claiming_if_empty(db):
     """Reference data for claiming: pay offices, fee models and ICD-10.
 
     The fee bands below are illustrative placeholders shaped like a real
-    regulated schedule — they are NOT the gazetted figures. Load the actual
+    regulated schedule — they are NOT the gazetted figures.   Load the actual
     bands for the jurisdiction before claiming against them.
     """
     from .models import DiagnosisCode, FeeModel, FeeTier, MedicalAid, PayOffice
@@ -570,7 +570,7 @@ def seed_formulary_if_empty(db):
         ))
 
     # A cheaper generic of the reference-priced statin. Same molecule, so it is
-    # a legitimate substitution — which is what makes the coverage check useful
+    # a legitimate substitution, which is what makes the coverage check useful
     # rather than merely informative.
     originator = by_name("Atorvastatin")
     if originator and not by_name("Atorva-Gen"):

@@ -221,7 +221,7 @@ def performance(db: Session, *, days: int = 30) -> dict:
         "average_value": _money(due_value / due) if due else 0.0,
         "average_captured": _money(captured_value / captured) if captured else 0.0,
 
-        # Of what was kept, how much was kept *on time* — which is what the
+        # Of what was kept, how much was kept *on time*, which is what the
         # patient experienced and what decides whether they come back.
         "on_time": on_time,
         "on_time_value": _money(on_time_value),
@@ -272,7 +272,7 @@ def daily(db: Session, *, days: int = 14) -> list[dict]:
     """What the repeat book is worth day by day, and what was taken of it.
 
     A fortnight of this is what tells a pharmacy whether Monday is quietly
-    worse than Thursday — and whether the gap is the patients or the shelf.
+    worse than Thursday, and whether the gap is the patients or the shelf.
     """
     today = date.today()
     out: list[dict] = []
@@ -364,7 +364,7 @@ def weekly(db: Session, *, weeks: int = 8) -> list[dict]:
             "value": _money(value),
             "average": _money(value / filled) if filled else 0.0,
             # The current week is short — it is however many days have happened
-            # so far — so a bar shorter than last week's may mean nothing at
+            # so far, so a bar shorter than last week's may mean nothing at
             # all. Said, rather than left for somebody to work out.
             "current": end >= today,
             "days_so_far": min(7, (today - start).days + 1) if end >= today else 7,

@@ -82,7 +82,7 @@ def main() -> int:
     if held_in_shortfall:
         failures.append(
             "held claims are counted in the shortfall, so they go to a patient "
-            "or a write-off — which gives away money the funder had not refused")
+            "or a write-off, which gives away money the funder had not refused")
 
     print()
     if failures:

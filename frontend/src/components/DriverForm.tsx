@@ -122,7 +122,7 @@ export default function DriverForm(
               onChange={(e) => set("licence_expiry")(e.target.value)} />
             <span className="hint">
               A delivery cannot be dispatched to a driver whose licence has
-              expired — the refusal happens at dispatch, when it still matters.
+              expired: the refusal happens at dispatch, when it still matters.
             </span>
           </div>
 

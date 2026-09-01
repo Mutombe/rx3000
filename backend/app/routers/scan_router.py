@@ -1,7 +1,7 @@
 """One place a scan is resolved, whatever scanned it and wherever it landed.
 
 The till, the stock screen and goods receipt all ask the same question — *what
-is this?* — and before this router they each answered it differently. The POS
+is this?*, and before this router they each answered it differently. The POS
 looked up `barcode` then gave up. Stock searched product names. Receiving had no
 scanning at all. Three answers to one question is three places for the answer to
 be wrong, and it guarantees that a pack which scans at the till mysteriously
@@ -244,7 +244,7 @@ def link(body: LinkIn, db: Session = Depends(get_db), user: User = Depends(get_c
     """Teach the system a code it did not know.
 
     This is the payoff of the miss path. The operator scanned something, we did
-    not have it, they picked the product by hand — and that pairing is worth
+    not have it, they picked the product by hand, and that pairing is worth
     keeping, because the next person to scan that pack should not repeat the
     search. A pharmacy that receives from two wholesalers teaches the catalogue
     its second set of codes in about a week of ordinary work, without anyone

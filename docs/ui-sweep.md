@@ -8,7 +8,7 @@ Two reasons, both worth writing down because they are the general case.
 `/dispensary`, `/prescriptions`, `/suppliers`, `/claims`, `/customers`,
 `/campaigns`, `/settings`. None of them are routes. The router mounts
 `/dispense`, `/stock`, `/contacts/:id`, `/marketing`, `/system`. Every one of
-those invented paths fell through to the dashboard, which is clean — so the
+those invented paths fell through to the dashboard, which is clean, so the
 audit measured the dashboard twenty-nine times and reported the application
 healthy while the dispensary was visibly broken.
 
@@ -58,7 +58,7 @@ painted.**
    read; a gradient reports `rgba(0,0,0,0)`, so it fell through to the white card
    behind. (The avatars *were* wrong — at 1.7:1, not 1.0.)
 3. **Contrast read 2.34 on chart labels.** They are positioned `top: -20px`,
-   outside their bar, and painted on the card — but the DOM ancestry said dark
+   outside their bar, and painted on the card, but the DOM ancestry said dark
    bar. Ancestors are now only counted when their box is genuinely behind the
    element.
 4. **"400 crushed cells" from row height.** A cell's height is its *row's*
@@ -69,12 +69,12 @@ painted.**
 5. **A blanket assumption about markup.** Converting every trailing `<th />` to
    `className="actions"` assumed an empty last header always means buttons. On
    Deliveries it meant the outcome column, which then inherited the action
-   column's width and overflow rules — and that is what put the failure reason
+   column's width and overflow rules, and that is what put the failure reason
    outside the table. A mechanical edit across twelve files needs each site
    checked, not the pattern assumed.
 6. **"Sliced buttons" that were reachable.** The walk up the ancestry skipped
    `overflow: auto` boxes and kept going until it found `.shell`'s
-   `overflow: hidden` — reporting a scrollable table's buttons as severed. A
+   `overflow: hidden`: reporting a scrollable table's buttons as severed. A
    scrollable ancestor ends the search.
 
 **A measurement that has not been checked against the pixels is a claim, not a
@@ -87,7 +87,7 @@ faults on panels nothing had ever opened:
 
 - **The controlled-drugs register showed 200 of 423 hand-overs**, with nothing on
   screen saying so. Of every list in this application that is the one where a
-  silent cap is indefensible — it is the list an inspector reads. Now paged, and
+  silent cap is indefensible — it is the list an inspector reads.   Now paged, and
   the screen states the true total.
 - **The pharmacy-medicine (S1/S2) register** dumped 92 rows with no pager.
 - **Campaign history** dumped 91.
@@ -96,7 +96,7 @@ faults on panels nothing had ever opened:
 - **Stock valuation rendered 433 lines**, and the **reorder sheet 104**, neither
   with a pager. Both endpoints deliberately return everything — a valuation has
   to sum every line to state a total, a reorder sheet has to know the whole
-  shortfall before anyone buys — so the fix was `useClientPage`, which bounds the
+  shortfall before anyone buys, so the fix was `useClientPage`, which bounds the
   *render* and leaves the data whole. The totals beside them are still computed
   over the full array: paging to the next page leaves "$7,424,059.45" exactly
   where it was, which is the property worth testing and the one that is easy to

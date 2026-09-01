@@ -22,7 +22,7 @@ def repeat_basket(days: int = 90, branch_id: int | None = None,
     """What a repeat collection is worth once the whole visit is counted.
 
     Refuses to answer where the visits found are worth less than the repeats
-    they are supposed to contain — which means the dispensings and the sales
+    they are supposed to contain, which means the dispensings and the sales
     were never tied together, and any multiple computed from them would be a
     number somebody acts on and should not.
     """

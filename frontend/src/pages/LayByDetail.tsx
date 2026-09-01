@@ -49,7 +49,7 @@ export default function LayByDetail() {
   /** Take a payment against the lay-by.
    *
    *  A lay-by IS a series of payments — it is the entire reason the record
-   *  exists — and this page could show the balance and not move it. The
+   *  exists, and this page could show the balance and not move it. The
    *  endpoint has been there since lay-bys were built.
    */
   async function pay() {
@@ -100,7 +100,7 @@ export default function LayByDetail() {
   }
 
   /** Cancel it. The goods go back on the shelf and what was paid is owed
-   *  back — which is why this asks for a reason rather than just confirming. */
+   *  back, which is why this asks for a reason rather than just confirming. */
   async function cancel() {
     if (!d) return;
     const answer = await ask({

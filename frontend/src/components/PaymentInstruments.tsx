@@ -4,7 +4,7 @@
  *  it counts it. They used to hold their own ideas of this and disagreed: the
  *  till knew the customer paid on EcoCash and wrote it into a free-text
  *  reference, and the cash-up reconciled seven hard-coded families and never
- *  read it — so EcoCash and InnBucks arrived as one "Mobile money" line that no
+ *  read it, so EcoCash and InnBucks arrived as one "Mobile money" line that no
  *  statement in the world matches.
  *
  *  Editable because the list is not the same in two pharmacies. One banks with
@@ -13,11 +13,11 @@
  *
  *  Two flags do real work and are worth reading before changing:
  *
- *    **In the drawer** — this is physically counted at close of trade. Cash is.
+ *    **In the drawer**: this is physically counted at close of trade. Cash is.
  *    A swipe is not, and asking somebody to count a card terminal is how a
  *    cash-up gets signed off without being read.
  *
- *    **Carried by a driver** — money collected at the door. It is deliberately
+ *    **Carried by a driver**: money collected at the door. It is deliberately
  *    NOT counted against the counter's till, because it is on a motorbike.
  */
 import { useEffect, useState } from "react";

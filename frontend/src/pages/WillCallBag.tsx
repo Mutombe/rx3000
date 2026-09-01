@@ -79,7 +79,7 @@ export default function WillCallBag() {
   /** Put a bag back on the shelf.
    *
    *  A collection marked against the wrong bag is an ordinary counter mistake —
-   *  two people at the till, one queue — and until now it was permanent. The
+   *  two people at the till, one queue, and until now it was permanent. The
    *  bag showed as handed over, the worklist stopped counting it, and the
    *  medicine sat on the shelf with nothing saying it was still there. The
    *  endpoint to undo it has existed since will-call was written and no screen

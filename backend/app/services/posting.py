@@ -18,7 +18,7 @@ they are where pharmacy accounting usually goes wrong:
   is confidently wrong and moves every time the buyer negotiates.
 
 Posting is deliberately non-fatal. If the ledger refuses — a closed period, a
-missing account — the sale still completes. A till that would not sell medicine
+missing account: the sale still completes. A till that would not sell medicine
 because the bookkeeping was unhappy would be a worse product than one whose
 ledger is briefly behind, and the failure is recorded rather than swallowed.
 """
@@ -138,7 +138,7 @@ def post_sale(db: Session, sale: Sale, user_id: int | None = None) -> dict:
     except ledger.LedgerError as exc:
         # Never fatal. A till that refused to sell medicine because the
         # bookkeeping was unhappy would be a worse product than one whose ledger
-        # is briefly behind — but the failure is recorded, not swallowed.
+        # is briefly behind, but the failure is recorded, not swallowed.
         log.warning("sale %s did not post: %s", sale.sale_number, exc)
         return {"posted": False, "reason": str(exc), "reference": ""}
 
@@ -203,7 +203,7 @@ def unposted_sales(db: Session, limit: int = 200) -> list[dict]:
 # Without this the stock control account only ever goes down: sales credit it,
 # nothing debits it, and within a month it is meaninglessly negative while the
 # stock subledger says something else entirely. A ledger that only records half
-# a business is not behind — it is wrong.
+# a business is not behind. It is wrong.
 # ---------------------------------------------------------------------------
 
 CREDITORS = "2000"

@@ -1,7 +1,7 @@
 /** Every script the pharmacy holds, looked up by the number on it.
  *
  *  There was no such screen. A script could be reached through a patient —
- *  which needs the patient's name — or through the dispensing history, which
+ *  which needs the patient's name, or through the dispensing history, which
  *  lists the individual dispensings, so a script supplied over four visits
  *  appears four times and one never dispensed does not appear at all. The
  *  question a dispensary asks constantly, "bring me RX-0412", had no answer

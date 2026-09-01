@@ -2,13 +2,13 @@
 
 The distinction matters more than it sounds. A revenue figure computed by summing
 sales and a revenue figure taken from the ledger will agree only while every sale
-has posted — and the moment they disagree, the one taken from the ledger is the
+has posted, and the moment they disagree, the one taken from the ledger is the
 one that ties to the trial balance, the VAT return and the accountant's file.
 Reporting off the transactions instead produces numbers that look right, reconcile
 to nothing, and cannot be defended.
 
 So every figure here comes from journal lines. Where that makes a report show
-less than the till did, the answer is to post the missing transactions — which is
+less than the till did, the answer is to post the missing transactions, which is
 what the unposted queues are for — not to compute around the gap.
 """
 from dataclasses import dataclass
@@ -181,7 +181,7 @@ def income_statement(db: Session, period_code: str = "") -> dict:
 
 
 def balance_sheet(db: Session, *, asof: date | None = None) -> dict:
-    """Assets, liabilities and equity — and whether they actually balance.
+    """Assets, liabilities and equity, and whether they actually balance.
 
     Retained profit is folded in rather than left out, because assets will not
     equal liabilities plus equity without it and a balance sheet that does not

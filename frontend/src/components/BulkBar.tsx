@@ -2,7 +2,7 @@
  *
  *  Fixed to the bottom of the screen rather than above the table, because the
  *  row somebody ticks last is as likely to be at the bottom of a long list as
- *  the top — and an action bar that has scrolled off is an action nobody takes.
+ *  the top, and an action bar that has scrolled off is an action nobody takes.
  *
  *  It says the count and what will happen to it, in that order, because "12
  *  deliveries" is what the operator is checking before they press anything. A

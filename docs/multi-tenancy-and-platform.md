@@ -36,7 +36,7 @@ It also suits what pharmacies and regulators want:
 - **Restores are per pharmacy.** Restoring one tenant does not roll back the rest.
 - **A big chain can be moved** to its own cluster later without redesigning
   anything.
-- **The desktop app already works this way** — a pharmacy running its own backend
+- **The desktop app already works this way**: a pharmacy running its own backend
   on the premises is a tenant of one.
 
 What it costs, honestly:
@@ -67,7 +67,7 @@ A separate admin surface, on the platform database:
 - plans, subscriptions, invoices, payments
 - usage counters for billing (scripts, tills, branches)
 - feature flags per tenant
-- **support access grants** — time-boxed, reason-required, and visible to the
+- **support access grants**: time-boxed, reason-required, and visible to the
   pharmacy in their own audit log
 
 The rule that keeps this defensible: **the platform database holds no patient
@@ -115,7 +115,7 @@ than a role inside the main one.
 
 ---
 
-## 5. Staff, prescribers, patients — three different kinds of access
+## 5. Staff, prescribers, patients: three different kinds of access
 
 The distinction that keeps this simple: **staff are inside the tenant; everyone
 else is outside it looking through a narrow window.**
@@ -139,7 +139,7 @@ already exists for this, and it should stay deliberately thin.
 - Stateless API containers behind a load balancer; the tenant comes from the
   request, so any container can serve any pharmacy.
 - One Postgres cluster with PgBouncer, until a tenant is big enough to deserve its
-  own — the design allows moving one without touching the others.
+  own: the design allows moving one without touching the others.
 - Backups: cluster-level point-in-time recovery, plus a per-tenant logical dump a
   pharmacy can be handed.
 - The desktop app keeps working against a local backend for pharmacies with bad

@@ -6,7 +6,7 @@
  *  something not stocked, a line ran out between sweeps, a rep quoted a price
  *  worth taking today. The endpoint has been there since orders were written
  *  and no screen called it, so the answer was to raise it on paper and type it
- *  in when it arrived — which is how stock on the shelf comes to have no order
+ *  in when it arrived, which is how stock on the shelf comes to have no order
  *  behind it.
  *
  *  The cost defaults to what the product last cost and stays editable, because

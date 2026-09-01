@@ -70,7 +70,7 @@ DECLARED: tuple[Declared, ...] = (
              "On, any screen left idle asks for a PIN, which suits a pharmacy "
              "where every machine is a shared counter. Off, only the screens "
              "where the keyboard actually changes hands lock — the till, the "
-             "dispensary, the cash drawer — and a back-office machine stays "
+             "dispensary, the cash drawer, and a back-office machine stays "
              "signed in. Off by default: a manager who is asked for a PIN every "
              "five minutes while reading a report turns the lock off entirely, "
              "and then the till it was written for is unlocked all day too."),

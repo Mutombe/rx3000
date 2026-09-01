@@ -32,7 +32,7 @@ const EMPTY_CT = {
   marketing_opt_in: false, notes: "",
   // Who in the pharmacy owns this relationship, and whether this person is also
   // somebody the dispensary knows. Both were on the endpoint from the start and
-  // sent by nothing — so every contact was unowned, and the buyer at a corporate
+  // sent by nothing, so every contact was unowned, and the buyer at a corporate
   // account who collects her own script was two unconnected records.
   owner_id: "" as string | number,
   patient_id: null as number | null,

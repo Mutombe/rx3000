@@ -15,7 +15,7 @@ of user.
 
 So the check is a positive one: **is this staff**, rather than *is this not a
 patient*. A user type nobody has thought of yet must be refused the application
-rather than admitted by falling through a list of exclusions — and the test
+rather than admitted by falling through a list of exclusions, and the test
 below is written against a type that does not exist yet, for that reason.
 
 Nothing is committed.
@@ -71,7 +71,7 @@ def main() -> int:
                   + " the application",
                   f"a {label} login is "
                   + ("refused" if reaches else "admitted")
-                  + " — and a login admitted by default holds an assistant's "
+                  + ", and a login admitted by default holds an assistant's "
                     "permissions over somebody else's patients")
         staff.user_type = "staff"
 
@@ -86,7 +86,7 @@ def main() -> int:
         staff.patient_id = None
         staff.user_type = "staff"
 
-        # The PIN report — the finding, not the mechanism.
+        # The PIN report: the finding, not the mechanism.
         report = user_types.pin_report(db)
         print()
         print(f"  {report['says']}")

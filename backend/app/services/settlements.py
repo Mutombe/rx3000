@@ -1,7 +1,7 @@
 """What each funder actually paid, against what was claimed and when.
 
 A remittance answers "what did this deposit cover". A settlement report answers
-the question above it: **is this funder paying us, in full, on time** — and if
+the question above it: **is this funder paying us, in full, on time**, and if
 not, which of those three is failing, because they have three different
 answers.
 
@@ -19,7 +19,7 @@ is about a number nobody has kept.
 WHAT THIS DELIBERATELY DOES NOT DO
 
 It does not net suspended claims into the shortfall. A held claim is money the
-funder has not decided about — it pays when a query is answered — and counting
+funder has not decided about, it pays when a query is answered, and counting
 it as a loss makes a scheme look worse than it is, which is exactly the way to
 lose an argument with them.
 """
@@ -100,7 +100,7 @@ def by_funder(db: Session, *, days: int = 180) -> dict:
     # their promise rather than against an opinion.
     # Keyed on the scheme code, which is what a remittance's `funder_id`
     # carries. A `getattr(aid, "funder_id")` fallback silently found nothing
-    # and every scheme read as having no stated terms — so "late" would have
+    # and every scheme read as having no stated terms, so "late" would have
     # been measured against an opinion rather than against their promise.
     terms: dict[str, int] = {}
     names: dict[str, str] = {}

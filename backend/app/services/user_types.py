@@ -96,7 +96,7 @@ def of(user: User) -> str:
 def may_use_application(user: User) -> bool:
     """Only staff reach the application.
 
-    Checked as a positive — "is this staff" — rather than as "is this not a
+    Checked as a positive, "is this staff", rather than as "is this not a
     patient". A user type nobody has thought of yet must be refused the
     application rather than admitted to it by falling through a list of
     exclusions.
@@ -109,7 +109,7 @@ def pin_report(db: Session) -> dict:
 
     A member of staff with no PIN is not a preference somebody has expressed.
     It means every dispensing they check is recorded against whoever signed the
-    till in that morning — so the controlled register names the wrong person,
+    till in that morning, so the controlled register names the wrong person,
     quietly, on every line they touched.
     """
     staff = [u for u in db.query(User).filter(User.is_demo.is_(False)).all()
@@ -162,7 +162,7 @@ def directory(db: Session) -> dict:
         })
 
     # Patients with a portal code are people who can reach their own record
-    # whether or not they have a `users` row — the link is the credential. They
+    # whether or not they have a `users` row: the link is the credential. They
     # belong in a directory of who can see what.
     with_portal = (db.query(func.count(Patient.id))
                    .filter(Patient.portal_code != "",

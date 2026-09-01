@@ -174,7 +174,7 @@ export default function Admin() {
    *
    *  Retired, not deleted: it was shown to somebody, and why it was shown last
    *  month is a question that gets asked. The endpoint has said exactly that in
-   *  its own docstring since it was written, and no screen offered it — so a
+   *  its own docstring since it was written, and no screen offered it, so a
    *  notice raised against a patient who has since been cleared went on warning
    *  every dispenser forever, and the only way to stop it was the database.
    */
@@ -184,7 +184,7 @@ export default function Admin() {
       body: <>
         <b>{n.body}</b>
         <p className="muted">
-          It stays on the record — retired rather than deleted — so it can still
+          It stays on the record, retired rather than deleted, so it can still
           be read if anyone asks why it was shown. Dispensers will not see it
           again.
         </p>

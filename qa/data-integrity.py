@@ -13,7 +13,7 @@ in a second rather than after somebody notices a figure looking wrong.
 WHAT IT FOUND
 
   * More than half the catalogue's products disagreed with their batches, by
-    $25,991 at cost — and the two are believed by different screens. Dispensing
+    $25,991 at cost, and the two are believed by different screens. Dispensing
     draws against the batches; almost everything else shows the product's own
     count.
   * Two products counted below nothing. A batch write-off subtracted the

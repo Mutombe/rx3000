@@ -5,7 +5,7 @@
 unused import, whatever a linter says.
 
 It is also imported *first*, and the module is called `definitions` rather than
-`catalogue`, because `engine.catalogue()` is a function of that name — and a
+`catalogue`, because `engine.catalogue()` is a function of that name, and a
 submodule that collides with an already-bound attribute of its own package is
 silently never executed. That produced an empty catalogue with no error at all,
 which is exactly the kind of failure worth designing out rather than commenting.

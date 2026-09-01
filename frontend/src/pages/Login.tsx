@@ -34,7 +34,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
   /** Why the last session ended, if it did.
    *
-   *  A 401 redirects here, and the redirect is a page load — which destroys any
+   *  A 401 redirects here, and the redirect is a page load, which destroys any
    *  toast raised alongside it. So the reason is handed over in session storage
    *  and shown on the screen the person actually lands on, rather than flashing
    *  on the one they are leaving. */

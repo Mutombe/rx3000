@@ -3,10 +3,10 @@
 WHY THERE WAS NO SUCH SCREEN
 
 A script could be reached three ways and none of them was "look it up". Through
-a patient — which needs the patient's name. Through the dispensing history —
+a patient, which needs the patient's name. Through the dispensing history —
 which lists *dispensings*, the individual events, so a script dispensed in four
 visits appears four times and a script dispensed never appears not at all.
-Through the N-Repeat queue — which holds only the drafts.
+Through the N-Repeat queue, which holds only the drafts.
 
 So the question a dispensary asks constantly, "bring me script RX-0412", had no
 answer except through the alter dialogue, which asks for the number, finds the

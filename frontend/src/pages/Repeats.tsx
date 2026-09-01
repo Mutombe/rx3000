@@ -1,7 +1,7 @@
 /** Repeats due, and a quick price.
  *
  *  Two counter jobs that share a screen because they share a moment: the phone
- *  is in the pharmacist's hand either way. One is outbound — who is due and can
+ *  is in the pharmacist's hand either way. One is outbound, who is due and can
  *  be served today. The other is inbound — a patient asking what something will
  *  cost them before they commit to collecting it.
  *
@@ -82,7 +82,7 @@ const LOSS_TONE: Record<string, string> = {
 export default function Repeats() {
   const [due, setDue] = useState<Due | null>(null);
   // The endpoint returns the whole call sheet — `count` and `overdue` are over
-  // all of it and must stay that way — so only the render is bounded.
+  // all of it and must stay that way, so only the render is bounded.
   const dueRows = useClientPage<DueItem>(due?.items ?? [], 25);
   // Which rows are ticked. Anything that leaves the list — a filter change,
   // or the send itself — is dropped from the selection, so an action can never
@@ -172,7 +172,7 @@ export default function Repeats() {
   /** Supply a due repeat.
    *
    *  This asked for a plain yes and sent empty initials, which the server
-   *  refuses — so the button could never once have worked, and said so with a
+   *  refuses, so the button could never once have worked, and said so with a
    *  400 the dispenser could do nothing about. It also asserted that the script
    *  had been sighted, on the dispenser's behalf and without asking. A false
    *  entry in a dispensing record is worse than a missing feature: the record
@@ -361,7 +361,7 @@ export default function Repeats() {
           </div>
 
           {/* In a card, like every other list in the product. Without one the
-              table — and the skeleton standing in for it — sat directly on the
+              table, and the skeleton standing in for it, sat directly on the
               page ground and began at the exact pixel the filter bar ended, so
               the controls and the rows read as one undifferentiated block. */}
           <div className="card">
@@ -396,7 +396,7 @@ export default function Repeats() {
                       prefetch={prefetchRoute}
                       /* Green until it is late, amber while a telephone call
                          still works, red once the patient has almost certainly
-                         been served somewhere else — or once the shelf cannot
+                         been served somewhere else, or once the shelf cannot
                          serve them, which is the same loss for a different
                          reason. Read down the edge without reading the rows. */
                       className={`row-${
@@ -474,7 +474,7 @@ export default function Repeats() {
                         </button>
                         {/* The other half of the job. Half of a repeat queue is
                             people who have not come in, and telephoning them is
-                            the work — so the message is here rather than on a
+                            the work, so the message is here rather than on a
                             screen somebody has to remember to open. */}
                         <BusyButton className="btn ghost sm"
                                     disabled={!i.patient_phone}

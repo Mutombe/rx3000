@@ -1,6 +1,6 @@
 /** Remittance advices: what a scheme actually paid, and what it did not.
  *
- *  Eight endpoints and no screen, including both importers — so the 132 advices
+ *  Eight endpoints and no screen, including both importers, so the 132 advices
  *  in the database are there because they were seeded, not because anybody could
  *  load one.
  *

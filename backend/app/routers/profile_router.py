@@ -199,7 +199,7 @@ def letterhead(db: Session = Depends(get_db),
     """Everything a printed document needs about this pharmacy, in one call.
 
     One request rather than each report assembling its own header out of six
-    settings lookups — which is how one document ends up showing the VAT number
+    settings lookups, which is how one document ends up showing the VAT number
     and another does not.
     """
     stored = _many(db, [f"company.{k}" for k in COMPANY_FIELDS] + [LOGO_KEY])
@@ -223,7 +223,7 @@ def get_company(
     db: Session = Depends(get_db),
     user: User = Depends(auth.get_current_user),
 ):
-    """Readable by anyone — a dispenser needs to see which branch they are on.
+    """Readable by anyone: a dispenser needs to see which branch they are on.
 
     Writing is what is restricted.
     """

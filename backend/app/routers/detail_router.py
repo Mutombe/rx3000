@@ -522,7 +522,7 @@ def dispensing_detail(dispensing_id: int, db: Session = Depends(get_db)):
 
     The dispensing history listed thousands of these and opened none of them.
     Every column on that list was a link to something *else* — the script, the
-    patient, the prescriber — and the dispensing itself, which is the record of
+    patient, the prescriber, and the dispensing itself, which is the record of
     what a named pharmacist actually handed to a named person on a named day,
     was the one thing you could not read.
 

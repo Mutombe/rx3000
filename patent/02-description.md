@@ -1,4 +1,4 @@
-# RX5000 — Detailed Description of the System
+# RX5000: Detailed Description of the System
 
 **Draft specification for patent counsel.**
 Figures are given as schematics for a draughtsman to redraw formally. Reference
@@ -9,21 +9,21 @@ numerals follow the convention *(FIG. n, item nn)*.
 ## Table of contents
 
 1. Field and background
-2. Overview of the system architecture — FIG. 1
-3. Data model — FIG. 2
+2. Overview of the system architecture (FIG. 1)
+3. Data model (FIG. 2)
 4. Tenant isolation
-5. The dispensing subsystem — FIG. 3
-6. Directions shorthand and label generation — FIG. 4
+5. The dispensing subsystem (FIG. 3)
+6. Directions shorthand and label generation (FIG. 4)
 7. Clinical screening and acknowledgement
-8. Benefit adjudication and shortfall settlement — FIG. 5
+8. Benefit adjudication and shortfall settlement (FIG. 5)
 9. Point-of-sale settlement and multi-currency tender
-10. Delivery-agent custody accounting — FIG. 6
-11. Trust-gated metric publication — FIG. 7
-12. Regulatory document register — FIG. 8
-13. Statutory fiscalisation — FIG. 9
+10. Delivery-agent custody accounting (FIG. 6)
+11. Trust-gated metric publication (FIG. 7)
+12. Regulatory document register (FIG. 8)
+13. Statutory fiscalisation (FIG. 9)
 14. Multi-branch consolidation and head-office control
 15. Patient and prescriber portals
-16. Verification harness — FIG. 10
+16. Verification harness (FIG. 10)
 17. Worked end-to-end example
 18. Glossary
 
@@ -43,7 +43,7 @@ consumed by a patient. Three parties, three vocabularies, and the record must
 satisfy all of them plus an inspector.
 
 **It is paid by somebody other than the customer.** A medical-aid scheme meets
-part of the price. The remainder — the *shortfall* — is settled by the patient
+part of the price. The remainder, the *shortfall*, is settled by the patient
 separately, and the two settlements happen at different moments, sometimes in
 different places, and are adjudicated by a party outside the system.
 
@@ -55,16 +55,16 @@ retaining the superseded ones.
 
 **Its errors are clinical.** A quantity typed wrongly is not a pricing error.
 
-The described embodiment is deployed in Zimbabwe, whose particular conditions —
-simultaneous circulation of two currencies at one counter, a mandatory receipt
-fiscalisation regime, and medical-aid schemes that routinely cover less than the
-charged price — sharpen each of the four characteristics above.
+The described embodiment is deployed in Zimbabwe. Its particular conditions
+sharpen each of the four characteristics above: two currencies circulating at
+one counter, a mandatory receipt fiscalisation regime, and medical-aid schemes
+that routinely cover less than the charged price.
 
 ---
 
 ## 2. Overview of the system architecture
 
-### FIG. 1 — System architecture
+### FIG. 1: System architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -132,7 +132,7 @@ rather than by database row-level security, which SQLite does not offer.
 
 ## 3. Data model
 
-### FIG. 2 — Core entities and the relationships that matter
+### FIG. 2: Core entities and the relationships that matter
 
 ```
                           ┌───────────┐
@@ -202,7 +202,7 @@ rather than by database row-level security, which SQLite does not offer.
 
 **Attribution note (item 109).** A `Sale` carries `branch_id`; a `Prescription`
 does **not**. A prescription is authored by a prescriber and captured by a
-pharmacy — it is not held at a shop. Consequently any per-branch analysis of
+pharmacy. It is not held at a shop. Consequently any per-branch analysis of
 dispensing activity must reach the branch through the sale
 (`Dispensing → Sale → branch_id`), and dispensings with no sale cannot be
 attributed to any branch at all. This is not a modelling deficiency but a
@@ -229,7 +229,7 @@ Two deliberate exclusions:
 
 - **Raw SQL is not filtered.** The ORM cannot see inside a string. A separate
   verification check asserts that no raw SQL touches a tenant-scoped table.
-- **Shared reference data is not scoped** — diagnosis codes, jurisdiction fee
+- **Shared reference data is not scoped**: diagnosis codes, jurisdiction fee
   models. Those are the same book for everyone.
 
 An explicit `unscoped()` context manager exists for the small number of
@@ -241,7 +241,7 @@ pharmacy the request belongs to).
 
 ## 5. The dispensing subsystem
 
-### FIG. 3 — Dispensing flow and its three settlement routes
+### FIG. 3: Dispensing flow and its three settlement routes
 
 ```
       ┌────────────────────────────────────────────────────────────┐
@@ -309,14 +309,14 @@ into four states that say what to do rather than what the number is: below cost
 ordinary, room to negotiate. The same figure appears on search results *before*
 a medicine is added, because that is where a substitution between a brand and
 its generic is actually decided. Where no cost is on file the badge is withheld
-entirely — not knowing is not a margin of one hundred per cent, and the
+entirely. Not knowing is not a margin of one hundred per cent, and the
 difference matters when the figure is about to justify a discount.
 
 ---
 
 ## 6. Directions shorthand and label generation
 
-### FIG. 4 — Expansion pipeline
+### FIG. 4: Expansion pipeline
 
 ```
   DISPENSER TYPES              EXPANSION (300)                    LABEL (310)
@@ -348,8 +348,8 @@ difference matters when the figure is about to justify a discount.
   visibly not `stat`.
 ```
 
-**The dictionary (item 301).** 75 codes across five categories — quantity,
-frequency, timing, route, form — stored per tenant so a pharmacy may add its own
+**The dictionary (item 301).** 75 codes across five categories (quantity,
+frequency, timing, route, form) stored per tenant so a pharmacy may add its own
 inherited shorthand without waiting for a release. Eight codes carry a *caution*
 string naming how else they can be read.
 
@@ -368,7 +368,7 @@ because `iv` is intravenous and the two cannot share a field.
 **The generated inspection sheet (item 307).** The dictionary renders to a
 printable document for a regulatory inspection, generated from the live
 dictionary at request time. It opens with the statement an inspection is actually
-asking for — that no code reaches a label — and lists every code with what it
+asking for, that no code reaches a label, and lists every code with what it
 prints, its origin, and a "read it twice" column for the ambiguous ones. A
 printed copy cannot disagree with the dispensary.
 
@@ -400,7 +400,7 @@ summary:
 
 ## 8. Benefit adjudication and shortfall settlement
 
-### FIG. 5 — One rule, two invocations, verified to agree
+### FIG. 5: One rule, two invocations, verified to agree
 
 ```
   ┌─────────────────────────────────────────────────────────────────┐
@@ -446,15 +446,15 @@ summary:
 **The rejected alternative (item 404).** The system already contained
 `pricing.price_basket`, computing a `patient_portion` from levy plus
 maximum-medical-aid-price excess. That service models the scheme's *regulated*
-price — fee model, professional fee, levy, MMAP cap. The sale a claim is raised
+price: fee model, professional fee, levy, MMAP cap. The sale a claim is raised
 against is billed at *shelf* price. Two coherent calculations of two different
 things; quoting one as the other is arithmetic on mismatched data, wrong by a
 plausible-looking margin on every scheme line. This is recorded here because a
 patent examiner assessing obviousness should see that the obvious source was
 available, was tried, and was wrong.
 
-**Terminology (item 405).** The amount is named *shortfall* — the trade's own
-word — wherever a scheme was billed, and *patient pays* where none was, because a
+**Terminology (item 405).** The amount is named *shortfall*, the trade's own
+word, wherever a scheme was billed, and *patient pays* where none was, because a
 private patient paying cash is paying the price and not a shortfall. Its
 components keep their own names (*levy*, the scheme's co-payment, a term of the
 member's cover; *above scheme rate*, a consequence of what was dispensed),
@@ -467,8 +467,8 @@ because a patient querying the amount is querying one and not the other.
 The counter takes United States dollars and Zimbabwe gold simultaneously, across
 cash, card, and several mobile-money wallets. A tender is recorded as a row
 carrying: method, currency code, amount as handed over, the rate in force at that
-moment, the amount converted to base, and the *instrument* — which wallet, which
-bank — as a column rather than as text at the front of a reference for a screen
+moment, the amount converted to base, and the *instrument*, which wallet, which
+bank, as a column rather than as text at the front of a reference for a screen
 to parse back out.
 
 Change is written back as a **negative tender** in whichever currency it was
@@ -482,7 +482,7 @@ against the total; there is no second column holding the same fact.
 
 ## 10. Delivery-agent custody accounting
 
-### FIG. 6 — Value custody state machine
+### FIG. 6: Value custody state machine
 
 ```
    DISPENSARY                    ROAD                        TILL
@@ -536,14 +536,14 @@ a quantity with no referent, and it is precisely the quantity that would
 otherwise be entered into a cash reconciliation.
 
 **What the hand-in reports.** Which sales it closed, by number and amount, and
-any collection that would not fit its sale — named rather than swallowed, because
+any collection that would not fit its sale, named rather than swallowed, because
 somebody has that money and the books do not agree about it.
 
 ---
 
 ## 11. Trust-gated metric publication
 
-### FIG. 7 — Refusal path
+### FIG. 7: Refusal path
 
 ```
    ┌────────────┐   ┌────────────┐
@@ -576,21 +576,21 @@ somebody has that money and the books do not agree about it.
    └──────────────┘        └──────────────────────────┘
 ```
 
-**A related but distinct case — partial attribution (item 603).** Where a metric
+**A related but distinct case, partial attribution (item 603).** Where a metric
 *can* be computed but is knowably incomplete, the system computes it and states
 the size of the gap rather than refusing. In the described deployment, 2,510 of
 2,537 dispensings in a ninety-day window carry no sale, so they cannot be
 attributed to a branch. Per-branch movement figures are therefore drawn from the
 2% that reached a till and **do not sum to the group total**. The response
 carries the count, the share, and a sentence stating that the branches do not sum
-to the group and why — rendered *above* the table, because a reader who has
+to the group and why, rendered *above* the table, because a reader who has
 already compared two branches will not revise a conclusion for a footnote.
 
 ---
 
 ## 12. Regulatory document register
 
-### FIG. 8 — Expected set, held set, and the verdict
+### FIG. 8: Expected set, held set, and the verdict
 
 ```
    EXPECTED SET (700) — declared per jurisdiction
@@ -650,7 +650,7 @@ wrong" must not look the same.
 
 ## 13. Statutory fiscalisation
 
-### FIG. 9 — Receipt chain and day close
+### FIG. 9: Receipt chain and day close
 
 ```
    FISCAL DAY (800)  opened → receipts → closed → Z-report filed
@@ -718,7 +718,7 @@ Served as routes within the same client application, reached by a signed link.
 - **Patient portal.** Four-digit code authentication with constant-time
   comparison, five attempts, fifteen-minute lockout. Shows prescription history,
   repeats and their next dates, and collection status. Designed at phone scale —
-  16px base, 54px controls, no fetched font — because it is read on a phone, on a
+  16px base, 54px controls, no fetched font, because it is read on a phone, on a
   slow connection, by somebody who has never seen the software.
 - **Share flow.** A staff member shares the link by WhatsApp, SMS or email, with
   the four-digit code deliberately **off** by default: a link and its code in one
@@ -732,7 +732,7 @@ Served as routes within the same client application, reached by a signed link.
 
 ## 16. Verification harness
 
-### FIG. 10 — What the harness reads and what it catches
+### FIG. 10: What the harness reads and what it catches
 
 ```
   ┌────────────────┐   ┌────────────────┐   ┌────────────────┐
@@ -781,7 +781,7 @@ is built; and the line runs only when somebody narrows to one branch. Two
 services carried it and both were dead from the day they were written, while the
 group view beside them worked perfectly. In the browser the resulting unhandled
 exception returned a response the CORS middleware never decorated, so the fault
-was reported as a cross-origin failure — the wrong cause, on a different layer,
+was reported as a cross-origin failure: the wrong cause, on a different layer,
 in a different subsystem.
 
 ---
@@ -797,17 +797,17 @@ to be delivered.
 2. **Directions.** For each line the dispenser types `1t bd pc`. The preview
    beneath the field reads *Take ONE tablet twice a day after food.* before the
    field is left.
-3. **Margin.** Each line carries a margin badge. One reads 7% in amber — thin,
+3. **Margin.** Each line carries a margin badge. One reads 7% in amber, meaning thin,
    so a discount there would come out of the pharmacy.
 4. **Screening.** The dose checker reports one line for which no maximum is held,
    naming it. No acknowledgement is required.
 5. **Split.** The screen states: *Scheme pays 652.00 · Shortfall 1.00 to collect
-   at the till* — quoted from the rule that will adjudicate the claim.
+   at the till*, quoted from the rule that will adjudicate the claim.
 6. **Route.** The dispenser chooses *Out for delivery*, selects an agent whose
    entry reads "holding 40.00", enters a 3.00 fee and the address. The screen
    states: *The driver collects 4.00 (1.00 for the medicine + 3.00 delivery) at
    the door. It sits on their account until they hand it in, and the sale is
-   settled then — not now.*
+   settled then, not now.*
 7. **Dispense.** Stock moves, the register entry is written, the claim is raised
    against the scheme, labels print with the expanded directions, a fiscal
    receipt is chained, a waybill is raised and the agent is dispatched.
@@ -832,7 +832,7 @@ to be delivered.
 | **N-Repeat** | A repeat with N collections still to come. A 3-Repeat has three authorised supplies outstanding. Distinct from a *draft*. |
 | **Draft** | A script captured but not finished, holding no register number. |
 | **Waybill** | A delivery note carrying the consignment, the agent, and the amount to collect. |
-| **Holding** | Value an agent has collected and not handed in — a debt owed to the pharmacy. |
+| **Holding** | Value an agent has collected and not handed in; a debt owed to the pharmacy. |
 | **To collect** | Value on the road, owed by nobody, the medicine not yet handed over. |
 | **Fiscal day** | The statutory trading period opened and closed on the fiscal register, producing a Z-report. |
 | **Critical document** | A regulatory document without which trading is unlawful. |

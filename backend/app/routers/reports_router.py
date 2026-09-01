@@ -229,7 +229,7 @@ def stock_valuation(db: Session = Depends(get_db)):
 # ---------------------------------------------------------- report engine
 #
 # Three endpoints serve the whole catalogue, however large it grows. Adding a
-# report means declaring it, never touching this file — which is the difference
+# report means declaring it, never touching this file, which is the difference
 # between a catalogue that can reach a hundred reports and one that cannot.
 from fastapi import Query, Request, Response  # noqa: E402
 from ..services import reports as report_engine  # noqa: E402

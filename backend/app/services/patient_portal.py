@@ -4,7 +4,7 @@ WHY A CODE AND NOT A DATE OF BIRTH
 
 The link used to be secured by date of birth, which is the wrong second factor
 twice over. A forwarded WhatsApp message usually reaches somebody who already
-knows the patient's birthday — a spouse, a child, a colleague — so it protects
+knows the patient's birthday, a spouse, a child, a colleague, so it protects
 against almost nobody who would actually receive it. And a patient who mistypes
 it is told their own date of birth is wrong, which is close to the most
 insulting thing software can say to someone.
@@ -14,7 +14,7 @@ should know it, can be read out over the telephone, can be changed the moment a
 phone is lost, and belongs to nobody's identity if it leaks.
 
 It is four digits because it is protecting a medication list from a family
-member, not a bank account from an attacker — and a code long enough to be
+member, not a bank account from an attacker, and a code long enough to be
 secure against a determined stranger is a code the patient telephones the
 pharmacy about instead of using. The rate limit does the work that length
 would: five wrong tries and the link stops answering for a while.

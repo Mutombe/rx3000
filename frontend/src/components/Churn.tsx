@@ -8,10 +8,10 @@
  *
  *  Two questions, deliberately kept apart:
  *
- *    **Who left the pharmacy** — regulars in the earlier window who did not
+ *    **Who left the pharmacy**: regulars in the earlier window who did not
  *    come back in the later one. A retention call.
  *
- *    **What people stopped taking** — a medicine somebody was established on
+ *    **What people stopped taking**: a medicine somebody was established on
  *    and has not refilled, even though they are still shopping here. That is
  *    not a lost customer; it is a stopped treatment, and it is the more urgent
  *    of the two.
@@ -248,7 +248,7 @@ export default function Churn() {
                 <h4>Treatments that stopped</h4>
                 <span className="muted small">
                   Medicines somebody was established on — at least{" "}
-                  {therapies.minimum_fills} fills — and has not come back for.
+                  {therapies.minimum_fills} fills, and has not come back for.
                   {therapies.value_at_risk > 0 &&
                     <> {money(therapies.value_at_risk)} of dispensing at risk.</>}
                 </span>

@@ -58,7 +58,7 @@ def page(query: Query, *, page: int = 1, per_page: int = DEFAULT_PER_PAGE) -> Pa
 
     `page` and `per_page` are clamped rather than rejected. A page number past
     the end is a stale bookmark or a deleted record, not an error worth showing
-    someone — the last page is the useful answer.
+    someone: the last page is the useful answer.
     """
     per_page = max(1, min(int(per_page or DEFAULT_PER_PAGE), MAX_PER_PAGE))
     total = query.order_by(None).count()

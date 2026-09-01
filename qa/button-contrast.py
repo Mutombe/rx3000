@@ -18,7 +18,7 @@ its own ink on the primary fill. The two are near-identical, so it reads as a
 solid dark block.
 
 That is a silent failure. It type-checks, it builds, and it is invisible until
-somebody opens that exact panel — which for the allergy picker meant it shipped.
+somebody opens that exact panel, which for the allergy picker meant it shipped.
 
 So: find every class used on a `<button>`, and report the ones whose rule sets
 a text colour with no background of their own. Inheriting is not a neutral
@@ -40,7 +40,7 @@ removed with the on-fill ink kept.
 
 WHAT IT DOES NOT FLAG
 
-Variant and size modifiers — `.primary`, `.danger`, `.sm` — are applied
+Variant and size modifiers, `.primary`, `.danger`, `.sm`, are applied
 alongside `.btn` and are *meant* to inherit or override the fill. They are only
 reported when they set a text colour that would sit on the accent, which is the
 actual failure. A check that listed every modifier would be a list of 60 lines
@@ -87,14 +87,14 @@ def button_uses() -> list[tuple[str, set[str]]]:
             # Only the literal text of the template, never what is inside
             # `${…}`. `` `term-option${highlight >= shown.length ? …}` ``
             # otherwise yields "highlight", "shown" and "length" as classes,
-            # and `.highlight` is a real class with a background — so the very
+            # and `.highlight` is a real class with a background, so the very
             # bug this file was written for read as covered by a companion that
             # is a JavaScript variable.
             literal = re.sub(r'\$\{[^}]*\}', ' ', match.group(1))
             # And the truncated case, which is the common one: the capture
             # stops at the first quote, and in
             # `` `term-option${n === highlight ? " is-on" : ""}` `` that quote
-            # is inside the expression — so the text ends mid-`${`, with the
+            # is inside the expression, so the text ends mid-`${`, with the
             # closing brace never reached. Everything after an unclosed `${`
             # is expression, not classes.
             literal = re.sub(r'\$\{.*', ' ', literal, flags=re.S)
@@ -177,12 +177,12 @@ def main() -> int:
     # without such a companion can land its ink on the base button's accent.
     #
     # `background: transparent` counts here. It is an explicit opt-out of the
-    # base fill, so whatever panel is behind shows through — which is what
+    # base fill, so whatever panel is behind shows through, which is what
     # `.term-option` was changed to, and why `.term-add` beside it is fine. It
     # is a different question from whether a class strips the fill and then
     # keeps the ink meant to sit on it; that is the case just above.
     #
-    # And a class is never its own companion, or `.linkish` — which sets
+    # And a class is never its own companion, or `.linkish`, which sets
     # `background: none` and is written alone — would excuse itself.
     alone: dict[str, bool] = {}
     for _, classes in button_uses():

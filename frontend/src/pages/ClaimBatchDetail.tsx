@@ -83,7 +83,7 @@ export default function ClaimBatchDetail() {
   /** Send the batch to the funder, or record what came back.
    *
    *  Both endpoints have existed since claiming was built and the batch's own
-   *  page could not reach either — so the screen that shows what is in a batch
+   *  page could not reach either, so the screen that shows what is in a batch
    *  could not send it, and somebody went back to the claiming list to press
    *  the same button against a row.
    */
@@ -169,7 +169,7 @@ export default function ClaimBatchDetail() {
               The lines below come to {money(d.shortfall - d.unattributed)} short
               between them, but the scheme paid {money(d.shortfall)} less than was
               asked for. The difference is a deduction against the batch as a
-              whole — a levy adjustment, or a recovery from an earlier period.
+              whole: a levy adjustment, or a recovery from an earlier period.
               It is worth asking the pay office what it was for.
             </div>
           )}

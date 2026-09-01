@@ -4,7 +4,7 @@
  *  bookkeeping: a dispenser reads them at a glance to know the script is right
  *  *before* handing it over. Margin belongs here rather than in a report next
  *  month, because it is how a good dispenser notices they are about to sell
- *  below cost — and by the time it reaches a report the medicine has gone.
+ *  below cost, and by the time it reaches a report the medicine has gone.
  *
  *  The endpoint has computed all of it since it was written and nothing called
  *  it. So the whole thing existed except the one part that makes it useful:
@@ -93,7 +93,7 @@ export default function ScriptTotals({ items, medicalAidId }: {
         {/* A shortfall only exists where a scheme was billed and did not
             cover it all. A private patient paying cash is paying the price,
             not a shortfall, and calling it one would be wrong on every cash
-            sale — which is most of them. */}
+            sale, which is most of them. */}
         <div className="st-lead">
           <span>{patientOwes(!!data.scheme)}</span><b>{money(t.patient_pays)}</b>
         </div>

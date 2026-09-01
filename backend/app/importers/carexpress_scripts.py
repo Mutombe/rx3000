@@ -21,7 +21,7 @@ was being treated for and what they are due next.
 THREE THINGS THIS DELIBERATELY DOES NOT DO
 
   **It does not invent a diagnosis.** 53,141 of the 53,206 lines carry
-  `Z76.9` — the incumbent's placeholder for "no reason recorded". Loading that
+  `Z76.9`: the incumbent's placeholder for "no reason recorded". Loading that
   would give every script in the pharmacy a diagnosis code, and every claim
   screen would then believe one had been recorded. The 65 real ones are kept
   and the placeholder is dropped.
@@ -214,7 +214,7 @@ def load(path: str, *, limit: int = 0) -> dict:
                     #
                     # Eight characters, because that is what the column is.
                     # This sliced at ten and SQLite accepted it without a word
-                    # — it does not enforce a VARCHAR length — so it loaded
+                    #, it does not enforce a VARCHAR length, so it loaded
                     # cleanly here and failed on the first batch against
                     # Postgres with "value too long for type character
                     # varying(8)". The dialect that accepts more is always the
@@ -257,7 +257,7 @@ def load(path: str, *, limit: int = 0) -> dict:
 
             # The script number changing is what ends one script and begins the
             # next; the file is grouped, not keyed. Everything that decides
-            # whether to start a new one — already loaded, no patient — belongs
+            # whether to start a new one, already loaded, no patient, belongs
             # HERE and only here. Testing `already` on every row instead meant
             # the second line of a script found its own number already taken by
             # its first line, and every script came out with exactly one item.

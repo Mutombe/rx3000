@@ -22,7 +22,7 @@ cannot tell which drawer is short.
 till knew the customer paid on EcoCash and wrote the wallet into the front of a
 free-text reference; the takings screen read it back out by splitting on a
 space; this file did not read it at all and reconciled seven hard-coded
-families instead. Two screens, one shift, different shapes — and money taken on
+families instead. Two screens, one shift, different shapes, and money taken on
 any method outside the seven was counted into the totals and then never
 printed, because the lines were built from the constant rather than from what
 actually moved. A till taking 30 on EcoCash, 20 on InnBucks and 45 cash on
@@ -97,7 +97,7 @@ def count_from_coinage(coinage: dict) -> float:
             total += float(face) * int(quantity or 0)
         except (TypeError, ValueError):
             # A denomination we do not recognise is skipped rather than
-            # aborting the count — but it is not silently treated as zero
+            # aborting the count, but it is not silently treated as zero
             # value either, because it never contributed to the total.
             continue
     return round(total, 2)
@@ -157,7 +157,7 @@ def instrument_totals(db: Session, shift: Shift) -> list[dict]:
         if not tender.is_change:
             r["count"] += 1
 
-    # Sales settled without a tender breakdown — an older till, or an import.
+    # Sales settled without a tender breakdown: an older till, or an import.
     seen = {t.sale_id for t in tenders}
     base = _base_code()
     simple = (
@@ -418,7 +418,7 @@ def reconcile(db: Session, shift: Shift, counted: dict[str, float]) -> dict:
         "total_system": total_system,
         "variance": round(total_counted - total_system, 2),
         # What was cancelled during the run. Not part of the reconciliation —
-        # a void takes no money — but it is the figure a supervisor reads next
+        # a void takes no money, but it is the figure a supervisor reads next
         # to a variance, because voiding a sale after taking the cash produces a
         # drawer that is over by exactly the voided amount.
         **_cancellations(db, shift),

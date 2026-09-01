@@ -46,7 +46,7 @@ export default function DemoBar({ user }: { user: User | null }) {
   /* A tick, and the remainder derived from it.
      Holding the remainder in state instead put a whole render between "we now
      know when this expires" and "and here is how long that is", and in that
-     render the remainder was still its initial zero — so the effect below saw
+     render the remainder was still its initial zero, so the effect below saw
      zero seconds left and signed the visitor out the instant they arrived.
      Deriving it means the two can never disagree. */
   const [, tick] = useState(0);

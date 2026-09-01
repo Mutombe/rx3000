@@ -13,7 +13,7 @@ months of real trading. Run it with:
     python -m app.realseed --wipe-all   # start the transactional history over
 
 It is **idempotent on the reference data** — schemes, catalogue, prescribers,
-suppliers are matched by name and updated rather than duplicated — and it will
+suppliers are matched by name and updated rather than duplicated, and it will
 not run twice over the transactional history unless asked, because two months of
 sales seeded twice is a takings chart that has quietly doubled.
 """
@@ -219,7 +219,7 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
     if probe_ids:
         # Sixteen tables point at a product. Each one is a fact about that
         # product — a batch received, a movement, a barcode, a formulary listing,
-        # a line on somebody's order — and all of them have to go before the
+        # a line on somebody's order, and all of them have to go before the
         # product itself can. The list came out of the schema rather than out of
         # memory; the first version of this remembered two of the sixteen.
         line_ids = [i[0] for i in db.query(SaleItem.id)
@@ -519,7 +519,7 @@ def _branch(db: Session) -> None:
     because it exists to satisfy a foreign key rather than to describe a
     pharmacy. That placeholder is what the dispensing label prints at the foot,
     so every sticker went out with a name and two blank lines where the address
-    and the number should be — which on a real label is the part a patient uses
+    and the number should be, which on a real label is the part a patient uses
     to ring back about their medicine.
     """
     from .services import branches
@@ -608,7 +608,7 @@ def _trading(db: Session, days: int, products: list[Product],
     # Carry on from the highest number actually in use, whatever its prefix.
     #
     # The first version split on "-" and fell back to a constant when there was
-    # no dash — and every number here is INV111696, with no dash — so a second
+    # no dash, and every number here is INV111696, with no dash, so a second
     # run started again at the first number and collided on the unique index
     # partway through. Reading the digits off the end works for any prefix, and
     # the max is taken rather than the last row's, because ids and numbers do not
@@ -715,7 +715,7 @@ def _trading(db: Session, days: int, products: list[Product],
         # One flush for the day, not one per sale.
         #
         # A sale needs its id before its items can point at it, and the obvious
-        # way to get it is `add` then `flush` — which against SQLite on the same
+        # way to get it is `add` then `flush`, which against SQLite on the same
         # machine costs nothing and against Postgres over the internet is a
         # network round trip per sale. Eighty round trips a day across sixty days
         # is what turned a twelve-second seed into a two-hour one, and it was
@@ -1047,12 +1047,12 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
     # Each half decides for itself whether it has work.
     #
     # The caller used to gate the whole stage on the number of batches, so a
-    # database that had batches but no purchase orders got neither — which is
+    # database that had batches but no purchase orders got neither, which is
     # exactly the state that produced no deliveries, no supplier invoices and
     # no creditors, on a system whose accounting screens all read from them.
     # Opening batches are not deliveries. `ensure_opening_batches` creates one
     # per product, numbered "OPENING", to give pre-existing stock somewhere to
-    # live — and on the hosted database those 121 placeholders were enough to
+    # live, and on the hosted database those 121 placeholders were enough to
     # satisfy a plain count, so this stage never ran and every batch in
     # production was an opening one. That meant every dispensing label printed
     # batch "OPENING", a recall search by batch number matched the entire
@@ -1092,7 +1092,7 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
     # catalogue.
     #
     # The old version ordered only what was at or below its reorder level, which
-    # after a seed is nothing at all — so it made no orders, and with no orders
+    # after a seed is nothing at all, so it made no orders, and with no orders
     # there were no deliveries, no supplier invoices and no creditors. A
     # pharmacy orders every week whether or not anything has hit its minimum.
     if not need_orders:
@@ -1329,7 +1329,7 @@ def _ledger(db: Session) -> dict[str, int]:
     #
     # Returning here meant the deliveries below never posted, so a database that
     # had its takings but gained purchase orders afterwards ended up with
-    # supplier invoices and an empty creditors account — and the ageing screen
+    # supplier invoices and an empty creditors account, and the ageing screen
     # then reported a difference of everything owed, blaming the pharmacy for a
     # gap this function had left.
     posted_takings = {e.source_id for e in db.query(JournalEntry)
@@ -1399,7 +1399,7 @@ def _ledger(db: Session) -> dict[str, int]:
     # Cash banked, weekly.
     #
     # Without it the bank account only ever went down — supplier payments left
-    # it and nothing arrived — so the balance sheet showed a pharmacy four
+    # it and nothing arrived, so the balance sheet showed a pharmacy four
     # thousand dollars overdrawn while its safe held thirty. A pharmacy banks
     # its takings; the books should say so.
     banked_already = {e.source_id for e in db.query(JournalEntry)
@@ -1508,7 +1508,7 @@ MIXTURES = [
 
 
 #: The raw materials a compounding bench keeps. Not medicines a patient is
-#: handed — powders and bases that go into what is made on the bench — but a
+#: handed — powders and bases that go into what is made on the bench, but a
 #: pharmacy stocks and counts them like anything else, and a formula naming an
 #: ingredient the shop does not hold is a recipe nobody can follow.
 RAW_MATERIALS = [
@@ -1902,7 +1902,7 @@ def _otc(db: Session, products, staff, days: int) -> dict[str, int]:
     """Counter sales of pharmacy medicines, the trade that needs no script.
 
     A Zimbabwean dispensary does a great deal of this — paracetamol, cough
-    linctus, an antacid, deworming tablets — and the screen was empty, which
+    linctus, an antacid, deworming tablets, and the screen was empty, which
     reads as a feature nobody uses rather than a day nobody wrote down.
 
     It is not a till receipt. Selling a schedule 1 or 2 without a prescription
@@ -1944,7 +1944,7 @@ def _otc(db: Session, products, staff, days: int) -> dict[str, int]:
                 pharmacist_id=RNG.choice(pharmacists).id,
                 indication=RNG.choice(reasons),
                 # A schedule 2 sold without counselling is the audit finding, so
-                # it is not always true — but it is nearly always true.
+                # it is not always true, but it is nearly always true.
                 counselling_given=RNG.random() < 0.93,
                 referred_to_doctor=referred,
                 notes=RNG.choice(REFERRAL_NOTES) if referred else "",
@@ -2249,7 +2249,7 @@ def run_if_thin(db: Session, *, days: int = 60) -> dict[str, int]:
 
     Called at startup so a fresh deployment comes up with something in it. Every
     seeding run so far has been `python -m app.realseed` on a laptop, which
-    writes to the local SQLite file — and production is Neon Postgres, so none of
+    writes to the local SQLite file, and production is Neon Postgres, so none of
     it ever arrived. The screens were empty there for exactly that reason and no
     other.
 
@@ -2318,7 +2318,7 @@ def run(wipe_all: bool = False, days: int = 60) -> None:
                     #
                     # A rollback undoes everything since the last commit, so one
                     # table failing on a constraint threw away the nine that had
-                    # already succeeded — and the next run met the same wall with
+                    # already succeeded, and the next run met the same wall with
                     # the same rows behind it. Committing each table means a
                     # failure costs that table and nothing else.
                     db.commit()

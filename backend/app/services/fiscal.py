@@ -9,7 +9,7 @@ protocol but agree on the mechanics:
   that never does. Gaps in either are what an auditor looks for.
 * **A hash chain.** Each receipt hashes its own contents plus the previous
   receipt's hash. Deleting or editing a receipt after the fact breaks the chain
-  and is detectable — which is the entire point of fiscalisation.
+  and is detectable, which is the entire point of fiscalisation.
 * **Queue, don't block.** Connectivity fails; the till must keep trading.
   Receipts are written and hashed locally, then submitted when the authority is
   reachable again.
@@ -327,7 +327,7 @@ def z_report(db: Session, day_id: int) -> dict:
 
     # By tax rate, derived from each receipt rather than assumed. A receipt with
     # no VAT on it is zero-rated or exempt, and the two are different things
-    # legally — but nothing on the receipt distinguishes them, so this reports
+    # legally, but nothing on the receipt distinguishes them, so this reports
     # "no VAT charged" rather than picking one and being wrong in a filing.
     rated = [r for r in sales if (r.vat_amount or 0.0) > 0.005]
     unrated = [r for r in sales if (r.vat_amount or 0.0) <= 0.005]

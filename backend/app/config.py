@@ -97,7 +97,7 @@ class Settings:
 
     # development | production. Simulators are the default everywhere because
     # they let the whole system be built and demonstrated before any merchant
-    # agreement exists — but a pharmacy running live on a simulator would be
+    # agreement exists, but a pharmacy running live on a simulator would be
     # approving fake adjudications and filing nothing with the revenue
     # authority. In production every simulator refuses to act. See integrations.py.
     ENVIRONMENT: str = env("ENV", "development")

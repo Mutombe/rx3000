@@ -46,7 +46,7 @@ Two defects that the rename exposed rather than caused:
    `POST /api/system/backup` wrote `rx3000-<stamp>.db`; `POST /api/admin/backup`
    wrote `rx3000_<stamp>.db`; the admin restore screen globbed only the
    underscore form. A pharmacist taking a backup from one screen could not find
-   it on the other — which reads as "my backup did not save". Both now share one
+   it on the other, which reads as "my backup did not save". Both now share one
    directory and one definition. The listing went from 7 files to the 16 that
    were actually there.
 2. **`BACKUP_DIR` was resolved relative to the working directory**, so a service
@@ -57,4 +57,4 @@ Two defects that the rename exposed rather than caused:
    printed receipt named the vendor instead of the shop. They now read
    `pharmacy_name` from `/api/jurisdiction`, which the backend has always
    returned. `printReceipt` no longer has a default for that parameter, so
-   TypeScript names any call site that forgets it — it found a third one.
+   TypeScript names any call site that forgets it. It found a third one.

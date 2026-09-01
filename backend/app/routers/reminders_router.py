@@ -34,7 +34,7 @@ def list_messages_paged(status: str = "", message_type: str = "", page: int = 1,
     """Reminders, a page at a time, with the true total.
 
     The screen rendered every row the cap returned and offered no way to move
-    through them — a list that says nothing about what it is not showing.
+    through them: a list that says nothing about what it is not showing.
     """
     result = paging.page(_reminder_query(db, status, message_type),
                          page=page, per_page=per_page)

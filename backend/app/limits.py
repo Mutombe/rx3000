@@ -12,7 +12,7 @@ out of a new route. Endpoints keep their own smaller defaults; this only says
 what the ceiling is.
 
 Clamped rather than refused, deliberately. A stale bookmark asking for 500 rows
-should get 200 rows, not a 400 and an empty screen — and anything that genuinely
+should get 200 rows, not a 400 and an empty screen, and anything that genuinely
 needs the whole table asks for it a page at a time, which is what the paged
 endpoints are for.
 """

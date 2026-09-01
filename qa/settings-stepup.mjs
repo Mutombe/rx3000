@@ -61,7 +61,7 @@ export default async function run(page, ui) {
   await numeric.fill(next);
 
   // Filtering `.gs-row` by a locator that was itself scoped to `.gs-row input`
-  // asks for a row inside a row and matches nothing — which surfaced as a 30s
+  // asks for a row inside a row and matches nothing, which surfaced as a 30s
   // timeout rather than "no such element", so it read like a hung page.
   const row = page.locator(".gs-row").filter({
     has: page.locator('input[type="number"]'),

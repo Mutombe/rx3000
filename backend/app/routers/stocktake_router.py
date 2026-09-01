@@ -8,7 +8,7 @@ Three decisions shape the design:
 
 **A count is a session, not an event.** It opens, lines are counted over hours
 or days, and it closes once. Nothing is adjusted before the close, so a
-half-finished count — the usual outcome of a busy afternoon — leaves the system
+half-finished count, the usual outcome of a busy afternoon, leaves the system
 exactly as it was rather than half-corrected.
 
 **Expected is captured per line, when the line is counted.** A count spread over
@@ -63,7 +63,7 @@ def _out(db: Session, take: StockTake) -> dict:
         "variance_units": sum(l.variance for l in lines),
         "variance_value": round(sum(l.variance * (l.unit_cost or 0) for l in lines), 2),
         # Both directions, separately. A count that is 40 over and 40 short nets
-        # to zero and is not a clean count — it is two errors.
+        # to zero and is not a clean count. It is two errors.
         "over_units": sum(l.variance for l in lines if l.variance > 0),
         "short_units": sum(-l.variance for l in lines if l.variance < 0),
     }
@@ -141,7 +141,7 @@ def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
         .first()
     )
     if line:
-        # Recounting a line is normal — somebody found another box. The later
+        # Recounting a line is normal. Somebody found another box. The later
         # count replaces the earlier one rather than adding to it.
         line.counted = body.counted
         line.expected = expected

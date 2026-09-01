@@ -1,4 +1,4 @@
-/** Skeletons — an honest ghost of the screen that is coming.
+/** Skeletons: an honest ghost of the screen that is coming.
  *
  *  The rule that makes these worth having is accuracy, not decoration: a
  *  skeleton must reserve the *exact* footprint of the content it stands in for,
@@ -124,7 +124,7 @@ export function FormSkeleton({ fields = 5 }: { fields?: number }) {
  *
  *  This is the component that stops a filter change from blanking the table.
  *  A skeleton is shown only when there is genuinely nothing to display yet —
- *  the first paint — and after that a refetch merely dims what is already
+ *  the first paint, and after that a refetch merely dims what is already
  *  there. Blanking a populated table to re-show it a moment later reads as the
  *  page breaking, not as progress.
  */
@@ -150,7 +150,7 @@ export function Refreshable({
 /** The two states an optimistic row can be in.
  *
  *  A row that does not exist on the server yet must not be actionable — it has
- *  no id to act on — so `pending` also marks it non-interactive rather than
+ *  no id to act on, so `pending` also marks it non-interactive rather than
  *  merely faded.
  */
 /* `RowState` used to sit here — a "Creating…/Saving…" pill for an optimistic
@@ -212,7 +212,7 @@ export function DetailSkeleton({
       </div>
       {tabs && tabs.length > 0 && (
         // The real strip with the real labels. Inert, because there is nothing
-        // yet to switch between, but readable — so the reader learns what this
+        // yet to switch between, but readable, so the reader learns what this
         // record offers while it arrives.
         <div className="pill-tabs sk-tabs" aria-hidden="true">
           {tabs.map((t) => (

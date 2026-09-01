@@ -2,13 +2,13 @@
  *
  *  The action is named, not the icon: `<IconButton action="edit" />`, never
  *  `<IconButton icon={PencilSimple} />`. One table then cannot use a pencil for
- *  editing while another uses a note-pad, which is how icon sets rot — and the
+ *  editing while another uses a note-pad, which is how icon sets rot, and the
  *  accessible name travels with the glyph instead of being remembered at each
  *  of the seventy-nine call sites.
  *
  *  Only the verbs everybody already reads as a picture are here: edit, view,
  *  delete, download, print, adjust, add, copy, cancel. A consequential domain
- *  action — "Write off", "Bill patient", "Hand over 2" — keeps its words. An
+ *  action, "Write off", "Bill patient", "Hand over 2", keeps its words. An
  *  icon meaning "write this debt off" does not exist, and inventing one asks a
  *  pharmacist to guess with somebody's money.
  *

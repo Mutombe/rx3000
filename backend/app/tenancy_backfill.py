@@ -108,7 +108,7 @@ def run(engine: Engine) -> tuple[int, int | None]:
         # `WHERE is_platform_admin` and not `= 1`.
         #
         # Postgres refuses to compare a boolean to an integer — "operator does
-        # not exist: boolean = integer" — and SQLite has no opinion about it at
+        # not exist: boolean = integer", and SQLite has no opinion about it at
         # all. So `= 1` passes every local check and raises on the hosted
         # database, inside the startup path, which takes the whole deployment
         # down. That is exactly what it did: the migration and the backfill

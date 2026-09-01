@@ -2,7 +2,7 @@
  *
  *  The complaint that prompted this: a PIN prompt every five minutes on a
  *  back-office machine nobody else touches. That is how a lock gets switched
- *  off — and then the till it was written for is unlocked all day too.
+ *  off, and then the till it was written for is unlocked all day too.
  *
  *  `?lockAfter=` shortens the idle wait so this takes seconds rather than five
  *  minutes. It can only ever make the lock fire sooner, so there is nothing to

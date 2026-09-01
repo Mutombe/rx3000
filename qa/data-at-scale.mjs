@@ -7,7 +7,7 @@
  *  ONE VALUE TOO BIG. A 173-character product name is written into the catalogue
  *  and every listed screen is measured. The name must clip to one line with the
  *  whole value on the title attribute, the row must not grow taller, and the page
- *  must not scroll sideways — a wide table scrolls inside its own box instead.
+ *  must not scroll sideways: a wide table scrolls inside its own box instead.
  *
  *  What this caught when it was first run:
  *
@@ -22,7 +22,7 @@
  *    - With fixed layout, columns divided equally: a product name got the same
  *      95px as a quantity. Pinning numbers in pixels then over-subscribed the
  *      table and squeezed two columns to 25px. Weighted shares plus a declared
- *      minimum width — below which the container scrolls — is what actually held.
+ *      minimum width, below which the container scrolls, is what actually held.
  *    - At a 118px minimum, "$5,665,724.00" still clipped. Numbers have to be
  *      legible at any magnitude, so the minimum is 136px.
  *
@@ -76,7 +76,7 @@ export default async function run(page) {
         clippedWithoutTooltip: clipped.filter(
           (n) => n.scrollWidth > n.clientWidth + 1 && !n.getAttribute("title")).length,
         // Overflow that nobody asked for. A cell holding a `.clip` overflows by
-        // design — that is the guard working — so counting those as faults made
+        // design, that is the guard working, so counting those as faults made
         // the check report 25 problems on a page with none. Only unguarded
         // overflow counts.
         strayOverflow: [...document.querySelectorAll("td, .card")]

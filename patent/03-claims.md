@@ -1,4 +1,4 @@
-# RX5000 — Claims
+# RX5000: Claims
 
 **Draft claim set for patent counsel.**
 Claims are grouped by invention. Within each group the independent claim states
@@ -11,7 +11,7 @@ counsel does not spend examination defending prior art.
 
 ---
 
-## Group A — Trust-gated metric publication
+## Group A: Trust-gated metric publication
 
 *Primary independent claim. See FIG. 7.*
 
@@ -76,7 +76,7 @@ executed cause the system to perform the method of any of claims 1 to 5.
 
 ---
 
-## Group B — Single-rule dual-invocation benefit adjudication
+## Group B: Single-rule dual-invocation benefit adjudication
 
 *See FIG. 5.*
 
@@ -133,7 +133,7 @@ a notification of successful settlement.
 
 ---
 
-## Group C — Custody-state settlement for off-premises collection
+## Group C: Custody-state settlement for off-premises collection
 
 *See FIG. 6.*
 
@@ -193,7 +193,7 @@ identifying the consignment.
 
 ---
 
-## Group D — Regulatory document register defined against an expected set
+## Group D: Regulatory document register defined against an expected set
 
 *See FIG. 8.*
 
@@ -244,9 +244,9 @@ whereby the evidence of the period covered by the existing record is preserved.
 
 ---
 
-## Group E — Point-of-entry directions expansion
+## Group E: Point-of-entry directions expansion
 
-*See FIG. 4. Drafted narrowly — see Section G.*
+*See FIG. 4. Drafted narrowly; see Section G.*
 
 **23.** A computer-implemented method of generating patient-facing dosage
 directions, comprising:
@@ -298,7 +298,7 @@ never asserts that the dose is safe.
 
 ---
 
-## Group F — Cross-boundary reachability verification
+## Group F: Cross-boundary reachability verification
 
 **29.** A computer-implemented method of verifying an application comprising a
 client and a server, the method comprising, without executing the client:
@@ -343,7 +343,7 @@ type analysis and is reached only when the narrowing branch executes.
 
 ---
 
-## Group G — Not claimed, and why
+## Group G: Not claimed, and why
 
 Counsel should be aware that the following are described in the specification for
 enablement and are **not** proposed for claiming. Attempting to claim them is
@@ -353,7 +353,7 @@ likely to draw prior art and jeopardise the stronger groups above.
 |---|---|
 | Automatic tenant scoping by ORM session interception | Row-level security and ORM query-filter events are well-established. Described only. |
 | Hash-chained receipt registers | Standard integrity construction; substantially mandated by the revenue authority's specification. The *per-day localisation* and *partial-verification disclosure* are minor and are offered only as dependent matter if counsel considers them worth pursuing. |
-| Cash-on-delivery as such | Prior art. Group C claims the custody **state machine**, the two-quantity account, till-side control suppression, and dispatch gating — not collection at a door. |
+| Cash-on-delivery as such | Prior art. Group C claims the custody **state machine**, the two-quantity account, till-side control suppression, and dispatch gating, not collection at a door. |
 | Sig-code expansion as such | Prior art in dispensing software. Group E claims numeral agreement, homograph exclusion, the client-mirrored live preview, and the dictionary-generated reference document. |
 | Clinical decision support with override capture | Extensive prior art. Claim 28 is confined to the *coverage-disclosure* output. |
 | Multi-currency tender recording | Ordinary practice in multi-currency retail. |
@@ -362,7 +362,7 @@ likely to draw prior art and jeopardise the stronger groups above.
 
 ---
 
-## Group H — Figures required for filing
+## Group H: Figures required for filing
 
 The schematics in `02-description.md` should be redrawn to formal patent
 standards. The following are the figures the claims depend on:
@@ -370,7 +370,7 @@ standards. The following are the figures the claims depend on:
 | Fig. | Title | Supports claims | Notes for the draughtsman |
 |---|---|---|---|
 | 1 | System architecture | context | Four client types, middleware stack, service tiers, dual database target. |
-| 2 | Entity relationships | 1–5, 12–17 | Emphasise that `Sale` carries a branch and `Prescription` does not — the attribution path runs Dispensing → Sale → Branch. |
+| 2 | Entity relationships | 1–5, 12–17 | Emphasise that `Sale` carries a branch and `Prescription` does not, so the attribution path runs Dispensing → Sale → Branch. |
 | 3 | Dispensing flow, three settlement routes | 7–11, 12 | The three-way branch at the foot is the important element. |
 | 4 | Directions expansion pipeline | 23–28 | Show the pass-through of unmatched tokens as a distinct path, and the client mirror as a parallel branch. |
 | 5 | One cover rule, two invocations | 7–11 | Show the single rule box feeding both arrows, and the verification loop closing between the two outputs. |
@@ -383,10 +383,10 @@ standards. The following are the figures the claims depend on:
 Two additional figures should be drawn for filing that do not appear in the
 description:
 
-- **FIG. 11 — Sequence diagram, delivery round.** A UML-style sequence across
+- **FIG. 11: Sequence diagram, delivery round.** A UML-style sequence across
   Dispenser, System, Agent, Patient, Cashier, showing the sale remaining unsettled
   across three of the five interactions. Supports claims 12–17 more clearly than
   the state diagram alone.
-- **FIG. 12 — Screen mock, split display and route selection.** A wireframe of the
+- **FIG. 12: Screen mock, split display and route selection.** A wireframe of the
   dispensing commit area showing the scheme portion, the shortfall, the three
   route controls, and the collection statement. Supports claims 10 and 16.

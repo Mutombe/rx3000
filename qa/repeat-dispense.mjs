@@ -8,7 +8,7 @@
  *  It also declared that the prescription had been sighted, on the dispenser's
  *  behalf and without asking. That is the worse half. A dispensing record exists
  *  to say who checked what, and one that answers on somebody's behalf is not a
- *  record — so the check below also fails if the button can be pressed without
+ *  record, so the check below also fails if the button can be pressed without
  *  both of those being given.
  *
  *      node qa/repeat-dispense.mjs       # needs the dev server on :5180

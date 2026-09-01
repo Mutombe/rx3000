@@ -10,7 +10,7 @@
  *  altered.** A line that has left the shelf records something that physically
  *  happened; editing it would make the register disagree with the medicine. So
  *  only the undispensed part is offered, and every correction carries a reason
- *  and a name — a silent edit is indistinguishable from a mistake.
+ *  and a name: a silent edit is indistinguishable from a mistake.
  */
 import { useEffect, useState } from "react";
 import { api, errorText } from "../api";

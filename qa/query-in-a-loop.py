@@ -1,6 +1,6 @@
 """Database calls made once per row, found in the source rather than by timing.
 
-`n1-sweep.py` measures what an endpoint costs, which is the honest test — but it
+`n1-sweep.py` measures what an endpoint costs, which is the honest test, but it
 only walks the parameterless paths the front end calls, so a detail endpoint, a
 service function or anything added since is invisible to it. This reads the code
 instead and looks for the shape that causes it: a query inside a loop or a
@@ -41,7 +41,7 @@ SKIP = {"migrate.py", "realseed.py", "demo.py", "tenancy_backfill.py",
 
 #: Helpers that are themselves a query are worked out, not listed.
 #:
-#: The first version listed names — `_row`, `balance`, `summarise` — and
+#: The first version listed names, `_row`, `balance`, `summarise`, and
 #: reported fifty-two findings, most of them functions that only format a row
 #: they were handed. An audit that is wrong four times in five is one nobody
 #: reads, which is worse than not having it. So each file's own functions are

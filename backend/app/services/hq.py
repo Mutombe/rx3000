@@ -13,7 +13,7 @@ and the object is to stop the money moving rather than to stop the pharmacists
 thinking.
 
 **Impersonation.** "It does not work on my screen" is unanswerable from head
-office, and the alternative — asking a branch for their password — is how a
+office, and the alternative, asking a branch for their password, is how a
 pharmacy ends up with four people sharing one login. So head office may sign in
 as somebody, and every action carries both names for as long as they do.
 

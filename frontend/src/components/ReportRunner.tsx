@@ -7,7 +7,7 @@
  *  has learned one report has learned exactly one report.
  *
  *  Here the report describes itself — its parameters, its columns, the type of
- *  each column — and this renders whatever it is told. Learning one report
+ *  each column, and this renders whatever it is told. Learning one report
  *  teaches you all of them, and adding the hundredth costs nothing on the front
  *  end at all.
  */
@@ -52,7 +52,7 @@ interface RunResult {
 
 /** Format by declared type, so a figure looks the same here, in the
  *  spreadsheet and on paper. */
-/** Money if any charted column is money, otherwise plain numbers — so the axis
+/** Money if any charted column is money, otherwise plain numbers, so the axis
  *  and the total under it are written the way the report writes them. */
 function moneyKind(columns: { kind: string }[]): string {
   return columns.some((c) => c.kind === "money") ? "money" : "number";
@@ -304,7 +304,7 @@ export default function ReportRunner({
       ) : (
         <>
           {/* Same rows, two readings. The table answers "what exactly", the
-              chart answers "what shape" — and a report that can only be read one
+              chart answers "what shape", and a report that can only be read one
               way makes somebody export it to find out the other. */}
           <div className="view-switch" role="tablist" aria-label="How to read this report">
             {(["table", "chart"] as const).map((v) => (

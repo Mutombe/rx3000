@@ -2,7 +2,7 @@
 
 Restricted to the people who run the business rather than the counter. A branch
 scorecard is a management document — it ranks shops against each other and shows
-where money is going missing — and putting it in front of every till user is how
+where money is going missing, and putting it in front of every till user is how
 a cashier finds out their drawer is the worst in the group from a screen rather
 than from their manager.
 """

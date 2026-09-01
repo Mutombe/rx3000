@@ -4,7 +4,7 @@
  *  the common case and already handled. This is the other one, and it is just
  *  as common: somebody asks for something the shelf does not have, is told it
  *  will be in on Friday, and walks out. Until now that promise lived on
- *  whatever the pharmacy writes it on — which is the paper list this whole
+ *  whatever the pharmacy writes it on, which is the paper list this whole
  *  feature exists to replace, so the one way into it that a person actually
  *  uses was the one that was missing.
  *

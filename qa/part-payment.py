@@ -1,7 +1,7 @@
 """Can a patient pay part now and owe the rest?
 
 They could not. A sale was unpaid or fully paid, and a till asked to take
-twenty of fifty-seven refused — which is what makes a counter ring the whole
+twenty of fifty-seven refused, which is what makes a counter ring the whole
 thing up as cash and lose the difference where nobody can find it.
 
 The three things that have to be true, in order:
@@ -60,7 +60,7 @@ product = products[0]
 # A sale that is genuinely awaiting payment.
 #
 # A counter sale settles the moment it is rung up, so the only thing that
-# leaves a sale pending is dispensing a script — which is exactly the case this
+# leaves a sale pending is dispensing a script, which is exactly the case this
 # feature is for: the medicine has gone out and the money has not come in.
 _, queue = call("/api/dispensary/worklist", token)
 row = next((r for r in queue["queue"]), None)

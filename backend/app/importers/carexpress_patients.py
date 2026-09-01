@@ -11,7 +11,7 @@ prescribers and their contact details. What is loaded and why:
   dispensing — is worse in every direction.
 
   **Medical aids**, with the currency read off the name. The incumbent encoded
-  it there — "CIMAS USD MANUAL", "CELLMED ZWL MANUAL" — so the same funder
+  it there, "CIMAS USD MANUAL", "CELLMED ZWL MANUAL", so the same funder
   appears twice, once per currency it settles in. They are kept separate,
   because they are separate: a claim paid in ZiG against a USD sale is a
   different debt from one paid in USD, and merging them would hide exactly the
@@ -206,7 +206,7 @@ def run(path: str) -> dict:
             if counts["rows"] % 4000 == 0:
                 # Committed, not merely flushed. Against the hosted database
                 # one transaction spanning 53,206 rows is a transaction that
-                # loses everything when the connection drops — and seed_remote
+                # loses everything when the connection drops, and seed_remote
                 # says plainly that it does. Committing in batches makes an
                 # interrupted run resumable, which is what the idempotency is
                 # for.
@@ -225,7 +225,7 @@ def _key(id_number, first, last) -> str:
     """One person, however the old system spelled them.
 
     The identity number wins where there is one. There almost never is — 151
-    lines out of 53,206 — so the name is what actually does the work.
+    lines out of 53,206, so the name is what actually does the work.
     """
     ident = _clean(id_number)
     if ident:

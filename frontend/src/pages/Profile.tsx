@@ -1,4 +1,4 @@
-/** Your account, and — if you administer this pharmacy — the pharmacy itself.
+/** Your account, and, if you administer this pharmacy, the pharmacy itself.
  *
  *  The two are on one page but kept visibly apart, because they carry different
  *  authority. Anyone may rename themselves or change their own password. The
@@ -369,7 +369,7 @@ export default function Profile() {
       </section>
 
       {/* Branding. Separate from the company profile because it is not a field
-          you type — and because the only way to know it is right is to look at
+          you type, and because the only way to know it is right is to look at
           a document, which is what the preview is for. */}
       <section className="card">
         <h3 className="card-title"><ImageIcon size={18} /> Brand</h3>

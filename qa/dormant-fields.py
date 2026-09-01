@@ -5,7 +5,7 @@
 
 A dormant field is one the code reads, displays, or serialises, and nothing ever
 writes. It is worse than a missing feature. A missing feature is visibly absent;
-a dormant field renders a real-looking value — 0, or an empty string — in a
+a dormant field renders a real-looking value, 0, or an empty string, in a
 column with a heading, and everybody downstream treats it as an answer.
 
 Three were found by accident in a single day:
@@ -18,7 +18,7 @@ Three were found by accident in a single day:
                         this stayed 0 on all 545 products while the pharmacy
                         was set to charge the ceiling.
   products.mmap_price   Read by pricing.py to cap what a scheme is charged, but
-                        only when above zero — so `apply_mmap` on a scheme had
+                        only when above zero, so `apply_mmap` on a scheme had
                         silently never applied.
 
 None were found by a typecheck, a test, or a build. All three were found by
@@ -52,7 +52,7 @@ WHAT IT STILL CANNOT SEE
 
 Reachable through the API is not the same as offered on a screen. `bin_location`
 was on ProductBase the whole time and no form had a field for it, so all 545
-products carried NULL — the API would have accepted one had anything sent it.
+products carried NULL: the API would have accepted one had anything sent it.
 Closing that gap needs someone to look at the form, which no static check does.
 
 Findings are a list to look at, not a defect list. Each of the first run's 14 had
@@ -118,7 +118,7 @@ def written_names(files: list[tuple[str, str]]) -> set[str]:
     Parsed rather than matched. The first version of this used regexes and was
     useless in a way that took a while to see: `\\bname\\s*=` matches any local
     variable that happens to share a column's name, and a dict-literal pattern
-    matched `"run_number": getattr(shift, "run_number")` — which is a *read*.
+    matched `"run_number": getattr(shift, "run_number")`, which is a *read*.
     Between them, almost every column looked written, so the two categories that
     matter came back empty and the report read as a clean bill of health.
 

@@ -2,7 +2,7 @@
 
 The point of this module is to make finishing an integration a *checkable* job
 rather than a judgement call. When Health 263 or Mediswitch publish their
-specification, someone writes one adapter class — and then runs this. If it
+specification, someone writes one adapter class, and then runs this. If it
 passes, the adapter honours every promise the gateway makes to its callers. If
 it does not, the report names which promise was broken.
 

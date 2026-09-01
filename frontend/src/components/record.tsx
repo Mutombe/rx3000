@@ -35,7 +35,7 @@ export function Avatar({ first, last, size = 34, label }: {
   );
 }
 
-/** Circular score gauge — the arc length is the score, the colour is the band. */
+/** Circular score gauge: the arc length is the score, the colour is the band. */
 export function ScoreRing({ score, rating, size = 54 }: { score: number; rating: string; size?: number }) {
   const stroke = size < 50 ? 4 : 5;
   const r = (size - stroke) / 2;

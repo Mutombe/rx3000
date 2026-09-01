@@ -13,7 +13,7 @@ sell next month, and when must it be on the shelf". Nothing here answered that.
 WHAT AN HONEST SEASONAL READ REQUIRES, AND WHAT THIS DATA HAS
 
 Two years, at least. A seasonal index is a claim that *this month* differs from
-the average month **repeatedly** — and one observation of December is not a
+the average month **repeatedly**, and one observation of December is not a
 pattern, it is a December. With a single year a growing shop reads as seasonal
 in every later month, and a shrinking one as seasonal in every earlier one,
 because trend and season are the same shape when you only see them once.
@@ -52,7 +52,7 @@ MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
 THRESHOLD = 0.25
 
 #: Fewer observations than this and the month is reported as an observation,
-#: not a season. See the module docstring — this is the honest half.
+#: not a season. See the module docstring. This is the honest half.
 YEARS_FOR_A_SEASON = 2
 
 #: How much of the year has to have been seen before its shape is described at
@@ -74,7 +74,7 @@ def _monthly(db: Session, *, branch_id: int | None,
     Both, because neither alone is the shop's usage: a front-shop line never
     appears in a dispensing and a scheme script often never reaches a sale.
 
-    Counted as OCCASIONS — how many times it went out — rather than as units.
+    Counted as OCCASIONS, how many times it went out, rather than as units.
     Two reasons, and the first is not obvious until you see what it does:
 
     Pack sizes differ by three orders of magnitude on the same shelf. A bottle
@@ -134,7 +134,7 @@ def _monthly(db: Session, *, branch_id: int | None,
         #
         # Dispensings with no sale cannot be attributed and are dropped here.
         # For seasonality that is the correct outcome — a shape you cannot
-        # place in a shop tells you nothing about that shop — but it does mean
+        # place in a shop tells you nothing about that shop, but it does mean
         # a branch's season is drawn from its till, not from its dispensary.
         disp_q = (disp_q
                   .join(Sale, Sale.id == Dispensing.sale_id)
@@ -283,7 +283,7 @@ def _note(counted: int, seasonal: int, confident: int) -> str:
     if not confident:
         return (f"{seasonal} of {counted} lines move with the calendar, and "
                 f"none has been seen in {YEARS_FOR_A_SEASON} separate years "
-                f"yet — so these are observations rather than seasons. A "
+                f"yet, so these are observations rather than seasons. A "
                 f"growing shop looks seasonal in every later month when you "
                 f"only have one year of it. Treat them as a watch list.")
     return (f"{seasonal} of {counted} lines move with the calendar; {confident} "

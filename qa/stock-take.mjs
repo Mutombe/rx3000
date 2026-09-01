@@ -2,7 +2,7 @@
  *  Six endpoints that no screen had ever called.
  *
  *  Counts Paracetamol at its true on-hand (19307) so that closing posts a zero
- *  variance — the close path is exercised without moving anybody's stock.
+ *  variance: the close path is exercised without moving anybody's stock.
  */
 export default async function run(page, ui) {
   const out = {};

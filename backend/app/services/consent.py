@@ -5,7 +5,7 @@ cannot answer when they agreed, what they were told, through which channel, who
 recorded it, or whether they have since said stop. Those are the questions asked
 when somebody complains, which is the only occasion the answer matters.
 
-So the boolean stays — it is the fast read every campaign query does — and this
+So the boolean stays — it is the fast read every campaign query does, and this
 is the record behind it. Three rules:
 
 * **A withdrawal never deletes the grant.** Somebody agreeing and later changing

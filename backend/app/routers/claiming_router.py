@@ -48,7 +48,7 @@ def diagnosis_chapters():
     """The ICD-10 chapter structure.
 
     Published so a picker can browse by body system instead of demanding the
-    user already know the code — which is the difference between a searchable
+    user already know the code, which is the difference between a searchable
     reference and a field you have to guess at.
     """
     return icd10.chapters()
@@ -400,7 +400,7 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
     its own is a reference to something the pharmacist then has to go and look
     up one at a time.
 
-    This returned bare ClaimOut rows — number, amount, status — and no screen
+    This returned bare ClaimOut rows, number, amount, status, and no screen
     called it, so a short-paid batch could be seen and never opened.
     """
     batch = db.get(ClaimBatch, batch_id)
@@ -450,14 +450,14 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)):
         # The difference between what the batch is short overall and what the
         # named lines account for. It should be nought; when it is not, the
         # scheme has deducted something that is not attributable to any single
-        # claim — a levy adjustment, an old recovery — and that is worth seeing
+        # claim, a levy adjustment, an old recovery, and that is worth seeing
         # rather than absorbing into a rounding difference.
         "unattributed": round(shortfall - sum(l["shortfall"] for l in short_lines), 2),
         "short_count": len(short_lines),
         "rejected": len([l for l in lines if l["status"] == "rejected"]),
         # The batch keeps its own count. When it disagrees with the claims
         # actually attached, something detached them — a reversal, a migration
-        # from another system, a partial import — and the totals on the batch
+        # from another system, a partial import, and the totals on the batch
         # are then describing claims nobody can see. Reported rather than
         # papered over: a page that shows "5 claims" beside an empty table has
         # told the reader two things and left them to pick.
@@ -515,7 +515,7 @@ def scheme_calendar(db: Session = Depends(get_db)):
 
     Claiming is not continuous. A pharmacy signs terms with each scheme saying
     when a month's claims must be in and when the money comes back, and missing
-    a cut-off costs a whole cycle — which for a shop running on its float is the
+    a cut-off costs a whole cycle, which for a shop running on its float is the
     difference between paying staff this month and not.
 
     None of that was recorded anywhere, so "when does CIMAS pay" was answered
@@ -560,7 +560,7 @@ def scheme_calendar(db: Session = Depends(get_db)):
             # What the member pays and what the pharmacy gives away.
             #
             # These reprice every claim this scheme touches — the levy is the
-            # patient's share at the counter — and there was an endpoint to
+            # patient's share at the counter, and there was an endpoint to
             # change them and no screen anywhere that could. So the calculation
             # ran on whatever the seeder happened to set, for ever.
             "levy_fixed": round(float(scheme.levy_fixed or 0), 2),

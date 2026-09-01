@@ -327,7 +327,7 @@ def held(funder_id: str = "", limit: int = 200, db: Session = Depends(get_db)):
     """Claims the funder is holding, so somebody can answer the query.
 
     This list did not exist, because a held claim was classified as a rejection
-    and went into the write-off pile — which is the pharmacy giving away money
+    and went into the write-off pile, which is the pharmacy giving away money
     the scheme had not refused.
     """
     from ..services import settlements as settlement_svc

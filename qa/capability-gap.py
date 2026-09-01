@@ -1,6 +1,6 @@
 """Where the backend can do more than the front end ever asks for.
 
-The part-payment modal offered three words — Cash, Card, Mobile money — while
+The part-payment modal offered three words, Cash, Card, Mobile money, while
 the endpoint behind it accepted a list of tenders, each with its own currency
 and reference, and the till already had the wallet list to fill them in. The
 gap was invisible from either side: the API worked, the screen worked, and the
@@ -15,7 +15,7 @@ reads the fields the schema declares and then looks for each one in the code
 that calls that path. Fields the front end never mentions are reported.
 
 It is a lead generator, not a verdict. Some fields genuinely belong to another
-caller — the device agent, the portal, a test — and some are server-side
+caller, the device agent, the portal, a test, and some are server-side
 defaults nobody should send. The point is to put the list in front of somebody
 rather than wait for a pharmacist to find the gap at a counter.
 

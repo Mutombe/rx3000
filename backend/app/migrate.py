@@ -37,7 +37,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "longitude": "FLOAT",
     },
     # Who was REALLY doing it. Without this, an action taken by head office
-    # while signed in as a branch user is recorded against that user — so the
+    # while signed in as a branch user is recorded against that user, so the
     # trail says a cashier voided a sale at two in the morning.
     "audit_logs": {
         "acted_as_id": "INTEGER",
@@ -126,7 +126,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "currency_code": "VARCHAR(5) DEFAULT ''",
     },
     "patients": {
-        # The portal's own second factor, replacing date of birth — which a
+        # The portal's own second factor, replacing date of birth, which a
         # forwarded message usually reaches somebody who already knows.
         "portal_code": "VARCHAR(8) DEFAULT ''",
         "portal_code_set_at": "DATETIME",
@@ -206,7 +206,7 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "stock_code": "VARCHAR(40) DEFAULT ''",
         "average_cost": "FLOAT DEFAULT 0",
         # DEFAULT '' matters on both of these. Without it every existing row is
-        # NULL, and the API declares them as plain strings — which took
+        # NULL, and the API declares them as plain strings, which took
         # GET /api/products down with a 500 for all 545 products.
         "bin_location": "VARCHAR(20) DEFAULT ''",
         "manufacturer": "VARCHAR(120) DEFAULT ''",
@@ -282,7 +282,7 @@ def _assert_portable_defaults() -> None:
     on a developer's machine rather than a production deploy that will not boot.
     """
     # Each entry is a pattern that survives translation and that Postgres will
-    # reject at ALTER time — which on Render means a deploy that never boots.
+    # reject at ALTER time, which on Render means a deploy that never boots.
     unsafe = (
         (r"\bBOOLEAN\s+DEFAULT\s+\d",                 "boolean column with an integer default"),
         (r"\bDATETIME\b",                             "DATETIME is not a Postgres type"),
@@ -366,7 +366,7 @@ def _relax_not_null(conn, inspector, table: str, columns: tuple) -> int:
 
     joined = ", ".join(f'"{n}"' for n in names)
     # Without `legacy_alter_table`, SQLite rewrites every foreign key in every
-    # OTHER table to follow the rename — so the children end up pointing at
+    # OTHER table to follow the rename, so the children end up pointing at
     # `<table>__old`, and dropping it orphans them. It is the documented
     # behaviour and the reason a naive rebuild quietly destroys referential
     # integrity. Foreign keys are also disabled for the duration, because the
@@ -399,7 +399,7 @@ def _name_the_nameless(conn) -> int:
     already been allowed through, and `ProductOut` inherits it. That combination
     is worse than either half: writes are correctly rejected, but every existing
     blank row now fails *response* validation, so one bad record from months ago
-    turns the whole product list into a 500 — which reaches the browser as a
+    turns the whole product list into a 500, which reaches the browser as a
     wordless failure on a screen that has nothing to do with that product.
 
     Naming them makes them readable again and, more to the point, makes them
@@ -430,7 +430,7 @@ def _mark_cash_accounts(conn) -> int:
     #
     # SQLite has no boolean type and treats them as integers, so `is_cash = 1`
     # works locally and always will. PostgreSQL refuses it outright — "operator
-    # does not exist: boolean = integer" — and because this runs inside the
+    # does not exist: boolean = integer", and because this runs inside the
     # startup lifespan, that refusal is not a failed migration but a server that
     # will not boot. It took the production API down while every local check
     # stayed green, which is the shape of every SQLite-versus-Postgres bug: the
@@ -673,7 +673,7 @@ def _name_the_instruments(conn, inspector, existing_tables: set) -> int:
     change afterwards.
 
     Then the history. Years of tenders carry the wallet in the front of their
-    reference — "EcoCash 0779…", "Stanbic ••4417" — because that is where the
+    reference, "EcoCash 0779…", "Stanbic ••4417", because that is where the
     till had to put it. Those are read once, here, and written into the column
     where they belong. Anything that cannot be read confidently is **left
     empty**: it shows in the cash-up under its family, which is what it did
@@ -809,7 +809,7 @@ def _fill_null_text(conn, inspector, existing_tables: set) -> int:
     """Turn NULLs in added text columns into empty strings.
 
     Adding a column leaves every existing row NULL, and the API declares these
-    fields as plain strings — so one unfilled column answers 500 for every row
+    fields as plain strings, so one unfilled column answers 500 for every row
     in the table. Correcting the DDL fixes the next install and does nothing for
     the ones already running, which is where the outage actually is.
 
@@ -910,7 +910,7 @@ def run_migrations(engine: Engine) -> int:
     # accounts are cash. None of them is a schema change and nothing downstream
     # is broken if one is skipped. Inside the block above they were fatal, and
     # because migrations run in the startup lifespan, "fatal" means the API does
-    # not boot at all — which is what `is_cash = 1` did to production while
+    # not boot at all, which is what `is_cash = 1` did to production while
     # every local check stayed green, SQLite having no opinion about comparing a
     # boolean to an integer.
     #

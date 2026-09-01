@@ -122,7 +122,7 @@ export default function TermSelect({
   // Terms already on the record stay visible, greyed, rather than being removed
   // from the list. Hiding them looked tidier and was actively dangerous: a
   // patient already recorded as allergic to Penicillin, searched as "pen",
-  // matched only that one option — which was then filtered out, leaving "add
+  // matched only that one option, which was then filtered out, leaving "add
   // pen to the list" as the single row on offer. Taking it created an allergen
   // called "pen" and put it on the patient. Junk in this particular vocabulary
   // is not untidiness; it is a warning that will not fire for anybody else.
@@ -220,7 +220,7 @@ export default function TermSelect({
           placeholder={chosen.length ? "" : (placeholder ?? "Search or add…")}
           onChange={(e) => { setQuery(e.target.value); setHighlight(0); setOpen(true); }}
           // Deliberately not opened by focus alone. Picking a term keeps the
-          // caret in the field so the next one can just be typed — and an
+          // caret in the field so the next one can just be typed, and an
           // onFocus that opens would immediately reopen the panel that was
           // just closed, putting it straight back over the Save button.
           // Clicking the field or typing opens it; both are explicit.

@@ -123,7 +123,7 @@ register(Feature(
     incumbent="Dispensing > Alter Script", shortcut="Ctrl+B",
     why_it_matters="Correcting a script after capture without voiding and re-keying it.",
     rx5000="POST /api/prescriptions/{id}/alter. A dispensed line cannot be "
-           "altered. The register would stop matching the medicine — and every "
+           "altered. The register would stop matching the medicine, and every "
            "correction is written into the script with a reason and a name."))
 
 register(Feature(

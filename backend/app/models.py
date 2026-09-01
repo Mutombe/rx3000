@@ -77,7 +77,7 @@ class User(Base, TenantMixin):
 class PayOffice(Base):
     """Who actually settles a claim.
 
-    Several schemes are administered — and paid — by one office, so claims are
+    Several schemes are administered, and paid, by one office, so claims are
     batched and reconciled per pay office rather than per scheme. This is the
     unit an administrator sends a claim batch to.
     """
@@ -137,7 +137,7 @@ class Funder(Base):
     """A medical aid funder as the clearinghouse sees it.
 
     `switch_id` is the routing decision: the same unified payload goes to a
-    different platform — and a different wire format — depending on it.
+    different platform, and a different wire format, depending on it.
     """
     __tablename__ = "funders"
     id = Column(Integer, primary_key=True)
@@ -200,7 +200,7 @@ class GatewayTransaction(Base, TenantMixin):
 
 
 class Mixture(Base, TenantMixin):
-    """An extemporaneous preparation — a recipe made up in the dispensary.
+    """An extemporaneous preparation: a recipe made up in the dispensary.
 
     A compound is not a product on a shelf: it is assembled from ingredients at
     the moment it is needed. Two consequences drive the design. Its cost is the
@@ -429,7 +429,7 @@ class Supplier(Base, TenantMixin):
     # Where money is sent, and on what terms.
     #
     # A supplier record with no bank details is one where the details live in
-    # somebody's email — which is exactly the message a fraudster imitates, and
+    # somebody's email, which is exactly the message a fraudster imitates, and
     # a wholesaler genuinely changing its account is indistinguishable from one
     # pretending to. Held here, changed deliberately, and visible to whoever
     # pays.
@@ -446,7 +446,7 @@ class StockCategory(Base, TenantMixin):
     Every pharmacy already has this and calls it a department: dispensary, over
     the counter, cosmetics, consignment. It decides where a line sits on a
     stocktake sheet, which margin is expected of it, and which report it lands
-    in — so a catalogue where the answer lives in a free-text field is one where
+    in, so a catalogue where the answer lives in a free-text field is one where
     "COSMETICS", "Cosmetics" and "cosmetic" become three departments and no
     total is right.
 
@@ -574,7 +574,7 @@ class Prescription(Base, TenantMixin):
     # draft | active | cancelled
     #
     # A script half-captured when the phone rings has to be resumable, or the
-    # pharmacist re-keys it — and re-keying is where dispensing errors come from.
+    # pharmacist re-keys it, and re-keying is where dispensing errors come from.
     status = Column(String(12), default="active", index=True)
     # A draft holds no Rx number. The register is a numbered sequence, and a
     # number burnt on a capture somebody abandoned leaves a gap that has to be
@@ -661,7 +661,7 @@ class Dispensing(Base, TenantMixin):
     # The dispensing pharmacist's initials, typed at the point of handover.
     #
     # This replaces a second user acting as witness. A witness requirement that
-    # cannot be met — one pharmacist on a Sunday — is either ignored or worked
+    # cannot be met, one pharmacist on a Sunday, is either ignored or worked
     # around by sharing a login, and a shared login is worse than no control at
     # all because it makes the record actively wrong. An initial is a claim by a
     # named, logged-in person that they checked it, which is what the record
@@ -759,8 +759,8 @@ class Sale(Base, TenantMixin):
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
     patient = relationship("Patient")
-    # Two columns point at users now — who rang it up, and who moved it to an
-    # account — so the join has to say which one it means. Adding the second
+    # Two columns point at users now, who rang it up, and who moved it to an
+    # account, so the join has to say which one it means. Adding the second
     # FK without this broke every report in the catalogue at once.
     cashier = relationship("User", foreign_keys=[cashier_id])
     transferred_by = relationship("User", foreign_keys=[transferred_by_id])
@@ -783,7 +783,7 @@ class SaleItem(Base, TenantMixin):
     #
     # A customer returning one of four things was impossible: void and the
     # fiscal credit note both take back the whole sale, so the pharmacy
-    # reversed all four and rang three up again — which changes the receipt
+    # reversed all four and rang three up again, which changes the receipt
     # number, reverses the claim, earns the loyalty points twice and counts the
     # day's sales wrong in both directions. In practice it was done on paper,
     # and the stock drifted. Held per line so a second return cannot take back
@@ -791,11 +791,11 @@ class SaleItem(Base, TenantMixin):
     quantity_returned = Column(Integer, default=0)
     # What the goods cost *at the moment they were sold*. Frozen here rather
     # than read from the product later, because a product's cost price changes
-    # every time stock is bought — and computing last month's margin from this
+    # every time stock is bought, and computing last month's margin from this
     # month's cost price gives an answer that is confidently wrong.
     unit_cost = Column(Float, default=0.0)
     # Which script line this came from, where there was one. Without it a sale
-    # line cannot be traced back to what was prescribed — so the per-line
+    # line cannot be traced back to what was prescribed, so the per-line
     # billing decisions on the script have nothing to attach to, and a query
     # about what was dispensed against a script has to be answered by matching
     # product and date and hoping.
@@ -937,7 +937,7 @@ class SupplierInvoice(Base, TenantMixin):
     The purchase order is our intention and the goods receipt is what arrived.
     Neither is a bill. Until this table existed the ledger raised the creditor
     from the order's own costs, which quietly assumes the supplier charged what
-    we expected — so a price rise between ordering and delivery was absorbed
+    we expected, so a price rise between ordering and delivery was absorbed
     without anybody seeing it, and a supplier who billed for twelve when ten
     arrived was paid for twelve.
     """
@@ -1333,7 +1333,7 @@ class AuditLog(Base, TenantMixin):
     # Who was REALLY doing this.
     #
     # When head office signs in as a branch user to see what they see, every
-    # row they write would otherwise be attributed to that user — so the trail
+    # row they write would otherwise be attributed to that user, so the trail
     # would say a cashier in Bulawayo voided a sale at two in the morning when
     # it was actually somebody at head office. An impersonated action has to
     # name both people or the audit log is actively misleading, which is worse
@@ -1343,8 +1343,8 @@ class AuditLog(Base, TenantMixin):
 
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
-    # Two columns point at users now — who the action was recorded against,
-    # and who was really doing it — so the join has to say which one it means.
+    # Two columns point at users now, who the action was recorded against,
+    # and who was really doing it, so the join has to say which one it means.
     user = relationship("User", foreign_keys=[user_id])
     acted_as_user = relationship("User", foreign_keys=[acted_as_id])
 
@@ -1436,7 +1436,7 @@ class SaleTender(Base, TenantMixin):
     """One payment against a sale.
 
     A sale can be settled with several of these at once — part USD cash, part
-    ZiG cash, part card — which is ordinary behaviour in a dual-currency market.
+    ZiG cash, part card, which is ordinary behaviour in a dual-currency market.
     Each records the rate used so the base-currency value never drifts.
     """
     __tablename__ = "sale_tenders"
@@ -1491,8 +1491,8 @@ class Shift(Base, TenantMixin):
     cashup_json = Column(Text, default="")
     counted_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     counted_at = Column(DateTime, nullable=True)
-    # Two columns now point at users — whose shift it is, and who counted
-    # the drawer — so the join has to say which one it means.
+    # Two columns now point at users, whose shift it is, and who counted
+    # the drawer, so the join has to say which one it means.
     user = relationship("User", foreign_keys=[user_id])
     counted_by = relationship("User", foreign_keys=[counted_by_id])
 
@@ -1617,7 +1617,7 @@ class AuthorisationUse(Base, TenantMixin):
 # Electronic remittance advice
 #
 # Approved is not paid. A claim approved at 100 can be remitted at 85 because of
-# a levy, a tariff adjustment or a line struck out — and the 15 is the
+# a levy, a tariff adjustment or a line struck out, and the 15 is the
 # pharmacy's exposure, to bill or to write off. Without the advice parsed and
 # matched, that gap is invisible until someone reads a bank statement.
 # ---------------------------------------------------------------------------
@@ -1704,7 +1704,7 @@ class TradingPeriod(Base, TenantMixin):
     notes = Column(Text, default="")
 
     # Totals frozen at close, so a report of a closed period never has to be
-    # recomputed — and any later disagreement is itself the evidence.
+    # recomputed, and any later disagreement is itself the evidence.
     closing_sales = Column(Float, default=0.0)
     closing_vat = Column(Float, default=0.0)
     closing_cost = Column(Float, default=0.0)
@@ -1844,7 +1844,7 @@ class Reprint(Base, TenantMixin):
     """Every reprint of a script or a label.
 
     Labels jam, peel and end up on the wrong box, so reprinting is a daily
-    action rather than an exception — but a second label for a controlled
+    action rather than an exception, but a second label for a controlled
     substance is also the easiest way to make one dispensing look like two.
     Recording who reprinted what costs nothing and answers the question later.
     """
@@ -1956,7 +1956,7 @@ class Waybill(Base, TenantMixin):
 
     A delivery is the one point where dispensed medicine is out of the
     pharmacy's hands and not yet in the patient's. Without a document there is
-    no answer to "who had it and when" — which matters ordinarily for a lost
+    no answer to "who had it and when", which matters ordinarily for a lost
     parcel and considerably more when the parcel held a controlled substance.
 
     Also the hook the deliverer app will need: a waybill is the unit of work
@@ -2034,7 +2034,7 @@ class Driver(Base, TenantMixin):
     """Somebody who carries medicine out of the shop.
 
     A driver was a foreign key to `users`, which meant a driver had to be a
-    person with a login — and most are not. The runner on the motorbike does
+    person with a login, and most are not. The runner on the motorbike does
     not use the dispensing system, the courier the shop uses on Saturdays is
     not staff at all, and neither should need a seat licence to be named on a
     waybill.
@@ -2042,7 +2042,7 @@ class Driver(Base, TenantMixin):
     It also meant there was nowhere to keep the things you actually need about
     a driver: which vehicle, whose licence, whether it is still valid, what
     their phone number is when a patient has been waiting two hours. And no way
-    to ask the questions a delivery operation is run on — who is out right now,
+    to ask the questions a delivery operation is run on, who is out right now,
     who is holding cash, whose deliveries fail.
 
     The `user_id` link stays optional. A driver who is also a staff member gets
@@ -2202,7 +2202,7 @@ class UserPermission(Base, TenantMixin):
     A role is a good default and a bad rule. Every pharmacy has the assistant
     who is trusted to void a sale, the locum pharmacist who must not touch
     pricing, the manager who runs two branches and the owner's daughter who
-    does the banking on Fridays — and none of them fits a five-word role.
+    does the banking on Fridays, and none of them fits a five-word role.
 
     What happens without this is not that those people are refused. It is that
     somebody gives them an administrator's login, because that is the only
@@ -2232,7 +2232,7 @@ class UserPermission(Base, TenantMixin):
     # point. "May void a sale" is not how anybody actually delegates: it is
     # "may void a sale under twenty dollars, at this branch, until the locum
     # leaves, and anything larger needs me". A permission model that can only
-    # say yes or no forces every one of those into a yes — which is how an
+    # say yes or no forces every one of those into a yes, which is how an
     # assistant ends up able to void a five-hundred-dollar sale because
     # somebody needed them to void a five-dollar one.
     #
@@ -2275,7 +2275,7 @@ class ComplianceDocument(Base, TenantMixin):
     MCAZ premises licence, the responsible pharmacist's practice certificate,
     the city health shop licence, fire brigade clearance, the ZIMRA tax
     clearance, the dangerous drugs permit. Each has its own issuer, its own
-    renewal month and its own consequence for lapsing — and the consequence for
+    renewal month and its own consequence for lapsing, and the consequence for
     the first two is that the shop closes.
 
     Every pharmacy manages this in a lever-arch file and a diary, and the
@@ -2287,7 +2287,7 @@ class ComplianceDocument(Base, TenantMixin):
     WHY THE DOCUMENT IS STORED HERE AND NOT ONLY THE DATE
 
     A date without the certificate behind it is a claim. An inspector asks to
-    see the licence, not to see a system saying there is one — and the copy in
+    see the licence, not to see a system saying there is one, and the copy in
     the file is at head office while the inspection is at the branch. The file
     is held as bytes on the row for the same reason the logo is: a pharmacy
     running one machine in a back office has no object store, and a path into a
@@ -2453,7 +2453,7 @@ class PettyCash(Base, TenantMixin):
     description = Column(String(240), default="")
     reference = Column(String(60), default="")
     # Whether a receipt or slip was produced. A payout with no receipt is not
-    # forbidden — a bus fare rarely has one — but it should be countable.
+    # forbidden, a bus fare rarely has one, but it should be countable.
     receipt_seen = Column(Boolean, default=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
@@ -2628,7 +2628,7 @@ class ScriptChange(Base, TenantMixin):
 
     A script is the one record in this system that carries clinical weight, and
     it is editable. Without a trail, "the dose was changed" has no answer to
-    "by whom, from what, and when" — and that question is asked precisely when
+    "by whom, from what, and when", and that question is asked precisely when
     something has gone wrong.
 
     Append-only. A correction is another row.
@@ -2687,7 +2687,7 @@ class MedicalAidDueDate(Base):
 
     A memorandum of understanding gives a pharmacy the dates it will be paid on.
     Nothing in this system knew them, so "are we overdue or is it simply not due
-    yet" was a question answered from memory — and a claim chased too early
+    yet" was a question answered from memory, and a claim chased too early
     annoys the scheme while one chased too late is written off.
     """
     __tablename__ = "medical_aid_due_dates"
@@ -2827,7 +2827,7 @@ class ConsentEvent(Base, TenantMixin):
 
     `marketing_opt_in = True` answers "may we message them" and nothing else. It
     cannot answer when they agreed, what they were told, through which channel,
-    who recorded it, or whether they have since said stop — and those are the
+    who recorded it, or whether they have since said stop, and those are the
     questions asked when somebody complains, which is the only time the answer
     matters.
 

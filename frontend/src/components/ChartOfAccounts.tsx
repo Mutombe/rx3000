@@ -1,4 +1,4 @@
-/** The chart of accounts — the shape of the business before any figures.
+/** The chart of accounts: the shape of the business before any figures.
  *
  *  A trial balance says whether the books balance. This says where things go,
  *  which is the question actually asked, and asked far more often: by the
@@ -303,7 +303,7 @@ function NewAccount({ sections, onClose, onAdded }: {
       onAdded();
     } catch (e) {
       // The server refuses a duplicate code, a section that does not suit the
-      // type, and a code with punctuation in it — and its wording says which.
+      // type, and a code with punctuation in it, and its wording says which.
       toast.error(errorText(e, "That account could not be added."));
     }
   }
@@ -384,7 +384,7 @@ function NewAccount({ sections, onClose, onAdded }: {
  *  for reasons that only show up months later: a code is what every journal
  *  line ever posted refers to, and an account's type is the sign of every
  *  figure already in it. So the code is shown and not editable, and the type is
- *  offered only where the server would accept the change — which the row itself
+ *  offered only where the server would accept the change, which the row itself
  *  says, because it knows whether anything has been posted to it.
  */
 function EditAccount({ account, sections, onClose, onSaved }: {

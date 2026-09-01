@@ -5,7 +5,7 @@
  *  as a "more actions" menu, do nothing when clicked, and disguise the fact that
  *  a control has been sliced off at the cell edge. Two later stylesheet rules set
  *  `ellipsis` anyway — one of them directly beneath its own comment instructing
- *  the opposite — and the buttons went back to being unreachable.
+ *  the opposite, and the buttons went back to being unreachable.
  *
  *  A comment cannot defend a decision. This can: it measures each button against
  *  the cell it sits in and fails when one hangs outside, which is the thing that

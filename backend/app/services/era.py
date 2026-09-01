@@ -16,7 +16,7 @@ the gap by noticing the bank balance is wrong, months later, with no line-level
 explanation and no hope of recovering it.
 
 Matching is deliberately layered, strongest evidence first. A wrong match is
-worse than no match — it marks a claim paid that was not — so the weak
+worse than no match, it marks a claim paid that was not, so the weak
 amount-and-date heuristic only runs when the identifiers have all failed, and
 what matched by which rule is recorded either way.
 """
@@ -162,7 +162,7 @@ def classify(line: dict) -> tuple[str, str]:
     # Held is not refused, and the money cannot tell them apart.
     #
     # A suspended line pays nothing this cycle and looks exactly like a
-    # rejection to anything reading the figures — which is why the funder's own
+    # rejection to anything reading the figures, which is why the funder's own
     # code has to be read here, and only here. Filing a held claim with the
     # rejections means billing a patient for something the scheme was always
     # going to pay, or writing it off; both lose the money and one of them
@@ -208,7 +208,7 @@ def _match_line(db: Session, line: dict) -> tuple[Claim | None, str, str]:
             return None, "gateway_reference", txn.transaction_id
 
     # 3. Last resort: the same member, the same money, around the same day.
-    #    Deliberately narrow — a loose match here marks the wrong claim settled.
+    #    Deliberately narrow: a loose match here marks the wrong claim settled.
     policy = (line.get("policy_number") or "").strip()
     claimed = line.get("amount_claimed") or 0.0
     if policy and claimed:

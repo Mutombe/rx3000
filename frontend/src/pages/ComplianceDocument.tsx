@@ -181,7 +181,7 @@ export default function ComplianceDocument() {
           )}
           {/* Renewing is recording the new one, not editing this one. Editing
               an expiry in place would overwrite the proof of what was held
-              before it — which is the one thing this register exists to keep. */}
+              before it, which is the one thing this register exists to keep. */}
           <Link className="btn primary"
                 to={`/compliance?branch=${doc.branch_id}&renew=${doc.kind}`}>
             <CloudArrowUp size={15} /> Record a renewal

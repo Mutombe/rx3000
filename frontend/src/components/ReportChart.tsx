@@ -1,7 +1,7 @@
 /** A chart for a report this component has never seen before.
  *
  *  Reports here are *described* — every column carries a `kind`, an `align` and
- *  whether it totals — so one chart can be derived from any of the eighty-eight
+ *  whether it totals, so one chart can be derived from any of the eighty-eight
  *  report definitions. A bespoke chart per report is a promise nobody keeps past
  *  the first dozen.
  *
@@ -84,7 +84,7 @@ function niceTicks(max: number): number[] {
   const out: number[] = [];
   /* Runs PAST the peak, not up to it.
      The loop used to stop at the last tick at or below `max`, so a peak of
-     119,167 against a 50,000 step gave a top gridline of 100,000 — and the line
+     119,167 against a 50,000 step gave a top gridline of 100,000, and the line
      drew above the plot and was clipped by the top of the chart. The tallest
      value has to fit inside the scale or the scale is lying about it. */
   for (let v = 0; v < max; v += step) out.push(v);
@@ -138,7 +138,7 @@ export default function ReportChart({
   /* Ctrl/⌘ + wheel zooms; a plain wheel is left alone deliberately.
      Swallowing the plain wheel over a chart is how a page stops scrolling for
      anyone whose pointer happens to be over it — the same fault that made these
-     tables unscrollable — so the modifier is the price of not breaking the page.
+     tables unscrollable, so the modifier is the price of not breaking the page.
      Registered non-passively because it calls preventDefault, which React's own
      onWheel cannot do reliably. */
   useEffect(() => {
@@ -397,7 +397,7 @@ export default function ReportChart({
                   <g key={s.key}>
                     <path d={d} fill="none" stroke={single ? palette.one : s.colour}
                           strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-                    {/* End marker only — a dot on every point is noise. */}
+                    {/* End marker only: a dot on every point is noise. */}
                     <circle cx={end[0]} cy={end[1]} r="4.5"
                             fill={single ? palette.one : s.colour}
                             stroke="var(--surface)" strokeWidth="2" />
@@ -423,7 +423,7 @@ export default function ReportChart({
                 });
               })}
 
-          {/* Hit target is the whole band — nobody aims at a 2px line. */}
+          {/* Hit target is the whole band. Nobody aims at a 2px line. */}
           {view.map((c, i) => (
             <rect
               key={`hit-${c.cat}-${i}`} x={padL + band * i} y={padT}
@@ -445,7 +445,7 @@ export default function ReportChart({
         </svg>
 
         {/* X labels as real text, so they can be clipped and hovered like any
-            other truncated value — but only while there is room for them.
+            other truncated value, but only while there is room for them.
             Zoomed out to 325 groups every label was rendered at three pixels
             wide, which is not a small label: it is a grey smear that overflowed
             the card and told the reader nothing. Below the legible width the

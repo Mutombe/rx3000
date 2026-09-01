@@ -59,7 +59,7 @@ def statement(db: Session, supplier_id: int, *,
     payments = (db.query(SupplierPayment)
                 .filter(SupplierPayment.supplier_id == supplier_id).all())
 
-    # An invoice is a debit — it increases what we owe. A payment is a credit.
+    # An invoice is a debit. It increases what we owe. A payment is a credit.
     moves: list[dict] = []
     for inv in invoices:
         when = inv.invoice_date or upto

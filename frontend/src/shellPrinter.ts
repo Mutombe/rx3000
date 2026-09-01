@@ -3,7 +3,7 @@
  *  The shell can hand bytes to the Windows spooler; a browser cannot, because
  *  `window.print()` always asks. So a till running the desktop app prints its
  *  labels the instant a sale completes, and a browser tab falls back to the
- *  dialog — the same document either way.
+ *  dialog: the same document either way.
  *
  *  Which printer is a per-machine choice, not a per-pharmacy one: the label
  *  roll is plugged into this till and called whatever Windows calls it here.

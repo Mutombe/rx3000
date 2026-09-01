@@ -9,7 +9,7 @@ the front of the tender's free-text reference because there was no column for
 it. The takings screen then read it back out by splitting on the first space.
 
 The cash-up did not read it at all. It reconciled seven hard-coded families —
-cash, card, mobile money, medical aid, vouchers, cheques, direct — and built
+cash, card, mobile money, medical aid, vouchers, cheques, direct, and built
 its lines from that constant. Two consequences, both bad:
 
   * EcoCash and InnBucks arrived as one undifferentiated "Mobile money" line.
@@ -23,7 +23,7 @@ its lines from that constant. Two consequences, both bad:
     delivery reconciled to 50 and said nothing at all about the missing 45.
 
 This builds a shift with money on several instruments — including one the
-constant never had — and asserts that every cent shows up somewhere a person
+constant never had, and asserts that every cent shows up somewhere a person
 can read. Nothing is committed.
 
     python qa/register-cashup-alignment.py

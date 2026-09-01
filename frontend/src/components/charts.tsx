@@ -162,7 +162,7 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
               {/* One hue deepening down the funnel, not six.
                   Funnel stages are a sequence, not six unrelated things, and the
                   previous version gave each one a categorical hue from a cycled
-                  list — so stage seven repeated stage one, and the colours
+                  list, so stage seven repeated stage one, and the colours
                   implied a difference in kind where the only difference is
                   position. Width already carries the count; the deepening only
                   reinforces the direction of travel. */}
@@ -175,7 +175,7 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
             <div className="funnel-side">
               <b>{s.conversion}%</b>
               {/* a stage can exceed the one before it — opportunities may be raised
-                  directly rather than via a converted lead — so don't call that "no drop-off" */}
+                  directly rather than via a converted lead, so don't call that "no drop-off" */}
               {prev && (
                 <span className="muted">
                   {dropped > 0 ? `−${dropped} dropped`
@@ -191,11 +191,11 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
   );
 }
 
-/** Horizontal leaderboard bars — one row per entity, two comparable measures.
+/** Horizontal leaderboard bars: one row per entity, two comparable measures.
  *
  *  The colours are **passed in**, and that is the whole point of this rewrite.
  *  They used to come from the stylesheet: `.barlist-bar.primary` was painted in
- *  `var(--accent)` — near-black ink, not a data colour — and `.secondary` in a
+ *  `var(--accent)`: near-black ink, not a data colour, and `.secondary` in a
  *  gradient of `--rose` and `--mauve`, two leftovers of a palette that was
  *  removed for failing the contrast validator. Meanwhile the `<Legend>` above
  *  the chart drew its swatches from the chart palette. So on the rep performance

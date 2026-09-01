@@ -239,7 +239,7 @@ export function renderDocument(head: Letterhead, o: DocOptions): string {
 /** Open it in a window and offer the print dialog.
  *
  *  A window rather than an iframe: the reader can read it, scroll it, decide
- *  not to print it, and save it as a PDF from the same dialog — which is what
+ *  not to print it, and save it as a PDF from the same dialog, which is what
  *  most of these are actually for.
  */
 export function printDocument(head: Letterhead, o: DocOptions) {
@@ -248,6 +248,6 @@ export function printDocument(head: Letterhead, o: DocOptions) {
   w.document.write(renderDocument(head, o));
   w.document.close();
   // Waits for the logo, which is a data URI and therefore usually already
-  // decoded — but "usually" prints a blank letterhead often enough to matter.
+  // decoded, but "usually" prints a blank letterhead often enough to matter.
   w.onload = () => setTimeout(() => w.print(), 120);
 }

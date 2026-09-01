@@ -1,7 +1,7 @@
 """Count the queries behind every endpoint the front end actually calls.
 
 The last sweep measured a list of endpoints I wrote out by hand, so
-`/api/dispensary/worklist` was not in it — and that was the one doing 2,698
+`/api/dispensary/worklist` was not in it, and that was the one doing 2,698
 queries and timing out in production. A list of endpoints somebody remembered
 is not a list of endpoints the application uses.
 

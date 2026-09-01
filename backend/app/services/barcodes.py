@@ -262,7 +262,7 @@ def read(raw: str) -> Scan:
         scan.symbology = {8: "ean8", 12: "upc", 13: "ean13", 14: "itf14"}.get(len(text), "plain")
         scan.keys = gtin_variants(text)
         if len(text) in (8, 12, 13, 14) and not valid_gtin(text):
-            # Not fatal — own-label codes fail this legitimately — but worth
+            # Not fatal, own-label codes fail this legitimately, but worth
             # saying when the lookup also comes back empty.
             scan.warnings.append("The check digit on this code does not add up; it may have misread.")
     else:

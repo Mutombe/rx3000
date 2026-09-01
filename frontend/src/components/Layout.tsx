@@ -110,7 +110,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // dispensary is asked about yesterday several times a day.
       { to: "/dispensing-history", label: "Dispensing history", icon: ClockCounterClockwise },
       // Scripts by their number. The history above lists dispensings —
-      // the events — so a script supplied over four visits appears four
+      // the events, so a script supplied over four visits appears four
       // times there and one never dispensed appears not at all.
       { to: "/scripts", label: "Scripts", icon: Prescription },
       { to: "/repeats", label: "Repeats", icon: ArrowsClockwise },
@@ -183,7 +183,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/", label: "Command Centre", icon: SquaresFour },
       // The owner's view: which shop is working and which is quietly not.
       // It was filed under Stock, between the stock take and the recall,
-      // because it reads branch data — but the question it answers is not a
+      // because it reads branch data, but the question it answers is not a
       // stock question and the person asking it is not doing stock. Somebody
       // who owns three shops looks for this beside the analytics, which is
       // where every other "how are we doing" screen already lives.
@@ -233,7 +233,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   // Ask the API whether it is running the code that is on disk. A server left
   // running while the code moves on answers every request happily with
   // yesterday's behaviour, and the symptom is a 404 on an endpoint that plainly
-  // exists — which has cost five separate diagnoses here, and once left
+  // exists, which has cost five separate diagnoses here, and once left
   // production serving an API three days older than this front end.
   const [staleApi, setStaleApi] = useState<{ started?: string; written?: string } | null>(null);
   useEffect(() => {
@@ -244,7 +244,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           setStaleApi({ started: h.process_started_at, written: h.code_written_at });
         } else if (h.running_stale_code === undefined) {
           // The field is missing, which means the server predates the check
-          // itself — so it is older than a version that already knew how to say
+          // itself, so it is older than a version that already knew how to say
           // it was old. The first version of this banner stayed silent in exactly
           // that case, which is the one where it is most needed: a server old
           // enough to lack the field is old enough to be missing endpoints.
@@ -407,7 +407,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <header className="topbar">
           {/* Beside the profile, not inside it. Appearance is changed far more
               often than a profile is opened — a till by a window is squinted at
-              twice a day — and burying it under a caret makes people live with
+              twice a day, and burying it under a caret makes people live with
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
           <ThemeToggle />

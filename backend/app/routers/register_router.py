@@ -47,7 +47,7 @@ def list_entries_paged(
 
     This one matters more than the others. The register is a statutory record an
     inspector may ask to see, and a screen that showed 300 of 612 entries with
-    no total was not an incomplete view — it was a misleading one.
+    no total was not an incomplete view. It was a misleading one.
     """
     query = db.query(RegisterEntry)
     if product_id:

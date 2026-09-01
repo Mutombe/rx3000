@@ -116,7 +116,7 @@ export default function FiscalDay() {
         <>
           {/* A day closed with receipts the authority never took is filed
               short. The totals look complete because they count every receipt
-              written, filed or not — so this has to be said, not inferred. */}
+              written, filed or not, so this has to be said, not inferred. */}
           {day.not_filed.length > 0 && (
             <div className={day.closed_at ? "alert error" : "alert warn"}>
               <Warning size={16} weight="fill" />

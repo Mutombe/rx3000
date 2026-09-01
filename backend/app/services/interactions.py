@@ -3,7 +3,7 @@
 The hard problem here is not the check. It is that **a partial interaction list
 is more dangerous than no list at all** if the screen lets anyone read "nothing
 found" as "this is safe". A pharmacist who has been told twice that the system
-checks interactions will, on the third occasion, trust it — and the pair it does
+checks interactions will, on the third occasion, trust it, and the pair it does
 not hold will go out.
 
 So the design is:

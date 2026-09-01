@@ -2,7 +2,7 @@
  *
  *  Eight endpoints, three of them uncalled and two more only ever reached
  *  indirectly. A group with stock in Harare and a patient in Bulawayo could not
- *  move a box between them, and the branch record had no screen at all — which is
+ *  move a box between them, and the branch record had no screen at all, which is
  *  why `city` and `responsible_pharmacist` sat empty on every branch while both
  *  were accepted by the API.
  *

@@ -9,7 +9,7 @@ function printHtml(title: string, css: string, body: string) {
   if (!win) {
     // A toast, not `alert`. This fires exactly when somebody is standing at a
     // counter waiting for a receipt, and a native box freezes the whole
-    // application until it is dismissed — so the till stops responding at the
+    // application until it is dismissed, so the till stops responding at the
     // one moment it must not.
     toast.error("The print window was blocked. Allow pop-ups for this site "
                 + "and print again.");
@@ -295,7 +295,7 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
         l.expiry_date ? `Exp: ${esc(shortDate(l.expiry_date))}` : "",
       ].filter(Boolean).join("  ");
 
-      // The patient and the moment it was handed over, on one line — which is
+      // The patient and the moment it was handed over, on one line, which is
       // where a real label puts them, and it saves the heading a whole line.
       const whoLine = [esc(l.patient_name), esc(stamp(l.dispensed_at))]
         .filter(Boolean).join("  ");
@@ -347,7 +347,7 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
  *  Rendered into an iframe by the preview so that the sticker on screen and the
  *  sticker on the roll are the same markup and the same stylesheet, not two
  *  designs that agree today. `LabelSheet` drew its own once; the layouts drifted
- *  apart at the first change, which is a preview that lies — and somebody signs
+ *  apart at the first change, which is a preview that lies, and somebody signs
  *  off on the screen while the printer disagrees.
  */
 export function labelPreviewDoc(labels: Label[]): string {

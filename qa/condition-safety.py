@@ -6,7 +6,7 @@ exactly one reason: it changes what may be handed over.
 
 Nothing on the dispensing path read it. The field was used by the worklist to
 decide whose repeat was urgent, by the AI prompt, and by marketing to pick a
-campaign audience — and not by the screen that hands over the medicine. So a
+campaign audience, and not by the screen that hands over the medicine. So a
 pharmacy could hold the single most important fact about a patient, typed in by
 somebody who knew why it mattered, and the counter would not mention it.
 

@@ -36,7 +36,7 @@ from app.database import engine                   # noqa: E402
 
 #: More than half a query per extra line means it is fetching them one by one.
 #: Not zero: a legitimate endpoint may do one extra query for a *set* of lines
-#: — an `IN` over the batch — and rounding that to a per-line cost would be
+#:, an `IN` over the batch, and rounding that to a per-line cost would be
 #: wrong.
 PER_LINE_BUDGET = 0.5
 

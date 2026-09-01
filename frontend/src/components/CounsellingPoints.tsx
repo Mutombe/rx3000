@@ -2,7 +2,7 @@
  *
  *  This existed on the product page, which is the one place a pharmacist is not
  *  standing when they need it. At the counter they have the script in hand, the
- *  patient in front of them, and no reason to open a catalogue page — so the
+ *  patient in front of them, and no reason to open a catalogue page, so the
  *  counselling half of dispensing lived entirely in whatever they happened to
  *  remember about that particular medicine.
  *

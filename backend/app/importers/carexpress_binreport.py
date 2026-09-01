@@ -21,7 +21,7 @@ WHY THE ALIGNMENT IS CHECKED RATHER THAN ASSUMED
 
 Row 4,000 of strip 3 is only the stock figure for row 4,000 of strip 1 if every
 page in between holds exactly the rows it should. One short page anywhere and
-every quantity after it belongs to the wrong medicine — which in a pharmacy is
+every quantity after it belongs to the wrong medicine, which in a pharmacy is
 not a formatting problem. So `verify()` reads the descriptions back against the
 catalogue already on file and reports the agreement rate. It runs at 99%; below
 about 95% the file should not be loaded at all, and this says so rather than

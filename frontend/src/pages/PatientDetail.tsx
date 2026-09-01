@@ -156,7 +156,7 @@ export default function PatientDetail() {
    *
    *  The patient endpoint replaces the whole object, so this sends the patient
    *  it already has with the two fields changed. Sending only the two would
-   *  answer 422 for the missing name — and worse, a partial write here would
+   *  answer 422 for the missing name, and worse, a partial write here would
    *  quietly blank a caregiver's phone number.
    */
   async function saveClinical() {
@@ -255,7 +255,7 @@ export default function PatientDetail() {
 
       {/* The banner is where anybody looks for this, so it is also where it is
           changed. Editing a patient's allergies used to be possible only from a
-          small icon on the list page — and once the list rows became links,
+          small icon on the list page, and once the list rows became links,
           clicking a patient took you here, to a screen that showed the allergy
           and gave you no way to correct it. */}
       {(patient.allergies || patient.chronic_conditions) ? (
@@ -330,7 +330,7 @@ export default function PatientDetail() {
                   looking at a patient's scripts and wants to open one. Every
                   other screen in the product links an Rx number; this did not.
                   An N-Repeat carries a draft reference instead of an Rx number,
-                  and rendered blank here — so a half-captured script showed as
+                  and rendered blank here, so a half-captured script showed as
                   a date and a doctor with nothing to identify it. */}
               <EntityLink kind="prescription" id={rx.id}>
                 <b className="script-id">
@@ -390,7 +390,7 @@ export default function PatientDetail() {
                 // so "which script was this?" meant leaving the patient and
                 // searching by number.
                 // The row opens the handover itself. Every name on it opened
-                // something and the row opened nothing — which is the same
+                // something and the row opened nothing, which is the same
                 // fault the comment above describes, one level up.
                 <RowLink key={i} to={`/dispensings/${h.id}`}
                          prefetch={prefetchRoute}>

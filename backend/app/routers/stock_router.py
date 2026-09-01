@@ -112,7 +112,7 @@ def product_variants(product_id: int, db: Session = Depends(get_db)):
     A pharmacy stocks one molecule several times over: the brand and two
     generics, the same generic from two importers, 20s and 30s of the same pack.
     They are separate products because they have separate stock and separate
-    prices, and they must stay that way — but the person at the counter is
+    prices, and they must stay that way, but the person at the counter is
     holding a script for a *medicine*, and needs to see the alternatives before
     telling a patient the price.
 
@@ -392,7 +392,7 @@ def write_off_batch(batch_id: int, db: Session = Depends(get_db), user: User = D
     #
     # This subtracted the batch's remainder from the product's own count
     # whether or not the product had ever held that much, and the two are
-    # allowed to drift — so writing off a batch could leave a product at minus
+    # allowed to drift, so writing off a batch could leave a product at minus
     # seven, which every screen then showed to a dispenser as its stock. A
     # negative shelf count is not information, it is arithmetic showing
     # through; /stock/reconcile is where the drift itself is read.
@@ -457,8 +457,8 @@ def update_supplier(supplier_id: int, body: dict = Body(...),
     """Correct a supplier.
 
     Suppliers could be created and listed and never changed. A wholesaler
-    changes its bank account — which they do, and which is exactly the message
-    a fraudster imitates — and the pharmacy had nowhere to record the new one
+    changes its bank account, which they do, and which is exactly the message
+    a fraudster imitates, and the pharmacy had nowhere to record the new one
     except a note beside the old one. A payment made against a stale account
     number is not a data-entry problem.
     """
@@ -489,7 +489,7 @@ def update_supplier(supplier_id: int, body: dict = Body(...),
 @router.delete("/suppliers/{supplier_id}")
 def retire_supplier(supplier_id: int, db: Session = Depends(get_db),
                     _: User = Depends(require_role("admin", "manager"))):
-    """Retire a supplier. Never deleted — their name is on every order.
+    """Retire a supplier. Never deleted. Their name is on every order.
 
     Refused while money is still owed. A supplier taken off the list with an
     outstanding balance is a debt that stops appearing on the creditors ageing,
@@ -758,7 +758,7 @@ def update_stock_category(category_id: int, body: dict, db: Session = Depends(ge
 
     The target margin is the one that gets edited. It is a commercial decision
     that moves — a department carrying more consignment stock this quarter than
-    last should not be measured against a figure somebody typed once — and it
+    last should not be measured against a figure somebody typed once, and it
     could be set when the department was created and never again.
     """
     from ..models import StockCategory
@@ -808,7 +808,7 @@ def tag_everything(apply: bool = Body(default=False, embed=True),
 
     Preview first, always. A department is what every stock report groups on,
     so placing four thousand products wrongly is worse than leaving them
-    unplaced — the totals would look right and be wrong.
+    unplaced: the totals would look right and be wrong.
     """
     from ..services import stock_tagging
 

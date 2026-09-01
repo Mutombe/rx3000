@@ -2,7 +2,7 @@
  *
  *  "May void a sale" is not how anybody in a pharmacy delegates. It is "may
  *  void a sale under twenty dollars, at Avondale, until the locum leaves, and
- *  anything larger needs me" — and a system that can only say yes or no forces
+ *  anything larger needs me", and a system that can only say yes or no forces
  *  every one of those into a yes.
  *
  *  What follows from that is not stricter practice. It is that somebody hands

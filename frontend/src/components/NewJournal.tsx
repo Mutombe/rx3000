@@ -1,7 +1,7 @@
 /** Post a journal entry by hand.
  *
  *  Almost everything in this ledger is posted by something else — a sale, a
- *  delivery, a supplier payment — and that is right. But a pharmacy still has
+ *  delivery, a supplier payment, and that is right. But a pharmacy still has
  *  entries nobody else will make: a bank charge the statement showed and
  *  nothing raised, a correction to last month, an owner's drawing, a write-off
  *  the stock module cannot express. The endpoint has existed since the ledger

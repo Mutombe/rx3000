@@ -1,4 +1,4 @@
-/** Drivers — the people who carry medicine out of the shop.
+/** Drivers: the people who carry medicine out of the shop.
  *
  *  A driver used to be a foreign key to `users`, which meant a driver needed a
  *  login. Most do not have one and should not: the runner on the motorbike

@@ -2,7 +2,7 @@
  *
  *  A pharmacy carries one molecule several times: the brand, a generic, the same
  *  generic from another importer. They are separate products because they hold
- *  separate stock at separate prices, and they should stay separate — but the
+ *  separate stock at separate prices, and they should stay separate, but the
  *  script in somebody's hand is for a *medicine*, and the patient is about to be
  *  told a price.
  *

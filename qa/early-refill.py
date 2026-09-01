@@ -7,7 +7,7 @@ are collecting from several pharmacies and selling them. On a schedule 5 the
 last of those is what the controlled register exists to catch.
 
 The pharmacy held every fact needed to ask — when it last went out, how many
-days that quantity was meant to last — and nothing asked. There was no
+days that quantity was meant to last, and nothing asked. There was no
 early-refill check anywhere.
 
 The other half of the test matters as much. A checker that queries every

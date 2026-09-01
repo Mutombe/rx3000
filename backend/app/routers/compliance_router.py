@@ -1,6 +1,6 @@
 """The licences and certificates a branch trades on.
 
-Upload one, see what is due, see what was never uploaded at all — which is the
+Upload one, see what is due, see what was never uploaded at all, which is the
 half that matters, because a register of what you hold cannot tell you what you
 do not.
 """
@@ -146,7 +146,7 @@ def document(document_id: int, db: Session = Depends(get_db)):
     """One certificate, with the chain of the ones it replaced.
 
     Registered above the file route, which is the more specific path and so is
-    matched first regardless — but keeping the plain record above its own
+    matched first regardless, but keeping the plain record above its own
     sub-resources is the order somebody reads them in.
     """
     try:

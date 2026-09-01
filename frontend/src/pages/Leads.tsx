@@ -15,7 +15,7 @@ const SOURCES = [
   ["web", "Website"], ["phone", "Phone"], ["walk_in", "Walk-in"],
 ];
 
-/** Saved list views — the rail down the left, Salesforce-style. */
+/** Saved list views: the rail down the left, Salesforce-style. */
 const VIEWS: { key: string; label: string; match: (l: Lead) => boolean }[] = [
   { key: "open", label: "Open leads", match: (l) => !["converted", "disqualified"].includes(l.status) },
   { key: "hot", label: "Hot & unworked", match: (l) => l.rating === "hot" && l.status === "new" },
@@ -133,7 +133,7 @@ export default function Leads() {
     let reason = "";
     if (next === "disqualified") {
       // Required now. `window.prompt` accepted an empty answer, so a lead
-      // could be disqualified for a reason of nothing — and a pipeline whose
+      // could be disqualified for a reason of nothing, and a pipeline whose
       // losses have no reasons cannot be learned from.
       const answer = await ask({
         title: "Why is this lead disqualified?",

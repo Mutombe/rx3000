@@ -10,7 +10,7 @@ Two rules this file is written to.
 **One query per metric, not one per branch.** Everything below groups in the
 database. A dashboard that loops over branches asking each the same question is
 the shape that made the dispensary worklist take a hundred and eighty seconds
-against a hosted database — and this screen has fifteen metrics, so the same
+against a hosted database, and this screen has fifteen metrics, so the same
 mistake would be fifteen times worse.
 
 **Say when a thing is not measured.** Several of what a group manager would want
@@ -214,7 +214,7 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
     # needs has been on the dispensing record all along: the checking
     # pharmacist's initials, the identity document seen on a controlled item,
     # the script sighted, the prescriber verified. The scorecard used to say
-    # this could not be measured because there is no SOP *register* — but a
+    # this could not be measured because there is no SOP *register*, but a
     # register of procedures is not the measurement. Whether they were carried
     # out is, and that is written down every time somebody dispenses.
     sop = _rows(
@@ -326,7 +326,7 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
                 "total_variance": round(sh[3] or 0.0, 2),
                 # The number a group manager reads first: of the drawers that
                 # have actually been counted, what proportion balanced to the
-                # cent. None when nothing has been counted yet — which is not
+                # cent. None when nothing has been counted yet, which is not
                 # nought per cent, and must not read as it.
                 "accuracy": (round(100.0 * (sh[4] or 0) / sh[6], 1) if sh[6] else None),
             },

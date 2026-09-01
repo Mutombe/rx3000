@@ -4,7 +4,7 @@ There are two, and there have to be: the desktop shell prints from TypeScript
 so a pharmacy downloads one thing, and the device agent prints from Python so a
 till with hardware and no desktop app still works. Two renderers of the same
 document is exactly the arrangement that drifts, and the document here is a
-dispensing label — a legal record with a batch number on it.
+dispensing label: a legal record with a batch number on it.
 
 So they are compared byte for byte, on input chosen to exercise the parts that
 are easy to get subtly wrong: bold, double height, centring, and right

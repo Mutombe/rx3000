@@ -71,7 +71,7 @@ def _selects_nothing(sql: str) -> bool:
     """A probe that asks whether a table exists rather than what is in it.
 
     `SELECT 1 FROM batch_allocations LIMIT 1` names a tenant table and returns
-    no tenant data — the constant is all it ever selects. Reporting it as a leak
+    no tenant data: the constant is all it ever selects. Reporting it as a leak
     is how a check like this gets a reputation for crying wolf, and a check
     nobody believes protects nothing.
     """

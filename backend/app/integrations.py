@@ -176,7 +176,7 @@ register(Integration(
 ))
 
 # ZIMRA publishes no driver. There are three real routes to the same obligation,
-# and a pharmacy picks one before RX5000 is installed — so all three are
+# and a pharmacy picks one before RX5000 is installed, so all three are
 # registered, rather than one being treated as "the" integration.
 register(Integration(
     key="fiscal.external", name="Approved Supplier fiscal device", category="fiscal",

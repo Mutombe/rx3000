@@ -13,7 +13,7 @@
   /* Measured against WCAG rather than chosen by eye. The old scale looked
      considered and failed where it mattered: --ink-soft came to 4.29 on the
      canvas (AA wants 4.5) and --ink-faint to 2.73, below even the 3:1 floor for
-     large text — and --ink-faint carries hints, meta lines and placeholders all
+     large text, and --ink-faint carries hints, meta lines and placeholders all
      over the product. "Some of it is not even visible" was not a matter of
      taste; it was a number.
 
@@ -46,7 +46,7 @@
    * Clarity comes from *one* rule placed where it means something, not from
    * ruling every edge. So: --line separates rows, --line-soft is for edges that
    * only need to exist, and --line-strong is spent sparingly on the one
-   * boundary in a component that carries meaning — the foot of a table header.
+   * boundary in a component that carries meaning: the foot of a table header.
    */
   /* Lifted with the ink. At 7% an edge was a rumour: on a laptop in a lit
      dispensary the card boundaries and table rules simply were not there, which
@@ -58,7 +58,7 @@
   /* ---- brand ----
    * The purple is the mark. It belongs on the logo, the wordmark and the sign-in
    * screen, and nowhere else. A brand colour spread across every active row and
-   * button stops reading as identity and starts reading as decoration — and in
+   * button stops reading as identity and starts reading as decoration, and in
    * software someone stares at for nine hours it is simply tiring.
    */
   --brand: #5d5878;
@@ -284,7 +284,7 @@ a:hover { opacity: 0.75; }
 }
 /* The brand block and the top bar are one horizontal band across the top of the
    application, so they are given one height rather than two paddings that
-   happened to differ. They did differ — 77px against 65px — and the two bottom
+   happened to differ. They did differ, 77px against 65px, and the two bottom
    borders met the sidebar's edge twelve pixels apart, which is the kind of thing
    that reads as "unfinished" without the eye being able to say why. */
 /* 56px, not 68. The bar holds one avatar and a name; the height was paying for
@@ -408,7 +408,7 @@ a:hover { opacity: 0.75; }
 .me-menu a, .me-menu button {
   display: flex; align-items: center; gap: var(--s3);
   /* `flex-start`, explicitly. Every button in this stylesheet centres its
-     contents, and that rule reached in here — so the anchor's label sat at the
+     contents, and that rule reached in here, so the anchor's label sat at the
      icon's edge and the button's label sat 45px further right, on two rows of
      the same menu. A menu whose items do not share a left edge reads as broken
      before anybody can say why. */
@@ -432,7 +432,7 @@ a:hover { opacity: 0.75; }
 
 /* The working pane. Capped, but the cap scales with the screen.
    A flat 1400px meant a 1920 monitor showed 1400px of product and 320px of empty
-   grey — and a card grid that stopped at four columns where six would have fit.
+   grey, and a card grid that stopped at four columns where six would have fit.
    The cap exists because a line of body text three thousand pixels wide is
    unreadable, not because 1400 is a magic number; tables and card grids have no
    such limit and are what people actually buy a big monitor for.
@@ -533,7 +533,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
    site, and one of them would always forget. Both spellings now paint. */
 .badge.danger { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
 /* A figure that is the wrong way round: an overdraft, a negative margin, money
-   walking out. Not an alarm — the number itself is the alarm. */
+   walking out. Not an alarm: the number itself is the alarm. */
 .neg { color: var(--danger); }
 
 /* ------------------------------------------------------------- row tone
@@ -557,7 +557,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---------- buttons ----------
    Every button lands on a control height. Pills are reserved for tags, not
-   actions — a rectangle with a small radius reads as a control, not a chip. */
+   actions: a rectangle with a small radius reads as a control, not a chip. */
 button, .btn {
   font-family: var(--font-body); font-size: var(--t-base); font-weight: 600;
   letter-spacing: -0.005em;
@@ -570,7 +570,7 @@ button, .btn {
 }
 /* Wrapped in :where(), so this hover carries the specificity of `button` alone
    and any variant that sets its own background keeps it.
-   Before this it was `button:hover`, which outranks a plain class — so every
+   Before this it was `button:hover`, which outranks a plain class, so every
    button that styled itself light and did not also write a :hover rule was
    repainted #000 on hover while its text stayed dark ink. The worklist's stat
    buttons measured 1.14:1 that way: the number a pharmacist is reading vanished
@@ -586,7 +586,7 @@ button:disabled:hover { background: var(--accent); }
 
 /* Every variant matches `.btn` as well as `button`.
    The base rule above has always been `button, .btn`, and every variant below
-   was `button.x` alone — so an anchor styled `.btn secondary` picked up the
+   was `button.x` alone, so an anchor styled `.btn secondary` picked up the
    primary fill and nothing else. Seven "back to the list" links across the
    detail pages have been rendering as solid accent buttons because of it,
    sitting beside the page title looking like the main action on the screen. */
@@ -722,7 +722,7 @@ label {
   backdrop-filter: blur(6px);
 }
 /* A dialog is three regions, not one scrolling column.
-   The whole box used to scroll — title, body and buttons together — so on a
+   The whole box used to scroll, title, body and buttons together, so on a
    payment with three tender lines the operator scrolled past "Take payment" to
    read the total and then had to scroll back down to press it. The title says
    what this is and the actions say how it ends; both stay put, and only the
@@ -764,7 +764,7 @@ label {
   border-top: 1px solid var(--line);
   border-radius: 0 0 var(--r-2xl) var(--r-2xl);
 }
-/* A note beside the buttons — "this cannot be undone", a running total — reads
+/* A note beside the buttons, "this cannot be undone", a running total, reads
    left while the actions stay right. */
 .modal-actions > .modal-note { margin-right: auto; text-align: left; }
 
@@ -842,7 +842,7 @@ label {
    Everywhere else a control is sized for somebody working at it all day with a
    scanner in one hand. This card is used once a shift, by somebody who is
    looking at it rather than working in it, and its height is set by whichever
-   panel is tallest — so every row it saves comes off all three. Scoped to
+   panel is tallest, so every row it saves comes off all three. Scoped to
    .login-card so the till lock and the PIN dialogs keep their full targets. */
 .login-card .field { margin-bottom: var(--s3); }
 .login-card .pin-box { width: 40px; height: 42px; font-size: 1.15rem; }
@@ -1357,7 +1357,7 @@ label {
   flex-wrap: wrap; padding: 14px 18px; border-bottom: 1px solid var(--line-soft);
 }
 .dt-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
-/* Standing on its own — above a table rather than inside a toolbar — it needs
+/* Standing on its own, above a table rather than inside a toolbar, it needs
    to be separated from what it filters. With no margin at all the first row of
    the table began at the exact pixel the filter bar ended, and the controls and
    the data read as one block. Inside a toolbar the toolbar owns the spacing. */
@@ -1436,7 +1436,7 @@ label {
 /* A reference is not prose, and must never be elided.
    Batch numbers, claim references and invoice numbers differ from each other in
    their last characters, so clipping "BAT260800069" to "BAT26080006…" removes the
-   only part that identifies which one it is — and by four pixels, which reads as
+   only part that identifies which one it is, and by four pixels, which reads as
    a rendering accident rather than as information withheld. A monospace cell in
    a fixed-layout table is sized from content and never truncated; whatever room
    it needs comes out of the prose columns beside it, which survive an ellipsis. */
@@ -1457,7 +1457,7 @@ td.mono, th.mono {
 
 /* Row actions need room allocated, not borrowed.
    Under `table-layout: fixed` a `width: 1%` column is given almost nothing and
-   its buttons spill out under `overflow: hidden` — which is how "Close" and
+   its buttons spill out under `overflow: hidden`, which is how "Close" and
    "VAT return" rendered as the single run-together string "CloseVAT return",
    and how a three-button cell lost 110 pixels of itself.
    Percentages and lengths are all fixed layout understands, so the width is
@@ -1469,7 +1469,7 @@ td.actions, th.actions {
   overflow: hidden;
   /* `clip`, not `ellipsis`. An ellipsis in a column of buttons renders as three
      dots at the end of the row that look like a "more actions" menu and do
-     nothing when clicked — which is exactly how it was read. The dots were never
+     nothing when clicked, which is exactly how it was read. The dots were never
      the bug; they were the symptom of a column too narrow for its buttons, and
      hiding the symptom would have left the button unreachable and unexplained.
      With `clip` a column that is too narrow looks wrong, and the audit fails it. */
@@ -1478,7 +1478,7 @@ td.actions, th.actions {
 
 /* The width has to be declared on the HEADER cell, not the body cell.
    `table-layout: fixed` sizes every column from the first row alone, so a rule
-   on `td.actions` is read and then ignored — which is why sizing the body cell
+   on `td.actions` is read and then ignored, which is why sizing the body cell
    changed nothing at all and the buttons went on overflowing by 41 pixels.
    The header is empty, though, and knows nothing about what the rows contain.
    So the table is asked: `:has()` reaches down from the table into its own body
@@ -1494,7 +1494,7 @@ th.mono { width: 10.5rem; }
    with `overflow: visible` "Nobody home, gate locked" ran straight off the white
    and onto the page background. Buttons are safe from the clip because the
    column is sized for them below, not because the cell refuses to clip. */
-/* Sized from the buttons the column actually holds — and matching BOTH names
+/* Sized from the buttons the column actually holds, and matching BOTH names
    the action cell goes by. These selectors said `td.actions` only, while the
    lay-by and remittance tables mark their cells `lb-actions`, so those columns
    were given the one-button width and "Bill patient" + "Write off" hung 66px
@@ -1522,7 +1522,7 @@ table th.actions { width: var(--actions-w, 11rem); }
 /* No `.dt` exception here. DataTable states its column widths as inline styles
    on the header cells, which outrank any stylesheet rule, so its own tables are
    already governed and never needed one. The exception only ever applied to the
-   hand-written tables that borrow the `.dt` class for styling — and there, by
+   hand-written tables that borrow the `.dt` class for styling, and there, by
    winning on specificity, it was the thing preventing them from being sized. */
 
 /* The buttons inside an action cell are laid out, not left to collide. */
@@ -1723,7 +1723,7 @@ select:disabled { background-color: var(--surface-sunk); opacity: 0.6; }
  * A blocking warning has to look like something that stops work, not like a
  * notice. So `stop` gets the full-weight error surface and a button, while
  * `warn` and `info` stay quiet enough that a screen with three advisory notes
- * does not read as an emergency — which is how people learn to ignore all of
+ * does not read as an emergency, which is how people learn to ignore all of
  * them.
  *
  * Corners follow the concentric rule: the panel is --r-lg (12) with --s3 (12)
@@ -1860,7 +1860,7 @@ td.actions > * + * { margin-left: var(--s2); }
  */
 /* `tr.is-pending` and `tr.is-saving` used to live here, for an optimistic layer
    that was never connected to a screen. `useOptimisticList` is that layer, and
-   it emits row-creating / row-saving / row-removing further down — which also
+   it emits row-creating / row-saving / row-removing further down, which also
    carry the travelling bar and the exit. Two vocabularies for one idea is how a
    list ends up half-faded by one rule and half by the other, so the unused pair
    is gone rather than left as a second way to say it. */
@@ -1891,7 +1891,7 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 /* ---- toasts ---------------------------------------------------------------
  *
  * Anchored to the viewport, not the page, so a confirmation for something done
- * at the bottom of a long table appears where the eye already is — and survives
+ * at the bottom of a long table appears where the eye already is, and survives
  * the navigation that caused it.
  *
  * Bottom-right rather than top-centre: a pharmacist's attention at the moment
@@ -1988,7 +1988,7 @@ tr.is-leaving { animation: row-out 140ms ease-in forwards; pointer-events: none;
 /* ---- quick price ----------------------------------------------------------
  * Two panels side by side: what you are asking about, and the answer. The
  * answer is a definition list because that is what it is — a set of labelled
- * figures — and the one the patient asked for is the one in bold.
+ * figures, and the one the patient asked for is the one in bold.
  */
 .quick-price { display: grid; grid-template-columns: minmax(260px, 1fr) 1.2fr; gap: var(--s3); }
 @media (max-width: 720px) { .quick-price { grid-template-columns: 1fr; } }
@@ -2022,7 +2022,7 @@ tr.is-leaving { animation: row-out 140ms ease-in forwards; pointer-events: none;
   /* No `overflow: hidden` here, though it is the obvious way to make the corners
      clip the header background. An ancestor that clips, sitting between a
      sticky cell and the scroll container it sticks to, silently cancels the
-     stickiness — so this one line kept every pinned action column from pinning,
+     stickiness, so this one line kept every pinned action column from pinning,
      with no error anywhere and `position: sticky` reported correctly in the
      computed styles. The clipping belongs to `.dt-scroll`, which is the element
      that actually scrolls. */
@@ -2128,7 +2128,7 @@ input:disabled, select:disabled, textarea:disabled {
 /* ---- the collapse handle ----
  * It sat inside the brand row as a bare outlined box: easy to miss, easy to
  * mistake for an empty field, and it moved when the wordmark disappeared on
- * collapse. It now sits on the sidebar's own edge — the thing it moves — at a
+ * collapse. It now sits on the sidebar's own edge, the thing it moves, at a
  * fixed height that does not shift between states, so the muscle memory holds.
  *
  * A circle straddling the border reads as a handle rather than a button, which
@@ -2139,7 +2139,7 @@ input:disabled, select:disabled, textarea:disabled {
   position: absolute;
   /* On the seam, level with the wordmark. It sat 74px down, beside the first
      nav group, where it read as belonging to "Dispensary" rather than to the
-     rail itself — and on a shorter header that put it adrift in the middle of
+     rail itself, and on a shorter header that put it adrift in the middle of
      nothing. Centred on the brand row it lands on the one horizontal line the
      eye already follows across the whole application: the bottom edge of the
      header band. */
@@ -2149,7 +2149,7 @@ input:disabled, select:disabled, textarea:disabled {
   /* Above the top bar, which is 30.
      The control deliberately hangs over the sidebar's right edge, and moving it
      up to the seam put that overhanging half directly underneath the sticky top
-     bar — so the button rendered as a half-disc, sliced down the middle. It is
+     bar, so the button rendered as a half-disc, sliced down the middle. It is
      not a clipping problem: `.sidebar` sets no z-index, so it creates no
      stacking context and this button competes with the top bar directly. It has
      to win, because it is the thing sitting on top of the seam.
@@ -2217,7 +2217,7 @@ input:disabled, select:disabled, textarea:disabled {
    ==========================================================================
    The application was built for a counter: a fixed sidebar and wide tables. On
    a phone that sidebar eats two thirds of the screen and every table pushes the
-   page sideways. This is not a second design — it is the same one, folded.
+   page sideways. This is not a second design. It is the same one, folded.
 
    Below 860px the sidebar stops being a column and becomes a drawer over the
    page. The collapse handle it already has becomes the opener, so there is one
@@ -2298,7 +2298,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 @media (min-width: 861px) {
   /* Only when the application shell is actually on the page.
      This was `html, body { overflow: hidden }` unconditionally, which is right
-     for the shell — it scrolls its own main pane — and wrong for everything
+     for the shell, it scrolls its own main pane, and wrong for everything
      rendered outside it. The landing page, the training index and the sign-in
      screen all live above the Protected route, so on those the rule simply
      clipped whatever did not fit in one viewport and left no way to reach it.
@@ -2312,7 +2312,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
      to the page, which is the same bug wearing a different hat. */
   /* `overflow: hidden` here clipped the collapse handle, which deliberately
      straddles the sidebar's right border. The sidebar itself must not scroll —
-     its nav does — so the constraint that was wanted is a fixed height, not a
+     its nav does, so the constraint that was wanted is a fixed height, not a
      clip. `visible` lets the handle sit proud while .nav still scrolls itself. */
   .shell > .sidebar { height: 100vh; min-height: 0; overflow: visible; }
   .nav { overscroll-behavior: contain; }
@@ -2335,7 +2335,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
   /* Horizontal scrollers contain only the axis they actually scroll.
      A wide table sits in a box with `overflow-x: auto`, and CSS computes the
-     other axis to `auto` as well — so the box is a scroll container in both
+     other axis to `auto` as well, so the box is a scroll container in both
      directions even though it has nothing to scroll vertically. Blanket
      `overscroll-behavior: contain` then told the browser not to hand vertical
      scroll to the page, and the wheel did nothing at all while the pointer was
@@ -2364,7 +2364,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
 /* Dragging across a button or a nav item leaves it highlighted blue, which
    looks like a selection the operator did not make. Text they might actually
-   want to copy — a patient name, a script number, a figure — stays selectable. */
+   want to copy, a patient name, a script number, a figure, stays selectable. */
 .sidebar, .nav, .page-head h1, .card-title, .pill-tabs, .btn, button,
 .nav-section, .brand, .dt thead th, .pager, .toast {
   user-select: none;
@@ -2387,7 +2387,7 @@ img { -webkit-user-drag: none; user-select: none; }
    Dispensary: the work column and the reference column
    ==========================================================================
    These were `grid cols-2`, a rigid 50/50. But the two sides are not peers.
-   The left is the work — patient, items, safety check — and the right is
+   The left is the work, patient, items, safety check, and the right is
    material the dispenser glances at while typing: repeats due, recent scripts,
    schedule rules. Giving a glance the same width as the work crowds the work.
 
@@ -2401,7 +2401,7 @@ img { -webkit-user-drag: none; user-select: none; }
 
 /* One column, since the aside it was splitting against is gone.
    The dispensing form is a sequence — patient, then items, then the safety
-   check — and a sequence wants width, not a second column beside it competing
+   check, and a sequence wants width, not a second column beside it competing
    for the same eye. The queue is still in view on the right of the page; this
    grid was a third pane inside a two-pane layout. */
 .rx-split { display: block; }
@@ -3107,7 +3107,7 @@ img { -webkit-user-drag: none; user-select: none; }
   overflow-y: auto; overscroll-behavior: contain;
   /* Room reserved for the scrollbar rather than 2px of hope. Without it the
      native bar is drawn over the right edge of every card, clipping the
-     quantity and the days-waiting figure — the two numbers on the row. */
+     quantity and the days-waiting figure: the two numbers on the row. */
   scrollbar-gutter: stable;
   padding-right: var(--s1);
 }
@@ -3131,7 +3131,7 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--accent-soft); color: var(--ink-mid);
 }
 .wl-tag-sched { background: var(--danger-soft); color: var(--danger); }
-/* Repeats read as ordinary work, not as a warning — they are the common case.
+/* Repeats read as ordinary work, not as a warning. They are the common case.
    A distinct but quiet tint, so the eye can sort the queue without the panel
    turning into a colour chart. */
 .wl-tag-repeat { background: var(--indigo-soft, rgba(90, 90, 160, 0.14)); color: var(--ink-mid); }
@@ -3252,7 +3252,7 @@ img { -webkit-user-drag: none; user-select: none; }
 }
 
 /* What the thermal roll will actually say. Monospaced at the roll's own
-   width, because that is the document — there is no layout to preview. */
+   width, because that is the document. There is no layout to preview. */
 .lbl-roll {
   margin: 0 0 3mm; padding: 2mm 3mm;
   background: #fff; color: #111;
@@ -3522,7 +3522,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .vr-none { margin: var(--s2) 0 0; font-size: .78rem; color: var(--ink-faint); }
 
 /* Inside a script line the card is already sunk, so a sunk row on top of it
-   disappears — which is how the substitution offer, the one place a patient is
+   disappears, which is how the substitution offer, the one place a patient is
    told they can pay three dollars less, came to read as a grey smear between
    the medicine's name and the quantity box. On the card it is raised instead,
    and given room. */
@@ -3540,7 +3540,7 @@ img { -webkit-user-drag: none; user-select: none; }
    paragraph, and the table must look the same either way.
 
    The measured failure here was not sideways spill — `html { overflow-x: hidden }`
-   was already hiding that, which treats the symptom — it was row height. A
+   was already hiding that, which treats the symptom. It was row height. A
    173-character name wrapped to three lines, so one long value made its row
    three times taller than its neighbours and the table went ragged.
 
@@ -3556,7 +3556,7 @@ img { -webkit-user-drag: none; user-select: none; }
    made it look fixed, and the table quietly doubled instead.
 
    Fixed layout is therefore applied to `.dt` — the one governed table component,
-   which already supports a per-column width — and not to hand-written tables
+   which already supports a per-column width, and not to hand-written tables
    elsewhere, whose columns would be redistributed for no reason. */
 .dt { table-layout: fixed; width: 100%; }
 /* With fixed layout a cell can no longer be sized by its content, so every cell
@@ -3564,11 +3564,11 @@ img { -webkit-user-drag: none; user-select: none; }
 
    The ellipsis matters as much as the clipping. `overflow: hidden` on its own
    severs a word wherever the column happens to end — "Tendering for annual fl"
-   — which reads as a broken renderer rather than as text that continues. */
+  , which reads as a broken renderer rather than as text that continues. */
 /* A data table has a floor, and clips rather than wraps.
  *
  *  Two faults, one cause. `text-overflow: ellipsis` does nothing to text that is
- *  allowed to wrap — it only ever truncates a single line — so cells stated they
+ *  allowed to wrap, it only ever truncates a single line, so cells stated they
  *  would clip and then quietly stacked instead. And a fixed-layout table with no
  *  minimum squeezes to whatever it is given: at a 900px viewport one of these
  *  compressed to 578px, handing every column 60px, and "TOFOLLOW Probe Syrup"
@@ -3607,7 +3607,7 @@ img { -webkit-user-drag: none; user-select: none; }
    entirely, so a failure reason in the same column ran off the white background
    and onto the page. Clip here; earn the room in the header.
 
-   `clip`, not `ellipsis` — and this rule said `ellipsis` while its own comment
+   `clip`, not `ellipsis`, and this rule said `ellipsis` while its own comment
    said otherwise, which quietly undid the decision made two thousand lines
    above. The reason it matters is not neatness. An ellipsis in a column of
    buttons renders as three dots at the end of the row, which reads as a "more
@@ -3683,7 +3683,7 @@ td.lb-actions {
 
 /* References inside a scrolling table, at the specificity needed to actually
    win. `td.mono` alone loses to `.cu-scroll > table td` above — one class and
-   two elements beats one class and one — so the batch and transfer references
+   two elements beats one class and one, so the batch and transfer references
    went on being elided by a rule written specifically to stop that. Specificity
    is not a detail you can leave to intuition; it has to be counted. */
 .cu-scroll > table td.mono, .cu-scroll > table th.mono {
@@ -3712,7 +3712,7 @@ td.lb-actions {
 @media (max-width: 640px) { .stale-api { padding: var(--s2) var(--s4); } }
 
 /* A chosen option has to look chosen from across a counter. The previous
-   treatment — white on near-white with a hairline border — was invisible in a
+   treatment, white on near-white with a hairline border, was invisible in a
    screenshot and worse in daylight, and the cost of misreading it is a campaign
    sent to the wrong list. A filled edge, a tinted ground and the label in full
    ink, so the answer is legible at a glance rather than on inspection. */
@@ -3730,7 +3730,7 @@ td.lb-actions {
    without the buttons leaving the screen. Once the tables were sized to fit,
    that stopped being a rescue and became the cause: a sticky cell contributes
    its offset to the container's scroll extent, so the box reported 1178px of
-   content in 1112px and grew a scrollbar with nothing to scroll — which pinned
+   content in 1112px and grew a scrollbar with nothing to scroll, which pinned
    the actions against a scrollbar the pinning had invented.
 
    Kept only where a table genuinely still overflows, which it now signals for
@@ -3783,7 +3783,7 @@ td.lb-actions {
    Every data table clips, not just the ones wearing the `.dt` class.
 
    The rules above were written for `.dt` and missed every hand-written table in
-   the app — which at 900px meant 400 cells on one page wrapped into towers up to
+   the app, which at 900px meant 400 cells on one page wrapped into towers up to
    five lines tall. A guard that only covers the components you remembered is not
    a guard. This is the base behaviour; `.wrap` opts a column back into prose.
 
@@ -3932,7 +3932,7 @@ table:has(td.actions .icon-btn + .icon-btn + .icon-btn):not(:has(td.actions butt
 /* ---------- what needs doing, in the rail ----------
    A count sits at the end of its own nav row, not floating over the icon: the
    row is the target and the number describes it. Quiet by default — this is a
-   backlog, not an alarm — and only loud where the work is genuinely time-bound.
+   backlog, not an alarm, and only loud where the work is genuinely time-bound.
 
    Never rendered as zero. A row of grey noughts trains the eye to skip the exact
    place a real number will appear. */
@@ -3953,7 +3953,7 @@ table:has(td.actions .icon-btn + .icon-btn + .icon-btn):not(:has(td.actions butt
    on precisely the row the operator was looking at.
    Solid accent here instead: it is the one row already carrying emphasis, so its
    count can carry the most too, and it holds up whatever the tint is changed to
-   later — the badge no longer assumes anything about the row's brightness. */
+   later: the badge no longer assumes anything about the row's brightness. */
 .nav a:hover .nav-count { background: var(--tint-strong); color: var(--ink); }
 .nav a.active .nav-count { background: var(--accent); color: var(--accent-ink); }
 .nav a.active:hover .nav-count { background: var(--accent-hover); color: var(--accent-ink); }
@@ -3980,7 +3980,7 @@ table:has(td.actions .icon-btn + .icon-btn + .icon-btn):not(:has(td.actions butt
 .rail-resize {
   position: absolute; top: 0; right: -3px; bottom: 0; width: 7px;
   /* `height: auto` on purpose. Every button in this stylesheet lands on a
-     control height, and that rule applied here too — so the grab area was the
+     control height, and that rule applied here too, so the grab area was the
      top 38 pixels of a 950-pixel edge and a drag anywhere below the brand did
      nothing at all. `top`/`bottom` only size an element whose height is auto. */
   height: auto;
@@ -3992,7 +3992,7 @@ table:has(td.actions .icon-btn + .icon-btn + .icon-btn):not(:has(td.actions butt
   background: linear-gradient(to right, transparent, var(--accent-soft) 40%, transparent);
 }
 .rail-resize:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--accent-ring); }
-/* Collapsed there is nothing to size — the rail is the icons' width. */
+/* Collapsed there is nothing to size: the rail is the icons' width. */
 .shell.is-collapsed .rail-resize { display: none; }
 /* While dragging, stop the pointer selecting labels across the whole app. */
 .shell.is-resizing, .shell.is-resizing * { user-select: none; cursor: col-resize !important; }
@@ -4102,7 +4102,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 .rc-plot { position: relative; }
 .rc-axis { font-size: 10.5px; fill: var(--ink-faint); font-variant-numeric: tabular-nums; }
 /* `overflow: hidden` because a label wider than its band must be clipped by the
-   axis, not allowed to run out of the card — which is what it did. */
+   axis, not allowed to run out of the card, which is what it did. */
 .rc-xaxis { display: flex; margin-top: 4px; overflow: hidden; }
 .rc-xaxis.is-dense { justify-content: space-between; gap: var(--s3); }
 .rc-xaxis.is-dense span { width: auto; flex: 0 1 auto; }
@@ -5109,7 +5109,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   font-size: var(--t-sm); text-align: left; color: var(--ink);
   /* Explicit, and the reason this row exists.
      `.term-option` is a <button>, and the base `button, .btn` rule fills every
-     button with `--accent` — which is near-black. Setting only a colour left
+     button with `--accent`, which is near-black. Setting only a colour left
      dark ink on a dark fill: every allergy and every chronic condition in the
      picker was unreadable except the one under the pointer, which got
      `--hover` and so happened to be legible. On the one field whose entire
@@ -5128,7 +5128,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* What "common" looks like.
-   It used to be a tick, and a tick means *selected* — so a panel where every
+   It used to be a tick, and a tick means *selected*, so a panel where every
    row was a common term showed a column of ticks against things nobody had
    chosen, which is the worst possible thing for a list you pick from. A word
    cannot be misread as a state. */
@@ -5152,7 +5152,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .term-option.is-had { opacity: 0.55; cursor: default; }
 .term-had { color: var(--ink-faint); font-size: var(--t-xs); flex-shrink: 0; }
 
-/* One value picked from a published list — a diagnosis code, a funder.
+/* One value picked from a published list: a diagnosis code, a funder.
    Shares the panel with TermSelect; the trigger differs because a single value
    reads better as a settled chip than as a box you might still be typing in. */
 .lookup {
@@ -5167,7 +5167,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .lookup.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .lookup.is-disabled { opacity: 0.5; cursor: not-allowed; background: var(--surface-sunk); }
 /* A value the list does not recognise. Not an error — it is somebody's existing
-   data — but it is what comes back rejected, so it does not look settled. */
+   data, but it is what comes back rejected, so it does not look settled. */
 .lookup.is-unknown { border-color: var(--warn, var(--danger)); }
 .lookup-icon { color: var(--ink-faint); flex-shrink: 0; }
 .lookup-input {
@@ -5324,7 +5324,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .row-creating, .row-saving {
   position: relative;
   /* Still legible — this is the figure somebody just typed and wants to check
-     — but plainly not finished. */
+    , but plainly not finished. */
   opacity: 0.62;
   cursor: progress;
 }
@@ -5428,7 +5428,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 /* --------------------------------------------------- the dispensary's chrome
    Which route is being dispensed governs everything below it — the compliance
-   record, the schedule policy, whether initials are required — so it stays on
+   record, the schedule policy, whether initials are required, so it stays on
    screen while the script is worked. Scrolled away, "Prescription" and
    "Dangerous Drugs" become something you have to scroll up to check, on the one
    screen where dispensing against the wrong one matters most. */
@@ -5443,7 +5443,7 @@ table.dt.sub th { font-size: var(--t-xs); }
    * typing into.
    *
    * The `is-stuck` shadow that went with it is gone too. Nothing set that class
-   * — it was styled for a scroll listener that was never written — so the strip
+   * — it was styled for a scroll listener that was never written, so the strip
    * had a hover state it could never reach. */
   padding: var(--s3) 0;
   margin-bottom: var(--s3);
@@ -5527,7 +5527,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .bp-rates { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); font-size: var(--t-xs); color: var(--ink-soft); }
 .bp-rates span { display: inline-flex; align-items: center; gap: var(--s1); }
 /* Only what is wrong. An empty strip means a branch with no problems, which is
-   the whole signal — a row of zeroes would read as noise. */
+   the whole signal: a row of zeroes would read as noise. */
 .bp-flags {
   list-style: none; margin: 0; padding: var(--s3) 0 0;
   border-top: 1px dashed var(--line);
@@ -5820,7 +5820,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* ---- the command centre -------------------------------------------------
  *
  * A figure with the direction it moved. Green up is wrong here as often as it
- * is right — takings up is good, a variance up is not — so direction carries
+ * is right, takings up is good, a variance up is not, so direction carries
  * the arrow and the page decides the colour.
  */
 .cc-move { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; }
@@ -5865,7 +5865,7 @@ table.dt.sub th { font-size: var(--t-xs); }
  * ring instead, where there is the whole width to use.
  *
  * The column chart's x labels are real DOM under the SVG — the SVG scales and
- * the labels do not — so a fortnight of dates came to more than the card. They
+ * the labels do not, so a fortnight of dates came to more than the card. They
  * are allowed to shrink and to break, since a date is two short words.
  */
 @media (max-width: 640px) {
@@ -6013,7 +6013,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* ---------- The year, as twelve cells ----------
    The shape of a season is read, not inferred from a peak and a trough. Twelve
    cells left to right, January to December, each shaded by how far above a
-   typical month it runs — so a reader sees "busy from November through March"
+   typical month it runs, so a reader sees "busy from November through March"
    in one glance rather than assembling it from two numbers. */
 .season-strip { display: inline-flex; gap: 2px; align-items: center; }
 .season-cell {
@@ -6222,7 +6222,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 /* ------------------------------------------------------------- the script id
    The number on the paper. Monospace and tracked out, because it is read off a
-   script and typed, or read down a telephone digit by digit — and the failure
+   script and typed, or read down a telephone digit by digit, and the failure
    mode is a 0 taken for an O in the middle of a call. Colour declared: this
    sits inside a table cell and a page title, which set different inks. */
 .script-id {
@@ -6297,7 +6297,7 @@ table.dt.sub th { font-size: var(--t-xs); }
    reason there is no button.
 
    On the repeats queue a row with stock shows "Dispense 30" and a row without
-   shows "not enough stock", and the two are different widths — so Alter and
+   shows "not enough stock", and the two are different widths, so Alter and
    Remind sat in a different place on every other row and the column read as
    ragged. The slot is fixed and the contents vary inside it. */
 .act-primary {
@@ -6336,7 +6336,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .lic-cell:hover .badge { filter: brightness(1.08); }
 
 /* The four-digit code a patient signs in with, read out over a counter or a
-   telephone — so it is set large, spaced, and in the figure face. */
+   telephone, so it is set large, spaced, and in the figure face. */
 .share-code {
   display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s4);
   padding: var(--s3); margin: var(--s3) 0 var(--s1);
@@ -6372,7 +6372,7 @@ table.dt.sub th { font-size: var(--t-xs); }
    the petty-cash tin and four other screens and were defined nowhere, so every
    one of those figures rendered as two inline spans with no gap: the label and
    the number ran together. `.stat` and its `.label`/`.value` children DO exist
-   above — the same idea under different names — but renaming six components to
+   above, the same idea under different names, but renaming six components to
    match would be churn where a rule is the fix. */
 .stat-row {
   display: flex; flex-wrap: wrap; gap: var(--s3) var(--s6);
@@ -6393,7 +6393,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 /* A dialog that needs more than the default width. Written as `modal wide` on
    the driver form, the permissions editor and the portal preview, and defined
-   nowhere — so all three were laid out at the narrow default and their content
+   nowhere, so all three were laid out at the narrow default and their content
    fought for the space. */
 .modal.wide { max-width: 900px; }
 
@@ -6421,7 +6421,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
 
-/* Running text inside a record page — a note, a reason, a description. Held to
+/* Running text inside a record page: a note, a reason, a description. Held to
    a readable measure: a sentence that runs the full width of a wide screen is
    a sentence the eye loses its place in. */
 .prose { margin: 0 0 var(--s3); max-width: 68ch; line-height: 1.55; color: var(--ink-mid); }
@@ -6446,7 +6446,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .preview-phone > iframe { width: 100%; height: 100%; border: 0; }
 
-/* A button that is a link. Its ONLY class, and that class had no rule — so it
+/* A button that is a link. Its ONLY class, and that class had no rule, so it
    took `button, .btn` whole and rendered as a solid accent-filled button in the
    middle of a sentence. `qa/button-contrast.py` could not see it either: that
    check reads what a class declares, and this one declared nothing. */

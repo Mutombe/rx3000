@@ -1,7 +1,7 @@
 """Can you do anything on a detail page, or only read it?
 
 A detail page that only reads is a printout. Somebody opens a repeat, a
-delivery, a supplier, sees exactly what they needed to see — and then has to go
+delivery, a supplier, sees exactly what they needed to see, and then has to go
 back to the list to act on it, or to another screen entirely, carrying the
 record in their head. That is the shape of a report, and this is meant to be a
 place of work.
@@ -52,13 +52,13 @@ DETAIL = [
 #:
 #: This list is the difference between a report people read and one they learn
 #: to scroll past. A page that will never have actions, listed as a gap every
-#: time the check runs, trains the reader to skip the section — and then the
+#: time the check runs, trains the reader to skip the section, and then the
 #: real gap in it goes unread too. Each entry states the reason, so the
 #: judgement can be argued with rather than inherited.
 READ_ONLY_ON_PURPOSE = {
     "ClaimDetail":
         "a claim is acted on through its batch — submitted, settled and "
-        "reversed there — and there is no per-claim endpoint to call",
+        "reversed there, and there is no per-claim endpoint to call",
     "ShiftDetail":
         "a cashed-up shift is a signed document. Editing one after the count "
         "is exactly what the blind count exists to prevent",
@@ -92,7 +92,7 @@ CARRIES = re.compile(r'(navigate|to)=?\(?[`"\'][^`"\']*\?[a-z_]+=\$\{')
 #: navigation and carries nothing on purpose; reporting it flags two false
 #: positives for every real one, which is how a report stops being read. The
 #: first attempt at this excluded them with a lookahead that stopped at the `<`
-#: immediately before `ArrowLeft` — so it excluded nothing at all.
+#: immediately before `ArrowLeft`, so it excluded nothing at all.
 BARE = re.compile(
     r'(navigate\(|to=)[`"\']/(pos|dispense)[`"\'](?![^\n]{0,80}ArrowLeft)')
 

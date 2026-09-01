@@ -1,7 +1,7 @@
 /** The Command Centre: what to do about today.
  *
  *  This was four counts and a bar chart. A count is a fact — "fourteen low
- *  stock lines" — and a fact is not a decision. It becomes one when it says
+ *  stock lines", and a fact is not a decision. It becomes one when it says
  *  what those lines are worth and what happens if nobody acts.
  *
  *  So every figure here is money or leads to money, is compared with the same

@@ -2,7 +2,7 @@
 
 A delivery is a sale that leaves the building before it is paid for. Between
 the counter and the door the money belongs to nobody yet — the till has not
-received it and the patient has not handed it over — and that gap is the
+received it and the patient has not handed it over, and that gap is the
 driver's account.
 
 THE HOLE THIS WAS WRITTEN FOR
@@ -12,7 +12,7 @@ recorded what was taken at the door, `deliveries.settle` stamped the round as
 handed in and landed it in a shift. None of them settled the **sale**.
 
 So a driver could collect fifty dollars, hand it to a cashier, and have it
-counted into the drawer — and the sale stayed `pending` for ever. The patient
+counted into the drawer, and the sale stayed `pending` for ever. The patient
 went on showing as owing fifty dollars they had already paid. The shop's
 debtors carried money that was sitting in its own till. Two records of one
 payment, disagreeing, with nothing to reconcile them by hand.

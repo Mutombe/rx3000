@@ -3,7 +3,7 @@
  *  Built from the server's declaration rather than hand-written, so a setting
  *  added in the backend appears here without anybody remembering to add it. A
  *  hand-built settings form drifts from the settings that exist, and the fields
- *  that go missing are the ones added last — which are the ones nobody has
+ *  that go missing are the ones added last, which are the ones nobody has
  *  reviewed.
  *
  *  Each row leads with the effect rather than the label. "Minimum lay-by

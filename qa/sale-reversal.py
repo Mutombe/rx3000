@@ -1,4 +1,4 @@
-"""A sale can be taken back — the right way for how it was filed.
+"""A sale can be taken back: the right way for how it was filed.
 
 Until now nothing could reverse a sale at all. Both halves existed on the
 server and neither had a screen, so a cashier who rang up the wrong item had
@@ -146,7 +146,7 @@ print("\nthe receipt lookup the sale screen now uses")
 rows = client.get(f"/api/fiscal/receipts?sale_id={filed.id}").json()
 check(len(rows) == 1, f"one receipt comes back for that sale ({len(rows)})")
 check(client.get(f"/api/fiscal/receipts?sale_id={plain.id}").json() == [],
-      "and none for the sale that was never filed — which is exactly how the "
+      "and none for the sale that was never filed, which is exactly how the "
       "screen decides which button to offer")
 
 print("\ncrediting the filed sale")

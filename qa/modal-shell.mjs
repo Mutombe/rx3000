@@ -15,7 +15,7 @@
  *    2. **Nothing escapes the box.** Every element inside is measured against
  *       the dialog's own rectangle. This is what catches text hanging outside.
  *    3. **The buttons are reachable without scrolling.** The whole dialog used
- *       to scroll — title, body and actions together — so on a long form the
+ *       to scroll, title, body and actions together, so on a long form the
  *       operator scrolled past "Take payment" to read the total and back down
  *       to press it. The actions are sticky now; this proves it.
  *

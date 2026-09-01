@@ -1,7 +1,7 @@
 /** One payment from one funder, and what it did to the claims it names.
  *
  *  The listing could say CIMAS paid ninety-one dollars against a hundred and
- *  fourteen, that five lines came back short and two matched nothing — and gave
+ *  fourteen, that five lines came back short and two matched nothing, and gave
  *  no way to find out which. That is the whole job: a shortfall is not work
  *  until you can see whose claim it was and why, and decide whether the patient
  *  owes it or the pharmacy swallows it.

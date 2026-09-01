@@ -114,7 +114,7 @@ def set_location(branch_id: int, latitude: float = Body(...),
     """Pin a branch on the map.
 
     Refused outside sane bounds rather than accepted and drawn in the sea. A
-    transposed pair — longitude typed into latitude — is the commonest way a
+    transposed pair, longitude typed into latitude, is the commonest way a
     branch ends up in the Indian Ocean, and it looks like a bug in the map.
     """
     if not (-90 <= latitude <= 90) or not (-180 <= longitude <= 180):
@@ -141,7 +141,7 @@ def impersonate(user_id: int, reason: str = Body(..., embed=True),
     """Sign in as somebody, to see what they see.
 
     "It does not work on my screen" is unanswerable from head office, and the
-    alternative — asking a branch for their password — is how a pharmacy ends
+    alternative, asking a branch for their password, is how a pharmacy ends
     up with four people sharing one login.
 
     The session is short and it declares itself. Both names travel in the
@@ -335,7 +335,7 @@ def pins(db: Session = Depends(get_db)):
 
     A member of staff with no PIN is not a preference somebody expressed. It
     means every dispensing they check is recorded against whoever opened the
-    till that morning — so the controlled register names the wrong person,
+    till that morning, so the controlled register names the wrong person,
     quietly, on every line they touched.
     """
     return user_types.pin_report(db)

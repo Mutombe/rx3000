@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     # Before anything serves a request. The scoping narrows a query with no
     # pharmacy in force to nothing, so a deployment that adds the column and
     # stops there comes up with every screen empty and every patient apparently
-    # gone — which is a worse morning than a failed migration.
+    # gone, which is a worse morning than a failed migration.
     from .tenancy_backfill import run as _backfill_tenants
     from . import tenancy as _tenancy
     stamped, founding_pharmacy = _backfill_tenants(engine)
@@ -115,7 +115,7 @@ async def lifespan(app: FastAPI):
         # A deployment with nothing in it gets the demonstration pharmacy.
         #
         # Until now this only ever ran from a laptop, against the local SQLite
-        # file, while production runs Postgres — so every screen was empty there
+        # file, while production runs Postgres, so every screen was empty there
         # and the reason was invisible from either side. It refuses to touch a
         # database that already has trade in it.
         if settings.SEED_DEMO_DATA:
@@ -150,7 +150,7 @@ app = FastAPI(title="RX5000 Pharmacy Management System", version="1.0.0", lifesp
 # Bounds every size parameter before a handler sees it. Above the audit log so
 # what is recorded is what was actually served.
 # Outermost of the application middlewares, so the pharmacy is in force before
-# anything else — including the audit log — reads a row.
+# anything else, including the audit log, reads a row.
 # Inside tenancy, so the pharmacy is already in force, and before
 # anything writes. A freeze enforced in each router is a freeze missing
 # from the one endpoint nobody remembered.
@@ -219,7 +219,7 @@ async def unhandled(request: Request, exc: Exception):
 
     Starlette's default error handler sits *outside* the CORS middleware, so an
     unhandled exception reaches the browser with no Access-Control-Allow-Origin
-    header. Chrome then reports it as a CORS failure — and you go looking for a
+    header. Chrome then reports it as a CORS failure, and you go looking for a
     configuration problem that does not exist while the actual traceback sits in
     the server log. Handling it here means the response passes back through the
     middleware stack, keeps its CORS headers, and says what it is.

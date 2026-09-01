@@ -12,7 +12,7 @@
  *  The second is what actually happens at a counter, so where the action
  *  forbids self-approval the dialog asks *who* is approving before it asks for
  *  a password. A dialog that only ever asked "your password" would force the
- *  manager to log the cashier out — which in practice means the manager's
+ *  manager to log the cashier out, which in practice means the manager's
  *  password ends up known to the whole shop.
  *
  *  The server is the authority on all of this. This component asks it what the
@@ -102,7 +102,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     } catch (err: any) {
       // The server's refusal is the useful message — "not permitted to approve",
       setPinRefused(!usePassword);
-      // "needs a second person", "that password was not accepted" — so it is
+      // "needs a second person", "that password was not accepted", so it is
       // shown as written rather than replaced with something generic.
       setError(err.message);
       setPassword("");
@@ -230,7 +230,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
 
 /** What `guarded` resolves to when the person closed the dialog instead of
  *  authorising. A distinct value rather than `undefined`, because `undefined` is
- *  also what a 204 returns — so a caller could not tell "nothing to send back"
+ *  also what a 204 returns, so a caller could not tell "nothing to send back"
  *  from "nobody approved this", and would report a cancelled action as done.
  */
 export const CANCELLED = Symbol("step-up cancelled");
@@ -243,7 +243,7 @@ export const CANCELLED = Symbol("step-up cancelled");
  *  is the habit the prompt exists to prevent.
  *
  *  Callers must check the result against CANCELLED before announcing success.
- *  Cancelling is not an error — nothing went wrong and nothing happened — so it
+ *  Cancelling is not an error, nothing went wrong and nothing happened, so it
  *  is not thrown; an error toast reading "cancelled" describes a fault that does
  *  not exist.
  */
@@ -294,7 +294,7 @@ export function useStepUp() {
       context={pending.context}
       onGranted={pending.run}
       // Settles the promise. Without this the awaiting caller hangs forever, so
-      // anything it set before calling — a busy flag, a disabled button — stays
+      // anything it set before calling, a busy flag, a disabled button, stays
       // set and the screen looks stuck mid-save.
       onCancel={() => { const c = pending.cancel; setPending(null); c(); }}
     />

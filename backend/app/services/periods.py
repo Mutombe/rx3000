@@ -1,4 +1,4 @@
-"""Trading periods — the accounting month everything is filed under.
+"""Trading periods: the accounting month everything is filed under.
 
 A pharmacy reconciles by period, not by date range. "August" has to mean the
 same set of transactions every time somebody asks for it, and it has to stop
@@ -69,7 +69,7 @@ def open_code(db: Session, code: str, user_id: int | None = None) -> TradingPeri
     A pharmacy switching systems mid-year needs its earlier months to exist so
     that historical figures have somewhere to live. Checking whether a date is
     postable deliberately does *not* create anything — a question should not
-    have side effects — so opening a prior period is an explicit act.
+    have side effects, so opening a prior period is an explicit act.
     """
     code = (code or "").strip()
     if len(code) != 6 or not code.isdigit():
@@ -155,7 +155,7 @@ def close(db: Session, period: TradingPeriod, user_id: int, notes: str = "") -> 
 
     The frozen totals are not a cache. They are the figure that was signed off,
     so that if a recomputation later disagrees, the disagreement itself is the
-    finding — which is exactly what an auditor asks for.
+    finding, which is exactly what an auditor asks for.
     """
     if period.status == LOCKED:
         raise PeriodError(f"{period.name} is locked and cannot be closed again.")

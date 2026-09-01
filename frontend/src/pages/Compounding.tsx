@@ -1,7 +1,7 @@
 /** Compounding: formulae, what they cost to make, and making them up.
  *
  *  Four endpoints and no screen. A compound is not a product on a shelf — it is
- *  assembled from ingredients when somebody orders it — so without this the
+ *  assembled from ingredients when somebody orders it, so without this the
  *  formula book existed and nothing could be made from it.
  *
  *  The thing this screen must not bury is the schedule. A cream containing

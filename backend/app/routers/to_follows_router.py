@@ -23,7 +23,7 @@ def queue(status: str = "outstanding", patient_id: int = 0, product_id: int = 0,
 
 @router.get("/ready")
 def ready(limit: int = 200, db: Session = Depends(get_db)):
-    """What is owed *and* now in stock — the list of patients to telephone.
+    """What is owed *and* now in stock: the list of patients to telephone.
 
     The incumbent can tell a pharmacy what it owes. This tells it what it can
     honour today, which is the part that gets the medicine to the patient and
@@ -74,7 +74,7 @@ def promise(product_id: int = Body(...), quantity: int = Body(...),
     the common case. This is the other one: somebody asks for something the
     shelf does not have, is told it will be in on Friday, and walks out. Until
     now that promise lived in whatever the pharmacy writes it on, which is the
-    paper list this whole feature exists to replace — so the one route into it
+    paper list this whole feature exists to replace, so the one route into it
     that a person actually uses was the one that was missing.
     """
     product = db.get(Product, product_id)

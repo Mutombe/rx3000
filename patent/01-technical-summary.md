@@ -1,4 +1,4 @@
-# RX5000 — Technical Summary of Inventions
+# RX5000: Technical Summary of Inventions
 
 **Applicant working title:** RX5000 Pharmacy Management System
 **Field:** Computer-implemented systems for regulated retail pharmacy operations,
@@ -40,18 +40,18 @@ fiscalisation, regulatory document evidencing, and multi-branch consolidation.
 It is deployed against a jurisdiction (Zimbabwe) with three characteristics that
 shape the inventions: a multi-currency counter (USD and ZiG simultaneously), a
 mandatory receipt-fiscalisation regime, and third-party medical-aid schemes that
-routinely cover less than the full price — producing a *shortfall* that the
+routinely cover less than the full price, producing a *shortfall* that the
 patient settles separately.
 
 ---
 
-## 2. Invention A — Trust-gated metric publication
+## 2. Invention A: Trust-gated metric publication
 
 *Refusing to publish a derived figure when its inputs cannot support it.*
 
 **Problem.** A management report computes a figure from two or more independently
-maintained data sets. When those sets disagree — because of an import defect, an
-unlinked record, or a partial migration — the arithmetic still succeeds. The
+maintained data sets. Those sets can disagree through an import defect, an
+unlinked record or a partial migration, and the arithmetic still succeeds. The
 report publishes a number that is internally consistent and factually false. In
 this system's own history, a stock-movement report costed dispensings that had
 never reached a sale at their average cost with zero revenue against them, and
@@ -64,9 +64,9 @@ read as a caveat on a number rather than as a reason to disbelieve it.
 
 **What this system does.** Each derived-metric service evaluates a *semantic
 invariant* between its input sets before computing. Where the invariant fails,
-the service returns a structured refusal object — carrying `untrustworthy:
+the service returns a structured refusal object carrying `untrustworthy:
 true`, the diagnostic counts that establish the failure, and a natural-language
-explanation of what is wrong with the data — **in place of the metric**. The
+explanation of what is wrong with the data, **in place of the metric**. The
 presentation layer renders the explanation where the figure would have been.
 
 Three worked instances in the system:
@@ -75,7 +75,7 @@ Three worked instances in the system:
 |---|---|---|
 | Repeat basket value | Matched visit totals must be ≥ the repeat lines they are supposed to contain | Refuses; reports matched/unmatched counts |
 | Stock movement profitability | Money may derive only from lines carrying a recorded sale price | Counts units, refuses to price them, states how many rows are affected |
-| Branch compliance standing | An expected document is *expired* or *never recorded* — different verdicts | "Cannot trade" vs "cannot be proved" |
+| Branch compliance standing | An expected document is *expired* or *never recorded*, two different verdicts | "Cannot trade" vs "cannot be proved" |
 
 **Why technical.** The invariant is not a schema constraint (both data sets are
 individually valid) and not a threshold alarm (the figure is not out of range —
@@ -85,7 +85,7 @@ change in the response contract, not a change in presentation.
 
 ---
 
-## 3. Invention B — Single-rule dual-invocation benefit adjudication
+## 3. Invention B: Single-rule dual-invocation benefit adjudication
 
 *Quoting a patient's share before dispensing, from the identical rule that will
 later charge it.*
@@ -100,9 +100,9 @@ charge from an adjudication engine. These are ordinarily separate subsystems
 because they answer different questions (what should this cost / what did the
 funder allow).
 
-**What this system does.** The cover rule — which line categories the scheme
-carries and at what proportion — is extracted to a single function invoked in
-two directions:
+**What this system does.** The cover rule, meaning which line categories the
+scheme carries and at what proportion, is extracted to a single function
+invoked in two directions:
 
 1. **Prospectively**, over a basket that does not yet exist as a sale, priced on
    the same basis the sale will be priced on (shelf price), to quote the
@@ -115,16 +115,17 @@ fails if the figures differ by more than half a cent.
 
 **The specific trap this avoids** is documented in the code and is the
 non-obvious part: the system already contained a pricing service computing a
-"patient portion" from the scheme's *regulated* price — fee model, professional
-fee, levy, and a maximum-medical-aid-price cap. That figure is arithmetically
-correct and is **the wrong number**, because the sale a claim is raised against
+"patient portion" from the scheme's *regulated* price: the fee model, the
+professional fee, the levy and a maximum-medical-aid-price cap. That figure
+is arithmetically correct and is **the wrong number**, because the sale a
+claim is raised against
 is billed at shelf price. Two coherent calculations of two different things.
 Using the available one would have been wrong by a plausible margin on every
 scheme line.
 
 ---
 
-## 4. Invention C — Custody-state settlement for off-premises collection
+## 4. Invention C: Custody-state settlement for off-premises collection
 
 *Treating value held by a delivery agent as a distinct accounting state between
 dispensary and till.*
@@ -142,9 +143,9 @@ appears to owe money they have already paid, and reconciliation is by hand).
 **What this system does.** A delivery agent holds an **account** with two
 figures that are deliberately never summed:
 
-- **holding** — value collected at a door and not yet handed in. This is a debt
+- **holding**: value collected at a door and not yet handed in. This is a debt
   the agent owes the pharmacy.
-- **to collect** — value still on the road. This is owed by nobody, because the
+- **to collect**: value still on the road. This is owed by nobody, because the
   medicine has not changed hands.
 
 Adding them produces a figure that is neither, and that is the figure that would
@@ -172,7 +173,7 @@ Three properties make this more than bookkeeping:
 
 ---
 
-## 5. Invention D — Point-of-entry shorthand expansion with a never-print guarantee
+## 5. Invention D: Point-of-entry shorthand expansion with a never-print guarantee
 
 *An abbreviation dictionary whose codes are structurally incapable of reaching
 the patient.*
@@ -181,7 +182,7 @@ the patient.*
 shortcut the dispenser needs and the words the patient needs are the same field,
 so "one tablet three times a day after food" becomes `1t tds pc` **on the label**.
 Abbreviations cause dispensing errors precisely because they are read by somebody
-other than the person who wrote them — a patient at home, a nurse on a ward, a
+other than the person who wrote them: a patient at home, a nurse on a ward, a
 locum the next morning.
 
 **What this system does.** A per-tenant dictionary of 75 codes is expanded to
@@ -196,7 +197,7 @@ Four features beyond simple substitution:
    following a number word, on a closed list of dose-form nouns.
 2. **Deliberate exclusion of ambiguous codes.** `od` means *once a day* in
    Southern African dispensing practice and *right eye* in the ophthalmic
-   literature — both in daily use in one building. The system takes `od` as
+   literature. Both are in daily use in one building. The system takes `od` as
    once-a-day and offers **no Latin laterality code at all**; eyes and ears are
    entered as `r-eye`, `l-eye`, `b-eye`, which cannot be read two ways and expand
    to the words written in full.
@@ -205,7 +206,7 @@ Four features beyond simple substitution:
    "none of the limits held here was exceeded", never "safe", and names the
    medicines for which no limit is held.
 4. **Client-mirrored expansion with server authority.** The rule is implemented
-   twice — once on the server, which is authoritative because the label is
+   twice. Once on the server, which is authoritative because the label is
    rendered there, and once in the client, which yields a zero-latency live
    preview of the sentence that will print while the shorthand is still being
    typed. The field itself is never rewritten under the cursor.
@@ -215,7 +216,7 @@ inspector holds cannot disagree with the software.
 
 ---
 
-## 6. Invention E — Negative-space regulatory register
+## 6. Invention E: Negative-space regulatory register
 
 *A compliance register that reports the documents you do not have.*
 
@@ -229,15 +230,15 @@ uploaded; it cannot list what has not, because it has no model of what *should*
 exist.
 
 **What this system does.** The register is defined by an **expected set** for the
-jurisdiction — 13 document kinds, each with its issuing authority, renewal
+jurisdiction: 13 document kinds, each with its issuing authority, renewal
 period, and a flag for whether trading is lawful without it. Every branch is
 evaluated against the expected set, and an absent document is a first-class row
 with its own state.
 
 The consequence is a two-verdict distinction that a repository cannot produce:
 
-- **"Cannot trade"** — a critical document is present and *expired*.
-- **"Cannot be proved"** — a critical document has *never been recorded*.
+- **"Cannot trade"**: a critical document is present and *expired*.
+- **"Cannot be proved"**: a critical document has *never been recorded*.
 
 These are different facts requiring different action, and conflating them either
 alarms a compliant pharmacy or reassures a non-compliant one.
@@ -248,12 +249,12 @@ question an inspection actually asks, which is "were we licensed in March".
 
 ---
 
-## 7. Invention F — Reachability and presentation verification harness
+## 7. Invention F: Reachability and presentation verification harness
 
 *Executable checks for defects that compile, build, render, and are still wrong.*
 
 **Problem.** A class of defect passes every conventional gate. The code
-type-checks, the build succeeds, the page renders, no test fails — and the
+type-checks, the build succeeds, the page renders, no test fails, and the
 capability is unreachable or the information is unreadable. Observed instances in
 this system:
 
@@ -262,18 +263,18 @@ this system:
   telephone. Thirty-four such classes were found by one check.
 - A hyperlink pointing at an authenticated API path: a browser navigation carries
   no `Authorization` header, so every attempt to open a licence certificate was
-  refused — on the one screen whose purpose is producing that certificate.
+  refused, on the one screen whose purpose is producing that certificate.
 - A component setting typography but not colour, inheriting a colour intended for
   a different surface: a patient's own name rendered near-black on a near-black
   card, invisible.
 - A per-branch analysis filtering on a column that does not exist, raising an
-  exception whose response carried no CORS headers — so the browser reported a
+  exception whose response carried no CORS headers, so the browser reported a
   cross-origin failure, naming the wrong cause in a different subsystem.
 
 **What this system does.** 101 executable checks, each written to fail on a
 specific defect that actually shipped, and each **verified in both directions**:
 it must fire against the broken code and stay silent against the fixed code. The
-harness reads across the client/server boundary — comparing the shape a client
+harness reads across the client/server boundary, comparing the shape a client
 asserts of a response against the shape the handler returns; comparing class
 names used in markup against selectors present in stylesheets; comparing route
 registration order against path specificity.
@@ -285,7 +286,7 @@ record the false positives they produced and were narrowed.
 
 ---
 
-## 8. Invention G — Hash-chained fiscal register with localised and honest verification
+## 8. Invention G: Hash-chained fiscal register with localised and honest verification
 
 **What this system does.** Each fiscal receipt carries the hash of its
 predecessor, forming a chain whose integrity is the evidentiary value of
@@ -306,10 +307,10 @@ fiscalising at all. Three refinements:
 
 ---
 
-## 9. Invention H — Non-blocking clinical gating with named acknowledgement
+## 9. Invention H: Non-blocking clinical gating with named acknowledgement
 
-**What this system does.** Clinical findings — interactions, dose maxima,
-condition–ingredient contraindications, early-refill timing — do **not** hard-block
+**What this system does.** Clinical findings (interactions, dose maxima,
+condition–ingredient contraindications, early-refill timing) do **not** hard-block
 dispensing. Each requires a *named acknowledgement* that is captured and stored,
 and the commit control is disabled until acknowledgement is given.
 
@@ -323,7 +324,7 @@ rather than passing silently.
 
 ---
 
-## 10. Invention I — Derived progress state that cannot contradict its control
+## 10. Invention I: Derived progress state that cannot contradict its control
 
 **What this system does.** A multi-step capture screen displays step completion
 derived on every render from *the same predicates that gate the commit control*,
@@ -340,7 +341,7 @@ basket information the screen exists to keep in view.
 
 ---
 
-## 11. Candid novelty assessment — read before drafting
+## 11. Candid novelty assessment: read before drafting
 
 Counsel should treat this section as the applicant's own view of where the
 strength lies. Filing broad claims over the weak items risks the whole
@@ -363,9 +364,9 @@ application.
 
 *Jurisdictional coupling.* Several inventions are described against Zimbabwean
 regulation (MCAZ licensing, ZIMRA fiscalisation, medical-aid shortfall practice).
-Claims should be drafted at the level of the mechanism — "an expected document
-set for a jurisdiction", "a statutory receipt register" — so protection is not
-confined to one country's rules.
+Claims should be drafted at the level of the mechanism, saying "an expected
+document set for a jurisdiction" or "a statutory receipt register", so that
+protection is not confined to one country's rules.
 
 *Software-patent eligibility.* In several jurisdictions a claim must recite a
 technical effect beyond automating a business method. The strongest technical
@@ -384,5 +385,5 @@ foreground those framings.
   endpoints, 90 client screens.
 - 101 executable verification checks, each demonstrating the defect it prevents.
 - 253 commits, each with a written rationale that records the alternative
-  considered and rejected — useful evidence of non-obviousness where an obvious
-  approach was tried and found wrong.
+  considered and rejected. That is useful evidence of non-obviousness, where
+  an obvious approach was tried and found wrong.

@@ -1,7 +1,7 @@
 /** A supplier: what has been ordered, what has been billed, what has been paid.
  *
  *  The creditor ageing named six suppliers and none of them led anywhere, so
- *  the obvious next question — what is behind this two thousand dollars — had
+ *  the obvious next question, what is behind this two thousand dollars, had
  *  no answer short of running three reports.
  */
 import { useEffect, useState } from "react";

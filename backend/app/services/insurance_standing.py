@@ -5,7 +5,7 @@ dispenser needs both answered before handing anything over:
 
   **Does the patient have benefit left?**  A member with an exhausted annual
   limit is a cash patient who does not know it yet. Only the funder can answer
-  this, over the switch, per member — so until NH263 is connected this reports
+  this, over the switch, per member, so until NH263 is connected this reports
   honestly that it does not know rather than implying cover exists.
 
   **Is the scheme paying us?**  This one we can answer today, out of our own
@@ -32,7 +32,7 @@ from ..models import Claim, MedicalAid, Patient
 
 #: Claims older than this that remain unsettled are what "lagging" means. A
 #: month is generous — most Zimbabwean schemes work to a monthly cycle with
-#: payment in the following month — so anything beyond it is genuinely late
+#: payment in the following month, so anything beyond it is genuinely late
 #: rather than merely in the post.
 LATE_AFTER_DAYS = 45
 
@@ -205,7 +205,7 @@ def patient_standing(db: Session, patient_id: int) -> dict:
 
 
 def _benefit_unknown(*, connected: bool) -> dict:
-    """What is left on the member's annual limit — which only the funder knows.
+    """What is left on the member's annual limit, which only the funder knows.
 
     Reported as an explicit "not known" rather than omitted. A screen that
     simply shows nothing where a balance would be invites the reader to assume

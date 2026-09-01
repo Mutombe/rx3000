@@ -119,14 +119,14 @@ def sized(payload):
                     "branches", "entries", "messages"):
             if isinstance(payload.get(key), list):
                 return len(payload[key])
-        # A bare mapping of counts — which is exactly what the nav badges are.
-        # A mapping of figures — the navigation badges are exactly this. Only
+        # A bare mapping of counts, which is exactly what the nav badges are.
+        # A mapping of figures: the navigation badges are exactly this. Only
         # non-zero values count: a pharmacy that owns nothing should produce
         # nothing, and every number here is somebody else's work.
         #
         # Except the parameters an endpoint echoes back. `{"days": 30}` beside
         # four zeros is the window that was asked for, not thirty of anything,
-        # and counting it made two honest endpoints look like leaks — which is
+        # and counting it made two honest endpoints look like leaks, which is
         # how a check like this gets ignored.
         if payload and all(isinstance(v, (int, float, type(None)))
                            for v in payload.values()):

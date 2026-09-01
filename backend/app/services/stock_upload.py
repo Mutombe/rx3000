@@ -3,7 +3,7 @@
 The price import that already exists only ever UPDATES: it matches a row to a
 product and changes its prices. It cannot create one. So a pharmacy arriving
 from another system, or opening a second shop, or taking on a new supplier's
-range, had no way to get stock in except typing it product by product — and a
+range, had no way to get stock in except typing it product by product, and a
 catalogue is four thousand lines.
 
 This does the other half, and does it in the same two steps, for the same
@@ -275,7 +275,7 @@ def plan(db: Session, rows: list[dict], mapping: dict[str, str], *,
         line.name = f"{found.name} {found.strength or ''}".strip()
 
         # Already received. The prices on the row are still applied — a
-        # supplier may reissue a note with a corrected price — but the stock is
+        # supplier may reissue a note with a corrected price, but the stock is
         # not counted in a second time.
         if line.quantity and batch and (found.id, batch.upper()) in held:
             line.quantity = 0

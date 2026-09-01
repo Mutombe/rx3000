@@ -1,6 +1,6 @@
 /** Confirm how a waiting sale is actually being settled.
  *
- *  The awaiting-payment list had three buttons — Cash, Card, Mobile — that
+ *  The awaiting-payment list had three buttons, Cash, Card, Mobile, that
  *  settled the invoice the moment they were pressed. Fast, and unreconcilable:
  *  "cash" does not say USD or ZiG, "mobile" does not say EcoCash or Omari, and
  *  a drawer counted at five o'clock cannot be matched to a day of sales that

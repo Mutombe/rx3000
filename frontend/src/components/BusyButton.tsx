@@ -11,7 +11,7 @@
  *  up, and nothing to forget.
  *
  *  Deliberately not a spinner replacing the label. A control that swaps its text
- *  for a spinner changes width, which moves the buttons beside it — and the row
+ *  for a spinner changes width, which moves the buttons beside it, and the row
  *  jumps under a hand that is already reaching for the next one. The spinner is
  *  added beside the label instead.
  *

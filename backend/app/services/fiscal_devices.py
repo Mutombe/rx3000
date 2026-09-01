@@ -503,7 +503,7 @@ def get_device(required_by_jurisdiction: str | None) -> FiscalDevice:
     """Resolve the route: explicit setting wins, else the jurisdiction's default.
 
     Where a jurisdiction fiscalises and nothing has been chosen, the simulator is
-    the default so a fresh install runs — and it refuses to act in production, so
+    the default so a fresh install runs, and it refuses to act in production, so
     the choice cannot be left unmade on a live till.
     """
     choice = os.getenv("FISCAL_DEVICE", "").lower()

@@ -25,7 +25,7 @@ export type Step = {
  *
  *  Exported because the notice beside the dispense button uses it too. That
  *  notice names the missing condition, which on a screen this long is usually
- *  off the top of it — so it also has to be able to take somebody there, and
+ *  off the top of it, so it also has to be able to take somebody there, and
  *  it must land in the same place the trail would.
  *
  *  This is the only thing in the flow that moves focus, and it never does so
@@ -57,7 +57,7 @@ export function goToStep(anchor: string) {
  *  Auto-advancing focus as fields fill would move the cursor while somebody is
  *  typing. Dispensing is not linear — a dispenser takes the script, often
  *  enters the medicines first and finds the patient after, corrects a quantity,
- *  goes back for the prescriber — and a cursor that jumps on its own is a
+ *  goes back for the prescriber, and a cursor that jumps on its own is a
  *  keystroke landing in the wrong field. On a controlled-drug entry that is a
  *  quantity in the wrong box, in a register an inspector reads. Predictable Tab
  *  is worth more than saved Tab.

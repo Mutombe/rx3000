@@ -41,7 +41,7 @@ def deferred(limit: int = 200, db: Session = Depends(get_db)):
 
     This is a work queue, not a report. Every row is money the pharmacy has
     dispensed against and not yet asked anybody for, and it stays here until
-    somebody sends it — which is exactly why it has to be visible.
+    somebody sends it, which is exactly why it has to be visible.
     """
     # `_row` names the sale, the patient and the scheme, and all three were
     # fetched one row at a time — thirty held claims cost sixty-five queries.

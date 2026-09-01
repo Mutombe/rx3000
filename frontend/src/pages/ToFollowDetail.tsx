@@ -7,7 +7,7 @@
  *
  *  Two things can happen to it and both are on this page. Either the stock
  *  arrives and the rest is handed over, or it is not coming and the obligation
- *  is cancelled — which is a real decision with a reason, not a tidy-up.
+ *  is cancelled, which is a real decision with a reason, not a tidy-up.
  */
 import { useCallback, useEffect, useState } from "react";
 import { Phone, Warning } from "@phosphor-icons/react";
@@ -158,7 +158,7 @@ export default function ToFollowDetail() {
                   <p className="muted">
                     Cancelling says the pharmacy is not going to supply the rest.
                     The patient was billed for it, so whoever cancels should say
-                    why — a refund or a conversation usually follows.
+                    why: a refund or a conversation usually follows.
                   </p>
                   <label className="field">
                     Why is it not coming?

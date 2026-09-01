@@ -2,7 +2,7 @@
 
 A pharmacy's money is on its shelves. Four thousand lines, and the difference
 between a good year and a bad one is almost entirely which of them the buyer
-puts money into — yet the only numbers most systems produce are "units sold"
+puts money into, yet the only numbers most systems produce are "units sold"
 and "what is in stock", neither of which answers a buying question.
 
 The questions a buyer actually has, and the number that answers each:
@@ -24,7 +24,7 @@ WHY THE COST COMES FROM THE SALE
 
 `SaleItem.unit_cost` is frozen at the moment of sale. Computing last quarter's
 margin from this quarter's cost price gives an answer that is confidently wrong
-in a market where a wholesaler reprices monthly — and wrong in the flattering
+in a market where a wholesaler reprices monthly, and wrong in the flattering
 direction while prices are rising, which is the worst way to be wrong about
 whether a line makes money.
 
@@ -34,7 +34,7 @@ A line with no sales in the period and stock on the shelf is capital the
 pharmacy has already spent and cannot get back by waiting. But a slow line is
 not automatically a bad one: a pharmacy stocks some things because a patient
 needs them, not because they turn. So this reports the money and lets somebody
-who knows the shop decide — it does not recommend delisting.
+who knows the shop decide. It does not recommend delisting.
 """
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def analyse(db: Session, *, days: int = 90, branch_id: int | None = None,
     # Dispensings with no sale behind them cannot be attributed to a branch at
     # all. They are excluded here and COUNTED below, because silently dropping
     # them would understate every branch's units by however many scheme scripts
-    # never reached a till — and a figure quietly missing a slice is worse than
+    # never reached a till, and a figure quietly missing a slice is worse than
     # one that says what it is missing.
     #
     # Counted whether or not a branch was asked for, because the number means

@@ -4,7 +4,7 @@
  *  changes size between Windows and macOS, and cannot show a hint under its
  *  label. Every one of them in this application was also wrapped in the same
  *  hand-written `<label style={{display:"flex", alignItems:"center", gap:8}}>`,
- *  copied twenty-four times with three different gap values — which is what a
+ *  copied twenty-four times with three different gap values, which is what a
  *  missing component looks like from the outside.
  *
  *  The real input is still there and still focusable; it is the box that is

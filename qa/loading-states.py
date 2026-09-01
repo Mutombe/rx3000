@@ -9,7 +9,7 @@ Two faults, both of which look like the software being broken rather than busy:
 
   * **A refetch that gives no sign of itself.** The screens below were checked
     and they do *not* blank: none clears its rows before fetching, so a filter
-    change leaves the old ones on screen — which is the important half, and it
+    change leaves the old ones on screen, which is the important half, and it
     is already right. What they lack is the dim, so on a slow connection
     nothing happens at all until the new rows land. `Refreshable` does both,
     which is why it is still worth adopting; this is polish, not breakage.

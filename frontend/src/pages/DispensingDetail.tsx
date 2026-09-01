@@ -2,7 +2,7 @@
  *
  *  The dispensing history listed thousands of these and opened none. Every
  *  column on that list was a link to something *else* — the script, the
- *  patient, the prescriber — and the dispensing itself was the one thing you
+ *  patient, the prescriber, and the dispensing itself was the one thing you
  *  could not read.
  *
  *  That is the wrong way round. On a controlled item this row IS the legal

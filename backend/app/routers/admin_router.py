@@ -41,7 +41,7 @@ HEADER_ALIASES = {
     "sep": "sep", "sep_price": "sep", "single_exit_price": "sep",
     "max_price": "sep", "maximum_price": "sep",
     # The reference price for the molecule. pricing.py already caps scheme
-    # charges at it — but only when it is greater than zero, which it never was,
+    # charges at it, but only when it is greater than zero, which it never was,
     # so `apply_mmap` on a scheme has been silently doing nothing.
     "mmap": "mmap", "mmap_price": "mmap", "reference_price": "mmap",
     # What the medicine actually is. This is the only thing that makes two
@@ -157,7 +157,7 @@ def price_import(
             changed = True
         # Always taken when the column is present. These are published figures,
         # not a pricing choice, so there is no "update reference prices?" switch
-        # to leave off — and a stale ceiling is worse than none, because it reads
+        # to leave off, and a stale ceiling is worse than none, because it reads
         # as though it has been checked.
         if new_sep is not None and abs(new_sep - (product.sep_price or 0)) > 0.005:
             line.new_sep = new_sep
@@ -251,7 +251,7 @@ def audit_log_paged(
 # ---------- backups ----------
 #
 # Platform-level, not a pharmacy's. A backup is the whole database — every
-# pharmacy on the deployment, all of their patients — so a customer's own
+# pharmacy on the deployment, all of their patients, so a customer's own
 # administrator downloading one would walk out with every other customer's
 # records in a single file. That was harmless while the system served one
 # pharmacy and became a complete bypass of the tenancy the moment it served
@@ -290,7 +290,7 @@ def create_backup() -> Path:
 def _prune() -> None:
     """Keep the most recent backups, but never at the cost of a verified one.
 
-    The obvious retention rule — keep the newest N — quietly does the wrong
+    The obvious retention rule, keep the newest N, quietly does the wrong
     thing the moment backups start failing: three broken nightly runs push the
     last good copy off the end, and the pharmacy is left holding only files that
     cannot be restored. So verified backups are kept in preference to unverified

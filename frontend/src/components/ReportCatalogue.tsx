@@ -6,7 +6,7 @@
  *  an unfinished product no matter how good the individual screens are.
  *
  *  So the count is stated plainly at the top, the list is searchable — a
- *  hundred and twenty items is past what anyone will scan — and every entry
+ *  hundred and twenty items is past what anyone will scan, and every entry
  *  carries a sentence saying what question it answers. A list of report titles
  *  alone is a filing cabinet; a list with purposes is something a manager can
  *  actually choose from.

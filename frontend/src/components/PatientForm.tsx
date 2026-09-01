@@ -1,7 +1,7 @@
 /** Add a patient wherever you find out they are not on file.
  *
  *  This form lived inside the Patients page, which meant that every other
- *  place a patient is needed — the dispensary, the till, a claim — could only
+ *  place a patient is needed, the dispensary, the till, a claim, could only
  *  say "no match" and leave. The person is at the counter with a script in
  *  their hand; sending the dispenser to another screen to type a name loses
  *  the basket, the queue position and usually the thread of what they were
@@ -18,7 +18,7 @@
  *
  *  **It says it is saving.** Creating a patient is one round trip, and on a
  *  Zimbabwean connection one round trip is long enough to press the button
- *  twice — which is how a register acquires duplicates of the people who were
+ *  twice, which is how a register acquires duplicates of the people who were
  *  in the biggest hurry.
  */
 import { FormEvent, useEffect, useState } from "react";

@@ -1,6 +1,6 @@
 /** The bank statement against the ledger.
  *
- *  This was a tab inside the ledger page — which is where an accountant looks
+ *  This was a tab inside the ledger page, which is where an accountant looks
  *  for it and nowhere near where anybody else does. It is one of five things a
  *  pharmacy reconciles, and the other four were in four other places. Same
  *  screen, lifted out, so it can appear under Reconciliation as well as where

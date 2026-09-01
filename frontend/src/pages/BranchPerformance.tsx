@@ -1,7 +1,7 @@
 /** One branch, in full.
  *
  *  The scorecard answers "which of my shops is working". This answers the
- *  question that follows it, which is always "why" — and that one needs the
+ *  question that follows it, which is always "why", and that one needs the
  *  workings rather than the verdict: not "cash-up 46%" but twelve counted out
  *  of twenty-six and thirty-five dollars adrift; not "claims 80%" but what was
  *  raised, what came back, and what was refused.

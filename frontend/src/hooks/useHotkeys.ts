@@ -11,7 +11,7 @@
  *   - plain-letter shortcuts never fire while typing;
  *   - a disabled action is skipped rather than silently doing nothing;
  *   - every binding carries a label, so the key map is generated from the same
- *     source of truth that binds the keys — a shortcut can never go undocumented.
+ *     source of truth that binds the keys: a shortcut can never go undocumented.
  */
 import { useEffect, useMemo } from "react";
 

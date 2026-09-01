@@ -441,7 +441,7 @@ class SimulatorSwitch(SwitchAdapter):
         # chance. A funder republishing the same payment sends the same number,
         # and that number is the only thing standing between a re-fetch and the
         # money being counted twice. A random number here would make the import
-        # guard untestable — and untestable is how it stops working.
+        # guard untestable, and untestable is how it stops working.
         digest = hashlib.sha256(
             "|".join(sorted(line["claim_reference"] for line in lines)).encode()
         ).hexdigest()[:8].upper()

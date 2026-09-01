@@ -158,7 +158,7 @@ def update_medical_aid_terms(
 
     Levies and discounts reprice every future claim, and the credit limit decides
     when the pharmacy stops lending to a scheme. Both are the kind of figure that
-    is changed once, by one person, after a phone call — and then argued about
+    is changed once, by one person, after a phone call, and then argued about
     months later, which is why the change is attributable.
     """
     aid = db.get(MedicalAid, aid_id)
@@ -217,7 +217,7 @@ def update_doctor(doctor_id: int, body: dict = Body(...),
 
     Prescribers could be created and listed and never changed. A practice
     number typed wrong was permanent, and a practice number is what a funder
-    adjudicates on — so every claim carrying that prescriber was rejected for
+    adjudicates on, so every claim carrying that prescriber was rejected for
     as long as the record stood, and the only way out was a second prescriber
     record with the same name.
     """
@@ -245,7 +245,7 @@ def update_doctor(doctor_id: int, body: dict = Body(...),
 
 @router.delete("/doctors/{doctor_id}")
 def retire_doctor(doctor_id: int, db: Session = Depends(get_db)):
-    """Retire a prescriber. Never deleted — their name is on every script.
+    """Retire a prescriber. Never deleted. Their name is on every script.
 
     A prescriber who has retired, moved abroad or been struck off should stop
     appearing in the picker, and every script they ever wrote must still say

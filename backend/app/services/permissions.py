@@ -7,7 +7,7 @@ who does the banking on Fridays. None of them fits a five-word role.
 
 What happens without a way to say so is not that those people are refused. It
 is that somebody gives them an administrator's login, because that is the only
-thing that works — and from that moment the audit trail says "admin" for
+thing that works, and from that moment the audit trail says "admin" for
 everything, the controlled register cannot say who checked what, and the entire
 control structure is decoration. **A permission system that is too coarse does
 not make a pharmacy stricter; it makes the records false.**

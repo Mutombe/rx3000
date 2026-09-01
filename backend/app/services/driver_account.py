@@ -11,7 +11,7 @@ The pieces all existed. A waybill carries `cod_amount`; `deliveries.collect`
 records what was taken at the door; `deliveries.settle` stamps the round as
 handed in and lands it in a shift. What none of them did was **settle the
 sale**. A driver could collect fifty dollars, hand it to a cashier, have it
-counted into the drawer — and the sale stayed `pending` for ever, so the
+counted into the drawer, and the sale stayed `pending` for ever, so the
 patient still showed as owing fifty dollars they had already paid, and the
 shop's debtors carried money that was sitting in its own till.
 

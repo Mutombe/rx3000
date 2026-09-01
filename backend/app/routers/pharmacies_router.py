@@ -2,7 +2,7 @@
 
 This is the one part of the system that deliberately crosses tenants, so it is
 the one part worth reading twice. Everything here runs `unscoped`, which turns
-off the filter that keeps two pharmacies apart — and every endpoint is behind
+off the filter that keeps two pharmacies apart, and every endpoint is behind
 `require_platform_admin`, which a customer's own administrator does not pass.
 
 The distinction matters more than it looks. `admin` means "runs this pharmacy"
@@ -93,7 +93,7 @@ def create_pharmacy(body: dict, db: Session = Depends(get_db),
             raise HTTPException(status_code=400,
                                 detail=f"There is already a pharmacy called {name}.")
         # Usernames are global to the deployment — see `auth.find_by_username`
-        # for why — so this has to be checked across every tenant, not within
+        # for why, so this has to be checked across every tenant, not within
         # this one.
         if db.query(User).filter(func.lower(User.username) == username.lower()).first():
             raise HTTPException(
@@ -158,7 +158,7 @@ def update_pharmacy(pharmacy_id: int, body: dict, db: Session = Depends(get_db),
         if "active" in body:
             # Suspending, never deleting. A pharmacy that stops paying still
             # owns its patients' dispensing histories and the regulator requires
-            # those be kept — so the tenant is closed off, not removed.
+            # those be kept, so the tenant is closed off, not removed.
             pharmacy.active = bool(body["active"])
         db.commit()
         db.refresh(pharmacy)

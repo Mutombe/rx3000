@@ -91,7 +91,7 @@ export default function StaffDetail() {
       title: `What is ${d.full_name}'s role?`,
       body: "admin, pharmacist, manager, assistant or cashier. A role typed "
           + "wrong used to be permanent, so a qualified pharmacist set up as "
-          + "an assistant needed a second account — and then two logins "
+          + "an assistant needed a second account, and then two logins "
           + "belonged to one person and the register could not say which of "
           + "them checked a controlled item.",
       field: "Role",

@@ -66,7 +66,7 @@ export default function CaseDetail() {
   }
 
   /* The draft lands in the box as it is written, so the staff member can start
-     reading — and start disagreeing — before it has finished. */
+     reading, and start disagreeing, before it has finished. */
   const ai = useAiDraft(setReply);
   const draftReply = () => ai.draft(`/api/ai/ticket-reply/${id}/stream`, undefined);
 

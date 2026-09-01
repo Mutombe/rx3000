@@ -3,14 +3,14 @@
 A customer buys four things and brings one back. It is the wrong size, it is
 damaged, it was rung up twice, they were given the wrong one. This happens at
 every till in the world every day, and the system could not do it: both ways to
-reverse a sale — void, and the fiscal credit note — take back **all** of it.
+reverse a sale, void, and the fiscal credit note, take back **all** of it.
 
 The pharmacy's answer was therefore to reverse the whole sale and ring the
 other three items up again. That is not a workaround, it is four new problems:
 the receipt number changes, the claim is reversed and has to be re-submitted,
 loyalty points are earned twice, and the day's sale count is wrong by one in
 each direction. So in practice it is done on paper and the stock silently
-drifts — which is exactly the drift `/stock/reconcile` reports and nobody could
+drifts, which is exactly the drift `/stock/reconcile` reports and nobody could
 explain.
 
 It matters more here than in most shops. Dispensed medicine largely cannot be

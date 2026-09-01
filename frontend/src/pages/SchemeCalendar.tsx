@@ -2,7 +2,7 @@
  *
  *  Claiming is not continuous. A pharmacy signs terms with each scheme saying
  *  when a month's claims must be in and when the money comes back, and missing
- *  a cut-off costs a whole cycle — which for a shop running on its float is the
+ *  a cut-off costs a whole cycle, which for a shop running on its float is the
  *  difference between paying staff this month and not.
  *
  *  None of that was recorded anywhere, so "when does CIMAS pay" was answered
@@ -367,7 +367,7 @@ export default function SchemeCalendar() {
 
             {/* What the member pays and what the pharmacy gives away.
                 These reprice every claim this scheme touches, and there was an
-                endpoint to change them with no screen that could — so they sat
+                endpoint to change them with no screen that could, so they sat
                 at whatever they were first set to. */}
             <h3>What the member pays</h3>
             <div className="form-row">
@@ -425,7 +425,7 @@ export default function SchemeCalendar() {
   );
 }
 
-/** 1st, 2nd, 3rd, 4th — a date read aloud rather than a number. */
+/** 1st, 2nd, 3rd, 4th: a date read aloud rather than a number. */
 function ordinal(day: number): string {
   if (day % 100 >= 11 && day % 100 <= 13) return "th";
   return ["th", "st", "nd", "rd"][day % 10] ?? "th";

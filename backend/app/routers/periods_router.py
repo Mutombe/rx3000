@@ -39,7 +39,7 @@ def require_step_up(action_key: str):
                                "Re-enter your password to confirm."))
             # 428 Precondition Required, not 401. A 401 means "you are not
             # signed in", and any sane client responds by sending the user to
-            # the login screen — which here would log a cashier out for trying
+            # the login screen, which here would log a cashier out for trying
             # to void a sale. This is "signed in, but this action needs more".
             raise HTTPException(status_code=428, detail=detail)
         try:

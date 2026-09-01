@@ -1,6 +1,6 @@
 """One CareXpress teller cash-up, and what it says about how they take money.
 
-A single shift — Chinamano, 27 August 2026, 8am to 5pm — so the value is not
+A single shift, Chinamano, 27 August 2026, 8am to 5pm, so the value is not
 the figures. It is the shape of the sheet, which is the pharmacy's own
 description of its counter:
 
@@ -86,7 +86,7 @@ def run(path: str) -> dict:
     expenses = []
     for row in range(21, 27):
         # The expense block puts the description where the tender block puts
-        # its first figure — one column to the left of everything above it.
+        # its first figure: one column to the left of everything above it.
         what = _text(cell(row, 1))
         amount = _num(cell(row, 2))
         if what and amount and not what.upper().startswith("TOTAL"):

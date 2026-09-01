@@ -236,7 +236,7 @@ def in_transit(db: Session) -> list[dict]:
     count.
     """
     # Three many-to-ones read per row — the sending branch, the receiving branch
-    # and the product — so a list of transfers cost 1 + 3n queries. Joined in one.
+    # and the product, so a list of transfers cost 1 + 3n queries. Joined in one.
     rows = (db.query(BranchTransfer)
             .options(joinedload(BranchTransfer.from_branch),
                      joinedload(BranchTransfer.to_branch),

@@ -5,7 +5,7 @@ A shelf of amoxicillin expiring in three weeks will not fetch cost: some of it
 sells, the rest is destroyed, and the pharmacy has already lost the difference
 whether or not anybody has written it down. Until now the ledger carried every
 batch at full cost right up to the day it expired, and then took the whole loss
-at once — so the accounts said the pharmacy was worth more than it was, every
+at once, so the accounts said the pharmacy was worth more than it was, every
 month, and then took a lump on the month somebody happened to write off.
 
 **What is posted is the movement, not the balance.** The provision required today
@@ -41,7 +41,7 @@ EXPENSE_ACCOUNT = ("5110", "Short-dated stock provision", "expense", "")
 #:
 #: Past expiry is 100% because it cannot legally be sold at all. Inside a month
 #: is most of it: a chronic line might move, an antibiotic will not. Beyond
-#: ninety days nothing is provided — that is ordinary stock.
+#: ninety days nothing is provided. That is ordinary stock.
 BANDS: list[tuple[int, float, str]] = [
     (0, 1.00, "Expired. It cannot be sold and is worth nothing."),
     (30, 0.75, "Under a month. Most of this will not move in time."),

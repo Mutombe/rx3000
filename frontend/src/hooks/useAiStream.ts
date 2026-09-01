@@ -117,7 +117,7 @@ export function useAiStream() {
  *
  *  For the three screens where the answer is not something to read but something
  *  to edit and send: a ticket reply, campaign copy. The words land in the
- *  textarea as they arrive, so the staff member can start reading — and start
+ *  textarea as they arrive, so the staff member can start reading, and start
  *  disagreeing — before it has finished, which is most of the value of streaming
  *  a draft rather than presenting one.
  *

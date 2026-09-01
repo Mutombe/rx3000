@@ -1,7 +1,7 @@
 """Can two pharmacies both take the same document number?
 
 `helpers.next_number` counts a pharmacy's OWN rows — `count() + 1` under the
-tenant filter — and stamps the month on the front. So two pharmacies with the
+tenant filter, and stamps the month on the front. So two pharmacies with the
 same number of sales in the same month generate the same string. That is fine,
 and correct: an invoice number belongs to the shop that issued it, the way it
 does on paper.
@@ -17,7 +17,7 @@ lay-by, quote, ticket, stock take, remittance, authorisation, transfer, sample,
 to-follow, branch code, period code, journal reference and mixture code.
 
 This creates two empty pharmacies, asks each for a number, and writes both. It
-proves the thing that matters — that the database accepts them — rather than
+proves the thing that matters, that the database accepts them, rather than
 inspecting an index and reasoning about it.
 
 TWO OF THE NINETEEN ARE DIFFERENT ON SQLITE
@@ -29,7 +29,7 @@ rebuilding the table.
 
 That is left alone deliberately. SQLite here is a developer's file or a desktop
 install serving one pharmacy, and a number unique across a database holding one
-pharmacy is unique within that pharmacy — the same thing. Rebuilding a live
+pharmacy is unique within that pharmacy: the same thing. Rebuilding a live
 table at startup to fix something that cannot happen there would be the riskier
 choice. So on SQLite those two are reported as expected; on Postgres, where
 several pharmacies do share a database, they must be per-tenant like the rest.

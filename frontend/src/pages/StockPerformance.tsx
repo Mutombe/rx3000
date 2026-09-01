@@ -2,7 +2,7 @@
  *
  *  A pharmacy's money is on its shelves. Four thousand lines, and the
  *  difference between a good year and a bad one is almost entirely which of
- *  them the buyer puts money into — yet the numbers usually available are
+ *  them the buyer puts money into, yet the numbers usually available are
  *  "units sold" and "what is in stock", and neither answers a buying question.
  *
  *  Five columns here, each answering one:
@@ -61,7 +61,7 @@ interface ByBranch {
   headline: string;
   /** Dispensings in the window that no branch can claim, because nothing ties
    *  them to a till. They are in the group figures and in none of the branch
-   *  figures — which is why the branches need not sum to the group. */
+   *  figures, which is why the branches need not sum to the group. */
   unattributed_dispensings: number;
   unattributed_share: number;
   /** The same, as a sentence. Empty when the share is too small to matter. */
@@ -254,7 +254,7 @@ export default function StockPerformance() {
               <span>
                 <b>{money(report.dead_money)}</b> in {report.dead.length} line(s)
                 that have not moved in {report.days} days. This is capital
-                already spent, and waiting will not recover it — but a slow line
+                already spent, and waiting will not recover it, but a slow line
                 is not automatically a bad one. A pharmacy stocks some things
                 because a patient needs them, not because they turn. The money
                 is shown; the decision belongs to somebody who knows the shop.

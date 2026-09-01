@@ -78,7 +78,7 @@ export default function WillCall() {
 
   async function collect(bag: Bag) {
     /* Who took it is asked, not assumed. Often it is not the patient — a
-       relative, a driver, a neighbour going that way — and on a controlled item
+       relative, a driver, a neighbour going that way, and on a controlled item
        it is the answer to "who had it", so there the name is required. */
     const ok = await confirm({
       title: `Hand over ${bag.product}?`,
@@ -239,7 +239,7 @@ export default function WillCall() {
                         {/* The action is on the badge, not under every row.
                             It is identical for every bag in a band, so printing
                             it ten times is ten copies of one sentence competing
-                            with the names — and it was too long for the column,
+                            with the names, and it was too long for the column,
                             so each copy was also cut off mid-clause. */}
                         <span className={`badge wc-badge wc-${b.band}`} data-tip={b.action}>
                           {BAND_LABEL[b.band]}

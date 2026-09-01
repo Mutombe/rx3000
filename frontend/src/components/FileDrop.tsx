@@ -47,7 +47,7 @@ export default function FileDrop({
       ? name.endsWith(a)
       // A wildcard like text/* as well as an exact type. Browsers are
       // inconsistent about the type they report for CSV — text/csv,
-      // application/vnd.ms-excel, or nothing at all — so the extension is
+      // application/vnd.ms-excel, or nothing at all, so the extension is
       // checked first and this is the fallback.
       : a.endsWith("/*")
         ? file.type.startsWith(a.slice(0, -1))

@@ -4,7 +4,7 @@
  *  visibly broken. Two reasons it lied, both now guarded against here:
  *
  *  1. The page list was invented. `/dispensary` is not a route — the app is
- *     mounted at `/dispense` — so the audit loaded the dashboard fallback and
+ *     mounted at `/dispense`, so the audit loaded the dashboard fallback and
  *     cheerfully declared it clean, 29 times. Every route below is asserted to
  *     render its own heading; a route that falls through is a FAILURE, not a
  *     silent pass.
@@ -82,7 +82,7 @@ const AUDIT = () => {
     range.selectNodeContents(td);
     // Distinct top offsets, not rect count. getClientRects() returns one rect
     // per text box, and adjacent text nodes on the SAME line each get their own
-    // — so counting rects reported "2 of 2" in a 160px cell as three lines.
+    //, so counting rects reported "2 of 2" in a 160px cell as three lines.
     const tops = new Set([...range.getClientRects()].map((x) => Math.round(x.top)));
     const lines = tops.size;
     if (lines >= 3) r.crushedCells.push({ text: text.slice(0, 24), lines });
@@ -192,7 +192,7 @@ const AUDIT = () => {
 
        This used to start at opaque white. In dark mode that composited light
        text against a white ground it is never painted on, and reported #f3f3f6
-       body copy — which measures 15.8:1 where it actually sits — as a 1.11
+       body copy, which measures 15.8:1 where it actually sits — as a 1.11
        failure. Twelve of them, all fictional. A measurement with a constant
        baked into it is a claim about the theme it was written in. */
     let base = pageGround();
@@ -230,7 +230,7 @@ export default async function run(page) {
      `AUDIT_THEME=dark` sets the same key the application writes, before the first
      navigation, so the inline script in index.html paints dark on the very first
      frame. The contrast check is alpha- and gradient-composited, so it measures
-     what is actually on screen rather than what the token says — which is the
+     what is actually on screen rather than what the token says, which is the
      only way to catch a chip that inverted and a label that did not. */
   const theme = process.env.AUDIT_THEME;
   if (theme === "dark" || theme === "light") {

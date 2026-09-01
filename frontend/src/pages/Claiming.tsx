@@ -2,7 +2,7 @@
  *
  *  Thirteen endpoints with no screen. Claims were being priced, batched, sent and
  *  settled by code that nobody could reach, which meant the two things a pharmacy
- *  does with claims every week — send this batch, record what came back — had no
+ *  does with claims every week, send this batch, record what came back, had no
  *  home.
  *
  *  Two tabs, because they are different jobs on different days. Batching is the
@@ -111,7 +111,7 @@ export default function Claiming() {
   // Read against the list of tabs rather than against two hard-coded names.
   // It used to be `=== "models" ? "models" : "batches"`, so adding a third tab
   // gave you a button that set ?tab=formularies in the URL and a reader that
-  // mapped it straight back to Batches — the screen behind it was unreachable.
+  // mapped it straight back to Batches: the screen behind it was unreachable.
   const TABS: Tab[] = ["batches", "models", "formularies"];
   const tab = (TABS.find((t) => t === params.get("tab")) ?? "batches") as Tab;
   const setTab = (t: Tab) =>
@@ -339,7 +339,7 @@ export default function Claiming() {
     setBusy(`mmap-${model.id}`);
     try {
       // PATCH, not POST. POST creates and refuses a duplicate code, so sending
-      // the model back to it returned 400 — which is how it turned out that
+      // the model back to it returned 400, which is how it turned out that
       // nothing could change a fee model at all.
       const res = await guarded(
         "scheme.edit",

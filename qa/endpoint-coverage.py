@@ -22,7 +22,7 @@ been reported as delivered on the strength of the backend and its reports.
 HOW IT DECIDES
 
 Every `/api/...` string in the front end is extracted and normalised — `${...}`
-becomes a wildcard, the query string is dropped — and each route is matched
+becomes a wildcard, the query string is dropped, and each route is matched
 against those by SHAPE: same number of segments, with each literal segment equal
 and each parameter matching anything.
 

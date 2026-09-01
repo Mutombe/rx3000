@@ -39,7 +39,7 @@ export function rateTone(value: number | null | undefined,
  *  Green while it is not yet late, amber inside the window where a telephone
  *  call still works, red once the patient has almost certainly been served
  *  somewhere else. The thresholds are the server's — `grace_days` and
- *  `lapsed_after_days` come back with the figures — so a change there moves
+ *  `lapsed_after_days` come back with the figures, so a change there moves
  *  the colours with it rather than leaving the screen describing an older
  *  rule.
  */

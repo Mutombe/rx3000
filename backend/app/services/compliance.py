@@ -17,7 +17,7 @@ THE HALF THAT MATTERS MOST
 
 A register of what you have uploaded cannot tell you what you have not. A branch
 with four current certificates and no fire clearance at all looks perfectly
-healthy on a list of four green rows — and it is the missing one that closes the
+healthy on a list of four green rows, and it is the missing one that closes the
 shop. So every branch is measured against the list of what a pharmacy is
 expected to hold, and a document that was never uploaded is reported as
 **missing**, in the same table, with the same weight as one that has expired.
@@ -74,7 +74,7 @@ KINDS: list[tuple[str, str, str, int, bool, str]] = [
     ("tax_clearance", "Tax clearance (ITF263)",
      "ZIMRA", 12, False,
      "Without a valid one, every customer who pays you is obliged to withhold "
-     "10% — so it is a cash-flow document before it is a compliance one."),
+     "10%, so it is a cash-flow document before it is a compliance one."),
     ("trade_licence", "Shop / trade licence",
      "Local authority", 12, False,
      "The general licence to trade from the address."),
@@ -305,7 +305,7 @@ def _summarise(rows: list[dict]) -> dict:
     #
     # A critical licence that is MISSING means only that nothing has been
     # uploaded. On the day this feature is switched on, every branch is in that
-    # state — and telling a pharmacy that has traded for fifteen years it
+    # state, and telling a pharmacy that has traded for fifteen years it
     # "cannot lawfully open" because nobody has scanned a certificate yet is
     # both wrong and the reason they would stop reading the screen.
     lapsed = [r["name"] for r in rows

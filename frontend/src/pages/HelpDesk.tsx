@@ -91,7 +91,7 @@ export default function HelpDesk() {
     channel: "walk_in", patient_id: null as number | null,
     // Who the case is really for. A pharmacy serving corporate accounts takes
     // cases from the account as often as from a patient — "Delta's invoice is
-    // wrong" is not about anybody's medicine — and the endpoint has always
+    // wrong" is not about anybody's medicine, and the endpoint has always
     // accepted both. Without them every such case was filed against nobody.
     company_id: null as number | null,
     contact_id: null as number | null,

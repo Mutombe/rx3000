@@ -191,7 +191,7 @@ def trial_balance(period_code: str = "", upto: date | None = None,
     return ledger.trial_balance(db, period_code=period_code, upto=upto)
 
 
-# GET /subledgers/{name} was here — the raw party balances. The screen reads
+# GET /subledgers/{name} was here: the raw party balances. The screen reads
 # /subledgers/{name}/reconcile, which returns those same balances plus the
 # only thing worth knowing about them: whether they agree with the control
 # account. A figure without that check is one nobody can act on.
@@ -215,7 +215,7 @@ def unposted(limit: int = 200, db: Session = Depends(get_db)):
     """Sales the ledger has not caught up with.
 
     Posting is deliberately non-fatal — a till must not refuse to sell medicine
-    because the bookkeeping is unhappy — so this queue is what stops "briefly
+    because the bookkeeping is unhappy, so this queue is what stops "briefly
     behind" becoming "quietly wrong". It is the first thing to read when the
     trial balance does not agree with the till.
     """
@@ -404,7 +404,7 @@ def backfill(limit: int = Body(default=500, embed=True),
     which figures moved.
 
     Idempotent throughout — every posting checks whether its source already
-    posted — so running it twice is safe and running it in batches is the
+    posted, so running it twice is safe and running it in batches is the
     expected way to work through a large history.
     """
     from ..models import PurchaseOrder, Sale

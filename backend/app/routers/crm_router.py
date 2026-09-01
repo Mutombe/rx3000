@@ -590,7 +590,7 @@ def by_owner(db: Session = Depends(get_db)):
     # Staff, not visitors.
     #
     # A demo account is a real user with a real role, which is what makes the
-    # demo worth anything — but it is not somebody whose pipeline a manager wants
+    # demo worth anything, but it is not somebody whose pipeline a manager wants
     # in their rep performance report. Six people who tried the product on a
     # Tuesday appeared as six reps with no deals, pushing the actual staff down
     # the chart.

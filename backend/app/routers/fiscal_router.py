@@ -92,7 +92,7 @@ def _receipt_row(r):
 
 @router.get("/days/{day_id}")
 def z_report(day_id: int, db: Session = Depends(get_db)):
-    """One fiscal day in full — the Z-report, and the chain across it.
+    """One fiscal day in full: the Z-report, and the chain across it.
 
     Registered above /receipts, which is a different path entirely, but kept
     beside /days so the two read together.
@@ -152,7 +152,7 @@ def flush(db: Session = Depends(get_db)):
 
 # Walking the hash chain used to be its own route. /fiscal/status computes it
 # and returns it under "chain", which is what the fiscal screen reads and where
-# the alarm is raised — so this was the same walk, reachable twice, with only
+# the alarm is raised, so this was the same walk, reachable twice, with only
 # one of the two ever looked at.
 
 @router.post("/credit-note/{sale_id}")
@@ -176,7 +176,7 @@ def credit_note(sale_id: int, db: Session = Depends(get_db),
                             detail=f"Already reversed by credit note {existing.global_counter}")
     note = fiscal.fiscalise(db, sale, receipt_type="credit_note", reverses=original)
 
-    # A credit note is not only a fiscal document — it is the sale coming back.
+    # A credit note is not only a fiscal document. It is the sale coming back.
     # Where fiscalisation is in force it is the *only* way to reverse a filed
     # sale, so everything a void would undo has to be undone here too, or the
     # goods stay sold in inventory while the revenue authority has been told

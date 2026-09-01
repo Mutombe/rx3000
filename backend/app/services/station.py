@@ -10,7 +10,7 @@ The licence deliberately **warns rather than locks**. A pharmacy whose licence
 lapsed on a Sunday must still be able to dispense on the Monday: refusing to
 open a till over a billing matter puts patients between a vendor and its
 invoice, which is not a place they belong. It nags, it is visible on every
-screen, and it is recorded — but it does not stop medicine.
+screen, and it is recorded, but it does not stop medicine.
 """
 import os
 import platform
@@ -31,7 +31,7 @@ def station_id() -> str:
     """A stable identifier for this machine.
 
     Derived from the host rather than stored, so restoring a backup onto a new
-    machine does not silently inherit the old one's identity — which is exactly
+    machine does not silently inherit the old one's identity, which is exactly
     how two tills end up claiming to be the same station and a support call goes
     round in circles.
     """

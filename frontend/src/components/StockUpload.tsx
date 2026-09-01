@@ -93,7 +93,7 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
 
       <FileDrop
         label="Catalogue or delivery note (CSV)"
-        hint="Stock code, description, cost, selling price — and quantity, batch
+        hint="Stock code, description, cost, selling price, and quantity, batch
               and expiry where you are receiving stock. Column names are matched
               loosely, so a supplier's own export usually works as it comes."
         onFile={(text, fileName) => preview(text, fileName)}

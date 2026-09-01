@@ -3,7 +3,7 @@
  *  Two questions an owner asks that nothing here answered.
  *
  *  **What is a repeat patient really worth.** The line value is what has been
- *  measured — the tablets, at the shelf price. A patient collecting a chronic
+ *  measured: the tablets, at the shelf price. A patient collecting a chronic
  *  repeat also buys plasters, a toothbrush, formula, something for their
  *  mother's headache. The repeat is the reason they walked in; the basket is
  *  what they spent. A shop deciding whether to chase a fifteen-dollar repeat is

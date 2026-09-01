@@ -1,9 +1,9 @@
-/** Does the worklist stay put while the script is worked — and do the route
+/** Does the worklist stay put while the script is worked, and do the route
  *  tabs now scroll away as they are meant to?
  *
  *  The worklist is sticky and was pinned against the wrong thing. `main` is the
  *  scrolling element in this shell — `body` and `.shell` are `overflow: hidden`
- *  and the window never scrolls at all — so an offset written as
+ *  and the window never scrolls at all, so an offset written as
  *  `top: var(--topbar-h)` measured 56px from a scrollport that already begins
  *  below the top bar. The rail drifted down the page and looked as though the
  *  floating had given up.
@@ -99,7 +99,7 @@ for (const depth of [300, 700, 1200, Math.round(scrollable)]) {
 console.log("");
 // The inverse of the old assertion, and for the same reason: a pinned strip
 // reports the same position at every depth, so one that reports a different
-// position each time is travelling with the page — which is now what it is
+// position each time is travelling with the page, which is now what it is
 // supposed to do.
 check(seen.routes.size >= 3,
       `the route tabs travel with the page rather than pinning `

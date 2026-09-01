@@ -3,7 +3,7 @@
  *  Licences lived on their own sidebar entry, three sections away from
  *  Branches, and the two answer halves of one question. "Is the Bulawayo shop
  *  all right" means both "what is on its shelves and who is accountable for
- *  it" and "is its MCAZ premises licence current" — and a manager checking
+ *  it" and "is its MCAZ premises licence current", and a manager checking
  *  before an inspection was navigating between two unrelated-looking screens
  *  to assemble one picture.
  *

@@ -44,7 +44,7 @@ DEBIT_POSITIVE = ("asset", "expense")
 #:
 #: Six columns rather than four. `section` and `is_cash` have been on the model
 #: from the beginning and were seeded by nothing, so every account fell into the
-#: default and the balance sheet grouped by `type` alone — which puts the stock
+#: default and the balance sheet grouped by `type` alone, which puts the stock
 #: on the shelf and a delivery van in one undifferentiated pile of "assets", and
 #: gives a reader no way to see working capital at all.
 CHART = [
@@ -137,7 +137,7 @@ def ensure_chart(db: Session) -> int:
     The backfill matters as much as the seed. Every pharmacy already running
     this software has the original twenty accounts with an empty `section`, and
     a chart that groups half its rows under "unclassified" is one nobody reads.
-    Only ever fills a blank — an account somebody has since moved stays moved.
+    Only ever fills a blank: an account somebody has since moved stays moved.
     """
     created = 0
     have = {a.code: a for a in db.query(Account).all()}
@@ -174,7 +174,7 @@ def next_reference(db: Session) -> str:
     It used to be `COUNT(*) + 1`, which is unique only while nothing is ever
     deleted. Remove sixty entries to repost them and the count falls back over
     numbers that are still on the books, so the next entry collides with one
-    from an hour ago — and because the reference is indexed unique, the whole
+    from an hour ago, and because the reference is indexed unique, the whole
     posting run fails on a constraint rather than on anything to do with
     accounting.
 
@@ -405,7 +405,7 @@ def reconcile_control(db: Session, name: str, *, period_code: str = "") -> dict:
 
     The two are kept separately precisely so they can disagree. A difference
     means something was posted around the subledger rather than through it —
-    usually a journal written straight to the control account by hand — and it
+    usually a journal written straight to the control account by hand, and it
     is the single most useful check in a ledger, because it is the one that
     catches the errors nothing else can see.
     """

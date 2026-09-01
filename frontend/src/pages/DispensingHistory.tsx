@@ -212,7 +212,7 @@ export default function DispensingHistory() {
                         {r.dispensed_by || r.pharmacist_initial || "—"}
                       </EntityLink>
                     </td>
-                    {/* Paid, part paid, or owed — and by whom. The commonest
+                    {/* Paid, part paid, or owed, and by whom. The commonest
                         reason for opening this screen at all. */}
                     <td>
                       <EntityLink kind="sale" id={r.sale_id}>

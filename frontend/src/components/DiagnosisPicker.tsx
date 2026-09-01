@@ -1,7 +1,7 @@
 /** ICD-10 picker.
  *
  *  A claim line without a diagnosis is rejected by the scheme, so this is not
- *  optional metadata — it sits on the script line itself. Type a code or a
+ *  optional metadata — it sits on the script line itself.   Type a code or a
  *  description; the list is server-side because the full ICD-10 release is far
  *  too large to ship to the browser.
  *
@@ -12,7 +12,7 @@
  *  does not hold used to end at "No matching diagnosis", which is a dead end in
  *  the one field a claim cannot go out without. The server distinguishes "we
  *  hold no description for this" from "this is not a real code" — the first is
- *  perfectly claimable — so a well-formed code in a real chapter is now offered
+ *  perfectly claimable, so a well-formed code in a real chapter is now offered
  *  with the caveat rather than refused.
  *
  *  **Nobody remembers codes.** Browsing by body system is what makes this a

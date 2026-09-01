@@ -532,7 +532,7 @@ def ageing(db: Session, *, asof: date | None = None) -> dict:
         "suppliers": rows,
         # Said out loud on the same screen. The ledger and this list are kept
         # separately precisely so they can disagree, and the difference is the
-        # most useful number here — but it is reported with its likely cause
+        # most useful number here, but it is reported with its likely cause
         # rather than an accusation, because the commonest reason is entirely
         # innocent: a delivery raised the creditor and its invoice has not been
         # approved yet, so the ledger is holding the order's cost while this

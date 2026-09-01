@@ -1,4 +1,4 @@
-# Reporting, till operations, claims and backup — implementation plan
+# Reporting, till operations, claims and backup: implementation plan
 
 Written from photographs of the incumbent system in use at Care Xpress Pharmacy
 Central, taken 15 August 2026. Sixty-seven distinct screens; this plan is built
@@ -54,7 +54,7 @@ The engine supplies, once and identically for every report:
 - Date range, branch, till, assistant, department filters
 - Pagination with a true total (never a bare `.limit()`)
 - Sort, and column totals in the footer
-- **Export to CSV, Excel and PDF** — the incumbent's Excel export is the single
+- **Export to CSV, Excel and PDF**: the incumbent's Excel export is the single
   most-used feature in those screenshots; every one of the photographed reports
   has an Excel button and the taskbar shows a spreadsheet permanently open
 - Print, including to a narrow receipt printer where that makes sense
@@ -170,7 +170,7 @@ Same skeleton, four improvements:
    cashier is repeatedly 5 dollars short" is a question their system cannot
    answer and ours should answer on one screen.
 4. **A variance over a threshold requires a second person.** Not a second
-   prompt — a different user's PIN, on the same principle as §7.
+   prompt: a different user's PIN, on the same principle as §7.
 
 ### Mid-shift operations
 Drawer open without a sale (logged, reason required) · Cash drop to safe ·
@@ -195,7 +195,7 @@ back and attach themselves to the sale.
    standard model and the one that requires least from us.
 2. **Cloud/API pairing.** Some acquirer stacks expose a REST endpoint where a
    payment intent is created and the terminal polls for it. Better over a
-   network, worse when the internet is down — which matters here.
+   network, worse when the internet is down, which matters here.
 3. **An app on the terminal itself.** The X990 runs Android, so in principle our
    till could run on it. Highest effort, and it puts us inside the acquirer's
    certification process.
@@ -221,14 +221,14 @@ NH263 is the national health claims switch. The incumbent's RecWin shows the
 shape this has to take, and the vocabulary matters because it is what the
 pharmacy's staff already use:
 
-- **Medical aid** — the scheme
-- **Pay office** — the branch of the scheme that actually settles; a scheme can
+- **Medical aid**: the scheme
+- **Pay office**: the branch of the scheme that actually settles; a scheme can
   have several, and they pay at different speeds, which is why "age analysis per
   pay office" exists as its own report
-- **Batch payment** — schemes pay in batches, not per script
-- **ERA (Electronic Remittance Advice)** — the file the scheme returns saying
+- **Batch payment**: schemes pay in batches, not per script
+- **ERA (Electronic Remittance Advice)**: the file the scheme returns saying
   what it paid, what it short-paid and what it rejected
-- **Rejection codes** — and specifically "outstanding scripts with OTHER
+- **Rejection codes**: and specifically "outstanding scripts with OTHER
   rejection codes", meaning the ones that need a human
 
 **The work, in order:**

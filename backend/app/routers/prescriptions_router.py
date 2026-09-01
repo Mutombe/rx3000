@@ -275,7 +275,7 @@ def dispense(
         )
 
     # The setting has existed and been true by default while nothing read it, so
-    # a dispensing could complete with no record of who checked it — which is the
+    # a dispensing could complete with no record of who checked it, which is the
     # one thing the initial is for.
     from ..routers.settings_router import get_value
 
@@ -336,7 +336,7 @@ def dispense(
         is_repeat = item.repeats_used > 0 or bool(item.dispensings)
         # The count is the authority, with or without local history.
         #
-        # This also required `item.dispensings` — so a line carrying
+        # This also required `item.dispensings`, so a line carrying
         # `5 used of 5` but no dispensing rows of ours sailed past and was
         # dispensed a sixth time. That is precisely the shape of an imported or
         # migrated script: the counter came across, the history did not. The
@@ -518,7 +518,7 @@ def _dispenser(dispensing, user) -> str:
     nobody's question.
 
     So the full name is printed. Where an initial was recorded for somebody
-    other than the logged-in user — which the shared-till case makes possible —
+    other than the logged-in user, which the shared-till case makes possible —
     it is kept alongside, because that is the one case where the two really do
     name different people and the accountability belongs to the initial.
     """
@@ -547,7 +547,7 @@ def prescription_labels(
 
     Directions are expanded from shorthand before they leave here. A dispenser
     types `1t tds pc` because typing the sentence forty times a day is what
-    makes people abbreviate the label itself — and the label is where a patient
+    makes people abbreviate the label itself, and the label is where a patient
     reads what to do. The shorthand belongs in the input; the words belong on
     the box.
     """
@@ -579,7 +579,7 @@ def prescription_labels(
         """Street and city, without saying the city twice.
 
         Pharmacies write the town into the address field — "114 Samora Machel
-        Avenue, Harare" — and appending the city column to that gives
+        Avenue, Harare", and appending the city column to that gives
         "…Harare, Harare" on every sticker printed.
         """
         street = (b.address or "").strip().rstrip(",")

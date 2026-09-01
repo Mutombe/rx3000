@@ -12,7 +12,7 @@
  *
  *  One deliberate exception, and it is a safety one: F12 finishes a script in
  *  the incumbent. Finishing is irreversible once the receipt is fiscalised, so
- *  it is kept on F12 — muscle memory would fire it anyway — but the screen must
+ *  it is kept on F12, muscle memory would fire it anyway, but the screen must
  *  confirm rather than commit silently. Matching a key is not the same as
  *  matching a behaviour, and where the two conflict the safer behaviour wins.
  */

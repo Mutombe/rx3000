@@ -10,7 +10,7 @@
  *
  *  Creating a pharmacy creates its first branch and first administrator at the
  *  same time, because a tenant with neither cannot hold stock or be signed
- *  into — and a half-made pharmacy looks finished from a list.
+ *  into, and a half-made pharmacy looks finished from a list.
  */
 import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Buildings, Warning } from "@phosphor-icons/react";
@@ -152,7 +152,7 @@ export default function Pharmacies() {
 
       {/* People who belong to no pharmacy can sign in and then see nothing,
           because the scoping fails closed. Safe, but baffling for whoever it
-          happens to — so it is surfaced here rather than reported as "the
+          happens to, so it is surfaced here rather than reported as "the
           system is empty". */}
       {loose.length > 0 && (
         <div className="alert warn">

@@ -1,6 +1,6 @@
 /** Does the list show what you did before the server has agreed to it?
  *
- *  And — the half that actually matters — does it put things back when the
+ *  And, the half that actually matters, does it put things back when the
  *  server refuses? An optimistic UI that only works when everything succeeds is
  *  not an optimistic UI, it is a lie with good timing.
  *

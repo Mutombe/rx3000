@@ -95,7 +95,7 @@ def _alternatives(db: Session, formulary: Formulary, product: Product,
 
 #: Distinguishes "nobody looked it up" from "looked it up and there is none".
 #: `None` is a real answer here — a product absent from a formulary falls to the
-#: default rule — so a plain default of None would silently skip the lookup.
+#: default rule, so a plain default of None would silently skip the lookup.
 _NOT_LOOKED_UP = object()
 
 
@@ -179,7 +179,7 @@ def check_basket(db: Session, scheme: MedicalAid | None,
                  lines: list[tuple[Product, int]]) -> dict:
     # Every line's formulary entry in one query rather than one query a line.
     # `_alternatives` below still costs a query, but only for a line that has a
-    # problem — which is the minority, and the point at which somebody is
+    # problem, which is the minority, and the point at which somebody is
     # willing to wait a moment for an answer.
     entries: dict[int, object] = {}
     looked_up = bool(scheme and scheme.formulary_id and lines)
@@ -191,7 +191,7 @@ def check_basket(db: Session, scheme: MedicalAid | None,
         entries = {r.product_id: r for r in rows}
 
     # `None` from the map is a real answer — the product is not on the
-    # formulary and falls to its default rule — so it is only passed when the
+    # formulary and falls to its default rule, so it is only passed when the
     # lookup actually ran.
     results = [
         check(db, scheme, product, qty,

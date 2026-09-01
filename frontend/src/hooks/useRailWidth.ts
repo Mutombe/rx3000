@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *  a till is shared. One pharmacist dragging the rail wide for a long branch
  *  name should not hand the next person a layout they did not choose and cannot
  *  explain. It survives a reload and an accidental navigation — the things that
- *  happen inside one shift — and resets to the default when the session ends.
+ *  happen inside one shift, and resets to the default when the session ends.
  *
  *  Bounded at both ends. Below the lower bound the labels wrap, which is the
  *  fault this replaced; above the upper one the navigation is eating width the

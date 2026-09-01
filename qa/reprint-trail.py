@@ -1,7 +1,7 @@
 """Every label printed a second time leaves a record.
 
 The model says why: labels jam, peel and end up on the wrong box, so reprinting
-is a daily action rather than an exception — but a second label for a controlled
+is a daily action rather than an exception, but a second label for a controlled
 substance is also the easiest way to make one dispensing look like two.
 Recording who reprinted what costs nothing and answers the question later.
 
@@ -73,7 +73,7 @@ r2 = client.post("/api/reprints", json={"kind": "label",
                                         "prescription_id": done.id,
                                         "reason": "wrong box"})
 check(r2.json().get("previously_printed") == 2,
-      f"the count is now 2 ({r2.json().get('previously_printed')}) — which is "
+      f"the count is now 2 ({r2.json().get('previously_printed')}), which is "
       f"what the dialog puts in front of whoever asks for a third")
 
 print("\nthe log the register reads")

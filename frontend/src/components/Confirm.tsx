@@ -23,7 +23,7 @@
  *  and two of its own. It returns a bare string with no validation, so "why was
  *  this lead disqualified" accepted an empty answer and recorded a reason of
  *  nothing; and on the will-call shelf it was collecting **who took a
- *  controlled substance** — a legal record — through an unstyled operating
+ *  controlled substance**, a legal record, through an unstyled operating
  *  system box with no label, no hint and no way to require an answer.
  *
  *  `ask()` is the same dialog with a field in it. It can require a value,

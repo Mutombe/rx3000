@@ -13,7 +13,7 @@ words before anything prints. That is not a convenience; it is the whole safety
 argument. The Institute for Safe Medication Practices publishes a list of
 abbreviations implicated in real dispensing errors, and the reason they are
 dangerous is that they are read by somebody other than the person who wrote
-them — a patient at home, a nurse on a ward, a locum the next morning. A code
+them: a patient at home, a nurse on a ward, a locum the next morning. A code
 that is expanded at the point of entry is read by nobody but the dispenser who
 typed it, three seconds after typing it.
 
@@ -34,12 +34,12 @@ is what ISMP asks for and it costs one hyphen.
 
 The earlier version handled the collision by inventing `od_eye` and `os_eye`.
 No dispenser has ever typed an underscore into a directions field, so those
-codes were unreachable — the collision was not resolved, only hidden.
+codes were unreachable: the collision was not resolved, only hidden.
 
 SPELLING
 
 Corrected after inspection: `instil` → `instill`. Both are defensible English —
-the single `l` is the British form — but pharmacy labelling worldwide, and USP
+the single `l` is the British form, but pharmacy labelling worldwide, and USP
 in particular, uses the double `l`, and a label is not the place to be
 interesting about orthography. Where British and American spellings differ
 elsewhere (`nebuliser`, not `nebulizer`) the British form is kept, because that
@@ -169,7 +169,7 @@ SEED: list[tuple[str, str, str, str, str]] = [
 #: Expansions this file used to ship, which a correction should overwrite.
 #:
 #: A pharmacy may edit any row in its own book — that is the point of storing
-#: them — so a re-seed must not flatten somebody's wording. It only replaces
+#: them, so a re-seed must not flatten somebody's wording. It only replaces
 #: text that is still exactly what an earlier version of this file put there.
 #: Anything a pharmacy has touched no longer matches, and is left alone.
 SUPERSEDED: dict[str, set[str]] = {
@@ -357,7 +357,7 @@ def book(db: Session) -> dict:
     # at the head of the quantities, which is what a string sort does to numbers
     # and no help to anybody reading down the page. The order in SEED is the one
     # a dispenser composes in — numerals, then tablets, then capsules, then
-    # liquids — and a pharmacy's own additions follow alphabetically after.
+    # liquids, and a pharmacy's own additions follow alphabetically after.
     position = {code: i for i, (code, *_) in enumerate(SEED)}
     rows.sort(key=lambda r: (position.get(r.code.lower(), len(SEED)),
                              r.code.lower()))

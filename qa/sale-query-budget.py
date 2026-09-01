@@ -14,7 +14,7 @@ PatientOut carries the medical aid. Serialisation walks all of it, so every
 level not named in the loader is a round trip per row.
 
 This asserts a budget rather than an exact number — a legitimate change may add
-a query — but a budget low enough that a reintroduced lazy load fails it
+a query, but a budget low enough that a reintroduced lazy load fails it
 immediately rather than in production three weeks later.
 """
 import os

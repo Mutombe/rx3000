@@ -9,7 +9,7 @@
  *
  *  **Freezing a branch.** Under investigation, mid stock-take, or a manager has
  *  walked out with the keys. Head office needs the shop to stop moving money
- *  without waiting for anybody there to agree — and reading deliberately stays
+ *  without waiting for anybody there to agree, and reading deliberately stays
  *  open, because a branch that cannot check an allergy will work around the
  *  freeze on paper, where nobody can see it at all.
  *

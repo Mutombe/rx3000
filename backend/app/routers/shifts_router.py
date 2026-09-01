@@ -155,7 +155,7 @@ def get_current(db: Session = Depends(get_db), user: User = Depends(get_current_
             setattr(shift, key, value)
         # The blind count only works if the expected figure is genuinely not in
         # the browser. This endpoint was sending it, which meant the count screen
-        # could show a live variance as the operator typed — and a count that can
+        # could show a live variance as the operator typed, and a count that can
         # be adjusted until it balances is not a count.
         #
         # Withheld until a count has been committed. Everything else the shift
@@ -454,7 +454,7 @@ class PettyCashIn(BaseModel):
     amount: float
     #: Which drawer it came out of. The column has been on the record since it
     #: was written and nothing ever sent one, so every payout in a pharmacy
-    #: running two currencies was an amount with no currency — and a ZiG taxi
+    #: running two currencies was an amount with no currency, and a ZiG taxi
     #: fare taken off the USD drawer is a variance nobody can explain.
     currency_code: str = ""
     category: str = ""
@@ -528,7 +528,7 @@ def list_petty_cash(
                 "receipt_seen": r.receipt_seen,
                 # Who took the money out. The relationship existed and was never
                 # returned, so a screen could show every payout without showing
-                # who made it — which is most of what a petty-cash control is for.
+                # who made it, which is most of what a petty-cash control is for.
                 "user": r.user.full_name if r.user else "",
                 "created_at": r.created_at.isoformat(),
             }

@@ -10,7 +10,7 @@ class ORM(BaseModel):
     A text column that is NULL reads as empty text rather than as a validation
     failure. This is not cosmetic: `field: str = ""` only supplies the default
     when the key is *missing*, and reading from an ORM object the attribute is
-    always present — so a single NULL in one row of one column makes Pydantic
+    always present, so a single NULL in one row of one column makes Pydantic
     reject the entire response.
 
     That is exactly what happened. Adding `bin_location` and `manufacturer` left
@@ -104,7 +104,7 @@ class MedicalAidTerms(BaseModel):
     credit_limit: Optional[float] = None
     # pricing.py adds this on top of the medicine price for schemes that allow a
     # higher margin. It was read on every priced claim and settable nowhere, so
-    # the markup was always zero — the feature existed only in the calculation.
+    # the markup was always zero: the feature existed only in the calculation.
     extra_markup_percent: Optional[float] = None
 
 
@@ -174,7 +174,7 @@ class ProductBase(BaseModel):
     # A blank name was accepted, which puts an unnameable line in the catalogue:
     # it cannot be searched for, cannot be recognised on a shelf, and prints as
     # an empty row on a receipt. Whitespace is stripped first so " " is caught
-    # too — the constraint has to reject what the user can actually type.
+    # too: the constraint has to reject what the user can actually type.
     name: str = Field(min_length=1, max_length=200)
     nappi_code: str = ""
     barcode: str = ""
@@ -427,7 +427,7 @@ class DispensingOut(ORM):
     prescriber_verified: bool
     compliance_notes: str
     # Who checked it. `witness` is kept so historical rows that recorded one
-    # still show it, but nothing writes it any more — the initials replaced it.
+    # still show it, but nothing writes it any more: the initials replaced it.
     pharmacist_initial: str = ""
     dispensed_by: Optional[UserOut] = None
     witness: Optional[UserOut] = None

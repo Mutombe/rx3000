@@ -201,7 +201,7 @@ def list_transactions_paged(kind: str = "", page: int = 1,
     """The switch audit trail, paged. 3,276 behind a cap of 100.
 
     When a claim is queried weeks later, the request and response that settled
-    it are the evidence — and they are not in the most recent hundred.
+    it are the evidence, and they are not in the most recent hundred.
     """
     result = paging.page(_txn_query(db, kind), page=page, per_page=per_page)
     return result.envelope(_txn_row)
@@ -212,7 +212,7 @@ def list_integrations():
     """What is real and what is pretended, on this installation, right now.
 
     Published rather than kept in comments, because the answer decides whether a
-    pharmacy can go live — and because "the demo worked" is not evidence that
+    pharmacy can go live, and because "the demo worked" is not evidence that
     anything was filed with a funder or a revenue authority.
     """
     return {

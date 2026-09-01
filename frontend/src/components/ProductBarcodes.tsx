@@ -3,7 +3,7 @@
  *  One medicine answers to several barcodes and always has: the box, the
  *  outer, the same drug from a second importer, and whatever the wholesaler
  *  printed on the shipper. The till learns them as they are scanned — that
- *  part worked — but nothing could ever show which codes a product had
+ *  part worked, but nothing could ever show which codes a product had
  *  acquired, or take one off.
  *
  *  Taking one off is the point. A code learned against the wrong product is

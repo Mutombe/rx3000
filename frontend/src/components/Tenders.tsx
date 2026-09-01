@@ -1,7 +1,7 @@
 /** How a payment is actually made up, in a country that pays in pieces.
  *
  *  A Zimbabwean counter does not take "card". It takes eleven US dollars on
- *  EcoCash, forty in ZiG cash, and the rest on a Stanbic card — and the medical
+ *  EcoCash, forty in ZiG cash, and the rest on a Stanbic card, and the medical
  *  aid has already covered half of it. Three different questions hide inside the
  *  word "payment": which instrument, whose instrument, and in which currency.
  *
@@ -70,7 +70,7 @@ export const CARD_SCHEMES = [...CARD_NETWORKS, ...ZIM_BANKS];
 /** The currency world, read off whatever /api/currency returned.
  *
  *  Derived in one place because three screens need the same two things — which
- *  codes may be offered, and what each is worth — and each of them deriving it
+ *  codes may be offered, and what each is worth, and each of them deriving it
  *  separately is how one ends up offering a currency it cannot convert.
  */
 export function currencyWorld(state: any): {
@@ -105,7 +105,7 @@ export function inBase(line: TenderLine, rates: Record<string, number>, base: st
   const rate = rates[code];
   // No rate on file means the figure cannot be converted, and guessing one
   // would quietly understate or overstate what was taken. Nought is wrong too,
-  // but it is visibly wrong — the total will not add up and somebody looks.
+  // but it is visibly wrong: the total will not add up and somebody looks.
   return rate ? n / rate : 0;
 }
 
@@ -268,7 +268,7 @@ export default function Tenders({
               <>
                 {/* Which funder. "Medical aid 40.00" names no scheme, and a
                     claim that cannot say who it is against is a claim nobody
-                    can chase — the same fault as a card line with no bank. */}
+                    can chase: the same fault as a card line with no bank. */}
                 <div className="tender-row tender-detail">
                   {scheme ? (
                     <span className="tender-scheme">
@@ -310,7 +310,7 @@ export default function Tenders({
                 )}
                 {/* The switch goes down, and the medicine still has to go out.
                     Holding the claim is the only answer that neither turns the
-                    patient away nor loses the money — and the server has done
+                    patient away nor loses the money, and the server has done
                     it all along with nothing on any screen to ask for it. */}
                 <div className="tender-row tender-detail">
                   <label className="cbx">

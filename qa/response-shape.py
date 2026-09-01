@@ -48,7 +48,7 @@ FRONTEND = ROOT / "frontend" / "src"
 ROUTERS = ROOT / "backend" / "app" / "routers"
 
 #: `api.get<Something[]>("/api/thing")` and the template-literal form.
-#: The type argument has to end in `[]` — that is the assertion we are testing.
+#: The type argument has to end in `[]`. That is the assertion we are testing.
 CALL = re.compile(
     r"""api\.get<\s*(?P<type>[^>]*?\[\])\s*>\(\s*[`"'](?P<path>/api/[^`"'?${]*)""",
     re.S,

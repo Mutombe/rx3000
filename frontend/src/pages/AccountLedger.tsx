@@ -2,7 +2,7 @@
  *
  *  The page reached from a trial-balance figure that looks wrong. It carries a
  *  running balance down the rows, because the question actually asked is "what
- *  was this account at on the 14th" — and a list of movements alone cannot
+ *  was this account at on the 14th", and a list of movements alone cannot
  *  answer it without the reader doing arithmetic the machine should have done.
  *
  *  Every row opens the journal entry behind it, so the chain runs

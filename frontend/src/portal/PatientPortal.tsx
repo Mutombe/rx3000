@@ -15,7 +15,7 @@
  *
  *  What is ready now, then what is due next, then everything else. A patient
  *  opening this has one of two questions — "is it ready" or "when do I need
- *  more" — and both are answered before anything is scrolled. The prescription
+ *  more", and both are answered before anything is scrolled. The prescription
  *  history is underneath, where somebody looking for it will go and nobody else
  *  has to wade through it.
  *

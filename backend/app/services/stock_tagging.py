@@ -3,7 +3,7 @@
 A catalogue where two thirds of the lines belong to no department is a
 catalogue that cannot be reported on. Every stock valuation, every margin
 comparison, every "what is front shop actually worth" question groups on this
-column, and an untagged product silently drops out of all of them — so the
+column, and an untagged product silently drops out of all of them, so the
 totals look plausible and are wrong by however much is missing. CareXpress had
 10,271 of 16,407 untagged.
 
@@ -26,7 +26,7 @@ In this order, stopping at the first that answers:
   a department comes to hold two thousand things with nothing in common.
 
 The rules are stated here rather than learned, because a pharmacist has to be
-able to disagree with one and change it — and because a wrong department is
+able to disagree with one and change it, and because a wrong department is
 invisible until somebody reads a report and cannot see why the numbers move.
 """
 from __future__ import annotations

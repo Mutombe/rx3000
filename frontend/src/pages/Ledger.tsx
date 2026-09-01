@@ -170,7 +170,7 @@ export default function Ledger() {
         </div>
         <div className="page-actions">
           {/* Almost everything here is posted by something else, and that is
-              right — but a bank charge nothing raised, a correction, an owner's
+              right, but a bank charge nothing raised, a correction, an owner's
               drawing all need a hand. The endpoint has existed since the ledger
               was written and the only way to reach it was curl. */}
           <button className="btn" onClick={() => setJournalling(true)}>

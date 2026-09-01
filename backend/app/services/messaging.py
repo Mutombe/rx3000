@@ -1,7 +1,7 @@
 """Outbound messaging: email via SMTP, SMS via configurable HTTP gateway.
 
 When no provider is configured, messages are logged to the console and marked
-sent with a note — so the full reminder pipeline works out of the box in dev.
+sent with a note, so the full reminder pipeline works out of the box in dev.
 """
 import logging
 import smtplib

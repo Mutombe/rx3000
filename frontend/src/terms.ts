@@ -58,7 +58,7 @@ export function patientOwesPhrase(onScheme: boolean): string {
 export const DRAFT_SCRIPT = "Draft";
 export const DRAFT_SCRIPT_PLURAL = "Drafts";
 
-/** A repeat with collections still to come — the trade's "3-Repeat".
+/** A repeat with collections still to come: the trade's "3-Repeat".
  *
  *  What the dispensary means by an N-Repeat: a script that is not finished
  *  *being repeated*. Five collections were authorised, two have gone out,

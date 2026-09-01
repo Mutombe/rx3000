@@ -4,7 +4,7 @@
  *  *keyboard*: it types the digits and presses Enter, faster than a person can.
  *  A phone is a *camera*: frames go to a decoder and a code falls out. Writing
  *  each screen against both would double every scanning workflow, so both are
- *  reduced here to the same event — a string arrived — and the screens above
+ *  reduced here to the same event, a string arrived, and the screens above
  *  never learn which one it came from.
  *
  *  Two decisions worth stating, because both are easy to get wrong:
@@ -220,7 +220,7 @@ interface CameraProps {
 /** The viewfinder.
  *
  *  Deliberately not a dialog that closes on its first hit. At a counter, or at
- *  a delivery, scanning is repetitive — five packs, twenty packs — and a camera
+ *  a delivery, scanning is repetitive, five packs, twenty packs, and a camera
  *  that shuts after each one turns a single gesture into three. So the lens
  *  stays live and what has been captured accumulates underneath it, where it
  *  can be checked without looking away from the goods.

@@ -74,7 +74,7 @@ def update_user(user_id: int, body: dict = Body(...),
     **A staff member who left could not be deactivated.** Their login stayed
     live for as long as the pharmacy existed. That is the single most ordinary
     security failure in a small business — the departed employee who can still
-    sign in — and nothing here could prevent it.
+    sign in, and nothing here could prevent it.
     """
     user = db.get(User, user_id)
     if not user:

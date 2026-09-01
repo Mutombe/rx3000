@@ -44,7 +44,7 @@ seed.seed_claiming_if_empty(db)
 offices = db.query(models.PayOffice).count()
 check(offices > 0, f"pay offices were created ({offices})")
 
-# 2. The pharmacy signs up its schemes afterwards — the ordinary case.
+# 2. The pharmacy signs up its schemes afterwards: the ordinary case.
 print("\nschemes signed up afterwards")
 for name, code in [("CIMAS Medical Aid", "CIMAS"),
                    ("PSMAS", "PSMAS"),
@@ -71,7 +71,7 @@ check(not misfiled, f"no funder filed under private patients (misfiled: {misfile
 # 5. One scheme running two currency books is one payer, not two.
 fmh = {a.scheme_code: a for a in aids}
 # Both being unset would satisfy a bare equality, which is the very state this
-# file exists to catch — so the office has to exist before it can be shared.
+# file exists to catch, so the office has to exist before it can be shared.
 check(fmh["FMH"].pay_office_id is not None
       and fmh["FMH"].pay_office_id == fmh["FMHZWA"].pay_office_id,
       "First Mutual's USD and ZiG books share one pay office")
@@ -85,7 +85,7 @@ check(reachable == len(aids),
       f"all {len(aids)} schemes are reachable by the join the work list uses "
       f"(reachable: {reachable})")
 
-# 7. Running it again changes nothing — a boot is not an event.
+# 7. Running it again changes nothing: a boot is not an event.
 before = db.query(models.PayOffice).count()
 seed.seed_claiming_if_empty(db)
 check(db.query(models.PayOffice).count() == before,

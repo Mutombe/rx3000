@@ -148,7 +148,7 @@ export default function Payables() {
    *
    *  The ageing lists what is still owed and the supplier record lists that
    *  supplier's bills. Neither answers the question a wholesaler asks on the
-   *  telephone — "what happened to 44001?" — because a settled invoice is on
+   *  telephone, "what happened to 44001?", because a settled invoice is on
    *  neither. The endpoint has taken a search term since it was written and no
    *  screen sent one, so the answer was to guess which supplier it belonged to
    *  and read down their list.
@@ -170,7 +170,7 @@ export default function Payables() {
    *  The match exists to catch being billed for twelve when ten arrived, or at
    *  a price that rose after the order was placed. It caught those and then
    *  offered exactly one button: Approve. A pharmacist who found a discrepancy
-   *  could accept it or leave the screen — which in practice means accepting it
+   *  could accept it or leave the screen, which in practice means accepting it
    *  a week later, because the invoice has to be paid.
    *
    *  A queried invoice still ages and still counts as owed. This is not a way

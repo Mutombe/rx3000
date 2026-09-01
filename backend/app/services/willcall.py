@@ -153,7 +153,7 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
     # Counted over the whole shelf, never over the page.
     #
     # These were summed from `items`, which is the first two hundred rows sorted
-    # oldest first — so the summary said every bag on the shelf was abandoned
+    # oldest first, so the summary said every bag on the shelf was abandoned
     # while the fresh ones sat on page two. A count taken from a page is the
     # commonest way a screen lies without anybody writing a false statement.
     counts = {name: 0 for _, name, _ in BANDS}
@@ -184,7 +184,7 @@ def collect(db: Session, dispensing_id: int, *, user_id: int,
     """Hand a bag over, and record who took it.
 
     `taken_by` is often not the patient — a relative, a driver, a neighbour
-    going that way — and on a controlled item it is the answer to "who had it",
+    going that way, and on a controlled item it is the answer to "who had it",
     so a Schedule 5 or 6 bag will not close without a name.
     """
     d = db.get(Dispensing, dispensing_id)

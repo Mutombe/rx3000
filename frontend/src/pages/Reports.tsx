@@ -62,7 +62,7 @@ export default function Reports() {
   /** Print what is on the tab, as a document.
    *
    *  One button that printed the whole browser window regardless of which tab
-   *  was open — so the takings report, the VAT summary and the stock valuation
+   *  was open, so the takings report, the VAT summary and the stock valuation
    *  all came out as a photograph of a web page with the navigation down the
    *  side. The dataset that leaves now follows the tab, which is the only thing
    *  the button could ever have honestly meant.

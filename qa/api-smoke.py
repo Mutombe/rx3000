@@ -3,7 +3,7 @@
 Cheap, and it catches the class of fault that is invisible to a typecheck, a
 build and the test suite: a response schema that cannot serialise the rows
 actually in the database. Nothing in the code is wrong in that case — the data
-simply grew a NULL the schema does not allow — so only a real request finds it.
+simply grew a NULL the schema does not allow, so only a real request finds it.
 
     python qa/api-smoke.py            # needs the backend running (RX5000_API to point elsewhere)
 
@@ -14,7 +14,7 @@ What it found the first time it was run:
 `bin_location` and `manufacturer` had been added as `VARCHAR` with no DEFAULT,
 so every existing row was NULL, while the API declared them as plain `str`.
 `field: str = ""` supplies the default only when the key is *missing*, and
-reading from an ORM object the attribute is always present — so one unfilled
+reading from an ORM object the attribute is always present, so one unfilled
 column returned 500 for the entire catalogue, the stock screens, and the offline
 catalogue sync. The friendly error worked exactly as designed and told nobody
 which two columns.
@@ -44,7 +44,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "backend"))
 
 # Overridable, because a stale server holding the default port makes this check
-# describe code from days ago while reporting "0 failing" — which is worse than
+# describe code from days ago while reporting "0 failing", which is worse than
 # not running it. RX3000_API points it at whichever backend is current.
 BASE = os.environ.get("RX5000_API") or os.environ.get("RX3000_API") or "http://localhost:8177"
 # 401/403 mean the route is alive and guarded; 404/422 mean it wants arguments

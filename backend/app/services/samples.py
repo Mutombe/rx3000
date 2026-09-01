@@ -51,7 +51,7 @@ def receive(db: Session, *, product_id: int, quantity: int, supplier_name: str,
 
     The expiry is asked for and not required. A sample often arrives in a plain
     box with the date on the blister inside, and refusing to record it at all
-    until somebody finds the date means it does not get recorded — which is the
+    until somebody finds the date means it does not get recorded, which is the
     situation this exists to end.
     """
     product = db.get(Product, product_id)

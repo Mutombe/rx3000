@@ -21,7 +21,7 @@ def claimable_lines(sale: Sale) -> list:
 
     A script is not all-or-nothing. One line may be cash by the patient's choice
     or the scheme's rule, and another may not have been supplied at all. Sending
-    those to the funder either overclaims — which is fraud, however accidental —
+    those to the funder either overclaims, which is fraud, however accidental —
     or invites a rejection that holds up the whole claim. Both are avoided by
     asking the line, not the script.
     """
@@ -126,7 +126,7 @@ def estimate(db, patient, lines: list[tuple]) -> dict:
     """What the scheme will carry and what the patient will owe, before dispensing.
 
     `lines` are (product, quantity) as they stand on the script being built, and
-    are priced the way the sale will be priced — at shelf price — because that
+    are priced the way the sale will be priced, at shelf price, because that
     is what the claim will be raised against.
     """
     priced = [(product, round((product.unit_price or 0.0) * max(1, int(qty or 1)), 2))

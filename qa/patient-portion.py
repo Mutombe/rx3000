@@ -3,7 +3,7 @@
 The claim is raised when the script is dispensed, so by the time any screen
 shows a figure the funder is already carrying most of it. Both the dispensing
 screen and the till therefore have to answer the same question — what does the
-person standing here actually owe — and both used to be able to get it wrong in
+person standing here actually owe, and both used to be able to get it wrong in
 the same direction: show the gross, and take the gross.
 
 On a real dispensing that is a hundred and thirty-five dollars asked of somebody

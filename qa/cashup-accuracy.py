@@ -114,7 +114,7 @@ def main() -> int:
         db.flush()
         with_tenders = round(cashup.system_totals(db, shift).get("cash", 0.0), 2)
         # The part-paid sale now has a tender, so it is counted from that
-        # instead — the figure must not move.
+        # instead: the figure must not move.
         ok2 = abs(with_tenders - expected) < 0.005
         print(f"  {'ok  ' if ok2 else 'FAIL'} and the same when the payment is "
               f"recorded as a tender: {with_tenders:.2f}")

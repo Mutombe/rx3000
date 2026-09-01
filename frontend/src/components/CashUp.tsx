@@ -11,7 +11,7 @@
  *  extra steps.
  *
  *  Cash is counted by denomination rather than as a total. The operator counts
- *  objects — seven singles, two hundreds — and asking them to do the
+ *  objects, seven singles, two hundreds, and asking them to do the
  *  multiplication in their head is asking for exactly the arithmetic error the
  *  count exists to catch.
  */

@@ -29,7 +29,7 @@ type Tab = "till" | "pending" | "history";
 const EMPTY_CARD = { auth: "", reference: "", last4: "", scheme: "", terminal: "" };
 
 /* The local three-field TenderLine used to live here — method, currency,
-   amount — which is why the till's own split panel could not say which wallet
+   amount, which is why the till's own split panel could not say which wallet
    or which bank, while the part-payment modal beside it could. It is the
    shared one now: one definition, one set of questions, wherever money is
    taken. */
@@ -108,7 +108,7 @@ export default function POS() {
 
   /* Two lists, two flags. The till's own tab is built from what the cashier
      is typing and has nothing to wait for; these two are fetched, and until
-     now they rendered an empty table while the answer was in flight — which on
+     now they rendered an empty table while the answer was in flight, which on
      the awaiting-payment tab reads as "nobody owes anything", the single most
      misleading thing this screen could say. */
   /** A waiting sale about to be settled, and the button that was pressed. */
@@ -508,7 +508,7 @@ export default function POS() {
           // Every payment the cashier actually took, not a single flattened
           // line. A part payment made of ZiG cash and an EcoCash transfer is
           // two tenders, and recording it as one loses which drawer each
-          // belongs to — which is the whole of cash-up.
+          // belongs to, which is the whole of cash-up.
           tenders: choice.tenders,
         }, token),
         `${sale.sale_number} — ${money(choice.amount)} of ${money(patientOwes(sale))}`,
@@ -577,7 +577,7 @@ export default function POS() {
       });
       setReceipt(paid);
       // Said out loud. The receipt opened and nothing else happened, so on a
-      // busy counter it read as the row having simply vanished — and once the
+      // busy counter it read as the row having simply vanished, and once the
       // receipt was dismissed there was nothing on screen saying the money had
       // been taken at all.
       toast.ok(covered > 0.005
@@ -602,7 +602,7 @@ export default function POS() {
   /** Print the receipt the moment the money is taken.
    *
    *  It used to print only where a device agent was running, and to do nothing
-   *  at all otherwise — so a till without the agent settled the sale, opened a
+   *  at all otherwise, so a till without the agent settled the sale, opened a
    *  receipt on screen, and left the customer waiting while somebody found the
    *  print button. The roll is the right destination when there is one; the
    *  browser's dialog is the fallback rather than the absence of one.

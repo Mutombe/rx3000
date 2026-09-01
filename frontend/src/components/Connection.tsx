@@ -53,7 +53,7 @@ export function useConnection() {
 /** How often to look while connected, and while not.
  *
  *  Faster when down, because the thing everybody wants to know is the moment it
- *  comes back — and slower when up, because a healthy till should not spend its
+ *  comes back, and slower when up, because a healthy till should not spend its
  *  time asking.
  */
 const POLL_UP = 30_000;
@@ -82,7 +82,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [held, setHeld] = useState(0);
   // A token appearing is not something React re-renders for, so it is
-  // sampled on each connection poll — which is frequent enough to pick up
+  // sampled on each connection poll, which is frequent enough to pick up
   // a sign-in within seconds and cheap enough not to matter.
   const [signedIn, setSignedIn] = useState(() => Boolean(getToken()));
   const [flushed, setFlushed] = useState(0);
@@ -115,7 +115,7 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
       // Four seconds is right for a server in the back office: it is either
       // switched on or it is not, and a till should say so at once rather than
       // hang. It is wrong for a hosted one, which sleeps when nobody has used
-      // it and takes half a minute to wake — and this application was pointed
+      // it and takes half a minute to wake, and this application was pointed
       // at a hosted server without that timeout being revisited. A pharmacy
       // then opened the till, waited four seconds, and was told the line was
       // down while the server was starting up perfectly well.

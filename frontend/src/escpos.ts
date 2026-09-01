@@ -1,7 +1,7 @@
 /** Turning a label into the bytes a thermal printer understands.
  *
  *  A thermal printer does not render HTML. It takes a stream of text with
- *  control codes in it — ESC/POS — and prints as it reads. Sending those bytes
+ *  control codes in it, ESC/POS, and prints as it reads. Sending those bytes
  *  straight to the spooler is what makes a label appear the instant a sale
  *  completes, with no print dialog in the way, which is the difference between
  *  a till and a web page.
@@ -91,7 +91,7 @@ export function render(lines: Line[], width = 32, cut = true): Uint8Array {
 /** What the roll will actually say, for showing on screen.
  *
  *  The preview has to be the same document as the print or it is a lie, and
- *  this one cannot be shown as HTML — so it is shown as the text the printer
+ *  this one cannot be shown as HTML, so it is shown as the text the printer
  *  receives, wrapped at the roll's own width.
  */
 export function asText(lines: Line[], width = 32): string {

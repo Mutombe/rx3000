@@ -3,7 +3,7 @@
 The same discipline as `interactions`, for the same reason: **a partial dose
 table is more dangerous than no table** if the screen lets anyone read "nothing
 found" as "this dose is correct". A pharmacist told twice that the system checks
-doses will, on the third occasion, trust it — and the drug it does not hold will
+doses will, on the third occasion, trust it, and the drug it does not hold will
 go out at four times the maximum.
 
 So:

@@ -4,7 +4,7 @@ What the export actually contains, which is not obvious from the header row:
 each invoice is one row, followed by its lines, and the "lines" are three
 different kinds of thing wearing the same shape.
 
-  A **stock code** — 50,694 of them — is a product sold. Matched against the
+  A **stock code**, 50,694 of them, is a product sold. Matched against the
   16,406 products already loaded, on the stock code the incumbent uses.
 
   **RX** is not a product. It is the script charge, the dispensing fee, and
@@ -12,7 +12,7 @@ different kinds of thing wearing the same shape.
   called "Script Charge" and put them in the catalogue.
 
   **PMT1** is not a product either. It is the tender — how the invoice was
-  paid — and it is the only place in this export that says so per sale.
+  paid, and it is the only place in this export that says so per sale.
 
 Sales are written directly rather than through the till, and nothing is posted
 to the ledger. This is history: it happened in another system, the money was
@@ -31,7 +31,7 @@ receivable side of exactly the reconciliation this pharmacy asked for.
 #: A known and deliberate inconsistency in what this produces.
 #:
 #: The header's `Nett` is what the customer paid. On a script billed to a
-#: scheme that is the script charge alone — often a dollar — while the lines
+#: scheme that is the script charge alone, often a dollar, while the lines
 #: beneath it are every medicine dispensed, priced. So 551 of the 45,728 sales
 #: this imported carry a total smaller than their own lines add up to, and
 #: `qa/data-integrity.py` reports them.
@@ -54,7 +54,7 @@ from ..tenancy import unscoped
 HEADER_ROW = 9
 TENANT = "CareXpress Pharmacy"
 #: The export carries one store's trading. The teller cash-up that came with it
-#: names it — "Branch / Store: Chinamano" — and the letterhead address is on
+#: names it, "Branch / Store: Chinamano", and the letterhead address is on
 #: Chinamano Avenue, so that is where this history belongs.
 BRANCH_HINT = "Chinamano"
 
@@ -104,7 +104,7 @@ def run(path: str, limit: int = 0) -> dict:
                   or db.query(Branch).filter(Branch.pharmacy_id == pharmacy.id).first())
 
         # The script charge is a real thing this pharmacy sells — a dispensing
-        # fee — so it gets one real product rather than being dropped. Every
+        # fee, so it gets one real product rather than being dropped. Every
         # one of the 45,728 invoices that carries it points at this.
         fee_product = (db.query(Product)
                        .filter(Product.pharmacy_id == pharmacy.id,

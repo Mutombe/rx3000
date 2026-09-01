@@ -1,7 +1,7 @@
 /** A batch: what it is, where it came from, and who received it.
  *
  *  The same trace the recall screen runs, reached from anywhere a batch number
- *  appears — an expiry sweep, a stock take, a sample register. A pharmacist who
+ *  appears: an expiry sweep, a stock take, a sample register. A pharmacist who
  *  notices something odd about a batch should not have to go to the recall
  *  screen and search for it again to find out where it went.
  */

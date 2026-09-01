@@ -227,7 +227,7 @@ def return_sale_stock(db: Session, sale, user_id: int | None, reference: str) ->
     in the same state. A void withdraws the sale outright; a credit note leaves
     the original receipt standing and files a reversing one, which is the only
     lawful route once a receipt has been filed with the revenue authority. The
-    fiscal treatment differs — the stock does not. The goods came back over the
+    fiscal treatment differs: the stock does not. The goods came back over the
     counter either way, and they belong in the batches they were drawn from so
     they keep their expiry dates.
     """

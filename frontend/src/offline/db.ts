@@ -72,7 +72,7 @@ function run<T>(
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
         // A transaction can abort after the request succeeded — quota, for
-        // instance — and the write is then not there despite having looked fine.
+        // instance, and the write is then not there despite having looked fine.
         tx.onabort = () => reject(tx.error ?? new Error("The local write was rolled back."));
       }),
   );

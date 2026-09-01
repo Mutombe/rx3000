@@ -11,7 +11,7 @@ Ordering is the whole value. A queue sorted by booking time treats a paediatric
 antibiotic and a vitamin refill as equally urgent, and a queue sorted by severity
 alone puts a schedule 4 booked for five o'clock ahead of one booked for nine.
 Both matter, so both are used: severity first in bands, booking time within a
-band. That is how a dispensary actually works — the urgent tray, then in order.
+band. That is how a dispensary actually works: the urgent tray, then in order.
 
 Severity here is not the drug schedule. A schedule is a legal classification and
 this is a clinical urgency, and conflating them puts a controlled sleeping tablet
@@ -53,7 +53,7 @@ def _severity(product: Product, patient: Patient | None) -> tuple[int, str]:
     """Urgency band and why, so a dispenser can see the reason not just the rank.
 
     Bands rather than a score. A score invites false precision — nobody can say
-    an antibiotic is 7.4 urgent — and a band is what a tray physically is.
+    an antibiotic is 7.4 urgent, and a band is what a tray physically is.
     """
     name = (product.name or "").lower()
     ingredient = (product.active_ingredient or "").lower()
@@ -68,7 +68,7 @@ def _severity(product: Product, patient: Patient | None) -> tuple[int, str]:
     if conditions and any(word in conditions for word in CHRONIC_WORDS):
         return 2, "chronic patient"
     if (product.schedule or 0) >= 5:
-        # Controlled, so it needs care and a register entry — but that is
+        # Controlled, so it needs care and a register entry, but that is
         # process urgency, not clinical, so it sits below a chronic patient.
         return 3, f"schedule {product.schedule}, register entry required"
     if (product.schedule or 0) >= 2:
@@ -102,7 +102,7 @@ def _handed_out():
 
     One grouped aggregate, joined once. Shared by the count and the list so the
     sidebar badge and the worklist panel cannot answer the same question
-    differently — which is the whole reason `_pending_base` exists too.
+    differently, which is the whole reason `_pending_base` exists too.
     """
     return (
         select(Dispensing.prescription_item_id.label("item_id"),
@@ -140,7 +140,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
     """Everything captured and not yet dispensed, worst first then oldest first.
 
     Returns the visible rows *and* the true count. A queue is one of the few
-    places a cap is genuinely right — nobody works a list of five thousand — but
+    places a cap is genuinely right, nobody works a list of five thousand, but
     the count must not be the cap. Reporting the limit as the total is how a
     backlog of eight hundred reads as two hundred, and it is the same mistake
     this codebase has now made in five separate places.
@@ -148,7 +148,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
     # How much of each line has already gone out, summed in the database.
     #
     # This used to be `sum(d.quantity for d in item.dispensings)` inside the
-    # loop below — one lazy load per prescription line. Every line of every
+    # loop below: one lazy load per prescription line. Every line of every
     # script that was not a draft got loaded and then asked about individually:
     # two and a half thousand rows became two thousand six hundred and ninety
     # eight queries. On a laptop that is seven seconds. Against a hosted
@@ -209,7 +209,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             "chronic": bool(patient and _is_chronic(patient)),
             # Is this the first time this line goes out, or a repeat of it?
             # The queue could not say, so a dispenser had to open the script to
-            # find out — and a repeat is checked differently from a new script.
+            # find out, and a repeat is checked differently from a new script.
             "is_repeat": (item.repeats_used or 0) > 0,
             "repeats_used": item.repeats_used or 0,
             "repeats_allowed": item.repeats_allowed or 0,
@@ -217,7 +217,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             # What this line is worth, and what the rest of the repeat is
             # worth after it. The queue said "REPEAT 2/5" and nothing about
             # money, so a rail with two hundred names on it could not be worked
-            # in the order that pays — and the whole argument for a repeat book
+            # in the order that pays, and the whole argument for a repeat book
             # is that it is money the shop can see coming.
             #
             # Free here: the product is already loaded to print its name.
@@ -237,7 +237,7 @@ def _value(product, quantity: int, *, times: int = 1) -> float:
 
     At the product's selling price, which is what the shop would take today. A
     repeat's worth is an estimate by nature — the price may move before the
-    patient comes in — and presenting it to the penny would be a false
+    patient comes in, and presenting it to the penny would be a false
     precision. It is right enough to sort a queue by, which is what it is for.
     """
     if product is None:
@@ -250,7 +250,7 @@ def band_counts(rows: list[dict]) -> dict[str, int]:
 
     Counted from the full list on purpose: bands taken from the page would shrink
     as the queue grew, so a worsening backlog would report fewer time-critical
-    items — the opposite of the truth, on the number a dispenser acts on first.
+    items: the opposite of the truth, on the number a dispenser acts on first.
     """
     counts: dict[str, int] = {}
     for row in rows:

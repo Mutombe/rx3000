@@ -1,7 +1,7 @@
 /** Key map overlay.
  *
  *  Generated from the same bindings that are actually registered, so a shortcut
- *  cannot exist without appearing here — and cannot appear here without working.
+ *  cannot exist without appearing here, and cannot appear here without working.
  */
 import { Hotkey, useKeyMap } from "../hooks/useHotkeys";
 

@@ -90,7 +90,7 @@ export default function DispensaryWorklist({
   const [data, setData] = useState<Worklist | null>(null);
   /** Scripts somebody started and did not finish.
    *
-   *  Its endpoint says it plainly — oldest first, the stalest is the risk — and
+   *  Its endpoint says it plainly, oldest first, the stalest is the risk, and
    *  nothing showed them. A draft is a patient who was served halfway: the
    *  medicine is not dispensed, the queue does not know about it because it has
    *  no Rx number yet, and the only person who knows is whoever walked away
@@ -105,7 +105,7 @@ export default function DispensaryWorklist({
      Without the `return` the refresh button had nothing to wait on: it resolved
      the instant it was pressed, so the spin lasted one frame and the control was
      back to looking idle while the request was still in flight. Anything that
-     wants to know when a load has finished — a busy control, a test — needs the
+     wants to know when a load has finished, a busy control, a test, needs the
      promise handed back, not started and forgotten. */
   const load = useCallback(() => {
     // The drafts are read alongside the queue rather than only when their tab
@@ -264,7 +264,7 @@ export default function DispensaryWorklist({
                 <span className="wl-patient">{row.patient}</span>
                 {/* Beside the quantity, where the eye already goes for a
                     number. The rail listed two hundred names and no money, so
-                    it could not be worked in the order that pays — which on a
+                    it could not be worked in the order that pays, which on a
                     short-staffed morning is the only question. */}
                 <span className="wl-qty">
                   <RepeatValue value={row.value} size="chip" />
@@ -340,7 +340,7 @@ export default function DispensaryWorklist({
               panel told a dispenser a repeat was due and then gave them no way
               to act on it, so the only route to the work was to go and find the
               patient by hand. Clicking now loads the line into the form, where
-              the checking pharmacist's initials are captured — which is why the
+              the checking pharmacist's initials are captured, which is why the
               old shortcut button could never have worked. */}
           {data.reminders.map((row, i) => (
             <button

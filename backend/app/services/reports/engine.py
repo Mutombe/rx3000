@@ -7,7 +7,7 @@ button, which is why theirs are inconsistent — some export to Excel, some only
 print, and the date control is in a different place on each.
 
 Writing a hundred and twenty screens would reproduce exactly that. So a report
-here declares *what it is* — its parameters, its columns, its query — and the
+here declares *what it is*, its parameters, its columns, its query, and the
 engine supplies everything a report needs but should never have to implement:
 
 * parameter parsing, defaulting and validation, once

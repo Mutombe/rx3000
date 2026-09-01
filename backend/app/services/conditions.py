@@ -20,7 +20,7 @@ A named rule table, matched on active ingredient and product name, in the same
 conservative way the allergy check works. It is not a clinical decision support
 system and does not pretend to be one. Every response carries what the table
 holds, because a checker that returns "nothing found" while holding forty rules
-teaches a pharmacist that a clear result means safe — which is the failure this
+teaches a pharmacist that a clear result means safe, which is the failure this
 whole area is written against.
 
 It does not block on its own. A pregnancy warning on a medicine a specialist
@@ -33,7 +33,7 @@ WHY THESE RULES AND NOT MORE
 Each one below is a contraindication or a caution a dispensing pharmacist is
 expected to know, drawn from the classes that actually appear in a Zimbabwean
 pharmacy's stock. Rules were left out where they need a fact the record does
-not hold — trimester, eGFR, seizure type — because a warning that fires on
+not hold, trimester, eGFR, seizure type, because a warning that fires on
 every pregnancy regardless of stage is a warning that gets dismissed on every
 pregnancy, including the one that mattered.
 """
@@ -243,7 +243,7 @@ def check(db: Session, patient: Patient | None,
     """Warnings raised by what this patient is recorded as living with.
 
     Shaped like the allergy warnings beside it — same keys, same negative id
-    for a derived finding — so the dispensing screen renders them together
+    for a derived finding, so the dispensing screen renders them together
     without knowing there are two sources.
     """
     if patient is None or not products:

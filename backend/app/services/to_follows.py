@@ -6,7 +6,7 @@ pharmacy sends them away with nothing. They hand over the twenty, take payment
 for the sixty, and owe forty.
 
 That debt exists whether or not the software records it. When the software does
-not, it lives on a note stuck to the till — and gets forgotten, or honoured
+not, it lives on a note stuck to the till, and gets forgotten, or honoured
 twice, or argued about when the patient returns and a different assistant is on.
 Propharm has this as "To Follows" on Ctrl+T, and a pharmacy that has relied on it
 for a decade will not move to a system that makes them go back to paper. It is
@@ -15,7 +15,7 @@ probably the single most switch-blocking gap in the product.
 Two things here go further than tracking the debt:
 
 * **`ready()` turns the queue around.** The incumbent can tell you what is owed.
-  This can tell you what is owed *and now in stock* — which is the difference
+  This can tell you what is owed *and now in stock*, which is the difference
   between a list somebody has to remember to check and a list that tells the
   pharmacy who to telephone this morning. Stock arriving is the event that
   matters, and nothing else in the shop notices it.
@@ -190,7 +190,7 @@ def queue(db: Session, *, status: str = "outstanding", patient_id: int = 0,
 
 
 def ready(db: Session, limit: int = 200) -> list[dict]:
-    """What is owed *and* now in stock — the call list.
+    """What is owed *and* now in stock: the call list.
 
     Tracking a debt is bookkeeping. Knowing the moment it can be honoured is the
     part the pharmacy actually wants, because stock arriving is an event nothing

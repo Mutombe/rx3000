@@ -4,7 +4,7 @@ A manufacturer withdraws batch A4471. The pharmacy has to answer two questions
 that afternoon, and the paper answer to both is somebody reading a shelf and a
 day book:
 
-  **Forward — who has it?**   Every patient dispensed from that batch, with a
+  **Forward, who has it?**   Every patient dispensed from that batch, with a
   telephone number, so they can be called. This is the one with a clock on it.
 
   **Backward — where did it come from and what is left?**  The supplier, the
@@ -16,7 +16,7 @@ the sale knows the patient. Three joins nobody had written, which meant a recall
 was answered by memory.
 
 **It reports what it cannot see.** Stock received before batch allocation was
-recorded, or dispensed without a batch, cannot be traced to a patient — and a
+recorded, or dispensed without a batch, cannot be traced to a patient, and a
 recall report that quietly omits those reads as "nobody else has it", which is
 the most dangerous sentence this module could produce. Untraceable quantity is
 counted and stated in the same breath as the traceable.

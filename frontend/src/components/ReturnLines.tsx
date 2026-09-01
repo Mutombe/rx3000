@@ -3,7 +3,7 @@
  *  A customer buys four things and brings one back. It happens at every till
  *  every day, and the system could not do it: void and the fiscal credit note
  *  both take back the whole sale. So the till reversed all four and rang three
- *  up again — which changes the receipt number, reverses the claim, earns the
+ *  up again, which changes the receipt number, reverses the claim, earns the
  *  loyalty points twice, and counts the day's sales wrong in both directions.
  *  In practice it was done on paper, and the stock drifted.
  *

@@ -35,7 +35,7 @@ const EMPTY = {
   supplier_id: "" as string | number,
   // Where it sits on the shelf and who makes it. Both columns existed, both were
   // read by reports and by the stock-take sheet, and neither had a field on this
-  // form — so they were NULL on all 545 products.
+  // form, so they were NULL on all 545 products.
   bin_location: "", manufacturer: "",
 };
 
@@ -132,7 +132,7 @@ export default function Stock() {
         : <span className="muted">—</span>) },
     /* Barcode folded into the product cell rather than given a column of its
        own. It is a lookup key, not something anyone reads down a list — the
-       search box above already matches on it — and as a column it took 130px
+       search box above already matches on it, and as a column it took 130px
        from a table that did not have 130px to spare, pushing "On hand" off the
        screen entirely on a 1280px till. */
     { key: "unit_price", width: 104, header: "Price", align: "right", sortable: true, render: (p) => money(p.unit_price) },

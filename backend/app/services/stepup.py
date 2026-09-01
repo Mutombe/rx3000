@@ -3,10 +3,10 @@
 Being logged in is not authorisation for everything. Two different needs sit
 behind the same password prompt, and treating them as one is the usual mistake:
 
-* **Re-authentication** — "prove you are still the person who logged in". Tills
+* **Re-authentication**: "prove you are still the person who logged in". Tills
   are left unlocked while the pharmacist walks to a shelf, and some actions
   destroy value or evidence.
-* **Supervisor override** — "get someone senior to approve what you cannot".
+* **Supervisor override**: "get someone senior to approve what you cannot".
   The cashier is not allowed to discount, so the manager walks over and types
   *their own* password on the cashier's till.
 
@@ -48,7 +48,7 @@ class Action:
     name: str
     why: str
     # Who may approve it. A supervisor override needs someone in this list to
-    # type their password — which may be the same person, if they qualify.
+    # type their password, which may be the same person, if they qualify.
     approvers: tuple = ("admin",)
     # True when the person acting may approve themselves by re-entering their
     # own password. False forces a second person, which is the point for

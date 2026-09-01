@@ -94,7 +94,7 @@ export async function status(): Promise<{ count: number; at: string | null }> {
 
 /** Look a scanned code up in the local copy.
  *
- *  Matches the server's order — barcode, then NAPPI — so a code that resolves
+ *  Matches the server's order, barcode, then NAPPI, so a code that resolves
  *  one way online does not resolve a different way offline. A till that finds a
  *  different product depending on the state of the network is worse than one
  *  that finds nothing.

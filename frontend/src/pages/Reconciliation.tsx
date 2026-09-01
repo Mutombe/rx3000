@@ -4,7 +4,7 @@
  *  do it: card settlement on its own page, the bank statement inside a tab in
  *  the ledger, claims from the remittances screen, cash in the cash office, and
  *  stock drift inside a tab in the catalogue. Each of those was fine on its
- *  own, and together they answered nobody's actual question — which on a Monday
+ *  own, and together they answered nobody's actual question, which on a Monday
  *  morning is not "how do I reconcile cards" but **what does not tie up**.
  *
  *  So the reconciliations keep their own screens, and this sits above them.

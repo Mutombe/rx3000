@@ -6,7 +6,7 @@ solve on its own.
 
 This first batch is chosen to exercise every part of the engine — a date range,
 a select, a branch filter, money and percent columns, footer totals, a
-drill-down and a step-up — so that the reports added after it have a worked
+drill-down and a step-up, so that the reports added after it have a worked
 example of every shape they might need.
 """
 from datetime import date, datetime, timedelta
@@ -39,7 +39,7 @@ def line_cost():
 
     Two sources, and neither is right on its own. `SaleItem.unit_cost` is the
     cost captured when the sale happened, which is the correct figure for a
-    historical period — but it is absent on 39% of the lines in this database,
+    historical period, but it is absent on 39% of the lines in this database,
     because it was added after trading began. `Product.cost_price` is always
     present but is *today's* cost, which silently restates last year's margin
     every time a supplier raises a price.
@@ -450,7 +450,7 @@ register(Report(
 
 def _drug_usage(db: Session, p: dict):
     # A dispensing does not carry a product. It hangs off a prescription item,
-    # and the item is what names the drug — so the join is through the item, not
+    # and the item is what names the drug, so the join is through the item, not
     # a convenient `.items` collection that does not exist.
     groups: dict[int, dict] = {}
     rows_q = (
@@ -1610,7 +1610,7 @@ def _journal_totals(db: Session, p: dict):
     """Debits and credits across the whole journal, in one aggregate.
 
     Computed separately rather than by summing the page, because their
-    agreement is the proof the ledger balances — and a page of a hundred lines
+    agreement is the proof the ledger balances, and a page of a hundred lines
     balancing says nothing at all about the other eight thousand.
     """
     from ...models import JournalEntry, JournalLine
@@ -2140,7 +2140,7 @@ def _write_offs(db: Session, p: dict):
             "delta": m.quantity_delta,
             # Signed, not absolute. abs() valued an opening-stock adjustment as
             # though it were a loss, so the column read 235,000 of shrinkage on a
-            # net movement of 332 units — a frightening figure that was wrong.
+            # net movement of 332 units: a frightening figure that was wrong.
             "value": round(cost * (m.quantity_delta or 0), 2),
             "reference": m.reference or "",
             "user": names.get(m.user_id, "-"),
@@ -3320,7 +3320,7 @@ def _petty_cash(db: Session, p: dict):
 # --------------------------------------------------------------------- CODs
 #
 # A COD is a sale awaiting payment. Its state lives on the sale itself —
-# pending is outstanding, paid is settled, void is cancelled — so these three
+# pending is outstanding, paid is settled, void is cancelled, so these three
 # reports read that rather than a second status kept alongside it.
 
 def _cod_rows(db: Session, p: dict, status: str, transferred=None):
@@ -3907,7 +3907,7 @@ def _deferred(db: Session, p: dict):
 def _party_ledger(db: Session, subledger: str, p: dict, party_type: str | None = None):
     """Every posting against a subledger, party by party, with a running balance.
 
-    A statement is not a balance — it is how the balance was arrived at. A
+    A statement is not a balance. It is how the balance was arrived at. A
     customer disputing what they owe wants the lines, in order, with the total
     moving down the page, and a report that gives only the closing figure
     invites the phone call it was meant to prevent.
@@ -4529,7 +4529,7 @@ def _by_pay_office(db: Session, p: dict):
 # Dispensing fees and levies is deliberately not registered.
 #
 # Claim carries gross, discount, levy and dispensing_fee, and every one of them
-# is zero on all 449 claims — the columns exist and nothing writes to them. A
+# is zero on all 449 claims: the columns exist and nothing writes to them. A
 # report over them would render, total, and show zeros, which is
 # indistinguishable from "the pharmacy earned no professional fees this period".
 #
@@ -5036,7 +5036,7 @@ def _published_price_coverage(db: Session, p: dict):
             "measure": measure,
             "products": n,
             # Share of the active catalogue, so the rows do not sum to 100% and
-            # are not presented as though they should — a product can have both.
+            # are not presented as though they should: a product can have both.
             "share": round(n / active * 100, 1) if active else None,
         }
 
@@ -5152,7 +5152,7 @@ def _scheme_exposure(db: Session, p: dict):
 # Out-of-band charging is the point of the report. The gateway refuses a line
 # priced outside its negotiated band at submission time, so a breach here means
 # the band moved afterwards — a renegotiated tariff, or a book loaded for a new
-# financial year — and every claim already submitted at the old price is now
+# financial year, and every claim already submitted at the old price is now
 # wrong in the funder's eyes.
 
 register(Report(
