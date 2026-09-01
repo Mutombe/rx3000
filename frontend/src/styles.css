@@ -1514,6 +1514,10 @@ table:has(td.lb-actions > span) { --actions-w: 17rem; }
    empty table never showed it. */
 table:has(td.actions .btn-count),
 table:has(td.lb-actions .btn-count) { --actions-w: 20.5rem; }
+/* A fixed primary slot is wider than the button it usually holds, because it
+   also has to hold the sentence that replaces the button. Last, so it wins
+   over the rules above when both apply. */
+table:has(td.actions .act-primary) { --actions-w: 22rem; }
 table th.actions { width: var(--actions-w, 11rem); }
 /* No `.dt` exception here. DataTable states its column widths as inline styles
    on the header cells, which outrank any stylesheet rule, so its own tables are
@@ -5965,9 +5969,18 @@ table.dt.sub th { font-size: var(--t-xs); }
    repeat book is the only revenue a pharmacy can see coming and none of those
    screens showed it. */
 .rv {
-  display: inline-flex; align-items: baseline; gap: var(--s2);
-  font-variant-numeric: tabular-nums; white-space: nowrap;
+  display: inline-flex; align-items: baseline; gap: 1px var(--s2);
+  font-variant-numeric: tabular-nums;
+  /* Wraps rather than clips.
+     `white-space: nowrap` on the whole chip meant the two figures had to share
+     one line, and in an 8rem column beside an Add button the second one was cut
+     mid-amount: "$300.00 +$1,50". A truncated figure is worse than a missing
+     one — somebody reads "+$1,50" as fifteen hundred, or as a dollar fifty, and
+     both are wrong. Each figure keeps nowrap of its own, so an amount never
+     breaks in the middle; only the pair separates. */
+  flex-wrap: wrap; justify-content: inherit;
 }
+.rv > * { white-space: nowrap; }
 .rv-pos {
   padding: 1px 5px; border-radius: var(--r-xs);
   background: var(--accent-soft); color: var(--ink-mid);
@@ -6121,6 +6134,13 @@ table.dt.sub th { font-size: var(--t-xs); }
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); color: var(--ink-mid);
   font: inherit; letter-spacing: 0; height: auto;
+  /* `button, .btn` sets `white-space: nowrap`, which is right for a control
+     holding a verb and wrong for one holding a sentence: the step's "Enter the
+     checking pharmacist's initials before dispensing" was forced onto a single
+     line, clipped by the card, and pushed the whole strip off the page. Same
+     shape as the colour faults — a global element rule imposing something the
+     component does not want, and only visible once real text is in it. */
+  white-space: normal;
 }
 .trail-step button:hover { background: var(--surface-sunk); }
 .trail-mark { flex: 0 0 auto; display: flex; margin-top: 1px; }
@@ -6128,6 +6148,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .trail-text b {
   display: block; font-size: var(--t-sm); font-weight: 600;
   color: var(--ink); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .trail-needs {
   display: block; margin-top: 2px;
@@ -6236,4 +6257,222 @@ table.dt.sub th { font-size: var(--t-xs); }
 .split-note {
   flex: 1 1 100%; margin: 0;
   font-size: var(--t-xs); line-height: 1.4; color: var(--ink-soft);
+}
+
+/* ---------------------------------------------------------------- a band
+   A label, a figure, and the sentence that says what the figure means.
+
+   `.wc-band` and `.wc-band-label` were used by the churn summary and the chart
+   of accounts and had NO RULE ANYWHERE. Both rendered as bare inline content:
+   "Churn4.7%7 of 148 regulars stopped coming" — three separate facts run into
+   one string with no space between them, on the screen a manager opens to
+   decide who to telephone. Nothing failed; the classes simply did not exist,
+   and a class that does not exist is invisible in the source and obvious on
+   the page.
+
+   Deliberately not folded into `.wl-stat`, which the other summaries use: that
+   one is a figure with a caption, and this is a figure with a caption AND a
+   heading above it. Two shapes, two names. */
+.wc-band {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 0; padding: var(--s3);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.wc-band-label {
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.wc-band > b {
+  font-size: 1.3rem; line-height: 1.15; font-weight: 700; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* The sentence under the figure. It wraps — it is prose, and the whole fault
+   here was three facts with nowhere to go. */
+.wc-band > span:not(.wc-band-label) {
+  font-size: var(--t-xs); line-height: 1.35; color: var(--ink-soft);
+}
+
+/* The primary action in a row keeps its slot whether it is a button or the
+   reason there is no button.
+
+   On the repeats queue a row with stock shows "Dispense 30" and a row without
+   shows "not enough stock", and the two are different widths — so Alter and
+   Remind sat in a different place on every other row and the column read as
+   ragged. The slot is fixed and the contents vary inside it. */
+.act-primary {
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  width: 9.5rem; flex: 0 0 9.5rem;
+}
+.act-primary > * { max-width: 100%; }
+
+/* A dose check with nothing to report.
+   One line, not a panel. The full box — a heading saying nothing was found, a
+   row saying a line was not judged, and two paragraphs of disclaimer — sat
+   directly above the dispense button on every script, and a warning surrounded
+   by four sentences of nothing is a warning nobody reads. */
+.ix-clear {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin: var(--s3) 0; padding: 0 2px;
+  font-size: var(--t-xs); line-height: 1.4; color: var(--ink-soft);
+}
+.ix-clear svg { flex: none; margin-top: 2px; }
+.ix-clear b { font-weight: 600; color: var(--ink-mid); }
+
+/* ------------------------------------------------- classes that did nothing
+   Each of these was asked for by markup and defined nowhere, so the browser
+   laid the contents out as plain inline elements and the screen looked like
+   somebody had forgotten to finish it. See qa/dead-classes.py: a class that
+   matches nothing looks exactly like a class that matches something. */
+
+/* The subtitle under a page heading. Written on Scripts and never styled. */
+.page-sub { margin-top: 2px; font-size: var(--t-sm); color: var(--ink-soft); }
+
+/* A branch's licence standing inside its row on the branch table. */
+.lic-cell {
+  display: inline-flex; flex-direction: column; align-items: flex-start;
+  gap: 1px; text-decoration: none; color: inherit;
+}
+.lic-cell:hover .badge { filter: brightness(1.08); }
+
+/* The four-digit code a patient signs in with, read out over a counter or a
+   telephone — so it is set large, spaced, and in the figure face. */
+.share-code {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2) var(--s4);
+  padding: var(--s3); margin: var(--s3) 0 var(--s1);
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.share-code > span { flex: 1 1 100%; }
+.share-code > b {
+  font-family: var(--font-mono); font-size: 1.9rem; font-weight: 700;
+  letter-spacing: .28em; text-indent: .28em; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.share-code-actions { display: flex; gap: var(--s2); margin-left: auto; }
+
+/* The message itself, shown before it is sent. Monospace so a code inside it
+   is read digit by digit, and tall enough that the whole thing is visible —
+   somebody is about to send this to a patient. */
+.share-text {
+  width: 100%; resize: vertical; min-height: 5.5rem;
+  font-family: var(--font-mono); font-size: var(--t-sm); line-height: 1.5;
+}
+
+/* Where to send it. Wraps rather than scrolls: on a narrow modal four
+   channels in one row is four truncated words. */
+.share-choices {
+  display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s3);
+}
+.share-choices > * { flex: 1 1 8rem; }
+
+/* A row of figures, and the pieces of one.
+
+   `.stat-row`, `.stat-label` and `.stat-value` are written on the fiscal day,
+   the petty-cash tin and four other screens and were defined nowhere, so every
+   one of those figures rendered as two inline spans with no gap: the label and
+   the number ran together. `.stat` and its `.label`/`.value` children DO exist
+   above — the same idea under different names — but renaming six components to
+   match would be churn where a rule is the fix. */
+.stat-row {
+  display: flex; flex-wrap: wrap; gap: var(--s3) var(--s6);
+  margin: var(--s3) 0;
+}
+.stat-row > .stat { padding: 0; min-width: 0; }
+.stat-label {
+  display: block;
+  font-size: var(--t-xs); color: var(--ink-soft); text-transform: uppercase;
+  letter-spacing: 0.07em; font-weight: 600;
+}
+.stat-value {
+  display: block; margin-top: 2px;
+  font-family: var(--font-num); font-size: 1.3rem; font-weight: 700;
+  letter-spacing: -0.02em; line-height: 1.15; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A dialog that needs more than the default width. Written as `modal wide` on
+   the driver form, the permissions editor and the portal preview, and defined
+   nowhere — so all three were laid out at the narrow default and their content
+   fought for the space. */
+.modal.wide { max-width: 900px; }
+
+/* A checkbox with a sentence beside it, rather than a word. The label has to
+   be a row, or the text wraps underneath the box and the two stop reading as
+   one control. */
+.check {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  margin: var(--s3) 0; font-size: var(--t-sm); line-height: 1.45;
+  color: var(--ink-mid); cursor: pointer;
+}
+.check input { flex: none; margin-top: 2px; }
+
+/* The buttons along the bottom of a dialog. */
+.modal-foot {
+  display: flex; justify-content: flex-end; gap: var(--s2);
+  margin-top: var(--s5); padding-top: var(--s4);
+  border-top: 1px solid var(--line);
+}
+
+/* Fields laid out two abreast in a form, collapsing to one on a narrow
+   screen. */
+.form-grid {
+  display: grid; gap: var(--s3); grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+
+/* Running text inside a record page — a note, a reason, a description. Held to
+   a readable measure: a sentence that runs the full width of a wide screen is
+   a sentence the eye loses its place in. */
+.prose { margin: 0 0 var(--s3); max-width: 68ch; line-height: 1.55; color: var(--ink-mid); }
+
+/* Back to where this came from, above a record's own heading. */
+.back-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-bottom: var(--s2); font-size: var(--t-sm); color: var(--ink-soft);
+  text-decoration: none;
+}
+.back-link:hover { color: var(--ink); }
+
+/* The patient portal, previewed at the size a patient will hold it. The phone
+   frame is the point: a portal reviewed on a desktop looks fine at 900px and
+   is unusable at 360, which is the only width it is ever opened at. */
+.preview-shell { display: flex; flex-direction: column; gap: var(--s3); }
+.preview-phone {
+  width: 360px; max-width: 100%; height: min(70vh, 40rem);
+  margin: 0 auto; overflow: hidden;
+  border: 8px solid var(--ink); border-radius: 28px;
+  background: var(--surface); box-shadow: 0 12px 40px rgba(16, 16, 22, 0.28);
+}
+.preview-phone > iframe { width: 100%; height: 100%; border: 0; }
+
+/* A button that is a link. Its ONLY class, and that class had no rule — so it
+   took `button, .btn` whole and rendered as a solid accent-filled button in the
+   middle of a sentence. `qa/button-contrast.py` could not see it either: that
+   check reads what a class declares, and this one declared nothing. */
+.btn-link {
+  background: none; border: 0; padding: 0; height: auto;
+  font: inherit; color: var(--accent); text-decoration: underline;
+  cursor: pointer; white-space: normal; text-align: left;
+}
+
+/* A list without the browser's bullets and indent. The name says what it is
+   for and nothing did it. */
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list > li + li { margin-top: var(--s2); }
+
+/* The quieter second line inside a worklist row. */
+.wl-row-sub {
+  display: block; font-size: var(--t-xs); line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* What a patient has agreed to, and what they have not. */
+.consent { display: flex; flex-direction: column; gap: var(--s3); }
+
+/* A sub-row under an authorisation, listing what it has been used on. It is a
+   continuation of the row above rather than a row of its own. */
+.auth-uses > td {
+  padding-top: 0; background: var(--surface-sunk);
+  font-size: var(--t-sm); color: var(--ink-soft);
 }

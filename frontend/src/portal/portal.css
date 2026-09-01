@@ -256,3 +256,87 @@
 @media (prefers-reduced-motion: reduce) {
   .pp .pp-spinner { animation-duration: 2.4s; }
 }
+
+/* ---------------------------------------------------- the prescriber portal
+   Same shell as the patient's, wider, and with a form in it.
+
+   These classes were written into DoctorPortal and never defined — `.pp-wide`,
+   `.pp-brand`, `.pp-ok`, `.pp-line`, `.pp-ghost`, `.pp-items` — so the whole
+   screen rendered as unstyled inline elements. See qa/dead-classes.py.
+
+   The bare `label`, `input`, `textarea` and `button` below matter for the same
+   reason the headings did: these pages are routes inside the staff
+   application, so the staff stylesheet is loaded, and anything this file does
+   not claim is claimed by that one. A prescriber's form was wearing the
+   dispensary's controls on the portal's own card. */
+.pp-wide > * { max-width: 46rem; }
+
+.pp .pp-brand {
+  font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--pp-brand);
+}
+
+/* It worked. Stated in the same shape as the error, so the two are read the
+   same way rather than one being a banner and the other an afterthought. */
+.pp .pp-ok {
+  margin: 0 0 12px; padding: 11px 13px;
+  border-radius: 12px; border: 1px solid var(--pp-ok);
+  background: var(--pp-ok-bg); color: var(--pp-ok);
+  font-size: 0.92rem; font-weight: 500;
+}
+
+/* One medicine on the script. A bordered block rather than four loose fields,
+   because a prescriber adding a third line needs to see where the second one
+   ended. */
+.pp .pp-line {
+  display: grid; gap: 10px; grid-template-columns: 1fr 1fr;
+  padding: 12px; margin-bottom: 10px;
+  background: var(--pp-canvas);
+  border: 1px solid var(--pp-line); border-radius: 12px;
+}
+.pp .pp-line > label:nth-child(2) { grid-column: 1 / -1; }
+@media (max-width: 560px) {
+  .pp .pp-line { grid-template-columns: 1fr; }
+}
+
+.pp .pp-items { list-style: none; margin: 0; padding: 0; }
+.pp .pp-items > li {
+  padding: 12px 0; border-bottom: 1px solid var(--pp-line);
+}
+.pp .pp-items > li:last-child { border-bottom: 0; padding-bottom: 0; }
+
+/* The form's own controls. Every property declared — the staff sheet fills
+   every `button` with its accent and paints every `label` with its ink, and
+   inheriting either puts the dispensary's colours on a prescriber's screen. */
+.pp label {
+  display: block; margin-bottom: 12px;
+  font-size: 0.9rem; font-weight: 600; color: var(--pp-ink);
+}
+.pp input, .pp textarea, .pp select {
+  display: block; width: 100%; box-sizing: border-box;
+  margin-top: 5px; padding: 12px;
+  border: 1px solid var(--pp-line); border-radius: 12px;
+  background: var(--pp-card); color: var(--pp-ink);
+  font-family: inherit; font-size: 1rem; line-height: 1.4;
+}
+.pp textarea { resize: vertical; min-height: 4rem; }
+.pp input:focus, .pp textarea:focus, .pp select:focus {
+  outline: none; border-color: var(--pp-brand);
+  box-shadow: 0 0 0 3px rgba(93, 88, 120, 0.16);
+}
+.pp button {
+  display: block; width: 100%; min-height: 50px; padding: 0 18px;
+  border: 0; border-radius: 12px;
+  background: linear-gradient(140deg, var(--pp-brand), var(--pp-brand-deep));
+  color: #fff; font-family: inherit; font-size: 1rem; font-weight: 600;
+  letter-spacing: 0; cursor: pointer;
+}
+.pp button:disabled { opacity: 0.4; cursor: default; }
+
+/* A secondary action — "add another medicine" — which must not look like the
+   one that sends the script. */
+.pp .pp-ghost {
+  background: transparent; color: var(--pp-brand);
+  border: 1px dashed var(--pp-line); min-height: 44px; font-weight: 500;
+  margin-bottom: 12px;
+}

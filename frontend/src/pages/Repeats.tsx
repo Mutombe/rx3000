@@ -436,18 +436,25 @@ export default function Repeats() {
                             screen. A repeat is re-supplying a line on a script
                             that already exists, so dispensing it is one call —
                             there is nothing to capture again. */}
-                        {i.can_supply ? (
-                          <BusyButton className="btn primary sm"
-                                      onClick={() => {
-                                        setInitials(""); setSighted(false);
-                                        setSupplying(i);
-                                      }}>
-                            Dispense
-                            <span className="btn-count">{i.quantity}</span>
-                          </BusyButton>
-                        ) : (
-                          <span className="badge warn">not enough stock</span>
-                        )}
+                        {/* One slot, whether it holds the action or the
+                            reason there is no action. Without it the rows
+                            with stock and the rows without put Alter and
+                            Remind in different places, and a column of
+                            actions that does not line up reads as broken. */}
+                        <span className="act-primary">
+                          {i.can_supply ? (
+                            <BusyButton className="btn primary sm"
+                                        onClick={() => {
+                                          setInitials(""); setSighted(false);
+                                          setSupplying(i);
+                                        }}>
+                              Dispense
+                              <span className="btn-count">{i.quantity}</span>
+                            </BusyButton>
+                          ) : (
+                            <span className="badge warn">not enough stock</span>
+                          )}
+                        </span>
                         {/* Not every repeat goes out as written. The patient
                             wants a fortnight rather than a month, or something
                             added, or the prescriber has changed the dose — and

@@ -125,18 +125,36 @@ def main() -> int:
             continue
 
         # Every element this sheet has in hand, and what it declares on it.
+        # Aggregated across the whole sheet, not judged rule by rule.
+        #
+        # Rule-at-a-time was wrong and noisy: `.pp input, .pp textarea` paints
+        # both, and `.pp textarea:focus` then refines the focus ring without
+        # repeating a colour — which is correct CSS and was reported as a
+        # collision. Five such findings appeared the moment the prescriber
+        # portal's form was styled, all of them false. The question is whether
+        # the sheet paints an element ANYWHERE, not whether every rule
+        # mentioning it does.
+        declared: dict[str, set[str]] = {}
+        seen_at: dict[str, str] = {}
         for selector, body in component:
             element = tail(selector)
             if element not in hazards:
                 continue
-            missing = {p for p in hazards[element] if not sets(body, p)}
+            seen_at.setdefault(element, selector)
+            for prop in ("color", "background"):
+                if sets(body, prop):
+                    declared.setdefault(element, set()).add(prop)
+
+        for element, where in sorted(seen_at.items()):
+            missing = hazards[element] - declared.get(element, set())
             if not missing:
                 continue
             findings.append(
-                f"{name}   {selector} {{ … }}\n"
-                f"       styles a <{element}> and sets no "
-                f"{' or '.join(sorted(missing))} of its own, while "
-                f"styles.css has {element} {{ {', '.join(sorted(hazards[element]))} }}.\n"
+                f"{name}   {where} {{ … }}\n"
+                f"       styles a <{element}> and nothing in this sheet gives "
+                f"it a {' or '.join(sorted(missing))} of its own, while "
+                f"styles.css has {element} "
+                f"{{ {', '.join(sorted(hazards[element]))} }}.\n"
                 f"       .{roots[0]}'s colour is inherited; that bare rule is "
                 f"not — it wins.")
 

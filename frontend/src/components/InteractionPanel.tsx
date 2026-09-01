@@ -1,30 +1,37 @@
-/** Safety screening, run as the basket changes rather than on a button.
+/** Dose screening, run as the basket changes rather than on a button.
  *
- *  Two checks in one panel, because they are one question — is this safe to hand
- *  over — and a pharmacist should not have to look in two places for the answer:
+ *  Reads the directions typed on each line — quantity per dose times doses per
+ *  day — against the maximum held for that ingredient.
  *
- *    - **Interactions**, against the other lines on the script *and* against what
- *      this patient has actually been dispensed in the last six months.
- *    - **Dose ranges**, read out of the directions typed on each line: quantity
- *      per dose times doses per day, against the maximum held for that
- *      ingredient.
+ *  WHAT WAS TAKEN OUT, AND WHAT WAS NOT
  *
- *  The version this replaces was a button marked "AI interaction check". It only
- *  ran when somebody remembered to press it, which on the busy afternoon it was
- *  written for is never; the local interaction checker was not wired to the
- *  screen at all; and there was no dose checking anywhere in the product.
+ *  This panel used to report interactions as well, from twelve pairs held
+ *  locally. That half is gone: the AI interaction check on the same screen
+ *  covers it, and two checkers answering one question meant a wall of text on
+ *  every script saying that neither of them found anything.
  *
- *  **What it never does is say something is safe.** Twelve interaction pairs and
- *  forty dose limits. A clear result means none of those were exceeded, which is
- *  a different and true sentence, and both coverage notes are on screen whether
- *  anything was flagged or not. A pharmacist told twice that the system checks
- *  doses will trust it the third time, and the drug it does not hold is the one
- *  that goes out at four times the maximum. A line nothing is known about is
- *  named rather than passing silently.
+ *  The dose half stays, because it is not an interaction check and nothing else
+ *  in the product does it. The finding that prompted this rewrite was exactly
+ *  that kind: an adult maximum on an eight-year-old, which no interaction
+ *  checker would ever raise.
  *
- *  A major finding of either kind asks for an acknowledgement before the dispense
+ *  WHY IT IS QUIET WHEN THERE IS NOTHING TO SAY
+ *
+ *  It used to render a full-width panel on every script — a heading saying
+ *  nothing was found, a row saying a line was not judged, and two paragraphs of
+ *  disclaimer — directly above the button somebody was trying to press. A
+ *  warning surrounded by four sentences of nothing is a warning nobody reads.
+ *
+ *  So a clear result is one quiet line. **It still never says "safe".** Forty
+ *  dose limits: a clear result means none of those was exceeded, which is a
+ *  different and true sentence, and the coverage note is still there — one
+ *  line rather than a paragraph, and always present, because the limits of a
+ *  checker matter most at the moment somebody is relying on it. A line nothing
+ *  is known about is named rather than passing silently.
+ *
+ *  A dose over the maximum asks for an acknowledgement before the dispense
  *  button enables. It does not hard-block: refusing outright on a table this
- *  small teaches exactly the over-trust both modules are written against.
+ *  small teaches exactly the over-trust the module is written against.
  */
 import { useEffect, useState } from "react";
 import { ShieldWarning, Warning } from "@phosphor-icons/react";
@@ -108,9 +115,10 @@ export default function InteractionPanel({
       api.post<Screen>("/api/dispensing/interaction-screen", {
         patient_id: patientId, product_ids: productIds, lines: lines ?? [],
       })
-        // Either check can hold the dispense: an interaction and an overdose are
-        // both reasons to stop and ask, and the button should not care which.
-        .then((r) => { if (live) { setScreen(r); onScreened(r.major + (r.doses?.major ?? 0)); } })
+        // Only a dose over the maximum holds the dispense now. Interactions
+        // are the AI check's job, and it is a deliberate press rather than a
+        // gate.
+        .then((r) => { if (live) { setScreen(r); onScreened(r.doses?.major ?? 0); } })
         .catch(() => { if (live) { setScreen(null); onScreened(0); } })
         .finally(() => { if (live) setBusy(false); });
     }, 350);
@@ -122,57 +130,53 @@ export default function InteractionPanel({
 
   if (!productIds.length) return null;
 
-  const major = screen?.found.filter((f) => f.severity === "major") ?? [];
-  const rest = screen?.found.filter((f) => f.severity !== "major") ?? [];
   const doses = screen?.doses;
   const doseMajor = doses?.major ?? 0;
-  const toAcknowledge = major.length + doseMajor;
+  const toAcknowledge = doseMajor;
+  // A finding worth the space: over the maximum, or directions that could not
+  // be read. "Not judged" is not a finding — it is the checker saying it has
+  // nothing to offer on that line, which belongs in the coverage line below
+  // with everything else it does not cover.
+  const findings = (doses?.found ?? []).filter((f) => f.severity !== "unknown");
+  const notJudged = (doses?.found ?? [])
+    .filter((f) => f.severity === "unknown").map((f) => f.product);
+  const unchecked = [...notJudged, ...(doses?.not_covered ?? [])];
+
+  // Nothing to report: one line, not a panel. It still refuses to say "safe".
+  if (!busy && findings.length === 0) {
+    return (
+      <p className="ix-clear" title={doses?.coverage ?? ""}>
+        <ShieldWarning size={13} />
+        <span>
+          No dose here exceeds a maximum this system holds.
+          {unchecked.length > 0 && (
+            <> Nothing is held for <b>{unchecked.join(", ")}</b>, so
+              {unchecked.length === 1 ? " it was" : " they were"} not checked.</>
+          )}
+        </span>
+      </p>
+    );
+  }
 
   return (
     <div className={`ix${toAcknowledge ? " ix-major" : ""}`}>
       <div className="ix-head">
-        <ShieldWarning size={15} weight={major.length ? "fill" : "regular"} />
+        <ShieldWarning size={15} weight={doseMajor ? "fill" : "regular"} />
         <b>
-          {busy ? "Screening…"
-            : toAcknowledge
-              ? [major.length && `${major.length} major interaction${major.length === 1 ? "" : "s"}`,
-                 doseMajor && `${doseMajor} dose${doseMajor === 1 ? "" : "s"} over the maximum`]
-                  .filter(Boolean).join(" · ")
-              : screen?.summary ?? ""}
+          {busy ? "Checking doses…"
+            : doseMajor
+              ? `${doseMajor} dose${doseMajor === 1 ? "" : "s"} over the maximum`
+              : `${findings.length} dose${findings.length === 1 ? "" : "s"} to look at`}
         </b>
-        {screen && (
-          <span className="muted">
-            {screen.checked} on this script · {screen.history_source.toLowerCase()}
-          </span>
-        )}
       </div>
 
-      {[...major, ...rest].map((f, i) => (
-        <div key={i} className={`ix-row is-${f.severity}`}>
-          <Warning size={14} weight="fill" />
-          <div>
-            <b>{f.between[0]} + {f.between[1]}</b>
-            {/* Which side is which. "Both on this script" and "against a repeat
-                they are already on" are different conversations to have with the
-                patient, and the pharmacist should not have to work it out. */}
-            <span className="ix-context">{f.context}</span>
-            <p>{f.effect}</p>
-            <p className="ix-action">{f.action}</p>
-          </div>
-        </div>
-      ))}
-
-      {/* Dose findings, under the interactions. A dose that is over the maximum
-          is the same kind of stop-and-ask as an interaction, so it reads the
-          same way rather than living in a second panel somewhere else. */}
-      {doses?.found.map((f, i) => (
+      {findings.map((f, i) => (
         <div key={`d${i}`} className={`ix-row is-${f.severity === "major" ? "major" : "minor"}`}>
           <Warning size={14} weight="fill" />
           <div>
             <b>{f.product}</b>
             <span className="ix-context">
               {f.severity === "major" ? "over the maximum held here"
-                : f.severity === "unknown" ? "not judged"
                 : "directions could not be read"}
             </span>
             <p>{f.detail}</p>
@@ -183,10 +187,10 @@ export default function InteractionPanel({
 
       {/* Said out loud rather than passing silently. A line nothing was known
           about is the one a pharmacist most needs to know went unchecked. */}
-      {doses && doses.not_covered.length > 0 && (
+      {unchecked.length > 0 && (
         <p className="ix-coverage">
-          No dose limit is held here for {doses.not_covered.join(", ")}, so
-          {doses.not_covered.length === 1 ? " it was" : " they were"} not checked.
+          Nothing is held here for {unchecked.join(", ")}, so
+          {unchecked.length === 1 ? " it was" : " they were"} not checked.
         </p>
       )}
 
@@ -199,9 +203,8 @@ export default function InteractionPanel({
         </label>
       )}
 
-      {/* On screen whether or not anything was flagged. The limits of a checker
-          are only useful at the moment somebody is relying on it. */}
-      {screen && <p className="ix-coverage">{screen.coverage}</p>}
+      {/* The limits of a checker are only useful at the moment somebody is
+          relying on it, so this is present whenever a finding is. */}
       {doses && <p className="ix-coverage">{doses.coverage}</p>}
     </div>
   );
