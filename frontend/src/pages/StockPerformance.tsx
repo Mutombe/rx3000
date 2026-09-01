@@ -59,6 +59,13 @@ interface ByBranch {
               top: { product: string; profit: number; units: number }[] }[];
   group: Record<string, number | null>;
   headline: string;
+  /** Dispensings in the window that no branch can claim, because nothing ties
+   *  them to a till. They are in the group figures and in none of the branch
+   *  figures — which is why the branches need not sum to the group. */
+  unattributed_dispensings: number;
+  unattributed_share: number;
+  /** The same, as a sentence. Empty when the share is too small to matter. */
+  caveat: string;
 }
 
 type Tab = "lines" | "dead" | "branches";
@@ -289,6 +296,15 @@ export default function StockPerformance() {
         {tab === "branches" && branches && (
           <>
             <p className="muted">{branches.headline}</p>
+            {/* Said above the table, not under it. A reader who has already
+                compared two shops and drawn a conclusion is not going to
+                revise it because of a footnote. */}
+            {branches.caveat && (
+              <div className="alert warn">
+                <Warning size={16} weight="fill" />
+                <span>{branches.caveat}</span>
+              </div>
+            )}
             <div className="dt-scroll">
               <table className="dt">
                 <thead>

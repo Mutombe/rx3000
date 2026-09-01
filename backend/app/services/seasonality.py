@@ -123,11 +123,22 @@ def _monthly(db: Session, *, branch_id: int | None,
         .join(Product, Product.id == PrescriptionItem.product_id)
         .filter(Dispensing.dispensed_at >= since))
     if branch_id:
-        # A dispensing has no branch of its own; it belongs to the script's.
+        # A dispensing has no branch of its own; it belongs to its SALE's.
+        #
+        # This said "the script's" and filtered on `Prescription.branch_id`,
+        # which does not exist — a prescription is written by a doctor and
+        # captured by a pharmacy, it is not held at a shop. The comment was
+        # right that a dispensing has no branch and wrong about where to find
+        # one, and the AttributeError meant every per-branch seasonality call
+        # raised a 500 from the moment it was written.
+        #
+        # Dispensings with no sale cannot be attributed and are dropped here.
+        # For seasonality that is the correct outcome — a shape you cannot
+        # place in a shop tells you nothing about that shop — but it does mean
+        # a branch's season is drawn from its till, not from its dispensary.
         disp_q = (disp_q
-                  .join(Prescription,
-                        Prescription.id == PrescriptionItem.prescription_id)
-                  .filter(Prescription.branch_id == branch_id))
+                  .join(Sale, Sale.id == Dispensing.sale_id)
+                  .filter(Sale.branch_id == branch_id))
     for product_id, at, quantity, name, category_id in disp_q.all():
         if not at:
             continue

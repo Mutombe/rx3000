@@ -103,11 +103,41 @@ def analyse(db: Session, *, days: int = 90, branch_id: int | None = None,
               PrescriptionItem.id == Dispensing.prescription_item_id)
         .filter(Dispensing.dispensed_at >= start,
                 Dispensing.dispensed_at <= end))
+    # A dispensing belongs to a branch through its SALE, not through its
+    # script.
+    #
+    # This filtered on `Prescription.branch_id`, which does not exist — a
+    # prescription is written by a doctor and captured by a pharmacy; it is not
+    # held at a shop. The attribute error raised a 500, and an unhandled 500
+    # carries no CORS headers, so the browser reported the whole thing as a
+    # cross-origin failure. Every per-branch call to this service had been
+    # dead since it was written, and the error named the wrong cause.
+    #
+    # Dispensings with no sale behind them cannot be attributed to a branch at
+    # all. They are excluded here and COUNTED below, because silently dropping
+    # them would understate every branch's units by however many scheme scripts
+    # never reached a till — and a figure quietly missing a slice is worse than
+    # one that says what it is missing.
+    #
+    # Counted whether or not a branch was asked for, because the number means
+    # something either way and it is not the same thing:
+    #
+    #   in a GROUP view these dispensings are included — they moved, and the
+    #     group is every shop, so nothing is lost;
+    #   in a BRANCH view they are excluded, because no branch can claim them.
+    #
+    # Which is why branch figures need not sum to the group figure, and why
+    # that has to be stated rather than left for somebody to notice.
+    unattributed = (
+        db.query(func.count(Dispensing.id))
+        .filter(Dispensing.dispensed_at >= start,
+                Dispensing.dispensed_at <= end,
+                Dispensing.sale_id.is_(None))
+        .scalar() or 0)
     if branch_id:
         dispensed = (dispensed
-                     .join(Prescription,
-                           Prescription.id == PrescriptionItem.prescription_id)
-                     .filter(Prescription.branch_id == branch_id))
+                     .join(Sale, Sale.id == Dispensing.sale_id)
+                     .filter(Sale.branch_id == branch_id))
     dispensed = dispensed.group_by(PrescriptionItem.product_id).all()
 
     # Sold and dispensed are counted apart, and the money only ever comes from
@@ -234,6 +264,10 @@ def analyse(db: Session, *, days: int = 90, branch_id: int | None = None,
         "days": days, "branch_id": branch_id,
         "products": moved[:limit],
         "dead": dead[:limit],
+        # Dispensings in this window that no branch can claim, because nothing
+        # ties them to a till. Reported rather than swallowed: it is the size of
+        # the gap between "what this branch moved" and "what moved".
+        "unattributed_dispensings": unattributed,
         **_summary(rows, moved, priced, dead, total_profit, days),
     }
 
@@ -314,9 +348,29 @@ def by_branch(db: Session, *, days: int = 90, limit: int = 12) -> dict:
     best = rows[0] if rows else None
     worst = min(rows, key=lambda r: r["gmroi"] if r["gmroi"] is not None else 1e9,
                 default=None) if rows else None
+    # How much of the estate's movement no branch can claim. Said once, at the
+    # top, because it governs how the whole table should be read.
+    unattributed = group.get("unattributed_dispensings", 0)
+    total_dispensings = (
+        db.query(func.count(Dispensing.id))
+        .filter(Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
+        .scalar() or 0)
+    share = round(unattributed * 100.0 / total_dispensings, 1) if total_dispensings else 0.0
+
     return {
         "days": days,
         "branches": rows,
+        "unattributed_dispensings": unattributed,
+        "unattributed_share": share,
+        # Stated as a sentence rather than left as two numbers, because the
+        # reader's question is "can I trust this table", not "what is 2510".
+        "caveat": (
+            f"{unattributed:,} of {total_dispensings:,} dispensings "
+            f"({share:.0f}%) in this window have no sale behind them, so no "
+            f"branch can claim them. They are in the group figures and in "
+            f"none of the branch figures, which is why the branches do not sum "
+            f"to the group."
+            if share >= 5 else ""),
         "group": {k: group[k] for k in
                   ("revenue", "profit", "margin", "gmroi", "held_at_cost",
                    "dead_money", "lines_moved", "lines_stocked", "a_lines")},
