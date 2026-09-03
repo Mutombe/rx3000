@@ -12,8 +12,57 @@ DEFAULT_SHELF_LIFE_DAYS = 730  # assumed expiry when none is supplied at receipt
 
 
 def next_number(db: Session, model, prefix: str, field: str) -> str:
-    count = db.query(model).count() + 1
-    return f"{prefix}{datetime.utcnow():%y%m}{count:05d}"
+    """The next document number for this pharmacy, this month.
+
+    Read from the numbers already issued, not from a count of rows.
+
+    Counting rows is wrong whenever a number is issued without adding a row, or
+    a row is added without taking a number, and this system does both:
+
+      finalising a draft takes a number and creates nothing, so the count does
+        not move and the next caller is handed the SAME number;
+      saving a draft creates a row and takes no number, so the count runs ahead
+        of what has been issued and numbers are skipped.
+
+    Every numbered document then carries a per-pharmacy UNIQUE index (see
+    `PER_TENANT_NUMBERS` in migrate.py), so the duplicate is not a cosmetic
+    oddity: Postgres refuses the insert and the request fails with a 500. In
+    production that read as "Something went wrong at our end" on an ordinary
+    prescription capture, immediately after a draft had been finished, and it
+    would have done the same to a sale, a claim, a waybill or a lay-by, all
+    nineteen of which are numbered here.
+
+    So the highest number already issued this period is read back, and the
+    candidate is then checked to be genuinely free. The check costs one indexed
+    lookup and covers the two cases the arithmetic alone cannot: a width change
+    once five digits are exhausted, and a number issued by a request that
+    landed between this one's read and its write.
+
+    Scoped to the pharmacy automatically: the model carries `TenantMixin`, so
+    the query is filtered before it reaches the database, which is the same
+    boundary the unique index is drawn on.
+    """
+    stamp = f"{prefix}{datetime.utcnow():%y%m}"
+    column = getattr(model, field)
+
+    highest = (db.query(func.max(column))
+               .filter(column.like(f"{stamp}%")).scalar())
+    n = 1
+    if highest:
+        tail = str(highest)[len(stamp):]
+        if tail.isdigit():
+            n = int(tail) + 1
+
+    # Walk forward off any number already taken. Bounded, because an unbounded
+    # loop against a database is how a slow page becomes a hung one.
+    for _ in range(1000):
+        candidate = f"{stamp}{n:05d}"
+        if not db.query(column).filter(column == candidate).first():
+            return candidate
+        n += 1
+    raise RuntimeError(
+        f"Could not find a free {field} for {stamp} after 1000 tries. "
+        f"Something is issuing numbers faster than they can be recorded.")
 
 
 def move_stock(
