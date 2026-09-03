@@ -56,19 +56,22 @@ export default function ToFollowDetail() {
       toast.ok(`${quantity ?? owed.quantity_outstanding} handed to ${owed.patient_name}.`);
       load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be recorded."));
+      toast.error(errorText(e, "That could not be recorded. Nothing was saved."));
     }
   }
 
   async function cancel() {
     if (!owed) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setCancelling(false);
       await api.post(`/api/to-follows/${owed.id}/cancel`, { reason: reason.trim() });
       toast.ok(`${owed.reference} cancelled.`);
-      setCancelling(false);
       load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be cancelled."));
+      toast.error(errorText(e, "That could not be cancelled. Nothing was saved."));
     }
   }
 

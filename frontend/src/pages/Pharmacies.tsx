@@ -78,13 +78,16 @@ export default function Pharmacies() {
 
   async function create() {
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAdding(false);
       const made = await api.post<Pharmacy>("/api/pharmacies", form);
       toast.ok(`${made.name} created, with its first branch and administrator.`);
-      setAdding(false);
       setForm({ ...BLANK });
       load();
     } catch (e) {
-      toast.error(errorText(e, "That pharmacy could not be created."));
+      toast.error(errorText(e, "That pharmacy could not be created. Nothing was saved."));
     }
   }
 
@@ -96,7 +99,7 @@ export default function Pharmacies() {
         : `${p.name} is active again.`);
       load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be changed."));
+      toast.error(errorText(e, "That could not be changed. Nothing was saved."));
     }
   }
 
@@ -110,7 +113,7 @@ export default function Pharmacies() {
       openPharmacy(open);
       load();
     } catch (e) {
-      toast.error(errorText(e, "That person could not be moved."));
+      toast.error(errorText(e, "That person could not be moved. Nothing was saved."));
     }
   }
 

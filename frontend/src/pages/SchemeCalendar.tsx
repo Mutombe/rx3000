@@ -138,7 +138,7 @@ export default function SchemeCalendar() {
         const res = await guarded(
           "scheme.edit",
           (token) => api.put(`/api/medical-aids/${editing.id}`, terms, token),
-          `${editing.name} — levy and discount`,
+          `${editing.name}: levy and discount`,
         );
         if (res === CANCELLED) {
           toast.warn("The dates were saved. The terms were not changed.");

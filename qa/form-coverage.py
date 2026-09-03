@@ -47,6 +47,22 @@ SERVER_OWNED = {
 }
 
 
+#: Schemas that no screen should offer, because the sender is not a person.
+#: Without these the check reports ten fields that are working exactly as
+#: designed, and a check that is wrong ten times is one nobody reads the
+#: eleventh time.
+NO_SCREEN = {
+    "ClaimRequest": "the claims switch speaks this, not a dispenser. The "
+                    "screen collects a script and a scheme; the transaction "
+                    "header, the provider block and the claim lines are built "
+                    "from that on the server",
+    "EligibilityRequest": "the same exchange, asked before the claim",
+    "ClientCredentials": "an OAuth token request between two servers. A client "
+                         "secret typed into a form would be a fault, not a "
+                         "feature",
+}
+
+
 def request_schema_names() -> dict[str, set[str]]:
     """Map each request-body schema to the field names it declares.
 
@@ -123,6 +139,8 @@ def main() -> int:
 
     findings: list[tuple[str, list[str]]] = []
     for schema, fields in schemas.items():
+        if schema in NO_SCREEN:
+            continue
         missing = sorted(
             f for f in fields
             if f not in SERVER_OWNED and f not in ui
@@ -130,9 +148,15 @@ def main() -> int:
         if missing:
             findings.append((schema, missing))
 
+    print(f"  {len(NO_SCREEN)} schema(s) have no screen on purpose:")
+    for schema, why in sorted(NO_SCREEN.items()):
+        print(f"        {schema}: {why}")
+    print()
+
     total = sum(len(m) for _, m in findings)
     if not findings:
-        print("Every request field is mentioned somewhere in the front end.")
+        print("Every request field a person fills in is mentioned somewhere "
+              "in the front end.")
         return 0
 
     print(f"{'=' * 72}\nACCEPTED BY THE API, NOT MENTIONED IN ANY SCREEN\n{'=' * 72}")

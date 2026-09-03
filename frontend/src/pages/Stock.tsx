@@ -264,13 +264,16 @@ export default function Stock() {
     const body = { ...form, supplier_id: form.supplier_id === "" ? null : Number(form.supplier_id) };
     delete body.id; delete body.active; delete body.medical_aid;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setShowForm(false);
       if (editing) {
         delete body.quantity_on_hand;
         await api.put(`/api/products/${editing.id}`, body);
       } else {
         await api.post("/api/products", body);
       }
-      setShowForm(false);
       load();
     } catch (err: any) { toast.error(errorText(err)); }
   }

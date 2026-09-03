@@ -77,17 +77,20 @@ export default function RemittanceDetail() {
   async function resolve(line: Line, action: Action, note = "") {
     setBusy(line.id);
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAsking(null);
       await api.post(
         `/api/remittances/lines/${line.id}/resolve?action=${action}`
         + `&note=${encodeURIComponent(note)}`, {});
       toast.ok(action === "bill_patient" ? "Billed to the patient."
              : action === "write_off" ? "Written off."
              : "Reopened.");
-      setAsking(null);
       setWhy("");
       load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be recorded."));
+      toast.error(errorText(e, "That could not be recorded. Nothing was saved."));
     } finally {
       setBusy(null);
     }

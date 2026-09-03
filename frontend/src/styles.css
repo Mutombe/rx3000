@@ -6738,7 +6738,28 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-with-worklist > div > .pill-tabs,
 .disp-with-worklist > div > .trail,
 .disp-with-worklist > div > .disp-work { max-width: 78rem; }
-.pill-tabs.disp-routes { width: 100%; box-sizing: border-box; }
+/* The route strip spans the screen it governs, and its three tabs share that
+   width equally.
+
+   `.pill-tabs` is `inline-flex`, so it shrinks to its contents: the three
+   routes huddled at the left with a third of the row empty beside them, on the
+   one control that decides what the whole page below it does. Widening the
+   container alone was not enough — the buttons still sat at the start of it —
+   so they take an equal share.
+
+   Only this strip. The tab groups elsewhere have two or four entries and sit
+   above a table rather than governing a page; stretched across a wide screen
+   they would read as a toolbar somebody had pulled apart. */
+.pill-tabs.disp-routes {
+  width: 100%; box-sizing: border-box;
+  display: flex;
+}
+.pill-tabs.disp-routes button {
+  /* An equal share, but not below a readable width: under about 12rem each
+     they wrap to a second row instead, which on a phone is what should
+     happen. */
+  flex: 1 1 12rem; min-width: 0;
+}
 
 /* -------------------------------------------------------- the mobile drawer
    An open drawer says it is a drawer.

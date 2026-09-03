@@ -90,6 +90,10 @@ export default function Pipeline() {
   async function save(e: FormEvent) {
     e.preventDefault();
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setShowForm(false);
       await api.post("/api/crm/deals", {
         ...form,
         value: Number(form.value) || 0,
@@ -97,7 +101,6 @@ export default function Pipeline() {
         contact_id: form.contact_id === "" ? null : Number(form.contact_id),
         expected_close_date: form.expected_close_date || null,
       });
-      setShowForm(false);
       setForm({ ...EMPTY });
       load();
     } catch (err: any) { toast.error(errorText(err)); }

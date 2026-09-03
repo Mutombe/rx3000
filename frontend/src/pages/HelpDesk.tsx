@@ -160,8 +160,11 @@ export default function HelpDesk() {
   async function createTicket(e: FormEvent) {
     e.preventDefault();
     try {
-      const t = await api.post<Ticket>("/api/helpdesk/tickets", form);
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
       setShowNew(false);
+      const t = await api.post<Ticket>("/api/helpdesk/tickets", form);
       setForm({ subject: "", description: "", category: "query", priority: "normal",
                 channel: "walk_in", patient_id: null, company_id: null, contact_id: null });
       setPatientQ("");

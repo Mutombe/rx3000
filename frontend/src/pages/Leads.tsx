@@ -120,11 +120,16 @@ export default function Leads() {
   async function save(e: FormEvent) {
     e.preventDefault();
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setShowForm(false);
       const lead = await api.post<Lead>("/api/crm/leads", {
         ...form, estimated_value: Number(form.estimated_value) || 0,
       });
       toast.ok(`Lead captured, scored ${lead.score}/100 (${lead.rating})${lead.owner ? `, routed to ${lead.owner.full_name}` : ""}.`);
-      setShowForm(false); setForm({ ...EMPTY }); setDupes([]);
+      setForm({ ...EMPTY });
+      setDupes([]);
       load();
     } catch (err: any) { toast.error(errorText(err)); }
   }
@@ -176,10 +181,13 @@ export default function Leads() {
     e.preventDefault();
     if (!converting) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setConverting(null);
       const res = await api.post<{ deal_id: number | null }>(`/api/crm/leads/${converting.id}/convert`, {
         ...convertForm, deal_value: Number(convertForm.deal_value) || 0,
       });
-      setConverting(null);
       toast.ok("Lead converted into an account, a contact and an opportunity.");
       load();
       if (res.deal_id) navigate(`/deals/${res.deal_id}`);

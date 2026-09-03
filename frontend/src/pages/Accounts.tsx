@@ -158,10 +158,13 @@ export default function Accounts() {
   async function saveCompany(e: FormEvent) {
     e.preventDefault();
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setShowCo(false);
       const body = { ...coForm, credit_terms_days: Number(coForm.credit_terms_days) || 30 };
       if (editingCo) await api.put(`/api/crm/companies/${editingCo.id}`, body);
-      else await api.post("/api/crm/companies", body);
-      setShowCo(false); setEditingCo(null); setCoForm({ ...EMPTY_CO });
+      else await api.post("/api/crm/companies", body); setEditingCo(null); setCoForm({ ...EMPTY_CO });
       load();
     } catch (err: any) { toast.error(errorText(err)); }
   }
@@ -169,12 +172,15 @@ export default function Accounts() {
   async function saveContact(e: FormEvent) {
     e.preventDefault();
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setShowCt(false);
       await api.post("/api/crm/contacts", {
         ...ctForm,
         company_id: ctForm.company_id === "" ? null : Number(ctForm.company_id),
         owner_id: ctForm.owner_id === "" ? null : Number(ctForm.owner_id),
-      });
-      setShowCt(false); setCtForm({ ...EMPTY_CT });
+      }); setCtForm({ ...EMPTY_CT });
       load();
     } catch (err: any) { toast.error(errorText(err)); }
   }

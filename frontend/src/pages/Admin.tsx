@@ -197,7 +197,7 @@ export default function Admin() {
       toast.ok("Retired. It will not be shown again.");
       loadNotices();
     } catch (e) {
-      toast.error(errorText(e, "That notice could not be retired."));
+      toast.error(errorText(e, "That notice could not be retired. Nothing was saved."));
     }
   }
 
@@ -217,7 +217,7 @@ export default function Admin() {
       toast.ok(`"${t.name}" deleted.`);
       loadTemplates();
     } catch (e) {
-      toast.error(errorText(e, "That template could not be deleted."));
+      toast.error(errorText(e, "That template could not be deleted. Nothing was saved."));
     }
   }
 
@@ -238,6 +238,10 @@ export default function Admin() {
   async function raiseNotice() {
     if (!notice.body.trim()) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setRaising(false);
       await api.post("/api/counter-messages", {
         scope: notice.scope,
         target_id: notice.target_id ? Number(notice.target_id) : null,
@@ -249,14 +253,13 @@ export default function Admin() {
       toast.ok(notice.severity === "block"
         ? "Raised. Dispensing will stop on this until somebody signs for it."
         : "Raised. Dispensers will see it at the counter.");
-      setRaising(false);
       setNotice({ scope: "patient", target_id: "", severity: "warn",
                   category: "", body: "", expires_on: "" });
       loadNotices();
     } catch (e) {
       // The server checks the scope and the severity against its own lists and
       // names the valid ones. Shown as written.
-      toast.error(errorText(e, "That notice could not be raised."));
+      toast.error(errorText(e, "That notice could not be raised. Nothing was saved."));
     }
   }
 
@@ -354,7 +357,7 @@ export default function Admin() {
       if (b.verified) toast.ok(`${filename} opened cleanly and can be restored.`);
       else toast.error(b.problem || `${filename} could not be verified.`);
     } catch (e: any) {
-      toast.error(errorText(e, "That backup could not be checked."));
+      toast.error(errorText(e, "That backup could not be checked. Nothing was saved."));
     }
   }
 

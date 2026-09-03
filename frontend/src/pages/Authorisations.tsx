@@ -145,6 +145,10 @@ export default function Authorisations() {
     e.preventDefault();
     setBusy("request");
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAsking(false);
       const made = await api.post<Auth>("/api/authorisations", {
         funder_id: funder.trim().toUpperCase(),
         policy_number: policy.trim(),
@@ -167,7 +171,6 @@ export default function Authorisations() {
       toast.ok(made.effective_status === "approved"
         ? `${made.reference} approved${made.authorisation_number ? `, number ${made.authorisation_number}` : ""}.`
         : `${made.reference}: ${made.effective_status}. ${made.decision_reason}`);
-      setAsking(false);
       setPolicy(""); setMotivation(""); setIcd10("");
       setPatient(null); setProduct(null); setPatientQ(""); setProductQ("");
       load();
@@ -251,7 +254,7 @@ export default function Authorisations() {
         : "Nothing was outstanding against that reference.");
       await load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be given back."));
+      toast.error(errorText(e, "That could not be given back. Nothing was saved."));
     } finally {
       setBusy("");
     }

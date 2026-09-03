@@ -144,6 +144,10 @@ export default function Branches() {
     if (!editing) return;
     setBusy("save");
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setEditing(null);
       await api.put(`/api/branches/${editing.id}`, {
         code: form.code ?? editing.code,
         name: form.name ?? editing.name,
@@ -153,7 +157,6 @@ export default function Branches() {
         responsible_pharmacist: form.responsible_pharmacist ?? "",
       });
       toast.ok(`${form.name ?? editing.name} saved.`);
-      setEditing(null);
       load();
     } catch (err) {
       toast.error(errorText(err));

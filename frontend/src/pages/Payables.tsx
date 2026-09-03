@@ -111,7 +111,7 @@ export default function Payables() {
     try {
       setOpen(await api.get<Invoice>(`/api/payables/invoices/${invoiceId}`));
     } catch (e) {
-      toast.error(errorText(e, "That invoice could not be opened."));
+      toast.error(errorText(e, "That invoice could not be opened. Nothing was saved."));
     }
   }
 
@@ -140,7 +140,7 @@ export default function Payables() {
       await show(open.id);
       await load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be approved."));
+      toast.error(errorText(e, "That could not be approved. Nothing was saved."));
     }
   }
 
@@ -180,16 +180,19 @@ export default function Payables() {
   async function raiseQuery() {
     if (!open || !queryNote.trim()) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setQuerying(false);
       const r = await api.post<{ message: string }>(
         `/api/payables/invoices/${open.id}/query`, { note: queryNote.trim() });
       toast.ok(r.message);
-      setQuerying(false);
       setQueryNote("");
       await show(open.id);
       await load();
     } catch (e) {
       // The server refuses to query an invoice already paid, and says so.
-      toast.error(errorText(e, "That invoice could not be queried."));
+      toast.error(errorText(e, "That invoice could not be queried. Nothing was saved."));
     }
   }
 
@@ -242,7 +245,7 @@ export default function Payables() {
           || "Please quote the account number shown above on every remittance.",
       });
     } catch (e) {
-      toast.error(errorText(e, "That statement could not be produced."));
+      toast.error(errorText(e, "That statement could not be produced. Nothing was saved."));
     }
   }
 

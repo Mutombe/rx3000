@@ -77,14 +77,17 @@ export default function PaymentInstruments() {
 
   async function create() {
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAdding(false);
       await api.post("/api/payment-instruments", form);
       toast.ok(`${form.name} added.`);
-      setAdding(false);
       setForm({ code: "", name: "", method: "mobile_money",
                 currencies: "USD", settles_to: "" });
       load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be added."));
+      toast.error(errorText(e, "That could not be added. Nothing was saved."));
     }
   }
 

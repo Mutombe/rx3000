@@ -93,6 +93,10 @@ export default function LayBys() {
     if (!patient || lines.length === 0) return;
     setBusy("raise");
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setRaising(false);
       const made = await api.post<LayBy & { message: string }>("/api/laybys", {
         patient_id: patient.id,
         items: lines.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
@@ -101,7 +105,6 @@ export default function LayBys() {
         minimum_deposit_percent: Number(minPercent) || 0,
       });
       toast.ok(made.message);
-      setRaising(false);
       setPatient(null); setPatientQ(""); setLines([]); setDeposit("");
       setDueDate(""); setProductQ("");
       setStatus("open");

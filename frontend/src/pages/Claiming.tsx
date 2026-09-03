@@ -178,18 +178,24 @@ export default function Claiming() {
   async function createFormulary() {
     if (!newFormulary) return;
     try {
+      // Closed before the write, not after it. A formulary is a record being
+      // created, and the list is what confirms it either way.
+      setNewFormulary(null);
       await api.post("/api/claiming/formularies", newFormulary);
       toast.ok(`${newFormulary.name} added.`);
-      setNewFormulary(null);
       load();
     } catch (e) {
-      toast.error(errorText(e, "That formulary could not be created."));
+      toast.error(errorText(e, "That formulary could not be created. Nothing was saved."));
     }
   }
 
   async function saveEntry() {
     if (!openFormulary || !entryForm.product_id) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAddingEntry(false);
       await api.post(`/api/claiming/formularies/${openFormulary.id}/entries`, {
         product_id: entryForm.product_id,
         status: entryForm.status,
@@ -202,7 +208,6 @@ export default function Claiming() {
         note: entryForm.note,
       });
       toast.ok(`${entryForm.product_name} filed on ${openFormulary.name}.`);
-      setAddingEntry(false);
       setEntryForm({ product_id: 0, product_name: "", status: "covered",
                      reference_price: "", max_quantity: "",
                      requires_authorisation: false, note: "" });
@@ -211,7 +216,7 @@ export default function Claiming() {
         `/api/claiming/formularies/${openFormulary.id}/entries`);
       setEntries(rows);
     } catch (e) {
-      toast.error(errorText(e, "That entry could not be saved."));
+      toast.error(errorText(e, "That entry could not be saved. Nothing was saved."));
     }
   }
 
@@ -317,7 +322,7 @@ export default function Claiming() {
         `/api/claiming/fee-models/${model.id}/quote?base=${base}`);
       setQuoted((q) => ({ ...q, [model.id]: r }));
     } catch (e) {
-      toast.error(errorText(e, "That could not be priced."));
+      toast.error(errorText(e, "That could not be priced. Nothing was saved."));
     }
   }
 

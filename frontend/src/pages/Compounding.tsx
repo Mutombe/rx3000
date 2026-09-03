@@ -136,6 +136,10 @@ export default function Compounding() {
     e.preventDefault();
     setBusy("create");
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAdding(false);
       await api.post("/api/compounding/mixtures", {
         code: code.trim().toUpperCase(), name: name.trim(), form,
         yield_quantity: Number(yieldQty) || 1, yield_unit: yieldUnit.trim(),
@@ -149,7 +153,6 @@ export default function Compounding() {
         })),
       });
       toast.ok(`${name} added to the formula book.`);
-      setAdding(false);
       setCode(""); setName(""); setMethod(""); setDirections(""); setLines([]);
       load();
     } catch (err) {

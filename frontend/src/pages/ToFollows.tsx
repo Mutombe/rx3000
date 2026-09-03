@@ -142,9 +142,12 @@ export default function ToFollows() {
   async function cancel() {
     if (!cancelling) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setCancelling(null);
       await api.post(`/api/to-follows/${cancelling.id}/cancel`, { reason });
       toast.ok(`${cancelling.reference} written off.`);
-      setCancelling(null);
       setReason("");
       load();
     } catch (e: any) {

@@ -109,7 +109,7 @@ export default function PatientDetail() {
       setLogForm({ activity_type: "call", subject: "", body: "", due_at: "" });
       loadLog();
     } catch (e) {
-      toast.error(errorText(e, "That could not be logged."));
+      toast.error(errorText(e, "That could not be logged. Nothing was saved."));
     }
   }
 
@@ -162,6 +162,10 @@ export default function PatientDetail() {
   async function saveClinical() {
     if (!patient || !clinical) return;
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setClinical(null);
       const saved = await api.put<Patient>(`/api/patients/${patient.id}`, {
         ...patient,
         medical_aid_id: patient.medical_aid_id ?? null,
@@ -169,10 +173,9 @@ export default function PatientDetail() {
         chronic_conditions: clinical.chronic_conditions,
       });
       setPatient(saved);
-      setClinical(null);
       toast.ok("Updated.");
     } catch (e) {
-      toast.error(errorText(e, "That could not be saved."));
+      toast.error(errorText(e, "That could not be saved. Nothing was saved."));
     }
   }
 

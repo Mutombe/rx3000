@@ -116,6 +116,10 @@ export default function Samples() {
 
   async function receive() {
     try {
+      // Closed before the write, not after it. A record being created
+      // or edited costs a click if it fails, and the list is what
+      // confirms it either way.
+      setAdding(false);
       await api.post("/api/samples", {
         product_id: Number(form.product_id),
         quantity: Number(form.quantity),
@@ -126,12 +130,11 @@ export default function Samples() {
         notes: form.notes,
       });
       toast.ok("Booked into the register.");
-      setAdding(false);
       setForm({ product_id: "", quantity: "", supplier_name: "", representative: "",
                 batch_number: "", expiry_date: "", notes: "" });
       await load();
     } catch (e) {
-      toast.error(errorText(e, "That could not be recorded."));
+      toast.error(errorText(e, "That could not be recorded. Nothing was saved."));
     }
   }
 
@@ -149,7 +152,7 @@ export default function Samples() {
       await openRow(r);           // and reopens with the new movement
       await load();
     } catch (e) {
-      toast.error(errorText(e, "That movement was refused."));
+      toast.error(errorText(e, "That movement was refused. Nothing was saved."));
     }
   }
 
