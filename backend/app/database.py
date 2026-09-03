@@ -95,12 +95,26 @@ class Base(DeclarativeBase):
 # the alternative does not work.
 tenancy.install(SessionLocal)
 
+# And then narrowed again to the shops the person works in. Installed after
+# tenancy and never instead of it: the two answer different questions, and a
+# branch filter on its own would happily show one customer another customer's
+# branch. See `branch_scope` for why the unset default points the opposite way
+# to tenancy's.
+#
+# Imported here rather than at the top because it reads the models, which
+# import this module for `Base`.
+from . import branch_scope  # noqa: E402
+
+branch_scope.install(SessionLocal)
+
 
 def get_db():
     db = SessionLocal()
     # New rows get the pharmacy in force. Registered per session rather than on
     # the class so the handler is bound to this session's identity map.
     tenancy.stamp(db)
+    # And the branch, where the person works in exactly one.
+    branch_scope.stamp(db)
     try:
         yield db
     finally:

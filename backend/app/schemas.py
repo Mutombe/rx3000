@@ -69,6 +69,30 @@ class UserOut(ORM):
     demo_expires_at: datetime | None = None
 
 
+class BranchBrief(BaseModel):
+    id: int
+    name: str
+    code: str = ""
+
+
+class MeOut(UserOut):
+    """The signed-in user, plus everything the screens need to gate themselves.
+
+    Separate from `UserOut` because the staff list has no business carrying a
+    permission matrix per row, and because the extra fields are answers the
+    server computed rather than columns it stored.
+    """
+    #: capability key -> may they. Resolved by the server; see the note on
+    #: `/auth/me` for why the client never works one out for itself.
+    can: dict[str, bool] = {}
+    #: The shops this person may see. One for most staff, all of them for the
+    #: owner and for anybody nobody has placed yet.
+    branches: list[BranchBrief] = []
+    #: Where they work, of those. Null for head office and the unplaced.
+    branch: BranchBrief | None = None
+    all_branches: bool = False
+
+
 class UserCreate(BaseModel):
     username: str
     password: str

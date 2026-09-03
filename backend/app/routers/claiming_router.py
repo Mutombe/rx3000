@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, icd10, schemas
 from ..auth import get_current_user, require_role
+from .. import auth
 from ..database import get_db
 from ..models import (
     Claim, ClaimBatch, DiagnosisCode, FeeModel, FeeTier, Formulary, FormularyEntry, MedicalAid, PayOffice, Product, User,
@@ -355,7 +356,8 @@ def create_batch(body: schemas.ClaimBatchCreate, db: Session = Depends(get_db),
 
 
 @router.post("/batches/{batch_id}/submit", response_model=schemas.ClaimBatchOut)
-def submit_batch(batch_id: int, db: Session = Depends(get_db)):
+def submit_batch(batch_id: int, db: Session = Depends(get_db),
+                                _may=Depends(auth.requires("claims.submit"))):
     batch = db.get(ClaimBatch, batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")

@@ -5,6 +5,7 @@ from .. import auth, schemas
 from ..auth import get_current_user, verify_password
 from ..database import get_db
 from ..services import auth_rules, demo, pins
+from .. import models
 from ..models import User
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -23,12 +24,48 @@ def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
             detail="This demo has ended. Everything you entered has been kept, "
                    "so ask us for an account and you can carry on from where you stopped.",
         )
-    return schemas.TokenResponse(access_token=auth.create_token(user), user=user)
+    return schemas.TokenResponse(access_token=auth.create_token(user, db), user=user)
 
 
-@router.get("/me", response_model=schemas.UserOut)
-def me(user: User = Depends(auth.get_current_user)):
-    return user
+@router.get("/me", response_model=schemas.MeOut)
+def me(user: User = Depends(auth.get_current_user),
+       db: Session = Depends(get_db)):
+    """Who is signed in, what they may do, and which shop they are in.
+
+    The capabilities are resolved here and sent as a flat set of booleans, so
+    the screens never work out an answer for themselves. Two implementations of
+    one rule disagree eventually, and the way this particular disagreement
+    presents is a button that is visible, enabled, and refused — which teaches
+    people that the software is unreliable rather than that they lack the
+    authority.
+
+    So the server decides and the client reads. A screen that hides a button it
+    should have shown is a bug report; a screen that shows one the server will
+    refuse is an argument at a counter.
+    """
+    from ..services import permissions as _permissions
+    from .. import branch_scope as _branch_scope
+
+    visible = _branch_scope.visible_branch_ids()
+    with _branch_scope.every_branch():
+        branches = [
+            {"id": b.id, "name": b.name, "code": b.code}
+            for b in db.query(models.Branch)
+            .filter(models.Branch.id.in_(visible)).all()
+        ] if visible is not None else [
+            {"id": b.id, "name": b.name, "code": b.code}
+            for b in db.query(models.Branch).all()
+        ]
+
+    out = schemas.UserOut.model_validate(user).model_dump()
+    out["can"] = {
+        key: _permissions.can(db, user, key)
+        for key, _name, _roles in _permissions.CAPABILITIES
+    }
+    out["branches"] = branches
+    out["all_branches"] = visible is None
+    out["branch"] = next((b for b in branches if b["id"] == user.branch_id), None)
+    return out
 
 
 @router.post("/users", response_model=schemas.UserOut)
@@ -234,7 +271,7 @@ def start_demo(full_name: str = Body(default="", embed=True),
     person out of a demo is a worse failure than a handful of extra rows.
     """
     user, expires = demo.start(db, full_name)
-    return schemas.TokenResponse(access_token=auth.create_token(user), user=user)
+    return schemas.TokenResponse(access_token=auth.create_token(user, db), user=user)
 
 
 @router.get("/demo/length")
@@ -306,4 +343,4 @@ def reset_with_pin(username: str = Body(...), pin: str = Body(...),
     db.refresh(user)
     # Signed in on the spot. Being bounced back to a login form to retype a
     # password chosen four seconds ago is friction with no security in it.
-    return schemas.TokenResponse(access_token=auth.create_token(user), user=user)
+    return schemas.TokenResponse(access_token=auth.create_token(user, db), user=user)

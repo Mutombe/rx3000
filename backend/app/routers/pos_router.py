@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from .. import helpers, schemas
+from .. import auth, helpers, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
@@ -541,7 +541,8 @@ def get_sale(sale_id: int, db: Session = Depends(get_db), _: User = Depends(get_
 @router.post("/sales/{sale_id}/void", response_model=schemas.SaleOut)
 def void_sale(sale_id: int, db: Session = Depends(get_db),
               user: User = Depends(get_current_user),
-              _grant=Depends(require_step_up("sale.void"))):
+              _grant=Depends(require_step_up("sale.void")),
+              _may=Depends(auth.requires("sale.void"))):
     sale = db.get(Sale, sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
@@ -584,7 +585,8 @@ def return_lines(sale_id: int,
                  reason: str = Body(default=""),
                  restock: bool = Body(default=True),
                  db: Session = Depends(get_db),
-                 user: User = Depends(get_current_user)):
+                 user: User = Depends(get_current_user),
+                 _may=Depends(auth.requires("sale.return"))):
     """Take part of a sale back.
 
     Preview first. A return moves money and stock at once and both are awkward

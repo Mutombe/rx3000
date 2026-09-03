@@ -6,6 +6,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from ..auth import get_current_user, require_role
+from .. import auth
 from ..database import get_db
 from ..models import (
     PurchaseOrder, Supplier, SupplierInvoice, SupplierInvoiceItem,
@@ -224,7 +225,8 @@ def pay(supplier_id: int = Body(...), amount: float = Body(...),
         allocations: list[dict] = Body(default=[]),
         notes: str = Body(default=""),
         db: Session = Depends(get_db),
-        user: User = Depends(require_role("admin", "pharmacist"))):
+        user: User = Depends(require_role("admin", "pharmacist")),
+        _may=Depends(auth.requires("supplier.pay"))):
     try:
         result = payables.record_payment(
             db, supplier_id=supplier_id, amount=amount, paid_on=paid_on,

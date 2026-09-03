@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .config import settings
 from .database import get_db
+from . import branch_scope as _branch_scope
 from . import tenancy
 from .models import User
 
@@ -52,7 +53,7 @@ def find_by_username(db: Session, username: str) -> User | None:
         return db.query(User).filter(User.username == username).first()
 
 
-def create_token(user: User) -> str:
+def create_token(user: User, db: Session | None = None) -> str:
     ttl = timedelta(hours=settings.TOKEN_TTL_HOURS)
     # A demo token never outlives the demo. The row is still the authority — see
     # get_current_user, but issuing an eight-hour token for a four-hour account
@@ -61,6 +62,14 @@ def create_token(user: User) -> str:
     if user.is_demo and user.demo_expires_at is not None:
         remaining = user.demo_expires_at - datetime.now(timezone.utc).replace(tzinfo=None)
         ttl = min(ttl, max(remaining, timedelta(minutes=1)))
+
+    # Without a session there is nothing to read the cover rows from, so the
+    # token says "every branch". Callers that have one pass it; the only ones
+    # that do not are tests and the demo issuer, where a single branch is the
+    # whole estate anyway.
+    visible = _branch_scope.for_user(db, user) if db is not None else None
+    branches = sorted(visible) if visible is not None else None
+
     payload = {
         "sub": str(user.id),
         "username": user.username,
@@ -73,6 +82,22 @@ def create_token(user: User) -> str:
         # is in force. Putting it in the token breaks that circle — the tenant
         # is known from the first line of the request, before anything reads.
         "pharmacy_id": user.pharmacy_id,
+        # Which shops inside that pharmacy this token may see. `null` means all
+        # of them, which is what the owner, head office and anybody not yet
+        # placed in a branch get.
+        #
+        # In the token for the same reason the pharmacy is, and stale for the
+        # same twelve hours. That staleness is right rather than merely
+        # tolerable here: a token lasts about a shift, so somebody transferred
+        # on Tuesday afternoon carries Avondale until Wednesday morning, which
+        # is when they actually start working at Borrowdale. Recomputed at every
+        # sign-in, so a transfer needs no intervention to take effect.
+        #
+        # Note what this is not. Tenancy is the boundary between two customers
+        # and is enforced from the first line of the request. This is a boundary
+        # inside one customer's own group, between shops whose staff already
+        # work for the same owner.
+        "branches": branches,
         "exp": datetime.now(timezone.utc) + ttl,
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
@@ -144,6 +169,50 @@ def require_role(*roles: str):
             raise HTTPException(status_code=403, detail=f"Requires role: {', '.join(roles)}")
         return user
     return checker
+
+
+def requires(capability: str):
+    """Gate an endpoint on a capability rather than on a role.
+
+    `require_role("admin", "manager")` is what this codebase had, and it is the
+    thing `services/permissions` was written to replace: it cannot express "this
+    assistant may void a sale under twenty dollars at Avondale until the locum
+    leaves", so a pharmacy that needs that gives her a manager's login and every
+    record afterwards says manager.
+
+    The refusal carries the service's own sentence, which says who may do the
+    thing and how to get it, rather than "Requires role: admin". A message that
+    only says no is one that gets answered by sharing a password.
+
+    Deliberately without an amount. A ceiling needs the body, which a dependency
+    would have to read and rewind; the endpoints that have ceilings call
+    `permissions.check(..., amount=)` themselves, where the figure is in hand.
+    This is the yes/no half, which is what nearly every endpoint needs.
+    """
+
+    def gate(user: User = Depends(get_current_user),
+             db: Session = Depends(get_db)) -> User:
+        from .services import permissions as _permissions
+
+        # Where somebody works in exactly one shop, that is where they are
+        # standing, and a grant scoped to a branch should apply there. Somebody
+        # covering several has no single answer, so only their unscoped grants
+        # count — the narrower reading, which is the right way for a permission
+        # check to be uncertain.
+        visible = _branch_scope.visible_branch_ids()
+        branch_id = next(iter(visible)) if visible and len(visible) == 1 else None
+
+        decision = _permissions.check(db, user, capability, branch_id=branch_id)
+        if decision["allowed"]:
+            return user
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=decision["why"],
+            headers=({"X-Needs-Approval": "1"}
+                     if decision.get("needs_approval") else None),
+        )
+
+    return gate
 
 
 def require_platform_admin(user: User = Depends(get_current_user)) -> User:

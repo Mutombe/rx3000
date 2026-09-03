@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from .. import helpers, schemas
+from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import paging
@@ -304,7 +304,9 @@ def stock_upload(csv_text: str = Body(..., embed=True),
 
 
 @router.post("/stock/adjust")
-def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user),
+                 _may=Depends(auth.requires("stock.adjust"))):
     product = db.get(Product, body.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -378,7 +380,9 @@ def stock_reconcile(limit: int = 200, db: Session = Depends(get_db)):
 
 
 @router.post("/stock/batches/{batch_id}/write-off")
-def write_off_batch(batch_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def write_off_batch(batch_id: int, db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user),
+                    _may=Depends(auth.requires("stock.write_off"))):
     """Write off a batch's remaining stock (expired / damaged)."""
     batch = db.get(StockBatch, batch_id)
     if not batch:

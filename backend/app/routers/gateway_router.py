@@ -44,7 +44,7 @@ def issue_token(body: schemas.ClientCredentials, db: Session = Depends(get_db)):
             "message": "Client credentials were not accepted.",
         })
     return {
-        "access_token": create_token(user),
+        "access_token": create_token(user, db),
         "token_type": "Bearer",
         "expires_in": settings.TOKEN_TTL_HOURS * 3600,
     }

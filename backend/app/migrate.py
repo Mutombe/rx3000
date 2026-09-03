@@ -85,6 +85,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "pin_locked_until": "TIMESTAMP",
         "is_demo": "BOOLEAN DEFAULT 0",
         "demo_expires_at": "TIMESTAMP",
+        # Which shop somebody works in. Nullable, and read as "every branch"
+        # while it is null: every user in every existing database predates
+        # this, and a narrowing that empties the product on the morning it
+        # ships is one that gets switched off by lunchtime. See branch_scope.
+        "branch_id": "INTEGER",
+        "all_branches": "BOOLEAN DEFAULT 0",
     },
     "shifts": {
         "till_no": "VARCHAR(10)", "run_number": "INTEGER DEFAULT 0",

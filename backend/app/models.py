@@ -73,6 +73,100 @@ class User(Base, TenantMixin):
     is_demo = Column(Boolean, default=False)
     demo_expires_at = Column(DateTime, nullable=True)
 
+    # ---- which shop this person works in --------------------------------
+    #
+    # Staff belong to a branch. The dispenser at Avondale counts Avondale's
+    # stock, rings up Avondale's sales and cashes up Avondale's till, and the
+    # Borrowdale figures are not a thing she should be reading, correcting, or
+    # accidentally posting against.
+    #
+    # Without this the product has one shop's worth of thinking in a group's
+    # worth of data: everybody signs in and sees every branch, so the stock
+    # figure on the screen is the group's, the takings are the group's, and the
+    # only way to know which shop a number belongs to is to remember. A group
+    # with four branches then trains four teams to ignore three quarters of
+    # every screen.
+    #
+    #: The shop they work in. NULL means nobody has said, and is read as "every
+    #: branch" rather than "no branch" — every user in the system predates this
+    #: column, and a scoping rule that empties the product on the morning it
+    #: ships is one that gets turned off by lunchtime. Assigning a branch is
+    #: what switches the narrowing on for that person.
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True,
+                       index=True)
+    #: Sees the whole group regardless of the above: the owner, the group
+    #: pharmacist, head office. Held separately from `role` because "how much
+    #: may they do" and "how far can they see" are different questions, and a
+    #: bookkeeper who must reconcile all four branches needs the second without
+    #: the first.
+    all_branches = Column(Boolean, default=False, index=True)
+
+    branch = relationship("Branch", foreign_keys=[branch_id])
+
+
+class UserBranch(Base, TenantMixin):
+    """A branch somebody may work in besides their own.
+
+    The relief pharmacist covers Avondale on Mondays and Borrowdale on
+    Thursdays. The area manager has three shops. Neither is a transfer, and
+    neither is "all branches" — modelling them with the only two tools a single
+    `branch_id` offers means either giving that person the whole group or
+    moving them every week, and the second is what people actually do until
+    they give up and do the first.
+    """
+    __tablename__ = "user_branches"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False,
+                     index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False,
+                       index=True)
+    #: Ends on its own, for a locum's cover. NULL is standing.
+    until = Column(Date, nullable=True, index=True)
+    reason = Column(String(200), default="")
+    added_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    branch = relationship("Branch", foreign_keys=[branch_id])
+    added_by = relationship("User", foreign_keys=[added_by_id])
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "branch_id", name="uq_user_branch"),
+    )
+
+
+class StaffTransfer(Base, TenantMixin):
+    """A move from one branch to another, kept.
+
+    "Unless transferred" is the ordinary case, not an exception: staff move
+    between shops for cover, for promotion, and because somebody left. What
+    matters afterwards is not where they are now, which the user row already
+    says, but where they were in March, when the stock went missing.
+
+    Overwriting `branch_id` answers the first question and destroys the second.
+    A branch that cannot say who was working in it on a given day cannot
+    investigate anything, and the controlled register is signed by people whose
+    branch at the time is exactly what an inspector asks about.
+    """
+    __tablename__ = "staff_transfers"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False,
+                     index=True)
+    #: NULL where somebody is being placed for the first time.
+    from_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    to_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True)
+    moved_on = Column(Date, default=date.today, index=True)
+    reason = Column(String(300), default="")
+    moved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
+    from_branch = relationship("Branch", foreign_keys=[from_branch_id])
+    to_branch = relationship("Branch", foreign_keys=[to_branch_id])
+    moved_by = relationship("User", foreign_keys=[moved_by_id])
+
 
 class PayOffice(Base):
     """Who actually settles a claim.

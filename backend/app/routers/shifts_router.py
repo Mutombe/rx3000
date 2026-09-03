@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import schemas
+from .. import auth, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Sale, Shift, User
@@ -288,6 +288,7 @@ def cashup_denominations(currency: str = "", db: Session = Depends(get_db),
 def submit_cashup(
     shift_id: int, body: CountIn,
     db: Session = Depends(get_db), user: User = Depends(get_current_user),
+                                   _may=Depends(auth.requires("cash.reconcile")),
 ):
     """Commit a count and get the reconciliation back.
 
@@ -468,6 +469,7 @@ def add_petty_cash(
     body: PettyCashIn,
     db: Session = Depends(get_db), user: User = Depends(get_current_user),
     _grant=Depends(require_step_up("pettycash.record")),
+    _may=Depends(auth.requires("cash.petty")),
 ):
     from ..models import PettyCash
 

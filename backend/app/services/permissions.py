@@ -73,6 +73,19 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
 BY_KEY = {c[0]: c for c in CAPABILITIES}
 
 
+def _a(role: str) -> str:
+    """"An assistant", "A manager".
+
+    A small thing, and the reason it is worth a function: this sentence is
+    read at a counter by somebody who has just been refused, often in front of
+    a customer. "A assistant may not do this" makes the software look careless
+    at the exact moment it is telling somebody they lack authority, which is
+    the moment it can least afford to.
+    """
+    article = "An" if role[:1].lower() in "aeiou" else "A"
+    return f"{article} {role}"
+
+
 def role_has(role: str, capability: str) -> bool:
     entry = BY_KEY.get(capability)
     if entry is None:
@@ -168,7 +181,7 @@ def check(db: Session, user: User, capability: str, *,
         entry = BY_KEY.get(capability)
         who = ", ".join(entry[2]) if entry else "an administrator"
         return _no(capability,
-                   f"A {user.role} may not do this. It belongs to: {who}.")
+                   f"{_a(user.role)} may not do this. It belongs to: {who}.")
 
     # The bounds only come from a grant. A role grants a capability outright —
     # if it should be bounded for somebody, that is a grant with a ceiling
@@ -290,7 +303,7 @@ def explain(db: Session, user: User, capability: str,
                + (f", until {g.expires_on:%d %b %Y}" if g.expires_on else "."))
     else:
         who = ", ".join(entry[2]) if entry else "an administrator"
-        why = (f"A {user.role} may not do this. It belongs to: {who}. "
+        why = (f"{_a(user.role)} may not do this. It belongs to: {who}. "
                f"Somebody with staff.manage can grant it to them by name.")
 
     return {
