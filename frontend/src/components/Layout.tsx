@@ -47,6 +47,7 @@ import {
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { routeTone } from "../entityTone";
 import { api, configureLocale, fmtDateTime, setToken } from "../api";
 import { User } from "../types";
 import { readStored, writeStored } from "../storage";
@@ -374,7 +375,12 @@ export default function Layout({ children }: { children: ReactNode }) {
                     [isActive ? "active" : "", l.tier === 1 ? "nav-primary" : ""]
                       .filter(Boolean).join(" ")}
                 >
-                  <span className="icon">
+                  {/* The sidebar is the surface somebody looks at every few
+                      minutes all day, so it is where the four colours are
+                      actually learnt. The icon carries it; the label stays
+                      plain, because forty-seven coloured words is a list
+                      nobody can scan. */}
+                  <span className={`icon ${routeTone(l.to)}`.trim()}>
                     <l.icon size={18} weight={l.tier === 1 ? "fill" : "regular"} />
                     {/* Collapsed to a rail there is no room for a number, but
                         hiding it entirely would mean the one view that shows

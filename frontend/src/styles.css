@@ -6672,3 +6672,25 @@ table.dt.sub th { font-size: var(--t-xs); }
 .tone-chip.tone-script   { background: var(--e-script-soft);   border-color: var(--e-script-line); }
 .tone-chip.tone-medicine { background: var(--e-medicine-soft); border-color: var(--e-medicine-line); }
 .tone-chip.tone-money    { background: var(--e-money-soft);    border-color: var(--e-money-line); }
+
+/* The colour language on the surfaces that NAME a record rather than link to
+   one. A language spoken only in the links would be spoken in half the
+   sentences. */
+
+/* The word above a record page saying what kind of thing it is. */
+.eyebrow.tone-person   { color: var(--e-person); }
+.eyebrow.tone-script   { color: var(--e-script); }
+.eyebrow.tone-medicine { color: var(--e-medicine); }
+.eyebrow.tone-money    { color: var(--e-money); }
+
+/* The sidebar icon. The icon only: forty-seven coloured words is a list
+   nobody can scan, and the label's job is to be read, not to be identified. */
+.nav a .icon.tone-person   { color: var(--e-person); }
+.nav a .icon.tone-script   { color: var(--e-script); }
+.nav a .icon.tone-medicine { color: var(--e-medicine); }
+.nav a .icon.tone-money    { color: var(--e-money); }
+
+/* The active destination keeps the product's own emphasis. A row that is both
+   coloured and selected should read as selected first, or the colour starts
+   competing with the one piece of state the sidebar carries. */
+.nav a.active .icon { color: inherit; }

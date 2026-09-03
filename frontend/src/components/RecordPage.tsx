@@ -13,6 +13,7 @@ import type { ReactNode } from "react";
 import Breadcrumbs, { Crumb } from "./Breadcrumbs";
 import { DetailSkeleton } from "./Skeleton";
 import { Highlights } from "./record";
+import { labelTone } from "../entityTone";
 
 export interface Fact {
   label: string;
@@ -60,7 +61,9 @@ export default function RecordPage({
       <Breadcrumbs trail={trail} />
       <div className="page-head">
         <div>
-          <div className="eyebrow">{eyebrow}</div>
+          {/* The record type, in its family colour. The word above a record
+              page is where somebody confirms what they are looking at. */}
+          <div className={`eyebrow ${labelTone(eyebrow)}`.trim()}>{eyebrow}</div>
           <h1>{title}</h1>
           {subtitle && <div className="sub">{subtitle}</div>}
         </div>

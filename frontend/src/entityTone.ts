@@ -102,3 +102,86 @@ export const FAMILY_MEANS: Record<Family, string> = {
   medicine: "a medicine, or the stock behind it",
   money: "money owed, taken, claimed or banked",
 };
+
+
+/** The same four colours, for the places that NAME a record type rather than
+ *  link to one.
+ *
+ *  A colour language that only reached the links would be a language spoken in
+ *  half the sentences. These are the other half: the word above a record page
+ *  saying what kind of thing it is, and the sidebar, which is the one surface
+ *  somebody looks at every few minutes all day and therefore where the
+ *  association is actually learnt.
+ *
+ *  Kept as tables rather than derived from the text, because "Owed to a
+ *  patient" is money and "On the shelf" is medicine, and no rule reads those
+ *  correctly. qa/colour-language.py asserts that every eyebrow written in a
+ *  page and every route in the sidebar appears here, so a new screen cannot
+ *  quietly arrive uncoloured.
+ */
+export const LABEL_FAMILY: Record<string, Family> = {
+  // Who
+  Patient: "person", Prescriber: "person", Staff: "person",
+  Contact: "person", Lead: "person", Driver: "person",
+
+  // The document
+  Prescription: "script", Repeat: "script", Dispensing: "script",
+  Case: "script", Message: "script", Campaign: "script",
+  Script: "script",
+
+  // What is handed over, and the stock behind it
+  Product: "medicine", Batch: "medicine", Supplier: "medicine",
+  "Purchase order": "medicine", "On the shelf": "medicine",
+  Branch: "medicine",
+
+  // Money
+  Sale: "money", "Lay-by": "money", "Supplier invoice": "money",
+  Account: "money", "Till session": "money", Claim: "money",
+  "Claim batch": "money", "Remittance advice": "money",
+  Opportunity: "money", Waybill: "money", "Owed to a patient": "money",
+  "Fiscal day": "money",
+};
+
+/** The sidebar. Every destination, and the thing it is mostly about.
+ *
+ *  "Mostly" is doing real work here: the dispensary is about scripts AND
+ *  patients AND medicines. It is coloured for the document, because that is
+ *  what a dispenser goes there to produce. Where a screen genuinely has no
+ *  single subject — the command centre, the control panel — it takes no
+ *  colour rather than a misleading one.
+ */
+export const ROUTE_FAMILY: Record<string, Family> = {
+  "/dispense": "script", "/patients": "person", "/to-follows": "medicine",
+  "/will-call": "medicine", "/dispensing-history": "script",
+  "/scripts": "script", "/repeats": "script", "/compounding": "medicine",
+  "/register": "medicine", "/deliveries": "money", "/drivers": "person",
+  "/reminders": "person",
+
+  "/pos": "money", "/shifts": "money", "/fiscal": "money",
+  "/laybys": "money", "/money-owed": "money",
+
+  "/stock": "medicine", "/stock-categories": "medicine",
+  "/stock-performance": "medicine", "/orders": "medicine",
+  "/stock-take": "medicine", "/samples": "medicine", "/recall": "medicine",
+  "/branches": "medicine", "/compliance": "medicine",
+
+  "/claiming": "money", "/remittances": "money", "/reconciliation": "money",
+  "/payables": "money", "/ledger": "money", "/periods": "money",
+
+  "/scorecard": "money", "/reports": "money", "/seasons": "medicine",
+  "/helpdesk": "person", "/accounts": "person", "/leads": "person",
+  "/pipeline": "money", "/marketing": "person", "/crm-reports": "money",
+  "/head-office": "person", "/pharmacies": "person",
+};
+
+/** The class for a named record type, or nothing where it has no single
+ *  subject. Nothing is the honest answer for a dashboard. */
+export function labelTone(label: string | undefined): string {
+  const f = label ? LABEL_FAMILY[label] : undefined;
+  return f ? `tone-${f}` : "";
+}
+
+export function routeTone(to: string | undefined): string {
+  const f = to ? ROUTE_FAMILY[to] : undefined;
+  return f ? `tone-${f}` : "";
+}

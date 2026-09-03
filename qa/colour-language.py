@@ -146,6 +146,41 @@ def main() -> int:
           f"renders in the default ink, which reads as 'not important' rather "
           f"than as 'nobody decided'")
 
+    # Every place that NAMES a record type, not just the links.
+    pages = ROOT / "frontend" / "src" / "pages"
+    tone_src = TONE.read_text(encoding="utf-8")
+
+    eyebrows = set()
+    for f in pages.glob("*.tsx"):
+        eyebrows |= set(re.findall(r'eyebrow=\{?"([^"]+)"',
+                                   f.read_text(encoding="utf-8")))
+    # Anywhere on the line, not just at its start: the map puts several
+    # entries per line, and anchoring found only the first of each.
+    labelled = set(re.findall(
+        r'"?([A-Za-z][\w \-]*?)"?:\s*"(?:person|script|medicine|money)"',
+        tone_src.split("ROUTE_FAMILY")[0]))
+    unlabelled = {e for e in eyebrows if e not in labelled}
+    check(not unlabelled,
+          f"all {len(eyebrows)} record-page eyebrows have a colour",
+          f"no colour for the eyebrow(s): {', '.join(sorted(unlabelled))}. "
+          f"The word above a record page is where somebody confirms what they "
+          f"are looking at, and an uncoloured one reads as an oversight")
+
+    layout = (ROOT / "frontend" / "src" / "components" / "Layout.tsx"
+              ).read_text(encoding="utf-8")
+    routes = set(re.findall(r'\{ to: "(/[\w\-/]*)", label:', layout))
+    routed = set(re.findall(r'"(/[\w\-/]*)":\s*"(?:person|script|medicine|money)"',
+                            tone_src))
+    # A screen with no single subject takes no colour on purpose.
+    NO_SUBJECT = {"/", "/admin", "/system", "/assistant"}
+    missing_routes = routes - routed - NO_SUBJECT
+    check(not missing_routes,
+          f"all {len(routes - NO_SUBJECT)} sidebar destinations with a subject "
+          f"have a colour",
+          f"no colour for: {', '.join(sorted(missing_routes))}. The sidebar is "
+          f"where the association is learnt, so a grey entry there is a gap in "
+          f"the language rather than a neutral choice")
+
     for theme, marker, surface in (
         ("light", ":root {", "#ffffff"),
         ("dark", ':root[data-theme="dark"] {', "#191920"),
