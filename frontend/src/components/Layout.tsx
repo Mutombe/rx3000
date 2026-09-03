@@ -283,6 +283,19 @@ export default function Layout({ children }: { children: ReactNode }) {
     writeStored("rail", collapsed ? "1" : "0");
   }, [collapsed]);
 
+  // A window dragged narrow becomes a phone, and an expanded rail becomes a
+  // drawer standing open over the page. It starts closed on a phone already;
+  // this is the same decision applied when the viewport changes rather than
+  // only when it loads.
+  useEffect(() => {
+    const phone = window.matchMedia("(max-width: 860px)");
+    const shut = (e: MediaQueryListEvent | MediaQueryList) => {
+      if (e.matches) setCollapsed(true);
+    };
+    phone.addEventListener("change", shut);
+    return () => phone.removeEventListener("change", shut);
+  }, []);
+
   // Declared after `collapsed`, because a collapsed rail has no width to drag.
   const rail = useRailWidth(collapsed);
 
@@ -314,6 +327,10 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className={`shell${collapsed ? " is-collapsed" : ""}${rail.dragging ? " is-resizing" : ""}`}>
+      {/* Behind an open drawer on a phone. Tapping it closes the drawer, which
+          is what everybody tries first and what nothing previously answered. */}
+      <button type="button" className="nav-scrim" aria-label="Close navigation"
+              onClick={() => setCollapsed(true)} />
       {/* One tooltip for the whole application. See the note in Tooltips. */}
       <Tooltips />
       {/* The shared-till lock. It keeps the session and asks who is at the

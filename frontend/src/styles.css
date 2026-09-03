@@ -1835,12 +1835,23 @@ select:disabled { background-color: var(--surface-sunk); opacity: 0.6; }
  * older screens and renaming them would be churn for its own sake.
  */
 .alert {
+  /* A row, so the icon and the sentence keep apart. Laid out as a block, the
+     icon butted straight against the first word: "(!)DRAFT260903083114 is a
+     draft" with nothing between them, which reads as one broken token rather
+     than as a symbol and a sentence. */
+  display: flex; align-items: flex-start; gap: var(--s2);
   border: 1px solid var(--line);
   border-radius: var(--r-md);
-  padding: var(--s2) var(--s3);
+  padding: var(--s3);
   margin-bottom: var(--s3);
-  font-weight: 500;
+  font-weight: 500; line-height: 1.45;
 }
+/* The icon keeps its size while the text wraps beside it. */
+.alert > svg { flex: 0 0 auto; margin-top: 2px; }
+.alert > span, .alert > div, .alert > p { min-width: 0; }
+/* A document reference is a long unbroken string; it may break rather than
+   push the panel wider. */
+.alert b, .alert strong { overflow-wrap: anywhere; }
 .alert ul { margin: var(--s1) 0 0; padding-left: var(--s4); font-weight: 400; }
 .alert.error { background: var(--danger-soft); color: var(--danger); border-color: var(--danger-line); }
 .alert.warn  { background: var(--warn-soft);   color: var(--warn);   border-color: var(--warn-line); }
@@ -3168,12 +3179,23 @@ img { -webkit-user-drag: none; user-select: none; }
 .wl-list {
   display: flex; flex-direction: column; gap: var(--s2);
   overflow-y: auto; overscroll-behavior: contain;
-  /* Room reserved for the scrollbar rather than 2px of hope. Without it the
-     native bar is drawn over the right edge of every card, clipping the
-     quantity and the days-waiting figure: the two numbers on the row. */
-  scrollbar-gutter: stable;
-  padding-right: var(--s1);
+  /* The bar rides the panel's own edge, and the cards run the full width up to
+     it.
+     `scrollbar-gutter: stable` plus a right pad reserved a lane for it, which
+     kept the bar off the cards and left a permanent empty strip down the right
+     of the panel — visible even on the drafts tab, where two rows never
+     scroll. A gutter that is only ever needed sometimes should not be paid for
+     always. The bar is thin and overlaid instead, and the cards keep their
+     full width. */
+  scrollbar-width: thin;
+  padding-right: 0;
+  margin-right: calc(var(--s1) * -1);
 }
+.wl-list::-webkit-scrollbar { width: 6px; }
+.wl-list::-webkit-scrollbar-thumb {
+  background: var(--line-strong); border-radius: 3px;
+}
+.wl-list::-webkit-scrollbar-track { background: transparent; }
 .wl-row {
   display: flex; flex-direction: column; gap: 2px; width: 100%;
   height: auto; white-space: normal; text-align: left; align-items: stretch;
@@ -6694,3 +6716,55 @@ table.dt.sub th { font-size: var(--t-xs); }
    coloured and selected should read as selected first, or the colour starts
    competing with the one piece of state the sidebar carries. */
 .nav a.active .icon { color: inherit; }
+
+/* ------------------------------------------------- page header, and symmetry
+   A header's actions wrap rather than run off the right edge.
+
+   "New script", "New quote", "Alter script" and "History" sat in one nowrap
+   row, so on anything narrower than the four of them the last two were simply
+   outside the page. `.page-head` already wraps as a whole; its action group
+   did not, which meant the wrap happened between the title and the buttons and
+   never between the buttons. */
+.page-head .page-actions,
+.page-head > div:last-child {
+  display: flex; flex-wrap: wrap; gap: var(--s2);
+  justify-content: flex-end; min-width: 0;
+}
+
+/* Everything down the dispensing screen shares one right edge.
+   The route tabs, the step trail and the cards were each laid out in their own
+   container, so the three finished at three different places and the eye read
+   the page as slightly broken without being able to say why. */
+.disp-with-worklist > div > .pill-tabs,
+.disp-with-worklist > div > .trail,
+.disp-with-worklist > div > .disp-work { max-width: 78rem; }
+.pill-tabs.disp-routes { width: 100%; box-sizing: border-box; }
+
+/* -------------------------------------------------------- the mobile drawer
+   An open drawer says it is a drawer.
+
+   It slid over the page with nothing behind it, so the rail looked like a
+   column that had landed on top of the content rather than a panel that had
+   opened over it, and there was nowhere obvious to tap to be rid of it. */
+.nav-scrim { display: none; }
+@media (max-width: 860px) {
+  .shell:not(.is-collapsed) .nav-scrim {
+    display: block; position: fixed; inset: 0; z-index: 55;
+    background: var(--scrim); backdrop-filter: blur(2px);
+    border: 0; padding: 0; width: 100%; height: 100%;
+  }
+  /* Nothing on a phone is wide enough for a second column of numbers beside
+     the icons, and the counts are already on the labels. */
+  .shell:not(.is-collapsed) .nav-dot { display: none; }
+}
+
+/* The chosen medicine in a search list. Every value declared and none of them
+   literal, so it inverts with the theme like everything else. */
+.product-pick.is-picked {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* A cell that must stay on one line: a date, a reference, a figure. */
+.nowrap { white-space: nowrap; }

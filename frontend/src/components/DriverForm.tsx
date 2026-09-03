@@ -48,21 +48,38 @@ export default function DriverForm(
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  /** Save, and get out of the way while it happens.
+   *
+   *  The dialog used to sit there with a spinner until the round trip came
+   *  back, which on a hosted database is a second of a form nobody can do
+   *  anything with. Pressing a button that plainly worked and then waiting is
+   *  the thing that makes software feel slow, quite apart from how long it
+   *  actually took.
+   *
+   *  So it closes first and finishes behind. The list is what confirms it: the
+   *  driver appears there. If the save fails the dialog is gone, so the error
+   *  has to carry the whole message — enough to know what was lost and that it
+   *  was not saved — rather than relying on a form still being open behind it.
+   */
   async function save() {
+    const body = {
+      ...form,
+      cash_float: Number(form.cash_float) || 0,
+      cod_limit: Number(form.cod_limit) || 0,
+      licence_expiry: form.licence_expiry || null,
+    };
+    const name = form.full_name.trim();
+    onClose();
     try {
-      const body = {
-        ...form,
-        cash_float: Number(form.cash_float) || 0,
-        cod_limit: Number(form.cod_limit) || 0,
-        licence_expiry: form.licence_expiry || null,
-      };
       const saved = driver
         ? await api.put<Driver>(`/api/drivers/${driver.id}`, body)
         : await api.post<Driver>("/api/drivers", body);
       toast.ok(`${saved.full_name} saved.`);
       onSaved(saved);
     } catch (e) {
-      toast.error(errorText(e, "That driver could not be saved."));
+      toast.error(errorText(
+        e, `${name || "That driver"} was not saved, and the form has closed. `
+           + `Nothing was recorded, so it can be entered again.`));
     }
   }
 

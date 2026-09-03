@@ -529,6 +529,16 @@ export default function POS() {
   async function settlePending(sale: Sale, method: string,
                               confirmed?: { method: string; currency_code: string;
                                             amount: number; reference: string }[]) {
+    // Out of the way first. The dialog used to stay up through the whole round
+    // trip, so a cashier who had pressed "Take payment" watched a spinner with
+    // a customer in front of them, and the one thing they could be sure of —
+    // that they had pressed it — was the one thing the screen did not show.
+    //
+    // The pending list is what confirms it: the sale leaves it. A failure
+    // leaves the sale exactly where it was, so the row is still there to try
+    // again, and the message says so rather than assuming a form is still open
+    // behind it.
+    setSettling(null);
     try {
       const owed = patientOwes(sale);
       const claim = sale.claim;
@@ -593,9 +603,9 @@ export default function POS() {
         setParams(next, { replace: true });
       }
       printPaidReceipt(paid);
-      setSettling(null);
     } catch (e: any) {
-      toast.error(errorText(e));
+      toast.error(errorText(
+        e, `${sale.sale_number} was not settled. It is still awaiting payment.`));
     }
   }
 

@@ -464,6 +464,21 @@ export function fmtDate(s?: string | null) {
   return safeFormat(new Date(s), { year: "numeric", month: "short", day: "numeric" });
 }
 
+/** A date and time for a dense table: no year, because a register showing the
+ *  last thirty days is not ambiguous about the year, and the year is four
+ *  characters on every row of a column that has to fit.
+ *
+ *  Falls back to the full form once the date is not in the current year, since
+ *  at that point the year is the thing you need. */
+export function fmtWhen(s?: string | null) {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (d.getFullYear() !== new Date().getFullYear()) return fmtDateTime(s);
+  return safeFormat(d, {
+    month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+  }, true);
+}
+
 export function fmtDateTime(s?: string | null) {
   if (!s) return "—";
   return safeFormat(new Date(s), {

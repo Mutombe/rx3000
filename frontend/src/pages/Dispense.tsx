@@ -3,7 +3,7 @@ import { useToast } from "../components/Toast";
 import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import AiOutput from "../components/AiOutput";
@@ -50,6 +50,7 @@ import AlterScript from "../components/AlterScript";
 import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
+import DriverForm from "../components/DriverForm";
 
 type Route = "prescription" | "controlled" | "otc";
 
@@ -164,6 +165,7 @@ export default function Dispense() {
   const [driverId, setDriverId] = useState<number | "">("");
   const [deliverTo, setDeliverTo] = useState("");
   const [deliveryFee, setDeliveryFee] = useState("");
+  const [addingDriver, setAddingDriver] = useState(false);
 
   useEffect(() => {
     // Fetched when the route is chosen, not on load: a dispensary that never
@@ -1230,6 +1232,20 @@ export default function Dispense() {
         <LabelSheet rxId={reprintRx} onClose={closeReprint} />
       )}
 
+      {/* Entered here, used here. The new driver is selected the moment it
+          saves, because somebody who has just typed a name into this dialog
+          has already chosen them. */}
+      {addingDriver && (
+        <DriverForm
+          onClose={() => setAddingDriver(false)}
+          onSaved={(d: any) => {
+            setDrivers((all) => [...all.filter((x) => x.id !== d.id), d]);
+            setDriverId(d.id);
+            setAddingDriver(false);
+          }}
+        />
+      )}
+
 
       {/* Nothing on this screen commits while it is a quote, so it says so
           once, plainly, at the top — a mode you cannot see is a mode somebody
@@ -1275,8 +1291,15 @@ export default function Dispense() {
               <input data-hk="product" type="search" placeholder="Search S0–S2 medicines…" value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
               {productResults.map((p) => (
-                <div key={p.id} className="product-pick" onClick={() => setOtcProduct(p)}
-                  style={otcProduct?.id === p.id ? { background: "#fff", borderColor: "var(--accent)" } : undefined}>
+                <div key={p.id} onClick={() => setOtcProduct(p)}
+                  // Selected. A class, not an inline `background: "#fff"`.
+                  // That literal did not invert with the theme, so on the dark
+                  // counter the chosen medicine became near-white text on a
+                  // white block: the one row that was supposed to stand out
+                  // was the one row nobody could read. Neither colour check
+                  // could see it either, because both read stylesheets and
+                  // this was written into the element.
+                  className={`product-pick${otcProduct?.id === p.id ? " is-picked" : ""}`}>
                   <span>
                     <b>{p.name}</b> {p.strength}
                     <span className={`badge ${p.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>
@@ -1366,11 +1389,22 @@ export default function Dispense() {
           <div className="card">
             <h3>Pharmacy-medicine register (30 days)</h3>
             <table>
-              <thead><tr><th>When</th><th>Medicine</th><th>Customer</th><th>Indication</th><th>Pharmacist</th></tr></thead>
+              {/* Sized so the whole register fits without scrolling sideways.
+                  A table you have to drag to read is a table nobody reads the
+                  right-hand end of, and the right-hand end here is who sold it
+                  — which is the column an inspector asks about. */}
+              <colgroup>
+                <col style={{ width: "8.5rem" }} />
+                <col style={{ width: "22%" }} />
+                <col style={{ width: "14%" }} />
+                <col />
+                <col style={{ width: "9rem" }} />
+              </colgroup>
+              <thead><tr><th>When</th><th>Medicine</th><th>Customer</th><th>Indication</th><th>Sold by</th></tr></thead>
               <tbody>
                 {otcLog.map((r) => (
                   <tr key={r.id}>
-                    <td>{fmtDateTime(r.created_at)}</td>
+                    <td className="nowrap">{fmtWhen(r.created_at)}</td>
                     <td>
                       <EntityLink kind="product" id={r.product_id}><b>{r.product?.name}</b></EntityLink> ×{r.quantity}
                       <span className={`badge ${r.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>S{r.schedule}</span>
@@ -1384,7 +1418,16 @@ export default function Dispense() {
                       {r.indication || "—"}
                       {r.referred_to_doctor && <div><span className="badge warn">referred to doctor</span></div>}
                     </td>
-                    <td className="muted">{r.pharmacist?.full_name}</td>
+                    {/* The name, without the job title trailing it. "T. Moyo
+                        (Pharmacist)" in a register of pharmacy medicines says
+                        "pharmacist" on every row and pushes the column off the
+                        page to do it. */}
+                    <td className="muted">
+                      <span className="clip"
+                            title={r.pharmacist?.full_name}>
+                        {(r.pharmacist?.full_name ?? "").replace(/\s*\([^)]*\)\s*$/, "")}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1407,8 +1450,11 @@ export default function Dispense() {
       ) : (
         <div className="rx-split">
           <div>
+            {/* The controlled-substance notice, in the colour this product
+                already uses for a schedule, rather than an orange written into
+                the element that stayed the same in both themes. */}
             {route === "controlled" && (
-              <div className="card" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
+              <div className="card sec sec-check">
                 <h3><Warning size={17} weight="fill" /> Controlled substance, dangerous drugs protocol</h3>
                 <p className="muted" style={{ fontSize: 13 }}>
                   Schedule 5 and 6 medicines must be dispensed by a pharmacist, entered in the
@@ -1870,6 +1916,25 @@ export default function Dispense() {
                           })),
                         ]}
                       />
+                      {/* The same answer the patient search gives when nobody
+                          matches. A dispensary that has never entered a driver
+                          meets this list empty, and sending them to Drivers to
+                          create one abandons a script that is already packed.
+                          The end of the search is the beginning of the work. */}
+                      {drivers.filter((d) => d.active).length === 0 ? (
+                        <p className="pick-none">
+                          <span>No driver is on file yet.</span>
+                          <button type="button" className="btn small"
+                                  onClick={() => setAddingDriver(true)}>
+                            Add one
+                          </button>
+                        </p>
+                      ) : (
+                        <button type="button" className="linkish"
+                                onClick={() => setAddingDriver(true)}>
+                          Add a driver
+                        </button>
+                      )}
                     </div>
                     <div className="field span-6">
                       <label>Delivery fee</label>
