@@ -47,7 +47,17 @@ interface Row {
 
 export default function RoleMatrix() {
   const session = useSession();
-  const may = session.can("staff.manage");
+  // Optimistic until the server says otherwise.
+  //
+  // `can()` is false while the session is still loading, so gating the fetch on
+  // it meant this panel was absent for as long as that took — tens of seconds
+  // on a cold server, and permanently if the read failed. An administrator
+  // reads that as the feature having been removed.
+  //
+  // The endpoint behind it requires staff.manage, so asking is safe: somebody
+  // who may not gets a 403, the catch leaves this empty, and nothing renders.
+  // The same outcome, reached by asking instead of by assuming the worst.
+  const may = !session.known || session.can("staff.manage");
   const toast = useToast();
 
   const [roles, setRoles] = useState<string[]>([]);
@@ -62,7 +72,7 @@ export default function RoleMatrix() {
   }, [may]);
   useEffect(load, [load]);
 
-  if (!may) return null;
+  if (session.known && !session.can("staff.manage")) return null;
 
   async function toggle(row: Row, role: string) {
     const cell = row.roles[role];

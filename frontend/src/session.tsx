@@ -56,7 +56,25 @@ interface SessionValue {
   me: Me | null;
   /** Still fetching. Distinct from "fetched, and they may do nothing". */
   loading: boolean;
-  /** May they do this? False while loading, which hides rather than flashes. */
+  /**
+   * Has the server actually told us what this person may do?
+   *
+   * The distinction that matters, and the one whose absence was a bug. Three
+   * different states arrive as "can() is false":
+   *
+   *   still fetching       — on a cold server this is tens of seconds
+   *   the fetch failed     — offline, or a 500
+   *   an older server      — no `can` field in the response at all, which is
+   *                          exactly the window where the app has deployed and
+   *                          the api has not
+   *
+   * None of those is "this person may do nothing", and treating them as if it
+   * were took the Control Panel, Analytics and Stock performance out of an
+   * administrator's sidebar and left them out. Read this before hiding
+   * anything whose absence would look like a missing feature.
+   */
+  known: boolean;
+  /** May they do this? False while unknown, which hides rather than flashes. */
   can: (capability: string) => boolean;
   /** Their role, or "" before the fetch lands. */
   role: string;
@@ -65,7 +83,8 @@ interface SessionValue {
 }
 
 const Ctx = createContext<SessionValue>({
-  me: null, loading: true, can: () => false, role: "", refresh: () => {},
+  me: null, loading: true, known: false, can: () => false, role: "",
+  refresh: () => {},
 });
 
 export function SessionProvider({ children }: { children: ReactNode }) {
@@ -84,13 +103,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(load, [load]);
 
-  const value = useMemo<SessionValue>(() => ({
-    me,
-    loading,
-    can: (capability: string) => Boolean(me?.can?.[capability]),
-    role: me?.role ?? "",
-    refresh: load,
-  }), [me, loading, load]);
+  const value = useMemo<SessionValue>(() => {
+    // A response that carries no `can` map is an older server, not a person
+    // with no authority. Checked by shape rather than by a version number,
+    // because the field either arrived or it did not.
+    const known = Boolean(me && me.can && Object.keys(me.can).length > 0);
+    return {
+      me,
+      loading,
+      known,
+      can: (capability: string) => Boolean(me?.can?.[capability]),
+      role: me?.role ?? "",
+      refresh: load,
+    };
+  }, [me, loading, load]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

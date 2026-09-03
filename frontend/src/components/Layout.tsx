@@ -248,24 +248,41 @@ export default function Layout({ children }: { children: ReactNode }) {
     if (session.me) setUser(session.me as unknown as User);
   }, [session.me]);
 
-  // Only what this person may reach.
+  // Only what this person may reach — but ONLY once the server has said.
   //
-  // Hiding is a courtesy and the server is the rule — every one of these
-  // screens refuses on its own. What it prevents is a dispenser looking at a
+  // Hiding is a courtesy and the server is the rule: every one of these screens
+  // refuses on its own. What the courtesy prevents is a dispenser looking at a
   // sidebar of fifty entries, a third of which are head-office screens that
   // will not open, and concluding the software is broken rather than that the
   // list is not for her.
   //
+  // WHY THE UNKNOWN CASE SHOWS EVERYTHING
+  //
+  // The first version filtered whatever `can()` returned, and `can()` is false
+  // before the answer arrives. On a cold server that is tens of seconds with
+  // the Control Panel missing from an administrator's sidebar, permanently if
+  // the fetch fails, and for the whole of a deploy window where the app is new
+  // and the api is not. It was reported as the software losing features, which
+  // is exactly what it looks like.
+  //
+  // So the two directions are not symmetrical, and that is deliberate. Showing
+  // a link that would refuse costs one click and a clear sentence. Hiding a
+  // link somebody is entitled to costs their belief that the product works.
+  // Filter only on a definite answer.
+  //
   // A section that empties disappears with its heading. A lone "Administration"
   // label above nothing is worse than either showing the links or not.
-  const visibleNav = React.useMemo(() => NAV.map((group) => ({
-    ...group,
-    links: group.links.filter((l) => {
-      if (l.needs && !session.can(l.needs)) return false;
-      if (l.groupWide && session.me && !session.me.all_branches) return false;
-      return true;
-    }),
-  })).filter((group) => group.links.length > 0), [session]);
+  const visibleNav = React.useMemo(() => {
+    if (!session.known) return NAV;
+    return NAV.map((group) => ({
+      ...group,
+      links: group.links.filter((l) => {
+        if (l.needs && !session.can(l.needs)) return false;
+        if (l.groupWide && !session.me?.all_branches) return false;
+        return true;
+      }),
+    })).filter((group) => group.links.length > 0);
+  }, [session]);
   const [, setReady] = useState(0);
   const navigate = useNavigate();
 
