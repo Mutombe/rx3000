@@ -70,6 +70,15 @@ export default function NewJournal({ accounts, onClose, onPosted }: {
       });
       toast.ok(`Posted ${money(debits)}.`);
       onPosted?.();
+      // Closed only once the server has taken it, deliberately.
+      //
+      // A journal is several typed lines, and the refusals it meets are
+      // ordinary ones: an entry that does not balance, a period already
+      // closed, an account that does not exist. Closing optimistically would
+      // throw the lines away on exactly the failures that happen most, and
+      // "it did not post, type it again" is not a saving over a second of
+      // waiting. Long forms with likely refusals stay open; short ones with
+      // unlikely refusals do not. See `closeThenSave`.
       onClose();
     } catch (e) {
       // The server refuses an unbalanced entry, a closed period and an unknown

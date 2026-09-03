@@ -251,3 +251,55 @@ export function useOptimisticList<T extends object>({
 export function rowClass(state: RowState): string {
   return state === "settled" ? "" : `row-${state}`;
 }
+
+/** Close the dialog now; finish the write behind it.
+ *
+ *  The smaller half of the pattern, for the many dialogs that are not sitting
+ *  on top of a list they can drop a placeholder into. `useOptimisticList` is
+ *  the whole thing and is what a list screen should use; this is one line for
+ *  everywhere else, and it delivers the part somebody actually notices:
+ *  pressing a button that plainly worked and not then waiting to find out.
+ *
+ *  Three things it does that a hand-written version keeps forgetting.
+ *
+ *  **The dialog is gone before the request starts.** Not after, not in a
+ *  `finally`. A `setBusy(true)` that ends in a spinner is the software making
+ *  somebody wait for its own bookkeeping.
+ *
+ *  **The failure message stands on its own.** With the form closed there is no
+ *  context left on screen, so "That could not be saved" is not enough: it has
+ *  to say what was lost and that nothing was recorded, because the person's
+ *  next question is whether to type it again.
+ *
+ *  **`after` runs only on success.** A list refresh fired regardless would put
+ *  a failed create's absence on screen as though it were a result.
+ *
+ *  It deliberately does not retry. A till that quietly re-sends a payment is
+ *  worse than one that says it did not work.
+ */
+export async function closeThenSave<T>(
+  close: () => void,
+  commit: () => Promise<T>,
+  said: {
+    /** Shown on success. Omit for a screen that confirms some other way. */
+    ok?: string | ((result: T) => string);
+    /** What was lost, in words, for a message with no form left behind it. */
+    failed: string;
+    toast: { ok: (m: string) => void; error: (m: string) => void };
+    /** Runs only if the write succeeded. */
+    after?: (result: T) => void;
+  },
+): Promise<T | undefined> {
+  close();
+  try {
+    const result = await commit();
+    if (said.ok) {
+      said.toast.ok(typeof said.ok === "function" ? said.ok(result) : said.ok);
+    }
+    said.after?.(result);
+    return result;
+  } catch (e) {
+    said.toast.error(errorText(e, said.failed));
+    return undefined;
+  }
+}

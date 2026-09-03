@@ -13,6 +13,7 @@
  *  version of it worth keeping.
  */
 import { useEffect, useState } from "react";
+import { closeThenSave } from "../hooks/useOptimisticList";
 import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
@@ -53,17 +54,23 @@ export default function NewToFollow({ onClose, onPromised }: {
   async function save() {
     if (!product) return;
     try {
-      await api.post("/api/to-follows", {
-        product_id: product.id,
-        quantity: Number(quantity) || 1,
-        patient_id: patient?.id ?? null,
-        promised_for: promisedFor || null,
-        notes: notes.trim(),
-      });
-      toast.ok(`${product.name} owed to ${patient
-        ? `${patient.first_name} ${patient.last_name}` : "a customer"}.`);
-      onPromised?.();
-      onClose();
+      // Closed first, saved behind. Four short fields: if this fails, what
+      // was lost is a product, a quantity and a date, which is a sentence
+      // rather than a form.
+      const who = patient
+        ? `${patient.first_name} ${patient.last_name}` : "a customer";
+      await closeThenSave(onClose,
+        () => api.post("/api/to-follows", {
+          product_id: product.id,
+          quantity: Number(quantity) || 1,
+          patient_id: patient?.id ?? null,
+          promised_for: promisedFor || null,
+          notes: notes.trim(),
+        }),
+        { toast, ok: `${product.name} owed to ${who}.`,
+          failed: `${product.name} was not recorded as owed to ${who}. `
+                + `Nothing was saved.`,
+          after: () => onPromised?.() });
     } catch (e) {
       toast.error(errorText(e, "That promise could not be recorded."));
     }

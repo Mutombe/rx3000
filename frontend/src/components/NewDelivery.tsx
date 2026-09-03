@@ -19,6 +19,7 @@
  *  where that check would normally happen.
  */
 import { useEffect, useState } from "react";
+import { closeThenSave } from "../hooks/useOptimisticList";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
@@ -73,17 +74,20 @@ export default function NewDelivery({ onClose, onRaised }: {
 
   async function raise() {
     try {
-      await api.post("/api/waybills", {
-        sale_id: saleId || null,
-        patient_id: patient?.id ?? null,
-        recipient: recipient.trim(),
-        address: address.trim(),
-        phone: phone.trim(),
-        instructions: instructions.trim(),
-      });
-      toast.ok(`Delivery raised for ${recipient.trim() || "this patient"}.`);
-      onRaised?.();
-      onClose();
+      const to = recipient.trim() || "this patient";
+      await closeThenSave(onClose,
+        () => api.post("/api/waybills", {
+          sale_id: saleId || null,
+          patient_id: patient?.id ?? null,
+          recipient: recipient.trim(),
+          address: address.trim(),
+          phone: phone.trim(),
+          instructions: instructions.trim(),
+        }),
+        { toast, ok: `Delivery raised for ${to}.`,
+          failed: `No delivery was raised for ${to}. Nothing was saved, so `
+                + `the medicine is still on the counter.`,
+          after: () => onRaised?.() });
     } catch (e) {
       toast.error(errorText(e, "That delivery could not be raised."));
     }

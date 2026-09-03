@@ -14,6 +14,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash } from "@phosphor-icons/react";
+import { closeThenSave } from "../hooks/useOptimisticList";
 import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
 import LookupInput, { LookupItem } from "./LookupInput";
@@ -86,18 +87,21 @@ export default function NewOrder({ onClose, onCreated }: {
 
   async function raise() {
     try {
-      const order = await api.post<{ order_number: string }>("/api/orders", {
-        supplier_id: Number(supplierId),
-        notes: notes.trim(),
-        items: lines.map((l) => ({
-          product_id: l.product_id,
-          quantity_ordered: Number(l.quantity) || 0,
-          unit_cost: Number(l.cost) || 0,
-        })),
-      });
-      toast.ok(`${order.order_number} raised. Send it when you are ready.`);
-      onCreated();
-      onClose();
+      await closeThenSave(onClose,
+        () => api.post<{ order_number: string }>("/api/orders", {
+          supplier_id: Number(supplierId),
+          notes: notes.trim(),
+          items: lines.map((l) => ({
+            product_id: l.product_id,
+            quantity_ordered: Number(l.quantity) || 0,
+            unit_cost: Number(l.cost) || 0,
+          })),
+        }),
+        { toast,
+          ok: (o) => `${o.order_number} raised. Send it when you are ready.`,
+          failed: `That order was not raised, and the lines on it were not `
+                + `saved. Nothing has been ordered.`,
+          after: () => onCreated() });
     } catch (e) {
       toast.error(errorText(e, "That order could not be raised."));
     }
