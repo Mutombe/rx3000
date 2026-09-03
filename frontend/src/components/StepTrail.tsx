@@ -19,6 +19,10 @@ export type Step = {
   /** `id` of the card this step lives in. Clicking scrolls there and puts the
    *  cursor in its first field. */
   anchor: string;
+  /** The card's section colour, so the chip and the card it points at are
+   *  recognisably one thing. That is what makes the strip readable without a
+   *  legend: it is the same colours in the same order as the cards below. */
+  tone?: "patient" | "items" | "check" | "go";
 };
 
 /** Scroll to a step's card and put the cursor in its first field.
@@ -83,7 +87,9 @@ export default function StepTrail({ steps }: { steps: Step[] }) {
       {steps.map((s, i) => {
         const state = s.done ? "done" : i === current ? "now" : "todo";
         return (
-          <li key={s.anchor} className={`trail-step trail-${state}`}>
+          <li key={s.anchor}
+              className={`trail-step trail-${state}`
+                + (s.tone ? ` trail-${s.tone}` : "")}>
             <button type="button" onClick={() => goToStep(s.anchor)}
                     aria-current={state === "now" ? "step" : undefined}>
               <span className="trail-mark" aria-hidden="true">

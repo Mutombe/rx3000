@@ -140,6 +140,43 @@
      #8d2f5c, which on the dark tint measures 1.8:1 — a controlled-drug marker
      nobody could read is worse than no marker. */
   --sched: #8d2f5c;
+
+  /* ---- the dispensing sections ----
+     A long screen reads as one wall of fields. Giving each stage a quiet hue
+     of its own lets somebody see where they are without reading, and lets the
+     strip at the top point at the card it belongs to by colour rather than by
+     number alone.
+
+     Drawn from the house family (indigo, teal, the schedule magenta, mauve)
+     and deliberately clear of the semantic set: ok-green, warn-amber and
+     danger-red mean something here, and a section that borrowed one would read
+     as a state. The tint is the faintest thing on the card; only the small
+     heading carries the hue at full strength, where it has to pass contrast. */
+  --sec-patient: #4a56ad;
+  --sec-patient-soft: #eef0fb;
+  --sec-patient-line: rgba(74, 86, 173, 0.28);
+
+  --sec-items: #17706a;
+  --sec-items-soft: #e6f3f1;
+  --sec-items-line: rgba(28, 122, 114, 0.28);
+
+  /* The compliance card only appears for a controlled substance, so it takes
+     the colour this product already uses for a schedule. Free, and correct. */
+  --sec-check: var(--sched);
+  --sec-check-soft: var(--sched-soft);
+  --sec-check-line: rgba(141, 47, 92, 0.28);
+
+  --sec-go: #6b5a86;
+  --sec-go-soft: #f0ecf6;
+  --sec-go-line: rgba(107, 90, 134, 0.28);
+
+  /* Money, and the three places it can be settled. Delivery shares this hue
+     rather than taking a sixth: it IS a payment route, the third option in the
+     same control, and it is told apart by its icon and a dashed edge. Six hues
+     on one screen is confetti. */
+  --sec-money: #2a5fa8;
+  --sec-money-soft: #e9eff9;
+  --sec-money-line: rgba(42, 95, 168, 0.28);
   --green: #7fc86d;
   --orange: #f0a04b;
   --pink: #f06ba8;
@@ -4797,6 +4834,29 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   --danger-line: rgba(241, 141, 125, 0.30);
   --info-soft: rgba(120, 145, 220, 0.13);
   --sched: #e893bd;
+
+  /* The section hues again, lifted for a dark ground. Same pattern the state
+     colours use here: a light ink, and the tint as a low-alpha wash rather
+     than a pale hex, which on this canvas would glow. */
+  --sec-patient: #9aa4f0;
+  --sec-patient-soft: rgba(122, 134, 232, 0.13);
+  --sec-patient-line: rgba(154, 164, 240, 0.26);
+
+  --sec-items: #6fc9bf;
+  --sec-items-soft: rgba(70, 180, 168, 0.13);
+  --sec-items-line: rgba(111, 201, 191, 0.26);
+
+  --sec-check: var(--sched);
+  --sec-check-soft: var(--sched-soft);
+  --sec-check-line: rgba(232, 147, 189, 0.26);
+
+  --sec-go: #b9a8d6;
+  --sec-go-soft: rgba(160, 140, 200, 0.13);
+  --sec-go-line: rgba(185, 168, 214, 0.26);
+
+  --sec-money: #86b0ea;
+  --sec-money-soft: rgba(110, 150, 220, 0.13);
+  --sec-money-line: rgba(134, 176, 234, 0.26);
   --sched-soft: rgba(216, 130, 175, 0.14);
 
   --chart-1: #3987e5;
@@ -6487,3 +6547,55 @@ table.dt.sub th { font-size: var(--t-xs); }
   font-size: var(--t-sm); line-height: 1.5; color: var(--ink-mid);
 }
 .disp-cod b { font-size: 1.05rem; color: var(--ink); }
+
+/* ---------------------------------------------------- the dispensing sections
+   A stage is marked three ways, in descending loudness: a coloured edge you
+   see without looking, a heading in the hue, and a wash so faint it reads as
+   paper rather than as colour. Nothing else on the card is tinted, because the
+   moment the fields take a colour the warnings stop standing out, and the
+   warnings are the point of the screen.
+
+   Every value is declared. These sit on `.card`, which sets its own surface and
+   ink, and a section that inherited would take whichever won. */
+.sec {
+  border-left: 3px solid var(--sec-line, var(--line));
+  background:
+    linear-gradient(var(--sec-soft, transparent), var(--sec-soft, transparent)),
+    var(--surface);
+}
+.sec > h3 { color: var(--sec-ink, var(--ink)); }
+
+/* The step's number, in its own hue, so the strip at the top and the card it
+   points at are recognisably the same thing. */
+.sec > h3::first-letter { font-weight: 800; }
+
+.sec-patient { --sec-line: var(--sec-patient-line); --sec-soft: var(--sec-patient-soft); --sec-ink: var(--sec-patient); }
+.sec-items   { --sec-line: var(--sec-items-line);   --sec-soft: var(--sec-items-soft);   --sec-ink: var(--sec-items); }
+.sec-check   { --sec-line: var(--sec-check-line);   --sec-soft: var(--sec-check-soft);   --sec-ink: var(--sec-check); }
+.sec-go      { --sec-line: var(--sec-go-line);      --sec-soft: var(--sec-go-soft);      --sec-ink: var(--sec-go); }
+.sec-money   { --sec-line: var(--sec-money-line);   --sec-soft: var(--sec-money-soft);   --sec-ink: var(--sec-money); }
+
+/* Delivery is a payment route, so it keeps the money hue and is told apart by
+   its edge: dashed, because the goods have not arrived yet. */
+.sec-delivery {
+  --sec-line: var(--sec-money-line); --sec-soft: var(--sec-money-soft);
+  --sec-ink: var(--sec-money);
+  border-left-style: dashed;
+}
+
+/* The trail chip takes its step's colour, which is what makes the mapping
+   teachable: the strip is not a legend to memorise, it is the same four
+   colours in the same order as the cards below it. */
+.trail-patient .trail-mark { color: var(--sec-patient); }
+.trail-items   .trail-mark { color: var(--sec-items); }
+.trail-check   .trail-mark { color: var(--sec-check); }
+.trail-go      .trail-mark { color: var(--sec-go); }
+
+.trail-now.trail-patient button { border-color: var(--sec-patient-line); box-shadow: inset 3px 0 0 var(--sec-patient); }
+.trail-now.trail-items   button { border-color: var(--sec-items-line);   box-shadow: inset 3px 0 0 var(--sec-items); }
+.trail-now.trail-check   button { border-color: var(--sec-check-line);   box-shadow: inset 3px 0 0 var(--sec-check); }
+.trail-now.trail-go      button { border-color: var(--sec-go-line);      box-shadow: inset 3px 0 0 var(--sec-go); }
+
+/* Done is done, in every stage. A finished step keeps the tick green because
+   that is the one thing on the strip that means a state rather than a place. */
+.trail-done .trail-mark { color: var(--ok); }

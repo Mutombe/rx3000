@@ -759,6 +759,12 @@ export default function Dispense() {
       if (fromRx?.draft) {
         await api.put(`/api/prescriptions/${fromRx.id}/draft`, scriptPayload());
         toast.ok(`${fromRx.number} saved. It is waiting on the worklist.`);
+        // The worklist is the thing the message points at, so it has to have
+        // moved by the time somebody looks. It reloaded on a dispensing and on
+        // nothing else, so a draft saved a second ago was not on the tab that
+        // counts drafts, and the toast read as a promise the screen had not
+        // kept.
+        setWorklistNonce((n) => n + 1);
       } else {
         const rx = await api.post<any>("/api/prescriptions",
                                        { ...scriptPayload(), draft: true });
@@ -766,6 +772,7 @@ export default function Dispense() {
                     draft: true });
         adoptIds(rx);
         toast.ok(`Saved for later. It is on the worklist as a ${DRAFT_SCRIPT.toLowerCase()}.`);
+        setWorklistNonce((n) => n + 1);
       }
     } catch (e) {
       toast.error(errorText(e, "That could not be saved."));
@@ -789,6 +796,9 @@ export default function Dispense() {
       setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}`, draft: false });
       adoptIds(rx);
       toast.ok(`${rx.rx_number} finished. It can be dispensed now.`);
+      // It has just stopped being a draft, so the drafts tab is now wrong by
+      // one in the other direction.
+      setWorklistNonce((n) => n + 1);
     } catch (e) {
       // The server refuses a script with no prescriber, no items, or a
       // prohibited schedule, and names which. Shown as written.
@@ -1061,33 +1071,37 @@ export default function Dispense() {
    */
   const steps: Step[] = route === "otc"
     ? [
-      { n: 1, title: "Medicine", anchor: "step-otc-medicine",
+      { n: 1, title: "Medicine", anchor: "step-otc-medicine", tone: "items",
         done: !!otcProduct, needs: "Search for the medicine being sold." },
-      { n: 2, title: "Consultation", anchor: "step-otc-record",
+      { n: 2, title: "Consultation", anchor: "step-otc-record", tone: "patient",
         done: !!otcProduct && (!otcPolicy?.counselling_required || counselled),
         needs: otcPolicy?.counselling_required && !counselled
           ? "Confirm the patient was counselled before this can be handed over."
           : "Record who it is for and what it is for." },
     ]
     : [
-      { n: 1, title: "Patient & prescriber", anchor: "step-patient",
+      { n: 1, title: "Patient & prescriber", anchor: "step-patient", tone: "patient",
         done: !!patient && doctorId !== "",
         needs: !patient ? "Find the patient, or add them if they are new."
           : "Choose the prescribing doctor." },
-      { n: 2, title: "Script items", anchor: "step-items",
+      { n: 2, title: "Script items", anchor: "step-items", tone: "items",
         done: items.length > 0,
         needs: "Add the medicines on the script." },
-      ...(route === "controlled" ? [{
-        n: 3, title: "Compliance record", anchor: "step-compliance",
+      // Typed as `Step[]` rather than inferred: inside a conditional spread
+      // TypeScript widens `tone` to `string`, and a tone that is not one of
+      // the four does nothing at all, silently, which is the same failure
+      // as a class the stylesheet has never heard of.
+      ...(route === "controlled" ? ([{
+        n: 3, title: "Compliance record", anchor: "step-compliance", tone: "check",
         done: items.length > 0 && idVerified && scriptSighted
           && prescriberVerified && (!needsInitials || initials.trim() !== ""),
         needs: items.length === 0
           ? "Add a medicine first — the record is about what is being supplied."
           : "Tick the script, the prescriber and the patient's identity, and "
             + "initial it.",
-      }] : []),
+      }] as Step[]) : []),
       { n: route === "controlled" ? 4 : 3, title: "Safety check & dispense",
-        anchor: "step-dispense",
+        anchor: "step-dispense", tone: "go",
         // Never "done" until it has happened; the screen clears when it does.
         done: false,
         needs: blockedBecause() || "Ready to dispense." },
@@ -1256,7 +1270,7 @@ export default function Dispense() {
               column to hold; with the work alone, splitting it only made the
               work narrower. */}
           <div>
-            <div className="card" id="step-otc-medicine">
+            <div className="card sec sec-items" id="step-otc-medicine">
               <h3>1 · Choose a pharmacy medicine</h3>
               <input data-hk="product" type="search" placeholder="Search S0–S2 medicines…" value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
@@ -1279,7 +1293,7 @@ export default function Dispense() {
               )}
             </div>
 
-            <div className="card" id="step-otc-record">
+            <div className="card sec sec-patient" id="step-otc-record">
               <h3>2 · Consultation record</h3>
               <div className="form-row">
                 <div className="field" style={{ maxWidth: 110 }}>
@@ -1404,7 +1418,7 @@ export default function Dispense() {
               </div>
             )}
 
-            <div className="card" id="step-patient">
+            <div className="card sec sec-patient" id="step-patient">
               <h3>1 · Patient &amp; prescriber</h3>
               {patient ? (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1472,7 +1486,7 @@ export default function Dispense() {
               </div>
             </div>
 
-            <div className="card" id="step-items">
+            <div className="card sec sec-items" id="step-items">
               <h3>2 · Script items {route === "controlled" && <span className="badge sched">S5–S6 only</span>}</h3>
               <input data-hk="product" type="search"
                 placeholder={`Search ${route === "controlled" ? "controlled substances" : "prescription medicines"}…`}
@@ -1665,7 +1679,7 @@ export default function Dispense() {
             </div>
 
             {route === "controlled" && items.length > 0 && (
-              <div className="card" id="step-compliance" style={{ borderColor: "rgba(240,120,70,0.45)" }}>
+              <div className="card sec sec-check" id="step-compliance">
                 <h3>3 · Compliance record {activePolicy && <span className="badge danger">{activePolicy.label}</span>}</h3>
                 <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
                 <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
@@ -1702,7 +1716,7 @@ export default function Dispense() {
               onBlockingChange={setBlocked}
             />
 
-            <div className="card" id="step-dispense">
+            <div className="card sec sec-go" id="step-dispense">
               <h3>{route === "controlled" ? "4" : "3"} · Safety check &amp; dispense</h3>
               {/* Asked wherever it is required. The controlled route has its own
                   copy inside the compliance record; on an ordinary prescription
@@ -1833,7 +1847,7 @@ export default function Dispense() {
                   bag is being packed now, and a waybill raised an hour later
                   is one somebody has to remember to raise. */}
               {items.length > 0 && payHow === "delivery" && (
-                <div className="card" style={{ marginBottom: 12 }}>
+                <div className="card sec sec-delivery" style={{ marginBottom: 12 }}>
                   <div className="form-row">
                     <div className="field span-6">
                       <label>Driver</label>
@@ -1920,7 +1934,7 @@ export default function Dispense() {
               )}
 
               {items.length > 0 && payHow === "now" && (
-                <div className="card" style={{ marginBottom: 12 }}>
+                <div className="card sec sec-money" style={{ marginBottom: 12 }}>
                   <Tenders
                     lines={tenders}
                     onChange={setTenders}
