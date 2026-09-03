@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import Select from "./Select";
+import { toneClass } from "../entityTone";
 import { entityHref, type EntityKind } from "../entityRoutes";
 
 export interface FilterState {
@@ -123,8 +124,13 @@ export function EntityLink({ to, kind, id, children, muted }: {
   const href = to ?? (kind && id !== null && id !== undefined && id !== 0 && id !== ""
     ? entityHref(kind, id) : "");
   if (!href) return <>{children}</>;
+  // The colour language. A patient reads the same on the dispensing screen, in
+  // the repeats table and on a claim, so it is learnt once rather than per
+  // screen. See frontend/src/entityTone.ts.
   return (
-    <Link to={href} className={`entity-link${muted ? " muted" : ""}`} onClick={(e) => e.stopPropagation()}>
+    <Link to={href}
+          className={`entity-link ${toneClass(kind)}${muted ? " muted" : ""}`.trim()}
+          onClick={(e) => e.stopPropagation()}>
       {children}
     </Link>
   );

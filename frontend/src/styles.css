@@ -152,13 +152,39 @@
      danger-red mean something here, and a section that borrowed one would read
      as a state. The tint is the faintest thing on the card; only the small
      heading carries the hue at full strength, where it has to pass contrast. */
-  --sec-patient: #4a56ad;
-  --sec-patient-soft: #eef0fb;
-  --sec-patient-line: rgba(74, 86, 173, 0.28);
+  /* ---- the colour language ----
+     Four colours, meaning the same thing on every screen. See
+     frontend/src/entityTone.ts for what each one means and why there are only
+     four; qa/colour-language.py for the measurements that chose them.
 
-  --sec-items: #17706a;
-  --sec-items-soft: #e6f3f1;
-  --sec-items-line: rgba(28, 122, 114, 0.28);
+     Gold for money and teal for medicine were both tried and both dropped:
+     they measure too close to warn-amber and ok-green, and a state colour must
+     always win. */
+  --e-person: #1d3a8a;
+  --e-person-soft: #eaeefa;
+  --e-person-line: rgba(29, 58, 138, 0.28);
+
+  --e-script: #7b2fb5;
+  --e-script-soft: #f4ecfb;
+  --e-script-line: rgba(123, 47, 181, 0.28);
+
+  --e-medicine: #c41c5f;
+  --e-medicine-soft: #fceaf1;
+  --e-medicine-line: rgba(196, 28, 95, 0.28);
+
+  --e-money: #743811;
+  --e-money-soft: #f7eee6;
+  --e-money-line: rgba(116, 56, 17, 0.28);
+
+  /* The dispensing sections are the same language, not a second one: a card
+     about the patient is person-coloured wherever it appears. */
+  --sec-patient: var(--e-person);
+  --sec-patient-soft: var(--e-person-soft);
+  --sec-patient-line: var(--e-person-line);
+
+  --sec-items: var(--e-medicine);
+  --sec-items-soft: var(--e-medicine-soft);
+  --sec-items-line: var(--e-medicine-line);
 
   /* The compliance card only appears for a controlled substance, so it takes
      the colour this product already uses for a schedule. Free, and correct. */
@@ -166,17 +192,17 @@
   --sec-check-soft: var(--sched-soft);
   --sec-check-line: rgba(141, 47, 92, 0.28);
 
-  --sec-go: #6b5a86;
-  --sec-go-soft: #f0ecf6;
-  --sec-go-line: rgba(107, 90, 134, 0.28);
+  --sec-go: var(--e-script);
+  --sec-go-soft: var(--e-script-soft);
+  --sec-go-line: var(--e-script-line);
 
   /* Money, and the three places it can be settled. Delivery shares this hue
      rather than taking a sixth: it IS a payment route, the third option in the
      same control, and it is told apart by its icon and a dashed edge. Six hues
      on one screen is confetti. */
-  --sec-money: #2a5fa8;
-  --sec-money-soft: #e9eff9;
-  --sec-money-line: rgba(42, 95, 168, 0.28);
+  --sec-money: var(--e-money);
+  --sec-money-soft: var(--e-money-soft);
+  --sec-money-line: var(--e-money-line);
   --green: #7fc86d;
   --orange: #f0a04b;
   --pink: #f06ba8;
@@ -4838,25 +4864,44 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   /* The section hues again, lifted for a dark ground. Same pattern the state
      colours use here: a light ink, and the tint as a low-alpha wash rather
      than a pale hex, which on this canvas would glow. */
-  --sec-patient: #9aa4f0;
-  --sec-patient-soft: rgba(122, 134, 232, 0.13);
-  --sec-patient-line: rgba(154, 164, 240, 0.26);
+  /* The language again, lifted for a dark ground. Lightness is staggered on
+     purpose: hue alone is what colour blindness takes away, so the four differ
+     in weight as well as in hue. */
+  --e-person: #5c81d6;
+  --e-person-soft: rgba(92, 129, 214, 0.14);
+  --e-person-line: rgba(92, 129, 214, 0.30);
 
-  --sec-items: #6fc9bf;
-  --sec-items-soft: rgba(70, 180, 168, 0.13);
-  --sec-items-line: rgba(111, 201, 191, 0.26);
+  --e-script: #cf8cf2;
+  --e-script-soft: rgba(207, 140, 242, 0.13);
+  --e-script-line: rgba(207, 140, 242, 0.28);
+
+  --e-medicine: #f5c7d9;
+  --e-medicine-soft: rgba(245, 199, 217, 0.11);
+  --e-medicine-line: rgba(245, 199, 217, 0.26);
+
+  --e-money: #b47850;
+  --e-money-soft: rgba(180, 120, 80, 0.15);
+  --e-money-line: rgba(180, 120, 80, 0.32);
+
+  --sec-patient: var(--e-person);
+  --sec-patient-soft: var(--e-person-soft);
+  --sec-patient-line: var(--e-person-line);
+
+  --sec-items: var(--e-medicine);
+  --sec-items-soft: var(--e-medicine-soft);
+  --sec-items-line: var(--e-medicine-line);
 
   --sec-check: var(--sched);
   --sec-check-soft: var(--sched-soft);
   --sec-check-line: rgba(232, 147, 189, 0.26);
 
-  --sec-go: #b9a8d6;
-  --sec-go-soft: rgba(160, 140, 200, 0.13);
-  --sec-go-line: rgba(185, 168, 214, 0.26);
+  --sec-go: var(--e-script);
+  --sec-go-soft: var(--e-script-soft);
+  --sec-go-line: var(--e-script-line);
 
-  --sec-money: #86b0ea;
-  --sec-money-soft: rgba(110, 150, 220, 0.13);
-  --sec-money-line: rgba(134, 176, 234, 0.26);
+  --sec-money: var(--e-money);
+  --sec-money-soft: var(--e-money-soft);
+  --sec-money-line: var(--e-money-line);
   --sched-soft: rgba(216, 130, 175, 0.14);
 
   --chart-1: #3987e5;
@@ -6599,3 +6644,31 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* Done is done, in every stage. A finished step keeps the tick green because
    that is the one thing on the strip that means a state rather than a place. */
 .trail-done .trail-mark { color: var(--ok); }
+
+/* ---------------------------------------------------------- the four colours
+   A record wears its family's colour wherever it is named. That is the whole
+   point: learn four colours once, read every screen faster afterwards.
+
+   Applied to the link text rather than as a fill, so a table of thirty rows
+   reads as a table and not as a paint chart. The underline on hover stays the
+   product's, because the colour says WHAT it is and the underline says it is a
+   link, and those are two different facts. */
+.tone-person   { color: var(--e-person); }
+.tone-script   { color: var(--e-script); }
+.tone-medicine { color: var(--e-medicine); }
+.tone-money    { color: var(--e-money); }
+
+/* Muted still means muted. A quiet row must not shout its family. */
+.entity-link.muted { color: var(--ink-soft); }
+
+/* A chip carrying the same colour, for a badge or a legend. */
+.tone-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: 0;
+  border: 1px solid transparent;
+}
+.tone-chip.tone-person   { background: var(--e-person-soft);   border-color: var(--e-person-line); }
+.tone-chip.tone-script   { background: var(--e-script-soft);   border-color: var(--e-script-line); }
+.tone-chip.tone-medicine { background: var(--e-medicine-soft); border-color: var(--e-medicine-line); }
+.tone-chip.tone-money    { background: var(--e-money-soft);    border-color: var(--e-money-line); }
