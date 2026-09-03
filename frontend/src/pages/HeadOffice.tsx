@@ -33,6 +33,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import HqPermissions from "../components/HqPermissions";
+import RoleMatrix from "../components/RoleMatrix";
 
 interface BranchRow {
   branch_id: number; branch: string; code: string; city: string;
@@ -80,7 +81,7 @@ export default function HeadOffice() {
     { key: "people", label: "Branches & people",
       hint: "Who works where, and what each may do" },
     { key: "authority", label: "Authority",
-      hint: "One person, one capability, bounded" },
+      hint: "What each role may do, and what one person may do on top of it" },
     { key: "logins", label: "Who signs in", count: pins?.without_pin.length,
       hint: "The three kinds of login, and who cannot sign in their own name" },
   ];
@@ -290,6 +291,11 @@ export default function HeadOffice() {
         )}
 
         {estate && tab === "people" && <BranchPeople branches={estate.branches} />}
+        {/* The floor, then the ceiling, in that reading order. What a role
+            gets by default is the thing to settle first; what one named person
+            gets on top of it — with a limit, a set of hours, an end date — only
+            makes sense once you can see what they already had. */}
+        {tab === "authority" && <RoleMatrix />}
         {tab === "authority" && <HqPermissions />}
         {tab === "logins" && <WhoSignsIn pins={pins} types={types} />}
       </Refreshable>

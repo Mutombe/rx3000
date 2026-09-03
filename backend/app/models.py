@@ -136,6 +136,47 @@ class UserBranch(Base, TenantMixin):
     )
 
 
+class RolePermission(Base, TenantMixin):
+    """What a role may do in THIS pharmacy.
+
+    `permissions.CAPABILITIES` carries a sensible default for each role, and a
+    default is all it can be. Pharmacies genuinely differ: one lets any cashier
+    take a return because the shop is small and the owner is always there;
+    another lets nobody but a manager touch one because it had a problem two
+    years ago and now it does not. Both are right about their own shop.
+
+    Without a way to say so, the second pharmacy is fine and the first has to
+    grant "take a return" to eleven people by name, one at a time, and again
+    for every new starter. What actually happens is that the eleven people are
+    made managers, and the role column stops meaning anything.
+
+    So this is the role default, per pharmacy, editable. The per-person grants
+    in `UserPermission` still sit on top of it and a denial still beats
+    everything — this moves the floor, not the ceiling.
+
+    A missing row means "use the built-in default", which is deliberate: it
+    keeps a pharmacy that has never opened the screen behaving exactly as it
+    did, and it means a capability added in a later version arrives with its
+    default rather than switched off for everybody.
+    """
+    __tablename__ = "role_permissions"
+
+    id = Column(Integer, primary_key=True)
+    role = Column(String(20), nullable=False, index=True)
+    #: See services.permissions.CAPABILITIES.
+    capability = Column(String(60), nullable=False, index=True)
+    allowed = Column(Boolean, default=False)
+    set_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    set_at = Column(DateTime, default=datetime.utcnow)
+
+    set_by = relationship("User", foreign_keys=[set_by_id])
+
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "role", "capability",
+                         name="uq_role_capability_per_pharmacy"),
+    )
+
+
 class StaffTransfer(Base, TenantMixin):
     """A move from one branch to another, kept.
 

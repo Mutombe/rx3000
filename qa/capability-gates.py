@@ -162,6 +162,72 @@ with tenancy.unscoped(), branch_scope.every_branch():
     check(denied, "a denial by name beats the role that would allow it")
     check(denied and "investigation" in text,
           "and the reason somebody typed is what the screen shows")
+
+    # ---- 3. can a pharmacy change what a role may do? -------------------
+    #
+    # The floor, as against the per-person ceiling above. A shop that cannot
+    # move it grants the same thing to eleven people one at a time, and then
+    # makes the eleven people managers instead.
+    print("\n  a pharmacy setting its own role defaults\n")
+
+    returns = auth.requires("sale.return")
+    cashier = models.User(username="rutendo", password_hash="x",
+                          full_name="Rutendo P", role="cashier",
+                          pharmacy_id=group.id)
+    db.add(cashier)
+    db.commit()
+
+    ok_by_default = None
+    try:
+        returns(user=cashier, db=db)
+        ok_by_default = True
+    except HTTPException:
+        ok_by_default = False
+    check(ok_by_default,
+          "a cashier may take a return, which is the built-in default")
+
+    permissions.set_role_capability(db, "cashier", "sale.return", False,
+                                    actor=manager)
+    now = None
+    try:
+        returns(user=cashier, db=db)
+        now = True
+    except HTTPException:
+        now = False
+    check(not now,
+          "a pharmacy that switches it off for cashiers is obeyed by the gate, "
+          "not merely recorded on a settings screen")
+
+    permissions.set_role_capability(db, "cashier", "sale.return", True,
+                                    actor=manager)
+    back = None
+    try:
+        returns(user=cashier, db=db)
+        back = True
+    except HTTPException:
+        back = False
+    check(back, "and switching it back on restores it")
+
+    # An administrator must not be reducible here, or a pharmacy is one click
+    # from needing somebody else's engineer to get back in.
+    locked = None
+    try:
+        permissions.set_role_capability(db, "admin", "staff.manage", False,
+                                        actor=manager)
+        locked = False
+    except ValueError:
+        locked = True
+    check(locked,
+          "an administrator's own authority cannot be switched off, so a "
+          "pharmacy cannot lock itself out of its own user management")
+
+    rows = permissions.role_matrix(db)
+    check(len(rows) == len(permissions.CAPABILITIES),
+          f"the matrix covers every capability ({len(rows)})")
+    check(all("default" in cell and "allowed" in cell
+              for row in rows for cell in row["roles"].values()),
+          "and each cell says both the effective answer and the built-in "
+          "default, so the screen can mark what somebody changed")
     db.close()
 
 print()

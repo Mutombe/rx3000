@@ -97,6 +97,83 @@ def role_has(role: str, capability: str) -> bool:
     return role in entry[2]
 
 
+def role_allows(db: Session, role: str, capability: str) -> bool:
+    """Does this role have this capability in THIS pharmacy?
+
+    The built-in default from `CAPABILITIES`, unless the pharmacy has said
+    otherwise on the role matrix. A missing row means "use the default", which
+    keeps a pharmacy that has never opened that screen behaving exactly as it
+    did, and means a capability added in a later version arrives with its
+    default rather than switched off for everybody.
+
+    `role_has` remains for the callers that only have a role and no session —
+    it answers with the built-in default, which is the right answer to the
+    question it can actually ask.
+    """
+    from ..models import RolePermission
+
+    row = (db.query(RolePermission)
+           .filter(RolePermission.role == role,
+                   RolePermission.capability == capability).first())
+    if row is not None:
+        return bool(row.allowed)
+    return role_has(role, capability)
+
+
+def role_matrix(db: Session) -> list[dict]:
+    """Every capability against every role, as this pharmacy has it.
+
+    Sent with both the effective answer and the built-in default, so the screen
+    can show what has been changed from standard. A grid of toggles with no
+    indication of which ones somebody moved is a grid nobody dares touch.
+    """
+    from ..auth import ROLES
+
+    return [{
+        "capability": key,
+        "name": name,
+        "roles": {
+            role: {
+                "allowed": role_allows(db, role, key),
+                "default": role in default_roles,
+                # Admin is not editable. A pharmacy that can switch off its own
+                # administrator's authority is a pharmacy one click from
+                # needing somebody else's engineer to get back in.
+                "fixed": role == "admin",
+            }
+            for role in ROLES
+        },
+    } for key, name, default_roles in CAPABILITIES]
+
+
+def set_role_capability(db: Session, role: str, capability: str,
+                        allowed: bool, *, actor: User) -> None:
+    """Move the floor for a role. The per-person grants still sit on top."""
+    from ..auth import ROLES
+    from ..models import RolePermission
+
+    if role == "admin":
+        raise ValueError(
+            "An administrator's authority cannot be reduced here. A pharmacy "
+            "that can switch off its own administrator is one click from "
+            "needing somebody else to get back in.")
+    if capability not in BY_KEY:
+        raise ValueError(f"{capability} is not a capability.")
+    if role not in ROLES:
+        raise ValueError(f"{role} is not a role.")
+
+    row = (db.query(RolePermission)
+           .filter(RolePermission.role == role,
+                   RolePermission.capability == capability).first())
+    if row is None:
+        row = RolePermission(role=role, capability=capability)
+        db.add(row)
+    row.allowed = bool(allowed)
+    row.set_by_id = actor.id
+    row.set_at = datetime.utcnow()
+    db.commit()
+
+
 def grants_for(db: Session, user_id: int) -> list[UserPermission]:
     today = date.today()
     rows = (db.query(UserPermission)
@@ -169,7 +246,9 @@ def check(db: Session, user: User, capability: str, *,
     awake = [g for g in mine if g.allow and _within_hours(g, at)]
     asleep = [g for g in mine if g.allow and not _within_hours(g, at)]
 
-    from_role = role_has(user.role, capability)
+    # The pharmacy's own answer for this role, which defaults to the
+    # built-in one until somebody changes it on the role matrix.
+    from_role = role_allows(db, user.role, capability)
     if not from_role and not awake:
         if asleep:
             g = asleep[0]
@@ -293,7 +372,7 @@ def explain(db: Session, user: User, capability: str,
         why = (f"{user.full_name} has been specifically prevented from this"
                + (f" — {denied[0].reason}" if denied[0].reason else "")
                + ". A denial is not overridden by a role or by a later grant.")
-    elif role_has(user.role, capability):
+    elif role_allows(db, user.role, capability):
         why = f"Every {user.role} may do this."
     elif granted:
         g = granted[0]
@@ -311,7 +390,7 @@ def explain(db: Session, user: User, capability: str,
         "name": entry[1] if entry else capability,
         "allowed": allowed,
         "why": why,
-        "role_grants_it": role_has(user.role, capability),
+        "role_grants_it": role_allows(db, user.role, capability),
         "granted_by_name": bool(granted),
         "denied_by_name": bool(denied),
     }

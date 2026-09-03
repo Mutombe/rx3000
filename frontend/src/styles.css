@@ -4545,6 +4545,49 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   margin: 0 var(--s1); flex: none;
 }
 
+/* The role matrix: what each role may do in this pharmacy.
+
+   A grid of yes/no cells, and the hard part is not the grid. It is that
+   somebody has to be able to tell, at a glance, which cells they have moved
+   away from what the software ships with — a permissions screen that cannot
+   say "you changed this" is one nobody dares touch, so it stays on the
+   defaults and the eleven people get made managers instead. */
+.dt.matrix th[scope="row"] {
+  /* The capability, and its key underneath. Left-aligned against a table of
+     centred cells, because it is a label rather than a value. */
+  text-align: left; font-weight: 500; white-space: normal;
+  min-width: 15rem; max-width: 22rem;
+}
+.cap-key {
+  display: block; font-size: var(--t-xs); margin-top: 2px;
+}
+.perm-cell {
+  min-width: 3.25rem; height: var(--control-sm);
+  padding: 0 var(--s3); border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-sunk); color: var(--ink-soft);
+  font-size: var(--t-sm); font-weight: 600;
+}
+.perm-cell:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.perm-cell.is-on {
+  /* Permission granted reads as a settled good state, so it takes the ok
+     colour rather than one of the four entity colours — those mean person,
+     script, medicine and money, and spending one here would weaken all four. */
+  background: var(--ok-soft); color: var(--ok);
+  border-color: var(--ok-line);
+}
+.perm-cell.is-fixed {
+  /* An administrator's own authority. Not disabled-looking-broken: it is a
+     fact about the design, so it reads as settled rather than as unavailable. */
+  opacity: 0.65; cursor: default; font-weight: 500;
+}
+.perm-cell.is-moved {
+  /* Changed from what the software ships with. A left edge rather than a
+     different fill, so it stacks with is-on instead of fighting it: a cell can
+     be both granted and non-standard, and both facts have to survive. */
+  border-left-width: 3px; border-left-color: var(--accent);
+}
+
 /* Which shop you are standing in.
    Sits in the top bar rather than on each screen because it qualifies all of
    them at once: the stock figure, the takings and the cash-up are one

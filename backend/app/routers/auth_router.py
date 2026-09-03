@@ -443,3 +443,53 @@ def drop_cover(user_id: int, branch_id: int, db: Session = Depends(get_db),
     except placement_service.PlacementError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return placement_service.describe(db, user)
+
+
+# ----------------------------------------------------- what a role may do --
+#
+# The built-in defaults in `permissions.CAPABILITIES` are defaults, and a
+# default is all they can be. One pharmacy lets any cashier take a return
+# because the shop is small and the owner is always there; another lets nobody
+# but a manager touch one. Both are right about their own shop, and without a
+# way to say so the first has to grant it to eleven people by name and again to
+# every new starter — which in practice means making the eleven people
+# managers, and the role column stops meaning anything.
+
+
+@router.get("/role-matrix")
+def role_matrix(db: Session = Depends(get_db),
+                _: User = Depends(auth.requires("staff.manage"))):
+    """Every capability against every role, as this pharmacy has it.
+
+    Carries the built-in default alongside the effective answer, so the screen
+    can mark what has been changed from standard. A grid of toggles that cannot
+    say which ones somebody moved is a grid nobody dares touch.
+    """
+    from ..services import permissions as _permissions
+
+    return {
+        "roles": [r for r in auth.ROLES],
+        "rows": _permissions.role_matrix(db),
+    }
+
+
+@router.put("/role-matrix")
+def set_role_matrix(role: str = Body(...), capability: str = Body(...),
+                    allowed: bool = Body(...),
+                    db: Session = Depends(get_db),
+                    actor: User = Depends(auth.requires("staff.manage"))):
+    """Move the floor for one role and one capability.
+
+    One cell at a time rather than the whole grid. A save that posts fifty-odd
+    booleans overwrites whatever somebody else changed in the meantime, and on
+    a permissions screen that is the one place a silent overwrite must not
+    happen.
+    """
+    from ..services import permissions as _permissions
+
+    try:
+        _permissions.set_role_capability(db, role, capability, allowed,
+                                         actor=actor)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True, "rows": _permissions.role_matrix(db)}
