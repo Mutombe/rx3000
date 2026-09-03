@@ -4545,6 +4545,42 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   margin: 0 var(--s1); flex: none;
 }
 
+/* Which shop you are standing in.
+   Sits in the top bar rather than on each screen because it qualifies all of
+   them at once: the stock figure, the takings and the cash-up are one
+   branch's, and nothing on the screen used to say which.
+
+   Deliberately quiet. It is a fact to be glanced at and confirmed, not a
+   control and not a warning, so it takes the muted surface rather than any of
+   the four entity colours — those mean person, script, medicine and money, and
+   spending one on "where you are" would weaken all four. */
+.branch-chip {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  height: var(--control-sm); padding: 0 var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-sunk); color: var(--ink-soft);
+  font-size: var(--t-sm); font-weight: 500; white-space: nowrap;
+  flex: none;
+}
+.branch-chip.is-group {
+  /* Head office reads the group. Said in the same voice, because it is the
+     same kind of fact and not a promotion. */
+  color: var(--ink-soft); font-style: italic;
+}
+/* "+2" for somebody who covers other shops as well. The name they work in
+   stays first and full: that is where they are, the rest is reach. */
+.branch-more {
+  padding: 0 var(--s2); border-radius: var(--r-sm);
+  background: var(--tint-weak); font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 860px) {
+  /* On a phone the top bar is already tight. The name goes and the icon
+     stays, which still answers "am I in the right shop" at a glance. */
+  .branch-chip { padding: 0 var(--s2); }
+  .branch-name { display: none; }
+}
+
 .theme-seg {
   /* Built to match .pill-tabs, which is how this application already shows a
      one-of-three choice. Copying that rather than inventing a second segmented

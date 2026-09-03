@@ -4,7 +4,10 @@ from sqlalchemy.orm import Session
 from .. import auth, schemas
 from ..auth import get_current_user, verify_password
 from ..database import get_db
+from datetime import date
+
 from ..services import auth_rules, demo, pins
+from ..services import placement as placement_service
 from .. import models
 from ..models import User
 
@@ -344,3 +347,99 @@ def reset_with_pin(username: str = Body(...), pin: str = Body(...),
     # Signed in on the spot. Being bounced back to a login form to retype a
     # password chosen four seconds ago is friction with no security in it.
     return schemas.TokenResponse(access_token=auth.create_token(user, db), user=user)
+
+
+# --------------------------------------------------------- where they work --
+#
+# `branch_scope` narrows what somebody sees once they have a branch, and until
+# these existed nothing could give them one. A scoping rule with no way to
+# assign a branch never narrows anybody, which is the same as not having
+# written it — and it is the shape of failure this codebase keeps producing:
+# the capability is present, complete, and unreachable.
+
+
+@router.get("/users/{user_id}/placement")
+def placement(user_id: int, db: Session = Depends(get_db),
+              _: User = Depends(auth.requires("staff.manage"))):
+    """Where somebody works, what else they cover, and every move they made."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    return placement_service.describe(db, user)
+
+
+@router.post("/users/{user_id}/placement")
+def move_staff(user_id: int, branch_id: int | None = Body(default=None),
+               reason: str = Body(default=""),
+               db: Session = Depends(get_db),
+               actor: User = Depends(auth.requires("staff.manage"))):
+    """Put somebody in a shop, or move them to another one.
+
+    A move is written to the history as well as to the column. The column
+    answers "where is she now" and the rows answer "where was she in March",
+    and only the second can be asked of a controlled register.
+    """
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    try:
+        placement_service.place(db, user, branch_id, actor=actor, reason=reason)
+    except placement_service.PlacementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return placement_service.describe(db, user)
+
+
+@router.post("/users/{user_id}/reach")
+def set_reach(user_id: int, all_branches: bool = Body(..., embed=True),
+              db: Session = Depends(get_db),
+              actor: User = Depends(auth.requires("staff.manage"))):
+    """Let somebody see the whole group, or stop them."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    # The last person who can see the group must not remove their own sight of
+    # it. A group with nobody able to read across its branches cannot reconcile
+    # anything, and recovering from it means editing the database.
+    if not all_branches and user.all_branches:
+        others = (db.query(User)
+                  .filter(User.all_branches.is_(True), User.active.is_(True),
+                          User.id != user.id).count())
+        if not others:
+            raise HTTPException(
+                status_code=400,
+                detail="This is the only person who can see every branch. "
+                       "Give somebody else group-wide sight first, or nobody "
+                       "will be able to reconcile across the shops.")
+    placement_service.set_reach(db, user, all_branches, actor=actor)
+    return placement_service.describe(db, user)
+
+
+@router.post("/users/{user_id}/cover")
+def add_cover(user_id: int, branch_id: int = Body(...),
+              until: date | None = Body(default=None),
+              reason: str = Body(default=""),
+              db: Session = Depends(get_db),
+              actor: User = Depends(auth.requires("staff.manage"))):
+    """A shop somebody covers besides their own, ending on its own if it should."""
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    try:
+        placement_service.add_cover(db, user, branch_id, actor=actor,
+                                    until=until, reason=reason)
+    except placement_service.PlacementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return placement_service.describe(db, user)
+
+
+@router.delete("/users/{user_id}/cover/{branch_id}")
+def drop_cover(user_id: int, branch_id: int, db: Session = Depends(get_db),
+               _: User = Depends(auth.requires("staff.manage"))):
+    user = db.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    try:
+        placement_service.drop_cover(db, user, branch_id)
+    except placement_service.PlacementError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return placement_service.describe(db, user)

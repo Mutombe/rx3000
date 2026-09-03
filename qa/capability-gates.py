@@ -91,8 +91,6 @@ NOT_AN_ENDPOINT = {
     "claims.write_off": "a shortfall write-off carries an amount",
     "dispense.controlled": "enforced in the dispensing rules with the schedule "
                            "in hand, which knows S5 from S2",
-    "staff.manage": "the staff routes are behind require_role('admin'), which "
-                    "is the same answer for this one capability",
 }
 
 for key, name, _roles in permissions.CAPABILITIES:

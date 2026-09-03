@@ -187,6 +187,74 @@ finally:
     branch_scope.reset_visible_branches(btoken)
     tenancy.reset_current_pharmacy(token)
 
+print("\n  placing and moving somebody, which is what makes any of it "
+      "reachable\n")
+
+from app.services import placement                            # noqa: E402
+
+with tenancy.unscoped(), branch_scope.every_branch():
+    db = SessionLocal()
+    boss = db.get(models.User, owner_id)
+    newbie = models.User(username="tendai", password_hash="x",
+                         full_name="Tendai N", role="assistant",
+                         pharmacy_id=1)
+    db.add(newbie)
+    db.commit()
+
+    before = branch_scope.for_user(db, newbie)
+    placement.place(db, newbie, avn, actor=boss, reason="Started at Avondale")
+    after = branch_scope.for_user(db, newbie)
+    check(before is None and after == frozenset({avn}),
+          "placing somebody narrows them from the whole group to one shop")
+
+    placement.place(db, newbie, bor, actor=boss, reason="Moved to cover")
+    moved = branch_scope.for_user(db, newbie)
+    check(moved == frozenset({bor}),
+          "moving them again follows the transfer, not the first placement")
+
+    told = placement.describe(db, newbie)
+    check(len(told["moves"]) == 2,
+          f"both moves are kept ({len(told['moves'])}), because a branch that "
+          f"cannot say who worked there in March cannot investigate anything")
+    check(any(m["reason"] == "Started at Avondale" for m in told["moves"]),
+          "with the reason somebody typed at the time")
+    check(told["moves"][0]["from"] == "Avondale"
+          and told["moves"][0]["to"] == "Borrowdale",
+          "and the move says where from as well as where to")
+
+    # Cover, and a cover that has run out.
+    placement.add_cover(db, newbie, avn, actor=boss, reason="Thursdays")
+    both = branch_scope.for_user(db, newbie)
+    check(both == frozenset({avn, bor}),
+          "cover widens the reach without moving them")
+
+    from datetime import date, timedelta
+    placement.drop_cover(db, newbie, avn)
+    placement.add_cover(db, newbie, avn, actor=boss,
+                        until=date.today() - timedelta(days=1))
+    lapsed = branch_scope.for_user(db, newbie)
+    check(lapsed == frozenset({bor}),
+          "a cover that has run out is not a cover, so a locum's reach ends "
+          "with the locum rather than when somebody tidies up")
+
+    # Moving somebody to a shop they were covering must not leave the cover
+    # row behind, or their reach would silently extend back to the shop they
+    # left.
+    placement.add_cover(db, newbie, avn, actor=boss, reason="Cover again")
+    placement.place(db, newbie, avn, actor=boss, reason="Transferred there")
+    check(branch_scope.for_user(db, newbie) == frozenset({avn}),
+          "transferring somebody to a shop they covered drops the stale cover, "
+          "which would otherwise keep their old branch in reach")
+
+    refused = None
+    try:
+        placement.place(db, newbie, avn, actor=boss)
+    except placement.PlacementError as exc:
+        refused = str(exc)
+    check(refused is not None and "already" in refused,
+          f"and moving them where they already are says so: {refused!r}")
+    db.close()
+
 print()
 if failures:
     print(f"{len(failures)} failure(s):")

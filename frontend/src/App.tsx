@@ -33,6 +33,7 @@ import { PageSkeleton } from "./components/Skeleton";
 import { ToastProvider } from "./components/Toast";
 import { ConfirmProvider } from "./components/Confirm";
 import { ConnectionProvider, RequiresConnection } from "./components/Connection";
+import { SessionProvider } from "./session";
 
 /* Every page is split out of the initial bundle. A till on a mobile
  * connection pays for the whole application on first load otherwise, and
@@ -112,7 +113,10 @@ const ToFollows = lazy(() => import("./pages/ToFollows"));
 
 function Protected({ children }: { children: JSX.Element }) {
   if (!getToken()) return <Navigate to="/login" replace />;
-  return children;
+  // Who they are and what they may do, fetched once and read by every screen
+  // inside. Mounted here rather than at the top so the login page does not ask
+  // the server about a session that does not exist yet.
+  return <SessionProvider>{children}</SessionProvider>;
 }
 
 export default function App() {

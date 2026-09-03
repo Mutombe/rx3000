@@ -11,6 +11,7 @@ import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
+import StaffPlacement from "../components/StaffPlacement";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
@@ -157,6 +158,10 @@ export default function StaffDetail() {
     >
       {d && (
         <>
+          {/* Which shop they work in, before what they have done in it: an
+              administrator opening this page is usually here to place or move
+              somebody, and the work history is the reference underneath. */}
+          <StaffPlacement userId={d.id} name={d.full_name} onChanged={load} />
           <Panel title="Recently dispensed" count={d.dispensings.length}
                  empty="This person has not dispensed anything.">
             <div className="dt-scroll" style={{ maxHeight: "46vh" }}>

@@ -53,6 +53,7 @@ import { User } from "../types";
 import { readStored, writeStored } from "../storage";
 import { shortCount, useNavCounts } from "../hooks/useNavCounts";
 import { useRailWidth } from "../hooks/useRailWidth";
+import { useSession } from "../session";
 import DemoBar from "./DemoBar";
 import ThemeToggle from "./ThemeToggle";
 import Tooltips from "./Tooltips";
@@ -97,6 +98,15 @@ interface NavLinkDef {
   // nav only ever passes a size and a weight through.
   icon: React.ComponentType<any>;
   tier?: number;
+  /** A capability from the server's matrix. Absent means everybody sees it. */
+  needs?: string;
+  /**
+   * A screen about the whole estate rather than one shop. Hidden from somebody
+   * scoped to a single branch, because what they would get is not a smaller
+   * version of it — it is a comparison with one column, or a head-office
+   * control that refuses. An empty screen reads as a broken screen.
+   */
+  groupWide?: true;
 }
 
 const NAV: { section: string; links: NavLinkDef[] }[] = [
@@ -143,7 +153,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       { to: "/stock-categories", label: "Departments", icon: ChartBar },
       // What each line earns against the money it ties up. The buying
       // conversation, which units sold alone cannot have.
-      { to: "/stock-performance", label: "Stock performance", icon: TrendUp },
+      { to: "/stock-performance", label: "Stock performance", icon: TrendUp, needs: "reports.money" },
       { to: "/orders", label: "Procurement", icon: Truck },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
       { to: "/samples", label: "Samples", icon: Gift },
@@ -188,8 +198,8 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // stock question and the person asking it is not doing stock. Somebody
       // who owns three shops looks for this beside the analytics, which is
       // where every other "how are we doing" screen already lives.
-      { to: "/scorecard", label: "Branch performance", icon: ChartBar, tier: 1 },
-      { to: "/reports", label: "Analytics", icon: ChartLineUp },
+      { to: "/scorecard", label: "Branch performance", icon: ChartBar, tier: 1, groupWide: true },
+      { to: "/reports", label: "Analytics", icon: ChartLineUp, needs: "reports.money" },
       // What a repeat patient is worth beyond the line, and what to have
       // on the shelf before the month that sells it.
       { to: "/seasons", label: "Basket & seasons", icon: Basket },
@@ -210,7 +220,7 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
   {
     section: "Administration",
     links: [
-      { to: "/admin", label: "Control Panel", icon: SlidersHorizontal },
+      { to: "/admin", label: "Control Panel", icon: SlidersHorizontal, needs: "staff.manage" },
       { to: "/system", label: "This Till", icon: Desktop },
       // Platform-level: creating pharmacies and deciding who belongs to which.
       // A pharmacy's own administrator gets a 403 and the page explains why, so
@@ -218,8 +228,8 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // business being at all.
       // The estate, and the controls above it: freezing a branch, acting
       // as somebody, and bounded authority.
-      { to: "/head-office", label: "Head office", icon: Buildings },
-      { to: "/pharmacies", label: "Pharmacies", icon: Buildings },
+      { to: "/head-office", label: "Head office", icon: Buildings, groupWide: true },
+      { to: "/pharmacies", label: "Pharmacies", icon: Buildings, groupWide: true },
     ],
   },
 ];
@@ -228,6 +238,34 @@ export default function Layout({ children }: { children: ReactNode }) {
   // Live counts of what needs doing, keyed by route.
   const counts = useNavCounts();
   const [user, setUser] = useState<User | null>(null);
+  // Who is signed in and what they may do, fetched once by the provider. Layout
+  // used to fetch /api/auth/me itself, for the initials in the corner, while
+  // nothing else in the application knew the answer existed.
+  const session = useSession();
+  // Seeded from the session, but still local state, because the till lock
+  // swaps the acting person without a new sign-in.
+  useEffect(() => {
+    if (session.me) setUser(session.me as unknown as User);
+  }, [session.me]);
+
+  // Only what this person may reach.
+  //
+  // Hiding is a courtesy and the server is the rule — every one of these
+  // screens refuses on its own. What it prevents is a dispenser looking at a
+  // sidebar of fifty entries, a third of which are head-office screens that
+  // will not open, and concluding the software is broken rather than that the
+  // list is not for her.
+  //
+  // A section that empties disappears with its heading. A lone "Administration"
+  // label above nothing is worse than either showing the links or not.
+  const visibleNav = React.useMemo(() => NAV.map((group) => ({
+    ...group,
+    links: group.links.filter((l) => {
+      if (l.needs && !session.can(l.needs)) return false;
+      if (l.groupWide && session.me && !session.me.all_branches) return false;
+      return true;
+    }),
+  })).filter((group) => group.links.length > 0), [session]);
   const [, setReady] = useState(0);
   const navigate = useNavigate();
 
@@ -256,7 +294,6 @@ export default function Layout({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    api.get<User>("/api/auth/me").then(setUser).catch(() => {});
     // Currency and locale follow the installation's jurisdiction pack.
     api.get<{ locale: string; base_currency: { symbol: string; decimals: number } }>("/api/jurisdiction")
       .then((j) => {
@@ -335,7 +372,10 @@ export default function Layout({ children }: { children: ReactNode }) {
       <Tooltips />
       {/* The shared-till lock. It keeps the session and asks who is at the
           keyboard, rather than logging anybody out and losing their work. */}
-      <TillLock user={user} onActorChange={setUser} />
+      {/* Re-reading the session on a hand-over is not a refinement. Without it
+          the next person at the keyboard inherits the last one's capabilities,
+          which is the exact failure the till lock exists to prevent. */}
+      <TillLock user={user} onActorChange={(u) => { setUser(u); session.refresh(); }} />
       <aside className="sidebar">
         {/* The rail's own edge is the control. `separator` with an orientation
             and a value is what a screen reader needs to announce it as
@@ -370,7 +410,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
         <nav className="nav">
-          {NAV.map((group) => (
+          {visibleNav.map((group) => (
             <div key={group.section}>
               <div className="nav-section">{group.section}</div>
               {group.links.map((l) => (
@@ -433,6 +473,37 @@ export default function Layout({ children }: { children: ReactNode }) {
               twice a day, and burying it under a caret makes people live with
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
+          {/* Which shop you are standing in.
+              Every figure below it — the stock on hand, the takings, the
+              cash-up — is that branch's and not the group's, and there was
+              nothing on the screen saying so. In a group, the same screen
+              showing a different number on a different day is how somebody
+              orders against Borrowdale's shelf while standing in Avondale.
+              Head office sees "All branches" instead, which is equally a
+              fact about what the numbers mean. */}
+          {session.me && (
+            session.me.all_branches ? (
+              <span className="branch-chip is-group" title="Figures on every screen cover the whole group">
+                <Buildings size={13} weight="fill" aria-hidden="true" />
+                <span className="branch-name">All branches</span>
+              </span>
+            ) : session.me.branch ? (
+              <span
+                className="branch-chip"
+                title={session.me.branches.length > 1
+                  ? `You work in ${session.me.branch.name}, and also cover `
+                    + session.me.branches.filter((b) => b.id !== session.me!.branch!.id)
+                        .map((b) => b.name).join(", ")
+                  : `Every figure on screen is ${session.me.branch.name}'s`}
+              >
+                <Storefront size={13} weight="fill" aria-hidden="true" />
+                <span className="branch-name">{session.me.branch.name}</span>
+                {session.me.branches.length > 1 && (
+                  <span className="branch-more">+{session.me.branches.length - 1}</span>
+                )}
+              </span>
+            ) : null
+          )}
           <ThemeToggle />
           <span className="topbar-sep" aria-hidden="true" />
           <div className="topbar-right" ref={menuRef}>
