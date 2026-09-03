@@ -62,6 +62,17 @@ interface DraftItem {
   auto_refill: boolean;
   /** Diagnosis for this line. A claim line without one is rejected. */
   icd10_code: string;
+  /** The `PrescriptionItem` row behind this line, where one exists.
+   *
+   *  Declared rather than cast on. It was read as `(i as any).item_id`, which
+   *  stopped the compiler asking whether the field existed at all, and the same
+   *  cast on this same object had already hidden a `no_claim` that never
+   *  existed. A field worth reading is worth naming.
+   *
+   *  Only trustworthy immediately after the server handed it over: saving a
+   *  draft replaces its items and issues new ids.
+   */
+  item_id?: number;
 }
 
 const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
@@ -700,6 +711,20 @@ export default function Dispense() {
       .catch(() => toast.error("That repeat could not be added to the script."));
   }
 
+  /** Take the server's item ids onto the lines on screen.
+   *
+   *  Saving a draft replaces its items wholesale, so they come back with new
+   *  ids every time. Anything on this screen still holding the old ones is
+   *  holding rows that no longer exist.
+   */
+  function adoptIds(rx: any) {
+    const byProduct = new Map<number, number>(
+      (rx?.items ?? []).map((i: any) => [i.product_id, i.id]));
+    setItems((rows) => rows.map((r) => ({
+      ...r, item_id: byProduct.get(r.product.id) ?? r.item_id,
+    })));
+  }
+
   /** What is on screen, in the shape the draft endpoints want. */
   function scriptPayload() {
     return {
@@ -739,6 +764,7 @@ export default function Dispense() {
                                        { ...scriptPayload(), draft: true });
         setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                     draft: true });
+        adoptIds(rx);
         toast.ok(`Saved for later. It is on the worklist as a ${DRAFT_SCRIPT.toLowerCase()}.`);
       }
     } catch (e) {
@@ -761,6 +787,7 @@ export default function Dispense() {
       await api.put(`/api/prescriptions/${fromRx.id}/draft`, scriptPayload());
       const rx = await api.post<any>(`/api/prescriptions/${fromRx.id}/finalise`, {});
       setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}`, draft: false });
+      adoptIds(rx);
       toast.ok(`${rx.rx_number} finished. It can be dispensed now.`);
     } catch (e) {
       // The server refuses a script with no prescriber, no items, or a
@@ -792,12 +819,33 @@ export default function Dispense() {
             icd10_code: i.icd10_code,
           })),
         });
+      // Which of the script's lines to dispense, resolved against the server's
+      // OWN item ids rather than against ids this screen is holding.
+      //
+      // It used to send `i.item_id`, captured when the script was opened. Every
+      // save of a draft replaces its items wholesale — the endpoint deletes and
+      // re-adds them, so they come back with new ids — and finishing a draft
+      // goes through that same save. So the moment somebody pressed "Save for
+      // later" or "Finish capturing", every id on this screen was stale, the
+      // `.filter(Boolean)` quietly dropped the lot, and the dispense posted an
+      // empty list. The server answered "No valid items selected", which is
+      // true and reads as though the dispenser had chosen nothing.
+      //
+      // Matching on the product is stable across all of that, and still honours
+      // a line the dispenser took off the screen. Products are unique on a
+      // script here: `addItem` refuses a second line for the same one.
+      const onScreen = new Set(items.map((i) => i.product.id));
+      const selected = (rx.items ?? [])
+        .filter((i: any) => onScreen.has(i.product_id))
+        .map((i: any) => i.id);
+      if (!selected.length) {
+        toast.error("None of the lines on screen are on that script any more. "
+                    + "Reopen it and try again.");
+        setBusy(false);
+        return;
+      }
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
-        // Whatever is on screen, which for a queued script is the outstanding
-        // lines and for a fresh capture is everything just written.
-        item_ids: fromRx
-          ? items.map((i: any) => i.item_id).filter(Boolean)
-          : rx.items.map((i) => i.id),
+        item_ids: selected,
         ...compliancePayload(),
       });
       // Take the money here when that is what was asked for. The sale is

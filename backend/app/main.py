@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from .middleware_tenancy import TenancyMiddleware
 from .middleware_freeze import BranchFreezeMiddleware
 from fastapi.responses import JSONResponse
@@ -159,6 +160,49 @@ app.add_middleware(TenancyMiddleware)
 app.add_middleware(RequestSizeLimit)
 
 app.add_middleware(AuditMiddleware)
+
+
+class ErrorsKeepTheirHeaders(BaseHTTPMiddleware):
+    """Catch an unhandled exception INSIDE the CORS layer.
+
+    `@app.exception_handler(Exception)` is registered below and does not do
+    this, whatever its docstring claimed. Starlette installs a handler for
+    `Exception` into `ServerErrorMiddleware`, which is the outermost layer of
+    the stack, outside CORS. Its response therefore never passes back through
+    the CORS middleware and carries no `Access-Control-Allow-Origin`.
+
+    The browser can only see that the header is absent, so it reports a
+    cross-origin failure. That has now cost two diagnoses here: a per-branch
+    query filtering on a column that does not exist, and a draft that would not
+    finalise. Both were server errors with a real traceback in the log, and
+    both arrived as "blocked by CORS policy", pointing at the deployment
+    configuration, on a different layer, in a different subsystem.
+
+    Added BEFORE `CORSMiddleware`, which with `add_middleware` means it sits
+    inside it: the last middleware added is the outermost. So an exception is
+    turned into an ordinary response here, and the CORS layer decorates it on
+    the way out like any other.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:                                  # noqa: BLE001
+            log_early = logging.getLogger("rx5000")
+            log_early.exception("Unhandled error on %s %s",
+                                request.method, request.url.path)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "detail": "Something went wrong at our end. The pharmacy's "
+                              "support log has the detail.",
+                    # Enough to find it in the log without putting a stack
+                    # trace on a public endpoint.
+                    "where": f"{request.method} {request.url.path}",
+                })
+
+
+app.add_middleware(ErrorsKeepTheirHeaders)
 
 app.add_middleware(
     CORSMiddleware,
