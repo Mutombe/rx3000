@@ -57,7 +57,8 @@ export default function Welcome() {
     <div className="pub">
       <header className="pub-head">
         <div className="brand-lg">
-          <img src="/logo.png" alt="" />
+          <span className="brand-lockup" role="img"
+               aria-label="RX5000, pharmacy operating system" />
           <div>RX<span>5000</span></div>
         </div>
         <Link to="/login" className="btn small">Sign in</Link>

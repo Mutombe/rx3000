@@ -412,13 +412,13 @@ export default function Layout({ children }: { children: ReactNode }) {
           onDoubleClick={() => rail.nudge({ key: "Home", preventDefault() {}, shiftKey: false } as any)}
         />
         <div className="brand">
+          {/* The logo as drawn, with its own wordmark and tagline. The mark
+              alone takes over when the rail is too narrow for words — both are
+              here and the sheet decides, because the rail's width is a CSS
+              state and not something this component knows. */}
+          <span className="brand-lockup" role="img"
+                aria-label="RX5000, pharmacy operating system" />
           <img className="logo" src="/logo.png" alt="RX5000" />
-          {/* The wordmark is what collapses; the logo stays, so the rail keeps
-              an anchor and the eye has something to land on. */}
-          <div className="brand-text">
-            RX5000
-            <small>PHARMACY SUITE</small>
-          </div>
           <button
             className="rail-toggle"
             onClick={() => setCollapsed((c) => !c)}

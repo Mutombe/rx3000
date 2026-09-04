@@ -120,8 +120,8 @@ export default function Login() {
     <div className="login-wrap">
       <div className="login-card">
         <div className="brand-lg">
-          <img src="/logo.png" alt="" />
-          <div>RX<span>5000</span></div>
+          <span className="brand-lockup" role="img"
+                aria-label="RX5000, pharmacy operating system" />
         </div>
         <p className="tag">Pharmacy management, dispensing and point of sale</p>
 

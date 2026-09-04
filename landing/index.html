@@ -123,13 +123,12 @@
     color: var(--ink); text-decoration: none;
   }
   .brand img { display: block; border-radius: 8px; }
-  /* The wordmark carries the gradient of the mark next to it, so the two read
-   * as one thing rather than a logo sitting beside some text. */
-  .brand em {
-    font-style: normal;
-    background: var(--brand-grad);
-    -webkit-background-clip: text; background-clip: text;
-    -webkit-text-fill-color: transparent; color: transparent;
+  /* The logo as drawn, rather than its name set in the page's own font. The
+     dark file is the reversed artwork: the wordmark's navy disappears on a
+     dark ground. */
+  .brand-lockup { display: block; height: 34px; width: auto; }
+  @media (prefers-color-scheme: dark) {
+    .brand-lockup { content: url("assets/logo-full-dark.png"); }
   }
   /* A hairline of the brand gradient across the top of the page. */
   body::before {
@@ -334,8 +333,8 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="./">
-      <img src="assets/logo.png" alt="" width="34" height="34" />
-      <span class="brand-word">RX<em>5000</em></span>
+      <img class="brand-lockup" src="assets/logo-full.png"
+           alt="RX5000, pharmacy operating system" width="232" height="73" />
     </a>
     <nav>
       <a href="#what">What it does</a>

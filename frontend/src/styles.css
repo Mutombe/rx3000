@@ -380,6 +380,12 @@ a:hover { opacity: 0.75; }
   display: flex; align-items: center; gap: var(--s3);
   border-bottom: 1px solid var(--line);
 }
+/* Open, the rail shows the logo as drawn. The mark on its own is for when
+   there is no room for the words. */
+.brand .brand-lockup { max-width: 168px; }
+.brand .logo { display: none; }
+.shell.is-collapsed .brand .brand-lockup { display: none; }
+.shell.is-collapsed .brand .logo { display: block; }
 .brand .logo {
   width: 28px; height: 28px; flex-shrink: 0;
   object-fit: contain;
@@ -926,8 +932,7 @@ label {
    .login-card so the till lock and the PIN dialogs keep their full targets. */
 .login-card .field { margin-bottom: var(--s3); }
 .login-card .pin-box { width: 40px; height: 42px; font-size: 1.15rem; }
-.login-card .brand-lg { font-size: 23px; }
-.login-card .brand-lg img { width: 36px; height: 36px; }
+.login-card .brand-lg .brand-lockup { max-width: 210px; }
 .login-card p.tag { margin: 4px 0 14px; }
 .login-card .login-lead { margin-bottom: var(--s3); }
 .login-card .login-go { margin-top: 6px; }
@@ -1035,8 +1040,7 @@ label {
      than being asked to fill a share of the screen. */
   .login-wrap { padding: var(--s3) var(--s4); }
   .login-card { --login-h: 498px; padding: 18px 22px; }
-  .login-card .brand-lg { font-size: 21px; }
-  .login-card .brand-lg img { width: 32px; height: 32px; }
+  .login-card .brand-lg .brand-lockup { max-width: 178px; }
   .login-card p.tag { margin: 4px 0 10px; }
   .login-card .login-lead { margin-bottom: 10px; }
   .login-card .field { margin-bottom: 10px; }
@@ -2198,7 +2202,6 @@ input:disabled, select:disabled, textarea:disabled {
    left dangling onto the border rule that follows, so collapsing the sidebar
    stopped hiding anything and merely drew lines around the text it should have
    removed. */
-.shell.is-collapsed .brand-text,
 .shell.is-collapsed .nav-label,
 .shell.is-collapsed .nav-section { display: none; }
 
@@ -2358,11 +2361,13 @@ input:disabled, select:disabled, textarea:disabled {
      it is the same design rather than a second one — the rules below only
      exist because "collapsed" means "hidden" on a phone and cannot carry the
      icon-only styling as well. */
-  .sidebar .brand-text,
   .sidebar .nav-label,
   .sidebar .nav-section,
   .sidebar .nav-count,
   .sidebar .nav-dot { display: none; }
+  /* Icons only means the brand is the mark too. */
+  .sidebar .brand .brand-lockup { display: none; }
+  .sidebar .brand .logo { display: block; }
   .sidebar .brand { justify-content: center; gap: 0; padding: 0; }
   .sidebar .nav > div + div { border-top: none; margin-top: 0; padding-top: 0; }
 
@@ -3893,7 +3898,10 @@ td.lb-actions {
    the thing to spend width on last. */
 @media (max-width: 1320px) {
   .shell > .sidebar { width: var(--rail-collapsed); }
-  .shell .brand-text,
+  /* The rail is 56 pixels here, which is the mark's width and a third of the
+     lockup's. Same swap the collapse button makes. */
+  .shell .brand .brand-lockup { display: none; }
+  .shell .brand .logo { display: block; }
   .shell .nav-label,
   .shell .nav-section { display: none; }
   .shell .nav a { justify-content: center; padding: 0; }
@@ -4651,6 +4659,40 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
      different fill, so it stacks with is-on instead of fighting it: a cell can
      be both granted and non-standard, and both facts have to survive. */
   border-left-width: 3px; border-left-color: var(--accent);
+}
+
+/* The logo, with its own writing.
+
+   Everywhere the brand appears it used to be the mark beside "RX5000" set in
+   the interface font. The real wordmark sets RX in a navy italic and 5000 in a
+   red one, with its tagline under a rule, and retyping it in Inter reproduces
+   none of that.
+
+   A background-image rather than an <img> with a src chosen in React, because
+   the theme has three states — light, dark, and following the machine — and
+   only a stylesheet can answer all three from one rule. The dark file is the
+   reversed artwork: the wordmark's navy is #032153, which on the dark surface
+   is a contrast of about 1.4 to 1, so on that theme the word is not hard to
+   read, it is absent. */
+.brand-lockup {
+  display: block;
+  background-image: url("/logo-full.png");
+  background-repeat: no-repeat;
+  background-position: left center;
+  background-size: contain;
+  /* The artwork is 471x149. Stated as a ratio so a height anywhere gives the
+     right width without a second number to keep in step. */
+  aspect-ratio: 471 / 149;
+  width: 100%;
+  max-width: 232px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-lockup {
+    background-image: url("/logo-full-dark.png");
+  }
+}
+:root[data-theme="dark"] .brand-lockup {
+  background-image: url("/logo-full-dark.png");
 }
 
 /* Which shop you are standing in.
