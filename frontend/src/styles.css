@@ -383,7 +383,7 @@ a:hover { opacity: 0.75; }
 /* Open, the rail shows the logo as drawn. The mark on its own is for when
    there is no room for the words. */
 /* 30px in a 56px row leaves even air above and below. */
-.brand .brand-lockup { height: 30px; }
+.brand .brand-lockup { height: 30px; width: 95px; }
 .brand .logo { display: none; }
 .shell.is-collapsed .brand .brand-lockup { display: none; }
 .shell.is-collapsed .brand .logo { display: block; }
@@ -933,7 +933,7 @@ label {
    .login-card so the till lock and the PIN dialogs keep their full targets. */
 .login-card .field { margin-bottom: var(--s3); }
 .login-card .pin-box { width: 40px; height: 42px; font-size: 1.15rem; }
-.login-card .brand-lg .brand-lockup { height: 52px; }
+.login-card .brand-lg .brand-lockup { height: 52px; width: 164px; }
 .login-card p.tag { margin: 4px 0 14px; }
 .login-card .login-lead { margin-bottom: var(--s3); }
 .login-card .login-go { margin-top: 6px; }
@@ -1041,7 +1041,7 @@ label {
      than being asked to fill a share of the screen. */
   .login-wrap { padding: var(--s3) var(--s4); }
   .login-card { --login-h: 498px; padding: 18px 22px; }
-  .login-card .brand-lg .brand-lockup { height: 44px; }
+  .login-card .brand-lg .brand-lockup { height: 44px; width: 139px; }
   .login-card p.tag { margin: 4px 0 10px; }
   .login-card .login-lead { margin-bottom: 10px; }
   .login-card .field { margin-bottom: 10px; }
@@ -4681,14 +4681,24 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   background-repeat: no-repeat;
   background-position: left center;
   background-size: contain;
-  /* Sized by HEIGHT, with the width following from the artwork's own 471x149.
-     Every placement is answering "how tall should the logo be here", and
-     capping the width instead is what made the sidebar's copy 53 pixels tall
-     in a 56 pixel row — a pixel and a half of air, which reads as a logo that
-     does not fit rather than one that was placed. */
+  /* Sized by HEIGHT, with the width stated rather than inferred.
+
+     Every placement is answering "how tall should the logo be here", and the
+     width is that times the artwork's own ratio: 471/149, or 3.1611.
+
+     Stated, because this element lives in a flex row on both the login card
+     and the sidebar, and a flex item resolves its main size from its content —
+     which for an empty span carrying a background is nothing. `aspect-ratio`
+     was supposed to supply the width from the definite height; inside a flex
+     container it did not, the box came out 52 pixels tall and zero wide, and
+     `background-size: contain` had nothing to paint into. The logo was
+     missing from the login page entirely.
+
+     `flex: none` so neither row can shrink it back to nought. */
   aspect-ratio: 471 / 149;
+  flex: none;
   height: 34px;
-  width: auto;
+  width: 107px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .brand-lockup {
