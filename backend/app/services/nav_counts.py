@@ -16,7 +16,7 @@ number will one day appear.
 """
 from datetime import date, datetime, timedelta
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import (
@@ -39,13 +39,43 @@ def _count(query) -> int:
 
     `count()` wraps the query as a subquery with the entity intact, so the
     filter survives. It is the same single round trip and no rows are loaded.
+
+    Kept for the one caller that asks a single question. `_count_many` is what
+    the sidebar uses, and it preserves the entity the same way.
     """
     return int(query.count() or 0)
+
+
+def _count_many(db: Session, queries: dict[str, object]) -> dict[str, int]:
+    """Count several queries in one statement.
+
+    The sidebar asked thirteen separate questions, and refreshes on every
+    navigation and on a ninety-second timer. Thirteen sequential round trips to
+    a database in another region is most of the two seconds that cost.
+
+    Each count is still `count(*)` over the ORM query as a subquery — the same
+    shape `Query.count()` produces, with the entity present in the inner select
+    so the tenancy filter has something to attach to. They are composed into one
+    SELECT of scalar subqueries rather than executed one at a time.
+
+    `qa/nav-counts.py` asserts the scoping survives this, with two pharmacies
+    and different numbers of everything, because the failure mode is silent:
+    the badges look plausible and are somebody else's.
+    """
+    labels = list(queries)
+    columns = [
+        select(func.count()).select_from(queries[name].subquery())
+        .scalar_subquery().label(f"c{i}")
+        for i, name in enumerate(labels)
+    ]
+    row = db.execute(select(*columns)).one()
+    return {name: int(row[i] or 0) for i, name in enumerate(labels)}
 
 
 def for_nav(db: Session) -> dict[str, int]:
     """Counts keyed by the route each badge belongs to. Zeros are dropped."""
     out: dict[str, int] = {}
+    batch: dict[str, object] = {}
 
     # --- dispensary ---------------------------------------------------------
     # The worklist's own filter, counted in SQL. `pending()` builds the whole
@@ -56,7 +86,7 @@ def for_nav(db: Session) -> dict[str, int]:
     # One horizon, owned by the worklist service.
     horizon = date.today() + timedelta(days=worklist.REPEAT_HORIZON_DAYS)
     from ..models import PrescriptionItem
-    out["/repeats"] = _count(
+    batch["/repeats"] = (
         db.query(PrescriptionItem).filter(
             PrescriptionItem.next_repeat_date.isnot(None),
             PrescriptionItem.next_repeat_date <= horizon,
@@ -67,48 +97,48 @@ def for_nav(db: Session) -> dict[str, int]:
     # per line, which means a query per row — the right answer for the page,
     # the wrong shape for a badge. Counting what is owed is the figure the
     # section header leads with anyway.
-    out["/to-follows"] = _count(
+    batch["/to-follows"] = (
         db.query(OwedItem).filter(OwedItem.status == "outstanding"))
 
     # A waybill that has neither arrived nor been called off is still somebody's
     # job. Expressed as "not finished" rather than a list of in-flight states, so
     # a new state added later counts as work instead of silently vanishing.
-    out["/deliveries"] = _count(
+    batch["/deliveries"] = (
         db.query(Waybill).filter(~Waybill.status.in_(("delivered", "cancelled"))))
 
     # A bag on the shelf a week or more is somebody's job. Fresh ones are not:
     # a badge that counts this morning's dispensings is a badge that always shows
     # a number and therefore means nothing.
-    out["/will-call"] = _count(
+    batch["/will-call"] = (
         db.query(Dispensing).filter(
             Dispensing.collected_at.is_(None),
             Dispensing.dispensed_at <= datetime.utcnow() - timedelta(days=7)))
 
     # --- front shop ---------------------------------------------------------
-    out["/laybys"] = _count(
+    batch["/laybys"] = (
         db.query(LayBy).filter(LayBy.status == "active",
                                LayBy.due_date.isnot(None),
                                LayBy.due_date < date.today()))
 
     # --- stock --------------------------------------------------------------
-    out["/stock"] = _count(
+    batch["/stock"] = (
         db.query(Product).filter(Product.active,
                                  Product.reorder_level > 0,
                                  Product.quantity_on_hand <= Product.reorder_level))
-    out["/orders"] = _count(
+    batch["/orders"] = (
         db.query(PurchaseOrder).filter(PurchaseOrder.status.in_(("draft", "sent"))))
 
     # --- accounts -----------------------------------------------------------
     # Exactly the filter behind /api/claiming/unbatched, which is the list the
     # page shows: claims not yet in a batch, excluding real-time schemes that
     # never batch at all.
-    out["/claiming"] = _count(
+    batch["/claiming"] = (
         db.query(Claim)
         .join(MedicalAid, Claim.medical_aid_id == MedicalAid.id)
         .filter(Claim.batch_id.is_(None), MedicalAid.realtime.is_(False)))
 
     # Authorisations about to lapse: the only ones worth interrupting for.
-    out["/authorisations"] = _count(
+    batch["/authorisations"] = (
         db.query(Authorisation).filter(
             Authorisation.status == "approved",
             Authorisation.valid_to.isnot(None),
@@ -119,10 +149,13 @@ def for_nav(db: Session) -> dict[str, int]:
     out["/remittances"] = count
 
     # --- business -----------------------------------------------------------
-    out["/helpdesk"] = _count(
+    batch["/helpdesk"] = (
         db.query(Ticket).filter(Ticket.status.in_(("open", "pending"))))
 
     # A message that failed to reach a patient fails silently by nature.
-    out["/reminders"] = _count(db.query(Message).filter(Message.status == "failed"))
+    batch["/reminders"] = db.query(Message).filter(Message.status == "failed")
+
+    # The eleven plain counts, in one statement rather than eleven.
+    out.update(_count_many(db, batch))
 
     return {route: n for route, n in out.items() if n > 0}
