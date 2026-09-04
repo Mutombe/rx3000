@@ -2577,7 +2577,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
 name = "rx5000"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "tauri",
  "tauri-build",
