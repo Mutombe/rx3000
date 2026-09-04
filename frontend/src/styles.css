@@ -1057,14 +1057,18 @@ label {
   font-family: var(--font-display); font-size: 25px; font-weight: 700; letter-spacing: -0.03em;
   display: flex; align-items: center; gap: 10px;
 }
-.login-card .brand-lg img {
-  width: 40px; height: 40px; object-fit: contain;
-  filter: drop-shadow(0 4px 12px rgba(59, 62, 86, 0.25));
-}
-.login-card .brand-lg span {
-  background: linear-gradient(120deg, #c98d95, var(--indigo));
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-}
+/* Two rules lived here — one sizing an <img>, one filling a <span> with a
+   gradient clipped to its text. Both described `<img> <div>RX<span>5000</span>`,
+   which is gone: the card shows the real lockup now.
+
+   The span rule is why the logo did not appear at all. The lockup IS a span
+   inside .brand-lg, and `.login-card .brand-lg span` outranks `.brand-lockup`,
+   so it replaced the logo with a gradient and clipped that to text the element
+   does not have. Nothing was painted, nothing errored, and the stylesheet read
+   correctly in every static check.
+
+   Nothing replaces them. The lockup states its own size and carries its own
+   colours, which is the point of using the artwork. */
 .login-card p.tag { color: var(--ink-soft); margin: 5px 0 18px; font-size: 12.5px; }
 /* The seeded logins, as a line of text.
    It used to be a bordered, tinted panel, which gave a development convenience
@@ -4921,8 +4925,9 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   font-family: var(--font-display); font-size: 24px; font-weight: 700;
   letter-spacing: -0.03em; display: flex; align-items: center; gap: 10px;
 }
-.pub-head .brand-lg img { width: 34px; height: 34px; object-fit: contain; }
-.pub-head .brand-lg span { color: var(--ink-soft); }
+/* Same pair, same reason: these described the mark and the typeset wordmark
+   the welcome and training pages used to show. A rule that names `span` styles
+   whatever span turns up there next, and the next one was the logo. */
 
 .pub-hero { max-width: 68ch; margin-bottom: var(--s12); }
 .pub-hero h1 {

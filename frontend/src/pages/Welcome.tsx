@@ -59,7 +59,6 @@ export default function Welcome() {
         <div className="brand-lg">
           <span className="brand-lockup" role="img"
                aria-label="RX5000, pharmacy operating system" />
-          <div>RX<span>5000</span></div>
         </div>
         <Link to="/login" className="btn small">Sign in</Link>
       </header>
