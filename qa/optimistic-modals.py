@@ -42,6 +42,21 @@ A `try` with no such close is not behind a dialog. A close inside a nested
 block is conditional on something, so moving it would change behaviour rather
 than timing; those are listed separately to be read.
 
+AND THEN THE SECOND QUESTION, WHICH IS THE ONE THAT MATTERS
+
+Closing the dialog early is the cheap half. Twenty screens were converted to
+do it and every one of them passed this check, and every one of them still made
+somebody wait: the dialog went, and the table sat exactly as it was until the
+server answered. On a branch line that is a second or two of a screen that
+looks like nothing happened, which is when a person presses the button again.
+
+So a screen that renders a list and writes to it through a dialog is also
+asked whether the row turns up. `useOptimisticList` puts a placeholder in at
+once, keeps a snapshot to undo it, and marks it so the row is drawn faded and
+cannot be clicked or selected. A screen that only closes early is listed as
+`half` — not failing, because closing early is a real improvement, but not
+finished either.
+
     python qa/optimistic-modals.py            what is left
     python qa/optimistic-modals.py --strict   fail while anything is left
 """
@@ -66,7 +81,14 @@ CLOSE = re.compile(
     r'set[A-Z]\w*\((?:null|false|undefined)\))\s*;')
 
 #: Modal markup, in either of the two shapes this product uses.
-MODAL = re.compile(r'modal-backdrop|<Modal')
+MODAL = re.compile(r'modal-backdrop|<Modal\b')
+
+#: A screen that renders a list, writes to it, and does so from a dialog. All
+#: three have to be true before "does the row appear" is even a question.
+LISTS = re.compile(r'<table|\.map\(\s*\(?\w+\)?\s*=>\s*<(tr|li)\b|<RowLink')
+WRITES = re.compile(r'api\.(post|put|patch|delete)\b')
+DIALOG = re.compile(r'modal-backdrop|<Modal\b|useConfirm|setAdding|setEditing'
+                    r'|setShowForm|setRaising|setAsking')
 
 
 def guards_a_dialog(text: str, statement: str) -> bool:
@@ -219,6 +241,33 @@ def main() -> int:
         print()
     for at, how in sorted(conditional):
         print(f"  read  {at:<44} {how} is conditional, so it is a judgement")
+
+    # ---- does a row actually appear? ------------------------------------
+    #
+    # Only screens that both render a table and write to it through a dialog.
+    # A dialog that writes somewhere else has no row here to place.
+    rows_now: list[str] = []
+    rows_later: list[str] = []
+    for file in sorted(list((SRC / "pages").glob("*.tsx"))
+                       + list((SRC / "components").glob("*.tsx"))):
+        if file.name in SETTLED:
+            continue
+        text = file.read_text(encoding="utf-8", errors="replace")
+        if not (LISTS.search(text) and WRITES.search(text)):
+            continue
+        if not DIALOG.search(text):
+            continue
+        where = f"{file.parent.name}/{file.name}"
+        if "useOptimisticList" in text:
+            rows_now.append(where)
+        else:
+            rows_later.append(where)
+
+    total_lists = len(rows_now) + len(rows_later)
+    print(f"\n  {len(rows_now)} of {total_lists} list screen(s) show the row "
+          f"before the server answers\n")
+    for where in rows_later:
+        print(f"  half  {where:<40} the dialog closes, the table waits")
 
     print(f"\n  {len(SETTLED)} screen(s) and {len(settled_here)} single "
           f"dialog(s) wait on purpose:")
