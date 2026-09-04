@@ -829,19 +829,34 @@ def _fill_null_text(conn, inspector, existing_tables: set) -> int:
         if table not in existing_tables:
             continue
         present = {c["name"] for c in inspector.get_columns(table)}
-        for column, ddl_type in columns.items():
-            if column not in present:
-                continue
-            if "CHAR" not in ddl_type.upper() and "TEXT" not in ddl_type.upper():
-                continue
-            if "DEFAULT ''" not in ddl_type:
-                continue
-            done = conn.execute(text(
-                f"UPDATE {table} SET {column} = '' WHERE {column} IS NULL"
-            )).rowcount
-            if done:
-                log.info("Filled %s NULL %s.%s", done, table, column)
-                filled += 1
+        wanted = [
+            column for column, ddl_type in columns.items()
+            if column in present
+            and ("CHAR" in ddl_type.upper() or "TEXT" in ddl_type.upper())
+            and "DEFAULT ''" in ddl_type
+        ]
+        if not wanted:
+            continue
+
+        # One statement per table rather than one per column.
+        #
+        # This used to run an UPDATE for each column — thirty-six of them
+        # across the schema, each a full scan looking for NULLs that were
+        # filled the first time this ever ran. That is thirty-six round trips
+        # and thirty-six scans to write nothing, and it is paid on every cold
+        # start rather than once at deployment.
+        #
+        # The condition is the same and so is the result: a row is touched
+        # only if one of these columns is NULL, and each column is set to the
+        # value its DEFAULT would have given it.
+        sets = ", ".join(f"{c} = COALESCE({c}, '')" for c in wanted)
+        where = " OR ".join(f"{c} IS NULL" for c in wanted)
+        done = conn.execute(text(
+            f"UPDATE {table} SET {sets} WHERE {where}")).rowcount
+        if done:
+            log.info("Filled NULLs in %s row(s) of %s (%s)",
+                     done, table, ", ".join(wanted))
+            filled += 1
     return filled
 
 

@@ -61,10 +61,10 @@ def me(user: User = Depends(auth.get_current_user),
         ]
 
     out = schemas.UserOut.model_validate(user).model_dump()
-    out["can"] = {
-        key: _permissions.can(db, user, key)
-        for key, _name, _roles in _permissions.CAPABILITIES
-    }
+    # All seventeen from two queries. Asking one at a time meant thirty-four
+    # sequential round trips to Neon on every page load, which is what made
+    # this endpoint take four and a half seconds.
+    out["can"] = _permissions.everything(db, user)
     out["branches"] = branches
     out["all_branches"] = visible is None
     out["branch"] = next((b for b in branches if b["id"] == user.branch_id), None)

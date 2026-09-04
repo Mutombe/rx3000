@@ -97,7 +97,21 @@ def role_has(role: str, capability: str) -> bool:
     return role in entry[2]
 
 
-def role_allows(db: Session, role: str, capability: str) -> bool:
+def role_matrix_rows(db: Session) -> dict[tuple[str, str], bool]:
+    """The pharmacy's whole role matrix, in one query.
+
+    Read once and passed down rather than queried per capability. The matrix is
+    at most roles x capabilities — under a hundred rows — so fetching all of it
+    costs one round trip and saves sixteen.
+    """
+    from ..models import RolePermission
+
+    return {(r.role, r.capability): bool(r.allowed)
+            for r in db.query(RolePermission).all()}
+
+
+def role_allows(db: Session, role: str, capability: str,
+                rows: dict[tuple[str, str], bool] | None = None) -> bool:
     """Does this role have this capability in THIS pharmacy?
 
     The built-in default from `CAPABILITIES`, unless the pharmacy has said
@@ -106,17 +120,18 @@ def role_allows(db: Session, role: str, capability: str) -> bool:
     did, and means a capability added in a later version arrives with its
     default rather than switched off for everybody.
 
+    `rows` is the whole matrix already read. Passed in by the caller that needs
+    every answer at once, so seventeen questions cost one query rather than
+    seventeen.
+
     `role_has` remains for the callers that only have a role and no session —
     it answers with the built-in default, which is the right answer to the
     question it can actually ask.
     """
-    from ..models import RolePermission
-
-    row = (db.query(RolePermission)
-           .filter(RolePermission.role == role,
-                   RolePermission.capability == capability).first())
-    if row is not None:
-        return bool(row.allowed)
+    if rows is None:
+        rows = role_matrix_rows(db)
+    if (role, capability) in rows:
+        return rows[(role, capability)]
     return role_has(role, capability)
 
 
@@ -216,8 +231,14 @@ def _within_hours(grant: UserPermission, at: datetime) -> bool:
 
 def check(db: Session, user: User, capability: str, *,
           branch_id: int | None = None, amount: float = 0.0,
-          at: datetime | None = None) -> dict:
+          at: datetime | None = None,
+          grants: list[UserPermission] | None = None,
+          role_rows: dict[tuple[str, str], bool] | None = None) -> dict:
     """May this person do this, here, now, for this much.
+
+    `grants` and `role_rows` are the two tables this needs. Passed in by
+    `everything`, which reads them once for all seventeen capabilities; read
+    here when a caller asks about one.
 
     Returns a decision rather than a boolean, because "no" is rarely the whole
     answer. A ceiling that is exceeded is not a refusal — it is a request for
@@ -230,7 +251,8 @@ def check(db: Session, user: User, capability: str, *,
         limit          the ceiling that was hit, where one was
     """
     at = at or datetime.utcnow()
-    grants = grants_for(db, user.id)
+    if grants is None:
+        grants = grants_for(db, user.id)
     mine = [g for g in grants if g.capability == capability
             and (g.branch_id is None or g.branch_id == branch_id)]
 
@@ -248,7 +270,7 @@ def check(db: Session, user: User, capability: str, *,
 
     # The pharmacy's own answer for this role, which defaults to the
     # built-in one until somebody changes it on the role matrix.
-    from_role = role_allows(db, user.role, capability)
+    from_role = role_allows(db, user.role, capability, role_rows)
     if not from_role and not awake:
         if asleep:
             g = asleep[0]
@@ -345,6 +367,29 @@ def _yes(capability: str, why: str) -> dict:
 def _no(capability: str, why: str) -> dict:
     return {"capability": capability, "allowed": False,
             "needs_approval": False, "limit": None, "why": why}
+
+
+def everything(db: Session, user: User, *,
+               branch_id: int | None = None) -> dict[str, bool]:
+    """Every capability, yes or no, from two queries.
+
+    What `/api/auth/me` needs, and what it was getting the expensive way: it
+    asked seventeen separate questions and each one re-read the same two
+    tables, so a page load waited on thirty-four sequential round trips to a
+    database in another country. Four and a half seconds, none of it work.
+
+    Deliberately built on `check` rather than beside it. A faster second
+    implementation of "may they" is how a permission system comes to say one
+    thing on a screen and another at the endpoint, and the screen is the one
+    people believe.
+    """
+    grants = grants_for(db, user.id)
+    role_rows = role_matrix_rows(db)
+    return {
+        key: check(db, user, key, branch_id=branch_id,
+                   grants=grants, role_rows=role_rows)["allowed"]
+        for key, _name, _roles in CAPABILITIES
+    }
 
 
 def can(db: Session, user: User, capability: str,
