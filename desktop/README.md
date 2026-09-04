@@ -31,16 +31,30 @@ opening a settings screen.
 
 ## Building
 
-Needs the Rust toolchain and the Tauri CLI:
+Use the publish script. It sets the version in both places that carry one,
+builds the front end, builds the installers, copies them into the site's
+downloads folder and checks the page's links resolve:
+
+```
+python desktop/publish.py 1.5.1
+```
+
+By hand needs the Rust toolchain and the Tauri CLI, **and the front end built
+first**:
 
 ```
 cargo install tauri-cli --version "^2"
+npm --prefix frontend run build
 cd desktop/src-tauri
 cargo tauri build
 ```
 
-The front end is built first by `beforeBuildCommand`, so `frontend/dist` does
-not need to exist beforehand.
+That first build is not optional and this file used to say it was — it claimed
+`beforeBuildCommand` did it, and there is no `beforeBuildCommand` in
+`tauri.conf.json`. `frontendDist` points at `frontend/dist` and the shell
+embeds whatever is sitting there, so skipping it ships the last build somebody
+happened to make. The installers are the one artefact nobody can tell is stale
+by looking at it.
 
 ## Not in this shell yet
 
