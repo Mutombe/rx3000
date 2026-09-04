@@ -61,11 +61,28 @@
    * button stops reading as identity and starts reading as decoration, and in
    * software someone stares at for nine hours it is simply tiring.
    */
-  --brand: #5d5878;
-  --brand-deep: #3b3e56;
+  /* Both sampled from the logo file rather than chosen: #032153 is the ink
+   * the wordmark sets "RX" in. The previous pair came off an earlier,
+   * washed-out rendering of the mark and no longer matched the artwork
+   * sitting next to them. Measured at 15.6:1 on the card, up from 10.45.
+   *
+   * The red half of the logo is deliberately NOT brought in here. Red already
+   * means danger in this interface, and a brand red on a link or a progress
+   * bar would be the one colour rule that contradicts itself. The mark carries
+   * the red; the interface carries the navy. */
+  --brand: #12306b;
+  --brand-deep: #032153;
   /* Kept as an alias: rules still reference it, and a token that
    * silently resolves to nothing paints an invisible element. */
   --indigo: var(--brand-deep);
+  /* These two are NOT the logo's colours, and are left as they are on purpose.
+   *
+   * They are decorative gradient stops — a lay-by progress bar, a kanban
+   * drop target, a deal-probability fill — not a reproduction of the mark.
+   * The logo's other half is a strong red, and red already means danger here.
+   * A brand red filling a progress bar would be the one place the colour
+   * language contradicts itself, so the mark keeps the red and the interface
+   * does not. */
   --mauve: #97829c;
   --rose: #f0b4b6;
   --blush: #fadcde;
@@ -5015,8 +5032,10 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   --wash-2: rgba(120, 98, 186, 0.32);
   --wash-3: rgba(48, 86, 168, 0.30);
 
-  --brand-deep: #b9b3e8;
-  --indigo: #b9b3e8;
+  /* The same navy, lifted until it reads on the dark ground: 8.31:1, against
+   * 8.89 for the periwinkle it replaces, and now in the logo's family. */
+  --brand-deep: #9ab4e0;
+  --indigo: #9ab4e0;
 
   /* Shadows do almost nothing on a dark ground; the lighter panel is the
      elevation. Kept faint so a card still has a soft edge. */

@@ -32,8 +32,8 @@
 .pp {
   /* The product's own palette, restated locally so this file stands alone if
      it is ever served without the staff sheet. */
-  --pp-brand: #5d5878;
-  --pp-brand-deep: #3b3e56;
+  --pp-brand: #12306b;
+  --pp-brand-deep: #032153;
   --pp-ink: #16161d;
   --pp-mid: #55545f;
   --pp-faint: #8b8a94;
@@ -76,7 +76,7 @@
 
 @media (prefers-color-scheme: dark) {
   .pp {
-    --pp-brand: #a9a3c8; --pp-brand-deep: #8f8ab0;
+    --pp-brand: #9ab4e0; --pp-brand-deep: #7f9ad6;
     --pp-ink: #f3f3f6; --pp-mid: #b9b8c2; --pp-faint: #8b8a94;
     --pp-line: #2c2c35; --pp-canvas: #101016; --pp-card: #191920;
     --pp-wash-1: rgba(93, 88, 120, 0.22);

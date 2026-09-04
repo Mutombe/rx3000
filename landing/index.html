@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RX5000 — Pharmacy management built for Zimbabwe</title>
 <meta name="description" content="Dispensing, claiming, stock and accounting for Zimbabwean pharmacies. MCAZ categories, AHFoZ claiming, ZIMRA fiscalisation, USD and ZiG.">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/logo.png">
+<meta name="theme-color" content="#032153">
 
 <!--
   One file, no build, no framework, no external requests.
@@ -24,15 +27,24 @@
   :root {
     --ink: #16161d; --ink-mid: #55555f; --ink-soft: #8a8a94;
     --line: #e4e4e9; --surface: #fff; --sunk: #fafafb;
-    /* Taken from the mark: it runs blush rose into deep indigo, so the page
-     * does too. The old teal was a placeholder that belonged to nothing. */
-    --accent: #3b3e56;          /* the deep end of the logo gradient */
-    --accent-soft: #f2eff3;
-    --rose: #f0b4b6;
-    --blush: #fadcde;
-    --indigo: #3b3e56;
-    --mauve: #97829c;
-    --brand-grad: linear-gradient(135deg, #f0b4b6 0%, #97829c 52%, #3b3e56 100%);
+    /* Taken from the mark, and re-taken when the mark was redrawn.
+     *
+     * These were sampled from an earlier, washed-out rendering: a blush rose
+     * running into a slate indigo. The logo is now properly saturated — the
+     * mark runs a strong red into a deep navy and the wordmark sets "RX" in
+     * that navy and "5000" in that red — so a page still painted in the pale
+     * version would have sat beside its own logo looking like a different
+     * company's site.
+     *
+     * Sampled rather than eyeballed: #ed3d30 and #032153 are the wordmark's
+     * own two inks, read off the file. */
+    --accent: #032153;          /* the deep end of the logo gradient */
+    --accent-soft: #eef1f7;
+    --rose: #ed3d30;
+    --blush: #fde3e0;
+    --indigo: #032153;
+    --mauve: #782f41;           /* where the two meet in the mark */
+    --brand-grad: linear-gradient(135deg, #ed3d30 0%, #782f41 52%, #032153 100%);
     --warn: #8a5a12; --warn-soft: #fbf0dd;
     --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
     --s6: 24px; --s8: 32px; --s12: 48px; --s16: 64px;
@@ -42,7 +54,9 @@
     :root {
       --ink: #f2f2f5; --ink-mid: #a8a8b4; --ink-soft: #74747f;
       --line: #2a2a33; --surface: #14141a; --sunk: #1b1b22;
-      --accent: #cbb8d0; --accent-soft: #221f2b;
+      /* The logo navy lifted to read on the dark ground, 8.72:1. It was a
+         pale mauve, sampled from the washed-out mark like the rest. */
+      --accent: #9ab4e0; --accent-soft: #1a2030;
       --warn: #d9a441; --warn-soft: #2c2312;
     }
   }
@@ -653,12 +667,12 @@
           Windows 10 and 11, 64-bit. 2.4 MB, installs per machine, no runtime to
           install alongside it.
         </p>
-        <a class="btn btn-primary" href="downloads/RX5000_1.4.2_x64-setup.exe" download>
+        <a class="btn btn-primary" href="downloads/RX5000_1.5.0_x64-setup.exe" download>
           Download for Windows
         </a>
         <p class="small">
           Prefer an MSI for Group Policy?
-          <a href="downloads/RX5000_1.4.2_x64_en-US.msi" download>RX5000 1.4.2 MSI</a>.
+          <a href="downloads/RX5000_1.5.0_x64_en-US.msi" download>RX5000 1.5.0 MSI</a>.
         </p>
       </div>
       <div class="card">
