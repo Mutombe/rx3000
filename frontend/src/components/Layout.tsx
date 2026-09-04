@@ -41,6 +41,8 @@ import {
   Van,
   Vault,
   IdentificationCard,
+  List,
+  X,
   Basket,
   SealCheck,
   TrendUp,
@@ -432,8 +434,18 @@ export default function Layout({ children }: { children: ReactNode }) {
               <div className="nav-section">{group.section}</div>
               {group.links.map((l) => (
                 <NavLink key={l.to} to={l.to} end={l.to === "/"}
-                  // Collapsed, the label is gone, so the title attribute is the
-                  // only thing naming the destination. It is not optional.
+                  // Named whatever the sheet is doing with the label.
+                  //
+                  // The visible label is hidden by CSS in two places now: the
+                  // collapsed desktop rail, and the whole mobile drawer, which
+                  // is icons only. `display: none` takes text away from a
+                  // screen reader as well as from the eye, so without this the
+                  // phone menu would be fifty links called nothing.
+                  //
+                  // Stated always rather than conditionally, because the
+                  // condition is a media query and this is TypeScript: the
+                  // component cannot see which of the two rules won.
+                  aria-label={l.label}
                   // Collapsed there is no label and no room for a badge, so the
                   // count goes into the title — otherwise the rail would say a
                   // number belonged to an icon without saying which number.
@@ -485,6 +497,22 @@ export default function Layout({ children }: { children: ReactNode }) {
         <DemoBar user={user} />
 
         <header className="topbar">
+          {/* The way into the navigation on a phone.
+              It used to be a tab riding on the edge of the drawer itself, so
+              once the drawer slid off-screen the handle went most of the way
+              with it: about eighteen pixels of a thirty-four pixel button, half
+              off the edge of the display, at a height that lined up with
+              nothing. Here it sits at the start of the top bar, on the bar's
+              own baseline, which is where a phone user reaches for it.
+              Desktop keeps the rail's own edge handle and never shows this. */}
+          <button
+            className="topbar-menu"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Open the menu" : "Close the menu"}
+            aria-expanded={!collapsed}
+          >
+            {collapsed ? <List size={20} weight="bold" /> : <X size={20} weight="bold" />}
+          </button>
           {/* Beside the profile, not inside it. Appearance is changed far more
               often than a profile is opened — a till by a window is squinted at
               twice a day, and burying it under a caret makes people live with

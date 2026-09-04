@@ -13,6 +13,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import { TableSkeleton } from "../components/Skeleton";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import PaymentInstruments from "../components/PaymentInstruments";
 import { useConfirm } from "../components/Confirm";
 
@@ -105,7 +106,6 @@ export default function Admin() {
   const [txnMeta, setTxnMeta] = useState<Paged<Txn> | null>(null);
   const [txnPage, setTxnPage] = useState(1);
   const [txnKind, setTxnKind] = useState("");
-  const [notices, setNotices] = useState<Notice[]>([]);
   const [noticeMeta, setNoticeMeta] = useState<Paged<Notice> | null>(null);
   const [noticePage, setNoticePage] = useState(1);
   const [noticeActive, setNoticeActive] = useState(true);
@@ -149,7 +149,8 @@ export default function Admin() {
         )
         .then((r) => { setTxns(r.items); setTxnMeta(r); if (r.page !== txnPage) setTxnPage(r.page); })
         .catch((e) => toast.error(errorText(e)));
-    if (tab === "notices") loadNotices();
+    // The notices load through their own hook, on the same three
+    // dependencies. Calling it here as well fetched the list twice.
     if (tab === "backups") loadBackups();
     if (tab === "automation") { loadRules(); api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }
     if (tab === "templates") loadTemplates();
@@ -237,44 +238,61 @@ export default function Admin() {
    */
   async function raiseNotice() {
     if (!notice.body.trim()) return;
-    try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setRaising(false);
-      await api.post("/api/counter-messages", {
+    {
+      const body = {
         scope: notice.scope,
         target_id: notice.target_id ? Number(notice.target_id) : null,
         severity: notice.severity,
         category: notice.category.trim(),
         body: notice.body.trim(),
         expires_on: notice.expires_on || null,
-      });
-      toast.ok(notice.severity === "block"
-        ? "Raised. Dispensing will stop on this until somebody signs for it."
-        : "Raised. Dispensers will see it at the counter.");
-      setNotice({ scope: "patient", target_id: "", severity: "warn",
-                  category: "", body: "", expires_on: "" });
-      loadNotices();
-    } catch (e) {
-      // The server checks the scope and the severity against its own lists and
-      // names the valid ones. Shown as written.
-      toast.error(errorText(e, "That notice could not be raised. Nothing was saved."));
+      };
+      // The row reads as the notice will read. The server adds who raised it
+      // and when; everything a dispenser would recognise is already here.
+      const draft = { ...body, active: true } as unknown as Notice;
+
+      setRaising(false);
+      const ok = await noticeList.create(draft,
+        () => api.post<Notice>("/api/counter-messages", body),
+        notice.severity === "block"
+          ? "Raised. Dispensing will stop on this until somebody signs for it."
+          : "Raised. Dispensers will see it at the counter.");
+      if (ok) {
+        setNotice({ scope: "patient", target_id: "", severity: "warn",
+                    category: "", body: "", expires_on: "" });
+      } else {
+        // Reopened with the wording still in it. The server checks the scope
+        // and the severity against its own lists and names the valid ones, and
+        // the hook has already shown that sentence — but the paragraph
+        // somebody wrote is not worth retyping to fix one dropdown.
+        setRaising(true);
+      }
     }
   }
 
-  function loadNotices() {
-    api
-      .get<Paged<Notice>>(
-        `/api/counter-messages/paged?active_only=${noticeActive}&page=${noticePage}&per_page=50`,
-      )
-      .then((r) => {
-        setNotices(r.items);
-        setNoticeMeta(r);
-        if (r.page !== noticePage) setNoticePage(r.page);
-      })
-      .catch((e) => toast.error(errorText(e)));
-  }
+  /* The notices, with the one just raised already among them.
+   *
+   * `enabled` on the tab: this is one of twelve panels on this screen and
+   * there is no reason to fetch counter notices for somebody looking at the
+   * price list. */
+  const noticeList = useOptimisticList<Notice>({
+    enabled: tab === "notices",
+    load: async () => {
+      const r = await api.get<Paged<Notice>>(
+        `/api/counter-messages/paged?active_only=${noticeActive}&page=${noticePage}&per_page=50`);
+      setNoticeMeta(r);
+      if (r.page !== noticePage) setNoticePage(r.page);
+      return r.items;
+    },
+    key: (n) => n.id,
+  });
+  const notices = noticeList.items;
+  const loadNotices = noticeList.reload;
+
+  useEffect(() => {
+    if (tab === "notices") noticeList.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, noticeActive, noticePage]);
 
   function loadRules() {
     api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(errorText(e)));
@@ -844,7 +862,7 @@ export default function Admin() {
             </thead>
             <tbody>
               {notices.map((n) => (
-                <tr key={n.id}>
+                <tr key={n.id} className={rowClass(noticeList.stateOf(n)) || undefined}>
                   <td>{fmtDateTime(n.created_at)}</td>
                   <td>
                     {n.scope}

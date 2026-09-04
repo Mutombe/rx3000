@@ -2318,33 +2318,66 @@ input:disabled, select:disabled, textarea:disabled {
 @media (max-width: 860px) {
   .shell { display: block; }
 
+  .topbar-menu { display: inline-flex; }
+
+  /* On a phone the drawer is a rail of icons, not a sheet of menu text.
+     It slides over the page and takes 56 pixels of it, so what is underneath
+     stays readable — a drawer covering 80% of a phone hides the very screen
+     somebody is navigating from.
+
+     Same width open or shut, so opening it slides rather than resizes. */
   .shell > .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
-    width: min(80vw, var(--rail));
+    width: var(--rail-collapsed);
     transform: translateX(0);
     transition: transform 180ms ease;
     box-shadow: 0 0 40px rgba(22, 22, 29, 0.18);
   }
-  /* Collapsed means "closed" here, not "narrow". */
   .shell.is-collapsed > .sidebar {
-    width: min(80vw, var(--rail));
+    width: var(--rail-collapsed);
     transform: translateX(-100%);
     box-shadow: none;
   }
-  /* The rail's icon-only mode is a desktop idea; a hidden drawer has no use
-     for it, and leaving it on stripped the labels off the open drawer too. */
-  .shell.is-collapsed .brand-text,
-  .shell.is-collapsed .nav-label,
-  .shell.is-collapsed .nav-section { display: revert; }
-  .shell.is-collapsed .nav a { justify-content: flex-start; padding: 0 var(--s3); }
-  .shell.is-collapsed .nav > div + div { border-top: none; margin-top: 0; padding-top: 0; }
 
-  /* The handle rides with the drawer, staying reachable when it is closed. */
-  .rail-toggle {
-    top: 12px; right: -16px;
-    width: 34px; height: 34px;      /* a thumb target, not a mouse target */
+  /* Everything that is not an icon goes.
+
+     The section headings — Dispensary, Front Shop, Stock — are seven extra
+     rows in a list somebody is already scrolling, and they group items that
+     are adjacent anyway.
+
+     The counts go with them. A badge is a glance signal, and a glance is what
+     a phone user does not get here: the drawer is only up while they are
+     choosing, and it is gone the moment they act. The dot goes for the same
+     reason rather than surviving as the number's smaller cousin. They both
+     stay on the desktop rail, which is on screen beside the work all day.
+
+     The labels go last, and they are the reason the rail can be 56 pixels
+     instead of 80% of the display.
+
+     This is the shape the desktop rail already takes when it is collapsed, so
+     it is the same design rather than a second one — the rules below only
+     exist because "collapsed" means "hidden" on a phone and cannot carry the
+     icon-only styling as well. */
+  .sidebar .brand-text,
+  .sidebar .nav-label,
+  .sidebar .nav-section,
+  .sidebar .nav-count,
+  .sidebar .nav-dot { display: none; }
+  .sidebar .brand { justify-content: center; gap: 0; padding: 0; }
+  .sidebar .nav > div + div { border-top: none; margin-top: 0; padding-top: 0; }
+
+  /* Centred, and tall enough for a thumb rather than a mouse. */
+  .sidebar .nav a {
+    justify-content: center; padding: 0;
+    height: 44px; margin: 0 auto; width: 44px;
   }
-  .rail-toggle svg { width: 16px; height: 16px; }
+  .sidebar .nav { padding: var(--s2) 0; }
+
+  /* The drawer's own edge handle is replaced by the button in the top bar.
+     It stayed reachable when the drawer was closed only in the sense that
+     eighteen of its thirty-four pixels were still on screen, at a height that
+     lined up with nothing. */
+  .rail-toggle { display: none; }
 
   .main { padding: var(--s5) var(--s4) var(--s10); max-width: none; }
 
@@ -4556,6 +4589,21 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   margin: -1px; padding: 0; border: 0;
   clip-path: inset(50%); overflow: hidden; white-space: nowrap;
 }
+
+/* The way into the navigation on a phone.
+   Hidden on a desktop, where the rail has its own edge handle and is usually
+   open anyway. It is the first thing in the bar and the bar is `flex-end`, so
+   `margin-right: auto` pushes everything else over and leaves it at the start
+   — on the bar's own centre line, which is the whole complaint it answers. */
+.topbar-menu {
+  display: none;
+  width: 38px; height: 38px; flex: none;
+  margin-right: auto;
+  align-items: center; justify-content: center;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+}
+.topbar-menu:hover { background: var(--hover); }
 
 .topbar-sep {
   width: 1px; height: 18px; background: var(--line);

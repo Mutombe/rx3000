@@ -13,6 +13,7 @@
  *  into, and a half-made pharmacy looks finished from a list.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { ArrowClockwise, Buildings, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate } from "../api";
 import BusyButton from "../components/BusyButton";
@@ -37,12 +38,37 @@ const BLANK = {
 };
 
 export default function Pharmacies() {
-  const [rows, setRows] = useState<Pharmacy[]>([]);
-  const [error, setError] = useState("");
   const [forbidden, setForbidden] = useState(false);
   const [spinning, setSpinning] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+
+  /* The list, with the row you just added already in it.
+   *
+   * The dialog used to close and then nothing happened until the server
+   * answered — on a branch line that is a second or two of a table that looks
+   * exactly as it did before you pressed the button, which is the moment
+   * somebody presses it again. The placeholder goes in at once, drawn in a
+   * quieter state, and is replaced by the real row when the server confirms or
+   * taken away again if it refuses. */
+  const list = useOptimisticList<Pharmacy>({
+    load: async () => {
+      setSpinning(true);
+      try {
+        const d = await api.get<{ items: Pharmacy[] }>("/api/pharmacies");
+        setForbidden(false);
+        return d.items ?? [];
+      } catch (e: any) {
+        // A 403 here is not a broken list, it is a person who may not see the
+        // estate. Said in its own words rather than as a load failure.
+        if (e?.status === 403) { setForbidden(true); return []; }
+        throw e;
+      } finally {
+        window.setTimeout(() => setSpinning(false), 350);
+      }
+    },
+    key: (p) => p.id,
+  });
+  const rows = list.items;
   const [form, setForm] = useState({ ...BLANK });
   const [open, setOpen] = useState<Pharmacy | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
@@ -50,23 +76,19 @@ export default function Pharmacies() {
   const [moving, setMoving] = useState("");
   const toast = useToast();
 
-  const load = useCallback(() => {
-    setSpinning(true);
-    api.get<{ items: Pharmacy[] }>("/api/pharmacies")
-      .then((d) => { setRows(d.items ?? []); setError(""); setForbidden(false); })
-      .catch((e: any) => {
-        if (e?.status === 403) setForbidden(true);
-        else setError(errorText(e, "The pharmacies could not be loaded."));
-      })
-      .finally(() => {
-        setLoading(false);
-        window.setTimeout(() => setSpinning(false), 350);
-      });
+  /* The people belonging to no pharmacy, which is a second list on the same
+   * screen and not part of the optimistic one. */
+  const loadLoose = useCallback(() => {
     api.get<{ items: Person[] }>("/api/pharmacies/unassigned/users")
       .then((d) => setLoose(d.items ?? []))
       .catch(() => setLoose([]));
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadLoose(); }, [loadLoose]);
+
+  const load = useCallback(() => {
+    list.reload();
+    loadLoose();
+  }, [list, loadLoose]);
 
   function openPharmacy(p: Pharmacy) {
     setOpen(p);
@@ -77,17 +99,27 @@ export default function Pharmacies() {
   }
 
   async function create() {
-    try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAdding(false);
-      const made = await api.post<Pharmacy>("/api/pharmacies", form);
-      toast.ok(`${made.name} created, with its first branch and administrator.`);
+    // Closed before the write, and the row is in the table before the request
+    // has left. `create` puts the draft in, swaps it for whatever the server
+    // returns, and removes it again with a message if the server refuses.
+    // Taken once, so the request and the placeholder are the same thing even
+    // if the form is edited or cleared underneath them.
+    const draft = { ...form } as unknown as Pharmacy;
+    setAdding(false);
+    const ok = await list.create(
+      draft,
+      () => api.post<Pharmacy>("/api/pharmacies", draft),
+      `${draft.name} created, with its first branch and administrator.`,
+    );
+    if (ok) {
       setForm({ ...BLANK });
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That pharmacy could not be created. Nothing was saved."));
+      loadLoose();
+    } else {
+      // The form is reopened still holding what they typed. A refusal here is
+      // usually a name already taken, and retyping six fields to change one
+      // word is a punishment for the server's answer. The hook has already
+      // taken the row back out and said why.
+      setAdding(true);
     }
   }
 
@@ -151,7 +183,7 @@ export default function Pharmacies() {
         </div>
       </div>
 
-      {error && <div className="alert error">{error}</div>}
+      {list.error && <div className="alert error">{list.error}</div>}
 
       {/* People who belong to no pharmacy can sign in and then see nothing,
           because the scoping fails closed. Safe, but baffling for whoever it
@@ -171,7 +203,7 @@ export default function Pharmacies() {
 
       <div className="card">
         <Refreshable
-          loading={loading}
+          loading={list.loading}
           hasData={rows.length > 0}
           skeleton={<TableSkeleton cols={5} rows={4}
                                    widths={["22ch", "14ch", "8ch", "10ch", "10ch"]} />}
@@ -186,7 +218,8 @@ export default function Pharmacies() {
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id} className={p.active ? "" : "row-flag"}>
+              <tr key={p.id}
+                  className={`${p.active ? "" : "row-flag"} ${rowClass(list.stateOf(p))}`.trim()}>
                 <td>
                   <b>{p.name}</b>
                   <div className="muted small">
@@ -215,7 +248,7 @@ export default function Pharmacies() {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && !loading && (
+        {rows.length === 0 && !list.loading && (
           <div className="empty">
             <b>No pharmacies yet</b>
             <p>

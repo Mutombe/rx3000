@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CaretDown, CaretRight, Plus, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime } from "../api";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
@@ -88,13 +89,28 @@ export default function Samples() {
   const [staff, setStaff] = useState<{ id: number; full_name: string }[]>([]);
   const [witness, setWitness] = useState("");
 
-  const load = useCallback(() =>
-    api.get<Register>(`/api/samples?only_open=${openOnly}`)
-      .then((r) => { setReg(r); setFailed(""); })
-      .catch((e) => setFailed(errorText(e, "The register could not be read."))),
-  [openOnly]);
+  /* The receipts, with the one just booked already among them.
+   *
+   * `reg` keeps the totals; the hook keeps the rows. A placeholder is a row
+   * this shop has but the server has not counted yet, so the header figures
+   * stay a beat behind on purpose — "open receipts: 12" is the server's count
+   * and should not claim 13 before the server agrees. */
+  const list = useOptimisticList<Receipt>({
+    load: async () => {
+      const r = await api.get<Register>(`/api/samples?only_open=${openOnly}`);
+      setReg(r);
+      setFailed("");
+      return r.items ?? [];
+    },
+    key: (r) => r.id,
+  });
+  const load = list.reload;
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // The register is read afresh when the filter changes.
+    list.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openOnly]);
   useEffect(() => {
     api.get<any[]>("/api/products?limit=300").then((r) =>
       setProducts((Array.isArray(r) ? r : (r as any).items ?? []).map((p: any) =>
@@ -115,26 +131,39 @@ export default function Samples() {
   }
 
   async function receive() {
-    try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAdding(false);
-      await api.post("/api/samples", {
-        product_id: Number(form.product_id),
-        quantity: Number(form.quantity),
-        supplier_name: form.supplier_name,
-        representative: form.representative,
-        batch_number: form.batch_number,
-        expiry_date: form.expiry_date || null,
-        notes: form.notes,
-      });
-      toast.ok("Booked into the register.");
+    const body = {
+      product_id: Number(form.product_id),
+      quantity: Number(form.quantity),
+      supplier_name: form.supplier_name,
+      representative: form.representative,
+      batch_number: form.batch_number,
+      expiry_date: form.expiry_date || null,
+      notes: form.notes,
+    };
+    // What the row will say while the server is deciding. Named from the
+    // picker rather than left blank: a placeholder that says nothing is a
+    // grey bar, and a grey bar does not confirm you booked the right product.
+    const named = products.find((x) => x.id === body.product_id);
+    const draft = {
+      ...body,
+      product: named ? `${named.name} ${named.strength}`.trim() : "",
+      quantity_left: body.quantity,
+    } as unknown as Receipt;
+
+    setAdding(false);
+    const ok = await list.create(
+      draft,
+      () => api.post<Receipt>("/api/samples", body),
+      "Booked into the register.",
+    );
+    if (ok) {
       setForm({ product_id: "", quantity: "", supplier_name: "", representative: "",
                 batch_number: "", expiry_date: "", notes: "" });
-      await load();
-    } catch (e) {
-      toast.error(errorText(e, "That could not be recorded. Nothing was saved."));
+    } else {
+      // Reopened holding what they typed. A sample receipt is eight fields off
+      // a delivery note, and retyping them because a batch number clashed is
+      // the kind of thing that makes people keep the paper register instead.
+      setAdding(true);
     }
   }
 
@@ -258,7 +287,7 @@ export default function Samples() {
         </div>
 
         {!reg && !failed && <TableSkeleton cols={6} rows={5} />}
-        {reg && reg.items.length === 0 && (
+        {reg && list.items.length === 0 && (
           <div className="empty">
             <b>Nothing in the register.</b>
             <p>
@@ -273,7 +302,7 @@ export default function Samples() {
           </div>
         )}
 
-        {reg && reg.items.length > 0 && (
+        {reg && list.items.length > 0 && (
           <div className="dt-scroll">
             <table className="dt">
               <thead>
@@ -283,9 +312,11 @@ export default function Samples() {
                 </tr>
               </thead>
               <tbody>
-                {reg.items.map((r) => (
+                {list.items.map((r) => (
                   <>
-                    <tr key={r.id} className="row-click" onClick={() => openRow(r)}>
+                    <tr key={r.id}
+                        className={`row-click ${rowClass(list.stateOf(r))}`.trim()}
+                        onClick={() => !list.isPending(r) && openRow(r)}>
                       <td>{expanded === r.id ? <CaretDown size={13} /> : <CaretRight size={13} />}</td>
                       <td className="mono">{r.reference}</td>
                       <td>

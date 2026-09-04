@@ -22,6 +22,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import LookupInput, { LookupItem } from "../components/LookupInput";
 import { TableSkeleton } from "../components/Skeleton";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
@@ -75,7 +76,6 @@ async function searchDiagnoses(q: string): Promise<LookupItem[]> {
 export default function Authorisations() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [rows, setRows] = useState<Auth[] | null>(null);
   const [meta, setMeta] = useState<Paged<Auth> | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
@@ -106,21 +106,27 @@ export default function Authorisations() {
   const [useQty, setUseQty] = useState("");
   const [useAmount, setUseAmount] = useState("");
 
-  const load = useCallback(() => {
-    api.get<Paged<Auth>>(
-      `/api/authorisations/paged?page=${page}&per_page=${perPage}`
-      + `&q=${encodeURIComponent(settled)}`)
-      .then((res) => {
-        // The previous page stays on screen until the next one arrives, so
-        // paging never blanks the table or collapses its height.
-        setRows(res.items);
-        setMeta(res);
-        if (res.page !== page) setPage(res.page);
-      })
-      .catch((e) => toast.error(errorText(e, "The authorisations could not be listed.")));
-  }, [toast, page, perPage, settled]);
+  const list = useOptimisticList<Auth>({
+    load: async () => {
+      const res = await api.get<Paged<Auth>>(
+        `/api/authorisations/paged?page=${page}&per_page=${perPage}`
+        + `&q=${encodeURIComponent(settled)}`);
+      // The previous page stays on screen until the next one arrives, so
+      // paging never blanks the table or collapses its height.
+      setMeta(res);
+      if (res.page !== page) setPage(res.page);
+      return res.items;
+    },
+    key: (a) => a.id,
+  });
+  const rows = list.items;
+  const load = list.reload;
 
-  useEffect(load, [load]);
+  // Paging and searching re-read the list.
+  useEffect(() => {
+    list.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, perPage, settled]);
 
   // A new search on page 7 of a set that now has two pages shows nothing at all.
   const firstSearch = useRef(true);
@@ -145,11 +151,7 @@ export default function Authorisations() {
     e.preventDefault();
     setBusy("request");
     try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAsking(false);
-      const made = await api.post<Auth>("/api/authorisations", {
+      const body = {
         funder_id: funder.trim().toUpperCase(),
         policy_number: policy.trim(),
         // Which member on the policy. A family shares one policy number and the
@@ -164,18 +166,38 @@ export default function Authorisations() {
         motivation: motivation.trim(),
         requested_quantity: Number(qty) || 0,
         requested_amount: Number(amount) || 0,
+      };
+      // What the row says while the funder is deciding. `pending` is the truth
+      // at that moment rather than a guess: the request has gone and nothing
+      // has come back.
+      const draft = {
+        ...body,
+        reference: "…",
+        effective_status: "pending",
+        decision_reason: "",
+      } as unknown as Auth;
+
+      setAsking(false);
+      let made: Auth | undefined;
+      const ok = await list.create(draft, async () => {
+        made = await api.post<Auth>("/api/authorisations", body);
+        return made;
       });
-      // The funder's answer, said plainly. A refusal is as useful as an approval
-      // and there is no point dressing it up: it decides whether the patient
-      // pays today.
-      toast.ok(made.effective_status === "approved"
-        ? `${made.reference} approved${made.authorisation_number ? `, number ${made.authorisation_number}` : ""}.`
-        : `${made.reference}: ${made.effective_status}. ${made.decision_reason}`);
-      setPolicy(""); setMotivation(""); setIcd10("");
-      setPatient(null); setProduct(null); setPatientQ(""); setProductQ("");
-      load();
-    } catch (err) {
-      toast.error(errorText(err));
+      if (ok && made) {
+        // The funder's answer, said plainly. A refusal is as useful as an
+        // approval and there is no point dressing it up: it decides whether
+        // the patient pays today. Said after the row lands rather than instead
+        // of it, so the record is on screen while they read the decision.
+        toast.ok(made.effective_status === "approved"
+          ? `${made.reference} approved${made.authorisation_number ? `, number ${made.authorisation_number}` : ""}.`
+          : `${made.reference}: ${made.effective_status}. ${made.decision_reason}`);
+        setPolicy(""); setMotivation(""); setIcd10("");
+        setPatient(null); setProduct(null); setPatientQ(""); setProductQ("");
+      } else {
+        // Reopened with the motivation and the ICD-10 still in it. Those are
+        // the two fields somebody actually composed.
+        setAsking(true);
+      }
     } finally {
       setBusy("");
     }
@@ -306,7 +328,8 @@ export default function Authorisations() {
       </div>
 
       <div className="card">
-        {!rows ? <TableSkeleton cols={6} rows={6} /> : rows.length === 0 ? (
+        {list.loading && rows.length === 0
+          ? <TableSkeleton cols={6} rows={6} /> : rows.length === 0 ? (
           <div className="empty">No authorisations yet.</div>
         ) : (
           <div className="cu-scroll">
@@ -324,7 +347,8 @@ export default function Authorisations() {
                   const live = state === "approved";
                   const c = checked[a.id];
                   return (
-                    <tr key={a.id} className={state === "declined" ? "is-off" : ""}>
+                    <tr key={a.id}
+                        className={`${state === "declined" ? "is-off" : ""} ${rowClass(list.stateOf(a))}`.trim()}>
                       <td>
                         <span className="mono">{a.reference}</span>
                         {a.authorisation_number && (

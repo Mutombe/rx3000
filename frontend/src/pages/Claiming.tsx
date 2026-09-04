@@ -23,6 +23,7 @@ import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import ExportButton from "../components/ExportButton";
 import SectionNav from "../components/SectionNav";
 import { CLAIMING_TABS } from "../reconTabs";
@@ -134,9 +135,7 @@ export default function Claiming() {
   const [settling, setSettling] = useState<Batch | null>(null);
   const [paid, setPaid] = useState("");
   const [reference, setReference] = useState("");
-  const [formularies, setFormularies] = useState<Formulary[]>([]);
   const [openFormulary, setOpenFormulary] = useState<Formulary | null>(null);
-  const [entries, setEntries] = useState<FormularyEntry[]>([]);
   const [newFormulary, setNewFormulary] = useState<
     { code: string; name: string; default_rule: string; notes: string } | null>(null);
   const [addingEntry, setAddingEntry] = useState(false);
@@ -153,19 +152,31 @@ export default function Claiming() {
     api.get<Batch[]>("/api/claiming/batches").then(setBatches).catch(() => undefined);
     api.get<FeeModel[]>("/api/claiming/fee-models").then(setModels).catch(() => undefined);
     api.get<PayOffice[]>("/api/claiming/pay-offices").then(setOffices).catch(() => undefined);
-    api.get<Formulary[]>("/api/claiming/formularies")
-      .then(setFormularies).catch(() => undefined);
   }, [toast]);
 
   useEffect(load, [load]);
 
+  const formularyList = useOptimisticList<Formulary>({
+    load: () => api.get<Formulary[]>("/api/claiming/formularies"),
+    key: (f) => f.id,
+  });
+  const formularies = formularyList.items;
+
   // The entries of whichever formulary is open. Fetched on demand: a scheme's
   // list runs to thousands of lines and none of it is wanted until somebody
   // asks for that scheme.
+  const entryList = useOptimisticList<FormularyEntry>({
+    enabled: !!openFormulary,
+    load: () => openFormulary
+      ? api.get<FormularyEntry[]>(`/api/claiming/formularies/${openFormulary.id}/entries`)
+      : Promise.resolve([]),
+    key: (e) => e.id,
+  });
+  const entries = entryList.items;
+
   useEffect(() => {
-    if (!openFormulary) { setEntries([]); return; }
-    api.get<FormularyEntry[]>(`/api/claiming/formularies/${openFormulary.id}/entries`)
-      .then(setEntries).catch(() => setEntries([]));
+    if (openFormulary) entryList.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openFormulary]);
 
   useEffect(() => {
@@ -177,46 +188,54 @@ export default function Claiming() {
 
   async function createFormulary() {
     if (!newFormulary) return;
-    try {
-      // Closed before the write, not after it. A formulary is a record being
-      // created, and the list is what confirms it either way.
-      setNewFormulary(null);
-      await api.post("/api/claiming/formularies", newFormulary);
-      toast.ok(`${newFormulary.name} added.`);
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That formulary could not be created. Nothing was saved."));
-    }
+    const draft = { ...newFormulary, active: true } as unknown as Formulary;
+    setNewFormulary(null);
+    const ok = await formularyList.create(
+      draft,
+      () => api.post<Formulary>("/api/claiming/formularies", draft),
+      `${draft.name} added.`);
+    // Reopened holding what they typed if the server refuses.
+    if (!ok) setNewFormulary(draft as any);
   }
 
   async function saveEntry() {
     if (!openFormulary || !entryForm.product_id) return;
-    try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAddingEntry(false);
-      await api.post(`/api/claiming/formularies/${openFormulary.id}/entries`, {
-        product_id: entryForm.product_id,
-        status: entryForm.status,
-        reference_price: Number(entryForm.reference_price) || 0,
-        max_quantity: Number(entryForm.max_quantity) || 0,
-        // A reference-priced or excluded line does not need an authorisation;
-        // the flag only means anything on a line the scheme will actually pay.
-        requires_authorisation: entryForm.status === "authorisation"
-          || entryForm.requires_authorisation,
-        note: entryForm.note,
-      });
-      toast.ok(`${entryForm.product_name} filed on ${openFormulary.name}.`);
+    const body = {
+      product_id: entryForm.product_id,
+      status: entryForm.status,
+      reference_price: Number(entryForm.reference_price) || 0,
+      max_quantity: Number(entryForm.max_quantity) || 0,
+      // A reference-priced or excluded line does not need an authorisation;
+      // the flag only means anything on a line the scheme will actually pay.
+      requires_authorisation: entryForm.status === "authorisation"
+        || entryForm.requires_authorisation,
+      note: entryForm.note,
+    };
+    // The product name is already on screen in the picker, so the placeholder
+    // row reads properly rather than as a blank line with a moving bar on it.
+    const draft = {
+      ...body, product_name: entryForm.product_name,
+    } as unknown as FormularyEntry;
+    const filed = `${entryForm.product_name} filed on ${openFormulary.name}.`;
+    const keep = { ...entryForm };
+
+    setAddingEntry(false);
+    const ok = await entryList.create(
+      draft,
+      () => api.post<FormularyEntry>(
+        `/api/claiming/formularies/${openFormulary.id}/entries`, body),
+      filed);
+    if (ok) {
       setEntryForm({ product_id: 0, product_name: "", status: "covered",
                      reference_price: "", max_quantity: "",
                      requires_authorisation: false, note: "" });
       setEntryProductQ("");
-      const rows = await api.get<FormularyEntry[]>(
-        `/api/claiming/formularies/${openFormulary.id}/entries`);
-      setEntries(rows);
-    } catch (e) {
-      toast.error(errorText(e, "That entry could not be saved. Nothing was saved."));
+    } else {
+      // A formulary line is a product, a status, a price and a cap. Losing
+      // all four because the price was rejected is the reason people keep
+      // the scheme's list in a spreadsheet instead.
+      setEntryForm(keep);
+      setAddingEntry(true);
     }
   }
 
@@ -589,7 +608,8 @@ export default function Claiming() {
                 </thead>
                 <tbody>
                   {formularies.map((f) => (
-                    <tr key={f.id} className={f.active ? "" : "row-flag"}>
+                    <tr key={f.id}
+                        className={`${f.active ? "" : "row-flag"} ${rowClass(formularyList.stateOf(f))}`.trim()}>
                       <td>
                         <b>{f.name}</b>
                         <div className="muted small mono">
@@ -655,7 +675,7 @@ export default function Claiming() {
                   </thead>
                   <tbody>
                     {entries.map((e) => (
-                      <tr key={e.id}>
+                      <tr key={e.id} className={rowClass(entryList.stateOf(e)) || undefined}>
                         <td>
                           <EntityLink kind="product" id={e.product_id}>
                             {/* The server sends the product with the entry.

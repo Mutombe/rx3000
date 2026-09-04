@@ -26,6 +26,7 @@ import { api, errorText } from "../api";
 import BusyButton from "./BusyButton";
 import Select from "./Select";
 import { useToast } from "./Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 
 interface Instrument {
   id: number; code: string; name: string; method: string;
@@ -45,7 +46,6 @@ const METHODS = [
 ];
 
 export default function PaymentInstruments() {
-  const [rows, setRows] = useState<Instrument[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({
@@ -54,40 +54,38 @@ export default function PaymentInstruments() {
   });
   const toast = useToast();
 
-  function load() {
-    setLoading(true);
-    api.get<Instrument[]>("/api/payment-instruments?include_retired=true")
-      .then(setRows)
-      .catch((e) => toast.error(errorText(e)))
-      .finally(() => setLoading(false));
-  }
-  useEffect(load, []);
+  const list = useOptimisticList<Instrument>({
+    load: () => api.get<Instrument[]>("/api/payment-instruments?include_retired=true"),
+    key: (i) => i.id,
+  });
+  const rows = list.items;
+  const load = list.reload;
 
   async function patch(i: Instrument, change: Partial<Instrument>) {
-    // Written straight through. These are one-field edits on a short list and
-    // a save button between the tick and the effect buys nothing.
-    setRows((r) => r.map((x) => (x.id === i.id ? { ...x, ...change } : x)));
-    try {
-      await api.put(`/api/payment-instruments/${i.id}`, change);
-    } catch (e) {
-      toast.error(errorText(e));
-      load();
-    }
+    // A one-field edit on a short list. `update` shows it at once and puts the
+    // old value back if the server refuses — which is what the hand-written
+    // version above did, except that it re-fetched the whole list to undo one
+    // checkbox and lost any other edit in flight while it did.
+    await list.update(i.id, change,
+                      () => api.put(`/api/payment-instruments/${i.id}`, change));
   }
 
   async function create() {
-    try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAdding(false);
-      await api.post("/api/payment-instruments", form);
-      toast.ok(`${form.name} added.`);
+    // Taken once, so the placeholder and the request cannot drift apart.
+    const draft = { ...form } as unknown as Instrument;
+    setAdding(false);
+    const ok = await list.create(
+      draft,
+      () => api.post<Instrument>("/api/payment-instruments", draft),
+      `${draft.name} added.`,
+    );
+    if (ok) {
       setForm({ code: "", name: "", method: "mobile_money",
                 currencies: "USD", settles_to: "" });
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That could not be added. Nothing was saved."));
+    } else {
+      // Still holding what they typed. A refusal here is nearly always a code
+      // already in use, and that is one field to change.
+      setAdding(true);
     }
   }
 
@@ -168,7 +166,8 @@ export default function PaymentInstruments() {
           </thead>
           <tbody>
             {rows.map((i) => (
-              <tr key={i.id} className={i.active ? undefined : "row-muted"}>
+              <tr key={i.id}
+                  className={`${i.active ? "" : "row-muted"} ${rowClass(list.stateOf(i))}`.trim() || undefined}>
                 <td>
                   <b>{i.name}</b>
                   <div className="muted small mono">{i.code}</div>
