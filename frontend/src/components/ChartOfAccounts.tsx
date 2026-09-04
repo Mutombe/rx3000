@@ -26,6 +26,7 @@ import { EntityLink } from "./Filters";
 import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 
 interface Row {
   code: string; name: string; type: string; section: string;
@@ -76,6 +77,20 @@ export default function ChartOfAccounts() {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const toast = useToast();
+
+  /* Every account, flat, so one of them can be provisional. The groups are
+   * rebuilt from this at render time; see the note at the top of the file. */
+  const accounts = useOptimisticList<Row>({
+    load: async () => {
+      const c = await api.get<Chart>(
+        `/api/ledger/chart?include_inactive=${inactive}`);
+      setChart(c);
+      return c.groups.flatMap((g) => g.accounts);
+    },
+    // An account has a code and no id. A placeholder is given a temporary id
+    // and marked under it, so the key has to find both.
+    key: (a) => (a as unknown as { id?: number }).id ?? a.code,
+  });
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setSpinning(true);
@@ -211,8 +226,12 @@ export default function ChartOfAccounts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {g.accounts.map((a) => (
-                    <tr key={a.code} className={a.active ? undefined : "is-muted"}>
+                  {accounts.items.filter((a) => a.section === g.section).map((a) => (
+                    <tr key={accounts.stateOf(a) === "settled" ? a.code : `pending-${a.code}`}
+                        className={[
+                          a.active ? "" : "is-muted",
+                          rowClass(accounts.stateOf(a)),
+                        ].filter(Boolean).join(" ") || undefined}>
                       <td className="mono">
                         <EntityLink to={`/ledger/accounts/${a.code}`}>
                           {a.code}
@@ -249,7 +268,23 @@ export default function ChartOfAccounts() {
       {adding && chart && (
         <NewAccount sections={chart.sections}
                     onClose={() => setAdding(false)}
-                    onAdded={() => { setAdding(false); load(true); }} />
+                    onSubmit={async (body) => {
+                      // Closed here, and the account is under its heading
+                      // before the request leaves. The form knows what was
+                      // typed; only the chart can show it in place.
+                      setAdding(false);
+                      const draft = {
+                        ...body, balance: 0, active: true,
+                        protected: false, posted_to: false,
+                      } as unknown as Row;
+                      const ok = await accounts.create(
+                        draft,
+                        () => api.post("/api/ledger/accounts", body),
+                        `${body.code} ${body.name} added.`);
+                      // The group totals and the trial-balance difference are
+                      // the server's arithmetic, re-read either way.
+                      if (ok) load(true); else setAdding(true);
+                    }} />
       )}
 
       {editing && chart && (
@@ -267,10 +302,11 @@ export default function ChartOfAccounts() {
  *  section says where a reader expects to find it, and only the person adding
  *  it knows whether this new asset is stock or a shopfitting.
  */
-function NewAccount({ sections, onClose, onAdded }: {
+function NewAccount({ sections, onClose, onSubmit }: {
   sections: { key: string; label: string; type: string }[];
   onClose: () => void;
-  onAdded: () => void;
+  /** Hands the body to whoever owns the chart. See the note on the mount. */
+  onSubmit: (body: Record<string, unknown>) => void | Promise<void>;
 }) {
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -294,18 +330,14 @@ function NewAccount({ sections, onClose, onAdded }: {
   const ready = code.trim().length >= 3 && name.trim().length >= 2;
 
   async function save() {
-    try {
-      const r = await api.post<{ message: string }>("/api/ledger/accounts", {
-        code: code.trim(), name: name.trim(), type, section,
-        is_cash: isCash, notes: notes.trim(),
-      });
-      toast.ok(r.message);
-      onAdded();
-    } catch (e) {
-      // The server refuses a duplicate code, a section that does not suit the
-      // type, and a code with punctuation in it, and its wording says which.
-      toast.error(errorText(e, "That account could not be added."));
-    }
+    // The server refuses a duplicate code, a section that does not suit the
+    // type, and a code with punctuation in it, and its wording says which.
+    // That refusal is shown by whoever owns the list, which is also what puts
+    // the provisional row back.
+    await onSubmit({
+      code: code.trim(), name: name.trim(), type, section,
+      is_cash: isCash, notes: notes.trim(),
+    });
   }
 
   return (

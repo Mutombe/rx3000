@@ -21,6 +21,7 @@ import { api, errorText, fmtDate } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
@@ -72,7 +73,6 @@ interface Transit {
 export default function Branches() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [branches, setBranches] = useState<Branch[] | null>(null);
   const [transit, setTransit] = useState<Transit[]>([]);
   const [busy, setBusy] = useState("");
 
@@ -92,13 +92,18 @@ export default function Branches() {
   const [quantity, setQuantity] = useState("1");
   const [notes, setNotes] = useState("");
 
+  const list = useOptimisticList<Branch>({
+    load: () => api.get<Branch[]>("/api/branches"),
+    key: (b) => b.id,
+  });
+  const branches = list.items;
+
   const load = useCallback(() => {
-    api.get<Branch[]>("/api/branches")
-      .then(setBranches)
-      .catch((e) => toast.error(errorText(e, "The branches could not be listed.")));
+    list.reload();
     api.get<Transit[]>("/api/branches/transfers/in-transit")
       .then(setTransit).catch(() => undefined);
-  }, [toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(load, [load]);
 
@@ -144,22 +149,23 @@ export default function Branches() {
     if (!editing) return;
     setBusy("save");
     try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setEditing(null);
-      await api.put(`/api/branches/${editing.id}`, {
+      const patch = {
         code: form.code ?? editing.code,
         name: form.name ?? editing.name,
         registration_no: form.registration_no ?? "",
         phone: form.phone ?? "", email: form.email ?? "",
         address: form.address ?? "", city: form.city ?? "",
         responsible_pharmacist: form.responsible_pharmacist ?? "",
-      });
-      toast.ok(`${form.name ?? editing.name} saved.`);
-      load();
-    } catch (err) {
-      toast.error(errorText(err));
+      };
+      const was = editing;
+      setEditing(null);
+      // The row shows the new name straight away and goes back to the old one
+      // if the server refuses. `update` keeps the snapshot to do that with.
+      const ok = await list.update(
+        was.id, patch as Partial<Branch>,
+        () => api.put<Branch>(`/api/branches/${was.id}`, patch),
+        `${patch.name} saved.`);
+      if (!ok) setEditing(was);
     } finally {
       setBusy("");
     }
@@ -335,7 +341,8 @@ export default function Branches() {
               </thead>
               <tbody>
                 {branches.map((b) => (
-                  <tr key={b.id} className={b.active ? "" : "is-off"}>
+                  <tr key={b.id}
+                      className={`${b.active ? "" : "is-off"} ${rowClass(list.stateOf(b))}`.trim()}>
                     <td className="mono">{b.code}</td>
                     <td>
                       <b>{b.name}</b>

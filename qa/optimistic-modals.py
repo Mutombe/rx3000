@@ -185,6 +185,72 @@ SETTLED_WRITES = {
         "for the warning that the dates saved but the terms did not",
 }
 
+#: Screens that render a list and write to it, where a provisional row would
+#: say something untrue. Separate from SETTLED above, because closing a dialog
+#: early and drawing a row that does not exist yet are different promises.
+#:
+#: Three reasons appear here, and only the first is about money.
+ROW_SETTLED = {
+    # A row that appears before the server took the money is a row that says
+    # the money was taken.
+    "CashUp.tsx": "a till being counted; the count is the record",
+    "PaySupplier.tsx": "money going out to a supplier",
+    "ExpiryProvision.tsx": "a provision posted to the ledger",
+    "SaleDetail.tsx": "a fiscal credit note, which is a receipt the revenue "
+                      "authority has already been told about",
+    "LayBys.tsx": "a payment against a lay-by",
+    "LayByDetail.tsx": "the same, on the record itself",
+    "Payables.tsx": "supplier payments and the queries raised against them",
+
+    # Stock, and medicine that physically leaves.
+    "ReturnLines.tsx": "stock coming back over the counter",
+    "BatchDetail.tsx": "a batch written off",
+    "WillCall.tsx": "medicine handed to the person collecting it",
+    "WillCallBag.tsx": "the same, from the bag",
+    "DispensingDetail.tsx": "the same, from the dispensing",
+    "Repeats.tsx": "supplying a repeat hands medicine over",
+
+    # Things that leave the building and cannot be recalled.
+    "CampaignDetail.tsx": "a campaign being sent to patients",
+    "ClaimBatchDetail.tsx": "a claim batch going to a funder",
+    "Marketing.tsx": "creating a campaign here sends it in the same breath, "
+                     "so the row would claim a delivery that has not happened",
+    "ToFollows.tsx": "settling one hands the medicine over and cancelling one "
+                     "writes off what the patient owed",
+
+    # Money being given up or charged on.
+    "Remittances.tsx": "resolving a line either bills the patient or writes "
+                       "the variance off, and both are money",
+    "RemittanceDetail.tsx": "the same, on the line itself",
+
+    # Controls where the provisional state is the dangerous one.
+    "Periods.tsx": "closing a period locks the ledger against it. A row that "
+                   "reads closed before it is closed tells somebody to stop "
+                   "posting into a period that is still open",
+    "Drivers.tsx": "its only write retires a driver, and the server refuses "
+                   "while they are still carrying shop money. A row that "
+                   "vanishes and comes back is a worse answer than the wait",
+    "SchemeCalendar.tsx": "its dialog stays up across a step-up prompt and one "
+                          "of its two writes can be cancelled there",
+
+    # Not a list-create at all. Each renders a table and writes something, so
+    # the coarse test picks them up, but there is no new row to place.
+    "Fiscal.tsx": "reads the fiscal day; it writes nothing",
+    "InvoiceDetail.tsx": "one invoice, read",
+    "PrescriberDetail.tsx": "edits the prescriber record, which is the page "
+                            "rather than a row in a list on it",
+    "ComplianceDocument.tsx": "one document, and deleting it leaves the page",
+    "PatientDetail.tsx": "edits the patient record; the tables on it are that "
+                         "patient's history and are not written from a dialog",
+    "StaffDetail.tsx": "its one list is the placement panel, which already "
+                       "uses the hook",
+    "Dispense.tsx": "the draft list is kept in step by its own nonce, and the "
+                    "dialogs on this screen write scripts rather than rows",
+    "HeadOffice.tsx": "a shell of tabs; the lists belong to the panels inside "
+                      "it, which are judged on their own",
+}
+
+
 def main() -> int:
     strict = "--strict" in sys.argv
     early: list[tuple[str, str]] = []
@@ -257,6 +323,8 @@ def main() -> int:
             continue
         if not DIALOG.search(text):
             continue
+        if file.name in ROW_SETTLED:
+            continue
         where = f"{file.parent.name}/{file.name}"
         if "useOptimisticList" in text:
             rows_now.append(where)
@@ -268,6 +336,10 @@ def main() -> int:
           f"before the server answers\n")
     for where in rows_later:
         print(f"  half  {where:<40} the dialog closes, the table waits")
+    print(f"\n  {len(ROW_SETTLED)} screen(s) should not show a provisional "
+          f"row:")
+    for name, why in sorted(ROW_SETTLED.items()):
+        print(f"        {name}: {why}")
 
     print(f"\n  {len(SETTLED)} screen(s) and {len(settled_here)} single "
           f"dialog(s) wait on purpose:")
@@ -276,6 +348,15 @@ def main() -> int:
     for at, how in sorted(settled_here):
         where = at.rsplit(":", 1)[0]
         print(f"        {at} ({how}): {SETTLED_WRITES[(where, how)]}")
+
+    # The row question fails strict too, now that it is answered everywhere.
+    # A screen added later that writes to its own list from a dialog is either
+    # optimistic or is written into ROW_SETTLED with a reason; those are the
+    # only two endings, and neither of them is silence.
+    if rows_later and strict:
+        print(f"\n{len(rows_later)} screen(s) close the dialog and then leave "
+              f"the table unchanged until the server answers.")
+        return 1
 
     if late and strict:
         print(f"\n{len(late)} write(s) in {len(files_late)} file(s) still make "

@@ -24,6 +24,7 @@ import Select from "./Select";
 import { TableSkeleton } from "./Skeleton";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 
 interface Capability { capability: string; name: string; roles: string[] }
 interface Grant {
@@ -70,14 +71,28 @@ export default function HqPermissions() {
       .catch((e) => toast.error(errorText(e)));
   }, []);
 
-  const load = useCallback(() => {
-    if (!who) return;
-    setDetail(null);
-    api.get<Detail>(`/api/hq/users/${who}/permissions`)
-      .then(setDetail)
-      .catch((e) => toast.error(errorText(e)));
+  /* The grants, as a list that can be added to before the server agrees.
+   *
+   * `detail` still holds the standing capabilities and whose record this is;
+   * the hook holds the grants, which is the only part of it that gets rows
+   * added and taken away. */
+  const grantList = useOptimisticList<Grant>({
+    enabled: !!who,
+    load: async () => {
+      if (!who) return [];
+      const d = await api.get<Detail>(`/api/hq/users/${who}/permissions`);
+      setDetail(d);
+      return d.grants ?? [];
+    },
+    key: (g) => g.id,
+  });
+  const load = grantList.reload;
+
+  useEffect(() => {
+    if (!who) { setDetail(null); return; }
+    grantList.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [who]);
-  useEffect(load, [load]);
 
   async function revoke(g: Grant) {
     const ok = await confirm({
@@ -88,14 +103,11 @@ export default function HqPermissions() {
       destructive: true,
     });
     if (!ok) return;
-    try {
-      const r = await api.delete<{ message: string }>(
-        `/api/hq/permissions/${g.id}`);
-      toast.ok(r.message);
-      load();
-    } catch (e) {
-      toast.error(errorText(e));
-    }
+    // The row goes at once and comes back if the server refuses, which is what
+    // the snapshot inside `remove` is for.
+    await grantList.remove(g.id,
+                           () => api.delete(`/api/hq/permissions/${g.id}`),
+                           `${g.capability} withdrawn.`);
   }
 
   return (
@@ -117,7 +129,7 @@ export default function HqPermissions() {
 
       {!detail ? <TableSkeleton cols={4} rows={6} /> : (
         <>
-          {detail.grants.length > 0 && (
+          {grantList.items.length > 0 && (
             <>
               <h4 className="cu-section">Granted by name</h4>
               <div className="dt-scroll">
@@ -131,9 +143,9 @@ export default function HqPermissions() {
                     </tr>
                   </thead>
                   <tbody>
-                    {detail.grants.map((g) => (
+                    {grantList.items.map((g) => (
                       <tr key={g.id}
-                          className={g.allow ? undefined : "row-danger"}>
+                          className={`${g.allow ? "" : "row-danger"} ${rowClass(grantList.stateOf(g))}`.trim() || undefined}>
                         <td>
                           <b>{g.capability}</b>
                           {!g.allow && (
@@ -230,15 +242,33 @@ export default function HqPermissions() {
       {adding && who && (
         <GrantForm userId={who} caps={caps} branches={branches}
           onClose={() => setAdding(false)}
-          onSaved={() => { setAdding(false); load(); }} />
+          onSubmit={async (body) => {
+            // Closed here, and the row is in the table before the request
+            // leaves. The form only knows what was typed; the list is what can
+            // show it and take it back.
+            setAdding(false);
+            const named = caps.find((c) => c.capability === body.capability);
+            const draft = {
+              ...body,
+              branch: branches.find((b) => b.id === body.branch_id)?.name ?? "",
+              granted_by: "",
+            } as unknown as Grant;
+            const ok = await grantList.create(
+              draft,
+              () => api.post<Grant>(`/api/hq/users/${who}/permissions`, body),
+              `${named?.name ?? body.capability} granted.`);
+            if (!ok) setAdding(true);
+          }} />
       )}
     </>
   );
 }
 
-function GrantForm({ userId, caps, branches, onClose, onSaved }: {
+function GrantForm({ userId, caps, branches, onClose, onSubmit }: {
   userId: number; caps: Capability[]; branches: Branch[];
-  onClose: () => void; onSaved: () => void;
+  onClose: () => void;
+  /** Hands the body to whoever owns the list. See the note on the mount. */
+  onSubmit: (body: Record<string, unknown>) => void | Promise<void>;
 }) {
   const [f, setF] = useState({
     capability: caps[0]?.capability ?? "", allow: true,
@@ -251,25 +281,18 @@ function GrantForm({ userId, caps, branches, onClose, onSaved }: {
   const chosen = caps.find((c) => c.capability === f.capability);
 
   async function save() {
-    try {
-      const r = await api.post<{ message: string }>(
-        `/api/hq/users/${userId}/permissions`, {
-          ...f,
-          branch_id: f.branch_id ? Number(f.branch_id) : null,
-          limit_value: Number(f.limit_value) || 0,
-          daily_limit: Number(f.daily_limit) || 0,
-          // "MTWTFSS" with a dash for a day off, which is what the server
-          // reads. Every day on is sent as blank — a grant with no day
-          // restriction should not carry one.
-          days: days.every(Boolean) ? ""
-            : days.map((on, i) => (on ? DAYS[i] : "-")).join(""),
-          expires_on: f.expires_on || null,
-        });
-      toast.ok(r.message);
-      onSaved();
-    } catch (e) {
-      toast.error(errorText(e, "That could not be granted."));
-    }
+    await onSubmit({
+      ...f,
+      branch_id: f.branch_id ? Number(f.branch_id) : null,
+      limit_value: Number(f.limit_value) || 0,
+      daily_limit: Number(f.daily_limit) || 0,
+      // "MTWTFSS" with a dash for a day off, which is what the server
+      // reads. Every day on is sent as blank — a grant with no day
+      // restriction should not carry one.
+      days: days.every(Boolean) ? ""
+        : days.map((on, i) => (on ? DAYS[i] : "-")).join(""),
+      expires_on: f.expires_on || null,
+    });
   }
 
   return (

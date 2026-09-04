@@ -33,6 +33,7 @@ import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { useConfirm } from "../components/Confirm";
 import { Link, useSearchParams } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
@@ -105,13 +106,31 @@ export default function Compliance() {
   }, []);
   useEffect(load, [load]);
 
+  /* One row per kind of document, which is what the register is.
+   *
+   * `register` keeps the verdict, the history and the renewal costs; the hook
+   * keeps the rows, because those are the only part that changes when somebody
+   * files a certificate. */
+  const docs = useOptimisticList<Doc>({
+    enabled: open != null,
+    load: async () => {
+      if (open == null) return [];
+      const r = await api.get<Register>(`/api/compliance/branches/${open}`);
+      setRegister(r);
+      return r.documents ?? [];
+    },
+    key: (d) => d.kind,
+  });
+
   const openBranch = useCallback((id: number) => {
     setOpen(id);
     setRegister(null);
-    api.get<Register>(`/api/compliance/branches/${id}`)
-      .then(setRegister)
-      .catch((e) => toast.error(errorText(e)));
   }, []);
+
+  useEffect(() => {
+    if (open != null) docs.reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   /** Arrive on one branch's register from its row on the Branches table.
    *
@@ -324,11 +343,13 @@ export default function Compliance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {register.documents.map((d) => (
+                  {docs.items.map((d) => (
                     <tr key={d.kind}
-                        className={d.state === "expired" ? "row-danger"
-                          : d.state === "missing" && d.critical ? "row-flag"
-                          : undefined}>
+                        className={[
+                          d.state === "expired" ? "row-danger"
+                            : d.state === "missing" && d.critical ? "row-flag" : "",
+                          rowClass(docs.stateOf(d)),
+                        ].filter(Boolean).join(" ") || undefined}>
                       <td>
                         {/* The record, where the chain of what this replaced
                             lives. A register says what is current; only the
@@ -451,7 +472,23 @@ export default function Compliance() {
           kinds={kinds}
           starting={adding}
           onClose={() => setAdding(null)}
-          onSaved={() => { setAdding(null); openBranch(open); load(); }}
+          onSubmit={async (kind, body, says) => {
+            // Closed here, and the row for that kind stops saying "missing"
+            // before the upload finishes. The form knows what was typed; only
+            // the list can show it in place and put the old state back.
+            setAdding(null);
+            const ok = await docs.update(
+              kind, { state: "current" } as Partial<Doc>,
+              () => api.post(
+                `/api/compliance/branches/${open}/documents`, body),
+              says);
+            // The verdict at the top of the page — can this branch trade —
+            // is the server's and is re-read either way.
+            if (ok) load();
+            // Reopened on the same row's document, which is what `adding`
+            // holds — the kind alone is not enough to reopen the form.
+            else setAdding(docs.items.find((d) => d.kind === kind) ?? null);
+          }}
         />
       )}
     </div>
@@ -465,9 +502,11 @@ export default function Compliance() {
  *  the date now — the date is what produces the reminder, and a register
  *  nobody can enter anything into stays empty.
  */
-function RecordDocument({ branchId, kinds, starting, onClose, onSaved }: {
+function RecordDocument({ branchId, kinds, starting, onClose, onSubmit }: {
   branchId: number; kinds: Kind[]; starting: Doc;
-  onClose: () => void; onSaved: () => void;
+  onClose: () => void;
+  /** Hands the kind and the multipart body to whoever owns the register. */
+  onSubmit: (kind: string, body: FormData, says: string) => void | Promise<void>;
 }) {
   const [kind, setKind] = useState(starting.kind || kinds[0]?.kind || "");
   const [reference, setReference] = useState("");
@@ -502,17 +541,10 @@ function RecordDocument({ branchId, kinds, starting, onClose, onSaved }: {
     body.append("renewal_cost", String(Number(cost) || 0));
     body.append("notes", notes);
     if (file) body.append("file", file);
-    try {
-      // `api.post` already passes a FormData through untouched and leaves the
-      // browser to set the multipart boundary, which is the one header that
-      // must not be set by hand.
-      const r = await api.post<{ message: string }>(
-        `/api/compliance/branches/${branchId}/documents`, body);
-      toast.ok(r.message);
-      onSaved();
-    } catch (e) {
-      toast.error(errorText(e, "That could not be recorded."));
-    }
+    // `api.post` passes a FormData through untouched and leaves the browser to
+    // set the multipart boundary, which is the one header that must not be set
+    // by hand. That call happens where the list is, one level up.
+    await onSubmit(kind, body, `${chosen?.name ?? kind} recorded.`);
   }
 
   return (
