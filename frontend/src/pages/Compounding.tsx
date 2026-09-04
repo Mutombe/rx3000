@@ -21,6 +21,7 @@ import { api, errorText, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
@@ -51,7 +52,6 @@ interface Cost {
 export default function Compounding() {
   const toast = useToast();
   const confirm = useConfirm();
-  const [mixtures, setMixtures] = useState<Mixture[] | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [cost, setCost] = useState<Cost | null>(null);
   const [batches, setBatches] = useState("1");
@@ -72,13 +72,12 @@ export default function Compounding() {
   const [products, setProducts] = useState<Product[]>([]);
   const [lines, setLines] = useState<{ product: Product; quantity: string; unit: string }[]>([]);
 
-  const load = useCallback(() => {
-    api.get<Mixture[]>("/api/compounding/mixtures")
-      .then(setMixtures)
-      .catch((e) => toast.error(errorText(e, "The formulae could not be listed.")));
-  }, [toast]);
-
-  useEffect(load, [load]);
+  const list = useOptimisticList<Mixture>({
+    load: () => api.get<Mixture[]>("/api/compounding/mixtures"),
+    key: (m) => m.id,
+  });
+  const mixtures = list.items;
+  const load = list.reload;
 
   useEffect(() => {
     if (productQ.trim().length < 2) { setProducts([]); return; }
@@ -136,11 +135,7 @@ export default function Compounding() {
     e.preventDefault();
     setBusy("create");
     try {
-      // Closed before the write, not after it. A record being created
-      // or edited costs a click if it fails, and the list is what
-      // confirms it either way.
-      setAdding(false);
-      await api.post("/api/compounding/mixtures", {
+      const body = {
         code: code.trim().toUpperCase(), name: name.trim(), form,
         yield_quantity: Number(yieldQty) || 1, yield_unit: yieldUnit.trim(),
         compounding_fee: Number(fee) || 0,
@@ -151,12 +146,27 @@ export default function Compounding() {
           quantity: Number(l.quantity) || 0,
           unit: l.unit.trim() || "unit",
         })),
-      });
-      toast.ok(`${name} added to the formula book.`);
-      setCode(""); setName(""); setMethod(""); setDirections(""); setLines([]);
-      load();
-    } catch (err) {
-      toast.error(errorText(err));
+      };
+      // The row carries the ingredient count, because that is the column the
+      // table shows and a formula listed with no ingredients reads as one that
+      // was saved wrong rather than one still saving.
+      const draft = {
+        ...body, ingredient_count: lines.length,
+      } as unknown as Mixture;
+
+      setAdding(false);
+      const ok = await list.create(
+        draft,
+        () => api.post<Mixture>("/api/compounding/mixtures", body),
+        `${body.name} added to the formula book.`);
+      if (ok) {
+        setCode(""); setName(""); setMethod(""); setDirections(""); setLines([]);
+      } else {
+        // A compounding formula is a method, directions and a list of
+        // ingredients with quantities. It is the longest form in the product
+        // and the last one that should be thrown away over a duplicate code.
+        setAdding(true);
+      }
     } finally {
       setBusy("");
     }
@@ -195,7 +205,8 @@ export default function Compounding() {
             </thead>
             <tbody>
               {mixtures.map((m) => (
-                <tr key={m.id} className={openId === m.id ? "is-open" : ""}>
+                <tr key={m.id}
+                    className={`${openId === m.id ? "is-open" : ""} ${rowClass(list.stateOf(m))}`.trim()}>
                   <td>
                     <button className="btn ghost small mono" onClick={() => open(m)}>
                       {m.code}
