@@ -17,6 +17,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, EyeSlash, GraduationCap, Storefront } from "@phosphor-icons/react";
+import { landingFor } from "../session";
 import { api, errorText, setToken } from "../api";
 import PinInput from "../components/PinInput";
 import { User } from "../types";
@@ -81,9 +82,24 @@ export default function Login() {
       .catch(() => { /* the default in state is the same number */ });
   }, []);
 
-  function land(res: Auth) {
+  async function land(res: Auth) {
     setToken(res.access_token);
-    navigate("/");
+
+    // Where to send them depends on what they may do, and the session provider
+    // has not mounted yet — it lives inside the protected routes, on the other
+    // side of this navigation. So the answer is asked for directly, once.
+    //
+    // A failure here is not worth stopping a sign-in for: the Command Centre
+    // is where everybody used to land, and landing there is a worse first
+    // screen for a cashier rather than a broken one.
+    let where = "/";
+    try {
+      const me = await api.get<{ can?: Record<string, boolean> }>("/api/auth/me");
+      where = landingFor((c) => Boolean(me.can?.[c]));
+    } catch {
+      where = "/";
+    }
+    navigate(where, { replace: true });
   }
 
   async function submitSignIn(e: FormEvent) {

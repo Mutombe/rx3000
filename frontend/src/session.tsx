@@ -125,6 +125,25 @@ export function useSession(): SessionValue {
   return useContext(Ctx);
 }
 
+/** The screen this person should land on when they sign in.
+ *
+ *  Everybody used to arrive at the Command Centre, which is a wall of figures
+ *  about the business. That is the right first screen for whoever runs the
+ *  pharmacy and the wrong one for everybody else: a cashier signs in to serve
+ *  somebody at the counter and a dispenser signs in to dispense, and both were
+ *  shown a dashboard they cannot act on and then navigated away from it every
+ *  morning.
+ *
+ *  Decided on `reports.money` rather than on the role, because that capability
+ *  already means "may see margin, cost and profit" — which is the same
+ *  question as "is the Command Centre any use to this person". One rule, so a
+ *  pharmacy that grants a senior dispenser sight of the money gets them the
+ *  dashboard too without anybody editing a second list.
+ */
+export function landingFor(can: (capability: string) => boolean): string {
+  return can("reports.money") ? "/" : "/dispense";
+}
+
 /** `useCan("sale.void")` — may the signed-in person void a sale? */
 export function useCan(capability: string): boolean {
   return useContext(Ctx).can(capability);

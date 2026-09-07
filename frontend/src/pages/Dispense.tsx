@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
+import { useSession } from "../session";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import AiOutput from "../components/AiOutput";
@@ -76,9 +77,22 @@ interface DraftItem {
   item_id?: number;
 }
 
-const ROUTE_TABS: { key: Route; label: string; hint: string }[] = [
+const ROUTE_TABS: {
+  key: Route; label: string; hint: string;
+  /** A capability from the server's matrix. Absent means everybody. */
+  needs?: string;
+}[] = [
   { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine" },
-  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required" },
+  // Shown to whoever may actually do it.
+  //
+  // The endpoint has always refused a controlled dispensing without this
+  // capability, so the protection was never missing. The tab was: a cashier
+  // could open Dangerous Drugs, search a schedule 5 medicine, build a script
+  // and only then be told no — at the counter, with a patient waiting.
+  //
+  // It reads the same capability the endpoint checks rather than a second rule
+  // written to look similar, which is how the two come to disagree.
+  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" },
   { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription" },
 ];
 
@@ -122,7 +136,26 @@ const PAY_CHOICES = [
 ];
 
 export default function Dispense() {
+  const session = useSession();
   const [route, setRoute] = useState<Route>("prescription");
+  /* The routes this person may use. Filtered only once the server has said
+     what they may do: `can` is false while the session loads, and a dispensary
+     that hides the controlled tab for a second every morning is one a
+     pharmacist stops trusting. */
+  const visibleRoutes = useMemo(
+    () => (!session.known
+      ? ROUTE_TABS
+      : ROUTE_TABS.filter((t) => !t.needs || session.can(t.needs))),
+    [session]);
+
+  /* Somebody on a route they may not use is put back on the ordinary one.
+     This can happen without them doing anything wrong: a link, a restored tab,
+     or an authority withdrawn while the screen was open. */
+  useEffect(() => {
+    if (session.known && !visibleRoutes.some((t) => t.key === route)) {
+      setRoute("prescription");
+    }
+  }, [session.known, visibleRoutes, route]);
   const [policies, setPolicies] = useState<SchedulePolicy[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -1197,7 +1230,7 @@ export default function Dispense() {
         <div>
           <h1>Dispensary</h1>
           <div className="sub">
-            {ROUTE_TABS.find((t) => t.key === route)?.hint}
+            {visibleRoutes.find((t) => t.key === route)?.hint}
           </div>
         </div>
         {/* What has already gone out. A dispensary is asked about yesterday's
@@ -1265,7 +1298,7 @@ export default function Dispense() {
       {/* Which route is being dispensed governs the whole screen below it, so
           it floats rather than scrolling away. */}
       <div className="pill-tabs disp-routes">
-        {ROUTE_TABS.map((t) => (
+        {visibleRoutes.map((t) => (
           <button key={t.key} className={route === t.key ? "active" : ""} onClick={() => setRoute(t.key)}>
             {t.label}
           </button>
