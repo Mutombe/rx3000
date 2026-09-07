@@ -4,6 +4,21 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
+
+#: Which capability each dispensing route needs.
+#:
+#: Routes are stable across jurisdiction packs — otc, prescription, controlled,
+#: prohibited — while the schedules behind them are not, which is why this keys
+#: on the route rather than on a schedule number.
+#:
+#: `prohibited` is absent on purpose: it is refused above this check for
+#: everybody, including an administrator, and giving it a capability would imply
+#: somewhere a pharmacy could switch it on.
+ROUTE_CAPABILITY = {
+    "otc": "dispense.otc",
+    "prescription": "dispense.prescription",
+    "controlled": "dispense.controlled",
+}
 from ..auth import get_current_user
 from ..config import settings
 from ..database import get_db
@@ -22,7 +37,8 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import (branches, claims_engine, messages, paging, proppharm,
+from ..services import (branches, claims_engine, messages, paging,
+                        permissions, proppharm,
                         sig, to_follows)
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
@@ -269,6 +285,26 @@ def dispense(
             detail=f"Schedule {highest} substances cannot be dispensed in a retail pharmacy "
                    "without a departmental permit.",
         )
+    # Two separate questions, and the stricter one wins.
+    #
+    # First: does this person hold the capability for this route? That is the
+    # pharmacy's own rule, it lives on the role matrix, and it can be granted to
+    # a named person for a reason with an end date. It is the question the three
+    # tabs on the dispensary ask, asked again here — the tab is a courtesy, this
+    # is the rule, and they read the same capability so they cannot drift.
+    #
+    # The schedule chooses the capability through the jurisdiction's own route,
+    # so a pack that reclassifies a substance moves the permission with it.
+    needed = ROUTE_CAPABILITY.get(policy.route)
+    if needed:
+        decision = permissions.check(db, user, needed)
+        if not decision["allowed"]:
+            raise HTTPException(status_code=403, detail=decision["why"])
+
+    # Second: the law. `requires_pharmacist` is about somebody's registration,
+    # not about what this pharmacy has chosen to allow, so it is checked
+    # separately and cannot be ticked away on the matrix. A capability that
+    # became a route around the Medicines Act would be worse than no capability.
     if policy.requires_pharmacist and user.role not in ("pharmacist", "admin"):
         raise HTTPException(
             status_code=403,

@@ -53,32 +53,72 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
     ("stock.deactivate", "Take a product code out of use across the group",
      ("admin",)),
     ("cash.reconcile", "Commit a cash-up and sign off a variance",
-     ("admin", "manager")),
+     ("admin", "manager", "accountant")),
     ("cash.petty", "Pay money out of the till", ("admin", "manager")),
+    # The three routes across the top of the dispensary, one capability each.
+    #
+    # Only the controlled one existed, because it was the only one anybody had
+    # a reason to refuse. That made the other two unrefusable: a pharmacy that
+    # wanted its till staff selling over the counter and nowhere near a script
+    # had no way to say so, and the tab was there for everybody.
+    #
+    # Named for the act, so the rule survives the tabs being redesigned.
+    ("dispense.prescription", "Dispense an ordinary prescription (S3-S4)",
+     ("admin", "manager", "pharmacist")),
+    ("dispense.otc", "Sell pharmacy medicine over the counter (S0-S2)",
+     ("admin", "manager", "pharmacist", "cashier")),
     ("dispense.controlled", "Dispense a schedule 5 or 6 medicine",
      ("admin", "pharmacist")),
     ("claims.submit", "Send a claim batch to a funder",
-     ("admin", "manager", "pharmacist")),
+     ("admin", "manager", "pharmacist", "accountant")),
     ("claims.write_off", "Write off a claim shortfall",
-     ("admin", "manager")),
-    ("supplier.pay", "Record a payment to a supplier", ("admin", "manager")),
+     ("admin", "manager", "accountant")),
+    ("supplier.pay", "Record a payment to a supplier", ("admin", "manager", "accountant")),
     ("staff.manage", "Add staff, change roles, stop a login", ("admin",)),
     ("branch.freeze", "Stop or restart a branch's trading", ("admin",)),
     ("hq.impersonate", "Sign in as another user to see what they see",
      ("admin",)),
     ("reports.money", "See margin, cost and profit figures",
-     ("admin", "manager")),
+     ("admin", "manager", "accountant")),
 ]
+
+#: What an accountant is deliberately NOT given, and why it is written down.
+#:
+#: The absences are the whole point of the role and an absence leaves no line to
+#: read, so the next person to look at this list would see only what was granted
+#: and reasonably wonder whether the rest was an oversight.
+#:
+#:   the till          sale.void, sale.return, sale.discount, cash.petty —
+#:                     these are somebody standing at a counter with money in
+#:                     their hand. An accountant reviews that; they do not do it,
+#:                     and an audit trail that cannot tell the two apart is the
+#:                     thing this role exists to fix.
+#:   dispensing        all three routes. An accountant is not a health
+#:                     professional and the register has to be able to say so.
+#:   stock             write-offs, adjustments, price changes. Each moves the
+#:                     figures the accountant is checking, and whoever checks a
+#:                     number should not be able to change it.
+#:   staff and branch  staff.manage, branch.freeze, hq.impersonate.
+#:
+#: None of this is a ceiling. Any of it can be granted to a named person, with a
+#: reason and an end date, which is what `UserPermission` is for — a pharmacy
+#: whose accountant does the Friday banking says so once, about her.
+ACCOUNTANT_WITHHELD = (
+    "sale.void", "sale.return", "sale.discount", "cash.petty",
+    "dispense.prescription", "dispense.otc", "dispense.controlled",
+    "stock.write_off", "stock.adjust", "stock.price", "stock.deactivate",
+    "staff.manage", "branch.freeze", "hq.impersonate",
+)
 
 BY_KEY = {c[0]: c for c in CAPABILITIES}
 
 
 def _a(role: str) -> str:
-    """"An assistant", "A manager".
+    """"An accountant", "A manager".
 
     A small thing, and the reason it is worth a function: this sentence is
     read at a counter by somebody who has just been refused, often in front of
-    a customer. "A assistant may not do this" makes the software look careless
+    a customer. "A accountant may not do this" makes the software look careless
     at the exact moment it is telling somebody they lack authority, which is
     the moment it can least afford to.
     """

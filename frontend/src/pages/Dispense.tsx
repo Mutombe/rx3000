@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
 import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
@@ -82,7 +82,7 @@ const ROUTE_TABS: {
   /** A capability from the server's matrix. Absent means everybody. */
   needs?: string;
 }[] = [
-  { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine" },
+  { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" },
   // Shown to whoever may actually do it.
   //
   // The endpoint has always refused a controlled dispensing without this
@@ -93,7 +93,10 @@ const ROUTE_TABS: {
   // It reads the same capability the endpoint checks rather than a second rule
   // written to look similar, which is how the two come to disagree.
   { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" },
-  { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription" },
+  // A cashier's whole reason to be on this screen, and the only route they have
+  // by default. It carried no capability at all, which made it the one tab
+  // nobody could be refused — including the people who should be.
+  { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" },
 ];
 
 /** What happens to the money at the moment of dispensing.
@@ -148,14 +151,33 @@ export default function Dispense() {
       : ROUTE_TABS.filter((t) => !t.needs || session.can(t.needs))),
     [session]);
 
-  /* Somebody on a route they may not use is put back on the ordinary one.
+  /* Somebody on a route they may not use is put on the first one they can.
      This can happen without them doing anything wrong: a link, a restored tab,
-     or an authority withdrawn while the screen was open. */
+     or an authority withdrawn while the screen was open.
+
+     The first VISIBLE route, not "prescription". Sending them back to a fixed
+     one only worked while everybody had it — a cashier who may sell over the
+     counter and nothing else was being bounced onto the prescription route,
+     found it hidden, and bounced again. */
   useEffect(() => {
-    if (session.known && !visibleRoutes.some((t) => t.key === route)) {
-      setRoute("prescription");
+    if (!session.known || !visibleRoutes.length) return;
+    if (!visibleRoutes.some((t) => t.key === route)) {
+      setRoute(visibleRoutes[0].key);
     }
   }, [session.known, visibleRoutes, route]);
+
+  /** Move to a route, but never to one this person cannot see.
+   *
+   *  Picking a repeat or a to-follow jumps the screen to where that item
+   *  belongs. Unclamped, that lands somebody on a hidden tab with nothing
+   *  rendered and no way back — so it is clamped here, once, rather than at
+   *  each of the three call sites where it would drift.
+   */
+  const goToRoute = useCallback((want: Route) => {
+    if (!session.known) { setRoute(want); return; }
+    const allowed = visibleRoutes.some((t) => t.key === want);
+    setRoute(allowed ? want : (visibleRoutes[0]?.key ?? want));
+  }, [session.known, visibleRoutes]);
   const [policies, setPolicies] = useState<SchedulePolicy[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -676,7 +698,7 @@ export default function Dispense() {
       ]);
       setPatient(p);
       setPatientQ("");
-      setRoute(row.schedule >= 5 ? "controlled" : "prescription");
+      goToRoute(row.schedule >= 5 ? "controlled" : "prescription");
       if (rx.doctor_id) setDoctorId(rx.doctor_id);
 
       // Lines the prescriber marked "do not dispense" are on the script but are
@@ -1223,6 +1245,38 @@ export default function Dispense() {
     }
   }
 
+  /* Nothing here is available to this person, so the screen says that instead
+     of performing a dispensary that refuses every control one at a time.
+
+     Only once the server has answered. `can` is false while the session loads,
+     and a dispensary that flashes "you may not dispense" every morning before
+     drawing itself is one nobody believes the second time. */
+  if (session.known && visibleRoutes.length === 0) {
+    return (
+      <>
+        <div className="page-head">
+          <div>
+            <h1>Dispensary</h1>
+            <div className="sub">Nothing on this screen is yours to use</div>
+          </div>
+        </div>
+        <div className="card empty-state">
+          <p>
+            Your account does not carry any of the three dispensing routes —
+            prescription, over-the-counter, or dangerous drugs. That is a
+            setting, not a fault: whoever administers this pharmacy can add one
+            on the role matrix, or grant it to you by name.
+          </p>
+          <p className="muted">
+            If you came here to serve somebody at the counter, the till is on
+            the Point of Sale screen.
+          </p>
+          <Link className="btn" to="/pos">Go to Point of Sale</Link>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <KeyMap keys={hotkeys} open={showKeys} onClose={() => setShowKeys(false)} />
@@ -1296,14 +1350,23 @@ export default function Dispense() {
       )}
 
       {/* Which route is being dispensed governs the whole screen below it, so
-          it floats rather than scrolling away. */}
-      <div className="pill-tabs disp-routes">
-        {visibleRoutes.map((t) => (
-          <button key={t.key} className={route === t.key ? "active" : ""} onClick={() => setRoute(t.key)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+          it floats rather than scrolling away.
+
+          Only where there is something to choose between. A bar with one tab in
+          it takes a row of the screen to offer a click that does nothing, and
+          tells the person looking at it that there is somewhere else to be —
+          for a cashier who may only sell over the counter, that is a permanent
+          hint at a door that is not there. The line under the heading already
+          names the route and says what it is for. */}
+      {visibleRoutes.length > 1 && (
+        <div className="pill-tabs disp-routes">
+          {visibleRoutes.map((t) => (
+            <button key={t.key} className={route === t.key ? "active" : ""} onClick={() => setRoute(t.key)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Where you are, and what the step you are on is waiting for.
           In the flow rather than pinned: the route strip above was sticky once
@@ -2247,7 +2310,7 @@ export default function Dispense() {
           // dispenser's back. A repeat still needs a safety check and a
           // pharmacist's initials; the shortcut this replaces skipped both and
           // was rejected by the server for exactly that reason.
-          setRoute(row.schedule >= 5 ? "controlled" : "prescription");
+          goToRoute(row.schedule >= 5 ? "controlled" : "prescription");
           if (row.doctor_id) setDoctorId(row.doctor_id);
           api.get<Patient>(`/api/patients/${row.patient_id}`)
             .then((p) => { setPatient(p); setPatientQ(""); })

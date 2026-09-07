@@ -160,7 +160,48 @@ def get_current_user(
 #: The roles a staff member can hold, so a role can be validated rather than
 #: accepted as free text. A user set to "pharmasist" is a user with no
 #: permissions at all, silently, and it took a database to find out why.
-ROLES = ("admin", "pharmacist", "assistant", "cashier", "manager")
+#:
+#: Ordered by reach, because this list is read as a list — it fills the role
+#: dropdown when somebody is hired and heads the columns of the role matrix, and
+#: alphabetical order there puts the administrator between the accountant and
+#: the cashier for no reason anybody could name.
+ROLES = ("admin", "manager", "pharmacist", "cashier", "accountant")
+
+#: Roles that used to exist, and what somebody holding one becomes.
+#:
+#: `assistant` granted nothing. Not little — nothing: no capability in the whole
+#: list named it, so the role conferred exactly what holding no role conferred.
+#: It was offered in a dropdown, chosen in good faith, and did not work, which
+#: is the worst way for a permission to be missing: silently, and only for the
+#: people somebody deliberately placed there.
+#:
+#: They become cashiers, which is what they could already do.
+#:
+#: Kept as data rather than deleted so `migrate_roles()` below can move them and
+#: so a token issued before the change — they last hours — still names something
+#: this file recognises.
+RETIRED_ROLES = {"assistant": "cashier"}
+
+
+def migrate_roles(db) -> dict[str, int]:
+    """Move anybody on a retired role onto the one that replaced it.
+
+    Idempotent, and reports what it did rather than doing it quietly: a person's
+    role changing under them is the sort of thing they find out about when a
+    button is missing, so whoever runs this should be able to say who moved.
+    """
+    from .models import User
+
+    moved: dict[str, int] = {}
+    for gone, becomes in RETIRED_ROLES.items():
+        rows = db.query(User).filter(User.role == gone).all()
+        for row in rows:
+            row.role = becomes
+        if rows:
+            moved[f"{gone} -> {becomes}"] = len(rows)
+    if moved:
+        db.commit()
+    return moved
 
 
 def require_role(*roles: str):

@@ -97,7 +97,13 @@ class UserCreate(BaseModel):
     username: str
     password: str
     full_name: str
-    role: str = "assistant"
+    #: The narrowest role that can actually do something, so a request that
+    #: omits it creates somebody who works rather than somebody who cannot.
+    #:
+    #: It defaulted to "assistant", which was retired for granting nothing at
+    #: all — a caller that left the field out was silently creating an account
+    #: with no authority, and the person holding it found out at a counter.
+    role: str = "cashier"
 
 
 # ---------- reference data ----------
