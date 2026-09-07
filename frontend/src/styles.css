@@ -1,3 +1,51 @@
+/* ---- the typefaces, bundled ------------------------------------------
+ *
+ * Served from this application rather than from Google, for three reasons and
+ * the first is the one that was actually breaking:
+ *
+ * The desktop shell refused them. Its content policy is `style-src 'self'
+ * 'unsafe-inline'` with no `font-src`, so the stylesheet host and the font
+ * host both fell under `default-src 'self'` and both requests were blocked.
+ * The till rendered in whatever system font it had and nothing said why.
+ *
+ * A branch with the line down cannot reach Google either, and a pharmacy on a
+ * metered connection should not spend it on a typeface.
+ *
+ * And it is faster for everybody: no DNS, no TLS handshake, no third party
+ * between the page and its own letters.
+ *
+ * Inter is one file. Google serves the same variable font for every weight you
+ * ask it for — five identical copies of 48,256 bytes — so it is declared once
+ * across the whole range instead.
+ *
+ * `font-display: swap` deliberately: text in the fallback face immediately,
+ * replaced when the real one arrives. Invisible text while a font loads is a
+ * blank screen to somebody at a counter.
+ *
+ * Both families are SIL Open Font License.
+ */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url("/fonts/inter-variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/ibm-plex-mono-500.woff2") format("woff2");
+}
+
 /* RX5000 design system — "quiet precision".
  *
  * Restraint is what reads as expensive. Surfaces are near-opaque with hairline

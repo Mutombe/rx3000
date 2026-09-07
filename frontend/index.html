@@ -7,22 +7,10 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#032153" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Loaded without blocking the first paint. A stylesheet link blocks
-         rendering until it resolves, and this one points at a host a pharmacy
-         running offline cannot reach — so the till would sit on a blank screen
-         waiting for a font request to time out. media="print" makes the browser
-         fetch it at low priority and not wait for it; onload promotes it once it
-         has actually arrived.
-
-         The font stacks in styles.css fall back to system-ui and ui-monospace,
-         so an offline branch gets a slightly different typeface and everything
-         else identical. Bundling the two families is still the right end state
-         and is not done here. -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet" media="print" onload="this.media='all'" />
+    <!-- The typefaces are bundled with the application and declared in
+         styles.css. They used to be fetched from Google, which the desktop
+         shell's content policy refused outright and a branch with no line
+         could not reach either. -->
   </head>
   <body>
     <!-- The theme is painted before the first frame, not after React mounts.
