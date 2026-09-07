@@ -84,11 +84,50 @@ def _signing_env() -> dict:
         f"update itself.")
 
 
+#: The server a desktop build points at unless the shell says otherwise.
+#: Read from the Rust source so there is one statement of it, not two that
+#: drift.
+def _default_server() -> str:
+    src = (TAURI / "src" / "main.rs").read_text(encoding="utf-8")
+    found = re.search(r'const DEFAULT_SERVER: &str = "([^"]+)"', src)
+    if not found:
+        raise SystemExit(
+            "Could not find DEFAULT_SERVER in main.rs, so the front end would "
+            "be built with no server address and every request in the desktop "
+            "application would go nowhere.")
+    return found.group(1)
+
+
 def build() -> None:
     env = _signing_env()
+
+    # Bake the server address into the bundle.
+    #
+    # `apiBase` prefers the address the Rust shell injects and falls back to
+    # this. The hosted site sets it in its own build environment, which is why
+    # the browser has always worked; a laptop build had nothing, so the bundle
+    # fell back to "" and every request went to http://tauri.localhost/api/…
+    # — reported, accurately, as not being able to reach the server.
+    #
+    # The injected global still wins where it exists. That is what lets a
+    # pharmacy point a till at a server in their own back office.
+    api_base = _default_server()
+    env["VITE_API_BASE"] = api_base
+    print(f"  front end will fall back to {api_base}")
+
     print("  building the front end…")
     subprocess.run(["npm", "run", "build"], cwd=ROOT / "frontend",
-                   check=True, shell=True)
+                   check=True, shell=True, env=env)
+
+    built = sorted((ROOT / "frontend" / "dist" / "assets").glob("index-*.js"))
+    if not any(api_base in f.read_text(encoding="utf-8", errors="replace")
+               for f in built):
+        raise SystemExit(
+            f"The built bundle does not contain {api_base}.\n"
+            f"  A desktop build with no server address reports every request "
+            f"as a connection failure, which sends everybody looking at the "
+            f"network instead of at this.")
+    print("  the address is in the bundle")
     print("  building the installers… (several minutes)")
     subprocess.run(["npx", "--yes", "@tauri-apps/cli", "build"], cwd=TAURI,
                    check=True, shell=True, env=env)
