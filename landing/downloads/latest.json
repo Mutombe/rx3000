@@ -1,0 +1,11 @@
+{
+  "version": "1.6.0",
+  "notes": "The logo now appears on the sign-in card, and the till application can\nupdate itself.\n\n- Every list that writes through a dialog shows the row straight away\n  rather than after the server answers.\n- The navigation on a phone is a rail of icons with the menu button in\n  the top bar.\n- Signing in and every page load are several times faster.\n- A new version is offered in the top bar. Nothing installs until you\n  say so.",
+  "pub_date": "2026-09-07T09:45:08+00:00",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakg1R01xb1BEaEhlT0NvVi95MU9ST2Y2Um9Lb2dlOVRaK0lYRjBFU0ZpaGYzWFJNbm9lUmtRUmwxdEQ3bzJocHZjY2tJeWliTnM2T3BhQTBkNllEN2djPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4Nzc0MzA2CWZpbGU6Ulg1MDAwXzEuNi4wX3g2NC1zZXR1cC5leGUKcmo1Qm1yMm5zR3kzcmFxeW1kcnNxRXZHQ0JuWFg0LzBTTDZFeWsrSS91bGkybUJ6MDZGMDk3ZExBVStQTXhaWmQ4dVFqZ29rWkNMeis0UWVsaXlMQ1E9PQo=",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.0_x64-setup.exe"
+    }
+  }
+}
