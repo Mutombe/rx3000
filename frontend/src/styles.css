@@ -7085,3 +7085,48 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 /* A cell that must stay on one line: a date, a reference, a figure. */
 .nowrap { white-space: nowrap; }
+
+/* ------------------------------------- possible descriptions, while typing
+   The dialog a dispenser coming off Proppharm has typed into for fifteen
+   years, in the place they expect it: under the Directions field, on the first
+   keystroke, Enter to take one.
+
+   Deliberately NOT the same surface as `.sig-book` below it. The book is a
+   reference you open and read; this is a list you are steering with the arrow
+   keys and will be gone in half a second, and the two being visually distinct
+   is what stops somebody hunting in the wrong one. */
+.sig-suggest {
+  position: absolute; z-index: 45; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, .18));
+  overflow: hidden;
+}
+.sig-suggest-head {
+  padding: var(--s1) var(--s3);
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-soft);
+  background: var(--surface-sunken, var(--hover));
+  border-bottom: 1px solid var(--line);
+}
+.sig-suggest ul {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 15rem; overflow-y: auto;
+}
+.sig-suggest li {
+  display: grid; grid-template-columns: 5.5rem 1fr; gap: var(--s2);
+  align-items: baseline;
+  padding: 3px var(--s3); font-size: .82rem; cursor: pointer;
+}
+/* The highlight is painted, not bordered: a border on the current row shifts
+   every row under it by a pixel as the arrow keys move, and the list appears
+   to shiver. */
+.sig-suggest li.on { background: var(--accent); color: var(--accent-ink); }
+.sig-suggest li.on .muted, .sig-suggest li.on .sig-caution { color: inherit; }
+.sig-suggest li b {
+  font-family: var(--mono, ui-monospace, "SFMono-Regular", Menlo, monospace);
+  font-weight: 600;
+}
+/* A caution belongs on its own line rather than pushed off the right edge —
+   "DO NOT CRUSH OR CUT" truncated to "DO NOT CRUSH" is worse than absent. */
+.sig-suggest li .sig-caution { grid-column: 2; }

@@ -361,7 +361,13 @@ def book(db: Session) -> dict:
     position = {code: i for i, (code, *_) in enumerate(SEED)}
     rows.sort(key=lambda r: (position.get(r.code.lower(), len(SEED)),
                              r.code.lower()))
-    order = ["quantity", "frequency", "timing", "route", "form"]
+    # The order a direction is composed in, then the things that hang off it.
+    # `indication`, `caution`, `dispensary` and `greeting` arrived with the
+    # Proppharm vocabulary — see services/proppharm.py. They sit after the four
+    # that build a sentence because that is the order a dispenser reaches for
+    # them: how much, how often, when, where, and only then the warning.
+    order = ["quantity", "frequency", "timing", "route", "form",
+             "indication", "caution", "dispensary", "greeting"]
     groups: dict[str, list[dict]] = {}
     for row in rows:
         groups.setdefault(row.category or "other", []).append({

@@ -1101,7 +1101,7 @@ def dosage_abbreviations(db: Session = Depends(get_db)):
     Returned in full rather than searched, because the list is short and a
     dispenser learning the shorthand wants to see it, not query it.
     """
-    from ..services import sig
+    from ..services import proppharm, sig
 
     sig.seed_if_empty(db)
     # Corrections reach a database that was seeded before them. `instil` became
@@ -1110,6 +1110,10 @@ def dosage_abbreviations(db: Session = Depends(get_db)):
     # empty table. This replaces wording that is still exactly what an earlier
     # version shipped and leaves anything the pharmacy edited alone.
     sig.refresh(db)
+    # And the vocabulary every dispenser in the country already has in their
+    # fingers, from the system they are coming off. Additive: it adds codes that
+    # are not in the book and changes nothing that is.
+    proppharm.seed(db)
     return sig.book(db)
 
 
@@ -1124,10 +1128,11 @@ def dosage_sheet(db: Session = Depends(get_db),
     """
     from fastapi.responses import Response
 
-    from ..services import sig, sig_sheet
+    from ..services import proppharm, sig, sig_sheet
 
     sig.seed_if_empty(db)
     sig.refresh(db)
+    proppharm.seed(db)
     pharmacy = db.get(Pharmacy, user.pharmacy_id)
     # A user is not pinned to a branch — `branch_id` lives on a permission
     # grant, not on the person, so the sheet is headed with the branch the
@@ -1150,9 +1155,10 @@ def dosage_sheet(db: Session = Depends(get_db),
 def expand_dosage(shorthand: str = Body(..., embed=True),
                   db: Session = Depends(get_db)):
     """Turn typed shorthand into the sentence that prints on the label."""
-    from ..services import sig
+    from ..services import proppharm, sig
 
     sig.seed_if_empty(db)
+    proppharm.seed(db)
     return {"shorthand": shorthand, "directions": sig.expand(db, shorthand)}
 
 

@@ -32,6 +32,24 @@
  *  The field itself is never rewritten while somebody is typing in it. Text
  *  that changes under the cursor is the behaviour that makes people fight an
  *  input. The shorthand stays; the sentence appears beside it.
+ *
+ *  THE PICKER OPENS AS YOU TYPE, BECAUSE THAT IS WHERE THE MUSCLE MEMORY IS
+ *
+ *  Proppharm — the system most Zimbabwean dispensaries are coming off — put a
+ *  dialog on screen the moment you touched the Directions field: "Possible
+ *  Descriptions (Press <Enter> to Select)", every code beginning with what you
+ *  had typed, arrow keys to move, Enter to take one. A dispenser who has done
+ *  that for fifteen years types `q` and then looks down, without deciding to.
+ *
+ *  This does the same thing. It matches on the word under the cursor, not the
+ *  whole field, because directions are built from several codes in a row and
+ *  the second one has to complete as readily as the first.
+ *
+ *  Enter is overloaded on purpose and in one direction only: while the list is
+ *  open it takes the highlighted code, and otherwise it expands the field as it
+ *  always did. Nothing is ever inserted without a keystroke that means it —
+ *  there is no completion-on-blur and no first-match-wins, because a code
+ *  quietly substituted into a direction is a label nobody chose.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass, Warning, X } from "@phosphor-icons/react";
@@ -62,6 +80,11 @@ const GROUP_TITLES: Record<string, string> = {
   timing: "When",
   route: "Where it goes",
   form: "What it is",
+  // Carried over with the Proppharm vocabulary.
+  indication: "What it is for",
+  caution: "Warnings",
+  dispensary: "For the dispensary",
+  greeting: "Greetings",
 };
 
 /** Nouns a numeral in front of has to agree with. Mirrors `sig.PLURALS`. */
@@ -119,8 +142,14 @@ export default function SigInput({
   const [filter, setFilter] = useState("");
   const [expandedFrom, setExpandedFrom] = useState("");
   const [sheeting, setSheeting] = useState(false);
+  /** The word under the cursor, and where in the field it sits. Empty when the
+   *  suggestion list should not be on screen at all. */
+  const [typing, setTyping] = useState<{ word: string; from: number; to: number } | null>(null);
+  const [cursor, setCursor] = useState(0);
   const live = useRef(true);
   const panel = useRef<HTMLDivElement | null>(null);
+  const field = useRef<HTMLInputElement | null>(null);
+  const list = useRef<HTMLUListElement | null>(null);
 
   useEffect(() => {
     // Set true on every mount, not just at creation. React's development mode
@@ -150,6 +179,43 @@ export default function SigInput({
     return (value || "").trim().split(/\s+/)
       .filter((t) => t && !codes.has(t.replace(/[.,;]+$/, "").toLowerCase()));
   }, [value, codes]);
+
+  /** The codes that could complete the word being typed.
+   *
+   *  Prefix first, which is what Proppharm did and therefore what a hand coming
+   *  off it expects: typing `q` listed Q, Q12, Q6H, QH, QID, QQH, QW and
+   *  nothing else. Where a prefix finds nothing the words are searched instead,
+   *  so somebody who knows what they mean but not what it is called still gets
+   *  an answer rather than an empty box — that tier never fires while the
+   *  familiar one is producing results, so it cannot surprise anybody.
+   *
+   *  Capped, because a list longer than the screen is one nobody reads, and
+   *  because `1` alone matches thirty-odd codes.
+   */
+  const suggestions = useMemo(() => {
+    const q = (typing?.word ?? "").toLowerCase();
+    if (!q || !entries.length) return [];
+    const prefix = entries.filter((e) => e.code.toLowerCase().startsWith(q));
+    const pool = prefix.length ? prefix : entries.filter((e) =>
+      e.expansion.toLowerCase().includes(q));
+    return pool
+      .sort((a, b) => a.code.length - b.code.length
+        || a.code.toLowerCase().localeCompare(b.code.toLowerCase()))
+      .slice(0, 12);
+  }, [typing, entries]);
+
+  const picking = suggestions.length > 0;
+
+  // Back to the top whenever the list changes under the highlight, so Enter
+  // never takes a row that scrolled away while somebody was still typing.
+  useEffect(() => { setCursor(0); }, [typing?.word]);
+
+  // Keep the highlighted row in view when it is moved with the keyboard, which
+  // is the only way it moves — the list is taller than the box it sits in.
+  useEffect(() => {
+    const el = list.current?.children[cursor] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
 
   /** Nothing was recognised at all, so the preview is only an echo. */
   const recognised = preview && unknown.length
@@ -212,11 +278,57 @@ export default function SigInput({
       <div className="sig-row">
         <input
           id={id}
+          ref={field}
           value={value}
+          autoComplete="off"
           placeholder={placeholder ?? "e.g. 1t tds pc"}
-          onChange={(e) => { setExpandedFrom(""); onChange(e.target.value); }}
-          onBlur={commit}
+          aria-expanded={picking}
+          onChange={(e) => {
+            setExpandedFrom("");
+            onChange(e.target.value);
+            track(e.target.value, e.target.selectionStart ?? e.target.value.length);
+          }}
+          // Moving the caret changes which word is being completed, so the list
+          // has to follow it. Without this, clicking back into `1t tds` to fix
+          // the `1t` went on offering completions for `tds`.
+          onClick={(e) => track(value, e.currentTarget.selectionStart ?? 0)}
+          onKeyUp={(e) => {
+            if (e.key.startsWith("Arrow") || e.key === "Home" || e.key === "End") {
+              track(value, e.currentTarget.selectionStart ?? 0);
+            }
+          }}
+          onBlur={() => {
+            // The list closes, and nothing is taken from it. A completion that
+            // happens because somebody clicked elsewhere is a word they did not
+            // choose, printed on a label they will not re-read.
+            setTyping(null);
+            commit();
+          }}
           onKeyDown={(e) => {
+            if (picking) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setCursor((c) => (c + 1) % suggestions.length);
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setCursor((c) => (c - 1 + suggestions.length) % suggestions.length);
+                return;
+              }
+              if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+                take(suggestions[cursor]);
+                return;
+              }
+              if (e.key === "Escape") {
+                // Dismiss the list, keep the field. Escape twice does not clear
+                // anything — this is the only thing it closes.
+                e.preventDefault();
+                setTyping(null);
+                return;
+              }
+            }
             if (e.key === "Enter") { e.preventDefault(); commit(); }
           }}
         />
@@ -230,6 +342,44 @@ export default function SigInput({
           {showBook ? "Hide codes" : "Codes"}
         </button>
       </div>
+
+      {/* "Possible Descriptions (Press <Enter> to Select)" — the dialog a
+          dispenser coming off Proppharm has typed into for years, in the place
+          they expect it: under the field, on the first keystroke.
+
+          Rendered as a listbox rather than buttons so a screen reader announces
+          the highlighted row as the arrow keys move it, which the code book
+          panel below cannot do because it is a grid of categories. */}
+      {picking && (
+        <div className="sig-suggest">
+          <div className="sig-suggest-head">
+            Possible descriptions
+            <span className="muted"> · Enter to select, Esc to dismiss</span>
+          </div>
+          <ul ref={list} role="listbox" aria-label="Possible descriptions">
+            {suggestions.map((c, i) => (
+              <li
+                key={c.code}
+                role="option"
+                aria-selected={i === cursor}
+                className={i === cursor ? "on" : undefined}
+                // Taken on mousedown, not click: the field's own blur fires
+                // first on a click and closes the list out from under it.
+                onMouseDown={(e) => { e.preventDefault(); take(c); }}
+                onMouseEnter={() => setCursor(i)}
+              >
+                <b>{c.code}</b>
+                <span>{c.expansion}</span>
+                {c.caution && (
+                  <span className="sig-caution">
+                    <Warning size={11} weight="fill" /> {c.caution}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* What the box will say. Shown while typing, not after committing, so
           the decision is made against the sentence rather than the shorthand. */}
@@ -351,6 +501,42 @@ export default function SigInput({
     } finally {
       setSheeting(false);
     }
+  }
+
+  /** Work out which word the caret is in, and whether to offer completions.
+   *
+   *  The word, not the field: `1t tds` with the caret at the end is completing
+   *  `tds`, and the `1t` in front of it is already decided.
+   */
+  function track(text: string, caret: number) {
+    const before = text.slice(0, caret);
+    // A single-line field, so a space is the only thing that starts a word.
+    const from = before.lastIndexOf(" ") + 1;
+    const rest = text.slice(caret);
+    const end = rest.search(/\s/);
+    const to = end === -1 ? text.length : caret + end;
+    const word = text.slice(from, to).replace(/[.,;]+$/, "");
+    setTyping(word ? { word, from, to } : null);
+  }
+
+  /** Put the chosen code where the word being typed was.
+   *
+   *  Replaces that word rather than appending, because the dispenser has
+   *  already typed the first letters of it — appending would leave `q qid`.
+   */
+  function take(entry: Entry) {
+    if (!typing) return;
+    const next = `${value.slice(0, typing.from)}${entry.code} ${value.slice(typing.to)}`;
+    setExpandedFrom("");
+    onChange(next);
+    setTyping(null);
+    // Back into the field, caret after the space this just added, so the next
+    // code can be typed without reaching for the mouse.
+    const at = typing.from + entry.code.length + 1;
+    requestAnimationFrame(() => {
+      field.current?.focus();
+      field.current?.setSelectionRange(at, at);
+    });
   }
 
   function append(code: string) {

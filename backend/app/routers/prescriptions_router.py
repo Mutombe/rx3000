@@ -22,7 +22,8 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import branches, claims_engine, messages, paging, sig, to_follows
+from ..services import (branches, claims_engine, messages, paging, proppharm,
+                        sig, to_follows)
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
 
@@ -552,6 +553,10 @@ def prescription_labels(
     the box.
     """
     sig.seed_if_empty(db)
+    # The label is expanded from whatever is in the book, and the Proppharm
+    # vocabulary is half of it now. Short-circuits on one indexed lookup once
+    # the import has run, so this is not a cost per label.
+    proppharm.seed(db)
     rx = db.get(Prescription, rx_id)
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
