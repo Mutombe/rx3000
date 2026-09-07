@@ -77,6 +77,17 @@ interface DraftItem {
   item_id?: number;
 }
 
+/** The diagnosis a line starts on.
+ *
+ *  Z76.9 — "person encountering health services in unspecified circumstances".
+ *  The ICD-10 code for a contact with no diagnosis attached, which is what
+ *  nearly every counter dispensing is, and what the previous system put there.
+ *
+ *  A default, not an answer. Where the prescriber wrote a diagnosis it should
+ *  be typed, and the line below the picker says so.
+ */
+const DEFAULT_DIAGNOSIS = "Z76.9";
+
 const ROUTE_TABS: {
   key: Route; label: string; hint: string;
   /** A capability from the server's matrix. Absent means everybody. */
@@ -552,8 +563,11 @@ export default function Dispense() {
       product: p, quantity: 1, dosage_instructions: "",
       repeats_allowed: Math.min(0, maxRepeats), repeat_interval_days: 30, auto_refill: false,
       // Carry the diagnosis down from the previous line — a script usually
-      // treats one condition, so re-typing it on every item is wasted keystrokes.
-      icd10_code: items.length ? items[items.length - 1].icd10_code : "",
+      // treats one condition, so re-typing it on every item is wasted
+      // keystrokes. The first line starts on the unspecified-contact code
+      // rather than empty.
+      icd10_code: items.length
+        ? items[items.length - 1].icd10_code : DEFAULT_DIAGNOSIS,
     }]);
     setProductQ(""); setProductResults([]); aiCheck.reset();
   }
@@ -718,7 +732,7 @@ export default function Dispense() {
           repeats_allowed: i.repeats_allowed ?? 0,
           repeat_interval_days: i.repeat_interval_days ?? 30,
           auto_refill: !!i.auto_refill,
-          icd10_code: i.icd10_code ?? "",
+          icd10_code: i.icd10_code || DEFAULT_DIAGNOSIS,
           item_id: i.id,
         }));
       if (!ready.length) {
@@ -1712,9 +1726,22 @@ export default function Dispense() {
                     <div className="field span-12">
                       <label>
                         Diagnosis (ICD-10)
-                        {!it.icd10_code && <span className="badge warn" style={{ marginLeft: 8 }}>
-                          required to claim
-                        </span>}
+                        {/* Three states, and they are different things.
+                            Empty is the only one that stops a claim. The
+                            default is a real code that will be accepted and is
+                            still nobody's clinical judgement, so it says so
+                            quietly rather than as a warning — a badge that
+                            fires on the normal case stops being read, which is
+                            the reason the empty one was being ignored. */}
+                        {!it.icd10_code
+                          ? <span className="badge warn" style={{ marginLeft: 8 }}>
+                              required to claim
+                            </span>
+                          : it.icd10_code === DEFAULT_DIAGNOSIS
+                            ? <span className="badge muted" style={{ marginLeft: 8 }}>
+                                default — change it if the script gives one
+                              </span>
+                            : null}
                       </label>
                       <DiagnosisPicker autoFocus={false} value={it.icd10_code}
                         onChange={(code) => updateItem(idx, { icd10_code: code })} />
@@ -2330,7 +2357,7 @@ export default function Dispense() {
                       quantity: row.quantity || 1,
                       dosage_instructions: row.dosage_instructions,
                       repeats_allowed: 0, repeat_interval_days: 30,
-                      auto_refill: false, icd10_code: "",
+                      auto_refill: false, icd10_code: DEFAULT_DIAGNOSIS,
                     }]);
               toast.ok(`${product.name} loaded. Check it and record your initials to dispense.`);
             })
