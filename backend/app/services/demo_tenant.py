@@ -49,10 +49,19 @@ log = logging.getLogger("rx5000.demo")
 #: would have to be migrated onto every existing deployment to say one thing.
 DEMO_PHARMACY = "RX5000 Demonstration Pharmacy"
 
-#: Days of trade in the demonstration data. The full sixty gives a fuller set
-#: of screens — a claim cycle, a month of takings, repeats coming due — and it
-#: is seeded once rather than per visitor, so the cost is paid at deployment.
-DEMO_DAYS = 60
+#: Days of trade in the demonstration data.
+#:
+#: Was sixty, chosen when the seed was costed at three milliseconds a
+#: statement — which is what a database on the same machine answers in. The
+#: real round trip to the production database is nearer two hundred, so sixty
+#: days is thirty-six thousand statements and some hours, not the two minutes
+#: that number implied.
+#:
+#: A fortnight fills every screen a prospect opens: takings, scripts due,
+#: claims in a cycle, a stock take, repeats coming round. The extra six weeks
+#: bought nothing a demonstration needs and cost the only thing that made the
+#: seed impractical.
+DEMO_DAYS = 14
 
 
 def get(db: Session) -> Pharmacy:
@@ -112,6 +121,35 @@ def is_seeded(db: Session) -> bool:
     dataset again on top of the half that survived.
     """
     return state(db) == MARK_DONE
+
+
+def set_aside(db: Session) -> str:
+    """Rename a half-finished demonstration tenant out of the way.
+
+    Renamed, not deleted. A delete across eighty tables in foreign-key order,
+    against a production database, to remove rows nobody is looking at, is a
+    far larger risk than the storage it reclaims — and the rows belong to a
+    pharmacy that no account is attached to, so nothing can reach them.
+
+    `get` then creates a clean one on the next call, because it finds the
+    demonstration pharmacy by name and the old row no longer has that name.
+
+    Returns the new name, or "" if there was nothing to move.
+    """
+    from datetime import datetime
+
+    with tenancy.unscoped():
+        existing = (db.query(Pharmacy)
+                    .filter(Pharmacy.name == DEMO_PHARMACY).first())
+        if existing is None:
+            return ""
+        stamp = datetime.utcnow().strftime("%Y-%m-%d %H%M")
+        existing.name = f"{DEMO_PHARMACY} (abandoned {stamp})"
+        existing.active = False
+        db.commit()
+        log.info("Set aside the old demonstration pharmacy as %r",
+                 existing.name)
+        return existing.name
 
 
 def seed(db: Session, *, days: int = DEMO_DAYS) -> dict[str, int]:

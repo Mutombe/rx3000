@@ -28,8 +28,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--days", type=int, default=demo_tenant.DEMO_DAYS,
                         help="days of trade to generate")
-    parser.add_argument("--retry", action="store_true",
-                        help="clear a half-finished run and seed from scratch")
+    parser.add_argument("--fresh", action="store_true",
+                        help="set a half-finished tenant aside and seed a new "
+                             "one from scratch")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -39,10 +40,12 @@ def main() -> int:
         print(f"  demonstration pharmacy: {pharmacy.name} (id={pharmacy.id})")
         print(f"  state: {demo_tenant.state(db) or 'never seeded'}")
 
-        if args.retry and demo_tenant.state(db) == demo_tenant.MARK_RUNNING:
-            print("  clearing the half-finished mark")
-            pharmacy.registration_no = ""
-            db.commit()
+        if args.fresh:
+            moved = demo_tenant.set_aside(db)
+            if moved:
+                print(f"  set aside: {moved}")
+                pharmacy = demo_tenant.get(db)
+                print(f"  new demonstration pharmacy: id={pharmacy.id}")
 
         if demo_tenant.is_seeded(db):
             print("\n  Already seeded. Nothing to do.")
