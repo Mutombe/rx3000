@@ -1,14 +1,39 @@
-Fixes the till reporting that it cannot reach its server when the
-server is running normally.
+Dispensing now understands the codes you already type, and each
+person sees the routes they are allowed to use.
 
-The application now carries its server address itself, instead of
-depending on the shell handing it over before the first screen loads.
+**The direction codes from your previous system**
 
-- A read waits while a server comes back rather than failing. Anything
-  that takes money or moves stock is still attempted once only, so
-  nothing can be paid or dispensed twice.
-- The application carries its own typeface, so it reads the same on a
-  till as in a browser, including with no line.
-- The window title is the product name; the server this till talks to
-  is on the This Till screen.
-- Lists show a new row the moment you save it.
+The book has grown from 79 codes to 400. If you came from Proppharm,
+type what your hands already know — `12a` for one to two tablets,
+`2a` for two, `g5` to give 5ml, `rea` for the right ear, `mcd` for
+"may cause drowsiness". The list opens as you start typing, arrow
+keys move, Enter selects.
+
+Both sets of codes work. Nobody has to be retrained to type.
+
+**The dispensary shows only the routes you may use**
+
+A cashier sells over the counter and no longer sees the prescription
+or dangerous drugs tabs. Where only one route applies the tab strip
+is not drawn at all, so the screen opens straight onto the work.
+Whoever administers this pharmacy can change any of it under
+Control Panel, Roles.
+
+Only a pharmacist reaches Dangerous Drugs.
+
+**The diagnosis field starts filled in**
+
+New script lines open on Z76.9 — an unspecified contact — rather
+than empty, and say so. Where the prescriber wrote a diagnosis,
+change it.
+
+**Also in this release**
+
+- Everyone lands on the screen they actually work on. The counter
+  opens the dispensary; the Command Centre is for whoever reads the
+  figures.
+- A new role, Accountant: the money, claims and supplier payments,
+  with no till and no dispensing.
+- Medicines are classified against their MCAZ schedules properly,
+  so the dispensary finds what you search for and the controlled
+  register catches what belongs in it.
