@@ -11,6 +11,11 @@ copy of a claim made when it was issued; keeping one does not extend anything,
 because every request re-reads `demo_expires_at` from the row. Revoking a demo
 early is one UPDATE.
 
+**The demo has its own pharmacy, with the demonstration data in it.** See
+`demo_tenant`: one tenant, seeded from the same generator the development
+database uses, scoped away from every real customer by the same mechanism that
+separates customers from each other.
+
 **The demo is a real account with a real role, not a read-only mode.** A
 dispensing system evaluated without dispensing anything tells a pharmacist
 nothing. The protection is the expiry and the separate data, not a crippled UI.
@@ -56,8 +61,21 @@ def start(db: Session, full_name: str, role: str = "admin") -> tuple[User, datet
     an evaluation that hides the settings, the reports and the claiming screens
     is an evaluation of a different product.
     """
+    from . import demo_tenant
+
     name = (full_name or "").strip() or "Demo user"
     expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=DEMO_HOURS)
+
+    # The pharmacy they will be looking at.
+    #
+    # Without one the account is created with no tenant, and tenancy narrows a
+    # request with no pharmacy in force to rows that have none — of which,
+    # after the backfill, there are none. Every demo before this saw a complete
+    # and entirely empty product: no patients, no stock, no trade, nothing on
+    # any screen. That was the first impression the product made to everybody
+    # who asked to try it.
+    pharmacy = demo_tenant.get(db)
+
     user = User(
         username=_unique_username(db),
         password_hash=auth.hash_password(secrets.token_urlsafe(_PASSWORD_BYTES)),
@@ -66,6 +84,11 @@ def start(db: Session, full_name: str, role: str = "admin") -> tuple[User, datet
         active=True,
         is_demo=True,
         demo_expires_at=expires,
+        pharmacy_id=pharmacy.id,
+        # Sees the whole demonstration group rather than one shop of it: an
+        # evaluation that opens on a branch with three of the six screens
+        # populated is an evaluation of a different product.
+        all_branches=True,
     )
     db.add(user)
     db.commit()

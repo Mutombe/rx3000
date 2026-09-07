@@ -27,7 +27,14 @@ interface Auth { access_token: string; user: User }
 
 export default function Login() {
   const [panel, setPanel] = useState<Panel>("signin");
-  const [username, setUsername] = useState("admin");
+  // Empty, not "admin".
+  //
+  // It was prefilled to save a developer three keystrokes, and on a production
+  // sign-in page it names an account to everybody who opens it — the same
+  // thing the seeded credentials below the card were doing, in a field rather
+  // than in a footnote. It also puts the cursor in the wrong place: the
+  // person signing in has to clear it before they can type their own name.
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -260,11 +267,14 @@ export default function Login() {
           <Link to="/training"><GraduationCap size={14} /> Training material</Link>
         </div>
 
-        {panel === "signin" && (
-          <p className="demo-creds">
-            <b>admin</b>/admin123 · <b>pharmacist</b>/pharm123 · <b>cashier</b>/cash123
-          </p>
-        )}
+        {/* The three seeded logins used to be printed here. They were a
+            development convenience that shipped, which on a production install
+            is a published list of working credentials — the administrator's
+            among them — shown to anybody who opens the sign-in page.
+
+            Nothing replaces them. Somebody evaluating the product takes the
+            demo above, which hands out a real account with real data and no
+            password to keep; somebody who works here has their own login. */}
       </div>
     </div>
   );

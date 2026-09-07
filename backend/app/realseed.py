@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 
 from . import auth, zimdata
 from .config import settings
+from . import tenancy
 from .database import SessionLocal
 from .models import (
     Campaign, Claim, Deal, Dispensing, Doctor, JournalEntry, LayBy, LayByItem,
@@ -466,9 +467,10 @@ def _staff(db: Session) -> list[User]:
     """
     out = []
     for username, full_name, role in zimdata.STAFF:
-        row = db.query(User).filter(User.username == username).first()
+        name = _username_for_tenant(db, username)
+        row = db.query(User).filter(User.username == name).first()
         if not row:
-            row = User(username=username, password_hash=auth.hash_password("rx5000staff"))
+            row = User(username=name, password_hash=auth.hash_password("rx5000staff"))
             db.add(row)
         row.full_name = full_name
         row.role = role
@@ -477,6 +479,29 @@ def _staff(db: Session) -> list[User]:
         out.append(row)
     db.commit()
     return out
+
+
+def _username_for_tenant(db: Session, username: str) -> str:
+    """The name this pharmacy's copy of a seeded staff member goes by.
+
+    `users.username` is unique across the whole installation, and staff belong
+    to one pharmacy. Seeding a second tenant therefore cannot reuse the name:
+    the scoped lookup finds nothing, because the row belongs to the other
+    pharmacy, and the insert hits the unique index.
+
+    Asked unscoped, because "is this taken anywhere" is a question about every
+    pharmacy and the filtered query is exactly the thing that cannot answer it.
+    The first pharmacy to be seeded keeps the plain names; a later one — the
+    demonstration tenant — gets them suffixed with its own id, which is stable
+    across re-runs so seeding twice does not make a second set.
+    """
+    here = tenancy.current_pharmacy_id()
+    with tenancy.unscoped():
+        owner = (db.query(User.pharmacy_id)
+                 .filter(User.username == username).first())
+    if owner is None or here is None or owner[0] == here:
+        return username
+    return f"{username}.{here}"
 
 
 def _retire_expired_demos(db: Session) -> int:

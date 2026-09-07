@@ -1074,11 +1074,6 @@ label {
    It used to be a bordered, tinted panel, which gave a development convenience
    the same weight as the sign-in form above it and cost forty pixels of a card
    whose height every panel shares. */
-.demo-creds {
-  margin: 10px 0 0; font-size: 11px; color: var(--ink-faint); line-height: 1.5;
-}
-.demo-creds b { color: var(--ink-soft); font-weight: 600; }
-
 /* ---------- POS ---------- */
 .pos-layout { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
 @media (max-width: 1100px) { .pos-layout { grid-template-columns: 1fr; } }
