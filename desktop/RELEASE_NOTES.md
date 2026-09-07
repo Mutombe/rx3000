@@ -1,3 +1,7 @@
+This till can now update itself. Earlier versions could not — the
+check failed silently and looked exactly like being up to date — so
+this one has to be installed by hand. It is the last time.
+
 Dispensing now understands the codes you already type, and each
 person sees the routes they are allowed to use.
 

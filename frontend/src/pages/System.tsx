@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { api, apiBase, errorText, fmtDateTime, isDesktop } from "../api";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { useAppUpdate } from "../hooks/useAppUpdate";
 
 interface Licence {
   state: string; licensed_to: string; expires_on: string | null;
@@ -39,6 +40,10 @@ const LICENCE_TONE: Record<string, string> = {
 };
 
 export default function System() {
+  // Safe to call in a browser too: the hook returns "never" and does nothing
+  // when it is not in the desktop shell, and the card that reads it is behind
+  // `isDesktop()` anyway.
+  const update = useAppUpdate();
   const [info, setInfo] = useState<Info | null>(null);
   const [integrations, setIntegrations] = useState<any>(null);
   const [backups, setBackups] = useState<{ status: BackupStatus; files: BackupFile[] } | null>(null);
@@ -88,6 +93,49 @@ export default function System() {
           </p>
         </div>
       </header>
+
+      {/* Whether this till can update itself.
+
+          On this page rather than only in the top-bar chip, because the chip
+          only appears when there IS an update — so an updater that could never
+          find one had nowhere at all to report that, and did not, for five
+          releases. "Checked, nothing newer" and "cannot check" are different
+          facts and this is where somebody comes to tell them apart. */}
+      {isDesktop && (
+        <section className="card">
+          <h3>Updates</h3>
+          {update.result === "failed" ? (
+            <>
+              <p className="alert error">
+                This till cannot check for updates, so it will not receive them.
+              </p>
+              <p className="muted" style={{ fontFamily: "var(--mono, monospace)", fontSize: ".82rem" }}>
+                {update.error}
+              </p>
+            </>
+          ) : update.result === "offered" ? (
+            <p className="alert ok">
+              Version {update.version} is ready to install — use the update
+              button in the top bar.
+            </p>
+          ) : update.result === "current" ? (
+            <p className="muted">
+              Up to date. This till checks on start and every four hours.
+            </p>
+          ) : (
+            <p className="muted">Checking…</p>
+          )}
+          <p className="muted" style={{ fontSize: ".85rem" }}>
+            {update.checkedAt
+              ? `Last checked ${fmtDateTime(update.checkedAt.toISOString())}.`
+              : "Not checked yet."}
+            {" "}
+            <button type="button" className="linkish" onClick={() => update.check()}>
+              Check now
+            </button>
+          </p>
+        </section>
+      )}
 
       {/* Backups first: the only thing here that ends a business if neglected. */}
       <section className="card">

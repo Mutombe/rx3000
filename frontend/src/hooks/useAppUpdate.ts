@@ -57,9 +57,27 @@ export interface AppUpdate {
   install: () => Promise<void>;
   /** Ask again now. */
   check: () => Promise<void>;
+  /** Whether the last check could run at all, and what it found. */
+  result: CheckResult;
+  /** When it last ran. Null before the first attempt. */
+  checkedAt: Date | null;
 }
 
 /** Is this the Tauri shell rather than a browser tab? */
+/** What the last check actually did.
+ *
+ *  Separate from `stage`, which is about what the user is offered. This is
+ *  about whether the machinery works at all, and it exists because for five
+ *  releases those two questions had one answer between them: a check that threw
+ *  and a check that found nothing both came out as "none", so a till that could
+ *  never update itself was indistinguishable from one that was up to date.
+ */
+export type CheckResult =
+  | "never"        // has not run yet
+  | "current"      // ran, nothing newer
+  | "offered"      // ran, there is something newer
+  | "failed";      // could not run — see `error`
+
 export function inDesktopApp(): boolean {
   return typeof globalThis !== "undefined"
     && "__TAURI_INTERNALS__" in (globalThis as object);
@@ -71,6 +89,8 @@ const EVERY_MS = 4 * 60 * 60 * 1000;
 
 export function useAppUpdate(): AppUpdate {
   const [stage, setStage] = useState<UpdateStage>("none");
+  const [result, setResult] = useState<CheckResult>("never");
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [version, setVersion] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
@@ -84,20 +104,31 @@ export function useAppUpdate(): AppUpdate {
     try {
       const { check: ask } = await import("@tauri-apps/plugin-updater");
       const update = await ask();
+      setCheckedAt(new Date());
       if (!update) {
         // Nothing newer. Deliberately silent — see the note at the top.
         setStage("none");
+        setResult("current");
         return;
       }
       found.current = update;
       setVersion(update.version ?? "");
       setNotes((update.body ?? "").trim());
       setStage("available");
+      setResult("offered");
     } catch (e: any) {
-      // A failed check is not worth telling anybody about: the network is down,
-      // or the site is. The till goes on working and it asks again later.
+      // Still silent on screen: a pharmacy on a bad line should not get a
+      // banner about something they cannot act on, and the till goes on
+      // working and asks again later.
+      //
+      // But the reason is KEPT. Throwing it away is what let a till that had
+      // never been able to update itself look identical to one that was up to
+      // date, for five releases — the check was failing on an ACL permission
+      // the webview did not have, and `void e` discarded the only evidence.
+      setCheckedAt(new Date());
       setStage("none");
-      void e;
+      setResult("failed");
+      setError(String(e?.message ?? e ?? "The check could not run."));
     }
   }, []);
 
@@ -144,5 +175,6 @@ export function useAppUpdate(): AppUpdate {
     return () => window.clearInterval(timer);
   }, [check]);
 
-  return { stage, version, notes, error, progress, download, install, check };
+  return { stage, result, checkedAt, version, notes, error, progress,
+           download, install, check };
 }

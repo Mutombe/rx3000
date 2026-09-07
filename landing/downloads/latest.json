@@ -1,11 +1,11 @@
 {
-  "version": "1.6.5",
+  "version": "1.6.6",
   "notes": "Dispensing now understands the codes you already type, and each\nperson sees the routes they are allowed to use.\n\n**The direction codes from your previous system**\n\nThe book has grown from 79 codes to 400. If you came from Proppharm,\ntype what your hands already know \u2014 `12a` for one to two tablets,\n`2a` for two, `g5` to give 5ml, `rea` for the right ear, `mcd` for\n\"may cause drowsiness\". The list opens as you start typing, arrow\nkeys move, Enter selects.\n\nBoth sets of codes work. Nobody has to be retrained to type.\n\n**The dispensary shows only the routes you may use**\n\nA cashier sells over the counter and no longer sees the prescription\nor dangerous drugs tabs. Where only one route applies the tab strip\nis not drawn at all, so the screen opens straight onto the work.\nWhoever administers this pharmacy can change any of it under\nControl Panel, Roles.\n\nOnly a pharmacist reaches Dangerous Drugs.\n\n**The diagnosis field starts filled in**\n\nNew script lines open on Z76.9 \u2014 an unspecified contact \u2014 rather\nthan empty, and say so. Where the prescriber wrote a diagnosis,\nchange it.\n\n**Also in this release**\n\n- Everyone lands on the screen they actually work on. The counter\n  opens the dispensary; the Command Centre is for whoever reads the\n  figures.\n- A new role, Accountant: the money, claims and supplier payments,\n  with no till and no dispensing.\n- Medicines are classified against their MCAZ schedules properly,\n  so the dispensary finds what you search for and the controlled\n  register catches what belongs in it.",
-  "pub_date": "2026-09-07T18:30:35+00:00",
+  "pub_date": "2026-09-07T19:14:44+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaktwMFFQY2RrZmk4ZWgwYWx2NFY3SHRmK2NjQXdEdnh5aEdVVWRDVGxrTVdLTnluc0RuVENJL0hQY1NuTlFpdENCSWxVMWY5N1EzQjVsbHhwWXZSRlEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4ODA1ODM0CWZpbGU6Ulg1MDAwXzEuNi41X3g2NC1zZXR1cC5leGUKZk9xNDY0ZzF3THhjbEViY0lRejlMMnlPdS9DcUNqNHQwMzUwTlVsSnhYbDVDZXRuMC9uTUdyVy9uOVVCMWhJK3JCZ2NOUmQ2a2hJQTlWdHk2eWxhQnc9PQo=",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.5_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakNJMlRoMXpadWtpdGVaRGwrSTZadytSTklndXlpcWJaMUJlWnEvYmh4WDZQWWpVeThkRzNQUVBwa0RPb2NEdUdKcU9NaDFDbDFSbWxIZXhQNDhhbGdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4ODA4NDgzCWZpbGU6Ulg1MDAwXzEuNi42X3g2NC1zZXR1cC5leGUKKzVYN2ViemdETDNBbEM4WHFwVDRzdXljZ1BHcmRVeTBmUGdTSGU0WmNJRGFSalRPOE5LdGFTcXM1ZGdnS1BINEVYYUpWKzVzNERQRFZWM2RhR3NuQXc9PQo=",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.6_x64-setup.exe"
     }
   }
 }
