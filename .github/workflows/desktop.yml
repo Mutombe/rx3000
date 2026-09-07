@@ -69,6 +69,19 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The update signing key.
+          #
+          # Without it the bundler produces installers with no signature.
+          # They install by hand perfectly well and are invisible to every
+          # till already running, because the application refuses anything it
+          # cannot verify against the public key it carries. So the failure
+          # does not announce itself: it looks like updates that never arrive.
+          #
+          # Set both in the repository's secrets. The password is empty while
+          # the key has no passphrase; it is named here so that adding one
+          # later is a change to a secret rather than a change to this file.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: desktop
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
