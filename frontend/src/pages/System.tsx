@@ -88,8 +88,12 @@ export default function System() {
       <header className="page-head">
         <div>
           <h1>This till</h1>
+          {/* Two versions, because they are two different things and the page
+              was reporting neither: the server is shared by every till and by
+              anybody in a browser, and this till is what an update changes. */}
           <p className="muted">
-            {info ? `${info.product} ${info.version} (build ${info.build}) · ${info.station_id}` : ""}
+            {update.installed && <>This till <b>{update.installed}</b> &middot; </>}
+            {info ? `server ${info.version} (build ${info.build}) · ${info.station_id}` : ""}
           </p>
         </div>
       </header>
@@ -120,7 +124,9 @@ export default function System() {
             </p>
           ) : update.result === "current" ? (
             <p className="muted">
-              Up to date. This till checks on start and every four hours.
+              Up to date{update.installed ? ` on ${update.installed}` : ""}. This
+              till checks on start and every four hours, and this line is how you
+              know the check ran rather than failed quietly.
             </p>
           ) : (
             <p className="muted">Checking…</p>

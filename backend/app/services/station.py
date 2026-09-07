@@ -20,8 +20,21 @@ from datetime import date, datetime
 
 from ..config import settings, env
 
-VERSION = "1.0.0"
-BUILD = env("BUILD", "dev")
+#: What the server reports itself as.
+#:
+#: Read from the environment, because the number is a property of the deploy
+#: and not of this file. It was the literal "1.0.0" for eleven releases: nothing
+#: updated it, nobody noticed, and This Till confidently reported a version that
+#: had not existed for months to whoever was trying to work out what they were
+#: running.
+#:
+#: Render sets RENDER_GIT_COMMIT on every deploy, so the fallback is the commit
+#: rather than another number that will go stale the same way. A hash is less
+#: readable than a version and it has the one property that matters here: it
+#: cannot quietly become wrong.
+VERSION = env("APP_VERSION", "").strip() or (
+    env("RENDER_GIT_COMMIT", "")[:7] or "unversioned")
+BUILD = env("BUILD", "") or env("RENDER_GIT_COMMIT", "")[:7] or "dev"
 
 # Grace after expiry during which the product complains but behaves normally.
 GRACE_DAYS = 30

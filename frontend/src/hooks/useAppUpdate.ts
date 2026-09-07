@@ -61,6 +61,8 @@ export interface AppUpdate {
   result: CheckResult;
   /** When it last ran. Null before the first attempt. */
   checkedAt: Date | null;
+  /** The version installed on this machine, from Tauri. "" in a browser. */
+  installed: string;
 }
 
 /** Is this the Tauri shell rather than a browser tab? */
@@ -90,6 +92,13 @@ const EVERY_MS = 4 * 60 * 60 * 1000;
 export function useAppUpdate(): AppUpdate {
   const [stage, setStage] = useState<UpdateStage>("none");
   const [result, setResult] = useState<CheckResult>("never");
+  /** The version of the application actually running on this machine.
+   *
+   *  Asked of Tauri rather than tracked here, so it is the number the installer
+   *  wrote and not a number this code believes. It is what somebody means when
+   *  they ask what version they are on, and until now nothing on screen could
+   *  tell them. */
+  const [installed, setInstalled] = useState("");
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [version, setVersion] = useState("");
   const [notes, setNotes] = useState("");
@@ -170,11 +179,15 @@ export function useAppUpdate(): AppUpdate {
 
   useEffect(() => {
     if (!inDesktopApp()) return;
+    import("@tauri-apps/api/app")
+      .then(({ getVersion }) => getVersion())
+      .then(setInstalled)
+      .catch(() => setInstalled(""));
     check();
     const timer = window.setInterval(check, EVERY_MS);
     return () => window.clearInterval(timer);
   }, [check]);
 
-  return { stage, result, checkedAt, version, notes, error, progress,
+  return { stage, result, checkedAt, installed, version, notes, error, progress,
            download, install, check };
 }
