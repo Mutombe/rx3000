@@ -1,11 +1,11 @@
 {
-  "version": "1.6.1",
-  "notes": "The window no longer shows a server address in its title, and the till\ncan update itself from here on.\n\n- The server this till talks to is on the This Till screen, beside the\n  database and the trading period.\n- The logo appears properly on the sign-in card, in both light and dark.\n- Lists show a new row the moment you save it, rather than after the\n  server answers.\n- The navigation on a phone is a rail of icons with the menu in the top\n  bar.\n- Signing in and every page load are several times faster.",
-  "pub_date": "2026-09-07T10:41:49+00:00",
+  "version": "1.6.2",
+  "notes": "The application now carries its own typeface, so it reads the same on a\ntill as it does in a browser \u2014 including on a counter with no line.\n\n- The window title is the product name. The server this till talks to\n  is on the This Till screen, beside the database and trading period.\n- The logo appears properly on the sign-in card, light and dark.\n- Lists show a new row the moment you save it, rather than after the\n  server answers.\n- The navigation on a phone is a rail of icons with the menu in the top\n  bar.\n- Signing in and every page load are several times faster.",
+  "pub_date": "2026-09-07T11:01:01+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakwrZU1RQzB6QlB3a3IzcXlISzZZbzgyUFp2NS9WTEJLUkwzd1B1OS9ucUU4QWN2VnpsMDFXYlZ6SUtyM2xoU3ErTGpUSHRxZGppMVlZMUhXZE9IYndZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4Nzc3NzA3CWZpbGU6Ulg1MDAwXzEuNi4xX3g2NC1zZXR1cC5leGUKeE9rLzVlYWY2Y1BqeTMxM1FzT211bmNXaHJkQ01vS3lYUDYyTHlFK2FDdTlIVDlZQmpCamxoUlJMN0tQYW5ndlVLSm5qUzRQQ2ZtWU9lNmhGTmZrQmc9PQo=",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.1_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakc4VjYxbW9wYWkvaU9TVjkzVFl5cmNIUDVUOW9jdXcwbWN0TTNsdmx4UTcxU2JwdjlYa1FpWmt5d1dyUnl2THNGbWJJZDVCZUF3L3NmWVBDYWVPeXdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4Nzc4ODU4CWZpbGU6Ulg1MDAwXzEuNi4yX3g2NC1zZXR1cC5leGUKakpLd1JLbEVPRlJJL0VST1k2elFqZ0F0K09lRzllU0M0RHp5RUtBWHgrT3dMU1ZmTDZ6alF6a3VkVUw0TzBnSmtFVzVzZ1hzRk8xaGNXZFZaL2YzQ0E9PQo=",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.2_x64-setup.exe"
     }
   }
 }
