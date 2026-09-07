@@ -18,7 +18,9 @@
 //   3. http://localhost:8177             (the single-machine pharmacy)
 //
 // Wrong-server is the failure that wastes a support call, so the resolved
-// address is written to the log at startup and shown in the window title.
+// address is written to the log at startup and shown on the This Till
+// screen. Not in the window title: that is what a customer reads across
+// the top of their own software, and our hosting is not their business.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -105,14 +107,22 @@ fn main() {
             printing::list_printers,
             printing::print_raw,
         ])
-        .setup(move |app| {
-            use tauri::Manager;
-            if let Some(window) = app.get_webview_window("main") {
-                // The bound server in the title bar. On a four-till counter,
-                // "which one is pointed at the wrong box" should be answerable
-                // by looking, not by opening a settings screen.
-                let _ = window.set_title(&format!("RX5000 Pharmacy Suite — {server}"));
-            }
+        .setup(move |_app| {
+            // The window keeps the title the configuration gives it: the name
+            // of the product, and nothing else.
+            //
+            // It used to append the bound server, so a pharmacy read
+            // "RX5000 Pharmacy Suite — https://rx3000-api.onrender.com" across
+            // the top of their own software: our hosting provider, an internal
+            // project name that is not the product's name any more, and an
+            // endpoint. None of it is theirs.
+            //
+            // The reason it was there is still a good one — on a counter with
+            // four tills, "which one is pointed at the wrong box" should be
+            // answerable by looking. It is answered on the This Till screen
+            // now, which exists to say what this machine is connected to, and
+            // which works over a telephone in a way a title bar does not.
+            let _ = &server;
             Ok(())
         })
         .run(tauri::generate_context!())

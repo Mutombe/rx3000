@@ -10,7 +10,7 @@
  *  database, and a screenshot of this page answers all of it at once.
  */
 import { useEffect, useState } from "react";
-import { api, fmtDateTime, errorText  } from "../api";
+import { api, apiBase, errorText, fmtDateTime, isDesktop } from "../api";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
@@ -229,6 +229,22 @@ export default function System() {
           <dt>Next Rx / sale</dt>
           <dd className="num">{info?.next_rx_number} / {info?.next_sale_number}</dd>
           <dt>Server time</dt><dd>{fmtDateTime(info?.server_time)}</dd>
+          {/* Which box this till is talking to.
+              It used to be appended to the window title, where a pharmacy read
+              our hosting provider across the top of their own software. The
+              question it answers is real — on a counter with four tills, one
+              pointed at the wrong server is a morning of confusion — so it is
+              answered here, on the screen that exists to say what this machine
+              is connected to and that a support call can direct somebody to.
+
+              Only in the desktop shell: a browser tab is served by the origin
+              it talks to, so it cannot be pointed anywhere else. */}
+          {isDesktop && (
+            <>
+              <dt>This till talks to</dt>
+              <dd className="mono">{apiBase || "this machine"}</dd>
+            </>
+          )}
         </dl>
       </section>
     </div>
