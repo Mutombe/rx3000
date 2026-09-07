@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RX5000",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "identifier": "zw.co.bitstudio.rx3000",
   "build": {
     "frontendDist": "../../frontend/dist",
@@ -42,6 +42,18 @@
     "windows": {
       "wix": {
         "language": "en-US"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhDMTM5N0Y0RkNBQzcxNEUKUldST2Nhejg5SmNUakZNR0VvRmltUWxFV0g1RlgzK1RYWkhrak95RmFtemRFajN1V245VFRadmIK",
+      "endpoints": [
+        "https://rx3000-site.onrender.com/downloads/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

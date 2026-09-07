@@ -60,6 +60,7 @@ import DemoBar from "./DemoBar";
 import ThemeToggle from "./ThemeToggle";
 import Tooltips from "./Tooltips";
 import TillLock from "./TillLock";
+import UpdateChip from "./UpdateChip";
 import ClaudeIcon from "./ClaudeIcon";
 
 /** The navigation, ordered by how often a pharmacy actually touches each screen.
@@ -518,6 +519,12 @@ export default function Layout({ children }: { children: ReactNode }) {
               twice a day, and burying it under a caret makes people live with
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
+          {/* A new version of the till application, when there is one.
+              Left of the branch chip, so the two facts about this session —
+              what is available and where you are — sit together, and both are
+              read between customers rather than during one. Renders nothing at
+              all in a browser tab, which updates by loading the page. */}
+          <UpdateChip />
           {/* Which shop you are standing in.
               Every figure below it — the stock on hand, the takings, the
               cash-up — is that branch's and not the group's, and there was

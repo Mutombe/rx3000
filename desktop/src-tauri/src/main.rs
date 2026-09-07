@@ -92,6 +92,8 @@ fn main() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // Injected before any page script runs, so the API layer knows where to
         // send its first request rather than resolving it asynchronously and
         // firing the first few calls at the wrong place.

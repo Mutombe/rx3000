@@ -4708,6 +4708,52 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   background-image: url("/logo-full-dark.png");
 }
 
+/* A newer version of the till application is available.
+
+   Deliberately the same shape as the branch chip beside it: same height, same
+   radius, same quiet surface. They are two facts about this session read in
+   the same glance, and making this one shout would put a software release on
+   the same footing as a schedule 5 warning.
+
+   It earns colour only when it has something to act on. Waiting to be
+   downloaded it is ordinary; downloaded and ready it takes the ok green,
+   because at that point the answer is one click and the person should be able
+   to find it without reading; failed it takes the danger colour, because a
+   till that has quietly stopped updating is worth noticing.
+
+   It never appears with nothing to say, so it costs no attention on the days
+   there is no release. */
+.update-chip {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  height: var(--control-sm); padding: 0 var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface-sunk); color: var(--ink-soft);
+  font-size: var(--t-sm); font-weight: 500; white-space: nowrap;
+  flex: none;
+}
+.update-chip:hover { background: var(--hover); color: var(--ink); }
+.update-chip.is-ready {
+  background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line);
+}
+.update-chip.is-failed {
+  background: var(--danger-soft); color: var(--danger);
+  border-color: var(--danger-line);
+}
+/* The release notes as published, which are plain text with line breaks. */
+.update-notes {
+  white-space: pre-wrap; margin: var(--s3) 0;
+  padding: var(--s3) var(--s4);
+  background: var(--surface-sunk); border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm); color: var(--ink-soft); line-height: 1.55;
+  max-height: 40vh; overflow-y: auto;
+}
+@media (max-width: 860px) {
+  /* The bar is tight on a phone; the icon still says there is something. */
+  .update-chip-text { display: none; }
+  .update-chip { padding: 0 var(--s2); }
+}
+
 /* Which shop you are standing in.
    Sits in the top bar rather than on each screen because it qualifies all of
    them at once: the stock figure, the takings and the cash-up are one

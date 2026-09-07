@@ -1,6 +1,6 @@
 [package]
 name = "rx5000"
-version = "1.5.3"
+version = "1.6.0"
 description = "RX3000 Pharmacy Suite"
 authors = ["BitStudio"]
 edition = "2021"
@@ -12,6 +12,10 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
+# Lets a till fetch, verify and install a signed update
+# rather than somebody reinstalling it by hand.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [profile.release]
 # A till is often an old machine on a slow disk. Size and startup matter more

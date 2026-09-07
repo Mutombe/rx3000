@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "@tauri-apps/plugin-process": "^2.3.1",
+    "@tauri-apps/plugin-updater": "^2.11.0",
     "@types/leaflet": "^1.9.22",
     "barcode-detector": "^2.3.1",
     "leaflet": "^1.9.4",
