@@ -215,11 +215,31 @@ export class ApiError extends Error {
   }
 }
 
+/** How long to keep trying a read while the server is coming up.
+ *
+ *  The host takes the better part of a minute to start a stopped service.
+ *  Five attempts over roughly forty seconds covers that; past it, something
+ *  else is wrong and saying so is more use than waiting longer. */
+const WAKE_ATTEMPTS = 5;
+const WAKE_BACKOFF_MS = [1_000, 3_000, 6_000, 12_000];
+
+/** The shapes a proxy makes when nothing is listening behind it yet.
+ *
+ *  Not 500: that is the application answering, badly, and it will answer badly
+ *  again. Retrying it only delays the message. */
+function stillWaking(status: number): boolean {
+  return status === 0 || status === 502 || status === 503 || status === 504;
+}
+
+const napTime = (ms: number) => new Promise((go) => setTimeout(go, ms));
+
 async function request<T>(
   method: string,
   path: string,
   body?: unknown,
   stepUp?: string,
+  /** Which go this is. See WAKE_ATTEMPTS. */
+  attempt = 0,
 ): Promise<T> {
   /* A locked till may be read from but not written to.
      Held here rather than at each call site, because there are hundreds of call
@@ -256,11 +276,28 @@ async function request<T>(
     // fetch rejects for exactly one class of reason: the request never got an
     // answer. "TypeError: Failed to fetch" is what the browser calls that, and
     // it is meaningless to anybody standing at a till.
+    //
+    // A read gets another go, because the commonest cause of this is a server
+    // that stopped after fifteen minutes of quiet and is starting up. A write
+    // does not: the till cannot tell "never arrived" from "arrived, was
+    // processed, and the answer was lost coming back", and only one of those
+    // is safe to repeat. A second payment is a worse outcome than any message.
+    if (method === "GET" && attempt < WAKE_ATTEMPTS - 1) {
+      await napTime(WAKE_BACKOFF_MS[attempt] ?? 12_000);
+      return request<T>(method, path, body, stepUp, attempt + 1);
+    }
     logFailure(method, path, 0, String(cause), "Could not reach the server.");
     throw new ApiError(
       0,
       "Could not reach the server. Check the connection, or the server may be down.",
     );
+  }
+
+  // The same judgement for a proxy that answered on the server's behalf.
+  if (method === "GET" && stillWaking(res.status)
+      && attempt < WAKE_ATTEMPTS - 1) {
+    await napTime(WAKE_BACKOFF_MS[attempt] ?? 12_000);
+    return request<T>(method, path, body, stepUp, attempt + 1);
   }
   if (res.status === 401) {
     // Two things were wrong here, and both landed on somebody trying to sign in.
