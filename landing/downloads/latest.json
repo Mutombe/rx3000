@@ -1,11 +1,11 @@
 {
-  "version": "1.6.3",
-  "notes": "Opening the till first thing no longer shows server errors while the\nserver is starting up.\n\n- A read waits for the server to come up instead of failing. Anything\n  that takes money or moves stock is still attempted once only, so\n  nothing is ever paid or dispensed twice.\n- The application carries its own typeface, so it reads the same on a\n  till as in a browser, including with no line.\n- The window title is the product name; the server this till talks to\n  is on the This Till screen.\n- Lists show a new row the moment you save it.\n- Signing in and every page load are several times faster.",
-  "pub_date": "2026-09-07T11:21:51+00:00",
+  "version": "1.6.4",
+  "notes": "Fixes the till reporting that it cannot reach its server when the\nserver is running normally.\n\nThe application now carries its server address itself, instead of\ndepending on the shell handing it over before the first screen loads.\n\n- A read waits while a server comes back rather than failing. Anything\n  that takes money or moves stock is still attempted once only, so\n  nothing can be paid or dispensed twice.\n- The application carries its own typeface, so it reads the same on a\n  till as in a browser, including with no line.\n- The window title is the product name; the server this till talks to\n  is on the This Till screen.\n- Lists show a new row the moment you save it.",
+  "pub_date": "2026-09-07T11:37:56+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakdVTUJqWUNBOVZNSWtzTWZYV3E1NE5QNGpNS294aUd5NTZCOWYxcFBJa05YS2s0RVlQN0FCMjRrZVhUY2dXZnB0QitSWDR1aTd5aFJ5MHVVS3dOSWdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NzgwMTEwCWZpbGU6Ulg1MDAwXzEuNi4zX3g2NC1zZXR1cC5leGUKM1JNUm1oRkVxNDIrQmxoWUJHd1htdGhpdzdVYm1FK0xVQ0I3MGxaWXF4eE1QTmxEckREQm12S01UTzJSSVFqaWFFY0w0SXpFY3BFTXNVVE0vdWZQQnc9PQo=",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.3_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUak5oNmFwOWdVeWNwU1NGZ2poUEFCa0k3cDNIdEd2VmZXWVI3Q1BxaFpKTmRwQVZFUUc1VyszQ283emtpNU01QnhOYVZWbVpiWi94SjRDWlJsSlNvbXcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4NzgxMDc0CWZpbGU6Ulg1MDAwXzEuNi40X3g2NC1zZXR1cC5leGUKZnh1R3dxNC9Ha3Ywd0ZTdnEyMEdyOFlLNHRHT3JrMlExa1JBdkpSeHI3Q2p2NFpWVnF2Nktvc3NVZS8rQ3ZDOUFYUVZiT3VHek1XUlRjbU5sSENCRFE9PQo=",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.4_x64-setup.exe"
     }
   }
 }
