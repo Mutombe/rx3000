@@ -242,7 +242,8 @@ def _value(product, quantity: int, *, times: int = 1) -> float:
     """
     if product is None:
         return 0.0
-    return round(float(product.unit_price or 0.0) * (quantity or 0) * times, 2)
+    # Per unit: `quantity` is a script quantity, in tablets.
+    return round(product.per_unit() * (quantity or 0) * times, 2)
 
 
 def band_counts(rows: list[dict]) -> dict[str, int]:

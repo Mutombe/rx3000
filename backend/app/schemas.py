@@ -219,8 +219,20 @@ class ProductBase(BaseModel):
     dosage_form: str = ""
     strength: str = ""
     active_ingredient: str = ""
+    #: What the box is called — "1000s", "100ml". Free text, and therefore
+    #: useless for arithmetic; `units_per_pack` is the number.
     pack_size: str = ""
+    #: How many dispensable units are in one pack.
+    #:
+    #: On the wire because the dispensary divides by it: `unit_price` below is
+    #: what a PACK costs, and a script quantity counts tablets. Without this
+    #: field the browser has nothing to divide by, so it falls back to 1 and
+    #: shows a pack price against a unit quantity — which is exactly what it did
+    #: after the server was fixed and this was not.
+    units_per_pack: int = 1
+    #: What one PACK sells for. See `units_per_pack`.
     unit_price: float = 0.0
+    #: What one PACK cost.
     cost_price: float = 0.0
     vat_rate: float = 0.15
     reorder_level: int = 10

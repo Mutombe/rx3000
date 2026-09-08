@@ -89,6 +89,21 @@ interface DraftItem {
  *  A default, not an answer. Where the prescriber wrote a diagnosis it should
  *  be typed, and the line below the picker says so.
  */
+/** What ONE dispensable unit of this product sells for.
+ *
+ *  Mirrors `Product.per_unit()` on the server. `unit_price` is what a PACK
+ *  costs despite its name, and a script quantity counts tablets — multiplying
+ *  the two put $1,050 on screen for twenty-one capsules out of a $50 tub.
+ *
+ *  In one place because six sites in this file multiply a price by a quantity
+ *  and they all have to give the same answer as the sale does. Written out six
+ *  times they agree until somebody edits five of them.
+ */
+function perUnit(p: { unit_price?: number; units_per_pack?: number }): number {
+  const pack = Math.max(1, Math.floor(p.units_per_pack ?? 1) || 1);
+  return (p.unit_price ?? 0) / pack;
+}
+
 const DEFAULT_DIAGNOSIS = "Z76.9";
 
 const ROUTE_TABS: {
@@ -643,7 +658,7 @@ export default function Dispense() {
     const width = roll.printerWidth();
     const lines: Line[] = [];
     for (const it of items) {
-      const each = it.product.unit_price / Math.max(1, it.product.units_per_pack ?? 1);
+      const each = perUnit(it.product);
       lines.push(...priceLabelLines({
         product_name: it.product.name,
         strength: it.product.strength ?? "",
@@ -1239,7 +1254,7 @@ export default function Dispense() {
   //  which is the worst thing a till can do to somebody unwell and queueing.
   useEffect(() => {
     const gross = items.reduce(
-      (n, i) => n + (i.product.unit_price || 0) * (i.quantity || 0), 0);
+      (n, i) => n + perUnit(i.product) * (i.quantity || 0), 0);
     setDueNow(split ? split.patient_pays : gross);
   }, [items, split]);
 
@@ -1530,7 +1545,12 @@ export default function Dispense() {
                       S{p.schedule}
                     </span>
                   </span>
-                  <span className="muted">{money(p.unit_price)} · {p.quantity_on_hand} on hand</span>
+                  <span className="muted">
+                    {money(p.unit_price)}
+                    {(p.units_per_pack ?? 1) > 1
+                      && <> / {p.units_per_pack} = <b>{money(perUnit(p))}</b> each</>}
+                    {" · "}{p.quantity_on_hand} on hand
+                  </span>
                 </div>
               ))}
               {otcPolicy && (
@@ -1768,7 +1788,10 @@ export default function Dispense() {
                     <span className={`badge ${p.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>S{p.schedule}</span>
                   </span>
                   <span className="muted">
-                    {money(p.unit_price)} · {p.quantity_on_hand} in stock
+                    {money(p.unit_price)}
+                    {(p.units_per_pack ?? 1) > 1
+                      && <> / {p.units_per_pack} = <b>{money(perUnit(p))}</b> each</>}
+                    {" · "}{p.quantity_on_hand} in stock
                     {/* The cash margin, before anything is on the script. This
                         is where a substitution is decided — the generic beside
                         the brand, and deciding it needs the two margins side
@@ -1908,15 +1931,21 @@ export default function Dispense() {
                         {it.repeats_allowed > 0 && (
                           <span className="hint">
                             <RepeatValue
-                              value={(it.product.unit_price ?? 0) * (it.quantity ?? 0)}
-                              remaining={(it.product.unit_price ?? 0)
+                              value={perUnit(it.product) * (it.quantity ?? 0)}
+                              remaining={perUnit(it.product)
                                 * (it.quantity ?? 0) * it.repeats_allowed} />
                             {" "}each, and to come on this script
                           </span>
                         )}
                       </div>
                       <div className="field span-3">
-                        <label>Interval (days)</label>
+                        {/* "Duration", because that is what a prescriber
+                            writes and what the number means to the person
+                            typing it: how long this supply lasts. "Interval"
+                            described the gap between repeats, which is the
+                            same figure seen from the software's side rather
+                            than from the script's. */}
+                        <label>Duration (days)</label>
                         <input type="number" min={1} value={it.repeat_interval_days}
                           onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
                       </div>

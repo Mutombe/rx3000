@@ -136,7 +136,14 @@ def overview(db: Session, *, days: int = 14) -> dict:
     short = (
         db.query(func.count(Product.id),
                  func.coalesce(
-                     func.sum(Product.cost_price * Product.reorder_quantity), 0.0))
+                     # Per unit. `reorder_level` is compared against
+                     # `quantity_on_hand`, which counts dispensable units,
+                     # so the quantity beside it is units and the cost must
+                     # be divided to match.
+                     func.sum(
+                         Product.cost_price
+                         / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                         * Product.reorder_quantity), 0.0))
         .filter(Product.active,
                 Product.quantity_on_hand <= Product.reorder_level).first())
     expiring = (

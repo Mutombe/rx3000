@@ -342,7 +342,10 @@ def weekly(db: Session, *, weeks: int = 8) -> list[dict]:
     rows = (
         db.query(func.date(Dispensing.dispensed_at),
                  func.count(Dispensing.id),
-                 func.coalesce(func.sum(Product.unit_price * Dispensing.quantity), 0.0))
+                 func.coalesce(func.sum(
+                     Product.unit_price
+                     / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                     * Dispensing.quantity), 0.0))
         .join(PrescriptionItem,
               Dispensing.prescription_item_id == PrescriptionItem.id)
         .outerjoin(Product, PrescriptionItem.product_id == Product.id)

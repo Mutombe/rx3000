@@ -598,7 +598,9 @@ def script_totals(items: list[dict] = Body(...),
         quantity = max(1, int(row.get("quantity") or 1))
         no_claim = bool(row.get("no_claim"))
         priced = pricing.price_line(db, product, quantity, None if no_claim else aid)
-        cost = round((product.cost_price or 0.0) * quantity, 2)
+        # Per unit, matching `price_line` above. A per-unit price against a
+        # per-pack cost reports a margin of minus several thousand percent.
+        cost = round(product.unit_cost() * quantity, 2)
         vat = round(priced.gross - priced.gross / (1 + (product.vat_rate or 0.0)), 2)
 
         totals["rx_gross"] += priced.base_price
@@ -821,7 +823,7 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
             # of names in the order worth telephoning.
             "value": round(item.product.per_unit() * (item.quantity or 0), 2)
                      if item.product else 0.0,
-            "cost": round((item.product.cost_price or 0.0) * (item.quantity or 0), 2)
+            "cost": round(item.product.unit_cost() * (item.quantity or 0), 2)
                     if item.product else 0.0,
         })
     # Overdue first, then soonest: the order somebody would telephone in.

@@ -27,8 +27,8 @@ import logging
 
 log = logging.getLogger("rx5000.dispensing")
 from ..models import (
-    Branch, Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale,
-    SaleItem, User,
+    Branch, Dispensing, Patient, Pharmacy, Prescription, PrescriptionItem,
+    Product, Sale, SaleItem, User,
 )
 # `sig` is imported here, at module level, and not inside one function.
 # It was imported inside the shorthand-expansion endpoint only, while three
@@ -858,7 +858,7 @@ def claim_copy(rx_id: int, db: Session = Depends(get_db),
         patient_id=(patient.id_number or "") if patient else "",
         medical_aid=(patient.medical_aid.name
                      if patient and patient.medical_aid else ""),
-        membership_no=(patient.membership_number or "") if patient else "",
+        membership_no=(patient.medical_aid_number or "") if patient else "",
         doctor_name=(rx.doctor.name or "") if rx.doctor else "",
         doctor_practice=(rx.doctor.practice_number or "") if rx.doctor else "",
         branch=(branch.name if branch else ""),
