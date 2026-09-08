@@ -1,18 +1,35 @@
-The first update delivered over the air. If you are reading this in
-a prompt rather than in an installer, the mechanism works.
+Printing, the way the dispensary actually works.
 
-**This till now tells you which version it is**
+**One press finishes the script**
 
-The This Till page reported "RX5000 1.0.0" on every release since it
-was written, because the number was typed into the source once and
-never touched again. It now shows two, because they are two different
-things: the version of the application on this machine, which is what
-an update changes, and the version of the server, which every till
-and every browser shares.
+The Dispense button now dispenses and prints the labels together. The
+arrow beside it holds the rest — a re-print, a claim copy, a price
+label, a delivery label — with the same letters the old system used:
+L, C, P, V.
 
-**And whether it can update itself**
+No dialogue asks what to print. That question has the same answer on
+almost every script, and one that is asked thirty times a morning
+stops being read.
 
-An Updates line on the same page: when it last checked, what it
-found, and a Check now button. If a check ever fails it says so and
-prints why, instead of looking exactly like being up to date — which
-is what it did for five releases.
+**Each document goes to its own printer**
+
+Set them once under This Till, Printers, and nothing is asked again.
+The claim copy can go to the A4 laser in the back office while the
+labels come off the roll at the counter.
+
+If you have only ever chosen one printer, everything keeps going
+there and there is nothing to set up.
+
+**Two new labels**
+
+A price label for somebody deciding whether they can afford
+something — dated, and marked so it can never be mistaken for a
+dispensing label. And a delivery label with the name, address and
+script number for the driver, carrying no medicine names, because it
+is read at a gate by whoever takes the bag.
+
+**A claim copy on A4**
+
+The sheet for the funder, the inspector, or the file. It shows what
+was actually dispensed and what was actually charged, and it does not
+change if a shelf price changes afterwards.
