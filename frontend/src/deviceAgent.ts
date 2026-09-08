@@ -206,6 +206,104 @@ export function canPrintLabels(status: AgentStatus | null): boolean {
  *  reads, so they get double height; everything else is the audit trail and is
  *  set small, in the order the sticker prints it.
  */
+/** Wrap text to a width, breaking on spaces. Shared by every label builder. */
+function wrapTo(text: string, w: number): string[] {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let row = "";
+  for (const word of words) {
+    if (!row) row = word;
+    else if ((row + " " + word).length <= w) row += " " + word;
+    else { out.push(row); row = word; }
+  }
+  if (row) out.push(row);
+  return out;
+}
+
+/** What one line would cost, for somebody deciding whether to buy it.
+ *
+ *  A quotation, not a dispensing label, and it says so at the top. The
+ *  distinction is not decorative: a sticker carrying a price and no directions,
+ *  stuck to a box, is a patient who has been handed medicine and told nothing
+ *  about how to take it. It is printed to be handed over, or to sit on a shelf
+ *  edge, and never to go on a container.
+ */
+export function priceLabelLines(o: {
+  product_name: string; strength?: string; pack_size?: string;
+  quantity: number; unit_price: number; line_total: number;
+  pharmacy_name?: string; quoted_at?: string;
+}, width = 32): Line[] {
+  const lines: Line[] = [];
+  lines.push({ text: "PRICE QUOTE".padStart((width + 11) / 2 | 0), bold: true });
+  lines.push({ text: "-".repeat(width) });
+
+  for (const row of wrapTo(`${o.product_name} ${o.strength ?? ""}`.trim(), width)) {
+    lines.push({ text: row, bold: true });
+  }
+  if (o.pack_size) lines.push({ text: `Pack: ${o.pack_size}`.slice(0, width) });
+
+  lines.push({ text: "" });
+  // The figure the decision is made on, in the largest glyphs the roll has.
+  // Half width, because double-height characters are also double-wide.
+  const money = `$${o.line_total.toFixed(2)}`;
+  lines.push({ text: money, bold: true, double: true });
+  lines.push({
+    text: `${o.quantity} @ $${o.unit_price.toFixed(2)} each`.slice(0, width),
+  });
+
+  lines.push({ text: "-".repeat(width) });
+  // Dated, because a quote that outlives its price is worse than no quote: a
+  // patient returns in March with a sticker from January and an argument.
+  const when = new Date(o.quoted_at ?? Date.now());
+  lines.push({ text: `Quoted ${when.toLocaleDateString("en-GB")}`.slice(0, width) });
+  lines.push({ text: "Not a dispensing label.", bold: true });
+  lines.push({ text: "Price may change.", feed: 3 });
+  return lines;
+}
+
+/** For the driver: which bag, and which door.
+ *
+ *  Read at a gate, one-handed, often in bad light. So the name and the address
+ *  are the whole label and everything else is small — a driver does not need
+ *  the strength of the medicine and must not be shown it, because a delivery
+ *  label is read by whoever takes the bag at the other end.
+ */
+export function deliveryLabelLines(o: {
+  patient_name: string; address?: string; phone?: string;
+  rx_number: string; items?: number; pharmacy_name?: string; pharmacy_phone?: string;
+}, width = 32): Line[] {
+  const lines: Line[] = [];
+  lines.push({ text: "DELIVERY", bold: true });
+  lines.push({ text: "-".repeat(width) });
+
+  for (const row of wrapTo(o.patient_name.toUpperCase(), Math.floor(width / 2))) {
+    lines.push({ text: row, bold: true, double: true });
+  }
+  lines.push({ text: "" });
+
+  const address = (o.address || "").split(/\n+/).filter(Boolean);
+  if (address.length) {
+    for (const part of address) {
+      for (const row of wrapTo(part, width)) lines.push({ text: row });
+    }
+  } else {
+    // Said rather than left blank. A driver holding a bag with no address needs
+    // to know it is missing, not to wonder whether the printer cut it off.
+    lines.push({ text: "NO ADDRESS ON FILE", bold: true });
+  }
+  if (o.phone) lines.push({ text: `Tel: ${o.phone}`.slice(0, width), bold: true });
+
+  lines.push({ text: "-".repeat(width) });
+  lines.push({ text: `Script ${o.rx_number}`.slice(0, width), bold: true });
+  if (o.items) lines.push({ text: `${o.items} item(s) in this bag` });
+  // No medicine names. What is in the bag is between the pharmacy and the
+  // patient, and this label is read by whoever opens the gate.
+  if (o.pharmacy_name) lines.push({ text: o.pharmacy_name.slice(0, width) });
+  if (o.pharmacy_phone) lines.push({ text: o.pharmacy_phone.slice(0, width), feed: 3 });
+  else lines.push({ text: "", feed: 3 });
+  return lines;
+}
+
 export function labelLines(l: Label, width = 32): Line[] {
   const lines: Line[] = [];
   const wrap = (text: string, w: number): string[] => {

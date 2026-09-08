@@ -106,6 +106,7 @@ fn main() {
             rx5000_server,
             printing::list_printers,
             printing::print_raw,
+            printing::print_page,
         ])
         .setup(move |_app| {
             // The window keeps the title the configuration gives it: the name

@@ -69,6 +69,8 @@ export interface Product {
   dosage_form: string;
   strength: string;
   pack_size: string;
+  /** How many dispensable units are in one pack. 1 means the pack is the unit. */
+  units_per_pack?: number;
   unit_price: number;
   cost_price: number;
   vat_rate: number;

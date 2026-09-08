@@ -806,6 +806,71 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
     return rx
 
 
+@router.get("/prescriptions/{rx_id}/claim-copy.pdf")
+def claim_copy(rx_id: int, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user)):
+    """The A4 copy of a dispensing — for the funder, the inspector, the file.
+
+    Reads the SALE lines rather than the script, because the script says what
+    was asked for and the sale says what went out and at what price. A copy
+    built from the script would reprice itself every time the shelf price moved
+    and could never settle an argument about what was charged in March.
+    """
+    from fastapi.responses import Response
+
+    from ..services import claim_copy as copy_service
+
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+
+    sale = (db.query(Sale).filter(Sale.id.in_(
+        db.query(SaleItem.sale_id).join(
+            PrescriptionItem, SaleItem.prescription_item_id == PrescriptionItem.id)
+        .filter(PrescriptionItem.prescription_id == rx.id)))
+        .order_by(Sale.id.desc()).first())
+    if sale is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Nothing has been dispensed on this script yet, so there is "
+                   "no claim copy to produce.")
+
+    directions = {i.id: (i.dosage_instructions or "") for i in rx.items}
+    lines = [{
+        "description": si.description,
+        "quantity": si.quantity,
+        "unit_price": si.unit_price or 0.0,
+        "line_total": si.line_total or 0.0,
+        "directions": sig.expand(db, directions.get(si.prescription_item_id, "")),
+    } for si in sale.items]
+
+    pharmacy = db.get(Pharmacy, user.pharmacy_id)
+    branch = branches.default_branch(db)
+    patient = rx.patient
+    pdf = copy_service.build(
+        pharmacy=(pharmacy.name if pharmacy else settings.PHARMACY_NAME),
+        pharmacy_reg=settings.PHARMACY_REG_NO,
+        pharmacy_address=settings.PHARMACY_ADDRESS,
+        rx_number=rx.rx_number or f"#{rx.id}",
+        dispensed_at=sale.created_at,
+        patient_name=(f"{patient.first_name} {patient.last_name}".strip()
+                      if patient else ""),
+        patient_id=(patient.id_number or "") if patient else "",
+        medical_aid=(patient.medical_aid.name
+                     if patient and patient.medical_aid else ""),
+        membership_no=(patient.membership_number or "") if patient else "",
+        doctor_name=(rx.doctor.name or "") if rx.doctor else "",
+        doctor_practice=(rx.doctor.practice_number or "") if rx.doctor else "",
+        branch=(branch.name if branch else ""),
+        dispensed_by=(user.full_name or user.username),
+        lines=lines,
+        total=sale.total or 0.0,
+    )
+    stamp = (rx.rx_number or str(rx.id)).replace("/", "-")
+    return Response(pdf, media_type="application/pdf", headers={
+        "Content-Disposition": f'inline; filename="claim-copy-{stamp}.pdf"'})
+
+
 @router.post("/prescriptions/{rx_id}/finalise", response_model=schemas.PrescriptionOut)
 def finalise(rx_id: int, db: Session = Depends(get_db),
              _user: User = Depends(get_current_user)):

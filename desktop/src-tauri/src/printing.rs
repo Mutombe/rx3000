@@ -23,6 +23,20 @@ mod windows_impl {
     // functions and two structs, against several hundred megabytes of generated
     // bindings and the build time that comes with them — on a project whose
     // installer is two megabytes.
+    // Printing a PAGE goes through the shell rather than the spooler, so it
+    // needs one function from a different library. See `print_page`.
+    #[link(name = "shell32")]
+    extern "system" {
+        fn ShellExecuteW(
+            hwnd: *mut c_void,
+            verb: *const u16,
+            file: *mut u16,
+            params: *mut u16,
+            directory: *const u16,
+            show: i32,
+        ) -> *mut c_void;
+    }
+
     #[link(name = "winspool")]
     extern "system" {
         fn OpenPrinterW(name: *mut u16, handle: *mut *mut c_void, defaults: *mut c_void) -> i32;
@@ -95,6 +109,79 @@ mod windows_impl {
     }
 
     /// Send bytes to a named printer as a RAW job — no driver, no dialog.
+    /// Print a file through the printer's own driver.
+    ///
+    /// `ShellExecuteW` with the "printto" verb is the documented way to send a
+    /// document to a NAMED printer; "print" would use the default one, which is
+    /// not good enough here — the whole point is that the claim copy goes to
+    /// the A4 laser and not to the label roll.
+    pub fn print_page(printer: &str, data: &[u8]) -> Result<(), String> {
+        use std::io::Write;
+
+        if printer.trim().is_empty() {
+            return Err("No printer was named.".into());
+        }
+        if data.is_empty() {
+            return Err("There was nothing to print.".into());
+        }
+
+        // A unique name per job: two scripts finishing in the same second must
+        // not overwrite each other's file while the spooler is still reading.
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let path = std::env::temp_dir().join(format!("rx5000-{stamp}.pdf"));
+
+        std::fs::File::create(&path)
+            .and_then(|mut f| f.write_all(data))
+            .map_err(|e| format!("Could not write the document to print: {e}"))?;
+
+        let result = unsafe {
+            let verb = wide("printto");
+            let mut file = wide(path.to_string_lossy().as_ref());
+            // The printer name is the parameter to "printto", and it is quoted
+            // because a Windows printer is very often called something with a
+            // space in it.
+            let mut args = wide(&format!("\"{printer}\""));
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                verb.as_ptr(),
+                file.as_mut_ptr(),
+                args.as_mut_ptr(),
+                std::ptr::null(),
+                0, // SW_HIDE — nothing should appear on a till's screen
+            )
+        };
+
+        // ShellExecuteW returns a value greater than 32 on success. The codes
+        // at or below it are errors, and the two worth naming are the ones a
+        // pharmacy can actually act on.
+        let code = result as isize;
+        let outcome = if code > 32 {
+            Ok(())
+        } else if code == 31 {
+            Err(format!(
+                "Windows has nothing registered to print a PDF, so it could not \
+                 send this to \"{printer}\". Install a PDF reader on this till."))
+        } else {
+            Err(format!(
+                "Windows refused to print to \"{printer}\" (code {code}). Check \
+                 the name matches one it lists."))
+        };
+
+        // Deleted on a delay: the spooler reads the file after this call
+        // returns, and removing it immediately races the print and produces an
+        // empty job — a fault that only shows up on a slower machine.
+        let doomed = path.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_secs(45));
+            let _ = std::fs::remove_file(doomed);
+        });
+
+        outcome
+    }
+
     pub fn print_raw(printer: &str, data: &[u8]) -> Result<usize, String> {
         if printer.trim().is_empty() {
             return Err("No printer was named.".into());
@@ -154,6 +241,10 @@ mod windows_impl {
     pub fn print_raw(_printer: &str, _data: &[u8]) -> Result<usize, String> {
         Err("Direct printing is only wired up for Windows on this build.".into())
     }
+
+    pub fn print_page(_printer: &str, _data: &[u8]) -> Result<(), String> {
+        Err("Direct printing is only wired up for Windows on this build.".into())
+    }
 }
 
 /// Printers this machine can see. Empty means "use the print dialog".
@@ -170,4 +261,18 @@ pub fn list_printers() -> Result<Vec<String>, String> {
 #[tauri::command]
 pub fn print_raw(printer: String, data: Vec<u8>) -> Result<usize, String> {
     windows_impl::print_raw(&printer, &data)
+}
+
+/// Print a page document — a PDF — on a named printer, through its driver.
+///
+/// Deliberately not `print_raw`. That sends bytes to the spooler in RAW mode
+/// with the driver bypassed, which is what a thermal roll wants and what an A4
+/// laser cannot do anything with: it prints the PDF's source as text, or ejects
+/// blank pages until somebody turns it off.
+///
+/// A page needs the driver, so the file goes through the shell's print verb —
+/// the same path as right-clicking a PDF and choosing a printer.
+#[tauri::command]
+pub fn print_page(printer: String, data: Vec<u8>) -> Result<(), String> {
+    windows_impl::print_page(&printer, &data)
 }

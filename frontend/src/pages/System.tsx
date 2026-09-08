@@ -14,6 +14,7 @@ import { api, apiBase, errorText, fmtDateTime, isDesktop } from "../api";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAppUpdate } from "../hooks/useAppUpdate";
+import PrinterRoutes from "../components/PrinterRoutes";
 
 interface Licence {
   state: string; licensed_to: string; expires_on: string | null;
@@ -142,6 +143,8 @@ export default function System() {
           </p>
         </section>
       )}
+
+      <PrinterRoutes />
 
       {/* Backups first: the only thing here that ends a business if neglected. */}
       <section className="card">

@@ -7130,3 +7130,67 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* A caution belongs on its own line rather than pushed off the right edge —
    "DO NOT CRUSH OR CUT" truncated to "DO NOT CRUSH" is worse than absent. */
 .sig-suggest li .sig-caution { grid-column: 2; }
+
+/* ------------------------------------------ what to print, on one control
+   A split button: the primary half does the whole common case in one press,
+   and the caret opens the occasional things. The two halves read as one
+   control because they are one decision — what happens when this script is
+   finished — and separating them into two buttons would ask the dispenser to
+   choose between them every time. */
+.printmenu { position: relative; display: inline-flex; }
+.printmenu-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.printmenu-caret {
+  border-top-left-radius: 0; border-bottom-left-radius: 0;
+  padding-inline: var(--s2); min-width: 0;
+  /* A hairline against the primary half, so the two are visibly one control
+     with two targets rather than a button that has grown an arrow. */
+  border-left: 1px solid rgba(255, 255, 255, .28);
+}
+.printmenu-list {
+  position: absolute; z-index: 60; top: calc(100% + 4px); right: 0;
+  min-width: 17rem; padding: var(--s1);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18));
+  display: flex; flex-direction: column;
+}
+.printmenu-list button {
+  display: flex; align-items: baseline; gap: var(--s2);
+  width: 100%; text-align: left; padding: var(--s1) var(--s2);
+  background: none; border: 0; height: auto; white-space: normal;
+  font: inherit; color: var(--ink); border-radius: var(--r-xs); cursor: pointer;
+}
+.printmenu-list button:hover:not(:disabled) { background: var(--hover); }
+.printmenu-list button:disabled { opacity: .55; cursor: default; }
+.printmenu-list button.sep {
+  margin-top: var(--s1); padding-top: calc(var(--s1) + var(--s1));
+  border-top: 1px solid var(--line);
+}
+/* The accelerator, in a fixed column so the letters line up down the menu and
+   can be read as a list of keys rather than hunted for in the prose. */
+.printmenu-list kbd {
+  flex: 0 0 1.5rem; text-align: center;
+  font-family: var(--mono, ui-monospace, Menlo, monospace);
+  font-size: .72rem; font-weight: 600;
+  padding: 1px 0; border: 1px solid var(--line-strong); border-radius: 3px;
+  background: var(--sunken, var(--hover)); color: var(--ink-soft);
+}
+.printmenu-list span { display: flex; flex-direction: column; gap: 1px; }
+.printmenu-list small { font-size: .76rem; color: var(--ink-soft); line-height: 1.35; }
+
+/* --------------------------------------------- where each document prints
+   A row per document kind: what it is, where it goes, and what that resolves
+   to. The third column exists because the second can say "same as the
+   dispensing label", and a setting that describes itself in terms of another
+   setting has to show the answer as well as the rule. */
+.printer-routes { display: flex; flex-direction: column; gap: var(--s2); }
+.printer-routes label {
+  display: grid; gap: var(--s2) var(--s3); align-items: center;
+  grid-template-columns: minmax(11rem, 1.1fr) minmax(10rem, 1fr) minmax(9rem, .9fr);
+}
+.printer-routes .pr-name { display: flex; flex-direction: column; gap: 1px; }
+.printer-routes .pr-name small { color: var(--ink-soft); font-size: .78rem; line-height: 1.35; }
+.printer-routes .pr-going { font-size: .8rem; color: var(--ink-soft); }
+.printer-routes .pr-going em { opacity: .8; }
+@media (max-width: 640px) {
+  .printer-routes label { grid-template-columns: 1fr; }
+}

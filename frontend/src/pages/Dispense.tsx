@@ -22,7 +22,10 @@ import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { printLabels } from "../print";
+import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
+import { deliveryLabelLines, priceLabelLines } from "../deviceAgent";
+import type { Line } from "../escpos";
 import { labelLines } from "../deviceAgent";
 import {
   ControlledDispensing, CoverageReport, Doctor, Label, OTCSale, Patient,
@@ -152,6 +155,14 @@ const PAY_CHOICES = [
 export default function Dispense() {
   const session = useSession();
   const [route, setRoute] = useState<Route>("prescription");
+  /** The script this screen last put out, so the menu can act on it.
+   *
+   *  Every document below the primary action is about a script that has just
+   *  been dispensed — a reprint, a claim copy, a delivery label for the bag
+   *  now sitting on the counter. The id was being forgotten the moment the
+   *  form cleared, which is why reprinting meant finding the patient again. */
+  const [lastRxId, setLastRxId] = useState<number | null>(null);
+  const [printing, setPrinting] = useState(false);
   /* The routes this person may use. Filtered only once the server has said
      what they may do: `can` is false while the session loads, and a dispensary
      that hides the controlled tab for a second every morning is one a
@@ -583,6 +594,7 @@ export default function Dispense() {
    *  is dispensed, and the dialog is only what happens when it has not.
    */
   async function printRxLabels(rxId: number) {
+    setLastRxId(rxId);
     try {
       const labels = await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`);
       if (roll.labelsGoStraightToRoll()) {
@@ -601,6 +613,108 @@ export default function Dispense() {
     } catch (e: any) { toast.error(errorText(e)); }
   }
 
+
+  /** One roll label, on whichever printer that kind is routed to.
+   *
+   *  Shared by the price and delivery labels because the only thing that
+   *  differs between them is the lines and the destination — and a second copy
+   *  of the fallback logic is a second place for it to be wrong.
+   */
+  async function printRoll(kind: "price" | "delivery", lines: Line[]) {
+    if (!roll.goesStraightToPrinter(kind)) {
+      toast.warn("No printer is set for this on this till — This till > Printers.");
+      return;
+    }
+    setPrinting(true);
+    try {
+      await roll.printLines(lines, 1, kind);
+      toast.ok("Printed.");
+    } catch (e) {
+      toast.error(errorText(e, "The printer did not take it."));
+    } finally { setPrinting(false); }
+  }
+
+  /** What the basket on screen would cost, before anything is dispensed.
+   *
+   *  Deliberately reads the lines being built rather than a dispensed script:
+   *  the person asking is deciding whether to go ahead, which is a question
+   *  asked BEFORE the medicine leaves the shelf, not after. */
+  async function printPriceQuote() {
+    const width = roll.printerWidth();
+    const lines: Line[] = [];
+    for (const it of items) {
+      const each = it.product.unit_price / Math.max(1, it.product.units_per_pack ?? 1);
+      lines.push(...priceLabelLines({
+        product_name: it.product.name,
+        strength: it.product.strength ?? "",
+        pack_size: it.product.pack_size ?? "",
+        quantity: it.quantity,
+        unit_price: each,
+        line_total: each * it.quantity,
+      }, width));
+    }
+    if (!lines.length) { toast.warn("Nothing on the script to price."); return; }
+    await printRoll("price", lines);
+  }
+
+  async function printDeliveryLabel() {
+    if (!patient) { toast.warn("No patient on this script."); return; }
+    await printRoll("delivery", deliveryLabelLines({
+      patient_name: `${patient.first_name} ${patient.last_name}`.trim(),
+      address: patient.address ?? "",
+      phone: patient.phone ?? "",
+      rx_number: fromRx?.number || "(not yet dispensed)",
+      items: items.length,
+    }, roll.printerWidth()));
+  }
+
+  /** The claim copy, on paper.
+   *
+   *  A page rather than a roll, so it takes the other path entirely: the server
+   *  renders a PDF and the shell hands the FILE to the printer's driver. Sent
+   *  as RAW bytes the way a label is, a laser prints the PDF source as text or
+   *  ejects blank pages until somebody switches it off.
+   */
+  async function printClaimCopy() {
+    if (!lastRxId) { toast.warn("Dispense the script first."); return; }
+    setPrinting(true);
+    try {
+      const file = await api.blob(`/api/prescriptions/${lastRxId}/claim-copy.pdf`);
+      const bytes = new Uint8Array(await file.body.arrayBuffer());
+      if (roll.goesStraightToPrinter("claim")) {
+        await roll.printPage(bytes, "claim");
+        toast.ok("Claim copy printed.");
+      } else {
+        // No printer chosen for pages, or a browser tab. Opened instead, which
+        // is one keystroke from the operating system's own print dialogue.
+        const url = URL.createObjectURL(file.body);
+        window.open(url, "_blank", "noopener");
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+    } catch (e) {
+      toast.error(errorText(e, "The claim copy could not be produced."));
+    } finally { setPrinting(false); }
+  }
+
+  /** The menu beside Dispense. Letters are the previous system's own. */
+  const printActions: PrintAction[] = [
+    { key: "l", label: "Re-print dispensing label",
+      hint: "The stickers for the box, again.",
+      unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
+      run: () => { if (lastRxId) void printRxLabels(lastRxId); } },
+    { key: "c", label: "Claim copy (A4)",
+      hint: "For the file, or for the funder.",
+      unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
+      run: printClaimCopy },
+    { key: "p", label: "Price label",
+      hint: "A quote for somebody deciding. Prints from the script on screen.",
+      unavailable: items.length ? undefined : "Nothing on the script to price",
+      run: printPriceQuote },
+    { key: "v", label: "Delivery label",
+      hint: "Name, address and script number, for the driver.",
+      unavailable: patient ? undefined : "No patient on this script",
+      run: printDeliveryLabel, separated: true },
+  ];
 
   function compliancePayload() {
     // The initial is sent whenever there is one, on every route.
@@ -2199,14 +2313,18 @@ export default function Dispense() {
                       Finish capturing
                     </BusyButton>
                   ) : (
-                    <BusyButton
-                      className="btn primary disp-go"
-                      busyLabel="Dispensing…"
+                    // One press does the whole common case — dispense, and the
+                    // labels come off the roll. The caret holds what is
+                    // genuinely occasional, which is where a menu belongs; a
+                    // dialog on every script is one nobody reads by Tuesday.
+                    <PrintMenu
+                      primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
+                      primaryTitle="Dispense, and print the labels"
+                      busy={printing}
                       disabled={!patient || items.length === 0 || !complianceReady}
-                      onClick={createAndDispense}
-                    >
-                      Dispense {items.length} item{items.length === 1 ? "" : "s"}
-                    </BusyButton>
+                      onPrimary={createAndDispense}
+                      actions={printActions}
+                    />
                   )}
                 </div>
                 {blockedBecause() && (

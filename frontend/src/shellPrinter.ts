@@ -15,6 +15,49 @@ import { readStored, writeStored } from "./storage";
 const CHOSEN = "label_printer";
 const WIDTH = "label_printer_width";
 
+/** The kinds of thing this pharmacy prints, and what each one is called.
+ *
+ *  `label` keeps the original storage key, so a till that already chose a roll
+ *  carries on using it with nothing to set up. The rest fall back to it, which
+ *  means one printer still works for everything until somebody says otherwise.
+ */
+export type DocKind = "label" | "price" | "delivery" | "claim";
+
+export const DOC_KINDS: { kind: DocKind; name: string; hint: string; paper: "roll" | "page" }[] = [
+  { kind: "label", name: "Dispensing label", paper: "roll",
+    hint: "The sticker that goes on the box." },
+  { kind: "price", name: "Price label", paper: "roll",
+    hint: "What something costs, for somebody deciding whether to buy it." },
+  { kind: "delivery", name: "Delivery label", paper: "roll",
+    hint: "Name, address and script number, for the driver." },
+  { kind: "claim", name: "Claim copy", paper: "page",
+    hint: "A4. The copy that goes in the file or to the funder." },
+];
+
+function keyFor(kind: DocKind): string {
+  return kind === "label" ? CHOSEN : `printer_${kind}`;
+}
+
+/** Which printer this kind goes to. Falls back to the label roll.
+ *
+ *  The fallback is what makes this safe to ship: a till that has only ever
+ *  chosen one printer keeps printing everything on it, exactly as before, and
+ *  nothing has to be configured for the upgrade to be invisible.
+ */
+export function printerFor(kind: DocKind): string {
+  return readStored(keyFor(kind)) ?? readStored(CHOSEN) ?? "";
+}
+
+/** Point one kind of document at a printer. "" means "follow the label roll". */
+export function routeTo(kind: DocKind, printer: string) {
+  writeStored(keyFor(kind), printer);
+}
+
+/** What has been set explicitly, as against inherited from the label roll. */
+export function explicitRoute(kind: DocKind): string {
+  return readStored(keyFor(kind)) ?? "";
+}
+
 interface Bridge {
   core?: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
   invoke?: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
@@ -65,14 +108,42 @@ export function printerWidth(): number {
   return Number.isFinite(stored) && stored > 0 ? stored : 32;
 }
 
+/** Send a rendered page document to a printer by name, with no dialog.
+ *
+ *  Separate from `printLines` because it is a different thing entirely. That
+ *  sends RAW bytes — ESC/POS — which is what a thermal roll speaks and what an
+ *  A4 laser cannot render at all: it would print the escape codes as text, or
+ *  eject a hundred blank pages, both of which have happened to somebody.
+ *
+ *  A page document is handed over as a file and Windows chooses the driver.
+ */
+export async function printPage(bytes: Uint8Array | ArrayBuffer,
+                                kind: DocKind = "claim"): Promise<void> {
+  const printer = printerFor(kind);
+  if (!printer) throw new Error("No printer has been chosen for this document.");
+  const data = Array.from(
+    bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+  await invoke<number>("print_page", { printer, data });
+}
+
+/** True when this kind will go straight to a printer with no dialog. */
+export function goesStraightToPrinter(kind: DocKind = "label"): boolean {
+  return canPrintDirect() && Boolean(printerFor(kind));
+}
+
 /** True when labels will go straight to a roll with no dialog. */
 export function labelsGoStraightToRoll(): boolean {
   return canPrintDirect() && Boolean(chosenPrinter());
 }
 
-/** Print one label. Throws with the printer's own complaint if it refuses. */
-export async function printLines(lines: Line[], copies = 1): Promise<number> {
-  const printer = chosenPrinter();
+/** Print one label. Throws with the printer's own complaint if it refuses.
+ *
+ *  `kind` chooses the printer. It defaults to the dispensing label so every
+ *  existing caller keeps its behaviour without being edited.
+ */
+export async function printLines(lines: Line[], copies = 1,
+                                 kind: DocKind = "label"): Promise<number> {
+  const printer = printerFor(kind);
   if (!printer) throw new Error("No label printer has been chosen on this till.");
   const width = printerWidth();
   const payload = Array.from(render(lines, width));
