@@ -309,9 +309,13 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
         db.flush()
         if product.category != "airtime":
             # FEFO batch consumption — expired stock is never sold
+            # A counter sale is a box: `line.quantity` counts packs, which is
+            # also why POS still prices at the pack price. The shelf is in
+            # tablets, so the box has to be converted on the way out.
             helpers.consume_stock_fefo(
                 db, product, line.quantity, "sale", user.id,
                 reference=sale.sale_number, sale_item_id=sale_item.id,
+                in_packs=True,
             )
             helpers.record_register_entry(
                 db, product, -line.quantity, "dispense", user.id,

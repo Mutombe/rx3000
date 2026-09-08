@@ -156,7 +156,10 @@ def create(body: LayByIn, db: Session = Depends(get_db),
         # summed from batches, so adjusting the product row alone leaves the
         # goods visible and sellable everywhere it actually matters. Written
         # that way first, and the stock did not move at all.
+        # A layby is a counter sale paid for over time, so it counts packs
+        # like the till it came through.
         helpers.consume_stock_fefo(db, product, quantity, "layby", user.id,
+                                   in_packs=True,
                                    reference=layby.layby_number)
 
     if body.deposit:

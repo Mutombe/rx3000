@@ -170,11 +170,13 @@ def apply(db: Session, sale: Sale, lines: list[dict], *, user_id: int | None,
             # so the shop can see how much of what it takes back it cannot
             # resell. One netting movement hides that entirely.
             _restore(db, product, item, quantity, user_id, reference)
+            # Putting back what a counter sale took: packs, like the sale.
             helpers.move_stock(
                 db, product, -quantity, "write-off", user_id,
                 reference=reference,
                 notes=(row["why_not"] or reason
-                       or "returned and not fit for resale"))
+                       or "returned and not fit for resale"),
+                in_packs=True)
             written_off += quantity
 
         helpers.record_register_entry(db, product, quantity, "adjustment",
@@ -250,7 +252,7 @@ def _restore(db: Session, product: Product, item: SaleItem, quantity: int,
 
     if left > 0:
         # A sale that predates batch tracking has no allocations to restore to.
-        helpers.move_stock(db, product, left, "return", user_id,
+        helpers.move_stock(db, product, left, "return", user_id, in_packs=True,
                            reference=reference,
                            notes="part return (untracked sale)")
         restored += left

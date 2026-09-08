@@ -366,13 +366,15 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
                 product_id=line.product_id,
                 batch_number=number[:40],
                 expiry_date=line.expiry,
-                quantity_received=line.quantity,
-                quantity_remaining=line.quantity,
+                # A supplier's file counts packs; the shelf counts units.
+                quantity_received=line.quantity * product.per_pack,
+                quantity_remaining=line.quantity * product.per_pack,
                 unit_cost=_num(get(row, "cost")) or (product.cost_price or 0.0),
                 reference=reference or "Stock upload",
                 branch_id=branch_id,
             ))
-            product.quantity_on_hand = (product.quantity_on_hand or 0) + line.quantity
+            product.quantity_on_hand = ((product.quantity_on_hand or 0)
+                                        + line.quantity * product.per_pack)
             db.add(StockMovement(
                 product_id=line.product_id,
                 movement_type="receive",

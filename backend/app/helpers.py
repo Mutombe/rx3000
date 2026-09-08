@@ -65,6 +65,22 @@ def next_number(db: Session, model, prefix: str, field: str) -> str:
         f"Something is issuing numbers faster than they can be recorded.")
 
 
+def in_units(product: Product, quantity: int, in_packs: bool) -> int:
+    """Turn a caller's number into the units stock is counted in.
+
+    Stock is held in dispensable units — a tub of a thousand capsules is 1000.
+    Callers do not all speak that language: a purchase order is in packs, a
+    dispensing is in units, and both arrive as an integer called `quantity`.
+
+    So the caller says which, every time, and this is the only place the
+    multiplication happens. There is no default that is right for both, which is
+    why `in_packs` has no sensible default and every door states it.
+    """
+    if not in_packs:
+        return int(quantity)
+    return int(quantity) * product.per_pack
+
+
 def move_stock(
     db: Session,
     product: Product,
@@ -73,8 +89,16 @@ def move_stock(
     user_id: int | None,
     reference: str = "",
     notes: str = "",
+    *,
+    in_packs: bool = False,
 ) -> StockMovement:
-    """Apply a stock movement and record it. Negative delta = stock out."""
+    """Apply a stock movement and record it. Negative delta = stock out.
+
+    `in_packs` says whether `delta` counts packs or dispensable units. Stock is
+    held in units; see `in_units` above.
+    """
+    delta = in_units(product, delta, in_packs) if delta >= 0 else -in_units(
+        product, -delta, in_packs)
     product.quantity_on_hand = (product.quantity_on_hand or 0) + delta
     movement = StockMovement(
         product_id=product.id,
@@ -98,6 +122,7 @@ def receive_stock_batch(
     expiry_date: date | None = None,
     unit_cost: float | None = None,
     reference: str = "",
+    in_packs: bool = False,
     movement_type: str = "receive",
     notes: str = "",
     branch_id: int | None = None,
@@ -110,6 +135,10 @@ def receive_stock_batch(
     """
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Receive quantity must be positive")
+    # A delivery is counted in packs and the shelf is counted in units. Ten tubs
+    # of a thousand is ten thousand capsules, and the batch has to be written in
+    # the same currency the dispensing will draw from it in.
+    quantity = in_units(product, quantity, in_packs)
     if branch_id is None:
         from .services import branches as _branches
         branch_id = _branches.default_branch(db).id
@@ -149,6 +178,7 @@ def consume_stock_fefo(
     sale_item_id: int | None = None,
     allow_expired: bool = False,
     branch_id: int | None = None,
+    in_packs: bool = False,
 ) -> list[BatchAllocation]:
     """Draw stock First-Expiry-First-Out, from one branch.
 
@@ -168,6 +198,10 @@ def consume_stock_fefo(
         branch_id = _branches.default_branch(db).id
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
+    # A till sells boxes and a dispensary sells tablets; the batches are in
+    # tablets. Converted here so the FEFO walk below draws the right amount
+    # whichever door the sale came through.
+    quantity = in_units(product, quantity, in_packs)
 
     query = (
         db.query(StockBatch)

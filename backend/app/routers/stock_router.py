@@ -664,10 +664,13 @@ def set_order_status(
             line.quantity_received = line.quantity_ordered
             info = batch_info.get(line.id)
             if product.category == "airtime":
-                helpers.move_stock(db, product, line.quantity_ordered, "receive", user.id, reference=order.order_number)
+                helpers.move_stock(db, product, line.quantity_ordered, "receive", user.id,
+                                   reference=order.order_number, in_packs=True)
             else:
+                # An order line counts packs. Ten tubs of a thousand is ten
+                # thousand capsules on the shelf.
                 helpers.receive_stock_batch(
-                    db, product, line.quantity_ordered, user.id,
+                    db, product, line.quantity_ordered, user.id, in_packs=True,
                     batch_number=(info.batch_number if info else "") or f"{order.order_number}-{line.id}",
                     expiry_date=info.expiry_date if info else None,
                     unit_cost=line.unit_cost or None,

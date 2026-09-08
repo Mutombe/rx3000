@@ -421,10 +421,12 @@ def receive_line(
     batch = (body.batch_number or "").strip() or f"{order.order_number}-{product.id}"
     if product.category == "airtime":
         helpers.move_stock(db, product, body.quantity, "receive", user.id,
-                           reference=order.order_number)
+                           reference=order.order_number, in_packs=True)
     else:
+        # A scanned delivery is counted in boxes, because that is what carries
+        # the barcode.
         helpers.receive_stock_batch(
-            db, product, body.quantity, user.id,
+            db, product, body.quantity, user.id, in_packs=True,
             batch_number=batch, expiry_date=expiry,
             unit_cost=body.unit_cost or line.unit_cost or None,
             reference=order.order_number,
