@@ -7194,3 +7194,17 @@ table.dt.sub th { font-size: var(--t-xs); }
 @media (max-width: 640px) {
   .printer-routes label { grid-template-columns: 1fr; }
 }
+
+/* The branch picker, where somebody has a choice. It has to read as the same
+   chip as the fixed one beside it on another till — the difference is that one
+   can be changed, not that they are different objects. */
+.branch-chip.is-pick { padding-right: var(--s1); cursor: pointer; }
+.branch-chip.is-pick select {
+  border: 0; background: none; color: inherit; font: inherit;
+  padding: 0 var(--s1) 0 0; height: auto; min-width: 0; cursor: pointer;
+  appearance: none;
+}
+.branch-chip.is-pick select:focus-visible { outline: 2px solid var(--accent); border-radius: 3px; }
+/* Nobody has placed this account. Not an error — an administrator can fix it
+   in a minute — but it must not read as the deliberate "All branches". */
+.branch-chip.is-unplaced { border-style: dashed; opacity: .85; }

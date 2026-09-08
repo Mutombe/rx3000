@@ -50,6 +50,7 @@ import {
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { routeTone } from "../entityTone";
+import { viewBranch, viewingBranch } from "../api";
 import { api, configureLocale, fmtDateTime, setToken } from "../api";
 import { User } from "../types";
 import { readStored, writeStored } from "../storage";
@@ -533,29 +534,72 @@ export default function Layout({ children }: { children: ReactNode }) {
               orders against Borrowdale's shelf while standing in Avondale.
               Head office sees "All branches" instead, which is equally a
               fact about what the numbers mean. */}
-          {session.me && (
-            session.me.all_branches ? (
-              <span className="branch-chip is-group" title="Figures on every screen cover the whole group">
-                <Buildings size={13} weight="fill" aria-hidden="true" />
-                <span className="branch-name">All branches</span>
-              </span>
-            ) : session.me.branch ? (
-              <span
-                className="branch-chip"
-                title={session.me.branches.length > 1
-                  ? `You work in ${session.me.branch.name}, and also cover `
-                    + session.me.branches.filter((b) => b.id !== session.me!.branch!.id)
-                        .map((b) => b.name).join(", ")
-                  : `Every figure on screen is ${session.me.branch.name}'s`}
-              >
-                <Storefront size={13} weight="fill" aria-hidden="true" />
-                <span className="branch-name">{session.me.branch.name}</span>
-                {session.me.branches.length > 1 && (
-                  <span className="branch-more">+{session.me.branches.length - 1}</span>
-                )}
-              </span>
-            ) : null
-          )}
+          {session.me && (() => {
+            const me = session.me;
+            const choices = me.may_switch ?? [];
+            const viewing = viewingBranch();
+            const here = choices.find((b) => String(b.id) === viewing);
+
+            /* A choice, for the two people who have one. */
+            if (choices.length > 1) {
+              return (
+                <label className="branch-chip is-pick"
+                       title="Which branch the figures on every screen are about">
+                  {here
+                    ? <Storefront size={13} weight="fill" aria-hidden="true" />
+                    : <Buildings size={13} weight="fill" aria-hidden="true" />}
+                  <select
+                    value={viewing}
+                    aria-label="Branch"
+                    onChange={(e) => {
+                      viewBranch(e.target.value);
+                      /* Reloaded rather than re-rendered. Every figure on
+                         screen was fetched under the previous branch, and
+                         swapping the header without re-fetching leaves one
+                         branch's numbers under another branch's name — which
+                         is worse than either of them alone. */
+                      window.location.reload();
+                    }}
+                  >
+                    <option value="">All branches</option>
+                    {choices.map((b) => (
+                      <option key={b.id} value={String(b.id)}>{b.name}</option>
+                    ))}
+                  </select>
+                </label>
+              );
+            }
+
+            /* A fact, for everybody else. `branch` first: it is where they
+               actually work. `branches[0]` covers the person whose placement
+               reaches them through a cover rather than their own record. */
+            const mine = me.branch ?? me.branches[0] ?? null;
+            if (mine) {
+              return (
+                <span className="branch-chip"
+                      title={`Every figure on screen is ${mine.name}'s`}>
+                  <Storefront size={13} weight="fill" aria-hidden="true" />
+                  <span className="branch-name">{mine.name}</span>
+                </span>
+              );
+            }
+
+            /* Placed nowhere. This used to render "All branches", which told a
+               till operator they were looking at the whole group when what had
+               actually happened is that nobody had assigned them a shop. It
+               says so instead, because it is a thing an administrator can fix
+               in a minute and could not previously see. */
+            if (me.all_branches) {
+              return (
+                <span className="branch-chip is-unplaced"
+                      title="Nobody has assigned this account to a branch, so it is seeing every branch's figures. An administrator can set one under Staff.">
+                  <Buildings size={13} weight="fill" aria-hidden="true" />
+                  <span className="branch-name">No branch set</span>
+                </span>
+              );
+            }
+            return null;
+          })()}
           <ThemeToggle />
           <span className="topbar-sep" aria-hidden="true" />
           <div className="topbar-right" ref={menuRef}>

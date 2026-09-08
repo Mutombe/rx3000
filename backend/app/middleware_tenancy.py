@@ -53,6 +53,19 @@ class TenancyMiddleware(BaseHTTPMiddleware):
                 pharmacy_id = None
                 branches = None
 
+        # Somebody who may see several branches can say which one they are
+        # looking at. The header NARROWS and can never widen: it is intersected
+        # with what the token already allows, so sending it by hand gets a
+        # person a branch they already had or nothing at all.
+        #
+        # An intersection rather than a check-then-assign on purpose. A
+        # validation step is something a later edit can forget to keep; an
+        # intersection cannot grant what was not already in the set.
+        picked = request.headers.get("x-branch") or ""
+        if picked.strip().isdigit():
+            wanted = frozenset({int(picked)})
+            branches = wanted if branches is None else (branches & wanted)
+
         token = tenancy.set_current_pharmacy(pharmacy_id)
         branch_token = branch_scope.set_visible_branches(branches)
         try:

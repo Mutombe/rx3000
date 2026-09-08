@@ -28,6 +28,32 @@ function resolveBase(): string {
 }
 
 /** True when running inside the desktop shell rather than a browser tab. */
+/** The branch being looked at, for somebody who may see more than one.
+ *
+ *  Session storage rather than local: a branch switched to in order to answer
+ *  one question must not still be in force next Monday, quietly scoping a
+ *  morning's work to a shop nobody is standing in. Closing the tab forgets it.
+ */
+const VIEWING = "viewing_branch";
+
+export function viewingBranch(): string {
+  try {
+    return sessionStorage.getItem(VIEWING) ?? "";
+  } catch {
+    // A browser with storage blocked still has to work; it simply cannot
+    // remember the choice between page loads.
+    return "";
+  }
+}
+
+/** Look at one branch, or "" for everything this person may see. */
+export function viewBranch(id: string) {
+  try {
+    if (id) sessionStorage.setItem(VIEWING, id);
+    else sessionStorage.removeItem(VIEWING);
+  } catch { /* see above */ }
+}
+
 export const isDesktop =
   typeof (globalThis as any).__RX5000_SERVER__ === "string" ||
   typeof (globalThis as any).__RX3000_SERVER__ === "string";
@@ -268,6 +294,15 @@ async function request<T>(
       ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(stepUp ? { "X-Step-Up": stepUp } : {}),
+      /* Which branch this person is looking at, where they have a choice.
+         On every request rather than the screens that appear to need it: a
+         branch that applies to the dashboard but not to the report opened from
+         it gives two different answers and explains neither.
+
+         The server intersects this with what the token allows, so it can only
+         ever narrow — sending it by hand cannot reach a branch somebody does
+         not already hold. */
+      ...(viewingBranch() ? { "X-Branch": viewingBranch() } : {}),
     },
     body: body === undefined ? undefined
       : body instanceof FormData ? body : JSON.stringify(body),

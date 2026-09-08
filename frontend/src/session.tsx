@@ -50,6 +50,9 @@ export interface Me {
   branch: BranchBrief | null;
   /** True for the owner, head office, and anybody nobody has placed yet. */
   all_branches: boolean;
+  /** Every branch this person could switch to. Empty where they have no say,
+   *  which is almost everybody and is the correct answer for them. */
+  may_switch?: BranchBrief[];
 }
 
 interface SessionValue {

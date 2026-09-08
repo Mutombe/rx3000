@@ -16,7 +16,11 @@ class User(Base, TenantMixin):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(200), nullable=False)
     full_name = Column(String(120), nullable=False)
-    role = Column(String(20), nullable=False, default="assistant")  # admin | pharmacist | assistant | cashier
+    #: See auth.ROLES. The default is the narrowest role that can actually do
+    #: something: it was "assistant", which was retired for granting nothing at
+    #: all, so a row created without a role got an account that could not work
+    #: and nobody found out until the person tried to use it.
+    role = Column(String(20), nullable=False, default="cashier")
     active = Column(Boolean, default=True)
 
     # ---- what KIND of user this is -------------------------------------

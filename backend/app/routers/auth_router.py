@@ -68,6 +68,23 @@ def me(user: User = Depends(auth.get_current_user),
     out["branches"] = branches
     out["all_branches"] = visible is None
     out["branch"] = next((b for b in branches if b["id"] == user.branch_id), None)
+
+    # Every branch this person could switch to, as against the one they are
+    # currently narrowed to. `branches` above is already narrowed by the header,
+    # so on its own it cannot answer "what else could I look at" — and a picker
+    # built from it would offer exactly the branch already chosen.
+    if visible is None or len(branches) > 1:
+        with _branch_scope.every_branch():
+            out["may_switch"] = [
+                {"id": b.id, "name": b.name, "code": b.code}
+                for b in db.query(models.Branch)
+                .filter(models.Branch.active.is_(True))
+                .order_by(models.Branch.name).all()
+            ] if visible is None else branches
+    else:
+        # One branch and no choice about it. An empty list rather than a list of
+        # one, so the top bar can tell "may choose, and has" from "has no say".
+        out["may_switch"] = []
     return out
 
 
