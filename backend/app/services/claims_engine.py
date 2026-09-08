@@ -126,10 +126,15 @@ def estimate(db, patient, lines: list[tuple]) -> dict:
     """What the scheme will carry and what the patient will owe, before dispensing.
 
     `lines` are (product, quantity) as they stand on the script being built, and
-    are priced the way the sale will be priced, at shelf price, because that
-    is what the claim will be raised against.
+    are priced the way the sale will be priced, because an estimate that does
+    not agree with the sale three seconds later is worse than no estimate.
+
+    Per UNIT: a script quantity is a count of tablets, and `unit_price` is what
+    a pack costs despite its name. Multiplying the two told a patient their
+    twenty-one capsules would come to $1,050 and then charged them $1.05 — or,
+    before the sale was fixed too, actually took the $1,050.
     """
-    priced = [(product, round((product.unit_price or 0.0) * max(1, int(qty or 1)), 2))
+    priced = [(product, round(product.per_unit() * max(1, int(qty or 1)), 2))
               for product, qty in lines]
     total = round(sum(amount for _, amount in priced), 2)
 

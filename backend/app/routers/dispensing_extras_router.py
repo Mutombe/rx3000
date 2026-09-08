@@ -51,7 +51,10 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
     priced = pricing.price_line(db, product, quantity, aid)
     policy = schedule_policy.policy_for(product.schedule)
 
-    cash_total = round(product.unit_price * quantity, 2)
+    # The private price for a dispensed quantity, matching what price_line
+    # returns for a scheme — the two sit next to each other on the coverage
+    # panel and disagreeing by a factor of the pack size was visible.
+    cash_total = round(product.per_unit() * quantity, 2)
     # On a scheme the price is the regulated one, not the shelf price — the
     # dispensing fee and any levy are part of what the patient is quoted.
     scheme_total = round(priced.gross, 2) if aid else cash_total
@@ -704,7 +707,7 @@ def patient_repeats(patient_id: int, db: Session = Depends(get_db)):
             continue
         due = item.next_repeat_date
         days = (today - due).days
-        worth = round((product.unit_price or 0.0) * (item.quantity or 0), 2)
+        worth = round(product.per_unit() * (item.quantity or 0), 2)
         # Only what is due or overdue. A repeat due in three weeks is not
         # something to offer somebody at the counter today — dispensing it early
         # is how a patient ends up with two months of medicine and a scheme
@@ -816,7 +819,7 @@ def repeats_call_sheet(within_days: int = 14, overdue_only: bool = False,
             # What this one repeat is worth if the patient comes in for it.
             # A call sheet without it is a list of names; with it, it is a list
             # of names in the order worth telephoning.
-            "value": round((item.product.unit_price or 0.0) * (item.quantity or 0), 2)
+            "value": round(item.product.per_unit() * (item.quantity or 0), 2)
                      if item.product else 0.0,
             "cost": round((item.product.cost_price or 0.0) * (item.quantity or 0), 2)
                     if item.product else 0.0,

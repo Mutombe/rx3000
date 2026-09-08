@@ -217,7 +217,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "bin_location": "VARCHAR(20) DEFAULT ''",
         "manufacturer": "VARCHAR(120) DEFAULT ''",
         "sep_price": "DOUBLE PRECISION DEFAULT 0","mmap_price": "FLOAT DEFAULT 0",
-                 "active_ingredient": "VARCHAR(160) DEFAULT ''"},
+        "active_ingredient": "VARCHAR(160) DEFAULT ''",
+        # How many tablets are in the tub. DEFAULT 1 is doing real work: it
+        # means every existing row prices and stocks exactly as it did before
+        # this column arrived, so the migration alone changes nothing.
+        "units_per_pack": "INTEGER DEFAULT 1"},
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},
     "dispensings": {

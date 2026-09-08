@@ -84,7 +84,14 @@ def price_line(db: Session, product: Product, quantity: int,
     model = scheme.fee_model if scheme and scheme.fee_model else None
     basis = model.basis if model else "sep"
 
-    unit = product.cost_price if basis == "cost" else product.unit_price
+    # Per UNIT, because `quantity` here is a dispensed quantity — tablets, not
+    # tubs. `unit_price` and `cost_price` are both what a PACK costs, so this
+    # billed a scheme for thirty packs of a medicine somebody took thirty
+    # tablets of.
+    #
+    # This is the one every claim, estimate and coverage panel comes through,
+    # which is why it is the one worth being right.
+    unit = product.unit_cost() if basis == "cost" else product.per_unit()
     base = round((unit or 0.0) * quantity, 2)
 
     # MMAP: cap the medicine portion, and remember the excess — the patient pays
@@ -93,7 +100,10 @@ def price_line(db: Session, product: Product, quantity: int,
     mmap_excess = 0.0
     medicine = base
     if model and model.apply_mmap and (product.mmap_price or 0) > 0:
-        mmap_cap = round(product.mmap_price * quantity, 2)
+        # The reference price arrives per pack like the others, so it is
+        # divided by the same figure. A cap left per-pack against a per-unit
+        # price would never bind, and MMAP would silently stop applying.
+        mmap_cap = round(product.mmap_price / product.per_pack * quantity, 2)
         if base > mmap_cap:
             mmap_excess = round(base - mmap_cap, 2)
             medicine = mmap_cap

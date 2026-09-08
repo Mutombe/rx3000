@@ -104,7 +104,9 @@ def performance(db: Session, *, days: int = 30) -> dict:
         when = item.next_repeat_date
         if when is None:
             continue
-        line_value = _money((product.unit_price or 0.0) * (item.quantity or 0)) \
+        # Per unit. This is the figure that looked wrong: a repeat for thirty
+        # tablets was being valued at thirty times what the tub costs.
+        line_value = _money(product.per_unit() * (item.quantity or 0)) \
             if product else 0.0
 
         hit = filled.get(item.id)
@@ -190,7 +192,7 @@ def performance(db: Session, *, days: int = 30) -> dict:
                   if r[0].next_repeat_date == today
                   and r[2].status not in ("draft", "cancelled")]
     today_value = _money(sum(
-        (product.unit_price or 0.0) * (item.quantity or 0)
+        product.per_unit() * (item.quantity or 0)
         for item, product, _ in today_rows if product))
 
     return {
@@ -280,7 +282,13 @@ def daily(db: Session, *, days: int = 14) -> list[dict]:
     rows = (
         db.query(PrescriptionItem.next_repeat_date,
                  func.count(PrescriptionItem.id),
-                 func.coalesce(func.sum(Product.unit_price * PrescriptionItem.quantity), 0.0))
+                 # In SQL, so the same division has to be written out: a
+                 # pack price over the pack size, guarded against the zero that
+                 # a bad import would otherwise turn into a division error.
+                 func.coalesce(func.sum(
+                     Product.unit_price
+                     / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                     * PrescriptionItem.quantity), 0.0))
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
         .outerjoin(Product, PrescriptionItem.product_id == Product.id)
         .filter(PrescriptionItem.next_repeat_date.isnot(None),

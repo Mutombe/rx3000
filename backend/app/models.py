@@ -641,13 +641,57 @@ class Product(Base, TenantMixin):
     # The molecule, not the brand. Two products sharing this are substitutable,
     # which is what makes a formulary rejection actionable rather than a dead end.
     active_ingredient = Column(String(160), default="", index=True)
+    #: What the pack is called on the box — "30S", "100ml", "1000s". Free text,
+    #: because that is what a supplier's file contains, and therefore useless
+    #: for arithmetic. `units_per_pack` below is the number.
     pack_size = Column(String(60), default="")
-    unit_price = Column(Float, default=0.0)      # single exit price
+    #: How many dispensable units are in one pack. 30 tablets, 1000 capsules.
+    #:
+    #: 1 means the pack IS the unit — a bottle of syrup, a tube of cream, and
+    #: every front-shop line. That is also the default, and it is the safe one
+    #: in both directions: a product nobody has told us about prices and stocks
+    #: exactly as it did before this column existed.
+    units_per_pack = Column(Integer, default=1)
+    #: What ONE PACK sells for. Not one tablet — see `per_unit()`.
+    #:
+    #: The name is a lie of long standing and is kept because it is on every
+    #: importer, every price list and half the reports. `per_unit()` is the
+    #: accessor that means what this column's name says.
+    unit_price = Column(Float, default=0.0)
+    #: What ONE PACK cost. Same caveat.
     cost_price = Column(Float, default=0.0)
     # Reference price for the molecule. Where a scheme applies MMAP the medicine
     # portion is capped here, and the patient pays the difference.
     mmap_price = Column(Float, default=0.0)
     vat_rate = Column(Float, default=0.15)
+
+    @property
+    def per_pack(self) -> int:
+        """Units in a pack, never zero. Division by this must always be safe."""
+        try:
+            return max(int(self.units_per_pack or 1), 1)
+        except (TypeError, ValueError):
+            return 1
+
+    def per_unit(self) -> float:
+        """What ONE dispensable unit sells for.
+
+        The number Proppharm shows in its UnitPrice column, computed the same
+        way: the pack price over the pack size. Not rounded — a capsule out of a
+        tub of a thousand is a twentieth of a cent, and rounding here turns a
+        script for thirty into nothing or into double.
+        """
+        return (self.unit_price or 0.0) / self.per_pack
+
+    def unit_cost(self) -> float:
+        """What ONE dispensable unit cost. The other half of every margin."""
+        return (self.cost_price or 0.0) / self.per_pack
+    #: Stock, counted in DISPENSABLE UNITS.
+    #:
+    #: A tub of 1000 capsules is 1000, not 1. Receiving a pack adds
+    #: `units_per_pack`; dispensing 30 subtracts 30. Before this it counted
+    #: packs while dispensing subtracted units, so a single script took a
+    #: thousand capsules off the shelf figure.
     quantity_on_hand = Column(Integer, default=0)
     reorder_level = Column(Integer, default=10)
     reorder_quantity = Column(Integer, default=20)

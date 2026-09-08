@@ -405,7 +405,18 @@ def dispense(
                 status_code=400,
                 detail=f"{product.name}: only {product.quantity_on_hand} in stock.")
 
-        line_total = round(product.unit_price * item.quantity, 2)
+        # Priced per UNIT, because `item.quantity` is a count of tablets.
+        #
+        # `product.unit_price` is what a PACK sells for despite its name, so
+        # multiplying it by thirty charged a patient for thirty tubs. Nine
+        # capsules of amoxicillin came to $274.50 on a $50 tub.
+        #
+        # The cost follows the same divisor, and it has to be the same divisor:
+        # a price per unit against a cost per pack would report a margin of
+        # minus several thousand percent and look like a pricing error rather
+        # than an arithmetic one.
+        per_unit = product.per_unit()
+        line_total = round(per_unit * item.quantity, 2)
         line_ex_vat = round(line_total / (1 + product.vat_rate), 2)
         subtotal += line_ex_vat
         vat_total += line_total - line_ex_vat
@@ -414,8 +425,10 @@ def dispense(
             product_id=product.id,
             description=f"{product.name} {product.strength}".strip(),
             quantity=item.quantity,
-            unit_price=product.unit_price,
-            unit_cost=product.cost_price or 0.0,
+            # Stored per unit, so a line re-read later reprices to what was
+            # actually charged rather than to what the pack costs today.
+            unit_price=per_unit,
+            unit_cost=product.unit_cost(),
             vat_rate=product.vat_rate,
             line_total=line_total,
             prescription_item_id=item.id,
@@ -672,8 +685,10 @@ def prescription_labels(
             item_number=position,
             item_count=len(items),
             doctor_practice_no=(rx.doctor.practice_number or "") if rx.doctor else "",
-            unit_price=round(product.unit_price or 0.0, 2),
-            line_total=round((product.unit_price or 0.0) * (item.quantity or 0), 2),
+            # Per unit, matching what the sale actually charged. This read the
+            # pack price, so a label for twenty-one capsules said $1,050.
+            unit_price=round(product.per_unit(), 2),
+            line_total=round(product.per_unit() * (item.quantity or 0), 2),
             branch_code=(branch.code or "") if branch else "",
             # The branch's own name and number where it has them, the company's
             # where it does not — an empty line on a sticker is worse than a
