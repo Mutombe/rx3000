@@ -32,32 +32,29 @@ from datetime import date, datetime
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (Paragraph, SimpleDocTemplate, Spacer, Table,
                                 TableStyle)
 
-INK = colors.HexColor("#16161d")
-MID = colors.HexColor("#4a4956")
-RULE = colors.HexColor("#c9c9d2")
-BAND = colors.HexColor("#f1f1f4")
+from . import brand
+
+INK = brand.INK
+MID = brand.SOFT
+RULE = brand.RULE
+BAND = brand.TINT
 
 
 def _styles():
-    base = getSampleStyleSheet()
+    """The house styles, with the two names this file uses mapped onto them.
+
+    Everything RX5000 prints is set from `brand.styles()`, so a claim copy, a
+    code sheet and a sign-in sheet look like three documents from one product
+    rather than three products.
+    """
+    st = brand.styles()
     return {
-        "title": ParagraphStyle("t", parent=base["Title"], fontSize=15,
-                                textColor=INK, spaceAfter=1, alignment=0),
-        "sub": ParagraphStyle("s", parent=base["Normal"], fontSize=8.5,
-                              textColor=MID, spaceAfter=6),
-        "h": ParagraphStyle("h", parent=base["Normal"], fontSize=7.5,
-                            textColor=MID, spaceAfter=1),
-        "b": ParagraphStyle("b", parent=base["Normal"], fontSize=9.5,
-                            textColor=INK, leading=12),
-        "cell": ParagraphStyle("c", parent=base["Normal"], fontSize=8.5,
-                               textColor=INK, leading=11),
-        "foot": ParagraphStyle("f", parent=base["Normal"], fontSize=7.5,
-                               textColor=MID, leading=10),
+        "title": st["title"], "sub": st["sub"], "h": st["head"],
+        "b": st["strong"], "cell": st["small"], "foot": st["foot"],
     }
 
 
@@ -78,17 +75,24 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=16 * mm, rightMargin=16 * mm,
-        topMargin=14 * mm, bottomMargin=14 * mm,
+        topMargin=32 * mm, bottomMargin=20 * mm,
         title=f"Claim copy {rx_number}", author=pharmacy)
+
+    when_for_head = (dispensed_at or datetime.utcnow())
+
+    def furniture(canvas, d):
+        brand.letterhead(
+            canvas, d, kind="Claim copy",
+            stamp=f"{rx_number} · {when_for_head:%d %b %Y}",
+            footer_left=pharmacy,
+            footer_right="Figures as recorded against this dispensing.")
 
     flow = []
     flow.append(Paragraph(pharmacy, st["title"]))
     bits = [x for x in (pharmacy_address, f"Reg {pharmacy_reg}" if pharmacy_reg else "",
                         branch) if x]
     flow.append(Paragraph(" &middot; ".join(bits), st["sub"]))
-
-    flow.append(Paragraph("CLAIM COPY", ParagraphStyle(
-        "k", parent=st["b"], fontSize=11, textColor=INK, spaceAfter=6)))
+    flow.append(Spacer(1, 4 * mm))
 
     when = dispensed_at or datetime.utcnow()
     head = Table([
@@ -174,5 +178,5 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
         f"those recorded against this dispensing and do not change if a shelf "
         f"price changes afterwards.", st["foot"]))
 
-    doc.build(flow)
+    doc.build(flow, onFirstPage=furniture, onLaterPages=furniture)
     return buf.getvalue()
