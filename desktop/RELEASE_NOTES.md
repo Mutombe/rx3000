@@ -1,26 +1,24 @@
-Prices in the dispensary now read per unit, and each person sees
-their own branch.
+Repeat values now read correctly, and the documents we print carry
+the RX5000 mark.
 
-**The figures on screen match what is charged**
+**Repeat figures**
 
-A script for 21 capsules out of a tub of 1000 showed the price of
-the tub. The screen now shows what one capsule costs and what the
-line comes to, which is the same figure the sale, the label and the
-claim copy use.
+A pack written as "30s" was not being read as a pack of thirty, so
+repeats on those medicines were valued at the price of a whole pack
+for every tablet. A repeat for 28 tablets of Atazanavir/Ritonavir
+showed $616; it is $20.53.
 
-Product searches show both: what the pack costs, and what one unit
-costs out of it.
+This corrected itself on the server, so the figures are already
+right on this screen.
 
-**Your branch, chosen for you**
+**Printed documents**
 
-The top bar shows the branch you work in. Whoever covers more than
-one — an owner, or head office — gets a list to choose from, with
-"All branches" as one of the choices.
+The claim copy and the staff sign-in sheet now carry the logo, the
+brand navy and the RX5000 typeface, on every page.
 
-An account nobody has placed in a branch now says so, instead of
-claiming to see the whole group.
+**Already in this till, from the last release**
 
-**Also**
-
-"Interval (days)" on a repeat is now "Duration (days)", which is
-what a prescriber writes.
+One press to dispense and print, with the other documents on the
+arrow beside it. Prices in the dispensary read per unit. Your branch
+is chosen for you, and whoever covers several can switch between
+them.

@@ -1,11 +1,11 @@
 {
-  "version": "1.6.9",
-  "notes": "Prices in the dispensary now read per unit, and each person sees\ntheir own branch.\n\n**The figures on screen match what is charged**\n\nA script for 21 capsules out of a tub of 1000 showed the price of\nthe tub. The screen now shows what one capsule costs and what the\nline comes to, which is the same figure the sale, the label and the\nclaim copy use.\n\nProduct searches show both: what the pack costs, and what one unit\ncosts out of it.\n\n**Your branch, chosen for you**\n\nThe top bar shows the branch you work in. Whoever covers more than\none \u2014 an owner, or head office \u2014 gets a list to choose from, with\n\"All branches\" as one of the choices.\n\nAn account nobody has placed in a branch now says so, instead of\nclaiming to see the whole group.\n\n**Also**\n\n\"Interval (days)\" on a repeat is now \"Duration (days)\", which is\nwhat a prescriber writes.",
-  "pub_date": "2026-09-09T12:00:42+00:00",
+  "version": "1.6.10",
+  "notes": "Repeat values now read correctly, and the documents we print carry\nthe RX5000 mark.\n\n**Repeat figures**\n\nA pack written as \"30s\" was not being read as a pack of thirty, so\nrepeats on those medicines were valued at the price of a whole pack\nfor every tablet. A repeat for 28 tablets of Atazanavir/Ritonavir\nshowed $616; it is $20.53.\n\nThis corrected itself on the server, so the figures are already\nright on this screen.\n\n**Printed documents**\n\nThe claim copy and the staff sign-in sheet now carry the logo, the\nbrand navy and the RX5000 typeface, on every page.\n\n**Already in this till, from the last release**\n\nOne press to dispense and print, with the other documents on the\narrow beside it. Prices in the dispensary read per unit. Your branch\nis chosen for you, and whoever covers several can switch between\nthem.",
+  "pub_date": "2026-09-09T13:29:55+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakRiVEJoSGYralVtdHFKS1k0TVZMVi9NVlRBeFNjc05xWGhpNHhNa0w4Ymo3eGthbisxMnpGYjFvOHFmQ0pzKzJDdWJHK0d5dkhnZXUvNVY2dmJjZ1E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTU1MjQxCWZpbGU6Ulg1MDAwXzEuNi45X3g2NC1zZXR1cC5leGUKMlFIamc0WGxoclRGZ29oVGxGY1BBZmNjcnJteWlrUmVCeWszWnpJb0ZHcVdHeFVjYmQ2cExUNEdkYzhzWURCbVh3bjN2U3IxdHg0c1gzTXg1eVFyQ0E9PQo=",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.9_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUalBiMVBkWWNZb3Z1UnRFVEljSTdOcVp1VzduRkFXWkJlS041WmFscVB2czBLMzV5bDhWZEs5WEkzZTl2N24yZlNYenVoK29vTG1NVEFkRzJmMXN5cFFBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg4OTYwNTkzCWZpbGU6Ulg1MDAwXzEuNi4xMF94NjQtc2V0dXAuZXhlCml6UnZVcmZmblF3akIyS2hoVXFqaXppS3NRckNjdTBpajFDTk5GWDJvMSthWkp0Q1pPZWM2Nk41QVFUZys3d1Zmc2lscGRibEY5WkdEL3hEajVNU0F3PT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.10_x64-setup.exe"
     }
   }
 }
