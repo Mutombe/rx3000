@@ -1,35 +1,26 @@
-Printing, the way the dispensary actually works.
+Prices in the dispensary now read per unit, and each person sees
+their own branch.
 
-**One press finishes the script**
+**The figures on screen match what is charged**
 
-The Dispense button now dispenses and prints the labels together. The
-arrow beside it holds the rest — a re-print, a claim copy, a price
-label, a delivery label — with the same letters the old system used:
-L, C, P, V.
+A script for 21 capsules out of a tub of 1000 showed the price of
+the tub. The screen now shows what one capsule costs and what the
+line comes to, which is the same figure the sale, the label and the
+claim copy use.
 
-No dialogue asks what to print. That question has the same answer on
-almost every script, and one that is asked thirty times a morning
-stops being read.
+Product searches show both: what the pack costs, and what one unit
+costs out of it.
 
-**Each document goes to its own printer**
+**Your branch, chosen for you**
 
-Set them once under This Till, Printers, and nothing is asked again.
-The claim copy can go to the A4 laser in the back office while the
-labels come off the roll at the counter.
+The top bar shows the branch you work in. Whoever covers more than
+one — an owner, or head office — gets a list to choose from, with
+"All branches" as one of the choices.
 
-If you have only ever chosen one printer, everything keeps going
-there and there is nothing to set up.
+An account nobody has placed in a branch now says so, instead of
+claiming to see the whole group.
 
-**Two new labels**
+**Also**
 
-A price label for somebody deciding whether they can afford
-something — dated, and marked so it can never be mistaken for a
-dispensing label. And a delivery label with the name, address and
-script number for the driver, carrying no medicine names, because it
-is read at a gate by whoever takes the bag.
-
-**A claim copy on A4**
-
-The sheet for the funder, the inspector, or the file. It shows what
-was actually dispensed and what was actually charged, and it does not
-change if a shelf price changes afterwards.
+"Interval (days)" on a repeat is now "Duration (days)", which is
+what a prescriber writes.
