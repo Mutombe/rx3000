@@ -7208,3 +7208,216 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* Nobody has placed this account. Not an error — an administrator can fix it
    in a minute — but it must not read as the deliberate "All branches". */
 .branch-chip.is-unplaced { border-style: dashed; opacity: .85; }
+
+
+/* ==========================================================================
+   THE DISPENSARY, ON ONE SCREEN
+   ==========================================================================
+   Measured before it was designed: the page was spending 586 vertical pixels
+   on furniture before the first input — 98 on the heading, 52 on the route
+   tabs, 60 on the step trail, 376 on four cards' padding and headings. On a
+   900px viewport that leaves 314px to dispense in, so the dispenser scrolls
+   while somebody waits at the counter.
+
+   The system this competes with fits the same job on one screen, and the
+   difference is not that it is uglier — it is that a label sits beside its
+   input rather than above it, a section is a band rather than a card, and the
+   page itself never scrolls: the list of items does.
+
+   All of it is scoped. Nothing outside the dispensary changes. */
+
+.disp-dense {
+  /* The whole screen, minus the top bar. The page stops being the thing that
+     scrolls, which is what lets the item list be the thing that does. */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: calc(100vh - var(--topbar-h, 56px) - var(--s5));
+  min-height: 30rem;
+  overflow: hidden;
+}
+
+/* ---- the head: one line, everything on it ------------------------------ */
+.disp-head {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: 0 0 var(--s2);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.disp-head h1 {
+  font-size: 1.15rem; line-height: 1.2; margin: 0;
+  letter-spacing: -.01em; white-space: nowrap;
+}
+/* The route hint, which was a line of its own under the title. It is one short
+   sentence and it belongs beside the thing it describes. */
+.disp-head .disp-hint {
+  color: var(--ink-soft); font-size: .82rem; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  padding-left: var(--s3); border-left: 1px solid var(--line);
+}
+.disp-head .disp-routes { margin: 0; flex: 0 0 auto; }
+.disp-head .spacer { flex: 1 1 auto; min-width: var(--s2); }
+.disp-head .page-actions { margin: 0; flex: 0 0 auto; gap: var(--s2); }
+.disp-head .page-actions .btn { height: 30px; padding-inline: var(--s3); font-size: .82rem; }
+
+/* ---- a section is a band ----------------------------------------------- */
+.disp-dense .card,
+.disp-dense .card.sec {
+  background: none; border: 0; border-radius: 0; box-shadow: none;
+  padding: var(--s3) 0; margin: 0;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+/* The heading goes inline with the first row of the band rather than owning a
+   line. Four headings on four lines is 152px to say four words. */
+.disp-dense .card > h3 {
+  font-size: .74rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-faint, var(--ink-soft)); margin: 0 0 var(--s2);
+  font-weight: 600;
+}
+
+/* ---- labels beside inputs ---------------------------------------------- */
+.disp-dense .field {
+  display: grid;
+  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--s2);
+  row-gap: 2px;
+  margin-bottom: var(--s2);
+}
+.disp-dense .field > * { grid-column: 2; min-width: 0; }
+.disp-dense .field > label {
+  grid-column: 1; grid-row: 1;
+  margin: 0; text-align: right; line-height: 1.15;
+  font-size: .76rem; color: var(--ink-soft); font-weight: 500;
+}
+/* A hint or an error belongs under the input, not under the label. */
+.disp-dense .field .hint,
+.disp-dense .field .err { grid-column: 2; font-size: .72rem; margin: 0; }
+
+/* Controls lose the height they were carrying for a touch target nobody uses
+   on a till with a keyboard. */
+.disp-dense input,
+.disp-dense select,
+.disp-dense .sel-trigger { height: 30px; font-size: .86rem; }
+.disp-dense textarea { min-height: 30px; font-size: .86rem; }
+.disp-dense .form-row { gap: 0 var(--s3); margin: 0; }
+.disp-dense .form-row > .field { margin-bottom: var(--s2); }
+
+/* ---- the list takes what is left, and scrolls inside itself ------------- */
+.disp-items {
+  flex: 1 1 auto; min-height: 6rem; overflow-y: auto;
+  border-bottom: 1px solid var(--line);
+  padding: var(--s2) 0;
+}
+/* A script line stops being a card and becomes a row. The whole point of the
+   grid in the system this replaces is that ten lines are visible at once. */
+.disp-dense .disp-items .card,
+.disp-dense .disp-items .sec {
+  border-bottom: 1px solid var(--line-soft, var(--line));
+  padding: var(--s2) 0;
+}
+
+/* ---- the foot: totals and the actions, pinned ---------------------------- */
+.disp-foot {
+  flex: 0 0 auto; display: flex; align-items: center; gap: var(--s3);
+  padding-top: var(--s2); flex-wrap: wrap;
+}
+.disp-foot .spacer { flex: 1 1 auto; }
+/* The totals as one horizontal strip rather than a stack of cards. Each figure
+   is a label over a number, which is half the width of a label beside one and
+   this is the row where width is scarcer than height. */
+.disp-totals {
+  display: flex; align-items: baseline; gap: var(--s4);
+  font-variant-numeric: tabular-nums;
+}
+.disp-totals > div { display: flex; flex-direction: column; line-height: 1.15; }
+.disp-totals dt, .disp-totals .k {
+  font-size: .66rem; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-faint, var(--ink-soft));
+}
+.disp-totals dd, .disp-totals .v { margin: 0; font-size: .95rem; font-weight: 600; }
+.disp-totals .v.big { font-size: 1.15rem; }
+
+/* ---- the function-key strip -------------------------------------------- */
+/* One row of everything a dispenser reaches for, the way the previous system
+   put F1 to F12 across the foot. A person who has used that for years looks
+   down, not up. */
+.disp-keys {
+  display: flex; gap: var(--s1); flex-wrap: wrap; align-items: center;
+}
+.disp-keys .btn { height: 28px; padding-inline: var(--s2); font-size: .78rem; }
+.disp-keys kbd {
+  font-family: var(--mono, ui-monospace, Menlo, monospace);
+  font-size: .66rem; opacity: .7; margin-left: 4px;
+}
+
+/* Below a laptop there is no fitting this on one screen and pretending
+   otherwise makes it unusable rather than dense. It goes back to scrolling. */
+@media (max-height: 700px), (max-width: 900px) {
+  .disp-dense { height: auto; overflow: visible; }
+  .disp-items { overflow: visible; max-height: none; }
+}
+
+/* The script items are the work, so they get the space nothing else claimed.
+   Everything above and below is a fixed band; this one flexes and scrolls
+   inside itself, which is the inversion the measurement asked for — the
+   furniture was fixed and the work was what ran off the bottom. */
+.disp-dense .card.sec-items {
+  flex: 1 1 auto;
+  min-height: 8rem;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+/* The search stays put while the lines scroll under it. Adding a fourth item
+   to a script should not mean scrolling back up to find the box you add it
+   with. */
+.disp-dense .card.sec-items > h3,
+.disp-dense .card.sec-items > input[type="search"] {
+  position: sticky; top: 0; z-index: 2; background: var(--surface);
+  flex: 0 0 auto;
+}
+.disp-dense .card.sec-items > h3 { padding-top: 2px; }
+.disp-dense .card.sec-items > input[type="search"] { margin-bottom: var(--s2); }
+
+/* The step trail duplicates the numbered section headings twelve pixels below
+   it, and costs 76 vertical pixels to do it. Where the screen is short it goes;
+   where it is tall it stays, because an overview is worth having when the space
+   is free. */
+@media (max-height: 950px) {
+  .disp-dense .disp-steps { display: none; }
+}
+
+/* The four ways in must survive a 1366 screen. They are the same buttons; the
+   words go and the icons carry them, with the name still on hover and for a
+   screen reader. Below 1200 there is not room for four labels beside three
+   route tabs, and a button pushed off the right edge is worse than a button
+   with no caption. */
+@media (max-width: 1500px) {
+  .disp-head .page-actions .btn span,
+  .disp-head .page-actions .btn { gap: 0; }
+  .disp-head .page-actions .btn { padding-inline: var(--s2); font-size: 0; }
+  .disp-head .page-actions .btn svg { font-size: 1rem; }
+}
+/* The route tabs never push the actions off the edge: they give way first. */
+.disp-head .disp-routes { min-width: 0; overflow: hidden; }
+.disp-head .disp-routes button { white-space: nowrap; }
+.disp-head .disp-hint { flex: 0 1 auto; }
+@media (max-width: 1280px) { .disp-head .disp-hint { display: none; } }
+
+/* On the head line the route strip is one item among several, not a full-width
+   bar. The rule above stretches it to 100% with each tab claiming an equal
+   share — right when the strip owned its own row, and wrong here: three tabs at
+   an equal share of 1366px took every pixel and pushed New script, Quote, Alter
+   and History off the right-hand edge, where they could not be reached at all.
+
+   It sizes to its content and gives way before the buttons do. */
+.disp-head .pill-tabs.disp-routes {
+  width: auto; flex: 0 1 auto; margin-bottom: 0;
+}
+.disp-head .pill-tabs.disp-routes button {
+  flex: 0 0 auto; padding-inline: var(--s3);
+}
+/* Anything the head cannot fit is the hint, then the tab captions — never a
+   button. A control pushed past the edge is a control that does not exist. */
+.disp-head .page-actions { flex: 0 0 auto; }

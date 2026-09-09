@@ -107,11 +107,19 @@ function perUnit(p: { unit_price?: number; units_per_pack?: number }): number {
 const DEFAULT_DIAGNOSIS = "Z76.9";
 
 const ROUTE_TABS: {
-  key: Route; label: string; hint: string;
+  key: Route;
+  /** The name in full, for the hint line and anywhere with room. */
+  label: string;
+  /** The name on the tab itself. Short on purpose: three tabs at full length
+   *  were 900px wide and pushed the four buttons off the right-hand edge of a
+   *  1366 screen, which is most tills. The schedules stay because they are the
+   *  distinction a dispenser is actually making. */
+  tab: string;
+  hint: string;
   /** A capability from the server's matrix. Absent means everybody. */
   needs?: string;
 }[] = [
-  { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" },
+  { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
   // Shown to whoever may actually do it.
   //
   // The endpoint has always refused a controlled dispensing without this
@@ -121,11 +129,11 @@ const ROUTE_TABS: {
   //
   // It reads the same capability the endpoint checks rather than a second rule
   // written to look similar, which is how the two come to disagree.
-  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" },
+  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" , tab: "Dangerous Drugs"},
   // A cashier's whole reason to be on this screen, and the only route they have
   // by default. It carried no capability at all, which made it the one tab
   // nobody could be refused — including the people who should be.
-  { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" },
+  { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
 ];
 
 /** What happens to the money at the moment of dispensing.
@@ -1421,21 +1429,39 @@ export default function Dispense() {
   }
 
   return (
-    <>
+    <div className="disp-dense">
       <KeyMap keys={hotkeys} open={showKeys} onClose={() => setShowKeys(false)} />
-      <div className="page-head">
-        <div>
-          <h1>Dispensary</h1>
-          <div className="sub">
-            {visibleRoutes.find((t) => t.key === route)?.hint}
-          </div>
-        </div>
+      {/* One line: what this screen is, which route is open, the routes you may
+          switch to, and the four ways in — hard right where they already were.
+          It was a title, a sentence beneath it, a border and a margin: 98
+          vertical pixels to say one word and one hint, on a screen that then
+          had to scroll to reach the script. */}
+      <div className="disp-head">
+        <h1>Dispensary</h1>
+        <span className="disp-hint">
+          {visibleRoutes.find((t) => t.key === route)?.hint}
+        </span>
         {/* What has already gone out. A dispensary is asked about yesterday's
             script several times a day — "did she collect it", "was that one
             paid for", "print that label again", and the only way to answer
             was to know the patient and open their record. */}
         {/* The three things somebody starts on this screen, where the hand
             already is. Everything below is the work; these are the ways in. */}
+        {/* On the head line rather than a strip of its own. Still only where
+            there is something to choose between: a bar with one tab in it
+            offers a click that does nothing and hints at a door that is not
+            there. */}
+        {visibleRoutes.length > 1 && (
+          <div className="pill-tabs disp-routes">
+            {visibleRoutes.map((t) => (
+              <button key={t.key} className={route === t.key ? "active" : ""}
+                      onClick={() => setRoute(t.key)}>
+                {t.tab}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="spacer" />
         <div className="page-actions">
           <button className="btn" onClick={newScript}>
             <Plus size={14} weight="bold" /> New script
@@ -1492,24 +1518,7 @@ export default function Dispense() {
         </div>
       )}
 
-      {/* Which route is being dispensed governs the whole screen below it, so
-          it floats rather than scrolling away.
 
-          Only where there is something to choose between. A bar with one tab in
-          it takes a row of the screen to offer a click that does nothing, and
-          tells the person looking at it that there is somewhere else to be —
-          for a cashier who may only sell over the counter, that is a permanent
-          hint at a door that is not there. The line under the heading already
-          names the route and says what it is for. */}
-      {visibleRoutes.length > 1 && (
-        <div className="pill-tabs disp-routes">
-          {visibleRoutes.map((t) => (
-            <button key={t.key} className={route === t.key ? "active" : ""} onClick={() => setRoute(t.key)}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Where you are, and what the step you are on is waiting for.
           In the flow rather than pinned: the route strip above was sticky once
@@ -1517,7 +1526,12 @@ export default function Dispense() {
           is long by nature. The same objection applies here, and the reason it
           costs nothing is that the bottom of the page already carries the
           missing condition beside the button that will not go. */}
-      <StepTrail steps={steps} />
+      {/* The step trail is hidden where the screen is being fitted to one
+          height. It costs 76px to name three sections that name themselves
+          twelve pixels lower — the headings below are numbered for the same
+          reason it was. It comes back on a tall screen, where the space is
+          free and the overview is worth having. */}
+      <div className="disp-steps"><StepTrail steps={steps} /></div>
 
       {route === "otc" ? (
         <div className="disp-work">
@@ -2521,6 +2535,6 @@ export default function Dispense() {
         }}
       />
       </div>
-    </>
+    </div>
   );
 }
