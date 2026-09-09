@@ -7385,7 +7385,7 @@ table.dt.sub th { font-size: var(--t-xs); }
    where it is tall it stays, because an overview is worth having when the space
    is free. */
 @media (max-height: 950px) {
-  .disp-dense .disp-steps { display: none; }
+  .disp-dense .disp-steps.disp-steps { display: none !important; }
 }
 
 /* The four ways in must survive a 1366 screen. They are the same buttons; the
@@ -7421,3 +7421,107 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* Anything the head cannot fit is the hint, then the tab captions — never a
    button. A control pushed past the edge is a control that does not exist. */
 .disp-head .page-actions { flex: 0 0 auto; }
+
+/* Patient and prescriber, side by side.
+   They are the two halves of one question — who is this for, and who wrote it —
+   and they were taking a full-width row each. The search and everything it can
+   open (the results, the "nobody matches" prompt, the insurance standing, the
+   repeats already due) stay in the left column and grow downward; the
+   prescriber sits in the right one and does not move while they do. */
+.disp-dense .sec-patient {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+  column-gap: var(--s4);
+  align-items: start;
+}
+.disp-dense .sec-patient > h3 { grid-column: 1 / -1; }
+/* Everything the search can produce belongs under the search. */
+.disp-dense .sec-patient > *:not(h3) { grid-column: 1; min-width: 0; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; margin: 0; }
+/* Beside a search box there is no room for a label column as well, so this one
+   field puts its label back on top — the only place in the band that does. */
+.disp-dense .sec-patient > .disp-doctor { grid-template-columns: 1fr; }
+.disp-dense .sec-patient > .disp-doctor > label { text-align: left; grid-column: 1; }
+.disp-dense .sec-patient > .disp-doctor > *:not(label) { grid-column: 1; }
+
+/* A label that needs three lines is a label that is too long for a column this
+   narrow. Two lines is the ceiling; past that the row grows and the point of
+   the column is lost. */
+.disp-dense .field > label {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The height has to reach the item list, and it was stopping two levels above.
+   `.disp-dense` is a fixed-height column, but between it and the list sit the
+   worklist grid and the work column, and a flex or grid child defaults to
+   `min-height: auto` — it refuses to shrink below its content. So the list grew
+   to 848px inside a 768px screen, took the Dispense button off the bottom with
+   it, and never scrolled because nothing ever told it it was too tall.
+
+   `min-height: 0` on every link in the chain is what lets the constraint
+   travel. It is the least obvious line in this file and the one holding the
+   whole layout up. */
+.disp-dense .disp-with-worklist {
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+  align-items: stretch;
+}
+.disp-dense .disp-with-worklist > div:first-child {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+}
+/* `min-height: 0` belongs on the ANCESTORS, so the constraint can travel. On
+   the list itself it means the opposite: with it, the list was squeezed to
+   25px by the bands below and the script became invisible. It keeps a floor —
+   about three lines — and gives up space only down to that. */
+.disp-dense .card.sec-items { min-height: 11rem; }
+/* The worklist scrolls on its own rather than stretching the row it is in. */
+.disp-dense .disp-with-worklist > :not(:first-child) {
+  min-height: 0; overflow-y: auto;
+}
+
+/* Two more links in the chain, found by walking the DOM from the item list
+   upward rather than by reading the JSX — `.rx-split` and the plain div inside
+   it are `display: block`, and a block element does not pass a height
+   constraint to its children. The list was correctly sized on an empty script
+   and grew past the window as soon as anything was added to it.
+
+   Every ancestor between the fixed-height page and the scrolling list has to be
+   a flex column with `min-height: 0`. One block element anywhere in that chain
+   and the whole arrangement silently reverts to growing. */
+/* Named, not "every div in the column". The third selector here used to be
+   `.disp-with-worklist > div:first-child > div`, which matched every div in the
+   work column — including the step trail, whose `display: none` it then
+   outranked on specificity while looking like it had nothing to do with it.
+   A layout selector broad enough to catch the thing it was aimed at is broad
+   enough to catch things it was not. */
+.disp-dense .rx-split,
+.disp-dense .rx-split > div {
+  display: flex; flex-direction: column;
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+  max-width: none;
+}
+
+/* The safety band grows with what it finds. Two dose warnings on a two-item
+   script came to 400px and pushed the Dispense button off the bottom of the
+   screen — which is the one control that must never be unreachable, and the
+   warnings are the one content that must never be hidden.
+
+   Both are satisfied by capping the band and letting the warnings scroll inside
+   it: every word is still reachable, and the button below it is always on
+   screen. The cap is a share of the screen rather than a pixel count so it
+   holds on a tall monitor as well as a till. */
+.disp-dense .sec-go {
+  display: flex; flex-direction: column; min-height: 0;
+  max-height: 46vh;
+}
+.disp-dense .sec-go { overflow-y: auto; }
+/* The row that actually dispenses sticks to the bottom of the band while the
+   warnings above it scroll under it. Sticky rather than a separate pinned
+   element, because `.disp-commit` already exists and already holds exactly the
+   right things — the button, and beside it the reason it cannot happen yet. */
+.disp-dense .sec-go .disp-commit {
+  position: sticky; bottom: 0; z-index: 3;
+  background: var(--surface);
+  padding-top: var(--s2); margin-top: var(--s2);
+  border-top: 1px solid var(--line);
+}

@@ -1780,8 +1780,11 @@ export default function Dispense() {
                 />
               )}
 
-              <div className="field" style={{ marginTop: 14 }}>
-                <label>Prescribing doctor</label>
+              {/* The two halves of one question — who is this for, and who
+                  wrote it. A script has never had one without the other, and
+                  they were taking a row each. */}
+              <div className="field disp-doctor">
+                <label>Prescriber</label>
                 <Select
                   value={String(doctorId ?? "")}
                   onChange={(__value) => setDoctorId(__value === "" ? "" : Number(__value))}
@@ -1864,8 +1867,8 @@ export default function Dispense() {
                         <input type="number" min={1} value={it.quantity}
                           onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
                       </div>
-                      <div className="field span-10">
-                        <label>Dosage instructions</label>
+                      <div className="field span-6">
+                        <label>Directions</label>
                         {/* Shorthand in, sentence out. `1 t tds pc` becomes the
                             line the patient reads on the label. */}
                         <SigInput
@@ -1873,8 +1876,10 @@ export default function Dispense() {
                           onChange={(next) => updateItem(idx, { dosage_instructions: next })}
                         />
                       </div>
-                    </div>
-                    <div className="field span-12">
+                    {/* Beside the directions rather than below them. It had a
+                        row of its own, at full width, to hold four characters —
+                        46 vertical pixels per line on the script. */}
+                    <div className="field span-4">
                       <label>
                         Diagnosis (ICD-10)
                         {/* Three states, and they are different things.
@@ -1896,6 +1901,7 @@ export default function Dispense() {
                       </label>
                       <DiagnosisPicker autoFocus={false} value={it.icd10_code}
                         onChange={(code) => updateItem(idx, { icd10_code: code })} />
+                    </div>
                     </div>
                     {(() => {
                       const cov = coverageFor(it.product.id);
@@ -1952,7 +1958,7 @@ export default function Dispense() {
                           </span>
                         )}
                       </div>
-                      <div className="field span-3">
+                      <div className="field span-2">
                         {/* "Duration", because that is what a prescriber
                             writes and what the number means to the person
                             typing it: how long this supply lasts. "Interval"
@@ -1963,7 +1969,7 @@ export default function Dispense() {
                         <input type="number" min={1} value={it.repeat_interval_days}
                           onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
                       </div>
-                      <div className="field span-6">
+                      <div className="field span-4">
                         <label>Auto-refill</label>
                         <Select
                           value={String(it.auto_refill ? "yes" : "no")}
