@@ -21,6 +21,7 @@ import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
+import { useDoseScreen } from "../hooks/useDoseScreen";
 import { printLabels } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
@@ -532,6 +533,25 @@ export default function Dispense() {
   // Nothing is lost by the two that give up a key. The interaction check is a
   // button on the screen and runs itself as the basket changes; the queue is
   // the panel occupying the right-hand third of the screen at all times.
+  /* The dose check, on the rows rather than in a panel.
+   *
+   *  It reads the directions on each line and says when a daily dose is over a
+   *  maximum, or when the directions could not be read at all — the second
+   *  being the common case and the useful one, because a line nobody can parse
+   *  is a line nobody has checked.
+   *
+   *  The name is rebuilt exactly as the server builds it, because that is the
+   *  string the finding comes back under. */
+  const doseScreen = useDoseScreen(
+    patient?.id ?? null,
+    items.map((i) => ({
+      product_id: i.product.id,
+      name: `${i.product.name} ${i.product.strength || ""}`.trim(),
+      instructions: i.dosage_instructions,
+      quantity: i.quantity,
+    })),
+  );
+
   const hotkeys: Hotkey[] = [
     // Mix — a preparation made up here rather than dispensed from a box.
     { combo: "F1", label: "Mix", group: "Capture",
@@ -2138,6 +2158,24 @@ export default function Dispense() {
                          }}>
                       <CaretRight size={12} weight="bold" className="rx-item-caret" />
                       <span className="rx-item-name">
+                        {/* The dose finding, on the row it is about.
+                            Costs nothing until there is something to say, which
+                            is why it can live on a table the panel could not. */}
+                        {(() => {
+                          const d = doseScreen.byProduct.get(it.product.id);
+                          if (!d) return null;
+                          return (
+                            <span
+                              className={`rx-item-warn is-${d.severity === "major" ? "major" : "minor"}`}
+                              title={`${d.detail}
+
+${d.action}`}
+                              aria-label={d.detail}
+                            >
+                              <Warning size={13} weight="fill" />
+                            </span>
+                          );
+                        })()}
                         {it.product.name} {it.product.strength}
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
