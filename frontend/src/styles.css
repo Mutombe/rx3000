@@ -7279,17 +7279,27 @@ table.dt.sub th { font-size: var(--t-xs); }
 /* ---- labels beside inputs ---------------------------------------------- */
 .disp-dense .field {
   display: grid;
-  grid-template-columns: minmax(0, 6.5rem) minmax(0, 1fr);
+  /* ONE column width for every field on the screen, so every input begins on
+     the same vertical line all the way down. That single alignment is the
+     difference between a dense screen that reads as designed and one that
+     reads as compressed — and it is the trick in the layout we are compared
+     to, whose labels are short, right aligned, and share one column. */
+  grid-template-columns: var(--disp-label, 5.5rem) minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--s2);
+  column-gap: var(--s3);
   row-gap: 2px;
   margin-bottom: var(--s2);
 }
 .disp-dense .field > * { grid-column: 2; min-width: 0; }
 .disp-dense .field > label {
   grid-column: 1; grid-row: 1;
-  margin: 0; text-align: right; line-height: 1.15;
-  font-size: .76rem; color: var(--ink-soft); font-weight: 500;
+  margin: 0; text-align: right; line-height: 1.2;
+  font-size: .78rem; color: var(--ink-soft); font-weight: 500;
+  /* One line, always. A label that wraps drags its row taller and breaks the
+     rhythm of every row under it, which is what three lines of "Checked by
+     (pharmacist initials), required" was doing. Anything that needs more words
+     than fit here is an explanation, and belongs in the placeholder. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 /* A hint or an error belongs under the input, not under the label. */
 .disp-dense .field .hint,
@@ -7428,29 +7438,26 @@ table.dt.sub th { font-size: var(--t-xs); }
    open (the results, the "nobody matches" prompt, the insurance standing, the
    repeats already due) stay in the left column and grow downward; the
    prescriber sits in the right one and does not move while they do. */
+/* Patient and prescriber, side by side and sharing the rhythm.
+   Both are ordinary fields with the ordinary label column, so their inputs
+   begin on the same line as every other input on the screen — the search used
+   to have no label at all and started 170px further left than the prescriber
+   directly beneath it. */
 .disp-dense .sec-patient {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
-  column-gap: var(--s4);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--s5);
   align-items: start;
 }
 .disp-dense .sec-patient > h3 { grid-column: 1 / -1; }
-/* Everything the search can produce belongs under the search. */
+/* The search and everything it can open — the results, the "nobody matches"
+   prompt, the insurance standing, the repeats already due — grow downward in
+   the left column. The prescriber sits in the right one and does not move
+   while they do. */
 .disp-dense .sec-patient > *:not(h3) { grid-column: 1; min-width: 0; }
 .disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; margin: 0; }
-/* Beside a search box there is no room for a label column as well, so this one
-   field puts its label back on top — the only place in the band that does. */
-.disp-dense .sec-patient > .disp-doctor { grid-template-columns: 1fr; }
-.disp-dense .sec-patient > .disp-doctor > label { text-align: left; grid-column: 1; }
-.disp-dense .sec-patient > .disp-doctor > *:not(label) { grid-column: 1; }
 
-/* A label that needs three lines is a label that is too long for a column this
-   narrow. Two lines is the ceiling; past that the row grows and the point of
-   the column is lost. */
-.disp-dense .field > label {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
-}
+
 
 /* The height has to reach the item list, and it was stopping two levels above.
    `.disp-dense` is a fixed-height column, but between it and the list sit the
@@ -7471,9 +7478,8 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 /* `min-height: 0` belongs on the ANCESTORS, so the constraint can travel. On
    the list itself it means the opposite: with it, the list was squeezed to
-   25px by the bands below and the script became invisible. It keeps a floor —
-   about three lines — and gives up space only down to that. */
-.disp-dense .card.sec-items { min-height: 11rem; }
+   25px by the bands below and the script became invisible. The floor is set
+   below, beside the band it competes with. */
 /* The worklist scrolls on its own rather than stretching the row it is in. */
 .disp-dense .disp-with-worklist > :not(:first-child) {
   min-height: 0; overflow-y: auto;
@@ -7512,8 +7518,16 @@ table.dt.sub th { font-size: var(--t-xs); }
    holds on a tall monitor as well as a till. */
 .disp-dense .sec-go {
   display: flex; flex-direction: column; min-height: 0;
-  max-height: 46vh;
+  /* A third of the screen, not a half. The script is what the dispenser is
+     working on and the checks are what the software is saying about it, so when
+     the two compete for height the script wins. At 46vh the checks were taking
+     more room than the medicines they were about, and a two-item script showed
+     no fields at all. */
+  max-height: 32vh;
 }
+/* And the list gets a real floor, so it is always showing lines rather than a
+   sliver of one. */
+.disp-dense .card.sec-items { min-height: 15rem; }
 .disp-dense .sec-go { overflow-y: auto; }
 /* The row that actually dispenses sticks to the bottom of the band while the
    warnings above it scroll under it. Sticky rather than a separate pinned
@@ -7525,3 +7539,115 @@ table.dt.sub th { font-size: var(--t-xs); }
   padding-top: var(--s2); margin-top: var(--s2);
   border-top: 1px solid var(--line);
 }
+
+/* An empty script should not hold open three hundred pixels of nothing.
+   The item list claims the slack because that is where the work goes — but
+   with no work in it, the slack is a void in the middle of the screen with
+   everything else pushed to the edges, which is exactly what it looked like.
+   Empty, it takes only the room it needs. */
+.disp-dense .card.sec-items:has(> .empty) {
+  flex: 0 0 auto; min-height: 0;
+}
+.disp-dense .card.sec-items > .empty { padding: var(--s5) 0; }
+
+/* Section headings, all set the same. One had a tinted band behind it and the
+   others did not, which reads as one of them being different when none of them
+   is. */
+.disp-dense .card > h3 {
+  background: none; padding: 0; border: 0;
+  display: flex; align-items: center; gap: var(--s2);
+}
+
+/* ---- the script as a grid, one row open ---------------------------------
+   Five columns, the same five on every line, so they align down the page by
+   construction rather than by somebody keeping widths in step. A closed row
+   still carries what is most likely to be wrong — the quantity and the
+   directions — because a line you cannot read is a line nobody checks. */
+.disp-dense .rx-item { border-bottom: 1px solid var(--line); }
+.disp-dense .rx-item:last-child { border-bottom: 0; }
+.disp-dense .rx-item-head {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1.6fr) 3.5rem minmax(0, 2fr) 5rem auto auto;
+  align-items: center; gap: var(--s3);
+  padding: var(--s2) var(--s1);
+  cursor: pointer; border-radius: var(--r-sm);
+}
+.disp-dense .rx-item-head:hover { background: var(--hover); }
+.disp-dense .rx-item.is-open > .rx-item-head { background: var(--surface-sunk, var(--hover)); }
+.disp-dense .rx-item-caret {
+  color: var(--ink-faint, var(--ink-soft));
+  transition: transform .12s ease;
+}
+.disp-dense .rx-item.is-open .rx-item-caret { transform: rotate(90deg); }
+.disp-dense .rx-item-name {
+  font-weight: 600; display: flex; align-items: center; gap: var(--s2);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Numbers right-aligned and tabular, so a column of them can be read down
+   rather than across. */
+.disp-dense .rx-item-qty,
+.disp-dense .rx-item-money {
+  text-align: right; font-variant-numeric: tabular-nums; font-size: .88rem;
+}
+.disp-dense .rx-item-money { font-weight: 600; }
+.disp-dense .rx-item-sig {
+  color: var(--ink-soft); font-size: .82rem;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.disp-dense .rx-item-sig em { opacity: .65; }
+/* The open row's editor, indented under its own row so it reads as belonging
+   to it rather than as the next thing on the list. */
+.disp-dense .rx-item.is-open > *:not(.rx-item-head) {
+  padding-left: calc(14px + var(--s3));
+}
+@media (prefers-reduced-motion: reduce) {
+  .disp-dense .rx-item-caret { transition: none; }
+}
+
+/* The heading row shares the row template exactly, so the columns are fixed by
+   one definition rather than kept in step by hand. */
+.disp-dense .rx-item-cols {
+  cursor: default; padding-block: 2px var(--s1);
+  border-bottom: 1px solid var(--line-strong, var(--line));
+  font-size: .68rem; text-transform: uppercase; letter-spacing: .07em;
+  color: var(--ink-faint, var(--ink-soft)); font-weight: 600;
+}
+.disp-dense .rx-item-cols:hover { background: none; }
+/* A row is a row: one line high, and the same height whichever line it is. */
+.disp-dense .rx-item-head { padding-block: 5px; min-height: 32px; }
+.disp-dense .rx-item { border-bottom: 1px solid var(--line-soft, var(--line)); }
+.disp-dense .rx-item.is-open { border-bottom-width: 0; }
+/* The open row's editor sits in a well, so it reads as belonging to the row
+   above it rather than as the next thing in the list. */
+.disp-dense .rx-item.is-open > *:not(.rx-item-head) {
+  background: var(--surface-sunk, var(--hover));
+}
+.disp-dense .rx-item.is-open > *:not(.rx-item-head):last-child {
+  padding-bottom: var(--s3); border-radius: 0 0 var(--r-sm) var(--r-sm);
+  margin-bottom: var(--s2);
+}
+
+/* A row is a row, not a card.
+   `.rx-item` carries a border, a radius, 16px of padding and a tinted
+   background — correct when each line was a self-contained card, and wrong now
+   that the lines are a grid: it made a 32px row occupy 60, and eight of those
+   is a screen. The card look moves to the OPEN row only, where it does the job
+   it was written for. */
+.disp-dense .rx-item {
+  border: 0; border-radius: 0; padding: 0; margin: 0;
+  background: none;
+  border-bottom: 1px solid var(--line);
+}
+.disp-dense .rx-item.is-open {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  margin: var(--s2) 0; padding: 0 var(--s2) var(--s2);
+}
+.disp-dense .rx-item-head {
+  margin-bottom: 0; padding-bottom: 5px; border-bottom: 0;
+}
+.disp-dense .rx-item.is-open > .rx-item-head {
+  border-bottom: 1px solid var(--line); margin-bottom: var(--s2);
+}
+.disp-dense .rx-item.is-open > *:not(.rx-item-head) { background: none; }
+.disp-dense .rx-item-cols { padding-inline: var(--s2); }

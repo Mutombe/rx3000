@@ -37,12 +37,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
-import {
-  ArrowRight,
-  ClockCounterClockwise,
-  Printer,
-  Warning,
-} from "@phosphor-icons/react";
+import { ArrowRight, CaretRight, ClockCounterClockwise, Printer, Warning } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -184,6 +179,13 @@ export default function Dispense() {
    *  been dispensed — a reprint, a claim copy, a delivery label for the bag
    *  now sitting on the counter. The id was being forgotten the moment the
    *  form cleared, which is why reprinting meant finding the patient again. */
+  /** The script line whose editor is open. One at a time.
+   *
+   *  Every line used to render its whole editor — variants, counselling, two
+   *  rows of fields, the coverage note — about 300px each, so two medicines
+   *  filled the screen. A back-office grid opens one row: the one being worked
+   *  on, which is the one just added. */
+  const [openItem, setOpenItem] = useState<number>(0);
   const [lastRxId, setLastRxId] = useState<number | null>(null);
   const [printing, setPrinting] = useState(false);
   /* The routes this person may use. Filtered only once the server has said
@@ -603,6 +605,7 @@ export default function Dispense() {
       icd10_code: items.length
         ? items[items.length - 1].icd10_code : DEFAULT_DIAGNOSIS,
     }]);
+    setOpenItem(items.length);   // the line just added is the one being worked on
     setProductQ(""); setProductResults([]); aiCheck.reset();
   }
 
@@ -1738,8 +1741,16 @@ export default function Dispense() {
                 </div>
               ) : (
                 <>
-                  <input type="search" placeholder="Search patient…" value={patientQ}
-                    onChange={(e) => setPatientQ(e.target.value)} />
+                  {/* Labelled, like every other field. Without one this input
+                      started 170px to the left of the prescriber directly
+                      below it, and two adjacent rows with two different left
+                      edges is what the whole band was being judged on. */}
+                  <div className="field">
+                    <label htmlFor="disp-patient">Patient</label>
+                    <input id="disp-patient" type="search"
+                      placeholder="Name, ID or membership number…" value={patientQ}
+                      onChange={(e) => setPatientQ(e.target.value)} />
+                  </div>
                   {/* The end of the search is the beginning of the work.
                       "No match" used to be where this screen stopped: the
                       person is standing there with a script, and the dispenser
@@ -1821,27 +1832,66 @@ export default function Dispense() {
                   </span>
                 </div>
               ))}
+              {/* Column headings, because a grid without them is a list of
+                  rows that happen to line up. They also fix the columns: the
+                  header and every row share one template, so a long medicine
+                  name cannot push the money column out of true on one line
+                  and not the next. */}
+              {items.length > 0 && (
+                <div className="rx-item-head rx-item-cols" aria-hidden="true">
+                  <span />
+                  <span>Medicine</span>
+                  <span className="rx-item-qty">Qty</span>
+                  <span>Directions</span>
+                  <span className="rx-item-money">Amount</span>
+                  <span /><span />
+                </div>
+              )}
               {items.map((it, idx) => {
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
+                const open = openItem === idx;
+                const each = perUnit(it.product);
                 return (
-                  <div key={it.product.id} className="rx-item">
-                    <div className="rx-item-head">
-                      <b>
+                  <div key={it.product.id}
+                       className={`rx-item${open ? " is-open" : ""}`}>
+                    {/* The row. Five columns, the same five on every line, so
+                        they align down the page because they are columns and
+                        not because somebody kept them the same width. */}
+                    <div className="rx-item-head"
+                         onClick={() => setOpenItem(open ? -1 : idx)}
+                         role="button" tabIndex={0}
+                         aria-expanded={open}
+                         onKeyDown={(e) => {
+                           if (e.key === "Enter" || e.key === " ") {
+                             e.preventDefault(); setOpenItem(open ? -1 : idx);
+                           }
+                         }}>
+                      <CaretRight size={12} weight="bold" className="rx-item-caret" />
+                      <span className="rx-item-name">
                         {it.product.name} {it.product.strength}
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
-                      </b>
+                      </span>
+                      <span className="rx-item-qty">{it.quantity}</span>
+                      {/* What the label will say, on the row, so a closed line
+                          still shows the thing most likely to be wrong. */}
+                      <span className="rx-item-sig">
+                        {it.dosage_instructions || <em>no directions yet</em>}
+                      </span>
+                      <span className="rx-item-money">
+                        {money(each * (it.quantity || 0))}
+                      </span>
                       {(() => {
                         const l = marginFor(it.product.id);
-                        return l ? <MarginTag percent={l.margin_percent}
-                                              profit={l.gross - l.cost}
-                                              gross={l.gross} /> : null;
+                        return l ? <MarginTag percent={l.margin_percent} compact /> : null;
                       })()}
                       <IconButton action="remove" title="Take this line off the script"
-                        onClick={() => setItems(items.filter((_, i) => i !== idx))} />
+                        onClick={(e?: any) => { e?.stopPropagation?.();
+                          setItems(items.filter((_, i) => i !== idx)); }} />
                     </div>
+                    {open && (<>
                     {/* Whether the same medicine is on the shelf under another
                         name, and what it costs. The substitution conversation
                         happens here, with the script in hand — not later. */}
@@ -1880,27 +1930,26 @@ export default function Dispense() {
                         row of its own, at full width, to hold four characters —
                         46 vertical pixels per line on the script. */}
                     <div className="field span-4">
-                      <label>
-                        Diagnosis (ICD-10)
-                        {/* Three states, and they are different things.
-                            Empty is the only one that stops a claim. The
-                            default is a real code that will be accepted and is
-                            still nobody's clinical judgement, so it says so
-                            quietly rather than as a warning — a badge that
-                            fires on the normal case stops being read, which is
-                            the reason the empty one was being ignored. */}
-                        {!it.icd10_code
-                          ? <span className="badge warn" style={{ marginLeft: 8 }}>
-                              required to claim
-                            </span>
-                          : it.icd10_code === DEFAULT_DIAGNOSIS
-                            ? <span className="badge muted" style={{ marginLeft: 8 }}>
-                                default — change it if the script gives one
-                              </span>
-                            : null}
-                      </label>
+                      {/* One word. The badge used to sit inside this label,
+                          which put "Diagnosis (ICD-10)default — change it if
+                          the script gives one" in a 5.5rem column and wrapped
+                          it over three lines. A label names the field; the
+                          state of the field goes beside the field. */}
+                      <label>Diagnosis</label>
                       <DiagnosisPicker autoFocus={false} value={it.icd10_code}
                         onChange={(code) => updateItem(idx, { icd10_code: code })} />
+                      {/* Three states, and they are different things. Empty is
+                          the only one that stops a claim. The default is a real
+                          code that will be accepted and is still nobody's
+                          clinical judgement, so it says so quietly rather than
+                          as a warning — a badge that fires on the normal case
+                          stops being read, which is the reason the empty one
+                          was being ignored. */}
+                      {!it.icd10_code
+                        ? <span className="hint warn">Required to claim</span>
+                        : it.icd10_code === DEFAULT_DIAGNOSIS
+                          ? <span className="hint">Default — change it if the script gives one</span>
+                          : null}
                     </div>
                     </div>
                     {(() => {
@@ -1937,7 +1986,7 @@ export default function Dispense() {
                     })()}
                     <div className="form-row">
                       <div className="field span-3">
-                        <label>Repeats (max {maxRepeats})</label>
+                        <label>Repeats</label>
                         <input type="number" min={0} max={maxRepeats} value={it.repeats_allowed}
                           disabled={maxRepeats === 0}
                           onChange={(e) => updateItem(idx, {
@@ -1965,7 +2014,7 @@ export default function Dispense() {
                             described the gap between repeats, which is the
                             same figure seen from the software's side rather
                             than from the script's. */}
-                        <label>Duration (days)</label>
+                        <label>Duration</label>
                         <input type="number" min={1} value={it.repeat_interval_days}
                           onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
                       </div>
@@ -1984,6 +2033,7 @@ export default function Dispense() {
                         script is required each time.
                       </div>
                     )}
+                    </>)}
                   </div>
                 );
               })}
@@ -2017,18 +2067,20 @@ export default function Dispense() {
                 <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
                 <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
                 <div className="field">
-                  <label>ID number sighted</label>
+                  <label>ID sighted</label>
                   <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="As per identity document" />
                 </div>
                 <div className="field">
-                  <label>
-                    Checked by (pharmacist initials)
-                    {needsInitials && <span className="muted">, required for this schedule</span>}
-                  </label>
+                  {/* Two words. What it means and whether it is compulsory
+                      are an explanation, and an explanation in a label column
+                      wraps to three ragged lines and drags the row with it. */}
+                  <label>Checked by</label>
                   <input
                     value={initials} maxLength={8}
                     onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                    placeholder="e.g. TM"
+                    placeholder={needsInitials
+                      ? "Pharmacist initials — required for this schedule"
+                      : "Pharmacist initials, e.g. TM"}
                   />
                 </div>
                 <div className="field">
@@ -2056,14 +2108,11 @@ export default function Dispense() {
                   screen never offered anywhere to put them. */}
               {needsInitials && route !== "controlled" && (
                 <div className="field" style={{ maxWidth: 260 }}>
-                  <label>
-                    Checked by (pharmacist initials)
-                    <span className="muted">, required</span>
-                  </label>
+                  <label>Checked by</label>
                   <input
                     value={initials} maxLength={8}
                     onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                    placeholder="e.g. TM"
+                    placeholder="Pharmacist initials — required"
                   />
                 </div>
               )}
