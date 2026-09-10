@@ -1794,11 +1794,15 @@ export default function Dispense() {
             )}
 
             <div className="card sec sec-patient" id="step-patient">
-              <h3>
-                The script
-                {route === "controlled"
-                  && <span className="badge sched">S5–S6 only</span>}
-              </h3>
+              {/* No heading. The lane is three labelled fields — Patient,
+                  Prescriber, Medicine — and a heading over them said nothing
+                  the labels do not. The S5–S6 badge stays, because THAT is not
+                  obvious from anything else on the row. */}
+              {route === "controlled" && (
+                <div className="disp-lane-badge">
+                  <span className="badge sched">S5–S6 only</span>
+                </div>
+              )}
               {patient ? (
                 <div className="disp-patient-picked"
                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

@@ -8020,3 +8020,18 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .rx-item:has(.rx-item-warn.is-major) > .rx-item-head {
   box-shadow: inset 3px 0 0 var(--danger);
 }
+
+/* No heading over the lane: three labelled fields do not need a fourth label
+   above them. The controlled badge keeps its place because that one is not
+   obvious from anything else on the row. */
+.disp-dense .sec-patient > .disp-lane-badge { grid-column: 1 / -1; margin-bottom: 2px; }
+
+/* The route tabs, shorter.
+   A 30px control inside 3px of padding inside a 1px border came to 38px for
+   three words. The strip is a switch, not a toolbar, and it sits on the same
+   line as buttons it should not be taller than. */
+.disp-head .pill-tabs.disp-routes { padding: 2px; }
+.disp-head .pill-tabs.disp-routes button {
+  height: 26px; font-size: .82rem; padding-inline: var(--s3);
+}
+.disp-head .page-actions .btn { height: 30px; }
