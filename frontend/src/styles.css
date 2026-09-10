@@ -7651,3 +7651,80 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .disp-dense .rx-item.is-open > *:not(.rx-item-head) { background: none; }
 .disp-dense .rx-item-cols { padding-inline: var(--s2); }
+
+/* ---- the entry strip ----------------------------------------------------
+   The fields for whichever line is selected, always in the same place above
+   the grid. They used to live inside the open row, which meant opening a line
+   pushed every line under it down the page — on a five-item script the line
+   being edited was the only one you could see.
+
+   Fixed position is the point. Somebody typing into these does not look at
+   them, and a field that moves depending on which row is open cannot be typed
+   into without looking. */
+.disp-entry {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  padding: var(--s2) var(--s3) var(--s1);
+  margin-bottom: var(--s3);
+  flex: 0 0 auto;
+}
+.disp-entry-head {
+  display: flex; align-items: center; gap: var(--s2);
+  padding-bottom: var(--s2); margin-bottom: var(--s2);
+  border-bottom: 1px solid var(--line);
+}
+/* It has to say which line it is editing, because it is no longer attached to
+   one — that is the cost of taking it out of the row, and this is the payment. */
+.disp-entry-for { font-weight: 600; font-size: .92rem; }
+.disp-entry-of {
+  margin-left: auto; font-size: .74rem;
+  color: var(--ink-faint, var(--ink-soft));
+  font-variant-numeric: tabular-nums;
+}
+/* The selected row, marked in the grid so the strip and the row agree about
+   what is being worked on. */
+.disp-dense .rx-item.is-open {
+  background: none; border: 0; border-radius: 0;
+  margin: 0; padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.disp-dense .rx-item.is-open > .rx-item-head {
+  background: var(--surface-sunk);
+  border-bottom: 0; margin-bottom: 0;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+/* A row is one height, selected or not. A grid that changes shape under the
+   hand working on it is a grid you cannot aim at. */
+.disp-dense .rx-item-head { min-height: 32px; }
+
+/* The section stops scrolling; the grid inside it starts.
+   Search, then the entry strip, then the lines. The first two stay where they
+   are and only the lines move, which is what makes the fields typeable without
+   looking and keeps the row count independent of which row is selected. */
+.disp-dense .card.sec-items { overflow: hidden; }
+.disp-dense .disp-grid {
+  flex: 1 1 auto; min-height: 5rem; overflow-y: auto;
+}
+/* The column headings stay visible while the rows scroll under them. A grid
+   whose headings scroll away is a grid of unlabelled numbers. */
+.disp-dense .disp-grid > .rx-item-cols {
+  position: sticky; top: 0; z-index: 2; background: var(--surface);
+}
+
+/* Reference material in the entry strip, shut by default.
+   Expanded it was 190 of the strip's 290 pixels and the grid got none. */
+.disp-ref { margin-bottom: var(--s2); }
+.disp-ref > summary {
+  cursor: pointer; list-style: none; user-select: none;
+  font-size: .78rem; color: var(--ink-soft);
+  padding: 3px var(--s2); border-radius: var(--r-xs);
+  display: inline-flex; align-items: center; gap: var(--s2);
+}
+.disp-ref > summary::-webkit-details-marker { display: none; }
+.disp-ref > summary::before { content: "›"; transition: transform .12s ease; }
+.disp-ref[open] > summary::before { transform: rotate(90deg); }
+.disp-ref > summary:hover { background: var(--hover); color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .disp-ref > summary::before { transition: none; }
+}

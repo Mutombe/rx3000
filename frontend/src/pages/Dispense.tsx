@@ -1832,81 +1832,59 @@ export default function Dispense() {
                   </span>
                 </div>
               ))}
-              {/* Column headings, because a grid without them is a list of
-                  rows that happen to line up. They also fix the columns: the
-                  header and every row share one template, so a long medicine
-                  name cannot push the money column out of true on one line
-                  and not the next. */}
-              {items.length > 0 && (
-                <div className="rx-item-head rx-item-cols" aria-hidden="true">
-                  <span />
-                  <span>Medicine</span>
-                  <span className="rx-item-qty">Qty</span>
-                  <span>Directions</span>
-                  <span className="rx-item-money">Amount</span>
-                  <span /><span />
-                </div>
-              )}
-              {items.map((it, idx) => {
+              {/* The editor, out of the grid and above it.
+
+                  It used to sit inside the selected row, so selecting a line
+                  pushed every line below it down the page — on a five-item
+                  script the line being edited was the only one visible, which
+                  defeats the point of a grid.
+
+                  Fixed here, the grid never reflows and a row is one height
+                  whether it is selected or not. A field that moves depending on
+                  what is selected cannot be typed into without looking, and
+                  somebody dispensing forty scripts a morning is not looking.
+
+                  It names the line it is editing, because it is no longer
+                  attached to one. */}
+              {items[openItem] && (() => {
+                const it = items[openItem];
+                const idx = openItem;
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
-                const open = openItem === idx;
-                const each = perUnit(it.product);
                 return (
-                  <div key={it.product.id}
-                       className={`rx-item${open ? " is-open" : ""}`}>
-                    {/* The row. Five columns, the same five on every line, so
-                        they align down the page because they are columns and
-                        not because somebody kept them the same width. */}
-                    <div className="rx-item-head"
-                         onClick={() => setOpenItem(open ? -1 : idx)}
-                         role="button" tabIndex={0}
-                         aria-expanded={open}
-                         onKeyDown={(e) => {
-                           if (e.key === "Enter" || e.key === " ") {
-                             e.preventDefault(); setOpenItem(open ? -1 : idx);
-                           }
-                         }}>
-                      <CaretRight size={12} weight="bold" className="rx-item-caret" />
-                      <span className="rx-item-name">
+                  <div className="disp-entry">
+                    <div className="disp-entry-head">
+                      <span className="disp-entry-for">
                         {it.product.name} {it.product.strength}
-                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
-                          S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
-                        </span>
                       </span>
-                      <span className="rx-item-qty">{it.quantity}</span>
-                      {/* What the label will say, on the row, so a closed line
-                          still shows the thing most likely to be wrong. */}
-                      <span className="rx-item-sig">
-                        {it.dosage_instructions || <em>no directions yet</em>}
+                      <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
+                        S{it.product.schedule}{pol?.register_entry ? " \u00b7 register" : ""}
                       </span>
-                      <span className="rx-item-money">
-                        {money(each * (it.quantity || 0))}
+                      <span className="disp-entry-of">
+                        line {openItem + 1} of {items.length}
                       </span>
-                      {(() => {
-                        const l = marginFor(it.product.id);
-                        return l ? <MarginTag percent={l.margin_percent} compact /> : null;
-                      })()}
-                      <IconButton action="remove" title="Take this line off the script"
-                        onClick={(e?: any) => { e?.stopPropagation?.();
-                          setItems(items.filter((_, i) => i !== idx)); }} />
                     </div>
-                    {open && (<>
-                    {/* Whether the same medicine is on the shelf under another
-                        name, and what it costs. The substitution conversation
-                        happens here, with the script in hand — not later. */}
-                    <Variants productId={it.product.id} />
-                    {/* And what to say when it is handed over. This lived only
-                        on the product page, which is the one place a pharmacist
-                        is not standing when they need it — at the counter they
-                        have the script in hand and no reason to open a
-                        catalogue, so the counselling half of dispensing lived
-                        in whatever they happened to remember. Folded shut: four
-                        expanded blocks would bury the fields being typed into,
-                        and it must never fire on its own. */}
-                    <CounsellingPoints productId={it.product.id}
-                      name={`${it.product.name} ${it.product.strength ?? ""}`.trim()}
-                      compact />
+
+                    {/* Reference for the selected line, folded shut.
+
+                        Substitutions and counselling are things a pharmacist
+                        reaches for, not things they type into — and expanded
+                        they were 190 of the strip's 290 pixels, which left the
+                        grid with none and pushed every line off the screen.
+                        The fields the strip exists for come first; these are one
+                        line away.
+
+                        `<details>` rather than state, because the browser
+                        already does this and remembers nothing between lines,
+                        which is the right behaviour: it should be shut again on
+                        the next medicine. */}
+                    <details className="disp-ref">
+                      <summary>Substitutions &amp; counselling</summary>
+                      <Variants productId={it.product.id} />
+                      <CounsellingPoints productId={it.product.id}
+                        name={`${it.product.name} ${it.product.strength ?? ""}`.trim()}
+                        compact />
+                    </details>
                     <div className="form-row">
                       {/* On the twelve-column grid rather than a pixel width.
                           `maxWidth: 90` made the quantity a stub beside a
@@ -2033,10 +2011,81 @@ export default function Dispense() {
                         script is required each time.
                       </div>
                     )}
-                    </>)}
+                  </div>
+                );
+              })()}
+              {/* The grid scrolls; the strip above it does not.
+                  Both were inside one scrolling region, so the strip took
+                  the top of it and pushed every row out of sight. The
+                  fields have to stay still and the lines have to scroll
+                  under them — that is the whole arrangement. */}
+              <div className="disp-grid">
+              {/* Column headings, because a grid without them is a list of
+                  rows that happen to line up. They also fix the columns: the
+                  header and every row share one template, so a long medicine
+                  name cannot push the money column out of true on one line
+                  and not the next. */}
+              {items.length > 0 && (
+                <div className="rx-item-head rx-item-cols" aria-hidden="true">
+                  <span />
+                  <span>Medicine</span>
+                  <span className="rx-item-qty">Qty</span>
+                  <span>Directions</span>
+                  <span className="rx-item-money">Amount</span>
+                  <span /><span />
+                </div>
+              )}
+              {items.map((it, idx) => {
+                const pol = policyFor(it.product.schedule || 0);
+                const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
+                const open = openItem === idx;
+                const each = perUnit(it.product);
+                return (
+                  <div key={it.product.id}
+                       className={`rx-item${open ? " is-open" : ""}`}>
+                    {/* The row. Five columns, the same five on every line, so
+                        they align down the page because they are columns and
+                        not because somebody kept them the same width. */}
+                    {/* Selecting a row points the strip above at it. It does
+                        not expand: a grid whose rows change height under the
+                        hand working on them is a grid you cannot aim at. */}
+                    <div className="rx-item-head"
+                         onClick={() => setOpenItem(idx)}
+                         role="button" tabIndex={0}
+                         aria-current={open ? "true" : undefined}
+                         onKeyDown={(e) => {
+                           if (e.key === "Enter" || e.key === " ") {
+                             e.preventDefault(); setOpenItem(idx);
+                           }
+                         }}>
+                      <CaretRight size={12} weight="bold" className="rx-item-caret" />
+                      <span className="rx-item-name">
+                        {it.product.name} {it.product.strength}
+                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
+                          S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
+                        </span>
+                      </span>
+                      <span className="rx-item-qty">{it.quantity}</span>
+                      {/* What the label will say, on the row, so a closed line
+                          still shows the thing most likely to be wrong. */}
+                      <span className="rx-item-sig">
+                        {it.dosage_instructions || <em>no directions yet</em>}
+                      </span>
+                      <span className="rx-item-money">
+                        {money(each * (it.quantity || 0))}
+                      </span>
+                      {(() => {
+                        const l = marginFor(it.product.id);
+                        return l ? <MarginTag percent={l.margin_percent} compact /> : null;
+                      })()}
+                      <IconButton action="remove" title="Take this line off the script"
+                        onClick={(e?: any) => { e?.stopPropagation?.();
+                          setItems(items.filter((_, i) => i !== idx)); }} />
+                    </div>
                   </div>
                 );
               })}
+              </div>
               {/* The dozen figures the incumbent prints along the bottom of a
                   script, read before it is finished rather than in a report
                   next month — by which time the medicine has gone. */}
