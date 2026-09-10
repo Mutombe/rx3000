@@ -1439,11 +1439,18 @@ export default function Dispense() {
           It was a title, a sentence beneath it, a border and a margin: 98
           vertical pixels to say one word and one hint, on a screen that then
           had to scroll to reach the script. */}
+      {/* The bar is what you can DO, and nothing else.
+
+          The title said "Dispensary" on the dispensary screen, under a sidebar
+          item called Dispensary that was already highlighted — three statements
+          of the same fact. Beside it the route hint described the tab that was
+          already selected and visibly labelled.
+
+          Between them they took about 330px of the bar, which is why the four
+          buttons had to shrink to icons to fit. With the words gone the buttons
+          keep their names, and a button that says "Alter script" needs no
+          learning. */}
       <div className="disp-head">
-        <h1>Dispensary</h1>
-        <span className="disp-hint">
-          {visibleRoutes.find((t) => t.key === route)?.hint}
-        </span>
         {/* What has already gone out. A dispensary is asked about yesterday's
             script several times a day — "did she collect it", "was that one
             paid for", "print that label again", and the only way to answer
@@ -2021,21 +2028,26 @@ export default function Dispense() {
                   fields have to stay still and the lines have to scroll
                   under them — that is the whole arrangement. */}
               <div className="disp-grid">
-              {/* Column headings, because a grid without them is a list of
-                  rows that happen to line up. They also fix the columns: the
+              {/* Column headings, always. A grid without them is a list of rows
+                  that happen to line up, and they also fix the columns: the
                   header and every row share one template, so a long medicine
-                  name cannot push the money column out of true on one line
-                  and not the next. */}
-              {items.length > 0 && (
-                <div className="rx-item-head rx-item-cols" aria-hidden="true">
-                  <span />
-                  <span>Medicine</span>
-                  <span className="rx-item-qty">Qty</span>
-                  <span>Directions</span>
-                  <span className="rx-item-money">Amount</span>
-                  <span /><span />
-                </div>
-              )}
+                  name cannot push the money column out of true on one line and
+                  not the next.
+
+                  Rendered whether or not there is anything on the script,
+                  because a table shows where the work GOES as well as where it
+                  is — which is what somebody needs on a new script and why the
+                  system we are compared to draws its empty rows. */}
+              <div className="rx-item-head rx-item-cols" aria-hidden="true">
+                <span />
+                <span>Medicine</span>
+                <span className="rx-item-qty">Qty</span>
+                <span>Directions</span>
+                <span className="rx-item-money">Amount</span>
+                <span />
+                <span className="rx-item-act">Edit</span>
+                <span />
+              </div>
               {items.map((it, idx) => {
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
@@ -2079,6 +2091,13 @@ export default function Dispense() {
                         const l = marginFor(it.product.id);
                         return l ? <MarginTag percent={l.margin_percent} compact /> : null;
                       })()}
+                      {/* The row was clickable and said so nowhere. A control
+                          that names itself is used; one you have to discover is
+                          used by whoever discovered it. */}
+                      <button type="button" className="rx-item-act"
+                              onClick={(e) => { e.stopPropagation(); setOpenItem(idx); }}>
+                        Edit
+                      </button>
                       <IconButton action="remove" title="Take this line off the script"
                         onClick={(e?: any) => { e?.stopPropagation?.();
                           setItems(items.filter((_, i) => i !== idx)); }} />
@@ -2086,6 +2105,25 @@ export default function Dispense() {
                   </div>
                 );
               })}
+              {/* Ruled to the floor. The rows a script has not reached yet are
+                  drawn, not left as a void with an apology in the middle of it:
+                  a table that stops where the data stops does not show anybody
+                  where the next line goes. */}
+              {Array.from({ length: Math.max(0, 8 - items.length) }).map((_, i) => (
+                <div key={`waiting-${i}`} className="rx-item rx-item-waiting"
+                     aria-hidden="true">
+                  <div className="rx-item-head">
+                    <span /><span /><span /><span /><span />
+                    <span /><span /><span />
+                  </div>
+                </div>
+              ))}
+              {items.length === 0 && (
+                <p className="disp-empty-note">
+                  Search above for what is being dispensed. Each line carries its
+                  own directions, diagnosis and repeats.
+                </p>
+              )}
               </div>
               {/* The dozen figures the incumbent prints along the bottom of a
                   script, read before it is finished rather than in a report
@@ -2098,15 +2136,6 @@ export default function Dispense() {
                   items={pricedItems}
                   medicalAidId={patient?.medical_aid_id ?? null}
                 />
-              )}
-              {items.length === 0 && (
-                <div className="empty">
-                  <b>Nothing on this script yet</b>
-                  <p>
-                    Search above for what is being dispensed. Each line carries
-                    its own directions, diagnosis and repeats.
-                  </p>
-                </div>
               )}
             </div>
 

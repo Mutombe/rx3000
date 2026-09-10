@@ -7412,9 +7412,12 @@ table.dt.sub th { font-size: var(--t-xs); }
    screen reader. Below 1200 there is not room for four labels beside three
    route tabs, and a button pushed off the right edge is worse than a button
    with no caption. */
-@media (max-width: 1500px) {
-  .disp-head .page-actions .btn span,
-  .disp-head .page-actions .btn { gap: 0; }
+/* The buttons keep their names. They lost them to fit beside a title and a
+   hint that between them took 330px to repeat what the sidebar and the selected
+   tab already said. With those gone there is room, and a button that reads
+   "Alter script" needs no learning. Only under 1100px, where there genuinely is
+   not room, do they fall back to their icons. */
+@media (max-width: 1100px) {
   .disp-head .page-actions .btn { padding-inline: var(--s2); font-size: 0; }
   .disp-head .page-actions .btn svg { font-size: 1rem; }
 }
@@ -7776,3 +7779,77 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .disp-grid { flex: 1 1 auto; min-height: 5.5rem; }
 .disp-dense .card.sec-items { flex: 2 1 auto; }
 .disp-dense .card.sec-go { flex: 0 1 auto; }
+
+/* The bar: what you may dispense on the left, what you may start on the right,
+   nothing in between. */
+.disp-head { padding-block: var(--s1) var(--s2); }
+.disp-head .disp-routes { margin-left: 0; }
+
+/* ---- the script as a ruled table ----------------------------------------
+   Drawn over the screen in the review: vertical dividers between columns, a
+   line under every row, a frame round the whole grid, and Edit on the row.
+
+   A borderless list tells you where the data is. A ruled table tells you where
+   the data GOES, which is what somebody needs on an empty script — the reason
+   the system we are compared to draws ten waiting rows before anything exists. */
+.disp-dense .disp-grid {
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.disp-dense .rx-item-head {
+  grid-template-columns:
+    14px minmax(0, 1.6fr) 3.5rem minmax(0, 2fr) 5.5rem 3.5rem 3rem 1.75rem;
+  gap: 0;
+  border-radius: 0;
+}
+/* Every cell ruled on its left edge, so the columns are visible as columns and
+   not merely as things that happen to line up. */
+.disp-dense .rx-item-head > * {
+  padding: 0 var(--s2);
+  border-left: 1px solid var(--line);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  align-self: stretch; display: flex; align-items: center;
+}
+.disp-dense .rx-item-head > *:first-child { border-left: 0; }
+.disp-dense .rx-item-qty,
+.disp-dense .rx-item-money { justify-content: flex-end; }
+.disp-dense .rx-item-cols {
+  background: var(--surface-sunk, var(--hover));
+  border-bottom: 1px solid var(--line-strong, var(--line));
+}
+.disp-dense .rx-item-cols > * { border-left-color: var(--line-strong, var(--line)); }
+
+/* Rows waiting to be filled. Ruled like the real ones, and silent. */
+.disp-dense .rx-item-waiting { pointer-events: none; }
+.disp-dense .rx-item-waiting .rx-item-head { min-height: 30px; cursor: default; }
+.disp-dense .rx-item-waiting .rx-item-head:hover { background: none; }
+
+/* The action that was hiding behind clicking the row. */
+.disp-dense .rx-item-act {
+  font-size: .74rem; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-soft);
+  background: none; border: 0; height: auto; padding: 0 var(--s2);
+  cursor: pointer; justify-content: center;
+}
+.disp-dense .rx-item-head:hover .rx-item-act,
+.disp-dense .rx-item.is-open .rx-item-act { color: var(--accent); }
+.disp-dense .rx-item-cols .rx-item-act { cursor: default; }
+
+/* The guidance sits under the table rather than replacing it. */
+.disp-empty-note {
+  margin: var(--s2) 0 0; padding: 0 var(--s2);
+  font-size: .82rem; color: var(--ink-soft);
+}
+
+/* The bands either side of the table are framed, so the screen reads as three
+   panels rather than as three regions of one surface. */
+.disp-dense .card.sec-patient,
+.disp-dense .card.sec-go {
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+  background: var(--surface);
+}
+.disp-dense .card.sec-patient { margin-bottom: var(--s2); }
+.disp-dense .card.sec-go { margin-top: var(--s2); }
+.disp-dense .card.sec-items { border: 0; padding: 0; }
