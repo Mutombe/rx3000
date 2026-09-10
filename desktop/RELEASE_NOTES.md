@@ -1,25 +1,27 @@
-The script table now stays on the screen.
+The dispensary, rebuilt around the script.
 
-**What was wrong**
+**The script is a ruled table**
 
-The dispensary was fitted to one screen by refusing to scroll — and
-when the content did not fit, the part that did not fit was simply cut
-off. On a script with a few lines, the part cut off was the table of
-medicines. It looked as though the table was missing; it was there,
-below the bottom edge of a box that would not move.
+One row per medicine, under column headings, with the quantity, the
+directions and the amount visible without opening anything. The table
+is ruled down to eight rows whether or not the script is full, so you
+can see where the next line goes. Edit on the row opens it.
 
-**What it does now**
+**The fields sit above the table and stay there**
 
-It fits where it can and scrolls where it cannot. The table of
-medicines is always on the screen, and the bands around it — the
-patient, the safety checks — give way before it does.
+They do not move when you select a different line, so they can be
+typed into without looking, and the table does not shift under your
+hand while you work.
 
-**Also in this release, from the last few days**
+**A bar that is only what you can do**
 
-The script is a table: one row per medicine, under column headings,
-showing the quantity, the directions and the amount. The fields sit
-above it and stay in one place, so they can be typed into without
-looking and the table does not move while you work.
+The route tabs on the left, New script, New quote, Alter script and
+History on the right, with their names back. The heading that said
+"Dispensary" on the dispensary screen has gone.
 
-Substitutions and counselling are one line away rather than open on
-every item.
+**One screen**
+
+Patient and prescriber share a row. Nothing scrolls except the list of
+medicines and the safety notes, and where the screen is genuinely too
+short the page scrolls rather than hiding what did not fit — which is
+what was cutting the table off entirely.

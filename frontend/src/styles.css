@@ -7853,3 +7853,55 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .card.sec-patient { margin-bottom: var(--s2); }
 .disp-dense .card.sec-go { margin-top: var(--s2); }
 .disp-dense .card.sec-items { border: 0; padding: 0; }
+
+/* ---- the table takes the screen ----------------------------------------
+   The editor moved into a dialog, so the band it occupied — about 200 vertical
+   pixels held permanently for fields being looked at on one row in eight —
+   belongs to the table now. The script is the biggest thing on the screen,
+   which is what it should always have been. */
+.disp-dense .card.sec-items { flex: 4 1 auto; }
+.disp-dense .disp-grid { min-height: 12rem; }
+/* The bands either side keep a floor and give the rest up. */
+.disp-dense .card.sec-patient { max-height: 20vh; }
+.disp-dense .card.sec-go { max-height: 20vh; }
+
+/* Two named actions at the right of every row, where a table's actions belong
+   and where the review put them. Neither hides behind a click on the row. */
+.disp-dense .rx-item-head {
+  grid-template-columns:
+    14px minmax(0, 1.6fr) 3.5rem minmax(0, 2fr) 5.5rem 3.5rem 3rem 3.75rem;
+}
+.disp-dense .rx-item-act.is-remove { color: var(--ink-faint, var(--ink-soft)); }
+.disp-dense .rx-item-head:hover .rx-item-act.is-remove { color: var(--danger); }
+
+/* ---- the edit dialog ---------------------------------------------------- */
+.disp-edit { max-width: 36rem; }
+.disp-edit > h2 { display: flex; align-items: center; gap: var(--s2); }
+.disp-edit > h2 .disp-entry-of {
+  margin-left: auto; font-size: .74rem; font-weight: 400;
+  color: var(--ink-faint, var(--ink-soft));
+}
+/* The label column is wider here than in the bands: a dialog has the room, and
+   a field with space around it is easier to be sure about than one that has
+   been squeezed to fit a strip. */
+/* One field to a row.
+   The strip needed four across because it had 200px of height and no choice.
+   A dialog has the height, and its whole reason for existing is that the person
+   is deciding about this line — so the fields get room instead of being squeezed
+   into a layout designed for a band. Squeezed into that layout here, "Change"
+   was clipped off the diagnosis picker and its note wrapped three ways. */
+.disp-edit .field {
+  grid-template-columns: 8rem minmax(0, 1fr);
+  margin-bottom: var(--s3);
+}
+.disp-edit .form-row { display: block; }
+.disp-edit .form-row > .field { grid-column: auto; margin-bottom: var(--s3); }
+.disp-edit .field > label { white-space: normal; }
+/* The hint under a field belongs under the field, not squeezed beside it. */
+.disp-edit .hint { grid-column: 2; margin-top: 2px; }
+.disp-edit .disp-ref { margin-bottom: var(--s3); }
+.disp-edit-actions {
+  display: flex; justify-content: flex-end; gap: var(--s2);
+  margin-top: var(--s4); padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}

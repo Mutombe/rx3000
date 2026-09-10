@@ -1,11 +1,11 @@
 {
-  "version": "1.6.12",
-  "notes": "The script table now stays on the screen.\n\n**What was wrong**\n\nThe dispensary was fitted to one screen by refusing to scroll \u2014 and\nwhen the content did not fit, the part that did not fit was simply cut\noff. On a script with a few lines, the part cut off was the table of\nmedicines. It looked as though the table was missing; it was there,\nbelow the bottom edge of a box that would not move.\n\n**What it does now**\n\nIt fits where it can and scrolls where it cannot. The table of\nmedicines is always on the screen, and the bands around it \u2014 the\npatient, the safety checks \u2014 give way before it does.\n\n**Also in this release, from the last few days**\n\nThe script is a table: one row per medicine, under column headings,\nshowing the quantity, the directions and the amount. The fields sit\nabove it and stay in one place, so they can be typed into without\nlooking and the table does not move while you work.\n\nSubstitutions and counselling are one line away rather than open on\nevery item.",
-  "pub_date": "2026-09-10T11:54:31+00:00",
+  "version": "1.6.13",
+  "notes": "The dispensary, rebuilt around the script.\n\n**The script is a ruled table**\n\nOne row per medicine, under column headings, with the quantity, the\ndirections and the amount visible without opening anything. The table\nis ruled down to eight rows whether or not the script is full, so you\ncan see where the next line goes. Edit on the row opens it.\n\n**The fields sit above the table and stay there**\n\nThey do not move when you select a different line, so they can be\ntyped into without looking, and the table does not shift under your\nhand while you work.\n\n**A bar that is only what you can do**\n\nThe route tabs on the left, New script, New quote, Alter script and\nHistory on the right, with their names back. The heading that said\n\"Dispensary\" on the dispensary screen has gone.\n\n**One screen**\n\nPatient and prescriber share a row. Nothing scrolls except the list of\nmedicines and the safety notes, and where the screen is genuinely too\nshort the page scrolls rather than hiding what did not fit \u2014 which is\nwhat was cutting the table off entirely.",
+  "pub_date": "2026-09-10T15:16:15+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakxCWkJYbXZBWlZ1YlJjTThwY2gvWXlIY0F3ckttN0ljVWx4QWpPMEIrd1ZzcTNkRHFxaWpHUnkvVjVyaWtvVnlpNEZxdUJDSFBYNzRjRjNvL0Fza0EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDQxMjcwCWZpbGU6Ulg1MDAwXzEuNi4xMl94NjQtc2V0dXAuZXhlCmhSL2tzcDd1Y3R0Wk02Yis3c2lUU0lscyt3NjdHSmM4YWYwblNsVkI2eEREVGErM3VEc0VXcE1HTVFScWt2YXM2WEVacXhuMk1vcWVtMGc2V3cvSEJ3PT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.12_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakVuWlBpRmRpdzk0TWtvalI1L2hndnlHRmp1czZ0N0w5Vmlsemp3SDV3eVMxTUU5SVVmNXpreXVWN2dKTEkzSGJQVjdjY1dWZUFTNXRKTTJ0UDB6d3c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDUzMzczCWZpbGU6Ulg1MDAwXzEuNi4xM194NjQtc2V0dXAuZXhlCjU5OVFicXJhSEY3cytzM0dBbHU5TzBXVGQwNW1mUDJ3ZnFNWDlVYWsrVW9OSVNoOEsyWmcrV2xOQzU4NFduVnBRVlcxaHF5eW9iRTI2YkpnQlVnUUFBPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.13_x64-setup.exe"
     }
   }
 }

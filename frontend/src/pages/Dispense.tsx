@@ -186,6 +186,13 @@ export default function Dispense() {
    *  filled the screen. A back-office grid opens one row: the one being worked
    *  on, which is the one just added. */
   const [openItem, setOpenItem] = useState<number>(0);
+  /** The line whose editor is open, or null. A dialog rather than a band:
+   *  editing a line is a decision about that line — the quantity, the
+   *  directions that print on the box, the diagnosis the claim is raised on —
+   *  and it wants the screen while it is being made. Keeping it permanently on
+   *  the screen cost the table 200px for fields being looked at on one row in
+   *  eight. */
+  const [editing, setEditing] = useState<number | null>(null);
   const [lastRxId, setLastRxId] = useState<number | null>(null);
   const [printing, setPrinting] = useState(false);
   /* The routes this person may use. Filtered only once the server has said
@@ -606,6 +613,7 @@ export default function Dispense() {
         ? items[items.length - 1].icd10_code : DEFAULT_DIAGNOSIS,
     }]);
     setOpenItem(items.length);   // the line just added is the one being worked on
+    setEditing(items.length);    // and it opens, because it has no directions yet
     setProductQ(""); setProductResults([]); aiCheck.reset();
   }
 
@@ -1854,24 +1862,26 @@ export default function Dispense() {
 
                   It names the line it is editing, because it is no longer
                   attached to one. */}
-              {items[openItem] && (() => {
-                const it = items[openItem];
-                const idx = openItem;
+              {editing !== null && items[editing] && (() => {
+                const it = items[editing];
+                const idx = editing;
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
                 return (
-                  <div className="disp-entry">
-                    <div className="disp-entry-head">
-                      <span className="disp-entry-for">
+                  <div className="modal-backdrop" role="dialog" aria-modal="true"
+                       onClick={(e) => {
+                         if (e.target === e.currentTarget) setEditing(null);
+                       }}>
+                    <div className="modal disp-edit">
+                      <h2>
                         {it.product.name} {it.product.strength}
-                      </span>
-                      <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
-                        S{it.product.schedule}{pol?.register_entry ? " \u00b7 register" : ""}
-                      </span>
-                      <span className="disp-entry-of">
-                        line {openItem + 1} of {items.length}
-                      </span>
-                    </div>
+                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
+                          S{it.product.schedule}{pol?.register_entry ? " \u00b7 register" : ""}
+                        </span>
+                        <span className="disp-entry-of">
+                          line {editing + 1} of {items.length}
+                        </span>
+                      </h2>
 
                     {/* Reference for the selected line, folded shut.
 
@@ -2019,6 +2029,16 @@ export default function Dispense() {
                         script is required each time.
                       </div>
                     )}
+                    {/* One way out, and it is not "cancel". Everything typed
+                        here is already on the line — the dialog edits the
+                        script, it does not hold a copy of it — so there is
+                        nothing to discard and offering to would be a lie. */}
+                    <div className="disp-edit-actions">
+                      <button className="btn primary" onClick={() => setEditing(null)}>
+                        Done
+                      </button>
+                    </div>
+                    </div>
                   </div>
                 );
               })()}
@@ -2046,7 +2066,7 @@ export default function Dispense() {
                 <span className="rx-item-money">Amount</span>
                 <span />
                 <span className="rx-item-act">Edit</span>
-                <span />
+                <span className="rx-item-act">Delete</span>
               </div>
               {items.map((it, idx) => {
                 const pol = policyFor(it.product.schedule || 0);
@@ -2095,12 +2115,17 @@ export default function Dispense() {
                           that names itself is used; one you have to discover is
                           used by whoever discovered it. */}
                       <button type="button" className="rx-item-act"
-                              onClick={(e) => { e.stopPropagation(); setOpenItem(idx); }}>
+                              onClick={(e) => { e.stopPropagation();
+                                setOpenItem(idx); setEditing(idx); }}>
                         Edit
                       </button>
-                      <IconButton action="remove" title="Take this line off the script"
-                        onClick={(e?: any) => { e?.stopPropagation?.();
-                          setItems(items.filter((_, i) => i !== idx)); }} />
+                      <button type="button" className="rx-item-act is-remove"
+                              title="Take this line off the script"
+                              onClick={(e) => { e.stopPropagation();
+                                setItems(items.filter((_, i) => i !== idx));
+                                setEditing(null); }}>
+                        Delete
+                      </button>
                     </div>
                   </div>
                 );
