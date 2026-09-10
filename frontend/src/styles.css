@@ -7228,13 +7228,22 @@ table.dt.sub th { font-size: var(--t-xs); }
 
 .disp-dense {
   /* The whole screen, minus the top bar. The page stops being the thing that
-     scrolls, which is what lets the item list be the thing that does. */
+     scrolls, which is what lets the item list be the thing that does.
+
+     `auto`, NOT `hidden`. Hidden was the bug behind "the grid is not there":
+     the floors below — a patient band, a minimum item list, a checks panel —
+     can sum to more than a short screen, and hidden does not mean "make it
+     fit", it means "cut off whatever did not". A grid clipped out of existence
+     looks exactly like a grid that was never built.
+
+     Auto tries to fit and, when it genuinely cannot, gives a scrollbar. A
+     scrollbar is a small failure; hiding a third of the screen is not. */
   display: flex;
   flex-direction: column;
   gap: 0;
   height: calc(100vh - var(--topbar-h, 56px) - var(--s5));
   min-height: 30rem;
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* ---- the head: one line, everything on it ------------------------------ */
@@ -7534,11 +7543,11 @@ table.dt.sub th { font-size: var(--t-xs); }
      the two compete for height the script wins. At 46vh the checks were taking
      more room than the medicines they were about, and a two-item script showed
      no fields at all. */
-  max-height: 24vh;
+  max-height: 22vh;
 }
 /* And the list gets a real floor, so it is always showing lines rather than a
    sliver of one. */
-.disp-dense .card.sec-items { min-height: 15rem; }
+.disp-dense .card.sec-items { min-height: 11rem; }
 .disp-dense .sec-go { overflow-y: auto; }
 /* The row that actually dispenses sticks to the bottom of the band while the
    warnings above it scroll under it. Sticky rather than a separate pinned
@@ -7748,10 +7757,14 @@ table.dt.sub th { font-size: var(--t-xs); }
    Capped and scrolling, so the panel is still fully readable and the grid
    always has its share. The rule everywhere on this screen: fixed things give
    way before the work does. */
-.disp-dense .sec-patient { max-height: 26vh; overflow-y: auto; }
+/* The three bands that are allowed to claim height state it as a share of
+   the screen, and the shares are chosen so they and the item list's floor
+   always add up to less than one screen. Before, they could total more than the
+   window and the excess was silently clipped. */
+.disp-dense .sec-patient { max-height: 22vh; overflow-y: auto; }
 /* And the grid keeps a real floor — three rows — that the bands above cannot
    take from it. */
-.disp-dense .disp-grid { min-height: 7.5rem; }
+
 
 /* The script is the biggest thing on the screen, because it is the thing being
    worked on. Everything else states a floor and then gives way: the checks cap
@@ -7760,6 +7773,6 @@ table.dt.sub th { font-size: var(--t-xs); }
 
    Before this the strip was 208px, the checks 250 and the grid 120 — the
    software had more to say about the script than the script did. */
-.disp-dense .disp-grid { flex: 1 1 auto; min-height: 9rem; }
+.disp-dense .disp-grid { flex: 1 1 auto; min-height: 5.5rem; }
 .disp-dense .card.sec-items { flex: 2 1 auto; }
 .disp-dense .card.sec-go { flex: 0 1 auto; }
