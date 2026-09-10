@@ -7905,3 +7905,44 @@ table.dt.sub th { font-size: var(--t-xs); }
   margin-top: var(--s4); padding-top: var(--s3);
   border-top: 1px solid var(--line);
 }
+
+/* The function keys along the foot of the window, and they do not move.
+   They were at the bottom of the safety band, inside a scrolling region, so the
+   strip a dispenser glances down at sat wherever the warnings had pushed it —
+   often off the screen. A key strip that moves is one nobody learns. */
+.disp-dense > .keybar {
+  flex: 0 0 auto; margin: 0; padding: var(--s2) 0 0;
+  border-top: 1px solid var(--line-strong, var(--line));
+  gap: var(--s1);
+}
+.disp-dense > .keybar .keybar-item { height: 26px; font-size: .78rem; }
+/* The cap carries the number; the word carries the meaning. Both, because a
+   dispenser new to this reads the word and one from the old system reads the
+   number. */
+.disp-dense > .keybar .keybar-label { font-size: .78rem; }
+
+/* The key strip is part of the page's height, not an extra on the end of it.
+   `.disp-dense` is sized to the window, so a strip added after the bands simply
+   fell past the bottom — present, and never on screen, which is the same as
+   absent for something whose whole job is being glanced at.
+
+   The bands give up 32px between them and the strip is always the last thing
+   visible. */
+.disp-dense { padding-bottom: 0; }
+.disp-dense > .keybar {
+  position: sticky; bottom: 0; z-index: 4;
+  background: var(--surface); margin-top: auto;
+}
+.disp-dense .card.sec-go { max-height: 17vh; }
+.disp-dense .card.sec-patient { max-height: 17vh; }
+
+/* The page is the window minus the top bar, and it was never told about the
+   bottom one. The strip started on screen at 877px in a 900px window and its
+   own 34px went past the edge — visible enough to look right in a screenshot
+   of the top of the page and useless to somebody glancing down at it.
+
+   The height subtracts the strip as well, so the last row of the window is the
+   strip and nothing is below it. */
+.disp-dense {
+  height: calc(100vh - var(--topbar-h, 56px) - var(--s5) - 42px);
+}

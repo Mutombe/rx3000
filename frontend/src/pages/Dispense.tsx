@@ -520,7 +520,22 @@ export default function Dispense() {
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
+  // The numbers are the incumbent's, not ours.
+  //
+  // Three of these already existed under different keys — the interaction check
+  // was on F6, repeats due on F8, the queue on F9 — chosen against nothing in
+  // particular. Where their number and ours disagree, theirs wins: the whole
+  // value of a function key is that the hand goes there without the person
+  // deciding to, and a hand that has pressed F6 for authorisations for fifteen
+  // years will press F6 for authorisations here.
+  //
+  // Nothing is lost by the two that give up a key. The interaction check is a
+  // button on the screen and runs itself as the basket changes; the queue is
+  // the panel occupying the right-hand third of the screen at all times.
   const hotkeys: Hotkey[] = [
+    // Mix — a preparation made up here rather than dispensed from a box.
+    { combo: "F1", label: "Mix", group: "Capture",
+      run: () => navigate("/compounding") },
     { combo: "F2", label: "Find patient", group: "Capture",
       run: () => document.querySelector<HTMLInputElement>("[data-hk='patient']")?.focus() },
     { combo: "F3", label: "Add medicine", group: "Capture",
@@ -528,13 +543,31 @@ export default function Dispense() {
     { combo: "F4", label: "Diagnosis", group: "Capture",
       disabled: items.length === 0,
       run: () => document.querySelector<HTMLInputElement>("[data-hk='dx']")?.focus() },
-    { combo: "F6", label: "Interaction check", group: "Safety",
-      disabled: !patient || items.length === 0 || aiCheck.streaming, run: checkInteractions },
-    { combo: "F8", label: "Repeats due", group: "Lists",
+    // WayBill — who is driving this one, where to, and what the fee is. It is a
+    // section of this script rather than another screen, so the key opens it
+    // and puts the cursor in it.
+    { combo: "F5", label: "WayBill", group: "Capture",
+      disabled: items.length === 0,
+      run: () => {
+        // The waybill section is what appears when this script is going out
+        // with a driver, so the key sets that rather than revealing a panel
+        // whose condition is somewhere else.
+        setPayHow("delivery");
+        window.setTimeout(() => {
+          const el = document.getElementById("step-delivery");
+          el?.scrollIntoView({ block: "center", behavior: "smooth" });
+          el?.querySelector<HTMLElement>("input, select, button")?.focus();
+        }, 60);
+      } },
+    // Auth — the scheme's authorisation number, without which the claim is
+    // raised and refused.
+    { combo: "F6", label: "Auth", group: "Safety",
+      run: () => navigate("/authorisations") },
+    { combo: "F8", label: "Repts", group: "Lists",
       run: () => setWorklistPanel("due") },
-    { combo: "F9", label: "Queue", group: "Lists",
-      run: () => setWorklistPanel("queue") },
-    { combo: "F12", label: "Dispense", group: "Finish",
+    { combo: "F9", label: "Hist", group: "Lists",
+      run: () => navigate("/dispensing-history") },
+    { combo: "F12", label: "Finish", group: "Finish",
       disabled: busy || !patient || items.length === 0 || !complianceReadyRef(),
       run: () => { if (!busy && patient && items.length && complianceReadyRef()) createAndDispense(); } },
     { combo: "Escape", label: "Clear the script", group: "Finish",
@@ -2332,7 +2365,8 @@ export default function Dispense() {
                   bag is being packed now, and a waybill raised an hour later
                   is one somebody has to remember to raise. */}
               {items.length > 0 && payHow === "delivery" && (
-                <div className="card sec sec-delivery" style={{ marginBottom: 12 }}>
+                <div className="card sec sec-delivery" id="step-delivery"
+                     style={{ marginBottom: 12 }}>
                   <div className="form-row">
                     <div className="field span-6">
                       <label>Driver</label>
@@ -2610,7 +2644,6 @@ export default function Dispense() {
                     : <AiOutput text={aiCheck.text} title="Interaction check" />}
                 </div>
               )}
-              <KeyBar keys={hotkeys} />
             </div>
           </div>
 
@@ -2694,6 +2727,16 @@ export default function Dispense() {
         }}
       />
       </div>
+      {/* The function keys, along the foot of the window.
+
+          They were at the bottom of the safety band, inside a region that
+          scrolls — so the strip a dispenser looks down at was wherever the
+          warnings had pushed it, or off the screen entirely. The system this
+          competes with runs F1 to F12 across the bottom of the window and it
+          does not move; a key strip that moves is one nobody learns.
+
+          The numbers are theirs: Mix, WayBill, Auth, Repts, Hist, Finish. */}
+      <KeyBar keys={hotkeys} />
     </div>
   );
 }
