@@ -2250,21 +2250,7 @@ export default function Dispense() {
             />
 
             <div className="card sec sec-go" id="step-dispense">
-              <h3>{route === "controlled" ? "4" : "3"} · Safety check &amp; dispense</h3>
-              {/* Asked wherever it is required. The controlled route has its own
-                  copy inside the compliance record; on an ordinary prescription
-                  this was the missing step — the server wanted initials and the
-                  screen never offered anywhere to put them. */}
-              {needsInitials && route !== "controlled" && (
-                <div className="field" style={{ maxWidth: 260 }}>
-                  <label>Checked by</label>
-                  <input
-                    value={initials} maxLength={8}
-                    onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                    placeholder="Pharmacist initials — required"
-                  />
-                </div>
-              )}
+
               {coverage && !coverage.all_claimable && (
                 <div className="error-banner">
                   {coverage.blocked_count} line{coverage.blocked_count === 1 ? "" : "s"} not covered
@@ -2278,21 +2264,6 @@ export default function Dispense() {
                   the claim will be paid.
                 </div>
               )}
-              {/* Runs itself as the basket changes. The button below is the
-                  second opinion, not the first: this one is the check that
-                  cannot be forgotten on a busy afternoon. */}
-              <InteractionPanel
-                patientId={patient?.id ?? null}
-                productIds={items.map((i) => i.product.id)}
-                lines={items.map((i) => ({
-                  product_id: i.product.id,
-                  instructions: i.dosage_instructions,
-                  quantity: i.quantity,
-                }))}
-                acknowledged={ixAcknowledged}
-                onAcknowledge={setIxAcknowledged}
-                onScreened={setIxMajor}
-              />
 
               {/* How it is paid for is decided before it is dispensed, not
                   after. It changes what pressing the button does — the till
@@ -2518,6 +2489,24 @@ export default function Dispense() {
                   it cannot happen yet. */}
               <div className="disp-commit">
                 <div className="disp-commit-row">
+              {/* On the row it belongs on. It is one short input and it
+                  was taking a line of its own above the buttons — which
+                  is most of what the band below the table was spending
+                  its two hundred pixels on. */}
+                  {/* Asked wherever it is required. The controlled route has its own
+                      copy inside the compliance record; on an ordinary prescription
+                      this was the missing step — the server wanted initials and the
+                      screen never offered anywhere to put them. */}
+                  {needsInitials && route !== "controlled" && (
+                    <div className="field" style={{ maxWidth: 260 }}>
+                      <label>Checked by</label>
+                      <input
+                        value={initials} maxLength={8}
+                        onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                        placeholder="Pharmacist initials — required"
+                      />
+                    </div>
+                  )}
                   <button className="btn secondary"
                           onClick={aiCheck.streaming ? aiCheck.stop : checkInteractions}
                           disabled={!aiCheck.streaming && (!patient || items.length === 0)}>

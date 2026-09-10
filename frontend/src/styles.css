@@ -7980,3 +7980,25 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-empty-note { padding-top: var(--s2); }
 .disp-dense .disp-grid { display: flex; flex-direction: column; }
 .disp-dense .disp-grid > .disp-empty-note { margin-top: 0; }
+
+/* The band below the table is the row of buttons and nothing else.
+   It held a heading, an initials field on a line of its own, and an automatic
+   dose panel — two hundred pixels of chrome under a table that wanted them. The
+   initials are on the row now; the panel is gone; the heading with it.
+
+   The server still refuses a dispensing carrying an unacknowledged warning, and
+   did so before any of that was on the screen. */
+.disp-dense .card.sec-go {
+  max-height: none; min-height: 0; overflow: visible;
+  padding: var(--s2) var(--s3);
+}
+.disp-dense .disp-commit-row {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+}
+/* The initials sit with the buttons and keep the label column so they line up
+   with everything else on the screen. */
+.disp-dense .disp-commit-row > .field {
+  margin: 0; grid-template-columns: auto minmax(0, 11rem);
+  max-width: none; flex: 0 0 auto;
+}
+.disp-dense .disp-commit-row > .field > label { white-space: nowrap; }
