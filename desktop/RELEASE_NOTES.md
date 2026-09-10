@@ -1,28 +1,25 @@
-The dispensary is one screen, and the script is a table.
+The script table now stays on the screen.
 
-**The script is a grid**
+**What was wrong**
 
-Every medicine used to open its whole editor at once — about 300
-pixels each — so two items filled the screen and the rest scrolled
-away. Now each line is a row under column headings:
+The dispensary was fitted to one screen by refusing to scroll — and
+when the content did not fit, the part that did not fit was simply cut
+off. On a script with a few lines, the part cut off was the table of
+medicines. It looked as though the table was missing; it was there,
+below the bottom edge of a box that would not move.
 
-  MEDICINE            QTY  DIRECTIONS         AMOUNT
+**What it does now**
 
-Five lines take five rows. A row shows what is most likely to be
-wrong — the quantity and the directions — without opening anything.
+It fits where it can and scrolls where it cannot. The table of
+medicines is always on the screen, and the bands around it — the
+patient, the safety checks — give way before it does.
 
-**The fields sit above the grid and stay there**
+**Also in this release, from the last few days**
 
-Selecting a line points the fields at it. The fields do not move, the
-grid does not reflow, and how many lines you can see no longer depends
-on which one you are working on.
+The script is a table: one row per medicine, under column headings,
+showing the quantity, the directions and the amount. The fields sit
+above it and stay in one place, so they can be typed into without
+looking and the table does not move while you work.
 
 Substitutions and counselling are one line away rather than open on
 every item.
-
-**One screen**
-
-The heading, the route tabs and the four buttons share one line.
-Patient and prescriber share a row. Nothing on the page scrolls except
-the list of medicines and the safety notes, and the Dispense button is
-always where you left it.

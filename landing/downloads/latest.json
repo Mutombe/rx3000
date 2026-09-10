@@ -1,11 +1,11 @@
 {
-  "version": "1.6.11",
-  "notes": "The dispensary is one screen, and the script is a table.\n\n**The script is a grid**\n\nEvery medicine used to open its whole editor at once \u2014 about 300\npixels each \u2014 so two items filled the screen and the rest scrolled\naway. Now each line is a row under column headings:\n\n  MEDICINE            QTY  DIRECTIONS         AMOUNT\n\nFive lines take five rows. A row shows what is most likely to be\nwrong \u2014 the quantity and the directions \u2014 without opening anything.\n\n**The fields sit above the grid and stay there**\n\nSelecting a line points the fields at it. The fields do not move, the\ngrid does not reflow, and how many lines you can see no longer depends\non which one you are working on.\n\nSubstitutions and counselling are one line away rather than open on\nevery item.\n\n**One screen**\n\nThe heading, the route tabs and the four buttons share one line.\nPatient and prescriber share a row. Nothing on the page scrolls except\nthe list of medicines and the safety notes, and the Dispense button is\nalways where you left it.",
-  "pub_date": "2026-09-10T10:37:24+00:00",
+  "version": "1.6.12",
+  "notes": "The script table now stays on the screen.\n\n**What was wrong**\n\nThe dispensary was fitted to one screen by refusing to scroll \u2014 and\nwhen the content did not fit, the part that did not fit was simply cut\noff. On a script with a few lines, the part cut off was the table of\nmedicines. It looked as though the table was missing; it was there,\nbelow the bottom edge of a box that would not move.\n\n**What it does now**\n\nIt fits where it can and scrolls where it cannot. The table of\nmedicines is always on the screen, and the bands around it \u2014 the\npatient, the safety checks \u2014 give way before it does.\n\n**Also in this release, from the last few days**\n\nThe script is a table: one row per medicine, under column headings,\nshowing the quantity, the directions and the amount. The fields sit\nabove it and stay in one place, so they can be typed into without\nlooking and the table does not move while you work.\n\nSubstitutions and counselling are one line away rather than open on\nevery item.",
+  "pub_date": "2026-09-10T11:54:31+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUak5lM1NvZk1lVWRHT0RyTVhzUUJMV29Fcy95cDJoellWMkw4SFp5TW9OSENLMCtzSjA3aThKR0Y4UC9kb1YwbURnUVB1cDNpcERZNlJnVENGbEJxSnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDM2NjQyCWZpbGU6Ulg1MDAwXzEuNi4xMV94NjQtc2V0dXAuZXhlCmJwYkp3bEYvclV5cFZlQXpEQXo2TDRTYVJJNDE3SGlyaEt3TlFpQ01hNnp2UVFFVVlJYlhHcnJtTE5xTE1TUWVxaHU0NllEMFhhMzlxNnJoekRnTUR3PT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.11_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakxCWkJYbXZBWlZ1YlJjTThwY2gvWXlIY0F3ckttN0ljVWx4QWpPMEIrd1ZzcTNkRHFxaWpHUnkvVjVyaWtvVnlpNEZxdUJDSFBYNzRjRjNvL0Fza0EwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MDQxMjcwCWZpbGU6Ulg1MDAwXzEuNi4xMl94NjQtc2V0dXAuZXhlCmhSL2tzcDd1Y3R0Wk02Yis3c2lUU0lscyt3NjdHSmM4YWYwblNsVkI2eEREVGErM3VEc0VXcE1HTVFScWt2YXM2WEVacXhuMk1vcWVtMGc2V3cvSEJ3PT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.12_x64-setup.exe"
     }
   }
 }
