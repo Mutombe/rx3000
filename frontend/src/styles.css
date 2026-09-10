@@ -7454,8 +7454,19 @@ table.dt.sub th { font-size: var(--t-xs); }
    prompt, the insurance standing, the repeats already due — grow downward in
    the left column. The prescriber sits in the right one and does not move
    while they do. */
-.disp-dense .sec-patient > *:not(h3) { grid-column: 1; min-width: 0; }
+/* ONLY the patient search and the prescriber share the two columns. Everything
+   else in this band is a full-width panel and has to say so.
+
+   Without this, the repeats-due panel — a card with its own internal columns —
+   was squeezed into half the band and wrapped "28 · Two puffs morning and
+   night. Rinse mouth after use" one or two words to a line. A panel built for
+   the full measure does not survive being told it has half of it, and the
+   result looked broken because it was. */
+.disp-dense .sec-patient > *:not(h3) { grid-column: 1 / -1; min-width: 0; }
+.disp-dense .sec-patient > .field:first-of-type { grid-column: 1; grid-row: 2; }
 .disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; margin: 0; }
+/* The patient summary, once one is chosen, takes the place the search had. */
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 2; }
 
 
 
@@ -7523,7 +7534,7 @@ table.dt.sub th { font-size: var(--t-xs); }
      the two compete for height the script wins. At 46vh the checks were taking
      more room than the medicines they were about, and a two-item script showed
      no fields at all. */
-  max-height: 32vh;
+  max-height: 24vh;
 }
 /* And the list gets a real floor, so it is always showing lines rather than a
    sliver of one. */
@@ -7728,3 +7739,27 @@ table.dt.sub th { font-size: var(--t-xs); }
 @media (prefers-reduced-motion: reduce) {
   .disp-ref > summary::before { transition: none; }
 }
+
+/* The patient band takes what it needs and no more.
+   With a repeats-due panel on it, it came to 450px and the grid — which is
+   flexible and therefore gives way first — was squeezed to nothing. A script
+   with three lines on it showed none of them.
+
+   Capped and scrolling, so the panel is still fully readable and the grid
+   always has its share. The rule everywhere on this screen: fixed things give
+   way before the work does. */
+.disp-dense .sec-patient { max-height: 26vh; overflow-y: auto; }
+/* And the grid keeps a real floor — three rows — that the bands above cannot
+   take from it. */
+.disp-dense .disp-grid { min-height: 7.5rem; }
+
+/* The script is the biggest thing on the screen, because it is the thing being
+   worked on. Everything else states a floor and then gives way: the checks cap
+   at a quarter of the height, the patient band at a quarter, and whatever is
+   left goes to the lines.
+
+   Before this the strip was 208px, the checks 250 and the grid 120 — the
+   software had more to say about the script than the script did. */
+.disp-dense .disp-grid { flex: 1 1 auto; min-height: 9rem; }
+.disp-dense .card.sec-items { flex: 2 1 auto; }
+.disp-dense .card.sec-go { flex: 0 1 auto; }

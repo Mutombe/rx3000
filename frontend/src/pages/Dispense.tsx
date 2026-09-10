@@ -1728,7 +1728,8 @@ export default function Dispense() {
             <div className="card sec sec-patient" id="step-patient">
               <h3>1 · Patient &amp; prescriber</h3>
               {patient ? (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="disp-patient-picked"
+                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <b>{patient.first_name} {patient.last_name}</b>
                     {patient.allergies && <span className="badge danger" style={{ marginLeft: 8 }}><Warning size={11} weight="fill" /> {patient.allergies}</span>}
