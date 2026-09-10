@@ -1,24 +1,28 @@
-Repeat values now read correctly, and the documents we print carry
-the RX5000 mark.
+The dispensary is one screen, and the script is a table.
 
-**Repeat figures**
+**The script is a grid**
 
-A pack written as "30s" was not being read as a pack of thirty, so
-repeats on those medicines were valued at the price of a whole pack
-for every tablet. A repeat for 28 tablets of Atazanavir/Ritonavir
-showed $616; it is $20.53.
+Every medicine used to open its whole editor at once — about 300
+pixels each — so two items filled the screen and the rest scrolled
+away. Now each line is a row under column headings:
 
-This corrected itself on the server, so the figures are already
-right on this screen.
+  MEDICINE            QTY  DIRECTIONS         AMOUNT
 
-**Printed documents**
+Five lines take five rows. A row shows what is most likely to be
+wrong — the quantity and the directions — without opening anything.
 
-The claim copy and the staff sign-in sheet now carry the logo, the
-brand navy and the RX5000 typeface, on every page.
+**The fields sit above the grid and stay there**
 
-**Already in this till, from the last release**
+Selecting a line points the fields at it. The fields do not move, the
+grid does not reflow, and how many lines you can see no longer depends
+on which one you are working on.
 
-One press to dispense and print, with the other documents on the
-arrow beside it. Prices in the dispensary read per unit. Your branch
-is chosen for you, and whoever covers several can switch between
-them.
+Substitutions and counselling are one line away rather than open on
+every item.
+
+**One screen**
+
+The heading, the route tabs and the four buttons share one line.
+Patient and prescriber share a row. Nothing on the page scrolls except
+the list of medicines and the safety notes, and the Dispense button is
+always where you left it.
