@@ -7479,6 +7479,12 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; margin: 0; }
 /* The patient summary, once one is chosen, takes the place the search had. */
 .disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 2; }
+.disp-dense .sec-patient > .disp-medicine { grid-column: 3; grid-row: 2; margin: 0; }
+/* Everything a search or a patient can open — results, the "nobody matches"
+   prompt, the insurance standing, the repeats already due — still spans the
+   lane and appears under it. */
+.disp-dense .sec-patient > .product-pick,
+.disp-dense .sec-patient > .pick-none { grid-column: 1 / -1; }
 
 
 
@@ -7946,3 +7952,31 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense {
   height: calc(100vh - var(--topbar-h, 56px) - var(--s5) - 42px);
 }
+
+/* Patient, prescriber and medicine on one lane.
+   Three halves of the same act — who this is for, who wrote it, and what is on
+   it — and they were taking a heading and a row each. Three columns of one
+   grid, so their inputs start on three fixed positions down the page rather
+   than on three different ones. */
+.disp-dense .sec-patient {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.disp-dense .sec-patient > .field:first-of-type { grid-column: 1; grid-row: 2; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; }
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 2; }
+
+/* The safety band shows its heading and its first line, or it shows nothing
+   useful. At 17vh on a 900px screen it had 153px for a heading, an initials
+   field and a list of warnings, so the heading was half cut and the warnings
+   were below the fold — the band was present and unreadable, which is the
+   state this whole screen keeps falling into.
+
+   It gets what it needs and the table gives it up: the table is still the
+   biggest thing on the screen by a wide margin. */
+.disp-dense .card.sec-go { max-height: 26vh; min-height: 8.5rem; }
+.disp-dense .card.sec-patient { max-height: none; }
+/* And the guidance under an empty table sits against it rather than floating in
+   the middle of the space the table has claimed. */
+.disp-empty-note { padding-top: var(--s2); }
+.disp-dense .disp-grid { display: flex; flex-direction: column; }
+.disp-dense .disp-grid > .disp-empty-note { margin-top: 0; }

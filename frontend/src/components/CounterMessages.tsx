@@ -110,11 +110,18 @@ export default function CounterMessages({
   if (!data || !data.count) return null;
 
   return (
-    <section className="panel counter-messages">
-      <header className="panel-head">
-        <h3>Before you dispense</h3>
-        <span className="muted small">{data.summary}</span>
-      </header>
+    /* No heading, no card round it.
+     *
+     * "Before you dispense" sat above a section already titled "Safety check &
+     * dispense", inside a panel already framed by that section — a container
+     * announcing a container, and between them they pushed the checks
+     * themselves off the bottom of the screen.
+     *
+     * The warnings are the thing. They say what they are in their own first
+     * words, and the count sits with them rather than in a header of its own.
+     */
+    <section className="counter-messages">
+      {data.summary && <p className="counter-messages-summary">{data.summary}</p>}
 
       {error && <div className="alert error">{error}</div>}
 

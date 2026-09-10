@@ -1774,7 +1774,11 @@ export default function Dispense() {
             )}
 
             <div className="card sec sec-patient" id="step-patient">
-              <h3>1 · Patient &amp; prescriber</h3>
+              <h3>
+                The script
+                {route === "controlled"
+                  && <span className="badge sched">S5–S6 only</span>}
+              </h3>
               {patient ? (
                 <div className="disp-patient-picked"
                      style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1823,6 +1827,18 @@ export default function Dispense() {
                   ))}
                 </>
               )}
+              {/* The search moved up beside the patient and the prescriber.
+                  All three are the same act — saying what this script is for
+                  and what is on it — and they were taking a heading and a row
+                  each. The heading went with them: a table under a search box
+                  labelled "Medicine" does not need telling it holds script
+                  items. */}
+              <div className="field disp-medicine">
+                <label htmlFor="disp-product">Medicine</label>
+                <input data-hk="product" id="disp-product" type="search"
+                  placeholder={`Search ${route === "controlled" ? "controlled substances" : "prescription medicines"}…`}
+                  value={productQ} onChange={(e) => setProductQ(e.target.value)} />
+              </div>
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
@@ -1854,10 +1870,6 @@ export default function Dispense() {
             </div>
 
             <div className="card sec sec-items" id="step-items">
-              <h3>2 · Script items {route === "controlled" && <span className="badge sched">S5–S6 only</span>}</h3>
-              <input data-hk="product" type="search"
-                placeholder={`Search ${route === "controlled" ? "controlled substances" : "prescription medicines"}…`}
-                value={productQ} onChange={(e) => setProductQ(e.target.value)} />
               {productResults.map((p) => (
                 <div key={p.id} className="product-pick" onClick={() => addItem(p)}>
                   <span>
