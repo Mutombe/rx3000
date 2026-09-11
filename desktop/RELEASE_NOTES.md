@@ -1,27 +1,31 @@
-The dispensary, rebuilt around the script.
+The dispensary, arranged in the order a script is done.
 
-**Everything about the script on one lane**
+**The table is the screen**
 
-Patient, prescriber and the medicine search share a single row at the
-top. Below it the script is a table: one row per medicine, ruled down
-to eight rows whether it is full or empty, so you can see where the
-next line goes.
+Solid column lines from the headings to the floor, and the totals as
+the table's last row. Delete the last line and the totals go with it.
 
-**Edit and Delete on every row**
+**Action, on every line**
 
-Edit opens that line in a dialog with room to read it. Delete takes it
-off the script.
+The shield checks the line: dose, and interactions with the other
+lines and the patient's last six months. Its colour is the answer;
+press it again for the detail and an AI second opinion. The pencil
+opens the line editor, with stock, cost, margin and substitutions
+beside it. The bin deletes.
 
-**One row of buttons under the table**
+**The patient, on one line**
 
-The checking pharmacist's initials sit beside AI interaction check,
-Save for later and Dispense. The panel that listed doses to look at
-has gone; warnings that must be acknowledged are still shown, and the
-server still refuses a dispensing that carries one.
+Allergies, the medical aid's standing and repeats due sit as chips
+under the patient. Press one to see the full list.
 
-**The function keys, on the numbers you already know**
+**Finish (F12)**
 
-Along the foot of the window, where they do not move:
+Everything needed at the end in one place, in order: warnings to
+settle, the compliance record, how it is paid, who checked it, and
+Dispense. F12 opens it; F12 again dispenses.
 
-  F1 Mix   F2 Find patient   F3 Add medicine   F4 Diagnosis
-  F5 WayBill   F6 Auth   F8 Repts   F9 Hist   F12 Finish
+**Fixed**
+
+Escape closes a dialog without clearing the script. F2 finds the
+patient and F4 opens the diagnosis, which neither did before. A dose
+over the maximum has to be acknowledged again before dispensing.
