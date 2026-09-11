@@ -8899,3 +8899,86 @@ button.fin-ack { cursor: pointer; }
   flex: 1 1 4em; min-width: 4em; margin-left: .3em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+
+/* ========================================================================
+   THE HEADER: the script on the far left, the routes beside the actions.
+   ======================================================================== */
+.disp-scriptid {
+  display: flex; flex-direction: column; justify-content: center;
+  min-width: 0; line-height: 1.2; padding-left: 2px;
+}
+.disp-scriptid-no { font-size: 1rem; font-weight: 700; white-space: nowrap; }
+.disp-scriptid-no.is-number { font-family: var(--font-mono, ui-monospace, monospace); letter-spacing: .02em; }
+.disp-scriptid-date { font-size: .72rem; color: var(--ink-soft); white-space: nowrap; }
+.disp-dense .disp-head .disp-routes { margin: 0 var(--s3) 0 0; }
+
+/* ========================================================================
+   WHAT PRINTS, as switches.
+   ======================================================================== */
+.fin-prints > h4 { display: flex; align-items: center; }
+.fin-prints-count {
+  margin-left: auto; text-transform: none; letter-spacing: 0;
+  font-weight: 600; color: var(--ink-soft);
+}
+.fin-print-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.fin-print {
+  position: relative; display: grid;
+  grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto;
+  column-gap: 8px; align-items: center; text-align: left;
+  height: auto; min-height: 46px; padding: 6px 26px 6px 8px;
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk); color: var(--ink-soft);
+  font: inherit; cursor: pointer;
+  transition: border-color .12s ease, background .12s ease;
+}
+.fin-print:hover { border-color: var(--line-strong); }
+.fin-print:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fin-print-icon {
+  grid-row: 1 / 3; display: grid; place-items: center;
+  width: 28px; height: 28px; border-radius: var(--r-sm);
+  background: var(--hover); color: var(--ink-soft);
+}
+.fin-print-name {
+  font-size: .82rem; font-weight: 600; color: var(--ink-mid, var(--ink));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fin-print-where {
+  font-size: .68rem; color: var(--ink-faint, var(--ink-soft));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fin-print-tick {
+  position: absolute; top: 6px; right: 7px;
+  display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%;
+  border: 1.5px solid var(--line-strong); color: var(--surface);
+}
+.fin-print.is-on { border-color: var(--accent); background: var(--surface); }
+.fin-print.is-on .fin-print-icon { background: var(--accent); color: var(--surface); }
+.fin-print.is-on .fin-print-name { color: var(--ink); }
+.fin-print.is-on .fin-print-tick { background: var(--accent); border-color: var(--accent); }
+
+/* The button that dispenses says what it will print. */
+.fin-dispense {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  height: auto; min-height: 40px; padding: 4px 20px; line-height: 1.15;
+}
+.fin-dispense-main { font-weight: 700; }
+.fin-dispense-sub { font-size: .68rem; font-weight: 500; opacity: .75; }
+
+/* ========================================================================
+   NEVER SCROLLS. The controlled route gives the compliance record its own
+   column in a wider dialog; what can grow without limit scrolls inside itself.
+   ======================================================================== */
+.disp-finish.is-pay.is-controlled { max-width: 76rem; }
+.fin-grid.is-three { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr); }
+.fin-grid.is-three > .fin-compliance { padding-left: var(--s5); border-left: 1px solid var(--line); }
+.fin-side .finish-sec + .finish-sec { margin-top: 0; }
+.disp-finish .fin-panel.is-form { max-height: 19rem; overflow-y: auto; }
+.disp-finish #finish-warnings .fin-list { max-height: 21rem; overflow-y: auto; }
+
+/* The schedule's name can be long ("Prescription preparation - tenth schedule"),
+   and in the compliance column it ran off the side of the dialog. It wraps under
+   the heading and truncates there instead. */
+.fin-compliance > h4 { flex-wrap: wrap; row-gap: 4px; }
+.fin-compliance > h4 .badge {
+  max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}

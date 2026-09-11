@@ -88,7 +88,7 @@ with sync_playwright() as pw:
     if page.query_selector("#finish-initials"):
         page.fill("#finish-initials", "TM")
         page.wait_for_timeout(300)
-    go = page.query_selector(".finish-foot .printmenu-main")
+    go = page.query_selector(".finish-foot .fin-dispense")
     check("Dispense is available", go is not None and not go.is_disabled())
     if go and not go.is_disabled():
         go.click()

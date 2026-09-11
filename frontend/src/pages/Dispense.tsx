@@ -44,7 +44,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -230,6 +230,9 @@ export default function Dispense() {
   /** The basket the warnings were last proceeded past. Once is enough for that
    *  basket; change a line and they are shown again. */
   const [settledFor, setSettledFor] = useState<string | null>(null);
+  /** Prints the pharmacist has switched on or off for this script. What is not
+   *  here follows the defaults, which follow the script. */
+  const [printPick, setPrintPick] = useState<Partial<Record<roll.DocKind, boolean>>>({});
   /** Each line's deliberate check, stamped with the basket it answered for. A
    *  result for a basket that has since changed is shown as not yet checked,
    *  never as the old answer. */
@@ -524,6 +527,7 @@ export default function Dispense() {
     setItems([]); setPatient(null); setPatientQ(""); setDoneSale(null);
     setFromRx(null); setQuoting(false); aiCheck.reset();
     setFinishing(null); setChecking(null); setEditing(null); setLineChecks({}); setLaneOpen(null);
+    setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -537,7 +541,7 @@ export default function Dispense() {
    *  cleared the moment the basket stops matching the script, because at that
    *  point what is on screen is no longer the thing that was queued. */
   const [fromRx, setFromRx] = useState<
-    { id: number; number: string; draft?: boolean } | null>(null);
+    { id: number; number: string; draft?: boolean; date?: string } | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
   // A blocking counter message stops the dispense. The server enforces this
   // too; the button is disabled so the pharmacist is not invited to try.
@@ -691,6 +695,18 @@ export default function Dispense() {
     return "";
   }
 
+  /** Whether a document prints on dispense: the pharmacist's choice for this
+   *  script, else what the script itself calls for. */
+  function printDefault(kind: roll.DocKind) {
+    if (kind === "label") return true;
+    if (kind === "claim") return !!split?.covered;
+    if (kind === "delivery") return payHow === "delivery";
+    return false;
+  }
+  function willPrint(kind: roll.DocKind) {
+    return printPick[kind] ?? printDefault(kind);
+  }
+
   function proceedToPay() {
     if (settleBlocks()) return;
     setSettledFor(basketSig);
@@ -830,7 +846,7 @@ export default function Dispense() {
       const initialsBox = box.querySelector<HTMLInputElement>("#finish-initials");
       const target = section?.querySelector<HTMLElement>("input, button")
         ?? (initialsBox && !initialsBox.value ? initialsBox : null)
-        ?? box.querySelector<HTMLElement>(".printmenu-main:not([disabled])")
+        ?? box.querySelector<HTMLElement>(".fin-dispense:not([disabled])")
         ?? box.querySelector<HTMLElement>(".finish-foot button");
       target?.focus();
     }, 40);
@@ -1057,13 +1073,13 @@ export default function Dispense() {
     await printRoll("price", lines);
   }
 
-  async function printDeliveryLabel() {
+  async function printDeliveryLabel(rxNumber?: string) {
     if (!patient) { toast.warn("No patient on this script."); return; }
     await printRoll("delivery", deliveryLabelLines({
       patient_name: `${patient.first_name} ${patient.last_name}`.trim(),
       address: patient.address ?? "",
       phone: patient.phone ?? "",
-      rx_number: fromRx?.number || "(not yet dispensed)",
+      rx_number: rxNumber || fromRx?.number || "(not yet dispensed)",
       items: items.length,
     }, roll.printerWidth()));
   }
@@ -1075,11 +1091,14 @@ export default function Dispense() {
    *  as RAW bytes the way a label is, a laser prints the PDF source as text or
    *  ejects blank pages until somebody switches it off.
    */
-  async function printClaimCopy() {
-    if (!lastRxId) { toast.warn("Dispense the script first."); return; }
+  async function printClaimCopy(rxId?: number) {
+    // Given the script just dispensed: `lastRxId` is state, and in the same
+    // pass as the dispense it still holds the previous script's id.
+    const id = rxId ?? lastRxId;
+    if (!id) { toast.warn("Dispense the script first."); return; }
     setPrinting(true);
     try {
-      const file = await api.blob(`/api/prescriptions/${lastRxId}/claim-copy.pdf`);
+      const file = await api.blob(`/api/prescriptions/${id}/claim-copy.pdf`);
       const bytes = new Uint8Array(await file.body.arrayBuffer());
       if (roll.goesStraightToPrinter("claim")) {
         await roll.printPage(bytes, "claim");
@@ -1105,7 +1124,7 @@ export default function Dispense() {
     { key: "c", label: "Claim copy (A4)",
       hint: "For the file, or for the funder.",
       unavailable: lastRxId ? undefined : "Nothing dispensed on this screen yet",
-      run: printClaimCopy },
+      run: () => printClaimCopy() },
     { key: "p", label: "Price label",
       hint: "A quote for somebody deciding. Prints from the script on screen.",
       unavailable: items.length ? undefined : "Nothing on the script to price",
@@ -1113,7 +1132,7 @@ export default function Dispense() {
     { key: "v", label: "Delivery label",
       hint: "Name, address and script number, for the driver.",
       unavailable: patient ? undefined : "No patient on this script",
-      run: printDeliveryLabel, separated: true },
+      run: () => printDeliveryLabel(), separated: true },
   ];
 
   function compliancePayload() {
@@ -1257,7 +1276,7 @@ export default function Dispense() {
       // Whether it is a draft governs what can be done with it. A draft has
       // no Rx number and the server refuses to dispense one, so if this is not
       // carried, opening a draft leads to a button that cannot work.
-      setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
+      setFromRx({ id: rx.id, date: (rx as any).date_prescribed, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                   draft: rx.status === "draft" });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e) {
@@ -1353,7 +1372,7 @@ export default function Dispense() {
       } else {
         const rx = await api.post<any>("/api/prescriptions",
                                        { ...scriptPayload(), draft: true });
-        setFromRx({ id: rx.id, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
+        setFromRx({ id: rx.id, date: (rx as any).date_prescribed, number: rx.rx_number || rx.draft_ref || `#${rx.id}`,
                     draft: true });
         adoptIds(rx);
         toast.ok(`Saved for later. It is on the worklist as a ${DRAFT_SCRIPT.toLowerCase()}.`);
@@ -1378,7 +1397,7 @@ export default function Dispense() {
     try {
       await api.put(`/api/prescriptions/${fromRx.id}/draft`, scriptPayload());
       const rx = await api.post<any>(`/api/prescriptions/${fromRx.id}/finalise`, {});
-      setFromRx({ id: rx.id, number: rx.rx_number || `#${rx.id}`, draft: false });
+      setFromRx({ id: rx.id, date: (rx as any).date_prescribed, number: rx.rx_number || `#${rx.id}`, draft: false });
       adoptIds(rx);
       toast.ok(`${rx.rx_number} finished. It can be dispensed now.`);
       // It has just stopped being a draft, so the drafts tab is now wrong by
@@ -1544,7 +1563,20 @@ export default function Dispense() {
       // browser dialog or the roll takes it from here, so it must be started
       // before navigating away rather than left to a component that is about
       // to unmount.
-      printRxLabels(rx.id);
+      // What Finish said would print, printed — one after another, so two
+      // labels bound for the same roll cannot interleave. Labels first: they go
+      // on the box being handed over. The price label reads the lines from this
+      // pass, before the cleared script reaches the screen.
+      const prints = { label: willPrint("label"), claim: willPrint("claim"),
+                       delivery: willPrint("delivery"), price: willPrint("price") };
+      const rxNumber = (rx as any).rx_number as string | undefined;
+      void (async () => {
+        if (prints.label) await printRxLabels(rx.id);
+        if (prints.delivery) await printDeliveryLabel(rxNumber);
+        if (prints.price) await printPriceQuote();
+        if (prints.claim) await printClaimCopy(rx.id);
+      })();
+      setPrintPick({});
       // "Send to till" is an instruction, so the screen follows it. It used to
       // raise the invoice and stay put with a banner, leaving the dispenser to
       // find the front shop and search for the sale they had just made — two
@@ -1838,6 +1870,19 @@ export default function Dispense() {
             there is something to choose between: a bar with one tab in it
             offers a click that does nothing and hints at a door that is not
             there. */}
+        {/* The script this is: its number on top, its date beneath. A new
+            script has no number until it is dispensed, and says so rather than
+            showing one that might not be the one it gets. */}
+        <div className="disp-scriptid" aria-live="polite">
+          <span className={`disp-scriptid-no${fromRx ? " is-number" : ""}`}>
+            {fromRx ? fromRx.number : quoting ? "Quote" : "New script"}
+          </span>
+          <span className="disp-scriptid-date">
+            {fmtDate(fromRx?.date ?? new Date().toISOString().slice(0, 10))}
+            {fromRx?.draft ? " · N-Repeat" : fromRx ? "" : quoting ? " · not a script" : " · numbered on dispensing"}
+          </span>
+        </div>
+        <span className="spacer" />
         {visibleRoutes.length > 1 && (
           <div className="pill-tabs disp-routes">
             {visibleRoutes.map((t) => (
@@ -1848,7 +1893,6 @@ export default function Dispense() {
             ))}
           </div>
         )}
-        <span className="spacer" />
         <div className="page-actions">
           <button className="btn" onClick={newScript}>
             <Plus size={14} weight="bold" /> New script
@@ -2826,6 +2870,11 @@ ${d.action}`}
                         <Printer size={13} /> Reprint labels
                       </button>
                     )}
+                    {doneRxId && (
+                      <button type="button" className="linkish" onClick={() => printClaimCopy(doneRxId)}>
+                        <FileText size={13} /> Claim copy
+                      </button>
+                    )}
                     {doneSale.status !== "paid" && (
                       <Link to={`/pos?settle=${doneSale.id}`}>
                         Take payment <ArrowRight size={12} weight="bold" />
@@ -2947,7 +2996,7 @@ ${d.action}`}
                 <div className="modal-backdrop" role="dialog" aria-modal="true"
                      aria-label={stage === "settle" ? "Before you finish" : "Pay and dispense"}
                      onClick={(e) => { if (e.target === e.currentTarget) setFinishing(null); }}>
-                  <div className={`modal disp-finish is-${stage}`}>
+                  <div className={`modal disp-finish is-${stage}${route === "controlled" ? " is-controlled" : ""}`}>
                     <h2>
                       {stage === "settle" ? "Before you finish" : "Pay & dispense"}
                       {hasSettle && (
@@ -3110,7 +3159,7 @@ ${d.action}`}
                         )}
                       </div>
                     ) : (
-                      <div className="fin-grid">
+                      <div className={`fin-grid${route === "controlled" ? " is-three" : ""}`}>
                         <section className="finish-sec fin-pay" id="finish-pay">
                           <h4>How it is paid</h4>
                           <div className="seg fin-seg" role="radiogroup" aria-label="How this is paid for">
@@ -3254,6 +3303,53 @@ ${d.action}`}
                             )}
                           </section>
 
+                          {/* What prints on dispense, as switches. Each says where
+                              it goes; the defaults follow the script, and one
+                              press changes one. */}
+                          <section className="finish-sec fin-prints" aria-label="What prints on dispense">
+                            <h4>
+                              Prints on dispense
+                              <span className="fin-prints-count">
+                                {roll.DOC_KINDS.filter((d) => willPrint(d.kind)).length} of {roll.DOC_KINDS.length}
+                              </span>
+                            </h4>
+                            <div className="fin-print-grid">
+                              {roll.DOC_KINDS.map((d) => {
+                                const on = willPrint(d.kind);
+                                const Icon = d.kind === "label" ? Sticker : d.kind === "claim" ? FileText
+                                  : d.kind === "delivery" ? Truck : Tag;
+                                const where = roll.goesStraightToPrinter(d.kind)
+                                  ? (roll.printerFor(d.kind) || "Label printer")
+                                  : d.paper === "page" ? "Opens as a PDF" : "Print dialog";
+                                const short = d.kind === "label" ? "Labels" : d.kind === "claim" ? "Claim copy"
+                                  : d.kind === "delivery" ? "Delivery" : "Price label";
+                                return (
+                                  <button key={d.kind} type="button" role="switch" aria-checked={on}
+                                          className={`fin-print is-${d.kind}${on ? " is-on" : ""}`}
+                                          title={`${d.hint} ${on ? "Prints" : "Does not print"} · ${where}`}
+                                          onClick={() => setPrintPick((p) => ({ ...p, [d.kind]: !on }))}>
+                                    <span className="fin-print-icon"><Icon size={16} weight={on ? "fill" : "regular"} /></span>
+                                    <span className="fin-print-name">{short}</span>
+                                    <span className="fin-print-where">{where}</span>
+                                    <span className="fin-print-tick" aria-hidden="true">
+                                      {on && <Check size={10} weight="bold" />}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {/* Why the defaults are what they are, in a line. */}
+                            <p className="fin-note">
+                              {[
+                                "Labels always",
+                                printPick.claim === undefined && printDefault("claim")
+                                  ? `claim copy because ${split?.scheme || "the scheme"} pays` : "",
+                                printPick.delivery === undefined && printDefault("delivery")
+                                  ? "delivery label because it goes with a driver" : "",
+                              ].filter(Boolean).join(" · ")}.
+                            </p>
+                          </section>
+                        </aside>
                           {route === "controlled" && (
                             <section className="finish-sec fin-compliance" id="finish-compliance">
                               <h4>
@@ -3276,7 +3372,6 @@ ${d.action}`}
                               </div>
                             </section>
                           )}
-                        </aside>
                       </div>
                     )}
 
@@ -3315,16 +3410,24 @@ ${d.action}`}
                         <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
                           Back to the script
                         </button>
-                        {/* One press does the common case — dispense, and the labels
-                            come off the roll. The caret holds what is occasional. */}
-                        <PrintMenu
-                          primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
-                          primaryTitle="Dispense, and print the labels (F12)"
-                          busy={printing || busy}
-                          disabled={busy || !!why || !complianceReady}
-                          onPrimary={createAndDispense}
-                          actions={printActions}
-                        />
+                        {/* One press: dispense, and print what is lit above — and it
+                            says how many, so what comes off the printers is never a
+                            surprise. */}
+                        <button type="button" className="btn primary fin-dispense"
+                                disabled={busy || printing || !!why || !complianceReady}
+                                title="Dispense, and print what is switched on (F12)"
+                                onClick={createAndDispense}>
+                          <span className="fin-dispense-main">
+                            {busy || printing ? "Working…"
+                              : `Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
+                          </span>
+                          <span className="fin-dispense-sub">
+                            {(() => {
+                              const n = roll.DOC_KINDS.filter((d) => willPrint(d.kind)).length;
+                              return n ? `and print ${n}` : "print nothing";
+                            })()}
+                          </span>
+                        </button>
                       </div>
                     )}
                   </div>

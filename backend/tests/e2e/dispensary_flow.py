@@ -103,6 +103,16 @@ with sync_playwright() as pw:
         check("empty: patient, prescriber and medicine share one row",
               max(lane0["tops"]) - min(lane0["tops"]) <= 2, str(lane0["tops"]))
         check("empty: the lane is one row high", lane0["lane"] <= 64, f"{lane0['lane']}px")
+        head = page.evaluate("""() => {
+          const r = (s) => document.querySelector(s)?.getBoundingClientRect();
+          const id = r('.disp-scriptid'), tabs = r('.disp-head .disp-routes'), acts = r('.disp-head .page-actions');
+          return { no: document.querySelector('.disp-scriptid-no')?.textContent,
+                   date: document.querySelector('.disp-scriptid-date')?.textContent,
+                   order: !!(id && tabs && acts) && id.right <= tabs.left && tabs.right <= acts.left + 1 };
+        }""")
+        check("the header names the script on the far left, with its date",
+              head["no"] == "New script" and bool(head["date"]), str(head))
+        check("…and the routes sit on the right, beside the actions", head["order"], str(head))
         check("no line joins the lane to the worklist", page.evaluate(
             "parseFloat(getComputedStyle(document.querySelector('.disp-head')).borderBottomWidth) === 0"))
         kb = page.evaluate("""() => {
@@ -455,13 +465,29 @@ with sync_playwright() as pw:
             page.wait_for_timeout(700)
         check("…to payment", page.query_selector(".disp-finish.is-pay #finish-pay") is not None)
         check("…with the bill beside it", page.query_selector(".disp-finish .fin-side .fin-due") is not None)
-        check("…and Dispense in its foot", page.query_selector(".finish-foot .printmenu-main") is not None)
+        check("…and Dispense in its foot", page.query_selector(".finish-foot .fin-dispense") is not None)
+        prints = page.evaluate(
+            "[...document.querySelectorAll('.disp-finish .fin-print')].map((b) => b.getAttribute('aria-checked'))")
+        check("what prints is shown as four switches", len(prints) == 4, str(prints))
+        check("…dispensing labels on by default", page.get_attribute(".fin-print.is-label", "aria-checked") == "true")
+        before = page.text_content(".fin-dispense-sub")
+        page.click(".fin-print.is-price")
+        page.wait_for_timeout(200)
+        check("…one press switches a print on, and Dispense says so",
+              page.get_attribute(".fin-print.is-price", "aria-checked") == "true"
+              and page.text_content(".fin-dispense-sub") != before,
+              f"{before} -> {page.text_content('.fin-dispense-sub')}")
+        page.click(".fin-print.is-price")
+        page.wait_for_timeout(200)
         for i, choice in enumerate(("Send to till", "Take payment now", "Out for delivery")):
             page.click(f".disp-finish .fin-seg button:has-text('{choice}')")
             page.wait_for_timeout(800)
             sizes = page.evaluate("(() => { const m = document.querySelector('.disp-finish');"
                                   " return [m.scrollHeight, m.clientHeight]; })()")
             check(f"'{choice}' fits without scrolling", page.evaluate(FITS), f"{sizes[0]} > {sizes[1]}")
+            if choice == "Out for delivery":
+                check("…choosing delivery switches the delivery label on",
+                      page.get_attribute(".fin-print.is-delivery", "aria-checked") == "true")
             if SHOT is not None:
                 page.screenshot(path=str(SHOT / f"flow-pay-{i}-{w}.png"))
         check("payment shows characters, not escape codes", not page.evaluate(
