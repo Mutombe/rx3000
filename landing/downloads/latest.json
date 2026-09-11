@@ -1,11 +1,11 @@
 {
-  "version": "1.6.20",
-  "notes": "Finishing a script, made lighter.\n\n**See what will print before you press Dispense**\n\nLabels, claim copy, delivery label and price label sit as switches\nbeside the bill, each showing which printer it goes to. They switch\nthemselves on when the script calls for them: the claim copy when a\nmedical aid is paying, the delivery label when it goes with a driver.\nTap one to change it. The Dispense button tells you how many will print.\n\n**Allergy warnings no longer stop a new script**\n\nA pharmacist can now acknowledge a blocking warning, such as a\npenicillin allergy, on a brand new script and dispense it. The\nacknowledgement is recorded in their name on the script.\n\n**The patient at a glance**\n\nAllergies, medical aid, repeats due, history and patient details are\nicons on the patient's box. History and details open without leaving\nthe dispensary.\n\n**Tidier screen**\n\nThe script number and date sit at the top left. The coloured strips\ndown the sides are gone, and the function keys have their own row.\nFinish never needs scrolling.",
-  "pub_date": "2026-09-11T20:23:10+00:00",
+  "version": "1.6.21",
+  "notes": "A calmer, tighter dispensary.\n\n**Windows that do not jump**\n\nEvery window on the dispensary opens at its full size. While it loads\nit shows the outline of what is coming, then fills in, so buttons never\nmove under your pointer. Long lists scroll inside the window.\n\n**Everything in its own tray**\n\nThe worklist, the finish bar and the function keys now sit in the same\nneat trays as the Prescription, Dangerous Drugs and OTC tabs. The one\nyou have chosen stands out; everything else sits quietly in the tray.\n\n**More room for the script**\n\nThe bar with Checked by, Save for later and Finish is slimmer, so the\ntable has more space.",
+  "pub_date": "2026-09-11T21:20:38+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaksyTlltaUlxZkJPTXluQ3VTbko5K1Z3bzI5eG93V0RnUk9EZTNvRnVaS2NQbTA2MzgvOW5zWXZBRmNadXF1SHc5a2JFSE40QUNrbktFTEFwZVY3K3dFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTU4MTkwCWZpbGU6Ulg1MDAwXzEuNi4yMF94NjQtc2V0dXAuZXhlCkozcjBnVm1ualhEV1pqM1ZNSzcvSS9kZHptOFdQdm02eklvUFU3STN2eUh2dzNKaVcxZ1hna1hsNjhqMWI2aktGMU9YRFMwYzhpSDlYVXNQYzZrTURBPT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.20_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakh1cXNmU2FuSFI0K2JrcXdNTWRLUTNuM3hsRHc2WnpZcVpUSUZBSW15STlwM1RHUk9KREdXL0pNb2NLRmlXMnNQWVhQRHhJK0prd090UW9HUE95WUFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTYxNjM4CWZpbGU6Ulg1MDAwXzEuNi4yMV94NjQtc2V0dXAuZXhlCkIvV3VVUlBYNTZEcUVnQXMrMVpDYyttb3loY2JlMmF0L3FvUDBqenkxSTBSVTMyWnUxT1FNMmRaYTlnamVOWkRtU0crS1lNMXZCWXlZTGM2K1RSeUFnPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.21_x64-setup.exe"
     }
   }
 }

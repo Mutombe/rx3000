@@ -1,27 +1,18 @@
-Finishing a script, made lighter.
+A calmer, tighter dispensary.
 
-**See what will print before you press Dispense**
+**Windows that do not jump**
 
-Labels, claim copy, delivery label and price label sit as switches
-beside the bill, each showing which printer it goes to. They switch
-themselves on when the script calls for them: the claim copy when a
-medical aid is paying, the delivery label when it goes with a driver.
-Tap one to change it. The Dispense button tells you how many will print.
+Every window on the dispensary opens at its full size. While it loads
+it shows the outline of what is coming, then fills in, so buttons never
+move under your pointer. Long lists scroll inside the window.
 
-**Allergy warnings no longer stop a new script**
+**Everything in its own tray**
 
-A pharmacist can now acknowledge a blocking warning, such as a
-penicillin allergy, on a brand new script and dispense it. The
-acknowledgement is recorded in their name on the script.
+The worklist, the finish bar and the function keys now sit in the same
+neat trays as the Prescription, Dangerous Drugs and OTC tabs. The one
+you have chosen stands out; everything else sits quietly in the tray.
 
-**The patient at a glance**
+**More room for the script**
 
-Allergies, medical aid, repeats due, history and patient details are
-icons on the patient's box. History and details open without leaving
-the dispensary.
-
-**Tidier screen**
-
-The script number and date sit at the top left. The coloured strips
-down the sides are gone, and the function keys have their own row.
-Finish never needs scrolling.
+The bar with Checked by, Save for later and Finish is slimmer, so the
+table has more space.
