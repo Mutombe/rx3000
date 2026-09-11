@@ -43,7 +43,13 @@ interface Props {
 
 const TONE: Record<string, string> = { stop: "error", warn: "warn", info: "" };
 
-export default function CounterMessages({
+/** The messages and their acknowledgements, without the list that shows them.
+ *
+ *  The dispensary needs the count on its bar while the script is built, and the
+ *  list itself only at the moment of finishing. One fetch, held by the page and
+ *  handed to the list, so the two can never disagree about what is outstanding.
+ */
+export function useCounterMessages({
   patientId,
   productIds,
   medicalAidId,
@@ -106,6 +112,17 @@ export default function CounterMessages({
       setBusy(null);
     }
   }
+
+  return { data, outstanding, acknowledge, busy, acked, error };
+}
+
+export type CounterMessagesState = ReturnType<typeof useCounterMessages>;
+
+/** The list. Given `state`, it shows what the page already holds; without it,
+ *  it fetches for itself as it always did. */
+export default function CounterMessages(props: Props & { state?: CounterMessagesState }) {
+  const own = useCounterMessages(props.state ? { productIds: [] } : props);
+  const { data, outstanding, acknowledge, busy, acked, error } = props.state ?? own;
 
   if (!data || !data.count) return null;
 

@@ -54,7 +54,10 @@ const TONE: Record<string, { cls: string; label: string }> = {
   unknown: { cls: "muted", label: "Nothing claimed yet" },
 };
 
-export default function InsuranceStanding({ patientId, compact = false }: {
+export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen }: {
+  /** "chip": the scheme and its standing on one line, for a lane. */
+  variant?: "block" | "chip";
+  onOpen?: () => void;
   patientId: number | null;
   /** The till has less room than the dispensary, and needs the verdict more
    *  than the workings. */
@@ -82,6 +85,17 @@ export default function InsuranceStanding({ patientId, compact = false }: {
   const tone = TONE[data.verdict] ?? TONE.unknown;
   const Glyph = data.verdict === "paying" ? ShieldCheck
     : data.verdict === "cash" || data.verdict === "unknown" ? Info : ShieldWarning;
+
+  if (variant === "chip") {
+    return (
+      <button type="button" className={`ctx-chip ins-chip ins-${tone.cls}`}
+              onClick={onOpen} title={data.why}>
+        <Glyph size={13} weight="fill" />
+        {data.scheme?.scheme ?? "Medical aid"} · {tone.label}
+        {!data.benefit.known && <span className="ctx-chip-sub">&nbsp;· balance unknown</span>}
+      </button>
+    );
+  }
 
   return (
     <div className={`ins ins-${tone.cls}`}>

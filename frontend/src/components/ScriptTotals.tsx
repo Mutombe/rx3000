@@ -63,16 +63,61 @@ export function useScriptPricing(
   return data;
 }
 
-export default function ScriptTotals({ items, medicalAidId }: {
+export default function ScriptTotals({ items, medicalAidId, data: given, variant = "bar" }: {
   /** What is on the script now. Recomputed as it changes. */
   items: { product_id: number; quantity: number; no_claim?: boolean }[];
   medicalAidId?: number | null;
+  /** The basket already priced by `useScriptPricing`. Given, it is used as it
+   *  is and nothing is fetched a second time. */
+  data?: Reply | null;
+  /** "footer" is one ruled line under a table: the figures, and nothing that
+   *  opens. The rows above it already carry each line's amount and margin. */
+  variant?: "bar" | "footer";
 }) {
   const [open, setOpen] = useState(false);
-  const data = useScriptPricing(items, medicalAidId);
+  const fetched = useScriptPricing(given === undefined ? items : [], medicalAidId);
+  const data = given === undefined ? fetched : given;
 
   if (!data) return null;
   const t = data.totals;
+
+  // The sums of the table, drawn as the table's last row. A total is a fact
+  // about the columns above it, and a total in a card of its own under the
+  // table reads as a separate thing to go and look at.
+  if (variant === "footer") {
+    return (
+      <div className={`st-foot${data.warning ? " st-loss" : ""}`}
+           role="group" aria-label="Script totals">
+        {data.warning && (
+          <span className="st-foot-warn" title={data.warning}>
+            <Warning size={13} weight="fill" /> {data.warning}
+          </span>
+        )}
+        <span className="st-foot-cell"><span>Gross</span><b>{money(t.gross)}</b></span>
+        {t.claim > 0.005 && (
+          <span className="st-foot-cell">
+            <span>{data.scheme || "Scheme"} pays</span><b>{money(t.claim)}</b>
+          </span>
+        )}
+        <span className="st-foot-cell st-lead">
+          <span>{patientOwes(!!data.scheme)}</span><b>{money(t.patient_pays)}</b>
+        </span>
+        {t.levy > 0.005 && (
+          <span className="st-foot-cell"><span>{TERMS.levy}</span><b>{money(t.levy)}</b></span>
+        )}
+        {t.surcharge > 0.005 && (
+          <span className="st-foot-cell">
+            <span>{TERMS.aboveRate}</span><b>{money(t.surcharge)}</b>
+          </span>
+        )}
+        <span className="st-foot-cell"><span>VAT</span><b>{money(t.vat)}</b></span>
+        <span className="st-foot-cell"><span>Cost</span><b>{money(t.cost)}</b></span>
+        <span className={`st-foot-cell${t.profit < 0 ? " is-bad" : ""}`}>
+          <span>Margin</span><b>{money(t.profit)} · {t.profit_percent}%</b>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={`st-bar${data.warning ? " st-loss" : ""}`}>

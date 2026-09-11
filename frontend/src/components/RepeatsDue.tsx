@@ -36,7 +36,10 @@ interface Payload {
   items: DueRepeat[];
 }
 
-export default function RepeatsDue({ patientId, onAdd, alreadyOn }: {
+export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "list", onOpen }: {
+  /** "chip": one line saying how many and what they are worth, for a lane. */
+  variant?: "list" | "chip";
+  onOpen?: () => void;
   patientId: number | null;
   /** Put this repeat on the script being written. */
   onAdd: (repeat: DueRepeat) => void;
@@ -62,6 +65,20 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn }: {
   if (outstanding.length === 0) return null;
 
   const worth = outstanding.reduce((n, r) => n + r.value, 0);
+
+  if (variant === "chip") {
+    return (
+      <button type="button"
+              className={`ctx-chip rd-chip${data.overdue ? " is-overdue" : ""}`}
+              onClick={onOpen}
+              title={`${money(worth)} on the shelf they have not collected`
+                + (data.overdue ? ` · ${data.overdue} already overdue` : "")}>
+        <ArrowClockwise size={13} weight="bold" />
+        {outstanding.length} repeat{outstanding.length === 1 ? "" : "s"} due · {money(worth)}
+        {data.overdue > 0 && <span className="ctx-chip-sub">&nbsp;· {data.overdue} overdue</span>}
+      </button>
+    );
+  }
 
   return (
     <section className={`rd${data.overdue ? " is-overdue" : ""}`}>

@@ -8,11 +8,12 @@ import { useSession } from "../session";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import AiOutput from "../components/AiOutput";
-import CounterMessages from "../components/CounterMessages";
+import CounterMessages, { useCounterMessages } from "../components/CounterMessages";
 import DiagnosisPicker from "../components/DiagnosisPicker";
 import KeyMap, { KeyBar } from "../components/KeyMap";
 import AiPhase from "../components/AiPhase";
-import InteractionPanel from "../components/InteractionPanel";
+import type { Screen } from "../components/InteractionPanel";
+import LineCheckModal, { findingsFor } from "../components/LineCheckModal";
 import { useAiStream } from "../hooks/useAiStream";
 import { useTypewriter } from "../hooks/useTypewriter";
 import LabelSheet from "../components/LabelSheet";
@@ -38,7 +39,8 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
-import { ArrowRight, CaretRight, ClockCounterClockwise, Printer, Warning } from "@phosphor-icons/react";
+import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
+  ShieldCheck, ShieldWarning, Trash, Warning, X } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -53,6 +55,10 @@ import { DRAFT_SCRIPT, TERMS } from "../terms";
 import DriverForm from "../components/DriverForm";
 
 type Route = "prescription" | "controlled" | "otc";
+
+/** The label the server screens a line under — and so the one its findings
+ *  come back under. Built in one place so the two can never drift. */
+const lineName = (p: Product) => `${p.name} ${p.strength || ""}`.trim();
 
 interface DraftItem {
   product: Product;
@@ -194,6 +200,22 @@ export default function Dispense() {
    *  the screen cost the table 200px for fields being looked at on one row in
    *  eight. */
   const [editing, setEditing] = useState<number | null>(null);
+  /** The Finish dialog, open at a section, or null.
+   *
+   *  Everything that is only needed at the end of a script lives in it: the
+   *  warnings that must be settled, the compliance record, how it is paid, who
+   *  checked it, and the button. On the page they were stacked under the table
+   *  and pushed each other — and the table — off the bottom of the screen. */
+  const [finishing, setFinishing] = useState<string | null>(null);
+  /** The line whose check is open, by product id. */
+  const [checking, setChecking] = useState<number | null>(null);
+  /** The patient context a lane chip opened: the repeats due, or the scheme. */
+  const [laneOpen, setLaneOpen] = useState<"repeats" | "insurance" | null>(null);
+  /** Each line's deliberate check, stamped with the basket it answered for. A
+   *  result for a basket that has since changed is shown as not yet checked,
+   *  never as the old answer. */
+  const [lineChecks, setLineChecks] = useState<Record<number, {
+    sig: string; status: "loading" | "ready"; screen?: Screen; error?: string }>>({});
   const [lastRxId, setLastRxId] = useState<number | null>(null);
   const [printing, setPrinting] = useState(false);
   /* The routes this person may use. Filtered only once the server has said
@@ -468,6 +490,7 @@ export default function Dispense() {
   function newScript() {
     setItems([]); setPatient(null); setPatientQ(""); setDoneSale(null);
     setFromRx(null); setQuoting(false); aiCheck.reset();
+    setFinishing(null); setChecking(null); setEditing(null); setLineChecks({}); setLaneOpen(null);
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -552,6 +575,118 @@ export default function Dispense() {
     })),
   );
 
+  // The dose check holds the dispense on a dose over a maximum. The panel used
+  // to tell the page so; with the panel gone `ixMajor` stayed at 0 whatever the
+  // directions said, and the gate was open without anybody deciding it should be.
+  useEffect(() => { setIxMajor(doseScreen.major); }, [doseScreen.major]);
+
+  /** Counter messages, fetched once: counted on the bar, listed in Finish. */
+  const counter = useCounterMessages({
+    patientId: patient?.id,
+    productIds: items.map((i) => i.product.id),
+    medicalAidId: patient?.medical_aid_id,
+    prescriptionId: fromRx?.id ?? null,
+    onBlockingChange: setBlocked,
+  });
+
+  /** The question a line check answers: this patient, these lines, these
+   *  directions. Any change makes every previous answer stale. */
+  const basketSig = `${patient?.id ?? 0}|` + items
+    .map((i) => `${i.product.id}=${i.quantity}=${i.dosage_instructions}`).join("|");
+
+  /** Check one line: dose, and interactions with the rest and with history. */
+  function runLineCheck(it: DraftItem) {
+    const id = it.product.id;
+    const sig = basketSig;
+    setLineChecks((m) => ({ ...m, [id]: { sig, status: "loading" } }));
+    api.post<Screen>("/api/dispensing/interaction-screen", {
+      patient_id: patient?.id ?? null,
+      product_ids: items.map((i) => i.product.id),
+      lines: items.map((i) => ({
+        product_id: i.product.id, instructions: i.dosage_instructions, quantity: i.quantity,
+      })),
+    })
+      // Dropped if this line was checked again meanwhile: an answer arriving
+      // late must not overwrite the answer to the newer question.
+      .then((screen) => setLineChecks((m) => (m[id]?.sig === sig
+        ? { ...m, [id]: { sig, status: "ready", screen } } : m)))
+      .catch((e) => setLineChecks((m) => (m[id]?.sig === sig
+        ? { ...m, [id]: { sig, status: "ready", error: errorText(e) } } : m)));
+  }
+
+  function lineState(it: DraftItem) {
+    const c = lineChecks[it.product.id];
+    if (!c || c.sig !== basketSig) return "idle" as const;
+    if (c.status === "loading") return "loading" as const;
+    if (c.error) return "error" as const;
+    const f = findingsFor(c.screen, lineName(it.product));
+    return f.major ? "major" as const : f.any ? "minor" as const : "clean" as const;
+  }
+
+  /** The shield: first press checks, a press on a finished check opens it. */
+  function onCheckIcon(it: DraftItem) {
+    const c = lineChecks[it.product.id];
+    if (c && c.sig === basketSig) {
+      if (c.status === "ready") setChecking(it.product.id);
+      return;
+    }
+    runLineCheck(it);
+  }
+
+  function removeLine(idx: number) {
+    const id = items[idx]?.product.id;
+    setItems(items.filter((_, i) => i !== idx));
+    setEditing(null); setChecking(null);
+    setOpenItem((o) => Math.max(0, Math.min(o, items.length - 2)));
+    if (id !== undefined) {
+      setLineChecks((m) => { const next = { ...m }; delete next[id]; return next; });
+    }
+  }
+
+  function openFinish(section?: string) {
+    if (!patient || items.length === 0) return;
+    setEditing(null); setChecking(null);
+    setFinishing(section ?? "top");
+  }
+
+  /** Go to whatever `blockedBecause` names — the field if it is on the page,
+   *  the section of Finish if it lives there. Same order of conditions. */
+  function takeMeThere() {
+    const focus = (sel: string) => window.setTimeout(
+      () => document.querySelector<HTMLElement>(sel)?.focus(), 30);
+    if (!patient) return focus("[data-hk='patient']");
+    if (doctorId === "") return focus("#step-patient .disp-doctor button, #step-patient .disp-doctor input");
+    if (items.length === 0) return focus("[data-hk='product']");
+    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
+      return openFinish("finish-compliance");
+    if (blocked) return openFinish("finish-warnings");
+    if (needsInitials && !initials.trim()) return focus("#disp-initials");
+    return openFinish(ixMajor > 0 && !ixAcknowledged ? "finish-warnings" : undefined);
+  }
+
+  // Finish closes itself when the dispensing lands: the outcome is on the bar.
+  useEffect(() => { if (doneSale) setFinishing(null); }, [doneSale]);
+
+  // Opened at a section, it goes there and puts the cursor in it. Opened plain,
+  // the cursor lands on whatever is still missing, else on Dispense — so the
+  // common case is F12, then F12 or Enter.
+  useEffect(() => {
+    if (finishing === null) return;
+    const t = window.setTimeout(() => {
+      const box = document.querySelector<HTMLElement>(".disp-finish");
+      if (!box) return;
+      const section = finishing === "top" ? null : document.getElementById(finishing);
+      section?.scrollIntoView({ block: "start" });
+      const initialsBox = box.querySelector<HTMLInputElement>("#finish-initials");
+      const target = section?.querySelector<HTMLElement>("input, button")
+        ?? (initialsBox && !initialsBox.value ? initialsBox : null)
+        ?? box.querySelector<HTMLElement>(".printmenu-main:not([disabled])")
+        ?? box.querySelector<HTMLElement>(".finish-foot button");
+      target?.focus();
+    }, 40);
+    return () => window.clearTimeout(t);
+  }, [finishing]);
+
   const hotkeys: Hotkey[] = [
     // Mix — a preparation made up here rather than dispensed from a box.
     { combo: "F1", label: "Mix", group: "Capture",
@@ -560,9 +695,17 @@ export default function Dispense() {
       run: () => document.querySelector<HTMLInputElement>("[data-hk='patient']")?.focus() },
     { combo: "F3", label: "Add medicine", group: "Capture",
       run: () => document.querySelector<HTMLInputElement>("[data-hk='product']")?.focus() },
+    // Opens the line being worked on with the cursor in its diagnosis. It used
+    // to focus `[data-hk='dx']`, which nothing on the page carried, so F4 did
+    // nothing at all.
     { combo: "F4", label: "Diagnosis", group: "Capture",
       disabled: items.length === 0,
-      run: () => document.querySelector<HTMLInputElement>("[data-hk='dx']")?.focus() },
+      run: () => {
+        const at = openItem < items.length ? openItem : 0;
+        setChecking(null); setFinishing(null); setEditing(at);
+        window.setTimeout(() => document
+          .querySelector<HTMLElement>("#ed-dx input, #ed-dx button")?.focus(), 60);
+      } },
     // WayBill — who is driving this one, where to, and what the fee is. It is a
     // section of this script rather than another screen, so the key opens it
     // and puts the cursor in it.
@@ -573,11 +716,7 @@ export default function Dispense() {
         // with a driver, so the key sets that rather than revealing a panel
         // whose condition is somewhere else.
         setPayHow("delivery");
-        window.setTimeout(() => {
-          const el = document.getElementById("step-delivery");
-          el?.scrollIntoView({ block: "center", behavior: "smooth" });
-          el?.querySelector<HTMLElement>("input, select, button")?.focus();
-        }, 60);
+        openFinish("finish-pay");
       } },
     // Auth — the scheme's authorisation number, without which the claim is
     // raised and refused.
@@ -587,11 +726,30 @@ export default function Dispense() {
       run: () => setWorklistPanel("due") },
     { combo: "F9", label: "Hist", group: "Lists",
       run: () => navigate("/dispensing-history") },
+    // Finish opens the dialog; pressed again inside it, it dispenses. Two presses
+    // of one key for the common case, and between them is where how it is paid
+    // and who checked it are settled.
     { combo: "F12", label: "Finish", group: "Finish",
-      disabled: busy || !patient || items.length === 0 || !complianceReadyRef(),
-      run: () => { if (!busy && patient && items.length && complianceReadyRef()) createAndDispense(); } },
-    { combo: "Escape", label: "Clear the script", group: "Finish",
-      disabled: items.length === 0, run: () => setItems([]) },
+      disabled: busy || !patient || items.length === 0,
+      run: () => {
+        if (busy || !patient || !items.length) return;
+        if (finishing === null) { openFinish(); return; }
+        if (complianceReadyRef() && !blockedBecause()) createAndDispense();
+      } },
+    // Closes the dialog that is open before it touches the script. Escape is what
+    // everybody presses to close a dialog, and bound only to "clear" it would
+    // empty the script behind the dialog being closed.
+    { combo: "Escape", label: "Close, or clear the script", group: "Finish",
+      disabled: items.length === 0 && finishing === null && editing === null
+        && checking === null && laneOpen === null,
+      run: () => {
+        if (laneOpen !== null) return setLaneOpen(null);
+        if (finishing !== null) return setFinishing(null);
+        if (checking !== null) return setChecking(null);
+        if (editing !== null) return setEditing(null);
+        if (newPatient || altering || showKeys) return;
+        setItems([]);
+      } },
     { combo: "?", label: "Show this key map", group: "Finish", run: () => setShowKeys(true) },
   ];
   useHotkeys(hotkeys);
@@ -616,13 +774,17 @@ export default function Dispense() {
    */
   const blockedBecause = (): string => {
     if (!patient) return "Find the patient first.";
+    // The server refuses without one and this never said so: the button went
+    // grey with no sentence beside it.
+    if (doctorId === "") return "Choose the prescriber.";
     if (items.length === 0) return "Add at least one medicine to the script.";
     if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
-      return "Complete every item in the compliance record before this controlled substance can be dispensed.";
+      return "Complete the compliance record for this controlled substance.";
+    if (blocked) return "Acknowledge the blocking warning first.";
     if (needsInitials && !initials.trim())
-      return "Enter the checking pharmacist's initials before dispensing.";
+      return "Enter the checking pharmacist's initials.";
     if (ixMajor > 0 && !ixAcknowledged)
-      return "Acknowledge the interaction finding above before dispensing.";
+      return "A dose is over the maximum and has to be acknowledged.";
     return "";
   };
 
@@ -1804,17 +1966,23 @@ export default function Dispense() {
                 </div>
               )}
               {patient ? (
-                <div className="disp-patient-picked"
-                     style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
+                <div className="disp-patient-picked">
+                  <span className="dpp-label">Patient</span>
+                  <span className="dpp-who"
+                        title={`ID ${patient.id_number || "not on file"} · `
+                          + (patient.medical_aid
+                            ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
+                            : "Private patient")}>
                     <b>{patient.first_name} {patient.last_name}</b>
-                    {patient.allergies && <span className="badge danger" style={{ marginLeft: 8 }}><Warning size={11} weight="fill" /> {patient.allergies}</span>}
-                    <div className="muted">
-                      ID {patient.id_number || "not on file"} ·{" "}
-                      {patient.medical_aid ? `${patient.medical_aid.name} #${patient.medical_aid_number}` : "Private patient"}
-                    </div>
-                  </div>
-                  <button className="ghost small" onClick={() => setPatient(null)}>Change</button>
+                    <span className="muted">
+                      {" "}· ID {patient.id_number || "not on file"} ·{" "}
+                      {patient.medical_aid ? patient.medical_aid.name : "Private"}
+                    </span>
+                  </span>
+                  <button type="button" className="dpp-change" onClick={() => setPatient(null)}
+                          title="Change patient" aria-label="Change patient">
+                    <X size={14} weight="bold" />
+                  </button>
                 </div>
               ) : (
                 <>
@@ -1822,9 +1990,9 @@ export default function Dispense() {
                       started 170px to the left of the prescriber directly
                       below it, and two adjacent rows with two different left
                       edges is what the whole band was being judged on. */}
-                  <div className="field">
+                  <div className="field disp-patient-field">
                     <label htmlFor="disp-patient">Patient</label>
-                    <input id="disp-patient" type="search"
+                    <input id="disp-patient" data-hk="patient" type="search"
                       placeholder="Name, ID or membership number…" value={patientQ}
                       onChange={(e) => setPatientQ(e.target.value)} />
                   </div>
@@ -1866,18 +2034,38 @@ export default function Dispense() {
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
-              {patient && <InsuranceStanding patientId={patient.id} />}
+              {/* The patient's context, one slim line under the lane.
 
-              {/* What else of theirs is waiting. Every other repeat screen in
-                  this system reports a loss after it has happened; this is the
-                  only place one can still be prevented, and it costs nothing —
-                  the patient is here and the script already exists. */}
-              {patient && !quoting && (
-                <RepeatsDue
-                  patientId={patient.id}
-                  alreadyOn={items.map((i) => i.product.id)}
-                  onAdd={addDueRepeat}
-                />
+                  Allergies, the scheme's standing and the repeats waiting are
+                  all about the person just picked, and all wanted at that
+                  moment — so they sit directly under them. As panels they were
+                  350px and pushed the table down to two rows; as chips they say
+                  the number, and open the whole list when somebody wants it. */}
+              {patient && (
+                <div className="disp-context">
+                  {patient.allergies && (
+                    <span className="ctx-chip is-allergy" title={`Allergies: ${patient.allergies}`}>
+                      <Warning size={13} weight="fill" />
+                      {(() => {
+                        const all = patient.allergies;
+                        if (all.length <= 40) return `Allergic: ${all}`;
+                        const list = all.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
+                        return `Allergic: ${list[0]}${list.length > 1 ? ` +${list.length - 1} more` : ""}`;
+                      })()}
+                    </span>
+                  )}
+                  <InsuranceStanding patientId={patient.id} variant="chip"
+                                     onOpen={() => setLaneOpen("insurance")} />
+                  {!quoting && (
+                    <RepeatsDue
+                      patientId={patient.id}
+                      alreadyOn={items.map((i) => i.product.id)}
+                      onAdd={addDueRepeat}
+                      variant="chip"
+                      onOpen={() => setLaneOpen("repeats")}
+                    />
+                  )}
+                </div>
               )}
 
               {/* The two halves of one question — who is this for, and who
@@ -1931,93 +2119,73 @@ export default function Dispense() {
 
                   It names the line it is editing, because it is no longer
                   attached to one. */}
+              {/* The line editor. Everything about one line in one place, laid
+                  out in the order it is settled: how much, what the label says,
+                  what the claim is raised on, what is written in the book. Beside
+                  it, the facts the decisions rest on — stock, price, margin, the
+                  dose finding, what it could be swapped for. */}
               {editing !== null && items[editing] && (() => {
                 const it = items[editing];
                 const idx = editing;
                 const pol = policyFor(it.product.schedule || 0);
                 const maxRepeats = pol && pol.max_repeats >= 0 ? pol.max_repeats : 6;
+                const each = perUnit(it.product);
+                const perPack = it.product.units_per_pack ?? 1;
+                const priced = marginFor(it.product.id);
+                const dose = doseScreen.byProduct.get(it.product.id);
+                const onHand = Number(it.product.quantity_on_hand ?? 0);
+                const go = (to: number) => { setOpenItem(to); setEditing(to); };
                 return (
                   <div className="modal-backdrop" role="dialog" aria-modal="true"
-                       onClick={(e) => {
-                         if (e.target === e.currentTarget) setEditing(null);
-                       }}>
+                       aria-label={`Edit ${lineName(it.product)}`}
+                       onClick={(e) => { if (e.target === e.currentTarget) setEditing(null); }}>
                     <div className="modal disp-edit">
                       <h2>
                         {it.product.name} {it.product.strength}
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
-                          S{it.product.schedule}{pol?.register_entry ? " \u00b7 register" : ""}
+                          S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
-                        <span className="disp-entry-of">
-                          line {editing + 1} of {items.length}
-                        </span>
+                        <span className="disp-entry-of">line {idx + 1} of {items.length}</span>
                       </h2>
-
-                    {/* Reference for the selected line, folded shut.
-
-                        Substitutions and counselling are things a pharmacist
-                        reaches for, not things they type into — and expanded
-                        they were 190 of the strip's 290 pixels, which left the
-                        grid with none and pushed every line off the screen.
-                        The fields the strip exists for come first; these are one
-                        line away.
-
-                        `<details>` rather than state, because the browser
-                        already does this and remembers nothing between lines,
-                        which is the right behaviour: it should be shut again on
-                        the next medicine. */}
-                    <details className="disp-ref">
-                      <summary>Substitutions &amp; counselling</summary>
-                      <Variants productId={it.product.id} />
-                      <CounsellingPoints productId={it.product.id}
-                        name={`${it.product.name} ${it.product.strength ?? ""}`.trim()}
-                        compact />
-                    </details>
-                    <div className="form-row">
-                      {/* On the twelve-column grid rather than a pixel width.
-                          `maxWidth: 90` made the quantity a stub beside a
-                          directions field that still spanned half the row, so
-                          the two never lined up with anything below them. */}
-                      <div className="field span-2">
-                        <label>Qty</label>
-                        <input type="number" min={1} value={it.quantity}
-                          onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
-                      </div>
-                      <div className="field span-6">
-                        <label>Directions</label>
-                        {/* Shorthand in, sentence out. `1 t tds pc` becomes the
-                            line the patient reads on the label. */}
-                        <SigInput
-                          value={it.dosage_instructions}
-                          onChange={(next) => updateItem(idx, { dosage_instructions: next })}
-                        />
-                      </div>
-                    {/* Beside the directions rather than below them. It had a
-                        row of its own, at full width, to hold four characters —
-                        46 vertical pixels per line on the script. */}
-                    <div className="field span-4">
-                      {/* One word. The badge used to sit inside this label,
-                          which put "Diagnosis (ICD-10)default — change it if
-                          the script gives one" in a 5.5rem column and wrapped
-                          it over three lines. A label names the field; the
-                          state of the field goes beside the field. */}
-                      <label>Diagnosis</label>
-                      <DiagnosisPicker autoFocus={false} value={it.icd10_code}
-                        onChange={(code) => updateItem(idx, { icd10_code: code })} />
-                      {/* Three states, and they are different things. Empty is
-                          the only one that stops a claim. The default is a real
-                          code that will be accepted and is still nobody's
-                          clinical judgement, so it says so quietly rather than
-                          as a warning — a badge that fires on the normal case
-                          stops being read, which is the reason the empty one
-                          was being ignored. */}
-                      {!it.icd10_code
-                        ? <span className="hint warn">Required to claim</span>
-                        : it.icd10_code === DEFAULT_DIAGNOSIS
-                          ? <span className="hint">Default — change it if the script gives one</span>
-                          : null}
-                    </div>
-                    </div>
-                    {(() => {
+                      <div className="ed-body">
+                        <div className="ed-main">
+                          <section className="ed-sec">
+                            <h4>Supply</h4>
+                            <div className="field">
+                              <label htmlFor="ed-qty">Quantity</label>
+                              <input id="ed-qty" type="number" min={1} value={it.quantity}
+                                onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })} />
+                              <span className="hint">
+                                units{perPack > 1 ? ` · ${perPack} to a pack` : ""} · {money(each)} each ·{" "}
+                                <b>{money(each * (it.quantity || 0))}</b>
+                              </span>
+                            </div>
+                          </section>
+                          <section className="ed-sec">
+                            <h4>Label</h4>
+                            <div className="field">
+                              <label>Directions</label>
+                              {/* Shorthand in, sentence out. `1 t tds pc` becomes the
+                                  line the patient reads on the label. */}
+                              <SigInput
+                                value={it.dosage_instructions}
+                                onChange={(next) => updateItem(idx, { dosage_instructions: next })}
+                              />
+                            </div>
+                          </section>
+                          <section className="ed-sec">
+                            <h4>Claim</h4>
+                            <div className="field" id="ed-dx">
+                              <label>Diagnosis</label>
+                              <DiagnosisPicker autoFocus={false} value={it.icd10_code}
+                                onChange={(code) => updateItem(idx, { icd10_code: code })} />
+                              {!it.icd10_code
+                                ? <span className="hint warn">Required to claim</span>
+                                : it.icd10_code === DEFAULT_DIAGNOSIS
+                                  ? <span className="hint">Default — change it if the script gives one</span>
+                                  : null}
+                            </div>
+                            {(() => {
                       const cov = coverageFor(it.product.id);
                       if (!cov || cov.status === "unknown") return null;
                       const tone = cov.status === "covered" ? "ok"
@@ -2049,64 +2217,122 @@ export default function Dispense() {
                         </div>
                       );
                     })()}
-                    <div className="form-row">
-                      <div className="field span-3">
-                        <label>Repeats</label>
-                        <input type="number" min={0} max={maxRepeats} value={it.repeats_allowed}
-                          disabled={maxRepeats === 0}
-                          onChange={(e) => updateItem(idx, {
-                            repeats_allowed: Math.min(maxRepeats, Math.max(0, Number(e.target.value))),
-                          })} />
-                        {/* What is being written into the book, priced.
-                            Setting "3 repeats" is a commercial decision as
-                            well as a clinical one — it is future business the
-                            shop is agreeing to, and the number was invisible
-                            at the moment it was chosen. */}
-                        {it.repeats_allowed > 0 && (
-                          <span className="hint">
-                            <RepeatValue
-                              value={perUnit(it.product) * (it.quantity ?? 0)}
-                              remaining={perUnit(it.product)
-                                * (it.quantity ?? 0) * it.repeats_allowed} />
-                            {" "}each, and to come on this script
-                          </span>
-                        )}
+                          </section>
+                          <section className="ed-sec">
+                            <h4>Repeats</h4>
+                            <div className="field">
+                              <label htmlFor="ed-repeats">Repeats</label>
+                              <input id="ed-repeats" type="number" min={0} max={maxRepeats}
+                                value={it.repeats_allowed} disabled={maxRepeats === 0}
+                                onChange={(e) => updateItem(idx, {
+                                  repeats_allowed: Math.min(maxRepeats, Math.max(0, Number(e.target.value))),
+                                })} />
+                              {/* Future business the shop is agreeing to, priced at
+                                  the moment it is agreed. */}
+                              {it.repeats_allowed > 0 && (
+                                <span className="hint">
+                                  <RepeatValue
+                                    value={perUnit(it.product) * (it.quantity ?? 0)}
+                                    remaining={perUnit(it.product)
+                                      * (it.quantity ?? 0) * it.repeats_allowed} />
+                                  {" "}each, and to come on this script
+                                </span>
+                              )}
+                            </div>
+                            <div className="field">
+                              <label htmlFor="ed-duration">Duration</label>
+                              <input id="ed-duration" type="number" min={1} value={it.repeat_interval_days}
+                                onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
+                              <span className="hint">days this supply lasts</span>
+                            </div>
+                            <div className="field">
+                              <label>Auto-refill</label>
+                              <Select
+                                value={String(it.auto_refill ? "yes" : "no")}
+                                onChange={(v) => updateItem(idx, { auto_refill: v === "yes" })}
+                                options={[{ value: "no", label: "No, remind patient" },
+                                          { value: "yes", label: "Yes, prepare automatically" }]}
+                                disabled={maxRepeats === 0}
+                              />
+                            </div>
+                            {maxRepeats === 0 && (
+                              <p className="chk-coverage">
+                                Schedule {it.product.schedule}: no repeats permitted. A fresh
+                                script is required each time.
+                              </p>
+                            )}
+                          </section>
+                        </div>
+                        <aside className="ed-rail">
+                          <section className="ed-sec">
+                            <h4>This line</h4>
+                            <dl className="ed-facts">
+                              <dt>In stock</dt>
+                              <dd className={onHand < (it.quantity || 0) ? "is-bad" : ""}>{onHand}</dd>
+                              <dt>Each</dt><dd>{money(each)}</dd>
+                              <dt>Line</dt><dd>{money(each * (it.quantity || 0))}</dd>
+                              {priced && (
+                                <>
+                                  <dt>Cost</dt><dd>{money(priced.cost)}</dd>
+                                  {priced.claim > 0.005 && (
+                                    <><dt>Claimed</dt><dd>{money(priced.claim)}</dd></>
+                                  )}
+                                  <dt>Margin</dt>
+                                  <dd><MarginTag percent={priced.margin_percent} compact /></dd>
+                                </>
+                              )}
+                            </dl>
+                            {onHand < (it.quantity || 0) && (
+                              <p className="ed-dose is-major">
+                                <Warning size={14} weight="fill" /> Only {onHand} in stock.
+                              </p>
+                            )}
+                          </section>
+                          <section className="ed-sec">
+                            <h4>Safety</h4>
+                            {dose ? (
+                              <p className={`ed-dose is-${dose.severity === "major" ? "major" : "minor"}`}>
+                                <Warning size={14} weight="fill" /> {dose.detail}
+                              </p>
+                            ) : (
+                              <p className="chk-coverage">No dose finding on the directions as written.</p>
+                            )}
+                            <button type="button" className="btn secondary small"
+                                    onClick={() => { setEditing(null); runLineCheck(it); setChecking(it.product.id); }}>
+                              <ShieldCheck size={14} /> Check this line
+                            </button>
+                          </section>
+                          <details className="ed-sec disp-ref">
+                            <summary>Substitutions</summary>
+                            <Variants productId={it.product.id} />
+                          </details>
+                          <details className="ed-sec disp-ref">
+                            <summary>Counselling</summary>
+                            <CounsellingPoints productId={it.product.id}
+                              name={lineName(it.product)} compact />
+                          </details>
+                        </aside>
                       </div>
-                      <div className="field span-2">
-                        {/* "Duration", because that is what a prescriber
-                            writes and what the number means to the person
-                            typing it: how long this supply lasts. "Interval"
-                            described the gap between repeats, which is the
-                            same figure seen from the software's side rather
-                            than from the script's. */}
-                        <label>Duration</label>
-                        <input type="number" min={1} value={it.repeat_interval_days}
-                          onChange={(e) => updateItem(idx, { repeat_interval_days: Number(e.target.value) })} />
+                      {/* No Cancel: the dialog edits the line rather than holding a
+                          copy of it, so there is nothing to discard. */}
+                      <div className="disp-edit-actions">
+                        <button type="button" className="btn secondary" disabled={idx === 0}
+                                onClick={() => go(idx - 1)}>
+                          ‹ Previous line
+                        </button>
+                        <button type="button" className="btn secondary"
+                                disabled={idx >= items.length - 1} onClick={() => go(idx + 1)}>
+                          Next line ›
+                        </button>
+                        <span className="finish-spacer" />
+                        <button type="button" className="btn secondary ed-delete"
+                                onClick={() => removeLine(idx)}>
+                          <Trash size={14} /> Delete line
+                        </button>
+                        <button type="button" className="btn primary" onClick={() => setEditing(null)}>
+                          Done
+                        </button>
                       </div>
-                      <div className="field span-4">
-                        <label>Auto-refill</label>
-                        <Select
-                          value={String(it.auto_refill ? "yes" : "no")}
-                          onChange={(__value) => updateItem(idx, { auto_refill: __value === "yes" })}
-                          options={[{ value: "no", label: "No, remind patient" }, { value: "yes", label: "Yes, prepare automatically" }]} disabled={maxRepeats === 0}
-                        />
-                      </div>
-                    </div>
-                    {maxRepeats === 0 && (
-                      <div className="muted small">
-                        Schedule {it.product.schedule}: no repeats permitted. A fresh
-                        script is required each time.
-                      </div>
-                    )}
-                    {/* One way out, and it is not "cancel". Everything typed
-                        here is already on the line — the dialog edits the
-                        script, it does not hold a copy of it — so there is
-                        nothing to discard and offering to would be a lie. */}
-                    <div className="disp-edit-actions">
-                      <button className="btn primary" onClick={() => setEditing(null)}>
-                        Done
-                      </button>
-                    </div>
                     </div>
                   </div>
                 );
@@ -2128,14 +2354,12 @@ export default function Dispense() {
                   is — which is what somebody needs on a new script and why the
                   system we are compared to draws its empty rows. */}
               <div className="rx-item-head rx-item-cols" aria-hidden="true">
-                <span />
                 <span>Medicine</span>
                 <span className="rx-item-qty">Qty</span>
                 <span>Directions</span>
                 <span className="rx-item-money">Amount</span>
-                <span />
-                <span className="rx-item-act">Edit</span>
-                <span className="rx-item-act">Delete</span>
+                <span className="rx-item-margin">Margin</span>
+                <span className="rx-item-actions">Action</span>
               </div>
               {items.map((it, idx) => {
                 const pol = policyFor(it.product.schedule || 0);
@@ -2160,7 +2384,6 @@ export default function Dispense() {
                              e.preventDefault(); setOpenItem(idx);
                            }
                          }}>
-                      <CaretRight size={12} weight="bold" className="rx-item-caret" />
                       <span className="rx-item-name">
                         {/* The dose finding, on the row it is about.
                             Costs nothing until there is something to say, which
@@ -2171,6 +2394,8 @@ export default function Dispense() {
                           return (
                             <span
                               className={`rx-item-warn is-${d.severity === "major" ? "major" : "minor"}`}
+                              role="button" tabIndex={-1}
+                              onClick={(e) => { e.stopPropagation(); runLineCheck(it); setChecking(it.product.id); }}
                               title={`${d.detail}
 
 ${d.action}`}
@@ -2194,25 +2419,55 @@ ${d.action}`}
                       <span className="rx-item-money">
                         {money(each * (it.quantity || 0))}
                       </span>
-                      {(() => {
-                        const l = marginFor(it.product.id);
-                        return l ? <MarginTag percent={l.margin_percent} compact /> : null;
-                      })()}
-                      {/* The row was clickable and said so nowhere. A control
-                          that names itself is used; one you have to discover is
-                          used by whoever discovered it. */}
-                      <button type="button" className="rx-item-act"
-                              onClick={(e) => { e.stopPropagation();
-                                setOpenItem(idx); setEditing(idx); }}>
-                        Edit
-                      </button>
-                      <button type="button" className="rx-item-act is-remove"
-                              title="Take this line off the script"
-                              onClick={(e) => { e.stopPropagation();
-                                setItems(items.filter((_, i) => i !== idx));
-                                setEditing(null); }}>
-                        Delete
-                      </button>
+                      {/* Always a cell, with or without a figure in it. A column
+                          that is only sometimes there moves every column after it. */}
+                      <span className="rx-item-margin">
+                        {(() => {
+                          const l = marginFor(it.product.id);
+                          return l ? <MarginTag percent={l.margin_percent} compact /> : null;
+                        })()}
+                      </span>
+                      {/* Action. Icons, because a table that does this much on
+                          every line cannot spell each thing out on every line —
+                          and each names itself on hover and to a screen reader.
+
+                          The shield checks the line: pressed once it runs, and
+                          its colour is the answer; pressed on an answer it
+                          opens the detail. */}
+                      <span className="rx-item-actions">
+                        {(() => {
+                          const st = lineState(it);
+                          const label = {
+                            idle: "Check this line — dose and interactions",
+                            loading: "Checking…",
+                            clean: "Checked: nothing found. Open the detail",
+                            minor: "Checked: something to look at. Open the detail",
+                            major: "Checked: a major finding. Open the detail",
+                            error: "The check could not run. Open to see why",
+                          }[st];
+                          return (
+                            <button type="button" className={`rx-icon chk-${st}`}
+                                    title={label} aria-label={`${label}: ${it.product.name}`}
+                                    aria-busy={st === "loading" || undefined}
+                                    onClick={(e) => { e.stopPropagation(); onCheckIcon(it); }}>
+                              {st === "loading" ? <CircleNotch size={16} className="spin" />
+                                : st === "idle" ? <ShieldCheck size={16} />
+                                : st === "clean" ? <ShieldCheck size={16} weight="fill" />
+                                : <ShieldWarning size={16} weight="fill" />}
+                            </button>
+                          );
+                        })()}
+                        <button type="button" className="rx-icon"
+                                title="Edit this line" aria-label={`Edit ${it.product.name}`}
+                                onClick={(e) => { e.stopPropagation(); setOpenItem(idx); setEditing(idx); }}>
+                          <PencilSimple size={16} />
+                        </button>
+                        <button type="button" className="rx-icon is-remove"
+                                title="Delete this line" aria-label={`Delete ${it.product.name}`}
+                                onClick={(e) => { e.stopPropagation(); removeLine(idx); }}>
+                          <Trash size={16} />
+                        </button>
+                      </span>
                     </div>
                   </div>
                 );
@@ -2221,79 +2476,203 @@ ${d.action}`}
                   drawn, not left as a void with an apology in the middle of it:
                   a table that stops where the data stops does not show anybody
                   where the next line goes. */}
-              {Array.from({ length: Math.max(0, 8 - items.length) }).map((_, i) => (
+              {/* The waiting rows fill what is left of the frame and are clipped
+                  at its floor. A fixed eight overflowed as soon as the patient's
+                  details made the lane above taller, and an empty table grew a
+                  scrollbar for rows with nothing in them. */}
+              <div className="rx-waiting" aria-hidden="true">
+              {Array.from({ length: 24 }).map((_, i) => (
                 <div key={`waiting-${i}`} className="rx-item rx-item-waiting"
                      aria-hidden="true">
                   <div className="rx-item-head">
+                    <span className="rx-item-name">
+                      {i === 0 && items.length === 0 && (
+                        <em className="rx-item-hint">Search a medicine above, or press F3</em>
+                      )}
+                    </span>
                     <span /><span /><span /><span /><span />
-                    <span /><span /><span />
                   </div>
                 </div>
               ))}
-              {items.length === 0 && (
-                <p className="disp-empty-note">
-                  Search above for what is being dispensed. Each line carries its
-                  own directions, diagnosis and repeats.
-                </p>
+              {/* The rules run to the floor of the table. Without this the
+                  columns stopped at the eighth row and the rest of the frame was
+                  an empty box, which reads as the table ending early. */}
+              <div className="rx-item rx-item-waiting rx-item-fill" aria-hidden="true">
+                <div className="rx-item-head">
+                  <span /><span /><span /><span /><span /><span />
+                </div>
+              </div>
+              </div>
+              {/* The table's own last row: what the columns above add up to.
+                  Bound to the lines — delete the last one and it goes with it. */}
+              {items.length > 0 && pricing && (
+                <ScriptTotals variant="footer" data={pricing} items={pricedItems}
+                              medicalAidId={patient?.medical_aid_id ?? null} />
               )}
               </div>
-              {/* The dozen figures the incumbent prints along the bottom of a
-                  script, read before it is finished rather than in a report
-                  next month — by which time the medicine has gone. */}
-              {/* Given the same array the lines are priced from, so the basket
-                  is priced once and the bar can never disagree with a badge on
-                  a line above it. */}
-              {items.length > 0 && (
-                <ScriptTotals
-                  items={pricedItems}
-                  medicalAidId={patient?.medical_aid_id ?? null}
-                />
-              )}
             </div>
 
-            {route === "controlled" && items.length > 0 && (
-              <div className="card sec sec-check" id="step-compliance">
-                <h3>3 · Compliance record {activePolicy && <span className="badge danger">{activePolicy.label}</span>}</h3>
-                <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
-                <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
-                <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
-                <div className="field">
-                  <label>ID sighted</label>
-                  <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="As per identity document" />
-                </div>
-                <div className="field">
-                  {/* Two words. What it means and whether it is compulsory
-                      are an explanation, and an explanation in a label column
-                      wraps to three ragged lines and drags the row with it. */}
-                  <label>Checked by</label>
-                  <input
-                    value={initials} maxLength={8}
-                    onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                    placeholder={needsInitials
-                      ? "Pharmacist initials — required for this schedule"
-                      : "Pharmacist initials, e.g. TM"}
-                  />
-                </div>
-                <div className="field">
-                  <label>Compliance notes</label>
-                  <textarea rows={2} value={complianceNotes} onChange={(e) => setComplianceNotes(e.target.value)}
-                    placeholder="e.g. Script filed in the S6 register folder, ref 2026/044" />
-                </div>
+            {/* ONE ROW UNDER THE TABLE.
+
+                On the left, the one thing the dispenser needs to know next — what
+                is missing, or that it is ready, or what just happened — and how
+                many warnings are waiting. On the right, the only three things to
+                do from here: who checked it, put it down, or finish it.
+
+                Everything that is only needed at the END of a script — settling
+                warnings, the compliance record, how it is paid, the dispense
+                itself — is in Finish, and not on the page. Stacked under the
+                table it pushed itself and the table off the bottom of the
+                screen, and it was on screen for the whole of the script while
+                being needed for the last ten seconds of it. */}
+            <div className="card sec sec-go disp-bar" id="step-dispense">
+              <div className="disp-status" aria-live="polite">
+                {items.length === 0 && doneSale ? (
+                  <p className={`disp-done ${doneSale.status === "paid" ? "is-paid" : "is-owed"}`}>
+                    <ShieldCheck size={15} weight="fill" />
+                    <span className="disp-done-text">
+                      {doneSale.status === "paid" ? (
+                        <>Dispensed and paid · <b>{doneSale.sale_number}</b> · {money(doneSale.total)}</>
+                      ) : (
+                        <>Dispensed · <b>{doneSale.sale_number}</b> ·{" "}
+                        <b>{money(patientPortion(doneSale))}</b> to collect from the patient
+                        {/* The scheme's share said plainly, so nobody asks a member
+                            for the funder's money as well as their own. */}
+                        {patientPortion(doneSale) < doneSale.total - 0.005 && (
+                          <> · {money(doneSale.total - patientPortion(doneSale))} on the scheme</>
+                        )}</>
+                      )}
+                    </span>
+                    {doneRxId && (
+                      <button type="button" className="linkish" onClick={() => setReprintRx(doneRxId)}>
+                        <Printer size={13} /> Reprint labels
+                      </button>
+                    )}
+                    {doneSale.status !== "paid" && (
+                      <Link to={`/pos?settle=${doneSale.id}`}>
+                        Take payment <ArrowRight size={12} weight="bold" />
+                      </Link>
+                    )}
+                    <button type="button" className="linkish" onClick={() => setDoneSale(null)}>
+                      Dismiss
+                    </button>
+                  </p>
+                ) : fromRx?.draft ? (
+                  <p className="disp-blocked">
+                    <Warning size={14} weight="fill" />
+                    <span>
+                      <b>{fromRx.number} is a {DRAFT_SCRIPT.toLowerCase()}.</b> It takes an Rx
+                      number when capturing is finished.
+                    </span>
+                  </p>
+                ) : blockedBecause() && !(quoting && items.length > 0) ? (
+                  // When the blocker IS the blocking warning, the chip beside this
+                  // already says so and pressing it goes there — saying it twice
+                  // cost the room the sentence needed.
+                  blocked && (counter.data?.count ?? 0) > 0 ? null : (
+                    // The sentence is the control. A separate "Take me there"
+                    // was 85px spent saying "this is clickable".
+                    <button type="button" className="disp-say disp-blocked"
+                            onClick={takeMeThere}
+                            title={`${blockedBecause()} Press to go there.`}>
+                      <Warning size={14} weight="fill" />
+                      <span>{blockedBecause()}</span>
+                      <CaretRight size={12} weight="bold" />
+                    </button>
+                  )
+                ) : (
+                  <p className="disp-ready">
+                    <ShieldCheck size={14} weight="fill" />
+                    <span>{quoting ? "Ready to print the quote." : "Ready. Finish, or press F12."}</span>
+                  </p>
+                )}
+                {items.length > 0 && (counter.data?.count ?? 0) > 0 && (
+                  <button type="button"
+                          className={`disp-chip${counter.outstanding.length ? " is-stop" : ""}`}
+                          onClick={() => openFinish("finish-warnings")}>
+                    <Warning size={13} weight="fill" />
+                    {counter.data!.count} warning{counter.data!.count === 1 ? "" : "s"}
+                    {counter.outstanding.length > 0 && ` · ${counter.outstanding.length} blocking`}
+                  </button>
+                )}
               </div>
-            )}
+              <div className="disp-commit-row">
+                {needsInitials && !quoting && (
+                  <div className="field">
+                    <label htmlFor="disp-initials">Checked by</label>
+                    <input id="disp-initials" value={initials} maxLength={8}
+                      onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                      placeholder="Initials" />
+                  </div>
+                )}
+                {/* Put it down and come back to it. Not while quoting: a quote
+                    saved as a draft would put a price enquiry on the worklist. */}
+                {!quoting && (
+                  <BusyButton className="btn secondary" busyLabel="Saving…"
+                              disabled={!patient || items.length === 0}
+                              onClick={saveDraft}>
+                    {fromRx?.draft ? "Save the draft" : "Save for later"}
+                  </BusyButton>
+                )}
+                {/* A quote commits nothing, so it is a different button rather
+                    than the same one in a different mood. */}
+                {quoting ? (
+                  <button type="button" className="btn primary disp-go"
+                          disabled={items.length === 0} onClick={printQuote}>
+                    Print the quote
+                  </button>
+                ) : fromRx?.draft ? (
+                  <BusyButton className="btn primary disp-go" busyLabel="Finishing…"
+                    disabled={!patient || items.length === 0 || doctorId === ""}
+                    onClick={finaliseDraft}>
+                    Finish capturing
+                  </BusyButton>
+                ) : (
+                  <button type="button" className="btn primary disp-go"
+                          disabled={busy || !patient || items.length === 0}
+                          onClick={() => openFinish()}>
+                    Finish <kbd className="disp-kbd">F12</kbd>
+                  </button>
+                )}
+              </div>
+            </div>
 
-            {/* Warnings belong on screen while the script is being built, not
-                at the moment somebody tries to finish it. */}
-            <CounterMessages
-              patientId={patient?.id}
-              productIds={items.map((i) => i.product.id)}
-              medicalAidId={patient?.medical_aid_id}
-              onBlockingChange={setBlocked}
-            />
+            {/* FINISH — the end of a script, in the order it is settled.
 
-            <div className="card sec sec-go" id="step-dispense">
+                  1  what must be settled first    warnings, doses, cover
+                  2  the compliance record         controlled route only
+                  3  how it is paid                till, here, or with a driver
+                     who checked it, and Dispense  the foot, always in view
 
-              {coverage && !coverage.all_claimable && (
+                Opening it commits nothing. "Back to the script" rather than
+                Cancel, because there is nothing held here to discard. */}
+            {finishing !== null && patient && items.length > 0 && (() => {
+              const doseMajors = [...doseScreen.byProduct.values()]
+                .filter((f) => f.severity === "major");
+              const coverNote = !!coverage
+                && (!coverage.all_claimable || coverage.authorisation_required);
+              const mustSettle = doseMajors.length > 0 || (counter.data?.count ?? 0) > 0 || coverNote;
+              const stepSettle = mustSettle ? 1 : 0;
+              const stepCompliance = route === "controlled" ? stepSettle + 1 : stepSettle;
+              const stepPay = stepCompliance + 1;
+              const why = blockedBecause();
+              return (
+                <div className="modal-backdrop" role="dialog" aria-modal="true"
+                     aria-label="Finish this script"
+                     onClick={(e) => { if (e.target === e.currentTarget) setFinishing(null); }}>
+                  <div className="modal disp-finish">
+                    <h2>
+                      Finish
+                      <span className="disp-entry-of">
+                        {patient.first_name} {patient.last_name} · {items.length} item{items.length === 1 ? "" : "s"}
+                        {pricing && <> · {money(pricing.totals.gross)}</>}
+                      </span>
+                    </h2>
+
+                    {mustSettle && (
+                      <section className="finish-sec" id="finish-warnings">
+                        <h4>{stepSettle} · Settle these first</h4>
+                        {coverage && !coverage.all_claimable && (
                 <div className="error-banner">
                   {coverage.blocked_count} line{coverage.blocked_count === 1 ? "" : "s"} not covered
                   by {coverage.formulary}. Dispensing is allowed, the patient pays for
@@ -2306,8 +2685,50 @@ ${d.action}`}
                   the claim will be paid.
                 </div>
               )}
+                        {doseMajors.length > 0 && (
+                          <div className="chk-row is-major">
+                            <Warning size={16} weight="fill" />
+                            <div>
+                              <b>{doseMajors.length === 1 ? "A dose is" : `${doseMajors.length} doses are`} over the maximum held here</b>
+                              {doseMajors.map((f) => (
+                                <p key={f.product}><b>{f.product}</b> — {f.detail}</p>
+                              ))}
+                              <Checkbox checked={ixAcknowledged} onChange={setIxAcknowledged}>
+                                I have checked {doseMajors.length === 1 ? "this dose" : "these doses"} and {doseMajors.length === 1 ? "it is" : "they are"} intended
+                              </Checkbox>
+                            </div>
+                          </div>
+                        )}
+                        <CounterMessages state={counter} productIds={[]} />
+                      </section>
+                    )}
 
-              {/* How it is paid for is decided before it is dispensed, not
+                    {route === "controlled" && (
+                      <section className="finish-sec" id="finish-compliance">
+                        <h4>
+                          {stepCompliance} · Compliance record
+                          {activePolicy && <span className="badge danger">{activePolicy.label}</span>}
+                        </h4>
+                        <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
+                        <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
+                        <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
+                        <div className="field">
+                          <label>ID sighted</label>
+                          <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)}
+                                 placeholder="As per identity document" />
+                        </div>
+                        <div className="field">
+                          <label>Notes</label>
+                          <textarea rows={2} value={complianceNotes}
+                            onChange={(e) => setComplianceNotes(e.target.value)}
+                            placeholder="e.g. Script filed in the S6 register folder, ref 2026/044" />
+                        </div>
+                      </section>
+                    )}
+
+                    <section className="finish-sec" id="finish-pay">
+                      <h4>{stepPay} · Payment</h4>
+                      {/* How it is paid for is decided before it is dispensed, not
                   after. It changes what pressing the button does — the till
                   route sends the patient to the front shop, taking payment
                   here does not, and a setting that governs an action reads
@@ -2337,8 +2758,7 @@ ${d.action}`}
                   </span>
                 </div>
               )}
-
-              {/* The split, said before anybody collects anything.
+                      {/* The split, said before anybody collects anything.
                   The dispenser hands the bag over and says "that is four
                   dollars at the till", which they can only do if the figure is
                   in front of them here, at the dispensary, rather than being
@@ -2380,12 +2800,24 @@ ${d.action}`}
                   </span>
                 </div>
               )}
-              {/* Built out of the pieces it was actually paid with, rather than
-                  a single word. "Card now" recorded no bank and no currency,
-                  which on a counter taking USD and ZiG across three wallets is
-                  a figure nobody can reconcile at cash-up. Same component the
-                  till uses, so the question is asked once and asked the same. */}
-              {/* Who is taking it, and what they will collect at the door.
+                      {items.length > 0 && payHow === "now" && (
+                <div className="card sec sec-money" style={{ marginBottom: 12 }}>
+                  <Tenders
+                    lines={tenders}
+                    onChange={setTenders}
+                    owed={dueNow}
+                    allowAid={false}
+                    {...currencyWorld(currencyState)}
+                  />
+                  <p className="muted small">
+                    The medical aid is not listed here, and the amount is the
+                    patient&rsquo;s share alone: the claim is raised by the
+                    dispensing itself, so asking for the gross would be
+                    collecting the scheme&rsquo;s money as well as theirs.
+                  </p>
+                </div>
+              )}
+                      {/* Who is taking it, and what they will collect at the door.
                   Asked here rather than on a Deliveries screen afterwards: the
                   bag is being packed now, and a waybill raised an hour later
                   is one somebody has to remember to raise. */}
@@ -2495,199 +2927,95 @@ ${d.action}`}
                   })()}
                 </div>
               )}
+                    </section>
 
-              {items.length > 0 && payHow === "now" && (
-                <div className="card sec sec-money" style={{ marginBottom: 12 }}>
-                  <Tenders
-                    lines={tenders}
-                    onChange={setTenders}
-                    owed={dueNow}
-                    allowAid={false}
-                    {...currencyWorld(currencyState)}
-                  />
-                  <p className="muted small">
-                    The medical aid is not listed here, and the amount is the
-                    patient&rsquo;s share alone: the claim is raised by the
-                    dispensing itself, so asking for the gross would be
-                    collecting the scheme&rsquo;s money as well as theirs.
-                  </p>
-                </div>
-              )}
-
-              {fromRx?.draft && (
-                <div className="alert warn">
-                  <Warning size={16} weight="fill" />
-                  <span>
-                    <b>{fromRx.number} is a {DRAFT_SCRIPT.toLowerCase()}.</b>{" "}
-                    It has no Rx number yet and cannot be
-                    dispensed. Finish capturing it — that is where it takes its
-                    number and where the checks happen, or save it and come
-                    back.
-                  </span>
-                </div>
-              )}
-
-              {/* The one act this page exists for, and beside it the reason
-                  it cannot happen yet. */}
-              <div className="disp-commit">
-                <div className="disp-commit-row">
-              {/* On the row it belongs on. It is one short input and it
-                  was taking a line of its own above the buttons — which
-                  is most of what the band below the table was spending
-                  its two hundred pixels on. */}
-                  {/* Asked wherever it is required. The controlled route has its own
-                      copy inside the compliance record; on an ordinary prescription
-                      this was the missing step — the server wanted initials and the
-                      screen never offered anywhere to put them. */}
-                  {needsInitials && route !== "controlled" && (
-                    <div className="field" style={{ maxWidth: 260 }}>
-                      <label>Checked by</label>
-                      <input
-                        value={initials} maxLength={8}
-                        onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                        placeholder="Pharmacist initials — required"
+                    <div className="finish-foot">
+                      {needsInitials && (
+                        <div className="field finish-initials">
+                          <label htmlFor="finish-initials">Checked by</label>
+                          <input id="finish-initials" value={initials} maxLength={8}
+                            onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                            placeholder="Initials" />
+                        </div>
+                      )}
+                      {why && (
+                        <p className="disp-blocked">
+                          <Warning size={14} weight="fill" /><span>{why}</span>
+                        </p>
+                      )}
+                      <span className="finish-spacer" />
+                      <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
+                        Back to the script
+                      </button>
+                      {/* One press does the common case — dispense, and the labels
+                          come off the roll. The caret holds what is occasional. */}
+                      <PrintMenu
+                        primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
+                        primaryTitle="Dispense, and print the labels (F12)"
+                        busy={printing || busy}
+                        disabled={busy || !!why || !complianceReady}
+                        onPrimary={createAndDispense}
+                        actions={printActions}
                       />
                     </div>
-                  )}
-                  <button className="btn secondary"
-                          onClick={aiCheck.streaming ? aiCheck.stop : checkInteractions}
-                          disabled={!aiCheck.streaming && (!patient || items.length === 0)}>
-                    {aiCheck.streaming ? "Stop" : <><ClaudeIcon size={14} /> AI interaction check</>}
-                  </button>
-                  {/* A quote commits nothing: no stock moves, no claim is
-                      raised, no register entry is written. So it is a different
-                      button rather than the same one in a different mood — the
-                      one thing that must never happen by accident on this
-                      screen is dispensing when somebody meant to price. */}
-                  {/* Put it down and come back to it. A pharmacist gets
-                      interrupted, and the only ways out of a part-typed script
-                      were to dispense it or lose it. Not offered while quoting:
-                      a quote is not a script and saving one as a draft would
-                      put a price enquiry on the dispensing worklist. */}
-                  {!quoting && (
-                    <BusyButton className="btn secondary" busyLabel="Saving…"
-                                disabled={!patient || items.length === 0}
-                                onClick={saveDraft}>
-                      {fromRx?.draft ? "Save the draft" : "Save for later"}
-                    </BusyButton>
-                  )}
-                  {quoting ? (
-                    <button className="btn primary disp-go"
-                            disabled={items.length === 0}
-                            onClick={printQuote}>
-                      Print the quote
-                    </button>
-                  ) : fromRx?.draft ? (
-                    // A draft has no Rx number and the server will not dispense
-                    // one. Finishing it is a separate act — it is where the
-                    // checks skipped during capture happen and where the script
-                    // takes its number, so it is a separate button, and the
-                    // dispense appears only once it is a real script.
-                    <BusyButton
-                      className="btn primary disp-go"
-                      busyLabel="Finishing…"
-                      disabled={!patient || items.length === 0 || doctorId === ""}
-                      onClick={finaliseDraft}
-                    >
-                      Finish capturing
-                    </BusyButton>
-                  ) : (
-                    // One press does the whole common case — dispense, and the
-                    // labels come off the roll. The caret holds what is
-                    // genuinely occasional, which is where a menu belongs; a
-                    // dialog on every script is one nobody reads by Tuesday.
-                    <PrintMenu
-                      primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
-                      primaryTitle="Dispense, and print the labels"
-                      busy={printing}
-                      disabled={!patient || items.length === 0 || !complianceReady}
-                      onPrimary={createAndDispense}
-                      actions={printActions}
-                    />
-                  )}
+                  </div>
                 </div>
-                {blockedBecause() && (
-                  <p className="disp-blocked">
-                    <Warning size={14} weight="fill" />
-                    <span>
-                      {blockedBecause()}{" "}
-                      <button type="button" className="linkish"
-                              onClick={() => goToStep(blockedAt())}>
-                        Take me there
-                      </button>
-                    </span>
-                  </p>
-                )}
+              );
+            })()}
+
+            {/* A line's check, opened from its shield. */}
+            {checking !== null && (() => {
+              const idx = items.findIndex((i) => i.product.id === checking);
+              if (idx < 0) return null;
+              const it = items[idx];
+              const c = lineChecks[it.product.id];
+              const current = !!c && c.sig === basketSig;
+              return (
+                <LineCheckModal
+                  name={lineName(it.product)}
+                  schedule={it.product.schedule || 0}
+                  loading={!current || c!.status === "loading"}
+                  screen={current ? c!.screen ?? null : null}
+                  error={current ? c!.error : undefined}
+                  coverage={coverageFor(it.product.id)}
+                  otherLines={items.length - 1}
+                  hasPatient={!!patient}
+                  ai={aiCheck}
+                  aiShown={aiShown}
+                  onAskAi={aiCheck.streaming ? aiCheck.stop : checkInteractions}
+                  onRecheck={() => runLineCheck(it)}
+                  onEdit={() => { setChecking(null); setOpenItem(idx); setEditing(idx); }}
+                  onClose={() => setChecking(null)}
+                />
+              );
+            })()}
+
+            {/* What a lane chip stands for, in full. */}
+            {laneOpen !== null && patient && (
+              <div className="modal-backdrop" role="dialog" aria-modal="true"
+                   aria-label={laneOpen === "repeats" ? "Repeats due" : "Medical aid standing"}
+                   onClick={(e) => { if (e.target === e.currentTarget) setLaneOpen(null); }}>
+                <div className="modal disp-lane-modal">
+                  <h2>
+                    {laneOpen === "repeats" ? "Repeats due" : "Medical aid standing"}
+                    <span className="disp-entry-of">{patient.first_name} {patient.last_name}</span>
+                  </h2>
+                  {laneOpen === "repeats" ? (
+                    <RepeatsDue patientId={patient.id}
+                                alreadyOn={items.map((i) => i.product.id)}
+                                onAdd={addDueRepeat} />
+                  ) : (
+                    <InsuranceStanding patientId={patient.id} />
+                  )}
+                  <div className="disp-edit-actions">
+                    <span className="finish-spacer" />
+                    <button type="button" className="btn primary" onClick={() => setLaneOpen(null)}>
+                      Done
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              {/* How it gets paid for, decided here rather than afterwards.
-                  Dispensing always raised a pending invoice and sent the
-                  patient to the till, even for a two-dollar cash sale where the
-                  same person is standing at the same counter, so a transaction
-                  that is one act became two screens. The till is still the right
-                  answer when somebody else settles, or when it is going on the
-                  shelf to be collected later, so it stays the default. */}
-              {/* The outcome, where the action was.
-                  This used to render at the top of the page. After dispensing,
-                  the dispenser is at the bottom — beside the button they just
-                  pressed, so the one message telling them what happened, what
-                  is owed and where to settle it appeared off screen. On a
-                  counter that is indistinguishable from nothing happening. */}
-              {doneSale && (
-                <div className={doneSale.status === "paid" ? "success-banner" : "alert warn"}>
-                  {doneSale.status === "paid" ? (
-                    <>Dispensed and paid. Invoice <b>{doneSale.sale_number}</b>,{" "}
-                    {money(doneSale.total)}. Labels sent to the printer.</>
-                  ) : (
-                    <>Dispensed. Invoice <b>{doneSale.sale_number}</b>:{" "}
-                    <b>{money(patientPortion(doneSale))}</b> to collect from the
-                    patient
-                    {/* The scheme's share, said plainly. A dispenser reading
-                        only the total asks a member for the funder's money as
-                        well as their own, and "where is the claim half" was
-                        unanswerable on this screen. */}
-                    {patientPortion(doneSale) < doneSale.total - 0.005 && (
-                      <> ({money(doneSale.total - patientPortion(doneSale))} of{" "}
-                      {money(doneSale.total)} is on the scheme)</>
-                    )}
-                    . <b>Not yet paid</b>. Labels sent to the printer.</>
-                  )}
-                  {" "}
-                  {doneRxId && (
-                    <button className="ghost small" onClick={() => setReprintRx(doneRxId)}>
-                      <Printer size={14} /> Reprint labels
-                    </button>
-                  )}
-                  {doneSale.status !== "paid" && (
-                    <>
-                      {" "}
-                      {/* Carries the invoice with it. A bare link to /pos landed
-                          the cashier on an empty till and left them to find the
-                          sale by hand, with the patient standing there. */}
-                      <Link to={`/pos?settle=${doneSale.id}`}>
-                        Take payment for this one <ArrowRight size={12} weight="bold" />
-                      </Link>
-                    </>
-                  )}
-                  {" "}
-                  <button className="ghost small" onClick={() => setDoneSale(null)}>Dismiss</button>
-                </div>
-              )}
-
-
-              {(aiCheck.streaming || aiCheck.text) && (
-                <div className="ai-block">
-                  <AiPhase phase={aiCheck.phase} />
-                  {aiCheck.error && <div className="alert error">{aiCheck.error}</div>}
-                  {/* Plain text with a caret while it writes; Markdown only once
-                      it is finished, or headings and lists flicker in and out as
-                      the syntax completes. */}
-                  {aiCheck.streaming
-                    ? aiShown && <p className="ai-live ai-caret">{aiShown}</p>
-                    : <AiOutput text={aiCheck.text} title="Interaction check" />}
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* The third column is gone.

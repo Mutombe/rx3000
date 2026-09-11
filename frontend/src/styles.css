@@ -8035,3 +8035,375 @@ table.dt.sub th { font-size: var(--t-xs); }
   height: 26px; font-size: .82rem; padding-inline: var(--s3);
 }
 .disp-head .page-actions .btn { height: 30px; }
+
+/* ========================================================================
+   THE SCRIPT AS A RULED TABLE — solid column rules, floor to ceiling.
+
+   The columns were drawn as dashes: every row carried 5px of padding above and
+   below its cells, and a cell's left border is only as tall as the cell, so
+   each column was a stack of short strokes with gaps where the rows met. A
+   column is one line. The rows now have no vertical padding, the cells stretch
+   to the full height of the row, and a filler row carries the rules down to
+   the floor of the frame.
+   ======================================================================== */
+.disp-dense {
+  --rule: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.disp-dense .disp-grid {
+  display: flex; flex-direction: column; overflow-y: auto;
+  border: 1px solid var(--rule); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.disp-dense .disp-grid > .rx-item { flex: 0 0 auto; }
+.disp-dense .disp-grid .rx-item,
+.disp-dense .disp-grid .rx-item.is-open {
+  border: 0; border-bottom: 1px solid var(--rule);
+  margin: 0; padding: 0; border-radius: 0;
+}
+.disp-dense .disp-grid > .rx-item-fill {
+  flex: 1 0 auto; display: flex; border-bottom: 0;
+}
+.disp-dense .disp-grid > .rx-item-fill > .rx-item-head { flex: 1 1 auto; }
+
+.disp-dense .disp-grid .rx-item-head {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.7fr) 3.75rem minmax(0, 2fr) 5.75rem 4.5rem 6.25rem;
+  gap: 0; padding: 0; margin: 0;
+  min-height: 34px; border-radius: 0; border-bottom: 0;
+}
+.disp-dense .disp-grid .rx-item-head > * {
+  padding: 0 var(--s2);
+  border-left: 1px solid var(--rule);
+  align-self: stretch; display: flex; align-items: center;
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.disp-dense .disp-grid .rx-item-head > *:first-child { border-left: 0; }
+.disp-dense .disp-grid .rx-item-qty,
+.disp-dense .disp-grid .rx-item-money { justify-content: flex-end; }
+.disp-dense .disp-grid .rx-item-margin { justify-content: center; }
+
+/* The headings: the same template, a heavier rule under them, and they stay
+   put while the rows scroll. */
+.disp-dense .disp-grid > .rx-item-cols {
+  position: sticky; top: 0; z-index: 2;
+  min-height: 30px;
+  background: var(--surface-sunk);
+  border-bottom: 2px solid var(--rule);
+  font-size: .68rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.disp-dense .disp-grid > .rx-item-cols > .rx-item-actions { justify-content: center; }
+
+.disp-dense .rx-item-waiting .rx-item-head { cursor: default; min-height: 32px; }
+.disp-dense .rx-item-waiting .rx-item-head:hover { background: none; }
+.disp-dense .rx-item-hint {
+  font-style: normal; font-weight: 400; font-size: .8rem;
+  color: var(--ink-faint, var(--ink-soft));
+}
+.disp-dense .rx-item-warn { cursor: pointer; }
+
+/* ---- Action: three icons, each naming itself on hover ---------------------- */
+.disp-dense .disp-grid .rx-item-head > .rx-item-actions {
+  justify-content: center; gap: 2px; padding: 0 4px; overflow: visible;
+}
+.disp-dense .rx-icon {
+  display: inline-grid; place-items: center;
+  width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--ink-soft); cursor: pointer;
+}
+.disp-dense .rx-icon:hover { background: var(--hover); color: var(--ink); }
+.disp-dense .rx-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.disp-dense .rx-icon.is-remove:hover { background: var(--danger-soft); color: var(--danger); }
+/* The shield's colour is the check's answer. */
+.disp-dense .rx-icon.chk-clean { color: var(--ok); }
+.disp-dense .rx-icon.chk-minor { color: var(--warn); }
+.disp-dense .rx-icon.chk-major,
+.disp-dense .rx-icon.chk-error { color: var(--danger); }
+.disp-dense .rx-icon.chk-loading { cursor: progress; }
+
+/* ---- the totals, as the table's last row -------------------------------- */
+.st-foot {
+  position: sticky; bottom: 0; z-index: 2; flex: 0 0 auto;
+  display: flex; flex-wrap: wrap; align-items: stretch; justify-content: flex-end;
+  background: var(--surface-sunk);
+  border-top: 2px solid var(--rule, var(--line-strong));
+}
+.st-foot.st-loss { border-top-color: var(--danger); }
+.st-foot-cell {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  padding: 6px var(--s3);
+  border-left: 1px solid var(--rule, var(--line-strong));
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.st-foot-cell > span { font-size: .7rem; color: var(--ink-soft); }
+.st-foot-cell > b { font-size: .86rem; }
+.st-foot-cell.st-lead > b { font-size: 1rem; }
+.st-foot-cell.is-bad > b { color: var(--danger); }
+.st-foot-warn {
+  margin-right: auto; display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 var(--s3); min-width: 0;
+  color: var(--danger); font-size: .76rem; font-weight: 600;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+
+/* ========================================================================
+   THE BAR — what is next on the left, what to do on the right, one row.
+   ======================================================================== */
+.disp-dense .card.sec-go.disp-bar {
+  display: flex; flex-direction: row; align-items: center; gap: var(--s3);
+  flex-wrap: nowrap; max-height: none; min-height: 0; overflow: visible;
+  padding: 6px var(--s3); margin-top: var(--s2);
+}
+.disp-status {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: var(--s2);
+}
+.disp-status > p {
+  margin: 0; padding: 0; border: 0; background: none;
+  min-width: 0; display: flex; align-items: center; gap: 6px;
+  font-size: .82rem; white-space: nowrap;
+}
+.disp-status > p > span { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.disp-status > p > svg { flex: 0 0 auto; }
+.disp-status .disp-blocked > svg { color: var(--warn); }
+.disp-status .disp-ready { color: var(--ok); }
+.disp-status .disp-done.is-paid > svg { color: var(--ok); }
+.disp-status .disp-done.is-owed > svg { color: var(--warn); }
+.disp-status .linkish, .disp-status a { flex: 0 0 auto; font-size: .8rem; }
+.disp-chip {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px;
+  height: 24px; padding: 0 9px; border-radius: 999px;
+  border: 1px solid var(--warn-line, var(--line)); background: var(--warn-soft);
+  color: var(--warn); font-size: .74rem; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
+}
+.disp-chip.is-stop { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.disp-dense .disp-bar .disp-commit-row { flex: 0 0 auto; flex-wrap: nowrap; gap: var(--s2); }
+.disp-dense .disp-bar .disp-commit-row > .field {
+  grid-template-columns: auto 5.5rem; margin: 0;
+}
+.disp-kbd {
+  margin-left: 6px; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid currentColor; opacity: .7;
+  font: 600 .64rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ========================================================================
+   THE DIALOGS — Finish, a line's check, and the line editor.
+   ======================================================================== */
+.disp-finish { max-width: 46rem; }
+.disp-check { max-width: 42rem; }
+.disp-edit.disp-edit { max-width: 64rem; }
+.disp-finish > h2, .disp-check > h2, .disp-edit > h2 {
+  display: flex; align-items: center; gap: var(--s2);
+}
+.disp-finish > h2 .disp-entry-of,
+.disp-check > h2 .disp-entry-of,
+.disp-edit > h2 .disp-entry-of {
+  margin-left: auto; font-size: .76rem; font-weight: 400; color: var(--ink-soft);
+}
+
+.finish-sec, .chk-sec { padding-block: var(--s3); border-bottom: 1px solid var(--line); }
+.finish-sec:last-of-type { border-bottom: 0; }
+.finish-sec > h4, .chk-sec > h4, .ed-sec > h4 {
+  margin: 0 0 var(--s2);
+  font-size: .7rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-soft);
+  display: flex; align-items: center; gap: var(--s2);
+}
+.chk-scope { text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* The payment pieces were cards on the page; inside a dialog they are sections. */
+.finish-sec .card {
+  border: 0 !important; padding: 0 !important; margin: var(--s2) 0 0 !important;
+  background: none !important; box-shadow: none !important;
+}
+.finish-sec .counter-messages { margin-top: var(--s2); }
+
+/* The foot stays in view however long the dialog is: who checked it, why it
+   will not go, and the button. */
+.finish-foot, .disp-check .disp-edit-actions, .disp-edit .disp-edit-actions {
+  position: sticky; bottom: calc(var(--s6) * -1); z-index: 3;
+  display: flex; align-items: center; justify-content: flex-start;
+  gap: var(--s2); flex-wrap: wrap;
+  margin: var(--s3) calc(var(--s6) * -1) calc(var(--s6) * -1);
+  padding: var(--s3) var(--s6);
+  background: var(--surface);
+  border-top: 1px solid var(--line-strong);
+}
+.finish-foot .field { margin: 0; grid-template-columns: auto 6rem; }
+.finish-foot .disp-blocked {
+  margin: 0; padding: 0; border: 0; background: none;
+  display: flex; align-items: center; gap: 6px;
+  font-size: .8rem; color: var(--warn);
+}
+.finish-spacer { flex: 1 1 auto; }
+
+.chk-row {
+  display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: var(--s2);
+  padding: var(--s2) var(--s3); margin-bottom: var(--s2);
+  border-radius: var(--r-sm); background: var(--surface-sunk);
+}
+.chk-row > svg { margin-top: 2px; color: var(--ink-soft); }
+.chk-row p { margin: 3px 0 0; font-size: .84rem; }
+.chk-row .badge { margin-left: 6px; }
+.chk-row.is-major { background: var(--danger-soft); }
+.chk-row.is-major > svg { color: var(--danger); }
+.chk-row.is-minor { background: var(--warn-soft); }
+.chk-row.is-minor > svg { color: var(--warn); }
+.chk-action { font-weight: 600; }
+.chk-ok { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .86rem; color: var(--ok); }
+.chk-none { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .86rem; color: var(--ink-soft); }
+.chk-coverage { margin: var(--s2) 0; font-size: .76rem; color: var(--ink-faint, var(--ink-soft)); }
+
+.ed-body {
+  display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: var(--s5); align-items: start;
+}
+.ed-rail { border-left: 1px solid var(--line); padding-left: var(--s5); }
+.ed-sec { padding-bottom: var(--s3); margin-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+.ed-main > .ed-sec:last-child, .ed-rail > .ed-sec:last-child { border-bottom: 0; margin-bottom: 0; }
+.ed-facts {
+  display: grid; grid-template-columns: auto 1fr; gap: 4px var(--s3);
+  margin: 0; font-size: .84rem;
+}
+.ed-facts dt { color: var(--ink-soft); }
+.ed-facts dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.ed-facts dd.is-bad { color: var(--danger); }
+.ed-dose { display: flex; gap: 6px; margin: var(--s2) 0; font-size: .82rem; }
+.ed-dose.is-major { color: var(--danger); }
+.ed-dose.is-minor { color: var(--warn); }
+.ed-delete { color: var(--danger); }
+.ed-rail details > summary { cursor: pointer; font-size: .82rem; font-weight: 600; }
+@media (max-width: 820px) {
+  .ed-body { grid-template-columns: 1fr; }
+  .ed-rail { border-left: 0; padding-left: 0; }
+}
+
+/* The icon beside a wrapped sentence keeps its size and sits on the first line,
+   instead of being squeezed by the text into a sliver. */
+.ed-dose > svg { flex: 0 0 auto; margin-top: 3px; }
+
+/* The waiting rows take what is left of the frame and are clipped at its floor.
+   Real lines sit outside this box, so once they fill the table it is the lines
+   that scroll, and the waiting rows simply have no room. */
+.disp-dense .disp-grid > .rx-waiting {
+  flex: 1 1 0; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.disp-dense .rx-waiting > .rx-item { flex: 0 0 auto; }
+.disp-dense .rx-waiting > .rx-item-fill { flex: 1 0 auto; display: flex; border-bottom: 0; }
+.disp-dense .rx-waiting > .rx-item-fill > .rx-item-head { flex: 1 1 auto; }
+
+/* ---- the lane: one row of fields, one slim line of the patient's context ----
+   The fields were pinned to grid row 2, from when a heading was row 1. With the
+   heading gone, anything without a row of its own auto-placed into the empty
+   row 1 — which put the repeats panel ABOVE the fields. Now the fields own row
+   1 and the context owns row 2. `:first-of-type` is gone too: it matches by
+   element, not class, so the S5-S6 badge div on the controlled route took the
+   patient field's cell. */
+.disp-dense .sec-patient > .disp-patient-field,
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 1; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 1; }
+.disp-dense .sec-patient > .disp-medicine { grid-column: 3; grid-row: 1; }
+.disp-dense .sec-patient > .disp-context { grid-column: 1 / -1; grid-row: 2; }
+.disp-dense .sec-patient > .disp-lane-badge { grid-column: 1 / -1; grid-row: 3; }
+.disp-dense .sec-patient > .field:first-of-type:not(.disp-patient-field):not(.disp-medicine) {
+  grid-column: auto; grid-row: auto;
+}
+
+.disp-dense .disp-patient-picked {
+  display: grid; grid-template-columns: var(--disp-label, 5.5rem) minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2); min-width: 0; min-height: 30px;
+}
+.dpp-label { text-align: right; font-size: var(--t-sm); color: var(--ink-soft); }
+.dpp-who {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: .88rem;
+}
+.dpp-who .muted { font-size: .78rem; }
+
+.disp-context {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0;
+  padding-left: calc(var(--disp-label, 5.5rem) + var(--s2));
+}
+.disp-context:empty { display: none; }
+.ctx-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 24px; padding: 0 10px; max-width: 100%;
+  border-radius: 999px; border: 1px solid var(--line-strong);
+  background: var(--surface-sunk); color: var(--ink);
+  font-size: .74rem; font-weight: 600; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+button.ctx-chip { cursor: pointer; }
+button.ctx-chip:hover { background: var(--hover); }
+.ctx-chip-sub { font-weight: 400; opacity: .85; }
+.ctx-chip.is-allergy {
+  cursor: help; color: var(--danger); background: var(--danger-soft); border-color: var(--danger);
+}
+.ctx-chip.rd-chip.is-overdue,
+.ctx-chip.ins-warn { color: var(--warn); background: var(--warn-soft); border-color: var(--warn-line, var(--warn)); }
+.ctx-chip.ins-ok { color: var(--ok); }
+.disp-lane-modal { max-width: 52rem; }
+
+/* The bar's sentence keeps enough width to be read. Beside the warnings chip
+   and the initials it was being squeezed to nothing, leaving "Take me there"
+   with nothing to say where. */
+.disp-status > p { flex: 0 1 auto; }
+.disp-status > p > span { flex: 0 1 auto; min-width: 7rem; }
+.disp-status > p > .linkish { flex: 0 0 auto; }
+
+/* The patient's name is what is being confirmed, so it is the last thing on the
+   lane to truncate: its column gets the room, the prescriber and search give it. */
+.disp-dense .sec-patient {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+/* The sentence gives way, not the controls. The paragraph clips itself, the
+   sentence takes the ellipsis, and the link and the chip keep their size — the
+   chip had been drawn over the link when the paragraph overflowed. */
+.disp-status > p { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.disp-status > p > span { flex: 1 1 auto; min-width: 0; }
+.disp-status > p > .linkish,
+.disp-status > p > svg,
+.disp-status > .disp-chip { flex: 0 0 auto; }
+
+/* ---- sized from measurement at 1366x768 --------------------------------- */
+/* Finish is as wide as its label. The 12rem floor was set for a button that
+   stood alone under the table; on a bar it took 80px from the sentence. */
+.disp-dense .disp-bar .disp-go { min-width: 0; }
+.disp-dense .disp-bar .disp-commit-row > .field { grid-template-columns: auto 4.5rem; }
+
+/* The blocker sentence is the button that goes to it. */
+.disp-status > .disp-say {
+  flex: 0 1 auto; min-width: 0; overflow: hidden;
+  display: flex; align-items: center; gap: 6px;
+  padding: 0; border: 0; background: none; cursor: pointer;
+  font: inherit; font-size: .82rem; color: var(--ink); text-align: left;
+}
+.disp-status > .disp-say > svg { flex: 0 0 auto; }
+.disp-status > .disp-say > svg:first-child { color: var(--warn); }
+.disp-status > .disp-say > span {
+  min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.disp-status > .disp-say:hover > span { text-decoration: underline; }
+.disp-status > .disp-say:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The lane. The patient's column gets the room; the prescriber and the search
+   label themselves at their own width, because in a single row nothing sits
+   under them for a shared label column to line up with. */
+.disp-dense .sec-patient {
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.disp-dense .sec-patient > .disp-doctor,
+.disp-dense .sec-patient > .disp-medicine { grid-template-columns: auto minmax(0, 1fr); }
+.disp-dense .disp-patient-picked {
+  grid-template-columns: var(--disp-label, 5.5rem) minmax(0, 1fr) 24px;
+}
+.dpp-change {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-soft); cursor: pointer;
+}
+.dpp-change:hover { background: var(--hover); color: var(--ink); }
+.dpp-change:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }

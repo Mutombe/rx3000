@@ -57,6 +57,10 @@ export function useHotkeys(keys: Hotkey[], enabled = true) {
       const hasModifier = /ctrl|alt/i.test(hit.combo);
       const isEscape = hit.combo.toLowerCase() === "escape";
       if (isTyping(e.target) && !isFunctionKey && !hasModifier && !isEscape) return;
+      // An Escape something closer already used — a suggestion list dismissing
+      // itself — is spent. Letting it through as well closed the dialog the
+      // list was in, or cleared the script behind it.
+      if (isEscape && e.defaultPrevented) return;
 
       e.preventDefault();
       e.stopPropagation();
