@@ -36,10 +36,12 @@ interface Payload {
   items: DueRepeat[];
 }
 
-export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "list", onOpen }: {
+export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "list", onOpen, skeleton = false }: {
   /** "chip": one line saying how many and what they are worth, for a lane. */
   variant?: "list" | "chip" | "icon";
   onOpen?: () => void;
+  /** Show the list's shape while it loads, and say so when nothing is due. */
+  skeleton?: boolean;
   patientId: number | null;
   /** Put this repeat on the script being written. */
   onAdd: (repeat: DueRepeat) => void;
@@ -79,10 +81,43 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
     );
   }
 
+  if (!data && skeleton) {
+    return (
+      <section className="rd" aria-busy="true" aria-label="Loading repeats">
+        <div className="rd-head">
+          <div>
+            <b><span className="skel" style={{ width: 220 }} /></b>
+            <span className="skel skel-line" style={{ width: 300 }} />
+          </div>
+        </div>
+        <ul className="rd-list">
+          {[0, 1, 2, 3].map((i) => (
+            <li key={i} className="rd-item">
+              <div className="rd-what">
+                <span className="skel skel-line" style={{ width: "55%" }} />
+                <span className="skel skel-line" style={{ width: "85%" }} />
+              </div>
+              <div className="rd-when">
+                <span className="skel skel-line" style={{ width: 72 }} />
+                <span className="skel skel-line" style={{ width: 60 }} />
+              </div>
+              <div className="rd-worth"><span className="skel" style={{ width: 64 }} /></div>
+              <span className="skel skel-button" style={{ width: 58 }} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
+  if (data && data.items.length === 0 && skeleton) {
+    return <p className="pt-empty">No repeats are due for this patient.</p>;
+  }
   if (!data || data.items.length === 0) return null;
 
   const outstanding = data.items.filter((r) => !alreadyOn.includes(r.product_id));
-  if (outstanding.length === 0) return null;
+  if (outstanding.length === 0) {
+    return skeleton ? <p className="pt-empty">Every repeat due is already on this script.</p> : null;
+  }
 
   const worth = outstanding.reduce((n, r) => n + r.value, 0);
 

@@ -54,10 +54,12 @@ const TONE: Record<string, { cls: string; label: string }> = {
   unknown: { cls: "muted", label: "Nothing claimed yet" },
 };
 
-export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen }: {
+export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen, skeleton = false }: {
   /** "chip": the scheme and its standing on one line, for a lane. */
   variant?: "block" | "chip" | "icon";
   onOpen?: () => void;
+  /** Show the card's shape while it loads. */
+  skeleton?: boolean;
   patientId: number | null;
   /** The till has less room than the dispensary, and needs the verdict more
    *  than the workings. */
@@ -96,7 +98,26 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
     );
   }
 
-  if (!data) return null;
+  if (!data) {
+    return skeleton ? (
+      <div className="ins" aria-busy="true" aria-label="Loading the medical aid">
+        <div className="ins-head">
+          <span className="skel skel-icon" />
+          <span className="skel" style={{ width: 150 }} />
+          <span className="skel" style={{ width: 90 }} />
+        </div>
+        <span className="skel skel-line" style={{ width: "85%" }} />
+        <div className="ins-figures">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i}>
+              <span className="skel skel-line" style={{ width: "75%" }} />
+              <b><span className="skel" style={{ width: "45%" }} /></b>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
+  }
 
   // A cash patient has no insurance to reconcile, and saying so in a panel
   // would be noise on the majority of sales.

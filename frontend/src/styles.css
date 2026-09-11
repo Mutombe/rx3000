@@ -8982,3 +8982,80 @@ button.fin-ack { cursor: pointer; }
 .fin-compliance > h4 .badge {
   max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+
+/* ========================================================================
+   SKELETONS — the shape of the data before the data.
+   ======================================================================== */
+.skel {
+  display: inline-block; vertical-align: middle;
+  height: .82em; min-width: .75rem; max-width: 100%; border-radius: 4px;
+  background: linear-gradient(90deg, var(--hover) 0%, var(--line) 50%, var(--hover) 100%);
+  background-size: 200% 100%;
+  animation: skel-sheen 1.3s ease-in-out infinite;
+}
+.skel-line { display: block; margin: 5px 0; }
+.skel-num { width: 3rem; height: 1.05em; }
+.skel-num.is-wide { width: 6.5rem; }
+.skel-num.is-big { width: 5.5rem; height: 1.3em; }
+.skel-icon { width: 16px; height: 16px; min-width: 16px; }
+.skel-button { display: block; width: 11rem; height: 28px; margin-top: 8px; border-radius: var(--r-sm); }
+@keyframes skel-sheen { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skel { animation: none; } }
+
+/* ========================================================================
+   DIALOGS WITH A HEIGHT OF THEIR OWN
+   Set when they open, not decided by what loads. Header and foot stay put;
+   the part that can grow scrolls inside itself.
+   ======================================================================== */
+.disp-finish, .disp-edit, .disp-check, .disp-lane-modal, .pt-history, .pt-card {
+  display: flex; flex-direction: column;
+}
+.disp-finish > *, .disp-edit > *, .disp-check > *,
+.disp-lane-modal > *, .pt-history > *, .pt-card > * { flex-shrink: 0; }
+.disp-finish > .finish-foot,
+.disp-edit > .disp-edit-actions, .disp-check > .disp-edit-actions,
+.disp-lane-modal > .disp-edit-actions, .pt-modal > .disp-edit-actions { margin-top: auto; }
+
+.disp-finish { height: min(42rem, calc(100vh - 48px)); }
+.disp-edit.disp-edit { height: min(44rem, calc(100vh - 48px)); }
+.disp-check { height: min(40rem, calc(100vh - 48px)); }
+.disp-lane-modal { height: min(34rem, calc(100vh - 48px)); }
+.pt-history { height: min(40rem, calc(100vh - 48px)); }
+.pt-card { height: min(36rem, calc(100vh - 48px)); }
+
+/* What grows, scrolls inside. */
+.disp-finish > #finish-warnings { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.disp-finish #finish-warnings .fin-list { max-height: none; overflow: visible; }
+.disp-finish > .fin-grid { flex: 1 1 auto; min-height: 0; }
+.disp-edit > .ed-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.pt-history > .pt-scroll { flex: 1 1 auto; min-height: 0; max-height: none; }
+.pt-history > .pt-tabs { align-self: flex-start; }
+.pt-card > .pt-card-grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.disp-lane-modal > .rd, .disp-lane-modal > .ins, .disp-lane-modal > .pt-empty {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+}
+
+/* ========================================================================
+   THE BAR UNDER THE TABLE, slimmer: its controls at the table's density.
+   ======================================================================== */
+.disp-dense .card.sec-go.disp-bar { padding: 4px var(--s3); min-height: 0; }
+.disp-dense .disp-bar .btn { height: 30px; padding: 0 12px; font-size: .84rem; }
+.disp-dense .disp-bar .disp-commit-row > .field input { height: 28px; }
+.disp-dense .disp-bar .disp-chip { height: 22px; }
+.disp-dense .disp-bar .disp-kbd { padding: 0 3px; }
+
+/* The repeats and medical aid dialog had never been given the header the other
+   dialogs share, so its title and the patient's name ran together; and the
+   repeats panel inside it carried a bright leading strip. Both brought into
+   line with every other dialog. */
+.disp-lane-modal > h2 { display: flex; align-items: center; gap: var(--s3); }
+.disp-lane-modal > h2 .disp-entry-of {
+  margin-left: auto; font-size: .76rem; font-weight: 400; color: var(--ink-soft);
+}
+.disp-lane-modal > .rd,
+.disp-lane-modal > .rd.is-overdue { border-left-width: 1px; border-left-color: var(--line); box-shadow: none; }
+
+/* The rows in the repeats dialog carried their own coloured strip for how late
+   each one is. The lateness is written on the row ("33 days late"); the strip
+   goes, like every other slab. */
+.disp-lane-modal .rd-item[class*="row-"] { box-shadow: none; }

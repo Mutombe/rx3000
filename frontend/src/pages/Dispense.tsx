@@ -2571,7 +2571,7 @@ export default function Dispense() {
                           </section>
                           <details className="ed-sec disp-ref">
                             <summary>Substitutions</summary>
-                            <Variants productId={it.product.id} />
+                            <Variants productId={it.product.id} skeleton />
                           </details>
                           <details className="ed-sec disp-ref">
                             <summary>Counselling</summary>
@@ -3276,7 +3276,7 @@ ${d.action}`}
                             <h4>The bill</h4>
                             <dl className="ed-facts fin-facts">
                               <dt>Lines</dt><dd>{items.length}</dd>
-                              <dt>Gross</dt><dd>{money(gross)}</dd>
+                              <dt>Gross</dt><dd>{pricing || split ? money(gross) : <span className="skel" style={{ width: 56 }} />}</dd>
                               {split?.covered && (
                                 <><dt>{split.scheme || "Scheme"} pays</dt><dd>{money(split.scheme_pays)}</dd></>
                               )}
@@ -3284,7 +3284,7 @@ ${d.action}`}
                             </dl>
                             <div className="fin-due">
                               <span>{split?.covered ? TERMS.shortfall : "Patient pays"}</span>
-                              <b>{money(dueNow + fee)}</b>
+                              <b>{pricing || split ? money(dueNow + fee) : <span className="skel skel-num is-big" />}</b>
                               <small>
                                 {payHow === "till" ? "at the till"
                                   : payHow === "now" ? "here, now" : "to the driver, at the door"}
@@ -3491,11 +3491,11 @@ ${d.action}`}
                     <span className="disp-entry-of">{patient.first_name} {patient.last_name}</span>
                   </h2>
                   {laneOpen === "repeats" ? (
-                    <RepeatsDue patientId={patient.id}
+                    <RepeatsDue patientId={patient.id} skeleton
                                 alreadyOn={items.map((i) => i.product.id)}
                                 onAdd={addDueRepeat} />
                   ) : (
-                    <InsuranceStanding patientId={patient.id} />
+                    <InsuranceStanding patientId={patient.id} skeleton />
                   )}
                   <div className="disp-edit-actions">
                     <span className="finish-spacer" />

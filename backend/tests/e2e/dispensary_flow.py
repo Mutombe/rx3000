@@ -289,6 +289,8 @@ with sync_playwright() as pw:
         check("with lines: every line carries three action icons", page.evaluate(
             f"[...document.querySelectorAll('{LINES}')].every(r => r.querySelectorAll('.rx-icon').length === 3)"))
         check("with lines: the page does not scroll", not page.evaluate(SCROLLS_JS))
+        bar_h = page.evaluate("Math.round(document.querySelector('.disp-bar').getBoundingClientRect().height)")
+        check("the bar under the table is slim", bar_h <= 44, f"{bar_h}px")
         check("the bar's sentence is readable", page.evaluate(
             "(() => { const s = document.querySelector('.disp-status > p > span, .disp-status > .disp-say > span');"
             " return !s || s.getBoundingClientRect().width > 40; })()"))

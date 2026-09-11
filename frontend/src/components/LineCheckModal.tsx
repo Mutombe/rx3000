@@ -104,7 +104,40 @@ export default function LineCheckModal({
         </h2>
 
         {loading ? (
-          <p className="chk-none"><CircleNotch size={16} className="spin" /> Checking this line…</p>
+          // The layout the answer will have, before it arrives: three cards, the
+          // dose, the interactions, the second opinion.
+          <div aria-busy="true" aria-label="Checking this line">
+            <div className="chk-summary">
+              {["Dose", "Interactions", "Scheme"].map((label) => (
+                <div key={label} className="chk-card">
+                  <span>{label}</span>
+                  <b><span className="skel" style={{ width: "70%" }} /></b>
+                </div>
+              ))}
+            </div>
+            <section className="chk-sec">
+              <h4>Dose</h4>
+              <div className="chk-row">
+                <span className="skel skel-icon" />
+                <div>
+                  <span className="skel skel-line" style={{ width: "40%" }} />
+                  <span className="skel skel-line" style={{ width: "95%" }} />
+                  <span className="skel skel-line" style={{ width: "65%" }} />
+                </div>
+              </div>
+            </section>
+            <section className="chk-sec">
+              <h4>Interactions</h4>
+              <span className="skel skel-line" style={{ width: "50%" }} />
+              <span className="skel skel-line" style={{ width: "92%" }} />
+              <span className="skel skel-line" style={{ width: "80%" }} />
+            </section>
+            <section className="chk-sec">
+              <h4>Second opinion</h4>
+              <span className="skel skel-line" style={{ width: "88%" }} />
+              <span className="skel skel-button" />
+            </section>
+          </div>
         ) : error ? (
           <div className="alert error">{error}</div>
         ) : (

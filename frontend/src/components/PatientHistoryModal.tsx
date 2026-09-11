@@ -32,6 +32,45 @@ interface HistoryLine {
 
 type Tab = "dispensed" | "scripts";
 
+/** Placeholder rows in the table's own columns, so the table is the table's
+ *  size before a single row has arrived. Widths follow what each column holds. */
+const SKELETON: Record<Tab, { head: string[]; num: number[]; widths: string[] }> = {
+  dispensed: {
+    head: ["When", "Medicine", "Qty", "Directions", "Type", "Rx", "By"],
+    num: [2],
+    widths: ["70%", "85%", "35%", "90%", "55%", "80%", "60%"],
+  },
+  scripts: {
+    head: ["Date", "Rx", "Prescriber", "Medicines", "Repeats", "Status"],
+    num: [4],
+    widths: ["70%", "80%", "75%", "90%", "40%", "50%"],
+  },
+};
+
+function SkeletonTable({ tab }: { tab: Tab }) {
+  const shape = SKELETON[tab];
+  return (
+    <table className="pt-table" aria-busy="true" aria-label="Loading">
+      <thead>
+        <tr>{shape.head.map((h, i) => (
+          <th key={h} className={shape.num.includes(i) ? "num" : undefined}>{h}</th>
+        ))}</tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: 8 }).map((_, r) => (
+          <tr key={r} className="is-skel">
+            {shape.widths.map((w, i) => (
+              <td key={i} className={shape.num.includes(i) ? "num" : undefined}>
+                <span className="skel" style={{ width: w }} />
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 export default function PatientHistoryModal({ patient, onClose }: {
   patient: Patient;
   onClose: () => void;
@@ -67,9 +106,9 @@ export default function PatientHistoryModal({ patient, onClose }: {
         {error && <div className="alert error">{error}</div>}
 
         <div className="fin-stats">
-          <div className="fin-stat"><b>{lines ? lines.length : "…"}</b><span>dispensed</span></div>
-          <div className="fin-stat"><b>{scripts ? scripts.length : "…"}</b><span>scripts</span></div>
-          <div className="fin-stat"><b>{last ? fmtDate(last) : "—"}</b><span>last dispensed</span></div>
+          <div className="fin-stat"><b>{lines ? lines.length : <span className="skel skel-num" />}</b><span>dispensed</span></div>
+          <div className="fin-stat"><b>{scripts ? scripts.length : <span className="skel skel-num" />}</b><span>scripts</span></div>
+          <div className="fin-stat"><b>{lines === null ? <span className="skel skel-num is-wide" /> : last ? fmtDate(last) : "—"}</b><span>last dispensed</span></div>
         </div>
 
         <div className="seg pt-tabs" role="tablist" aria-label="Which record">
@@ -85,7 +124,7 @@ export default function PatientHistoryModal({ patient, onClose }: {
 
         <div className="pt-scroll">
           {tab === "dispensed" ? (
-            lines === null ? <p className="pt-empty">Loading…</p>
+            lines === null ? <SkeletonTable tab="dispensed" />
               : lines.length === 0 ? <p className="pt-empty">Nothing has been dispensed to {patient.first_name} yet.</p>
               : (
                 <table className="pt-table">
@@ -118,7 +157,7 @@ export default function PatientHistoryModal({ patient, onClose }: {
                 </table>
               )
           ) : (
-            scripts === null ? <p className="pt-empty">Loading…</p>
+            scripts === null ? <SkeletonTable tab="scripts" />
               : scripts.length === 0 ? <p className="pt-empty">No scripts on file for {patient.first_name}.</p>
               : (
                 <table className="pt-table">

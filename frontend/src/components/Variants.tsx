@@ -28,7 +28,11 @@ interface Reply {
   this_price?: number; variants: Variant[];
 }
 
-export default function Variants({ productId }: { productId: number }) {
+export default function Variants({ productId, skeleton = false }: {
+  productId: number;
+  /** Show the list's shape while it loads. */
+  skeleton?: boolean;
+}) {
   const [data, setData] = useState<Reply | null>(null);
 
   useEffect(() => {
@@ -45,7 +49,22 @@ export default function Variants({ productId }: { productId: number }) {
     return () => { live = false; };
   }, [productId]);
 
-  if (!data) return null;
+  if (!data) {
+    return skeleton ? (
+      <div className="vr" aria-busy="true" aria-label="Loading substitutions">
+        <p className="vr-head"><span className="skel" style={{ width: "70%" }} /></p>
+        <ul className="vr-list">
+          {[0, 1, 2].map((i) => (
+            <li key={i}>
+              <span className="vr-name"><span className="skel" style={{ width: "70%" }} /></span>
+              <span className="vr-price"><span className="skel" style={{ width: 56 }} /></span>
+              <span className="vr-stock"><span className="skel" style={{ width: 70 }} /></span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+  }
 
   if (!data.known) {
     return (
