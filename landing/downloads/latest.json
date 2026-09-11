@@ -1,11 +1,11 @@
 {
-  "version": "1.6.18",
-  "notes": "Finishing a script, in two steps.\n\n**Before you finish**\n\nWhat must be acknowledged comes first, on its own: blocking warnings\nand doses over the maximum, then what is worth knowing. Proceed stays\nclosed until the blocking ones are acknowledged. When there is nothing\nto settle, this step is skipped.\n\n**Pay and dispense**\n\nHow it is paid on the left, the bill on the right, with what the\npatient pays in large type and where it is collected. Till, payment\nnow and delivery all fit without scrolling. Who checked it and\nDispense sit along the bottom.\n\nF12 steps through it: open, proceed, dispense.\n\n**Tidier everywhere**\n\nThe patient, prescriber and medicine fields sit on one row. The line\ncheck opens with three answers at a glance: dose, interactions and\nscheme. Every dialog shares one header, one set of section headings\nand one row of buttons along the bottom.",
-  "pub_date": "2026-09-11T17:54:33+00:00",
+  "version": "1.6.19",
+  "notes": "Edit the script where you read it.\n\n**Double-click to edit in the table**\n\nDouble-click the medicine to swap it for another, keeping the quantity\nand directions. Double-click the quantity to change it. Double-click the\ndirections to type them, with the dispensing codes offered as you go.\nEnter keeps it, Escape puts it back. The edit dialog is still there\nbehind the pencil.\n\n**Full text on hover**\n\nWhen a medicine name or directions are too long for the column, hover\nover them to read the whole thing.\n\n**Fields that name themselves**\n\nPatient, Prescriber and Medicine each show their name inside the field\nand what to type once you click in. The prescriber is searched the same\nway as the patient and the medicine.\n\n**Clearer sections**\n\nThe patient lane, the script, the finishing bar and the worklist each\nhave their own colour, and the stray lines across the screen are gone.",
+  "pub_date": "2026-09-11T18:52:35+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaktjTms5ZEVBaFhIOXV5cmQ0cTFjZ2EvcHc0aVRXTCtHdGhlcmhCSklLSW9rdGpEOXVNVGhNdGdYd3VxLzlST2Rxb0l4c1FzY0lDZDM5TlpJMHh6WHcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTQ5MjcxCWZpbGU6Ulg1MDAwXzEuNi4xOF94NjQtc2V0dXAuZXhlCmtxQjBjWEE2U2VLQXc0LytFNm5neW0vY2VMaWY4OW9NY3A5OFlHd0FoeDNRYjhHQ3FETzB6NlZEMm1XZk5kejAzb2RzR2JwT3VRZS9OTU14emFTb0JRPT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.18_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakdqZHpRNWJWSVBHSU15anhFQzY0WlpaYjdkRFNWOTYwMWFnaGtWU2dCOSt0TkJJenNWSDRXbTViZDVuOTd3MkJSb2ZxdDZpQ1RGL0ZYSEl1SC93blEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTUyNzUyCWZpbGU6Ulg1MDAwXzEuNi4xOV94NjQtc2V0dXAuZXhlCmtWQXZObGhTQXJ2SmhaL0QrVWcxaW4wSVB4cTlZTml6ajZ2RHR5RVB3ZEhDRWN1YjNhVEpnMS9wTS9iU2ZVTDRtRXdpVUszNzk2ZitYVGdMaE1xV0JBPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.19_x64-setup.exe"
     }
   }
 }

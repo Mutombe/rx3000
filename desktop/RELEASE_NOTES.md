@@ -1,24 +1,25 @@
-Finishing a script, in two steps.
+Edit the script where you read it.
 
-**Before you finish**
+**Double-click to edit in the table**
 
-What must be acknowledged comes first, on its own: blocking warnings
-and doses over the maximum, then what is worth knowing. Proceed stays
-closed until the blocking ones are acknowledged. When there is nothing
-to settle, this step is skipped.
+Double-click the medicine to swap it for another, keeping the quantity
+and directions. Double-click the quantity to change it. Double-click the
+directions to type them, with the dispensing codes offered as you go.
+Enter keeps it, Escape puts it back. The edit dialog is still there
+behind the pencil.
 
-**Pay and dispense**
+**Full text on hover**
 
-How it is paid on the left, the bill on the right, with what the
-patient pays in large type and where it is collected. Till, payment
-now and delivery all fit without scrolling. Who checked it and
-Dispense sit along the bottom.
+When a medicine name or directions are too long for the column, hover
+over them to read the whole thing.
 
-F12 steps through it: open, proceed, dispense.
+**Fields that name themselves**
 
-**Tidier everywhere**
+Patient, Prescriber and Medicine each show their name inside the field
+and what to type once you click in. The prescriber is searched the same
+way as the patient and the medicine.
 
-The patient, prescriber and medicine fields sit on one row. The line
-check opens with three answers at a glance: dose, interactions and
-scheme. Every dialog shares one header, one set of section headings
-and one row of buttons along the bottom.
+**Clearer sections**
+
+The patient lane, the script, the finishing bar and the worklist each
+have their own colour, and the stray lines across the screen are gone.
