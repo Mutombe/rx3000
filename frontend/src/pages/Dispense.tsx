@@ -1435,6 +1435,9 @@ export default function Dispense() {
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: selected,
         ...compliancePayload(),
+        // The warnings acknowledged at the counter, recorded against this
+        // script by the server as it is dispensed.
+        acknowledged_message_ids: [...counter.acked],
       });
       // Take the money here when that is what was asked for. The sale is
       // raised pending either way; settling it is the same call the till makes,
@@ -3016,7 +3019,7 @@ ${d.action}`}
                                     </div>
                                     <div className="fin-item-act">
                                       {done ? (
-                                        <span className="fin-ack"><Check size={13} weight="bold" /> Acknowledged</span>
+                                        <span className="fin-ack" title="Recorded against the script, in your name, when it is dispensed"><Check size={13} weight="bold" /> Acknowledged</span>
                                       ) : (
                                         <button type="button" className="btn danger small"
                                                 disabled={counter.busy === m.id}

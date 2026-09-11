@@ -79,6 +79,9 @@ export function useCounterMessages({
   }, [key]);
 
   useEffect(load, [key]);
+  // A different patient or basket is a different question: an acknowledgement
+  // given for one must not carry over to the next.
+  useEffect(() => { setAcked(new Set()); setError(""); }, [key]);
 
   const outstanding = (data?.blocking ?? []).filter(
     (m) => m.id === null || !acked.has(m.id),
@@ -91,12 +94,14 @@ export function useCounterMessages({
   async function acknowledge(message: CounterMessage) {
     if (message.id === null) return;
     if (!prescriptionId) {
-      // Acknowledgement is recorded against a script. Before one exists there
-      // is nothing to attach it to, and pretending otherwise would lose it.
-      setError(
-        "Capture the script first. An acknowledgement is recorded against it, " +
-          "not against the screen.",
-      );
+      // No script exists yet: a new one is created at the moment it is
+      // dispensed. The acknowledgement is held here and sent with that request,
+      // where the server records it against the new script in the dispensing
+      // pharmacist's name before its guard runs. Refusing here instead — which
+      // is what this did — meant a blocking warning on a new script could never
+      // be got past at all.
+      setAcked(new Set([...acked, message.id]));
+      setError("");
       return;
     }
     setBusy(message.id);

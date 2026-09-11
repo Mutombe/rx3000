@@ -267,6 +267,25 @@ def dispense(
     # A blocking counter message stops the dispense until somebody takes
     # responsibility for it by name. This is the point where it has to bite —
     # a warning shown after the medicine is handed over is not a warning.
+    # Acknowledged at the counter, before this script existed. A new script is
+    # created and dispensed in one act, so there was never an id to record the
+    # acknowledgement against until now — and without this, a patient with an
+    # allergy match could not be dispensed that medicine from the dispensary at
+    # all. Recorded in the dispensing user's name; only what is actually
+    # blocking this dispensing is taken, so an id sent here cannot be used to
+    # wave through something else.
+    if body.acknowledged_message_ids:
+        found = messages.for_dispensing(
+            db, patient_id=rx.patient_id,
+            product_ids=[i.product_id for i in items],
+            medical_aid_id=(rx.patient.medical_aid_id if rx.patient else None))
+        blocking_ids = {m["id"] for m in found["blocking"]}
+        already = messages.acknowledged_ids(db, rx.id)
+        for message_id in sorted(set(body.acknowledged_message_ids) & (blocking_ids - already)):
+            messages.acknowledge(
+                db, message_id=message_id, prescription_id=rx.id, user_id=user.id,
+                note="Acknowledged at the counter; recorded on dispensing.")
+
     try:
         messages.guard_dispense(
             db, prescription_id=rx.id, patient_id=rx.patient_id,

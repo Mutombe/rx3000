@@ -380,6 +380,11 @@ class PrescriptionOut(ORM):
 
 class DispenseRequest(BaseModel):
     item_ids: list[int]
+    # Blocking counter messages the pharmacist acknowledged at the counter, by
+    # id. Recorded against this script in the dispensing user's name before the
+    # guard runs, so a new script can be acknowledged and dispensed in one act.
+    # Only ids actually blocking this dispensing are taken.
+    acknowledged_message_ids: list[int] = []
     payment_method: str = "cash"  # settled at POS; sale created as pending
     # Hand over less than the script asks and owe the balance, keyed by
     # prescription item id. The patient pays for the whole quantity; what was
