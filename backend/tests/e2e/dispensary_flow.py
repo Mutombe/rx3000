@@ -103,6 +103,46 @@ with sync_playwright() as pw:
         check("empty: patient, prescriber and medicine share one row",
               max(lane0["tops"]) - min(lane0["tops"]) <= 2, str(lane0["tops"]))
         check("empty: the lane is one row high", lane0["lane"] <= 64, f"{lane0['lane']}px")
+
+        # The field's name inside the field, an icon at its right end, widths that
+        # follow the data, and every name and hint measured against its room.
+        FIT = """(sel) => {
+          const el = document.querySelector(sel); const cs = getComputedStyle(el);
+          const c = document.createElement('canvas').getContext('2d');
+          c.font = `500 ${cs.fontSize} ${cs.fontFamily}`;
+          const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+          return { text: el.placeholder, need: Math.ceil(c.measureText(el.placeholder).width), room: Math.floor(room) };
+        }"""
+        ui = page.evaluate("""() => {
+          const q = (s) => document.querySelector(s);
+          const w = (s) => Math.round(q(s).getBoundingClientRect().width);
+          return {
+            labels: document.querySelectorAll('.sec-patient > .lane-field label').length,
+            icons: ['.disp-patient-field', '.disp-doctor', '.disp-medicine'].map((s) => !!q(s + ' .lane-icon')),
+            widths: [w('.disp-patient-field'), w('.disp-doctor'), w('.disp-medicine')],
+          };
+        }""")
+        check("lane: no label beside the fields", ui["labels"] == 0, str(ui["labels"]))
+        check("lane: each field has its icon at the right end", all(ui["icons"]), str(ui["icons"]))
+        check("lane: widths follow the data (patient > prescriber > medicine)",
+              ui["widths"][0] > ui["widths"][1] > ui["widths"][2], str(ui["widths"]))
+        for sel, label in (("#disp-patient", "Patient"), ("#disp-doctor", "Prescriber"), ("#disp-product", "Medicine")):
+            name_fit = page.evaluate(FIT, sel)
+            check(f"lane: {label} is named inside its field", name_fit["text"] == label, name_fit["text"])
+            check(f"lane: the name '{label}' fits", name_fit["need"] <= name_fit["room"] + 2,
+                  f"{name_fit['need']} > {name_fit['room']}")
+            page.focus(sel)
+            page.wait_for_timeout(200)
+            hint = page.evaluate(FIT, sel)
+            check(f"lane: clicking {label} shows what to type", hint["text"] not in ("", label), hint["text"])
+            check(f"lane: the {label} hint fits the field", hint["need"] <= hint["room"] + 2,
+                  f"{hint['need']} > {hint['room']}: {hint['text']!r}")
+            page.evaluate("document.activeElement && document.activeElement.blur()")
+            page.wait_for_timeout(150)
+            check(f"lane: leaving {label} puts its name back", page.evaluate(FIT, sel)["text"] == label)
+        if SHOT is not None:
+            page.screenshot(path=str(SHOT / f"lane-empty-{w}.png"),
+                            clip={"x": 270, "y": 120, "width": (880 if w == 1512 else 730), "height": 70})
         if shots:
             page.screenshot(path=str(SHOT / "flow-empty.png"))
 
@@ -113,16 +153,20 @@ with sync_playwright() as pw:
         if picks:
             picks[0].click()
             page.wait_for_timeout(1200)
-        page.click(".disp-doctor .sel-trigger")
-        page.wait_for_timeout(400)
-        opts = [o for o in page.query_selector_all(
-                    ".sel-panel [role='option'], .sel-list > div:not(.sel-group):not(.sel-empty)")
-                if "Select doctor" not in (o.text_content() or "")]
+        # The prescriber is searched like the patient and the medicine, and its
+        # matches list full width under the lane, the same as theirs.
+        page.fill("#disp-doctor", "Dr")
+        page.wait_for_timeout(500)
+        opts = page.query_selector_all("#step-patient .doc-pick")
+        check("prescriber matches list full width under the lane", bool(opts) and page.evaluate(
+            "(() => { const r = document.querySelector('#step-patient .doc-pick').getBoundingClientRect();"
+            " const l = document.querySelector('.sec-patient').getBoundingClientRect();"
+            " return r.width > l.width * 0.8; })()"))
         if opts:
             opts[0].click()
             page.wait_for_timeout(400)
-        else:
-            page.keyboard.press("Escape")
+        check("the picked prescriber sits in the lane like the patient",
+              page.query_selector(".lane-field.is-picked.disp-doctor") is not None)
         check("a patient and a prescriber are chosen", bool(picks) and bool(opts),
               f"patients {len(picks)}, doctors {len(opts)}")
 

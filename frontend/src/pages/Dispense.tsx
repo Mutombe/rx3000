@@ -40,7 +40,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -59,6 +59,14 @@ type Route = "prescription" | "controlled" | "otc";
 /** The label the server screens a line under — and so the one its findings
  *  come back under. Built in one place so the two can never drift. */
 const lineName = (p: Product) => `${p.name} ${p.strength || ""}`.trim();
+
+/** What to type, shown once the cursor is in a lane field. Worded for the
+ *  narrowest the field gets — about 16 characters for Medicine at 1366px — and
+ *  promising only what the search behind it actually matches. */
+const PATIENT_HINT = "Name, ID, phone or aid no.";
+const PRESCRIBER_HINT = "Name or practice no.";
+const MEDICINE_HINT = "Search by name";
+const CONTROLLED_HINT = "S5–S6, by name";
 
 interface DraftItem {
   product: Product;
@@ -268,6 +276,11 @@ export default function Dispense() {
 
   // shared patient picker
   const [patientQ, setPatientQ] = useState("");
+  /** What is typed into the prescriber search. */
+  const [doctorQ, setDoctorQ] = useState("");
+  /** The lane search the cursor is in. Its placeholder turns from the field's
+   *  name into what to type. */
+  const [laneFocus, setLaneFocus] = useState<"patient" | "doctor" | "product" | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
 
@@ -2006,20 +2019,19 @@ export default function Dispense() {
                 </div>
               )}
               {patient ? (
-                <div className="disp-patient-picked">
-                  <span className="dpp-label">Patient</span>
-                  <span className="dpp-who"
-                        title={`ID ${patient.id_number || "not on file"} · `
-                          + (patient.medical_aid
-                            ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
-                            : "Private patient")}>
+                <div className="lane-field is-picked disp-patient-picked"
+                     title={`${patient.first_name} ${patient.last_name} · ID ${patient.id_number || "not on file"} · `
+                       + (patient.medical_aid
+                         ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
+                         : "Private patient")}>
+                  <span className="dpp-who">
                     <b>{patient.first_name} {patient.last_name}</b>
                     <span className="muted">
                       {" "}· ID {patient.id_number || "not on file"} ·{" "}
                       {patient.medical_aid ? patient.medical_aid.name : "Private"}
                     </span>
                   </span>
-                  <button type="button" className="dpp-change" onClick={() => setPatient(null)}
+                  <button type="button" className="lane-icon-btn dpp-change" onClick={() => setPatient(null)}
                           title="Change patient" aria-label="Change patient">
                     <X size={14} weight="bold" />
                   </button>
@@ -2030,11 +2042,18 @@ export default function Dispense() {
                       started 170px to the left of the prescriber directly
                       below it, and two adjacent rows with two different left
                       edges is what the whole band was being judged on. */}
-                  <div className="field disp-patient-field">
-                    <label htmlFor="disp-patient">Patient</label>
+                  {/* The field's name where the placeholder goes, and what to
+                      type only once the cursor is in it. A label beside a narrow
+                      field spent a fifth of its width on one word. */}
+                  <div className="lane-field disp-patient-field">
                     <input id="disp-patient" data-hk="patient" type="search"
-                      placeholder="Name, ID or membership number…" value={patientQ}
+                      aria-label="Patient: search by name, ID number, phone or medical aid number"
+                      placeholder={laneFocus === "patient" ? PATIENT_HINT : "Patient"}
+                      value={patientQ}
+                      onFocus={() => setLaneFocus("patient")}
+                      onBlur={() => setLaneFocus(null)}
                       onChange={(e) => setPatientQ(e.target.value)} />
+                    <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
                   </div>
                   {/* The end of the search is the beginning of the work.
                       "No match" used to be where this screen stopped: the
@@ -2065,11 +2084,19 @@ export default function Dispense() {
                   each. The heading went with them: a table under a search box
                   labelled "Medicine" does not need telling it holds script
                   items. */}
-              <div className="field disp-medicine">
-                <label htmlFor="disp-product">Medicine</label>
+              <div className="lane-field disp-medicine">
                 <input data-hk="product" id="disp-product" type="search"
-                  placeholder={`Search ${route === "controlled" ? "controlled substances" : "prescription medicines"}…`}
-                  value={productQ} onChange={(e) => setProductQ(e.target.value)} />
+                  aria-label={route === "controlled"
+                    ? "Medicine: search S5 and S6 medicines by name"
+                    : "Medicine: search prescription medicines by name"}
+                  placeholder={laneFocus === "product"
+                    ? (route === "controlled" ? CONTROLLED_HINT : MEDICINE_HINT)
+                    : "Medicine"}
+                  value={productQ}
+                  onFocus={() => setLaneFocus("product")}
+                  onBlur={() => setLaneFocus(null)}
+                  onChange={(e) => setProductQ(e.target.value)} />
+                <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
               </div>
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
@@ -2111,14 +2138,61 @@ export default function Dispense() {
               {/* The two halves of one question — who is this for, and who
                   wrote it. A script has never had one without the other, and
                   they were taking a row each. */}
-              <div className="field disp-doctor">
-                <label>Prescriber</label>
-                <Select
-                  value={String(doctorId ?? "")}
-                  onChange={(__value) => setDoctorId(__value === "" ? "" : Number(__value))}
-                  options={[{ value: "", label: "Select doctor…" }, ...doctors.map((d) => ({ value: String(d.id), label: `${d.name} (${d.practice_number})` }))]}
-                />
-              </div>
+              {/* The prescriber, searched and listed like the patient and the
+                  medicine. It was a dropdown whose list was a popover as narrow
+                  as its own field, the one field on the lane that behaved
+                  differently from the two beside it. */}
+              {(() => {
+                const doctor = doctors.find((d) => d.id === doctorId) ?? null;
+                if (doctor) {
+                  return (
+                    <div className="lane-field is-picked disp-doctor"
+                         title={`${doctor.name} · practice ${doctor.practice_number || "not on file"}`
+                           + (doctor.phone ? ` · ${doctor.phone}` : "")}>
+                      <span className="dpp-who">
+                        <b>{doctor.name}</b>
+                        <span className="muted"> · {doctor.practice_number || "no practice no."}</span>
+                      </span>
+                      <button type="button" className="lane-icon-btn" onClick={() => setDoctorId("")}
+                              title="Change prescriber" aria-label="Change prescriber">
+                        <X size={14} weight="bold" />
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="lane-field disp-doctor">
+                    <input id="disp-doctor" data-hk="doctor" type="search"
+                      aria-label="Prescriber: search by name or practice number"
+                      placeholder={laneFocus === "doctor" ? PRESCRIBER_HINT : "Prescriber"}
+                      value={doctorQ}
+                      onFocus={() => setLaneFocus("doctor")}
+                      onBlur={() => setLaneFocus(null)}
+                      onChange={(e) => setDoctorQ(e.target.value)} />
+                    <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
+                  </div>
+                );
+              })()}
+              {doctorId === "" && doctorQ.trim().length >= 2 && (() => {
+                const q = doctorQ.trim().toLowerCase();
+                const hits = doctors
+                  .filter((d) => `${d.name} ${d.practice_number ?? ""}`.toLowerCase().includes(q))
+                  .slice(0, 8);
+                if (hits.length === 0) {
+                  return (
+                    <div className="pick-none">
+                      <span>No prescriber on file matches &ldquo;{doctorQ.trim()}&rdquo;.</span>
+                    </div>
+                  );
+                }
+                return hits.map((d) => (
+                  <div key={d.id} className="product-pick doc-pick"
+                       onClick={() => { setDoctorId(d.id); setDoctorQ(""); }}>
+                    <span><b>{d.name}</b> <span className="muted">{d.practice_number}</span></span>
+                    <span className="muted">{d.phone}</span>
+                  </div>
+                ));
+              })()}
             </div>
 
             <div className="card sec sec-items" id="step-items">

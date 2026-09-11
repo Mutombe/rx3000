@@ -8594,3 +8594,55 @@ button.fin-ack { cursor: pointer; }
    opens with an icon lays the icon beside the text. */
 .fin-note { display: block; }
 .fin-note:has(> svg) { display: flex; }
+
+/* ========================================================================
+   THE LANE FIELDS — the name inside, what to type once you are in, one icon
+   position, one picked box, and widths that follow what each has to hold.
+   ======================================================================== */
+.disp-dense .sec-patient {
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.25fr) minmax(0, 1fr);
+}
+.disp-dense .card.sec-patient > .lane-field { grid-row: 1; margin: 0; min-width: 0; }
+.disp-dense .card.sec-patient > .lane-field.disp-patient-field,
+.disp-dense .card.sec-patient > .lane-field.disp-patient-picked { grid-column: 1; }
+.disp-dense .card.sec-patient > .lane-field.disp-doctor { grid-column: 2; }
+.disp-dense .card.sec-patient > .lane-field.disp-medicine { grid-column: 3; }
+
+.lane-field { position: relative; display: block; }
+.disp-dense .lane-field > input { width: 100%; padding-right: 32px; }
+.lane-field > input::-webkit-search-cancel-button { -webkit-appearance: none; display: none; }
+/* The name reads as a name; what to type reads as a hint. */
+.lane-field > input::placeholder { color: var(--ink-soft); font-weight: 500; opacity: 1; }
+.lane-field > input:focus::placeholder { color: var(--ink-faint, var(--ink-soft)); font-weight: 400; }
+
+/* The function icon: the right end of every field, one position. */
+.lane-icon {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-soft); pointer-events: none;
+}
+.lane-field > input:focus ~ .lane-icon { color: var(--ink); }
+
+/* A picked patient or prescriber sits in a box the size of the search it
+   replaced, with the way to change it in the same icon slot. */
+.disp-dense .lane-field.is-picked {
+  display: flex; align-items: center; gap: var(--s2);
+  height: 30px; min-height: 0; padding: 0 3px 0 12px;
+  grid-template-columns: none;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface);
+}
+.lane-field.is-picked .dpp-who {
+  flex: 1 1 auto; min-width: 0; font-size: .86rem;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.lane-icon-btn {
+  flex: 0 0 auto; display: inline-grid; place-items: center;
+  width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--ink-soft); cursor: pointer;
+}
+.lane-icon-btn:hover { background: var(--hover); color: var(--ink); }
+.lane-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* The chips start where the fields start; there is no label column now. */
+.disp-context { padding-left: 0; }
