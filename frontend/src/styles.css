@@ -9146,3 +9146,17 @@ button.fin-ack { cursor: pointer; }
 .disp-dense > .keybar .keybar-item:hover:not(:disabled) {
   background: var(--surface); color: var(--ink); box-shadow: var(--e1);
 }
+
+/* The bar was 58px, and none of it was the controls: its status was 50 — a
+   38px button (the app's default control height, which a <button> inherits)
+   plus the 12px top margin the sentence kept from when it was a paragraph.
+   The `.disp-status > p` reset never applied to it once it became a button.
+
+   The status is its text again, and with it out of the way the controls are the
+   height: 26px buttons in 2px of padding, so the bar is about 32px and the
+   table has the rest. */
+.disp-status > .disp-say { height: auto; min-height: 0; margin: 0; }
+.disp-dense .card.sec-go.disp-bar { padding: 2px 2px 2px 10px; }
+.disp-dense .disp-bar .btn { height: 26px; }
+.disp-dense .disp-bar .disp-commit-row > .field input { height: 24px; }
+.disp-dense .disp-bar .disp-chip { height: 20px; }
