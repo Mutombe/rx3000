@@ -1,25 +1,27 @@
-Edit the script where you read it.
+Finishing a script, made lighter.
 
-**Double-click to edit in the table**
+**See what will print before you press Dispense**
 
-Double-click the medicine to swap it for another, keeping the quantity
-and directions. Double-click the quantity to change it. Double-click the
-directions to type them, with the dispensing codes offered as you go.
-Enter keeps it, Escape puts it back. The edit dialog is still there
-behind the pencil.
+Labels, claim copy, delivery label and price label sit as switches
+beside the bill, each showing which printer it goes to. They switch
+themselves on when the script calls for them: the claim copy when a
+medical aid is paying, the delivery label when it goes with a driver.
+Tap one to change it. The Dispense button tells you how many will print.
 
-**Full text on hover**
+**Allergy warnings no longer stop a new script**
 
-When a medicine name or directions are too long for the column, hover
-over them to read the whole thing.
+A pharmacist can now acknowledge a blocking warning, such as a
+penicillin allergy, on a brand new script and dispense it. The
+acknowledgement is recorded in their name on the script.
 
-**Fields that name themselves**
+**The patient at a glance**
 
-Patient, Prescriber and Medicine each show their name inside the field
-and what to type once you click in. The prescriber is searched the same
-way as the patient and the medicine.
+Allergies, medical aid, repeats due, history and patient details are
+icons on the patient's box. History and details open without leaving
+the dispensary.
 
-**Clearer sections**
+**Tidier screen**
 
-The patient lane, the script, the finishing bar and the worklist each
-have their own colour, and the stray lines across the screen are gone.
+The script number and date sit at the top left. The coloured strips
+down the sides are gone, and the function keys have their own row.
+Finish never needs scrolling.
