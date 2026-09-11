@@ -23,6 +23,8 @@ import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { useDoseScreen } from "../hooks/useDoseScreen";
+import CellMedicineSearch from "../components/CellMedicineSearch";
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { printLabels } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
@@ -230,6 +232,15 @@ export default function Dispense() {
    *  never as the old answer. */
   const [lineChecks, setLineChecks] = useState<Record<number, {
     sig: string; status: "loading" | "ready"; screen?: Screen; error?: string }>>({});
+  /** The table cell being edited in place. Keyed by product rather than row
+   *  number, so deleting a line above cannot move the editor onto another. */
+  const [cellEdit, setCellEdit] = useState<{
+    id: number; col: "medicine" | "qty" | "sig"; orig: string | number } | null>(null);
+  const cellEditRef = useRef(cellEdit);
+  useEffect(() => { cellEditRef.current = cellEdit; }, [cellEdit]);
+  /** The full text of a truncated table cell, floated over it. */
+  const [tip, setTip] = useState<{
+    text: string; sub?: string; x: number; y: number; below: boolean } | null>(null);
   const [lastRxId, setLastRxId] = useState<number | null>(null);
   const [printing, setPrinting] = useState(false);
   /* The routes this person may use. Filtered only once the server has said
@@ -681,6 +692,86 @@ export default function Dispense() {
     if (settleBlocks()) return;
     setSettledFor(basketSig);
     setFinishStage("pay");
+  }
+
+  // ---- editing in the table ---------------------------------------------
+  const CELL_ORDER = ["medicine", "qty", "sig"] as const;
+  type CellCol = (typeof CELL_ORDER)[number];
+
+  function editingCell(it: DraftItem, col: CellCol) {
+    return cellEdit?.id === it.product.id && cellEdit.col === col;
+  }
+
+  function startCellEdit(it: DraftItem, idx: number, col: CellCol) {
+    setTip(null);
+    setOpenItem(idx);
+    const next = { id: it.product.id, col,
+      orig: col === "qty" ? it.quantity : col === "sig" ? it.dosage_instructions : "" };
+    cellEditRef.current = next;
+    setCellEdit(next);
+  }
+
+  /** Enter, blur, or moving on: keep what was typed. A quantity that is not a
+   *  number of at least one goes back to one rather than onto a label. */
+  function finishCellEdit(idx: number, col: CellCol) {
+    const cur = cellEditRef.current;
+    if (!cur || cur.col !== col) return;
+    if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
+    cellEditRef.current = null;
+    setCellEdit(null);
+  }
+
+  /** Escape: put back what was there before the double-click. */
+  function cancelCellEdit(idx: number) {
+    const cur = cellEditRef.current;
+    if (!cur) return;
+    cellEditRef.current = null;
+    if (cur.col === "qty") updateItem(idx, { quantity: Number(cur.orig) || 1 });
+    if (cur.col === "sig") updateItem(idx, { dosage_instructions: String(cur.orig) });
+    setCellEdit(null);
+  }
+
+  function moveCellEdit(it: DraftItem, idx: number, col: CellCol, dir: 1 | -1) {
+    if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
+    const at = CELL_ORDER.indexOf(col) + dir;
+    if (at < 0 || at >= CELL_ORDER.length) {
+      cellEditRef.current = null;
+      setCellEdit(null);
+      return;
+    }
+    startCellEdit(it, idx, CELL_ORDER[at]);
+  }
+
+  function cellKeys(e: ReactKeyboardEvent<HTMLInputElement>, it: DraftItem, idx: number, col: CellCol) {
+    // Handled here and marked used, so the page's Escape (which clears the
+    // script when nothing is open) never sees it.
+    if (e.key === "Enter") { e.preventDefault(); finishCellEdit(idx, col); return; }
+    if (e.key === "Escape") { e.preventDefault(); cancelCellEdit(idx); return; }
+    if (e.key === "Tab") { e.preventDefault(); moveCellEdit(it, idx, col, e.shiftKey ? -1 : 1); }
+  }
+
+  /** A different medicine on the same line, keeping everything else about it. */
+  function swapProduct(idx: number, p: Product) {
+    const cur = items[idx];
+    if (!cur) return;
+    if (items.some((x, j) => j !== idx && x.product.id === p.id)) {
+      toast.warn(`${p.name} is already on this script.`);
+      return;
+    }
+    setItems(items.map((x, j) => (j === idx ? { ...x, product: p } : x)));
+    setLineChecks((m) => { const next = { ...m }; delete next[cur.product.id]; return next; });
+    cellEditRef.current = null;
+    setCellEdit(null);
+  }
+
+  /** Show a cell's full text, only when the cell is actually cutting it off. */
+  function showTip(e: ReactMouseEvent<HTMLElement>, full: string, editable: boolean) {
+    if (cellEditRef.current) return;
+    const shown = e.currentTarget.querySelector<HTMLElement>(".cell-text");
+    if (!shown || shown.scrollWidth <= shown.clientWidth + 1) { setTip(null); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    setTip({ text: full, sub: editable ? "Double-click to edit" : undefined,
+             x: r.left, y: r.top, below: r.top < 90 });
   }
 
   function openFinish(section?: string) {
@@ -2468,9 +2559,15 @@ export default function Dispense() {
                   is — which is what somebody needs on a new script and why the
                   system we are compared to draws its empty rows. */}
               <div className="rx-item-head rx-item-cols" aria-hidden="true">
-                <span>Medicine</span>
-                <span className="rx-item-qty">Qty</span>
-                <span>Directions</span>
+                <span className="rx-col-edit" title="Double-click a cell to edit it">
+                  Medicine <PencilSimpleLine size={11} />
+                </span>
+                <span className="rx-item-qty rx-col-edit" title="Double-click a cell to edit it">
+                  Qty <PencilSimpleLine size={11} />
+                </span>
+                <span className="rx-col-edit" title="Double-click a cell to edit it">
+                  Directions <PencilSimpleLine size={11} />
+                </span>
                 <span className="rx-item-money">Amount</span>
                 <span className="rx-item-margin">Margin</span>
                 <span className="rx-item-actions">Action</span>
@@ -2498,7 +2595,22 @@ export default function Dispense() {
                              e.preventDefault(); setOpenItem(idx);
                            }
                          }}>
-                      <span className="rx-item-name">
+                      {/* Double-click to edit in place; hover to read what the
+                          column cuts off. The line editor is still the pencil. */}
+                      <span className={`rx-item-name${editingCell(it, "medicine") ? " is-editing" : ""}`}
+                            onDoubleClick={() => startCellEdit(it, idx, "medicine")}
+                            onMouseEnter={(e) => showTip(e, lineName(it.product), true)}
+                            onMouseLeave={() => setTip(null)}>
+                        {editingCell(it, "medicine") ? (
+                          <CellMedicineSearch
+                            route={route}
+                            current={lineName(it.product)}
+                            takenIds={items.map((x) => x.product.id)}
+                            onPick={(p) => swapProduct(idx, p)}
+                            onCancel={() => { cellEditRef.current = null; setCellEdit(null); }}
+                            onTab={(dir) => moveCellEdit(it, idx, "medicine", dir)}
+                          />
+                        ) : (<>
                         {/* The dose finding, on the row it is about.
                             Costs nothing until there is something to say, which
                             is why it can live on a table the panel could not. */}
@@ -2519,16 +2631,50 @@ ${d.action}`}
                             </span>
                           );
                         })()}
-                        {it.product.name} {it.product.strength}
+                        <span className="cell-text">{it.product.name} {it.product.strength}</span>
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
+                        </>)}
                       </span>
-                      <span className="rx-item-qty">{it.quantity}</span>
+                      <span className={`rx-item-qty${editingCell(it, "qty") ? " is-editing" : ""}`}
+                            onDoubleClick={() => startCellEdit(it, idx, "qty")}>
+                        {editingCell(it, "qty") ? (
+                          <input className="cell-input is-num" type="number" min={1} autoFocus
+                                 aria-label={`Quantity of ${it.product.name}`}
+                                 value={it.quantity || ""}
+                                 onFocus={(e) => e.currentTarget.select()}
+                                 onChange={(e) => updateItem(idx, { quantity: Number(e.target.value) })}
+                                 onKeyDown={(e) => cellKeys(e, it, idx, "qty")}
+                                 onBlur={() => finishCellEdit(idx, "qty")} />
+                        ) : it.quantity}
+                      </span>
                       {/* What the label will say, on the row, so a closed line
                           still shows the thing most likely to be wrong. */}
-                      <span className="rx-item-sig">
-                        {it.dosage_instructions || <em>no directions yet</em>}
+                      <span className={`rx-item-sig${editingCell(it, "sig") ? " is-editing" : ""}`}
+                            onDoubleClick={() => startCellEdit(it, idx, "sig")}
+                            onMouseEnter={(e) => { if (it.dosage_instructions) showTip(e, it.dosage_instructions, true); }}
+                            onMouseLeave={() => setTip(null)}>
+                        {editingCell(it, "sig") ? (
+                          <SigInput compact autoFocus
+                            value={it.dosage_instructions}
+                            placeholder="Directions or codes, e.g. 1a tds"
+                            onChange={(next) => {
+                              // Ignored once the cell has closed: the field's own
+                              // blur can still commit an expansion on its way out,
+                              // and must not undo an Escape.
+                              const cur = cellEditRef.current;
+                              if (cur?.id === it.product.id && cur.col === "sig") {
+                                updateItem(idx, { dosage_instructions: next });
+                              }
+                            }}
+                            onKeyDown={(e) => cellKeys(e, it, idx, "sig")}
+                            onBlur={() => finishCellEdit(idx, "sig")} />
+                        ) : (
+                          <span className="cell-text">
+                            {it.dosage_instructions || <em>no directions yet</em>}
+                          </span>
+                        )}
                       </span>
                       <span className="rx-item-money">
                         {money(each * (it.quantity || 0))}
@@ -3194,6 +3340,15 @@ ${d.action}`}
                 />
               );
             })()}
+
+            {/* The full text of a truncated cell. */}
+            {tip && (
+              <div className={`cell-tip${tip.below ? " is-below" : ""}`} role="tooltip"
+                   style={{ left: tip.x, top: tip.below ? tip.y + 34 : tip.y - 6 }}>
+                <span>{tip.text}</span>
+                {tip.sub && <small>{tip.sub}</small>}
+              </div>
+            )}
 
             {/* What a lane chip stands for, in full. */}
             {laneOpen !== null && patient && (

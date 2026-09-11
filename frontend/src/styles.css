@@ -8646,3 +8646,87 @@ button.fin-ack { cursor: pointer; }
 
 /* The chips start where the fields start; there is no label column now. */
 .disp-context { padding-left: 0; }
+
+/* ========================================================================
+   EDITING IN THE TABLE
+   ======================================================================== */
+.disp-dense .rx-item-head > * { user-select: none; }
+.disp-dense .disp-grid .rx-item-head > .is-editing {
+  padding: 2px 4px; overflow: visible; user-select: text;
+}
+.cell-text { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.disp-dense .rx-item-name .badge { flex: 0 0 auto; }
+.cell-input,
+.disp-dense .rx-item-sig.is-editing .sig-row input {
+  width: 100%; height: 28px; padding: 0 8px;
+  border: 1px solid var(--accent); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink); font-size: .86rem;
+  box-shadow: 0 0 0 3px var(--accent-soft, rgba(0, 0, 0, .08));
+}
+.cell-input.is-num { text-align: right; font-variant-numeric: tabular-nums; }
+.disp-dense .rx-item-sig.is-editing .sig { width: 100%; }
+.disp-dense .rx-item-sig.is-editing .sig-row { gap: 0; }
+.rx-col-edit { gap: 4px; }
+.rx-col-edit svg { flex: 0 0 auto; opacity: .55; }
+
+/* Matches for a swap, floated on the viewport so a scrolling table cannot
+   clip them. */
+.cell-menu {
+  position: fixed; z-index: 500; list-style: none; margin: 0; padding: 4px;
+  max-height: 18rem; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--line-strong);
+  border-radius: var(--r-md); box-shadow: var(--e2, 0 10px 30px rgba(0, 0, 0, .25));
+}
+.cell-menu li {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  padding: 6px 10px; border-radius: var(--r-sm); font-size: .84rem; cursor: pointer;
+}
+.cell-menu li.on { background: var(--hover); }
+.cell-menu li.is-taken { opacity: .5; cursor: not-allowed; }
+.cell-menu-main { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* The full text of a cut-off cell. */
+.cell-tip {
+  position: fixed; z-index: 600; pointer-events: none;
+  transform: translateY(-100%); max-width: 32rem;
+  padding: 6px 10px; border-radius: var(--r-sm);
+  background: var(--ink); color: var(--surface);
+  font-size: .8rem; line-height: 1.35; box-shadow: var(--e2, 0 8px 24px rgba(0, 0, 0, .3));
+}
+.cell-tip.is-below { transform: none; }
+.cell-tip small { display: block; margin-top: 2px; font-size: .7rem; opacity: .7; }
+
+/* ========================================================================
+   COLOUR: each major part in its own hue — a leading edge and a faint wash.
+   ======================================================================== */
+.disp-dense .card.sec-patient {
+  border-left: 3px solid var(--sec-patient);
+  background: linear-gradient(var(--sec-patient-soft), var(--sec-patient-soft)), var(--surface);
+}
+.disp-dense .disp-grid { border-left: 3px solid var(--sec-items); }
+.disp-dense .disp-grid > .rx-item-cols {
+  background: linear-gradient(var(--sec-items-soft), var(--sec-items-soft)), var(--surface-sunk);
+}
+.disp-dense .card.sec-go.disp-bar {
+  border-left: 3px solid var(--sec-go);
+  background: linear-gradient(var(--sec-go-soft), var(--sec-go-soft)), var(--surface);
+}
+.disp-with-worklist .wl {
+  border-left: 3px solid var(--sec-money, var(--e-money));
+  background: linear-gradient(var(--sec-money-soft, transparent), var(--sec-money-soft, transparent)), var(--surface);
+}
+.disp-with-worklist .wl-head { color: var(--sec-money, var(--e-money)); }
+
+/* ========================================================================
+   THE TWO LONG LINES, gone. The head's bottom border ran from the lane to the
+   worklist; the key strip's top border lay on the bar's own bottom edge. The
+   strip keeps a gap instead, so it never sits on the part above it.
+   ======================================================================== */
+.disp-dense .disp-head { border-bottom: 0; }
+.disp-dense > .keybar { border-top: 0; padding-top: 6px; }
+
+/* A quantity cell is 60px wide, and the browser's up/down arrows took most of
+   it, leaving the figure being edited a sliver. The arrow keys still step it. */
+.cell-input.is-num { -moz-appearance: textfield; appearance: textfield; padding: 0 6px; }
+.cell-input.is-num::-webkit-inner-spin-button,
+.cell-input.is-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

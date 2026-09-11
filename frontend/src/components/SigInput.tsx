@@ -130,12 +130,21 @@ export function expandLocal(shorthand: string, codes: Map<string, string>): stri
 }
 
 export default function SigInput({
-  value, onChange, placeholder, id,
+  value, onChange, placeholder, id, compact = false, autoFocus, onKeyDown, onBlur,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   id?: string;
+  /** For a table cell: the field and its suggestions, without the Codes button,
+   *  the label preview or the expansion note, and with the suggestions floated
+   *  on the viewport so a scrolling table cannot clip them. */
+  compact?: boolean;
+  autoFocus?: boolean;
+  /** Called for keys the suggestion list did not use. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  /** Called after the field's own blur has committed the expansion. */
+  onBlur?: () => void;
 }) {
   const [book, setBook] = useState<Book | null>(null);
   const [showBook, setShowBook] = useState(false);
@@ -274,11 +283,12 @@ export default function SigInput({
   }, [showBook]);
 
   return (
-    <div className="sig" ref={panel}>
+    <div className={`sig${compact ? " is-compact" : ""}`} ref={panel}>
       <div className="sig-row">
         <input
           id={id}
           ref={field}
+          autoFocus={autoFocus}
           value={value}
           autoComplete="off"
           placeholder={placeholder ?? "e.g. 1t tds pc"}
@@ -303,6 +313,7 @@ export default function SigInput({
             // choose, printed on a label they will not re-read.
             setTyping(null);
             commit();
+            onBlur?.();
           }}
           onKeyDown={(e) => {
             if (picking) {
@@ -330,8 +341,10 @@ export default function SigInput({
               }
             }
             if (e.key === "Enter") { e.preventDefault(); commit(); }
+            onKeyDown?.(e);
           }}
         />
+        {!compact && (
         <button
           type="button"
           className="btn ghost small"
@@ -341,6 +354,7 @@ export default function SigInput({
         >
           {showBook ? "Hide codes" : "Codes"}
         </button>
+        )}
       </div>
 
       {/* "Possible Descriptions (Press <Enter> to Select)" — the dialog a
@@ -351,7 +365,12 @@ export default function SigInput({
           the highlighted row as the arrow keys move it, which the code book
           panel below cannot do because it is a grid of categories. */}
       {picking && (
-        <div className="sig-suggest">
+        <div className="sig-suggest"
+             style={compact && field.current ? (() => {
+               const r = field.current!.getBoundingClientRect();
+               return { position: "fixed" as const, left: r.left, top: r.bottom + 4,
+                        right: "auto", width: Math.max(r.width, 420), zIndex: 500 };
+             })() : undefined}>
           <div className="sig-suggest-head">
             Possible descriptions
             <span className="muted"> · Enter to select, Esc to dismiss</span>
@@ -383,7 +402,7 @@ export default function SigInput({
 
       {/* What the box will say. Shown while typing, not after committing, so
           the decision is made against the sentence rather than the shorthand. */}
-      {recognised && !expandedFrom && (
+      {!compact && recognised && !expandedFrom && (
         <p className="sig-preview">
           <span className="sig-preview-label">The label will read</span>
           <b>{preview}</b>
@@ -395,7 +414,7 @@ export default function SigInput({
         </p>
       )}
 
-      {expandedFrom && (
+      {!compact && expandedFrom && (
         <p className="sig-note">
           <b>{expandedFrom}</b> expanded.{" "}
           <button type="button" className="linkish"

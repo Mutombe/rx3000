@@ -103,6 +103,15 @@ with sync_playwright() as pw:
         check("empty: patient, prescriber and medicine share one row",
               max(lane0["tops"]) - min(lane0["tops"]) <= 2, str(lane0["tops"]))
         check("empty: the lane is one row high", lane0["lane"] <= 64, f"{lane0['lane']}px")
+        check("no line joins the lane to the worklist", page.evaluate(
+            "parseFloat(getComputedStyle(document.querySelector('.disp-head')).borderBottomWidth) === 0"))
+        check("no line joins the bar to the key strip", page.evaluate(
+            "parseFloat(getComputedStyle(document.querySelector('.keybar')).borderTopWidth) === 0"))
+        tones = page.evaluate(
+            "['.sec-patient', '.disp-grid', '.disp-bar', '.wl']"
+            ".map((s) => getComputedStyle(document.querySelector(s)).borderLeftColor)")
+        check("the lane, the table, the bar and the worklist each carry their own colour",
+              len(set(tones)) == 4, str(tones))
 
         # The field's name inside the field, an icon at its right end, widths that
         # follow the data, and every name and hint measured against its room.
@@ -279,6 +288,79 @@ with sync_playwright() as pw:
             page.click(".disp-edit .disp-edit-actions .btn.primary")
             page.wait_for_timeout(300)
         check("Done closes the editor", page.query_selector(".disp-edit") is None)
+
+        # ---- editing in the table --------------------------------------------------
+        MET = f"{LINES}:has-text('Metformin')"
+        page.dblclick(f"{MET} .rx-item-qty")
+        page.wait_for_timeout(250)
+        check("double-clicking Qty edits it in the table", page.query_selector(f"{MET} .rx-item-qty input") is not None)
+        page.fill(f"{MET} .rx-item-qty input", "28")
+        page.keyboard.press("Enter")
+        page.wait_for_timeout(300)
+        check("…Enter keeps it", (page.text_content(f"{MET} .rx-item-qty") or "").strip() == "28",
+              page.text_content(f"{MET} .rx-item-qty"))
+        page.dblclick(f"{MET} .rx-item-qty")
+        page.wait_for_timeout(250)
+        page.fill(f"{MET} .rx-item-qty input", "99")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+        check("…Escape puts it back, and leaves the script alone",
+              (page.text_content(f"{MET} .rx-item-qty") or "").strip() == "28" and line_count(page) == 2)
+
+        page.dblclick(f"{MET} .rx-item-sig")
+        page.wait_for_timeout(300)
+        sig_box = f"{MET} .rx-item-sig input"
+        check("double-clicking Directions edits it in the table", page.query_selector(sig_box) is not None)
+        if page.query_selector(sig_box):
+            page.fill(sig_box, "")
+            page.type(sig_box, "1a")
+            page.wait_for_timeout(500)
+            if page.query_selector(".sig-suggest [role='option']"):
+                check("…with the direction codes listed under it, unclipped", page.evaluate(
+                    "(() => { const s = document.querySelector('.sig-suggest').getBoundingClientRect();"
+                    " const hit = document.elementFromPoint(s.left + s.width / 2, s.top + Math.min(40, s.height / 2));"
+                    " return !!hit && !!hit.closest('.sig-suggest'); })()"))
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(200)
+                check("…Escape closes the codes, not the cell", page.query_selector(sig_box) is not None)
+            else:
+                print("  --    no code suggestions for '1a'; the list was not exercised")
+            page.fill(sig_box, "Take one tablet twice daily with food and review at the clinic in Zvimba")
+            page.keyboard.press("Enter")
+            page.wait_for_timeout(400)
+            check("…Enter keeps the directions", "Zvimba" in (page.text_content(f"{MET} .rx-item-sig") or ""))
+            page.hover(f"{MET} .rx-item-sig")
+            page.wait_for_timeout(350)
+            tip = page.text_content(".cell-tip") if page.query_selector(".cell-tip") else ""
+            check("hovering a cut-off cell shows its full text", "Zvimba" in (tip or ""), tip or "no tooltip")
+            if SHOT is not None and w == 1512:
+                page.screenshot(path=str(SHOT / "cell-tip.png"), clip={"x": 270, "y": 180, "width": 880, "height": 160})
+            page.mouse.move(5, 5)
+
+        page.dblclick(f"{MET} .rx-item-name .cell-text")
+        page.wait_for_timeout(300)
+        swap_box = ".disp-grid .rx-item-name.is-editing input"
+        check("double-clicking Medicine searches in the table", page.query_selector(swap_box) is not None)
+        if page.query_selector(swap_box):
+            page.type(swap_box, "cipro")
+            page.wait_for_timeout(1300)
+            hits = page.query_selector_all(".cell-menu [role='option']:not([aria-disabled='true'])")
+            check("…with matches listed under the cell", bool(hits))
+            if SHOT is not None and w == 1512:
+                page.screenshot(path=str(SHOT / "cell-swap.png"), clip={"x": 270, "y": 180, "width": 880, "height": 330})
+            if hits:
+                hits[0].click()
+                page.wait_for_timeout(700)
+                CIP = f"{LINES}:has-text('Cipro')"
+                swapped = page.query_selector(CIP)
+                check("…and picking one swaps the medicine, keeping qty and directions",
+                      swapped is not None
+                      and (page.text_content(f"{CIP} .rx-item-qty") or "").strip() == "28"
+                      and "Zvimba" in (page.text_content(f"{CIP} .rx-item-sig") or ""),
+                      "no swapped row" if swapped is None else page.text_content(f"{CIP} .rx-item-qty"))
+            else:
+                page.keyboard.press("Escape")
+        check("still two lines after editing in place", line_count(page) == 2, str(line_count(page)))
 
         # ---- Finish: the first stage, what must be settled ----------------------------
         FITS = ("(() => { const m = document.querySelector('.disp-finish');"
