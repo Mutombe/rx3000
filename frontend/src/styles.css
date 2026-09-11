@@ -9059,3 +9059,90 @@ button.fin-ack { cursor: pointer; }
    each one is. The lateness is written on the row ("33 days late"); the strip
    goes, like every other slab. */
 .disp-lane-modal .rd-item[class*="row-"] { box-shadow: none; }
+
+/* ========================================================================
+   WELLS — the route tabs' containering, used for the worklist, the finish bar
+   and the key strip. A sunken ground, a hairline edge, tight inner padding;
+   what sits in it lies flat, and what is chosen rises out of it.
+   ======================================================================== */
+
+/* The worklist: one well. */
+.disp-with-worklist .wl {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 3px; gap: 3px;
+  box-shadow: none;
+}
+.disp-with-worklist .wl-head { color: var(--ink-soft); padding: 5px 8px 3px; }
+
+/* Its counters lie flat in the well; the chosen one rises out of it. */
+.disp-with-worklist .wl-stats { gap: 2px; }
+.disp-with-worklist .wl-stat {
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--r-sm); padding: 6px 8px; box-shadow: none;
+}
+.disp-with-worklist .wl-stat:hover { background: var(--surface); border-color: transparent; }
+.disp-with-worklist .wl-stat.is-on,
+.disp-with-worklist .wl-stat.is-on:hover {
+  background: var(--surface); border-color: var(--line); box-shadow: var(--e1);
+}
+
+/* Its tabs: the same, exactly as a route tab. */
+.disp-with-worklist .wl-tabs { gap: 2px; }
+.disp-with-worklist .wl-tabs button {
+  height: 26px; background: transparent; color: var(--ink-soft); font-weight: 500;
+  border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none;
+}
+.disp-with-worklist .wl-tabs button:hover {
+  background: var(--surface); color: var(--ink); border-color: transparent;
+}
+.disp-with-worklist .wl-tabs button.on,
+.disp-with-worklist .wl-tabs button.on:hover {
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  border-color: var(--line); box-shadow: var(--e1);
+}
+
+/* Its rows are content, so they are raised: cards resting in the well. */
+.disp-with-worklist .wl-list { gap: 3px; margin-right: 0; }
+.disp-with-worklist .wl .wl-row,
+.disp-with-worklist .wl .wl-row[class*="wl-band-"] {
+  background: var(--surface); border: 1px solid transparent;
+  border-radius: var(--r-sm); box-shadow: none;
+}
+.disp-with-worklist .wl .wl-row:hover {
+  background: var(--surface); border-color: var(--line); box-shadow: var(--e1);
+}
+
+/* The finish bar: a well. The status sits on its ground, Save for later lies
+   flat until the pointer lifts it, and Finish is the one filled button. */
+.disp-dense .card.sec-go.disp-bar {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 3px 3px 3px 10px;
+  box-shadow: none;
+}
+.disp-dense .disp-bar .btn { height: 28px; }
+.disp-dense .disp-bar .btn.secondary {
+  background: transparent; border-color: transparent; color: var(--ink-soft); box-shadow: none;
+}
+.disp-dense .disp-bar .btn.secondary:hover:not(:disabled) {
+  background: var(--surface); border-color: var(--line); color: var(--ink); box-shadow: var(--e1);
+}
+.disp-dense .disp-bar .disp-commit-row { gap: 2px; }
+.disp-dense .disp-bar .disp-commit-row > .field { margin-right: 6px; }
+.disp-dense .disp-bar .disp-commit-row > .field input { height: 26px; background: var(--surface); }
+
+/* The key strip: a well closed on all four sides. */
+.disp-dense > .keybar {
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 3px; gap: 2px;
+  margin: 8px 0 6px;
+}
+.disp-dense > .keybar .keybar-item { height: 26px; border-radius: var(--r-sm); }
+.disp-dense > .keybar .keybar-item:hover:not(:disabled) {
+  background: var(--surface); color: var(--ink); box-shadow: var(--e1);
+}

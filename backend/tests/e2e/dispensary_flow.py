@@ -130,10 +130,24 @@ with sync_playwright() as pw:
             " return e ? parseFloat(getComputedStyle(e).borderLeftWidth) : 0; })")
         check("no coloured slab down the left of any section or worklist card",
               all(x <= 1.01 for x in slabs), str(slabs))
-        tints = page.evaluate(
-            "['.sec-patient', '.disp-bar', '.wl']"
-            ".map((s) => getComputedStyle(document.querySelector(s)).backgroundImage)")
-        check("the lane, the bar and the worklist keep their own tint", len(set(tints)) == 3, str(tints))
+        # The route tabs' containering, used for the worklist, the finish bar and the
+        # key strip: the same ground, the same corners, closed on every side.
+        wells = page.evaluate("""() => {
+          const cs = (s) => getComputedStyle(document.querySelector(s));
+          const ref = cs('.disp-head .disp-routes');
+          return ['.wl', '.disp-bar', '.keybar'].map((s) => {
+            const c = cs(s);
+            return { s, ground: c.backgroundColor === ref.backgroundColor, flat: c.backgroundImage === 'none',
+                     corners: c.borderTopLeftRadius === ref.borderTopLeftRadius,
+                     closed: ['Top', 'Right', 'Bottom', 'Left'].every((d) => parseFloat(c['border' + d + 'Width']) >= 1) };
+          });
+        }""")
+        check("the worklist, the finish bar and the key strip are wells like the route tabs",
+              all(w["ground"] and w["flat"] and w["corners"] and w["closed"] for w in wells), str(wells))
+        check("…the chosen worklist tab rises out of its well, as the chosen route does", page.evaluate(
+            "(() => { const well = getComputedStyle(document.querySelector('.wl')).backgroundColor;"
+            " const on = document.querySelector('.wl-tabs button.on');"
+            " return !!on && getComputedStyle(on).backgroundColor !== well; })()"))
 
         # The field's name inside the field, an icon at its right end, widths that
         # follow the data, and every name and hint measured against its room.
