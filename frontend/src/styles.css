@@ -8863,3 +8863,18 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .lane-field.is-picked.disp-patient-picked { gap: 4px; }
 .lane-tools { gap: 2px; padding: 0 0 0 3px; }
 .disp-patient-picked .dpp-change { width: 22px; height: 22px; }
+
+/* In a picked box the name is what is being confirmed, so it is the last thing
+   to give way. Name and ID were one run of text with one ellipsis, which landed
+   wherever the run met the edge — inside the name, when the name itself fitted.
+   Now they are two pieces: the ID shrinks first (a thousand times the weight),
+   and only when it is gone does the name begin to truncate. */
+.lane-field.is-picked .cell-text { display: flex; align-items: baseline; min-width: 0; }
+.lane-field.is-picked .cell-text > b {
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.lane-field.is-picked .cell-text > .muted {
+  flex: 0 1000 auto; min-width: 0; margin-left: .3em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}

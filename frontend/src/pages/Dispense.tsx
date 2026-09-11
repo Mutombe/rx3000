@@ -771,7 +771,10 @@ export default function Dispense() {
   function showTip(e: ReactMouseEvent<HTMLElement>, full: string, editable: boolean) {
     if (cellEditRef.current) return;
     const shown = e.currentTarget.querySelector<HTMLElement>(".cell-text");
-    if (!shown || shown.scrollWidth <= shown.clientWidth + 1) { setTip(null); return; }
+    // A run can be cut as a whole, or one part of it can give way inside it —
+    // the ID before the name, in a picked box. Either is text somebody cannot read.
+    const cut = (el: Element) => el.scrollWidth > el.clientWidth + 1;
+    if (!shown || !(cut(shown) || [...shown.children].some(cut))) { setTip(null); return; }
     const r = e.currentTarget.getBoundingClientRect();
     setTip({ text: full, sub: editable ? "Double-click to edit" : undefined,
              x: r.left, y: r.top, below: r.top < 90 });

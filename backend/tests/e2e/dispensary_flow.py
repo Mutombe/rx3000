@@ -223,8 +223,8 @@ with sync_playwright() as pw:
         check("the patient box is one field high", page.evaluate(
             "Math.round(document.querySelector('.disp-patient-picked').getBoundingClientRect().height) <= 32"))
         check("the patient's name is not cut off by the tools", page.evaluate(
-            "(() => { const b = document.querySelector('.dpp-who b'), w = document.querySelector('.dpp-who');"
-            " return b.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1; })()"))
+            "(() => { const b = document.querySelector('.disp-patient-picked .dpp-who b');"
+            " return !!b && b.scrollWidth <= b.clientWidth + 1; })()"))
         page.click(".disp-patient-picked .lane-tool.is-history")
         page.wait_for_timeout(1200)
         check("History opens the patient's record of scripts and dispensings",
@@ -282,9 +282,8 @@ with sync_playwright() as pw:
             " for (let i = 1; i < r.length; i++) if (r[i].left < r[i - 1].right - 1) return false;"
             " return true; })()"))
         check("with a patient: the name is not cut off", page.evaluate(
-            "(() => { const b = document.querySelector('.dpp-who b'); if (!b) return true;"
-            " const w = document.querySelector('.dpp-who').getBoundingClientRect();"
-            " return b.getBoundingClientRect().right <= w.right + 1; })()"))
+            "(() => { const b = document.querySelector('.disp-patient-picked .dpp-who b'); if (!b) return true;"
+            " return b.scrollWidth <= b.clientWidth + 1; })()"))
         if shots:
             page.screenshot(path=str(SHOT / "flow-lines.png"))
 
