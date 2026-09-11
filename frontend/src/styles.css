@@ -8700,19 +8700,15 @@ button.fin-ack { cursor: pointer; }
    COLOUR: each major part in its own hue — a leading edge and a faint wash.
    ======================================================================== */
 .disp-dense .card.sec-patient {
-  border-left: 3px solid var(--sec-patient);
   background: linear-gradient(var(--sec-patient-soft), var(--sec-patient-soft)), var(--surface);
 }
-.disp-dense .disp-grid { border-left: 3px solid var(--sec-items); }
 .disp-dense .disp-grid > .rx-item-cols {
   background: linear-gradient(var(--sec-items-soft), var(--sec-items-soft)), var(--surface-sunk);
 }
 .disp-dense .card.sec-go.disp-bar {
-  border-left: 3px solid var(--sec-go);
   background: linear-gradient(var(--sec-go-soft), var(--sec-go-soft)), var(--surface);
 }
 .disp-with-worklist .wl {
-  border-left: 3px solid var(--sec-money, var(--e-money));
   background: linear-gradient(var(--sec-money-soft, transparent), var(--sec-money-soft, transparent)), var(--surface);
 }
 .disp-with-worklist .wl-head { color: var(--sec-money, var(--e-money)); }
@@ -8730,3 +8726,140 @@ button.fin-ack { cursor: pointer; }
 .cell-input.is-num { -moz-appearance: textfield; appearance: textfield; padding: 0 6px; }
 .cell-input.is-num::-webkit-inner-spin-button,
 .cell-input.is-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* ========================================================================
+   NO SLABS. The worklist cards' 3px coloured edge, the selected row's accent
+   inset and a flagged row's red inset go with the section strips above: the
+   frames are even all round. Urgency is still said, where it is read — the
+   TIME-CRITICAL badge and the overdue figure on a card, the triangle on a row.
+   ======================================================================== */
+.wl .wl-row,
+.wl .wl-row[class*="wl-band-"] { border-left-width: 1px; border-left-color: var(--line); }
+.disp-dense .rx-item.is-open > .rx-item-head { box-shadow: none; }
+.disp-dense .rx-item:has(.rx-item-warn.is-major) > .rx-item-head {
+  box-shadow: none; background: var(--danger-soft);
+}
+
+/* ========================================================================
+   THE KEY STRIP, boxed: a border above and below and even space either side,
+   so it is its own row and never touches the bar. The page reserves its height.
+   ======================================================================== */
+.disp-dense > .keybar {
+  margin: 8px 0 6px; padding: 5px 2px; align-items: center;
+  border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong);
+}
+.disp-dense {
+  height: calc(100vh - var(--topbar-h, 56px) - var(--s5) - 52px);
+}
+
+/* ========================================================================
+   THE PATIENT BOX AS A TOOLBAR
+   ======================================================================== */
+.disp-dense .sec-patient {
+  grid-template-columns: minmax(0, 2.3fr) minmax(0, 1.2fr) minmax(0, 1fr);
+}
+.disp-dense .lane-field.is-picked.disp-patient-picked { gap: 6px; padding-right: 2px; }
+.lane-field.is-picked .dpp-who { display: flex; min-width: 0; }
+.lane-tools {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px;
+  padding: 0 4px; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+}
+.lane-tool {
+  position: relative; display: inline-grid; place-items: center;
+  width: 24px; height: 24px; padding: 0;
+  border: 0; border-radius: var(--r-sm); background: none;
+  color: var(--ink-soft); cursor: pointer;
+}
+.lane-tool:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+.lane-tool:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.lane-tool:disabled { opacity: .35; cursor: default; }
+.lane-tool.is-alert { color: var(--danger); }
+.lane-tool.is-warn { color: var(--warn); }
+.lane-tool.is-ok { color: var(--ok); }
+.lane-tool-count {
+  position: absolute; top: -2px; right: -3px;
+  min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  background: var(--danger); color: #fff;
+  font-size: .6rem; font-weight: 700; line-height: 14px; text-align: center;
+  pointer-events: none;
+}
+.lane-tool.is-warn .lane-tool-count { background: var(--warn); }
+.lane-tool.is-counted .lane-tool-count { background: var(--ink-soft); }
+
+/* ---- the patient dialogs ------------------------------------------------- */
+.pt-modal { max-width: 58rem; }
+.pt-card { max-width: 50rem; }
+.pt-modal > h2 { display: flex; align-items: center; gap: var(--s3); font-size: 1.05rem; min-height: 3.25rem; }
+.pt-modal > h2 .disp-entry-of { margin-left: auto; font-size: .76rem; font-weight: 400; color: var(--ink-soft); }
+.pt-modal .disp-edit-actions {
+  position: sticky; bottom: calc(var(--s6) * -1); z-index: 3;
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin: var(--s3) calc(var(--s6) * -1) calc(var(--s6) * -1);
+  padding: var(--s3) var(--s6);
+  background: var(--surface); border-top: 1px solid var(--line-strong);
+}
+.pt-modal .disp-edit-actions .disp-blocked {
+  margin: 0; padding: 0; border: 0; background: none;
+  display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--warn);
+}
+.pt-tabs { display: inline-grid; grid-template-columns: 1fr 1fr; min-width: 16rem; margin-bottom: var(--s3); }
+.pt-tabs button { justify-content: center; }
+.pt-scroll {
+  max-height: 46vh; overflow: auto;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+}
+.pt-table { width: 100%; border-collapse: collapse; font-size: .84rem; table-layout: fixed; }
+.pt-table th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--surface-sunk); text-align: left;
+  padding: 7px 10px; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-soft);
+  border-bottom: 2px solid var(--line-strong);
+}
+.pt-table td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pt-table th + th, .pt-table td + td { border-left: 1px solid var(--line); }
+.pt-table tbody tr:hover td { background: var(--hover); }
+.pt-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pt-table .nowrap { white-space: nowrap; }
+.pt-clip { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pt-empty { margin: 0; padding: var(--s5); text-align: center; color: var(--ink-soft); }
+.pt-card-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s5); align-items: start;
+}
+.pt-card-grid > div + div { border-left: 1px solid var(--line); padding-left: var(--s5); }
+.pt-facts dd { text-align: right; }
+.pt-facts dd.pt-wrap { white-space: normal; word-break: break-word; }
+.pt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 760px) {
+  .pt-card-grid { grid-template-columns: 1fr; }
+  .pt-card-grid > div + div { border-left: 0; padding-left: 0; }
+}
+
+/* Sized from measurement at 1366x768. Widening the patient column for its
+   tools took the prescriber to 125px for a 138px hint and the medicine to 97px
+   for a 107px one. The tools give 2px each and the columns rebalance, which
+   leaves every hint and the patient's name room to spare. */
+.disp-dense .sec-patient {
+  grid-template-columns: minmax(0, 2.05fr) minmax(0, 1.3fr) minmax(0, 1.1fr);
+}
+.lane-tools { padding: 0 3px; gap: 0; }
+.lane-tool { width: 22px; height: 22px; }
+
+/* A count sits on its own icon, not on the next one: smaller, lifted to the
+   corner, ringed in the box's colour so it reads as a badge, and a little air
+   between the tools. */
+.lane-tools { gap: 3px; }
+.lane-tool-count {
+  top: -5px; right: -5px; min-width: 12px; height: 12px; padding: 0 2px;
+  border-radius: 6px; font-size: .56rem; line-height: 12px;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.pt-table .badge { text-transform: capitalize; }
+
+/* Measured at 1366x768: the name had 113.8px for a 115.1px name. The room comes
+   from inside the box, not from the fields beside it, which have only 5-7px to
+   spare over their hints. */
+.disp-dense .lane-field.is-picked.disp-patient-picked { gap: 4px; }
+.lane-tools { gap: 2px; padding: 0 0 0 3px; }
+.disp-patient-picked .dpp-change { width: 22px; height: 22px; }

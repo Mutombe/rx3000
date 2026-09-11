@@ -38,7 +38,7 @@ interface Payload {
 
 export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "list", onOpen }: {
   /** "chip": one line saying how many and what they are worth, for a lane. */
-  variant?: "list" | "chip";
+  variant?: "list" | "chip" | "icon";
   onOpen?: () => void;
   patientId: number | null;
   /** Put this repeat on the script being written. */
@@ -58,6 +58,26 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
       .catch(() => { if (live) setData(null); });
     return () => { live = false; };
   }, [patientId]);
+
+  // An icon for a toolbar. Always there, muted when nothing is due, so it stays
+  // in the same place for the hand that reaches for it.
+  if (variant === "icon") {
+    const due = (data?.items ?? []).filter((r) => !alreadyOn.includes(r.product_id));
+    const worth = due.reduce((n, r) => n + r.value, 0);
+    const late = due.filter((r) => r.days_overdue > 0).length;
+    const label = due.length
+      ? `${due.length} repeat${due.length === 1 ? "" : "s"} due \u00b7 ${money(worth)}`
+        + (late ? ` \u00b7 ${late} overdue` : "")
+      : "No repeats due";
+    return (
+      <button type="button"
+              className={`lane-tool is-repeats${due.length ? (late ? " is-warn" : " is-counted") : ""}`}
+              disabled={due.length === 0} onClick={onOpen} title={label} aria-label={label}>
+        <ArrowClockwise size={15} weight="bold" />
+        {due.length > 0 && <span className="lane-tool-count">{due.length}</span>}
+      </button>
+    );
+  }
 
   if (!data || data.items.length === 0) return null;
 

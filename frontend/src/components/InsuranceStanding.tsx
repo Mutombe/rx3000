@@ -56,7 +56,7 @@ const TONE: Record<string, { cls: string; label: string }> = {
 
 export default function InsuranceStanding({ patientId, compact = false, variant = "block", onOpen }: {
   /** "chip": the scheme and its standing on one line, for a lane. */
-  variant?: "block" | "chip";
+  variant?: "block" | "chip" | "icon";
   onOpen?: () => void;
   patientId: number | null;
   /** The till has less room than the dispensary, and needs the verdict more
@@ -75,6 +75,26 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
       .catch(() => { if (live) setData(null); });
     return () => { live = false; };
   }, [patientId]);
+
+  // An icon for a toolbar, in the same place whether or not there is cover.
+  if (variant === "icon") {
+    const covered = !!data?.has_cover;
+    const tone = covered ? (TONE[data!.verdict] ?? TONE.unknown) : null;
+    const Icon = covered && data!.verdict !== "paying" && data!.verdict !== "unknown"
+      ? ShieldWarning : ShieldCheck;
+    const label = !data ? "Checking the medical aid\u2026"
+      : covered
+        ? `${data.scheme?.scheme ?? "Medical aid"} \u00b7 ${tone!.label}`
+          + (data.benefit.known ? "" : " \u00b7 balance unknown")
+        : "Private patient: no medical aid on file";
+    return (
+      <button type="button"
+              className={`lane-tool is-aid${tone ? ` is-${tone.cls}` : ""}`}
+              disabled={!covered} onClick={onOpen} title={label} aria-label={label}>
+        <Icon size={15} weight={covered ? "fill" : "regular"} />
+      </button>
+    );
+  }
 
   if (!data) return null;
 

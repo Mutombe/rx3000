@@ -24,6 +24,8 @@ import RepeatValue from "../components/RepeatValue";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { useDoseScreen } from "../hooks/useDoseScreen";
 import CellMedicineSearch from "../components/CellMedicineSearch";
+import PatientHistoryModal from "../components/PatientHistoryModal";
+import PatientCardModal from "../components/PatientCardModal";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
 import { printLabels } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
@@ -42,7 +44,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -220,7 +222,8 @@ export default function Dispense() {
   /** The line whose check is open, by product id. */
   const [checking, setChecking] = useState<number | null>(null);
   /** The patient context a lane chip opened: the repeats due, or the scheme. */
-  const [laneOpen, setLaneOpen] = useState<"repeats" | "insurance" | null>(null);
+  const [laneOpen, setLaneOpen] = useState<
+    "repeats" | "insurance" | "history" | "details" | null>(null);
   /** Which stage of Finish is showing. What must be settled comes first, on its
    *  own, so payment has the whole dialog to itself and never scrolls. */
   const [finishStage, setFinishStage] = useState<"settle" | "pay">("pay");
@@ -2113,17 +2116,53 @@ export default function Dispense() {
                 </div>
               )}
               {patient ? (
-                <div className="lane-field is-picked disp-patient-picked"
-                     title={`${patient.first_name} ${patient.last_name} · ID ${patient.id_number || "not on file"} · `
-                       + (patient.medical_aid
-                         ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
-                         : "Private patient")}>
-                  <span className="dpp-who">
-                    <b>{patient.first_name} {patient.last_name}</b>
-                    <span className="muted">
-                      {" "}· ID {patient.id_number || "not on file"} ·{" "}
-                      {patient.medical_aid ? patient.medical_aid.name : "Private"}
+                <div className="lane-field is-picked disp-patient-picked">
+                  <span className="dpp-who"
+                        onMouseEnter={(e) => showTip(e,
+                          `${patient.first_name} ${patient.last_name} · ID ${patient.id_number || "not on file"}`, false)}
+                        onMouseLeave={() => setTip(null)}>
+                    <span className="cell-text">
+                      <b>{patient.first_name} {patient.last_name}</b>
+                      <span className="muted"> · ID {patient.id_number || "not on file"}</span>
                     </span>
+                  </span>
+                  {/* What the counter reaches for about this person, in one place
+                      and always in the same order — muted when a tool has nothing
+                      to say, so a hand learns where each one is. The chip row that
+                      used to sit under the lane is three of these. */}
+                  <span className="lane-tools" role="toolbar" aria-label="About this patient">
+                    {(() => {
+                      const list = (patient.allergies || "").split(/[,;]+/)
+                        .map((x) => x.trim()).filter(Boolean);
+                      const label = list.length ? `Allergic to ${list.join(", ")}` : "No allergies recorded";
+                      return (
+                        <button type="button"
+                                className={`lane-tool is-allergies${list.length ? " is-alert" : ""}`}
+                                title={label} aria-label={label}
+                                onClick={() => setLaneOpen("details")}>
+                          <FirstAidKit size={15} weight={list.length ? "fill" : "regular"} />
+                          {list.length > 0 && <span className="lane-tool-count">{list.length}</span>}
+                        </button>
+                      );
+                    })()}
+                    <InsuranceStanding patientId={patient.id} variant="icon"
+                                       onOpen={() => setLaneOpen("insurance")} />
+                    {!quoting && (
+                      <RepeatsDue patientId={patient.id}
+                                  alreadyOn={items.map((i) => i.product.id)}
+                                  onAdd={addDueRepeat} variant="icon"
+                                  onOpen={() => setLaneOpen("repeats")} />
+                    )}
+                    <button type="button" className="lane-tool is-history"
+                            title="Prescription history" aria-label="Prescription history"
+                            onClick={() => setLaneOpen("history")}>
+                      <ClockCounterClockwise size={15} />
+                    </button>
+                    <button type="button" className="lane-tool is-details"
+                            title="Patient details" aria-label="Patient details"
+                            onClick={() => setLaneOpen("details")}>
+                      <IdentificationCard size={15} />
+                    </button>
                   </span>
                   <button type="button" className="lane-icon-btn dpp-change" onClick={() => setPatient(null)}
                           title="Change patient" aria-label="Change patient">
@@ -2195,39 +2234,6 @@ export default function Dispense() {
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
-              {/* The patient's context, one slim line under the lane.
-
-                  Allergies, the scheme's standing and the repeats waiting are
-                  all about the person just picked, and all wanted at that
-                  moment — so they sit directly under them. As panels they were
-                  350px and pushed the table down to two rows; as chips they say
-                  the number, and open the whole list when somebody wants it. */}
-              {patient && (
-                <div className="disp-context">
-                  {patient.allergies && (
-                    <span className="ctx-chip is-allergy" title={`Allergies: ${patient.allergies}`}>
-                      <Warning size={13} weight="fill" />
-                      {(() => {
-                        const all = patient.allergies;
-                        if (all.length <= 40) return `Allergic: ${all}`;
-                        const list = all.split(/[,;]+/).map((x) => x.trim()).filter(Boolean);
-                        return `Allergic: ${list[0]}${list.length > 1 ? ` +${list.length - 1} more` : ""}`;
-                      })()}
-                    </span>
-                  )}
-                  <InsuranceStanding patientId={patient.id} variant="chip"
-                                     onOpen={() => setLaneOpen("insurance")} />
-                  {!quoting && (
-                    <RepeatsDue
-                      patientId={patient.id}
-                      alreadyOn={items.map((i) => i.product.id)}
-                      onAdd={addDueRepeat}
-                      variant="chip"
-                      onOpen={() => setLaneOpen("repeats")}
-                    />
-                  )}
-                </div>
-              )}
 
               {/* The two halves of one question — who is this for, and who
                   wrote it. A script has never had one without the other, and
@@ -2243,9 +2249,14 @@ export default function Dispense() {
                     <div className="lane-field is-picked disp-doctor"
                          title={`${doctor.name} · practice ${doctor.practice_number || "not on file"}`
                            + (doctor.phone ? ` · ${doctor.phone}` : "")}>
-                      <span className="dpp-who">
-                        <b>{doctor.name}</b>
-                        <span className="muted"> · {doctor.practice_number || "no practice no."}</span>
+                      <span className="dpp-who"
+                            onMouseEnter={(e) => showTip(e,
+                              `${doctor.name} · practice ${doctor.practice_number || "not on file"}`, false)}
+                            onMouseLeave={() => setTip(null)}>
+                        <span className="cell-text">
+                          <b>{doctor.name}</b>
+                          <span className="muted"> · {doctor.practice_number || "no practice no."}</span>
+                        </span>
                       </span>
                       <button type="button" className="lane-icon-btn" onClick={() => setDoctorId("")}
                               title="Change prescriber" aria-label="Change prescriber">
@@ -3353,8 +3364,17 @@ ${d.action}`}
               </div>
             )}
 
+            {/* The patient box's history and details. */}
+            {laneOpen === "history" && patient && (
+              <PatientHistoryModal patient={patient} onClose={() => setLaneOpen(null)} />
+            )}
+            {laneOpen === "details" && patient && (
+              <PatientCardModal patient={patient} canLeave={items.length === 0}
+                                onClose={() => setLaneOpen(null)} />
+            )}
+
             {/* What a lane chip stands for, in full. */}
-            {laneOpen !== null && patient && (
+            {(laneOpen === "repeats" || laneOpen === "insurance") && patient && (
               <div className="modal-backdrop" role="dialog" aria-modal="true"
                    aria-label={laneOpen === "repeats" ? "Repeats due" : "Medical aid standing"}
                    onClick={(e) => { if (e.target === e.currentTarget) setLaneOpen(null); }}>

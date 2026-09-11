@@ -105,13 +105,25 @@ with sync_playwright() as pw:
         check("empty: the lane is one row high", lane0["lane"] <= 64, f"{lane0['lane']}px")
         check("no line joins the lane to the worklist", page.evaluate(
             "parseFloat(getComputedStyle(document.querySelector('.disp-head')).borderBottomWidth) === 0"))
-        check("no line joins the bar to the key strip", page.evaluate(
-            "parseFloat(getComputedStyle(document.querySelector('.keybar')).borderTopWidth) === 0"))
-        tones = page.evaluate(
-            "['.sec-patient', '.disp-grid', '.disp-bar', '.wl']"
-            ".map((s) => getComputedStyle(document.querySelector(s)).borderLeftColor)")
-        check("the lane, the table, the bar and the worklist each carry their own colour",
-              len(set(tones)) == 4, str(tones))
+        kb = page.evaluate("""() => {
+          const k = document.querySelector('.keybar'), b = document.querySelector('.disp-bar');
+          const ks = getComputedStyle(k), kr = k.getBoundingClientRect(), br = b.getBoundingClientRect();
+          return { top: parseFloat(ks.borderTopWidth), bottom: parseFloat(ks.borderBottomWidth),
+                   gap: Math.round(kr.top - br.bottom), below: Math.round(window.innerHeight - kr.bottom) };
+        }""")
+        check("the key strip has its own border above and below", kb["top"] >= 1 and kb["bottom"] >= 1, str(kb))
+        check("…a clean gap from the bar above it", kb["gap"] >= 6, str(kb))
+        check("…and sits fully on screen", kb["below"] >= 0, str(kb))
+        slabs = page.evaluate(
+            "['.sec-patient', '.disp-grid', '.disp-bar', '.wl', '.wl-row']"
+            ".map((s) => { const e = document.querySelector(s);"
+            " return e ? parseFloat(getComputedStyle(e).borderLeftWidth) : 0; })")
+        check("no coloured slab down the left of any section or worklist card",
+              all(x <= 1.01 for x in slabs), str(slabs))
+        tints = page.evaluate(
+            "['.sec-patient', '.disp-bar', '.wl']"
+            ".map((s) => getComputedStyle(document.querySelector(s)).backgroundImage)")
+        check("the lane, the bar and the worklist keep their own tint", len(set(tints)) == 3, str(tints))
 
         # The field's name inside the field, an icon at its right end, widths that
         # follow the data, and every name and hint measured against its room.
@@ -192,7 +204,7 @@ with sync_playwright() as pw:
         check("with a patient: the name does not run into the prescriber", not lane["overlap"])
         check("with a patient: the table keeps the screen",
               lane["grid"] >= (320 if w == 1512 else 220), f"{lane['grid']}px")
-        chip = page.query_selector(".rd-chip")
+        chip = page.query_selector(".disp-patient-picked .lane-tool.is-repeats:not([disabled])")
         if chip:
             chip.click()
             page.wait_for_timeout(900)
@@ -202,6 +214,43 @@ with sync_playwright() as pw:
             check("Escape closes it", page.query_selector(".disp-lane-modal") is None)
         else:
             print("  --    no repeats due for this patient; chip not exercised")
+
+        # The patient box as a toolbar.
+        tools = page.evaluate(
+            "[...document.querySelectorAll('.disp-patient-picked .lane-tool')].map((b) => b.className)")
+        check("the patient box carries its five tools", len(tools) == 5, str(tools))
+        check("no chip row under the lane any more", page.query_selector(".disp-context") is None)
+        check("the patient box is one field high", page.evaluate(
+            "Math.round(document.querySelector('.disp-patient-picked').getBoundingClientRect().height) <= 32"))
+        check("the patient's name is not cut off by the tools", page.evaluate(
+            "(() => { const b = document.querySelector('.dpp-who b'), w = document.querySelector('.dpp-who');"
+            " return b.getBoundingClientRect().right <= w.getBoundingClientRect().right + 1; })()"))
+        page.click(".disp-patient-picked .lane-tool.is-history")
+        page.wait_for_timeout(1200)
+        check("History opens the patient's record of scripts and dispensings",
+              page.query_selector(".pt-history .fin-stats") is not None)
+        if page.query_selector(".pt-history"):
+            page.click(".pt-history .pt-tabs button:has-text('Scripts')")
+            page.wait_for_timeout(300)
+            check("…and switches to the scripts", page.query_selector(".pt-history .pt-tabs button.on:has-text('Scripts')") is not None)
+            if shots:
+                page.screenshot(path=str(SHOT / "patient-history.png"))
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(300)
+        check("Escape closes History", page.query_selector(".pt-history") is None)
+        page.click(".disp-patient-picked .lane-tool.is-details")
+        page.wait_for_timeout(500)
+        card = page.query_selector(".pt-card")
+        check("Details shows who the patient is, with their allergies",
+              card is not None and "Andela" in (card.inner_text() or "")
+              and page.query_selector(".pt-card .ctx-chip.is-allergy") is not None)
+        if card and shots:
+            page.screenshot(path=str(SHOT / "patient-card.png"))
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+        check("Escape closes Details", page.query_selector(".pt-card") is None)
+        if shots:
+            page.screenshot(path=str(SHOT / "patient-box.png"), clip={"x": 270, "y": 120, "width": 880, "height": 60})
         if shots:
             page.screenshot(path=str(SHOT / "flow-patient.png"))
 
