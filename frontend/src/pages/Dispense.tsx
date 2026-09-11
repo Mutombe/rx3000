@@ -773,7 +773,8 @@ export default function Dispense() {
     const shown = e.currentTarget.querySelector<HTMLElement>(".cell-text");
     // A run can be cut as a whole, or one part of it can give way inside it —
     // the ID before the name, in a picked box. Either is text somebody cannot read.
-    const cut = (el: Element) => el.scrollWidth > el.clientWidth + 1;
+    const cut = (el: Element) =>
+      el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1;
     if (!shown || !(cut(shown) || [...shown.children].some(cut))) { setTip(null); return; }
     const r = e.currentTarget.getBoundingClientRect();
     setTip({ text: full, sub: editable ? "Double-click to edit" : undefined,

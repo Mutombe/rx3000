@@ -8878,3 +8878,24 @@ button.fin-ack { cursor: pointer; }
   flex: 0 1000 auto; min-width: 0; margin-left: .3em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+
+/* The name never shrinks, and the ID shows readably or not at all.
+   Shrinking is weighted by size as well as factor, so a name given a small
+   factor still gave up a fraction of a pixel, and a fraction is enough for the
+   browser to draw an ellipsis over its last letters. The name keeps its own
+   width now, capped only at the whole box. The ID follows on one line of fixed
+   height: when fewer than 4em are left it wraps onto a second line the box does
+   not show, rather than standing there as "·." — and when there is room it
+   shortens with a clean ellipsis. */
+.lane-field.is-picked .cell-text {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  height: 20px; line-height: 20px; overflow: hidden; min-width: 0;
+}
+.lane-field.is-picked .cell-text > b {
+  flex: 0 0 auto; max-width: 100%; min-width: 0;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.lane-field.is-picked .cell-text > .muted {
+  flex: 1 1 4em; min-width: 4em; margin-left: .3em;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
