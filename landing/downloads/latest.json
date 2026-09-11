@@ -1,11 +1,11 @@
 {
-  "version": "1.6.17",
-  "notes": "The dispensary, arranged in the order a script is done.\n\n**The table is the screen**\n\nSolid column lines from the headings to the floor, and the totals as\nthe table's last row. Delete the last line and the totals go with it.\n\n**Action, on every line**\n\nThe shield checks the line: dose, and interactions with the other\nlines and the patient's last six months. Its colour is the answer;\npress it again for the detail and an AI second opinion. The pencil\nopens the line editor, with stock, cost, margin and substitutions\nbeside it. The bin deletes.\n\n**The patient, on one line**\n\nAllergies, the medical aid's standing and repeats due sit as chips\nunder the patient. Press one to see the full list.\n\n**Finish (F12)**\n\nEverything needed at the end in one place, in order: warnings to\nsettle, the compliance record, how it is paid, who checked it, and\nDispense. F12 opens it; F12 again dispenses.\n\n**Fixed**\n\nEscape closes a dialog without clearing the script. F2 finds the\npatient and F4 opens the diagnosis, which neither did before. A dose\nover the maximum has to be acknowledged again before dispensing.",
-  "pub_date": "2026-09-11T15:22:09+00:00",
+  "version": "1.6.18",
+  "notes": "Finishing a script, in two steps.\n\n**Before you finish**\n\nWhat must be acknowledged comes first, on its own: blocking warnings\nand doses over the maximum, then what is worth knowing. Proceed stays\nclosed until the blocking ones are acknowledged. When there is nothing\nto settle, this step is skipped.\n\n**Pay and dispense**\n\nHow it is paid on the left, the bill on the right, with what the\npatient pays in large type and where it is collected. Till, payment\nnow and delivery all fit without scrolling. Who checked it and\nDispense sit along the bottom.\n\nF12 steps through it: open, proceed, dispense.\n\n**Tidier everywhere**\n\nThe patient, prescriber and medicine fields sit on one row. The line\ncheck opens with three answers at a glance: dose, interactions and\nscheme. Every dialog shares one header, one set of section headings\nand one row of buttons along the bottom.",
+  "pub_date": "2026-09-11T17:54:33+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUak5Ycng1bWEzbnd4bmNNbkVwMWdwZHZDOURqbXJiZkdYdkkyTDZINW9IalpXVlRiVlNabGplc1NnMjVjWjdsdVZxUjBhb3Rha0hpSXNtaWh2dnpOcEFrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTQwMTI4CWZpbGU6Ulg1MDAwXzEuNi4xN194NjQtc2V0dXAuZXhlCk5NMWovMDVoQy82RnJnM3pQbmY0RXZodU5mZTM4aVZIOXdJY0NpTjJZV0RQUXM5VDJkZm9veWJ0UnQ1TUQ5Y1V6b0hiL3JvVHhaZ0ozYmRpZGhLdUJnPT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.17_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaktjTms5ZEVBaFhIOXV5cmQ0cTFjZ2EvcHc0aVRXTCtHdGhlcmhCSklLSW9rdGpEOXVNVGhNdGdYd3VxLzlST2Rxb0l4c1FzY0lDZDM5TlpJMHh6WHcwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTQ5MjcxCWZpbGU6Ulg1MDAwXzEuNi4xOF94NjQtc2V0dXAuZXhlCmtxQjBjWEE2U2VLQXc0LytFNm5neW0vY2VMaWY4OW9NY3A5OFlHd0FoeDNRYjhHQ3FETzB6NlZEMm1XZk5kejAzb2RzR2JwT3VRZS9OTU14emFTb0JRPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.18_x64-setup.exe"
     }
   }
 }
