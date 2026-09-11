@@ -95,6 +95,14 @@ with sync_playwright() as pw:
         check("empty: the headings end in Action",
               heads == "Medicine|Qty|Directions|Amount|Margin|Action", heads)
         check("empty: the page does not scroll", not page.evaluate(SCROLLS_JS))
+        lane0 = page.evaluate("""() => {
+          const top = (s) => Math.round(document.querySelector('.sec-patient ' + s).getBoundingClientRect().top);
+          return { tops: [top('.disp-patient-field'), top('.disp-doctor'), top('.disp-medicine')],
+                   lane: Math.round(document.querySelector('.sec-patient').getBoundingClientRect().height) };
+        }""")
+        check("empty: patient, prescriber and medicine share one row",
+              max(lane0["tops"]) - min(lane0["tops"]) <= 2, str(lane0["tops"]))
+        check("empty: the lane is one row high", lane0["lane"] <= 64, f"{lane0['lane']}px")
         if shots:
             page.screenshot(path=str(SHOT / "flow-empty.png"))
 
@@ -228,31 +236,57 @@ with sync_playwright() as pw:
             page.wait_for_timeout(300)
         check("Done closes the editor", page.query_selector(".disp-edit") is None)
 
-        # ---- Finish ---------------------------------------------------------------
+        # ---- Finish: the first stage, what must be settled ----------------------------
+        FITS = ("(() => { const m = document.querySelector('.disp-finish');"
+                " return !!m && m.scrollHeight <= m.clientHeight + 1; })()")
         page.click(".disp-bar .disp-go")
-        page.wait_for_timeout(700)
-        check("Finish opens the finish dialog", page.query_selector(".disp-finish") is not None)
-        if page.query_selector(".disp-finish"):
-            check("…with payment in it", page.query_selector(".disp-finish #finish-pay .seg") is not None)
-            check("…and Dispense in its foot", page.query_selector(".finish-foot .printmenu-main") is not None)
-            check("Finish shows characters, not escape codes", not page.evaluate(
-                r"document.querySelector('.disp-finish').innerText.includes('\\u')"))
-            check("…with the foot on screen", page.evaluate(
-                "(() => { const f = document.querySelector('.finish-foot').getBoundingClientRect();"
-                " return f.top >= 0 && f.bottom <= window.innerHeight + 1; })()"))
-            if shots:
-                page.screenshot(path=str(SHOT / "flow-finish.png"))
-            page.click(".finish-foot .btn.secondary")
-            page.wait_for_timeout(300)
-            check("Back to the script closes it", page.query_selector(".disp-finish") is None)
+        page.wait_for_timeout(800)
+        check("Finish opens", page.query_selector(".disp-finish") is not None)
+        check("…at the settling stage, with the warnings",
+              page.query_selector(".disp-finish.is-settle #finish-warnings") is not None)
+        proceed = page.query_selector(".disp-finish .fin-proceed")
+        check("…and Proceed held while a blocking warning stands", proceed is not None and proceed.is_disabled())
+        check("the settling stage shows characters, not escape codes", not page.evaluate(
+            r"document.querySelector('.disp-finish').innerText.includes('\\u')"))
+        if SHOT is not None:
+            page.screenshot(path=str(SHOT / f"flow-settle-{w}.png"))
+        page.click(".finish-foot .btn.secondary")
+        page.wait_for_timeout(300)
+        check("Back to the script closes it", page.query_selector(".disp-finish") is None)
         page.keyboard.press("F12")
-        page.wait_for_timeout(600)
+        page.wait_for_timeout(700)
         check("F12 opens Finish", page.query_selector(".disp-finish") is not None)
         page.keyboard.press("Escape")
         page.wait_for_timeout(300)
         check("Escape closes Finish without clearing the script",
               page.query_selector(".disp-finish") is None and line_count(page) == 2,
               f"open={page.query_selector('.disp-finish') is not None} lines={line_count(page)}")
+
+        # ---- Finish: payment, once the blocking line is off ---------------------------
+        page.click(f"{LINES}:has-text('Amoxicillin') .rx-icon.is-remove")
+        page.wait_for_timeout(1800)
+        page.click(".disp-bar .disp-go")
+        page.wait_for_timeout(800)
+        if page.query_selector(".disp-finish.is-settle"):
+            check("with only advisories left, Proceed goes",
+                  not page.query_selector(".disp-finish .fin-proceed").is_disabled())
+            page.click(".disp-finish .fin-proceed")
+            page.wait_for_timeout(700)
+        check("…to payment", page.query_selector(".disp-finish.is-pay #finish-pay") is not None)
+        check("…with the bill beside it", page.query_selector(".disp-finish .fin-side .fin-due") is not None)
+        check("…and Dispense in its foot", page.query_selector(".finish-foot .printmenu-main") is not None)
+        for i, choice in enumerate(("Send to till", "Take payment now", "Out for delivery")):
+            page.click(f".disp-finish .fin-seg button:has-text('{choice}')")
+            page.wait_for_timeout(800)
+            sizes = page.evaluate("(() => { const m = document.querySelector('.disp-finish');"
+                                  " return [m.scrollHeight, m.clientHeight]; })()")
+            check(f"'{choice}' fits without scrolling", page.evaluate(FITS), f"{sizes[0]} > {sizes[1]}")
+            if SHOT is not None:
+                page.screenshot(path=str(SHOT / f"flow-pay-{i}-{w}.png"))
+        check("payment shows characters, not escape codes", not page.evaluate(
+            r"document.querySelector('.disp-finish').innerText.includes('\\u')"))
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
 
         # ---- the bin --------------------------------------------------------------
         for _ in range(2):

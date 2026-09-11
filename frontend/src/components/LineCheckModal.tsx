@@ -70,6 +70,22 @@ export default function LineCheckModal({
   onClose: () => void;
 }) {
   const f = findingsFor(screen, name);
+  // Three answers at a glance, on an even grid; the detail follows below.
+  const doseCard = f.dose
+    ? (f.dose.severity === "major"
+      ? { tone: "major", text: "Over the maximum" }
+      : { tone: "minor", text: "Directions unreadable" })
+    : f.notHeld ? { tone: "none", text: "Not judged" } : { tone: "ok", text: "Within the maximum" };
+  const ixCard = f.interactions.length === 0
+    ? { tone: "ok", text: "None found" }
+    : { tone: f.interactions.some((x) => x.severity === "major") ? "major" : "minor",
+        text: `${f.interactions.length} found` };
+  const coverCard = !coverage || coverage.status === "unknown"
+    ? { tone: "none", text: "Not checked" }
+    : coverage.status === "covered" ? { tone: "ok", text: "On benefit" }
+    : coverage.status === "excluded" ? { tone: "major", text: "Not on benefit" }
+    : { tone: "minor", text: COVER_LABEL[coverage.status] ?? coverage.status };
+
   const summary = loading ? "checking…"
     : error ? "the check could not run"
     : f.major ? "a major finding"
@@ -93,6 +109,11 @@ export default function LineCheckModal({
           <div className="alert error">{error}</div>
         ) : (
           <>
+            <div className="chk-summary">
+              <div className={`chk-card is-${doseCard.tone}`}><span>Dose</span><b>{doseCard.text}</b></div>
+              <div className={`chk-card is-${ixCard.tone}`}><span>Interactions</span><b>{ixCard.text}</b></div>
+              <div className={`chk-card is-${coverCard.tone}`}><span>Scheme</span><b>{coverCard.text}</b></div>
+            </div>
             <section className="chk-sec">
               <h4>Dose</h4>
               {f.dose ? (

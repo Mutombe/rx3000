@@ -40,7 +40,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -211,6 +211,12 @@ export default function Dispense() {
   const [checking, setChecking] = useState<number | null>(null);
   /** The patient context a lane chip opened: the repeats due, or the scheme. */
   const [laneOpen, setLaneOpen] = useState<"repeats" | "insurance" | null>(null);
+  /** Which stage of Finish is showing. What must be settled comes first, on its
+   *  own, so payment has the whole dialog to itself and never scrolls. */
+  const [finishStage, setFinishStage] = useState<"settle" | "pay">("pay");
+  /** The basket the warnings were last proceeded past. Once is enough for that
+   *  basket; change a line and they are shown again. */
+  const [settledFor, setSettledFor] = useState<string | null>(null);
   /** Each line's deliberate check, stamped with the basket it answered for. A
    *  result for a basket that has since changed is shown as not yet checked,
    *  never as the old answer. */
@@ -643,9 +649,35 @@ export default function Dispense() {
     }
   }
 
+  /** Anything the first stage of Finish would show. */
+  function needsSettling() {
+    return (counter.data?.count ?? 0) > 0 || doseScreen.major > 0
+      || !!(coverage && (!coverage.all_claimable || coverage.authorisation_required));
+  }
+
+  /** Why Proceed is held, or "". Only what has to be acknowledged holds it;
+   *  advisories are read, not signed. */
+  function settleBlocks() {
+    const n = counter.outstanding.length;
+    if (n > 0) return `Acknowledge the ${n === 1 ? "blocking warning" : `${n} blocking warnings`} to continue.`;
+    if (doseScreen.major > 0 && !ixAcknowledged) return "Confirm the dose over the maximum to continue.";
+    return "";
+  }
+
+  function proceedToPay() {
+    if (settleBlocks()) return;
+    setSettledFor(basketSig);
+    setFinishStage("pay");
+  }
+
   function openFinish(section?: string) {
     if (!patient || items.length === 0) return;
-    setEditing(null); setChecking(null);
+    setEditing(null); setChecking(null); setLaneOpen(null);
+    // The warnings first whenever this basket has not been through them, or
+    // something in them still has to be acknowledged.
+    const settle = needsSettling() && (section === "finish-warnings"
+      || settledFor !== basketSig || !!settleBlocks());
+    setFinishStage(settle ? "settle" : "pay");
     setFinishing(section ?? "top");
   }
 
@@ -667,16 +699,23 @@ export default function Dispense() {
   // Finish closes itself when the dispensing lands: the outcome is on the bar.
   useEffect(() => { if (doneSale) setFinishing(null); }, [doneSale]);
 
-  // Opened at a section, it goes there and puts the cursor in it. Opened plain,
-  // the cursor lands on whatever is still missing, else on Dispense — so the
-  // common case is F12, then F12 or Enter.
+  // Wherever Finish opens, the cursor goes where the work is. Settling: the first
+  // thing to acknowledge, else Proceed. Paying: the section asked for, else the
+  // initials if they are missing, else Dispense — so the common case is F12, F12.
   useEffect(() => {
     if (finishing === null) return;
     const t = window.setTimeout(() => {
       const box = document.querySelector<HTMLElement>(".disp-finish");
       if (!box) return;
-      const section = finishing === "top" ? null : document.getElementById(finishing);
-      section?.scrollIntoView({ block: "start" });
+      box.scrollTop = 0;
+      if (box.classList.contains("is-settle")) {
+        (box.querySelector<HTMLElement>(".fin-item-act .btn:not([disabled])")
+          ?? box.querySelector<HTMLElement>(".fin-proceed:not([disabled])")
+          ?? box.querySelector<HTMLElement>(".finish-foot button"))?.focus();
+        return;
+      }
+      const section = finishing === "top" || finishing === "finish-warnings"
+        ? null : document.getElementById(finishing);
       const initialsBox = box.querySelector<HTMLInputElement>("#finish-initials");
       const target = section?.querySelector<HTMLElement>("input, button")
         ?? (initialsBox && !initialsBox.value ? initialsBox : null)
@@ -685,7 +724,7 @@ export default function Dispense() {
       target?.focus();
     }, 40);
     return () => window.clearTimeout(t);
-  }, [finishing]);
+  }, [finishing, finishStage]);
 
   const hotkeys: Hotkey[] = [
     // Mix — a preparation made up here rather than dispensed from a box.
@@ -734,6 +773,7 @@ export default function Dispense() {
       run: () => {
         if (busy || !patient || !items.length) return;
         if (finishing === null) { openFinish(); return; }
+        if (finishStage === "settle" && needsSettling()) { proceedToPay(); return; }
         if (complianceReadyRef() && !blockedBecause()) createAndDispense();
       } },
     // Closes the dialog that is open before it touches the script. Escape is what
@@ -2637,327 +2677,418 @@ ${d.action}`}
               </div>
             </div>
 
-            {/* FINISH — the end of a script, in the order it is settled.
+            {/* FINISH — two stages, so neither has to scroll.
 
-                  1  what must be settled first    warnings, doses, cover
-                  2  the compliance record         controlled route only
-                  3  how it is paid                till, here, or with a driver
-                     who checked it, and Dispense  the foot, always in view
+                  Before you finish   what must be acknowledged and what is worth
+                                      knowing. Proceed is held until the blocking
+                                      ones are settled. Skipped when there is none.
+                  Pay & dispense      how it is paid beside the bill, the
+                                      compliance record on the controlled route,
+                                      who checked it, and Dispense.
 
                 Opening it commits nothing. "Back to the script" rather than
                 Cancel, because there is nothing held here to discard. */}
             {finishing !== null && patient && items.length > 0 && (() => {
               const doseMajors = [...doseScreen.byProduct.values()]
                 .filter((f) => f.severity === "major");
-              const coverNote = !!coverage
-                && (!coverage.all_claimable || coverage.authorisation_required);
-              const mustSettle = doseMajors.length > 0 || (counter.data?.count ?? 0) > 0 || coverNote;
-              const stepSettle = mustSettle ? 1 : 0;
-              const stepCompliance = route === "controlled" ? stepSettle + 1 : stepSettle;
-              const stepPay = stepCompliance + 1;
+              const msgs = counter.data?.messages ?? [];
+              const blockingMsgs = msgs.filter((m) => m.blocking);
+              const advisoryMsgs = msgs.filter((m) => !m.blocking);
+              const notCovered = !!coverage && !coverage.all_claimable;
+              const needsAuth = !!coverage?.authorisation_required && !!coverage?.all_claimable;
+              const hasSettle = needsSettling();
+              const stage = hasSettle ? finishStage : "pay";
+              const toAck = counter.outstanding.length
+                + (doseMajors.length > 0 && !ixAcknowledged ? 1 : 0);
+              const worthKnowing = advisoryMsgs.length + (notCovered ? 1 : 0) + (needsAuth ? 1 : 0);
+              const held = settleBlocks();
               const why = blockedBecause();
+              const fee = payHow === "delivery" ? (Number(deliveryFee) || 0) : 0;
+              const gross = split?.total ?? pricing?.totals.gross ?? 0;
               return (
                 <div className="modal-backdrop" role="dialog" aria-modal="true"
-                     aria-label="Finish this script"
+                     aria-label={stage === "settle" ? "Before you finish" : "Pay and dispense"}
                      onClick={(e) => { if (e.target === e.currentTarget) setFinishing(null); }}>
-                  <div className="modal disp-finish">
+                  <div className={`modal disp-finish is-${stage}`}>
                     <h2>
-                      Finish
+                      {stage === "settle" ? "Before you finish" : "Pay & dispense"}
+                      {hasSettle && (
+                        <span className="fin-steps">
+                          <button type="button"
+                                  className={`fin-step ${stage === "settle" ? "is-on" : "is-done"}`}
+                                  onClick={() => setFinishStage("settle")}>
+                            <span className="fin-step-n">
+                              {stage === "settle" ? "1" : <Check size={10} weight="bold" />}
+                            </span>
+                            Settle
+                          </button>
+                          <span className="fin-step-rule" aria-hidden="true" />
+                          <button type="button"
+                                  className={`fin-step${stage === "pay" ? " is-on" : ""}`}
+                                  disabled={!!held} onClick={proceedToPay}>
+                            <span className="fin-step-n">2</span>
+                            Pay
+                          </button>
+                        </span>
+                      )}
                       <span className="disp-entry-of">
-                        {patient.first_name} {patient.last_name} · {items.length} item{items.length === 1 ? "" : "s"}
-                        {pricing && <> · {money(pricing.totals.gross)}</>}
+                        {patient.first_name} {patient.last_name} · {items.length} line{items.length === 1 ? "" : "s"} · {money(gross)}
                       </span>
                     </h2>
 
-                    {mustSettle && (
-                      <section className="finish-sec" id="finish-warnings">
-                        <h4>{stepSettle} · Settle these first</h4>
-                        {coverage && !coverage.all_claimable && (
-                <div className="error-banner">
-                  {coverage.blocked_count} line{coverage.blocked_count === 1 ? "" : "s"} not covered
-                  by {coverage.formulary}. Dispensing is allowed, the patient pays for
-                  {coverage.blocked_count === 1 ? " it" : " them"}, but the scheme will not.
-                </div>
-              )}
-              {coverage?.authorisation_required && coverage.all_claimable && (
-                <div className="device-note">
-                  One or more lines need an authorisation number from the scheme before
-                  the claim will be paid.
-                </div>
-              )}
-                        {doseMajors.length > 0 && (
-                          <div className="chk-row is-major">
-                            <Warning size={16} weight="fill" />
-                            <div>
-                              <b>{doseMajors.length === 1 ? "A dose is" : `${doseMajors.length} doses are`} over the maximum held here</b>
-                              {doseMajors.map((f) => (
-                                <p key={f.product}><b>{f.product}</b> — {f.detail}</p>
+                    {stage === "settle" ? (
+                      <div id="finish-warnings">
+                        {counter.error && <div className="alert error">{counter.error}</div>}
+                        <div className="fin-stats">
+                          <div className={`fin-stat${toAck ? " is-stop" : ""}`}>
+                            <b>{toAck}</b><span>to acknowledge</span>
+                          </div>
+                          <div className={`fin-stat${worthKnowing ? " is-warn" : ""}`}>
+                            <b>{worthKnowing}</b><span>worth knowing</span>
+                          </div>
+                          <div className="fin-stat">
+                            <b>{items.length}</b><span>line{items.length === 1 ? "" : "s"} screened</span>
+                          </div>
+                        </div>
+
+                        {(doseMajors.length > 0 || blockingMsgs.length > 0) && (
+                          <section className="fin-group">
+                            <h4>Must be acknowledged</h4>
+                            <ul className="fin-list">
+                              {doseMajors.length > 0 && (
+                                <li className={`fin-item ${ixAcknowledged ? "is-done" : "is-stop"}`}>
+                                  <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">dose check</span>
+                                      <span className="badge muted">over the maximum</span>
+                                    </div>
+                                    {doseMajors.map((f) => (
+                                      <p key={f.product}><b>{f.product}</b> — {f.detail}</p>
+                                    ))}
+                                  </div>
+                                  <div className="fin-item-act">
+                                    {ixAcknowledged ? (
+                                      <button type="button" className="fin-ack" title="Undo"
+                                              onClick={() => setIxAcknowledged(false)}>
+                                        <Check size={13} weight="bold" /> Checked
+                                      </button>
+                                    ) : (
+                                      <button type="button" className="btn danger small"
+                                              onClick={() => setIxAcknowledged(true)}>
+                                        I have checked this
+                                      </button>
+                                    )}
+                                  </div>
+                                </li>
+                              )}
+                              {blockingMsgs.map((m, i) => {
+                                const done = m.id !== null && counter.acked.has(m.id);
+                                return (
+                                  <li key={m.id ?? `b${i}`} className={`fin-item ${done ? "is-done" : "is-stop"}`}>
+                                    <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                    <div className="fin-item-body">
+                                      <div className="fin-item-meta">
+                                        <span className="badge">{m.source}</span>
+                                        {m.category && <span className="badge muted">{m.category}</span>}
+                                      </div>
+                                      <p>{m.body}</p>
+                                    </div>
+                                    <div className="fin-item-act">
+                                      {done ? (
+                                        <span className="fin-ack"><Check size={13} weight="bold" /> Acknowledged</span>
+                                      ) : (
+                                        <button type="button" className="btn danger small"
+                                                disabled={counter.busy === m.id}
+                                                onClick={() => counter.acknowledge(m)}>
+                                          {counter.busy === m.id ? "Recording…" : "I have checked this"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </section>
+                        )}
+
+                        {worthKnowing > 0 && (
+                          <section className="fin-group">
+                            <h4>Worth knowing</h4>
+                            <ul className="fin-list">
+                              {advisoryMsgs.map((m, i) => (
+                                <li key={m.id ?? `a${i}`}
+                                    className={`fin-item ${m.severity === "info" ? "is-info" : "is-warn"}`}>
+                                  <span className="fin-item-icon">
+                                    {m.severity === "info"
+                                      ? <Info size={16} weight="fill" />
+                                      : <Warning size={16} weight="fill" />}
+                                  </span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">{m.source}</span>
+                                      {m.category && <span className="badge muted">{m.category}</span>}
+                                    </div>
+                                    <p>{m.body}</p>
+                                  </div>
+                                  <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
+                                </li>
                               ))}
-                              <Checkbox checked={ixAcknowledged} onChange={setIxAcknowledged}>
-                                I have checked {doseMajors.length === 1 ? "this dose" : "these doses"} and {doseMajors.length === 1 ? "it is" : "they are"} intended
-                              </Checkbox>
+                              {notCovered && (
+                                <li className="fin-item is-warn">
+                                  <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">scheme</span>
+                                      <span className="badge muted">not covered</span>
+                                    </div>
+                                    <p>
+                                      {coverage!.blocked_count} line{coverage!.blocked_count === 1 ? " is" : "s are"} not
+                                      covered by {coverage!.formulary}. Dispensing is allowed; the patient pays
+                                      for {coverage!.blocked_count === 1 ? "it" : "them"} and the scheme will not.
+                                    </p>
+                                  </div>
+                                  <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
+                                </li>
+                              )}
+                              {needsAuth && (
+                                <li className="fin-item is-warn">
+                                  <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">scheme</span>
+                                      <span className="badge muted">authorisation</span>
+                                    </div>
+                                    <p>
+                                      One or more lines need an authorisation number from the scheme
+                                      before the claim will be paid.
+                                    </p>
+                                  </div>
+                                  <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
+                                </li>
+                              )}
+                            </ul>
+                          </section>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="fin-grid">
+                        <section className="finish-sec fin-pay" id="finish-pay">
+                          <h4>How it is paid</h4>
+                          <div className="seg fin-seg" role="radiogroup" aria-label="How this is paid for">
+                            {PAY_CHOICES.map((c) => (
+                              <button key={c.key} type="button" role="radio"
+                                      aria-checked={payHow === c.key}
+                                      className={payHow === c.key ? "on" : ""}
+                                      onClick={() => setPayHow(c.key)}>
+                                {c.label}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="fin-hint">{PAY_CHOICES.find((c) => c.key === payHow)?.hint}</p>
+
+                          {payHow === "till" && (
+                            <div className="fin-panel">
+                              <Receipt size={18} />
+                              <span>
+                                An invoice for <b>{money(dueNow)}</b> is raised now and waits at the
+                                till, where the patient settles it.
+                              </span>
                             </div>
+                          )}
+
+                          {payHow === "now" && (
+                            <div className="fin-panel is-form">
+                              <Tenders
+                                lines={tenders}
+                                onChange={setTenders}
+                                owed={dueNow}
+                                allowAid={false}
+                                {...currencyWorld(currencyState)}
+                              />
+                              <p className="fin-note">
+                                The patient&rsquo;s share only. The claim is raised by the dispensing
+                                itself, so the scheme&rsquo;s part is never collected here.
+                              </p>
+                            </div>
+                          )}
+
+                          {payHow === "delivery" && (
+                            <div className="fin-panel is-form" id="step-delivery">
+                              <div className="field">
+                                <label>Driver</label>
+                                <Select
+                                  value={String(driverId ?? "")}
+                                  onChange={(v) => setDriverId(v === "" ? "" : Number(v))}
+                                  options={[
+                                    { value: "", label: "Choose a driver…" },
+                                    ...drivers.filter((d) => d.active).map((d) => ({
+                                      value: String(d.id),
+                                      // What they already carry, where they are chosen.
+                                      label: d.full_name
+                                        + (d.cash_holding ? ` — holding ${money(d.cash_holding)}` : "")
+                                        + (d.over_cod_limit ? " · over limit" : "")
+                                        + (d.licence_expired ? " · licence expired" : ""),
+                                    })),
+                                  ]}
+                                />
+                                <button type="button" className="linkish fin-field-link"
+                                        onClick={() => setAddingDriver(true)}>
+                                  {drivers.filter((d) => d.active).length === 0
+                                    ? "No driver on file yet — add one"
+                                    : "Add a driver"}
+                                </button>
+                              </div>
+                              <div className="field">
+                                <label>Fee</label>
+                                <input type="number" step="0.01" value={deliveryFee}
+                                       placeholder="0.00"
+                                       onChange={(e) => setDeliveryFee(e.target.value)} />
+                              </div>
+                              <div className="field">
+                                <label>Deliver to</label>
+                                <input value={deliverTo}
+                                       placeholder="Street, suburb, and anything the driver needs"
+                                       onChange={(e) => setDeliverTo(e.target.value)} />
+                              </div>
+                              <p className="fin-note">
+                                The driver collects <b>{money(dueNow + fee)}</b> at the door and holds
+                                it until they hand it in; the sale settles then.
+                              </p>
+                              {(() => {
+                                const d = drivers.find((x) => x.id === driverId);
+                                if (!d) return null;
+                                if (d.licence_expired) {
+                                  return (
+                                    <p className="fin-note is-bad">
+                                      <Warning size={13} weight="fill" />
+                                      <span>{d.full_name}&rsquo;s licence has expired. Dispatch will be refused.</span>
+                                    </p>
+                                  );
+                                }
+                                if (d.over_cod_limit) {
+                                  return (
+                                    <p className="fin-note is-warn">
+                                      <Warning size={13} weight="fill" />
+                                      <span>
+                                        {d.full_name} already carries {money(d.cash_holding ?? 0)} against a
+                                        limit of {money(d.cod_limit ?? 0)}. Dispatch will be refused until it
+                                        is handed in.
+                                      </span>
+                                    </p>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          )}
+                        </section>
+
+                        <aside className="fin-side">
+                          <section className="finish-sec fin-bill">
+                            <h4>The bill</h4>
+                            <dl className="ed-facts fin-facts">
+                              <dt>Lines</dt><dd>{items.length}</dd>
+                              <dt>Gross</dt><dd>{money(gross)}</dd>
+                              {split?.covered && (
+                                <><dt>{split.scheme || "Scheme"} pays</dt><dd>{money(split.scheme_pays)}</dd></>
+                              )}
+                              {fee > 0 && (<><dt>Delivery</dt><dd>{money(fee)}</dd></>)}
+                            </dl>
+                            <div className="fin-due">
+                              <span>{split?.covered ? TERMS.shortfall : "Patient pays"}</span>
+                              <b>{money(dueNow + fee)}</b>
+                              <small>
+                                {payHow === "till" ? "at the till"
+                                  : payHow === "now" ? "here, now" : "to the driver, at the door"}
+                              </small>
+                            </div>
+                            {split?.covered && (
+                              <p className="fin-note">
+                                Estimated on {split.scheme || "the scheme"}&rsquo;s terms; the
+                                claim&rsquo;s adjudication settles it.
+                              </p>
+                            )}
+                            {split && !split.covered && split.why && (
+                              <p className="fin-note is-warn">
+                                <Warning size={13} weight="fill" /><span>{split.why}</span>
+                              </p>
+                            )}
+                          </section>
+
+                          {route === "controlled" && (
+                            <section className="finish-sec fin-compliance" id="finish-compliance">
+                              <h4>
+                                Compliance record
+                                {activePolicy && <span className="badge danger">{activePolicy.label}</span>}
+                              </h4>
+                              <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
+                              <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
+                              <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
+                              <div className="field">
+                                <label>ID sighted</label>
+                                <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)}
+                                       placeholder="As per identity document" />
+                              </div>
+                              <div className="field">
+                                <label>Notes</label>
+                                <textarea rows={2} value={complianceNotes}
+                                  onChange={(e) => setComplianceNotes(e.target.value)}
+                                  placeholder="e.g. Filed in the S6 register folder, ref 2026/044" />
+                              </div>
+                            </section>
+                          )}
+                        </aside>
+                      </div>
+                    )}
+
+                    {stage === "settle" ? (
+                      <div className="finish-foot">
+                        {held && (
+                          <p className="disp-blocked">
+                            <Warning size={14} weight="fill" /><span>{held}</span>
+                          </p>
+                        )}
+                        <span className="finish-spacer" />
+                        <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
+                          Back to the script
+                        </button>
+                        <button type="button" className="btn primary fin-proceed"
+                                disabled={!!held} onClick={proceedToPay}>
+                          Proceed to payment <ArrowRight size={14} weight="bold" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="finish-foot">
+                        {needsInitials && (
+                          <div className="field finish-initials">
+                            <label htmlFor="finish-initials">Checked by</label>
+                            <input id="finish-initials" value={initials} maxLength={8}
+                              onChange={(e) => setInitials(e.target.value.toUpperCase())}
+                              placeholder="Initials" />
                           </div>
                         )}
-                        <CounterMessages state={counter} productIds={[]} />
-                      </section>
-                    )}
-
-                    {route === "controlled" && (
-                      <section className="finish-sec" id="finish-compliance">
-                        <h4>
-                          {stepCompliance} · Compliance record
-                          {activePolicy && <span className="badge danger">{activePolicy.label}</span>}
-                        </h4>
-                        <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
-                        <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
-                        <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
-                        <div className="field">
-                          <label>ID sighted</label>
-                          <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)}
-                                 placeholder="As per identity document" />
-                        </div>
-                        <div className="field">
-                          <label>Notes</label>
-                          <textarea rows={2} value={complianceNotes}
-                            onChange={(e) => setComplianceNotes(e.target.value)}
-                            placeholder="e.g. Script filed in the S6 register folder, ref 2026/044" />
-                        </div>
-                      </section>
-                    )}
-
-                    <section className="finish-sec" id="finish-pay">
-                      <h4>{stepPay} · Payment</h4>
-                      {/* How it is paid for is decided before it is dispensed, not
-                  after. It changes what pressing the button does — the till
-                  route sends the patient to the front shop, taking payment
-                  here does not, and a setting that governs an action reads
-                  as an afterthought when it sits below it. */}
-              {items.length > 0 && (
-                <div className="disp-pay">
-                  <span className="disp-pay-label">How this is paid for</span>
-                  {/* A segmented control, because these are two states of one
-                      setting rather than two things to do. Set out flat as
-                      buttons with the explanation trailing off the end of the
-                      row, the sentence read as a third option. */}
-                  <div className="seg" role="radiogroup" aria-label="How this is paid for">
-                    {PAY_CHOICES.map((c) => (
-                      <button
-                        key={c.key}
-                        role="radio"
-                        aria-checked={payHow === c.key}
-                        className={payHow === c.key ? "on" : ""}
-                        onClick={() => setPayHow(c.key)}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="muted small disp-pay-hint">
-                    {PAY_CHOICES.find((c) => c.key === payHow)?.hint}
-                  </span>
-                </div>
-              )}
-                      {/* The split, said before anybody collects anything.
-                  The dispenser hands the bag over and says "that is four
-                  dollars at the till", which they can only do if the figure is
-                  in front of them here, at the dispensary, rather than being
-                  discovered by the till operator in front of the customer. */}
-              {items.length > 0 && split && split.covered && (
-                <div className="split-bill">
-                  <div className="split-part">
-                    <span>{split.scheme || "The scheme"} pays</span>
-                    <b>{money(split.scheme_pays)}</b>
-                  </div>
-                  <div className="split-part split-lead">
-                    <span>{TERMS.shortfall}</span>
-                    <b>{money(split.patient_pays)}</b>
-                    <span className="split-where">
-                      {payHow === "till" ? "to collect at the till" : "to collect here"}
-                    </span>
-                  </div>
-                  <p className="split-note">
-                    An estimate from {split.scheme || "the scheme"}&rsquo;s terms
-                    on file, worked out the same way the claim will be. The claim
-                    is raised by the dispensing itself, and the funder&rsquo;s own
-                    adjudication is what the receipt settles against — if it comes
-                    back short, the difference joins the{" "}
-                    {TERMS.shortfall.toLowerCase()}.
-                  </p>
-                </div>
-              )}
-
-              {/* A patient the pharmacy has filed as a scheme member, whose
-                  membership will not carry anything. Better said here, while
-                  the bag is being packed, than at the till in front of a
-                  queue. */}
-              {items.length > 0 && split && !split.covered && split.why && (
-                <div className="alert warn">
-                  <Warning size={16} weight="fill" />
-                  <span>
-                    <b>{split.why}</b> {money(split.patient_pays)} to collect
-                    {payHow === "till" ? " at the till." : " here."}
-                  </span>
-                </div>
-              )}
-                      {items.length > 0 && payHow === "now" && (
-                <div className="card sec sec-money" style={{ marginBottom: 12 }}>
-                  <Tenders
-                    lines={tenders}
-                    onChange={setTenders}
-                    owed={dueNow}
-                    allowAid={false}
-                    {...currencyWorld(currencyState)}
-                  />
-                  <p className="muted small">
-                    The medical aid is not listed here, and the amount is the
-                    patient&rsquo;s share alone: the claim is raised by the
-                    dispensing itself, so asking for the gross would be
-                    collecting the scheme&rsquo;s money as well as theirs.
-                  </p>
-                </div>
-              )}
-                      {/* Who is taking it, and what they will collect at the door.
-                  Asked here rather than on a Deliveries screen afterwards: the
-                  bag is being packed now, and a waybill raised an hour later
-                  is one somebody has to remember to raise. */}
-              {items.length > 0 && payHow === "delivery" && (
-                <div className="card sec sec-delivery" id="step-delivery"
-                     style={{ marginBottom: 12 }}>
-                  <div className="form-row">
-                    <div className="field span-6">
-                      <label>Driver</label>
-                      <Select
-                        value={String(driverId ?? "")}
-                        onChange={(v) => setDriverId(v === "" ? "" : Number(v))}
-                        options={[
-                          { value: "", label: "Choose a driver…" },
-                          ...drivers.filter((d) => d.active).map((d) => ({
-                            value: String(d.id),
-                            // What they are already carrying, on the line where
-                            // they are chosen. A driver over their limit is a
-                            // decision to make before the bag is loaded, not
-                            // after they have left.
-                            label: d.full_name
-                              + (d.cash_holding
-                                 ? ` — holding ${money(d.cash_holding)}` : "")
-                              + (d.over_cod_limit ? " · over limit" : "")
-                              + (d.licence_expired ? " · licence expired" : ""),
-                          })),
-                        ]}
-                      />
-                      {/* The same answer the patient search gives when nobody
-                          matches. A dispensary that has never entered a driver
-                          meets this list empty, and sending them to Drivers to
-                          create one abandons a script that is already packed.
-                          The end of the search is the beginning of the work. */}
-                      {drivers.filter((d) => d.active).length === 0 ? (
-                        <p className="pick-none">
-                          <span>No driver is on file yet.</span>
-                          <button type="button" className="btn small"
-                                  onClick={() => setAddingDriver(true)}>
-                            Add one
-                          </button>
-                        </p>
-                      ) : (
-                        <button type="button" className="linkish"
-                                onClick={() => setAddingDriver(true)}>
-                          Add a driver
+                        {why && (
+                          <p className="disp-blocked">
+                            <Warning size={14} weight="fill" /><span>{why}</span>
+                          </p>
+                        )}
+                        <span className="finish-spacer" />
+                        <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
+                          Back to the script
                         </button>
-                      )}
-                    </div>
-                    <div className="field span-6">
-                      <label>Delivery fee</label>
-                      <input type="number" step="0.01" value={deliveryFee}
-                             placeholder="0.00"
-                             onChange={(e) => setDeliveryFee(e.target.value)} />
-                    </div>
-                  </div>
-                  <div className="field">
-                    <label>Deliver to</label>
-                    <input value={deliverTo}
-                           placeholder="Street, suburb, and anything the driver needs"
-                           onChange={(e) => setDeliverTo(e.target.value)} />
-                  </div>
-
-                  {/* What goes onto the driver's account. Stated before the
-                      bag leaves, because this is the figure they will be held
-                      to when they come back. */}
-                  <p className="disp-cod">
-                    The driver collects{" "}
-                    <b>{money(dueNow + (Number(deliveryFee) || 0))}</b>
-                    {Number(deliveryFee) > 0 && (
-                      <span className="muted">
-                        {" "}({money(dueNow)} for the medicine
-                        {" "}+ {money(Number(deliveryFee))} delivery)
-                      </span>
+                        {/* One press does the common case — dispense, and the labels
+                            come off the roll. The caret holds what is occasional. */}
+                        <PrintMenu
+                          primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
+                          primaryTitle="Dispense, and print the labels (F12)"
+                          busy={printing || busy}
+                          disabled={busy || !!why || !complianceReady}
+                          onPrimary={createAndDispense}
+                          actions={printActions}
+                        />
+                      </div>
                     )}
-                    {" "}at the door. It sits on their account until they hand
-                    it in, and the sale is settled then — not now.
-                  </p>
-
-                  {(() => {
-                    const d = drivers.find((x) => x.id === driverId);
-                    if (!d) return null;
-                    if (d.licence_expired) {
-                      return (
-                        <p className="alert bad">
-                          <Warning size={15} weight="fill" />
-                          <span>
-                            {d.full_name}&rsquo;s licence has expired. Dispatch
-                            will be refused.
-                          </span>
-                        </p>
-                      );
-                    }
-                    if (d.over_cod_limit) {
-                      return (
-                        <p className="alert warn">
-                          <Warning size={15} weight="fill" />
-                          <span>
-                            {d.full_name} is already carrying{" "}
-                            {money(d.cash_holding ?? 0)} against a limit of{" "}
-                            {money(d.cod_limit ?? 0)}. Dispatch will be refused
-                            until it is handed in.
-                          </span>
-                        </p>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              )}
-                    </section>
-
-                    <div className="finish-foot">
-                      {needsInitials && (
-                        <div className="field finish-initials">
-                          <label htmlFor="finish-initials">Checked by</label>
-                          <input id="finish-initials" value={initials} maxLength={8}
-                            onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                            placeholder="Initials" />
-                        </div>
-                      )}
-                      {why && (
-                        <p className="disp-blocked">
-                          <Warning size={14} weight="fill" /><span>{why}</span>
-                        </p>
-                      )}
-                      <span className="finish-spacer" />
-                      <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
-                        Back to the script
-                      </button>
-                      {/* One press does the common case — dispense, and the labels
-                          come off the roll. The caret holds what is occasional. */}
-                      <PrintMenu
-                        primaryLabel={`Dispense ${items.length} item${items.length === 1 ? "" : "s"}`}
-                        primaryTitle="Dispense, and print the labels (F12)"
-                        busy={printing || busy}
-                        disabled={busy || !!why || !complianceReady}
-                        onPrimary={createAndDispense}
-                        actions={printActions}
-                      />
-                    </div>
                   </div>
                 </div>
               );

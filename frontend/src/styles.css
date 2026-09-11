@@ -8407,3 +8407,190 @@ button.ctx-chip:hover { background: var(--hover); }
 }
 .dpp-change:hover { background: var(--hover); color: var(--ink); }
 .dpp-change:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ========================================================================
+   THE LANE IS ONE ROW, patient or no patient.
+   `.sec-patient > .field:first-of-type { grid-row: 2 }` carries four class-
+   weight selectors and was outranking the rule that put the patient field on
+   row one, so an empty lane was two rows with a hole at its top left.
+   ======================================================================== */
+.disp-dense .card.sec-patient > .field.disp-patient-field { grid-column: 1; grid-row: 1; }
+.disp-dense .card.sec-patient > .disp-lane-badge { grid-column: 1 / -1; grid-row: 3; }
+
+/* ========================================================================
+   THE DIALOGS AS ONE SYSTEM
+   One header (title, steps, meta), one section head, one item row, one foot.
+   Everything that repeats sits on an even grid, so the eye reads across
+   columns rather than hunting for where the next thing starts.
+   ======================================================================== */
+.disp-finish > h2, .disp-check > h2, .disp-edit > h2, .disp-lane-modal > h2 {
+  font-size: 1.05rem; gap: var(--s3); min-height: 3.25rem; flex-wrap: nowrap;
+}
+.disp-finish.is-settle { max-width: 48rem; }
+.disp-finish.is-pay { max-width: 60rem; }
+
+/* The steps: where you are, and the way back. */
+.fin-steps {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: var(--s2);
+  font-size: .74rem; font-weight: 600;
+}
+.fin-step {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px 0 4px; border-radius: 999px;
+  border: 1px solid var(--line); background: none; color: var(--ink-soft); cursor: pointer;
+}
+.fin-step:disabled { cursor: not-allowed; opacity: .5; }
+.fin-step.is-on { color: var(--ink); border-color: var(--line-strong); background: var(--surface-sunk); }
+.fin-step.is-done { color: var(--ok); }
+.fin-step-n {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid var(--line-strong); background: var(--surface-sunk); font-size: .66rem;
+}
+.fin-step.is-on .fin-step-n { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.fin-step.is-done .fin-step-n { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.fin-step-rule { width: 18px; height: 1px; background: var(--line-strong); }
+
+/* ---- stage one: settle --------------------------------------------------- */
+.fin-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2); margin-bottom: var(--s4);
+}
+.fin-stat {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface-sunk);
+}
+.fin-stat b { font-size: 1.4rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fin-stat span {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.fin-stat.is-stop { border-color: var(--danger); background: var(--danger-soft); }
+.fin-stat.is-stop b { color: var(--danger); }
+.fin-stat.is-warn b { color: var(--warn); }
+
+.fin-group + .fin-group { margin-top: var(--s4); }
+.fin-group > h4 {
+  margin: 0 0 var(--s2); font-size: .7rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.fin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+/* icon | what it says | what to do — the same three columns on every item. */
+.fin-item {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) 10.5rem;
+  gap: var(--s3); align-items: start;
+  padding: var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line); border-left: 3px solid var(--line-strong);
+  background: var(--surface-sunk);
+}
+.fin-item.is-stop { border-color: var(--danger); background: var(--danger-soft); }
+.fin-item.is-warn { border-left-color: var(--warn); }
+.fin-item.is-info { border-left-color: var(--ink-soft); }
+.fin-item.is-done { border-left-color: var(--ok); }
+.fin-item-icon { padding-top: 2px; color: var(--ink-soft); line-height: 0; }
+.fin-item.is-stop .fin-item-icon { color: var(--danger); }
+.fin-item.is-warn .fin-item-icon { color: var(--warn); }
+.fin-item.is-done .fin-item-icon { color: var(--ok); }
+.fin-item-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.fin-item-meta .badge { margin: 0; }
+.fin-item-body p { margin: 0; font-size: .86rem; line-height: 1.45; }
+.fin-item-body p + p { margin-top: 4px; }
+.fin-item-act { display: flex; justify-content: flex-end; }
+.fin-item-act .btn { width: 100%; justify-content: center; white-space: nowrap; }
+.fin-item-note {
+  padding-top: 3px; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-faint, var(--ink-soft));
+}
+.fin-ack {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; height: 30px; padding: 0 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--ok); background: var(--ok-soft); color: var(--ok);
+  font-size: .8rem; font-weight: 600;
+}
+button.fin-ack { cursor: pointer; }
+
+/* ---- stage two: pay beside the bill -------------------------------------- */
+.fin-grid {
+  display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--s5); align-items: start;
+}
+.fin-grid .finish-sec { padding: 0; border: 0; }
+.fin-side {
+  display: flex; flex-direction: column; gap: var(--s4);
+  padding-left: var(--s5); border-left: 1px solid var(--line);
+}
+.fin-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.fin-seg button { justify-content: center; text-align: center; white-space: nowrap; }
+.fin-hint { margin: var(--s2) 0 var(--s3); font-size: .8rem; color: var(--ink-soft); }
+.fin-panel {
+  padding: var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface-sunk);
+}
+.fin-panel:not(.is-form) {
+  display: flex; align-items: flex-start; gap: var(--s2); font-size: .86rem; line-height: 1.45;
+}
+.fin-panel:not(.is-form) > svg { flex: 0 0 auto; margin-top: 1px; color: var(--ink-soft); }
+.fin-panel .tenders { margin-bottom: 0; }
+.fin-panel .tender-line { background: var(--surface); }
+.fin-panel .field { margin: 0; }
+.fin-panel .field + .field { margin-top: var(--s2); }
+.fin-panel .fin-field-link { grid-column: 2; justify-self: start; font-size: .76rem; margin-top: 2px; }
+.fin-note {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: var(--s2) 0 0; font-size: .76rem; line-height: 1.4;
+  color: var(--ink-faint, var(--ink-soft));
+}
+.fin-note > svg { flex: 0 0 auto; margin-top: 2px; }
+.fin-note.is-warn { color: var(--warn); }
+.fin-note.is-bad { color: var(--danger); }
+.fin-facts { font-size: .86rem; }
+.fin-due {
+  display: flex; flex-direction: column; gap: 2px;
+  margin-top: var(--s3); padding: var(--s3);
+  border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--surface-sunk);
+}
+.fin-due span {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.fin-due b { font-size: 1.7rem; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.fin-due small { font-size: .76rem; color: var(--ink-soft); }
+.fin-compliance .field { margin-top: var(--s2); }
+
+/* ---- the line check: three answers at a glance --------------------------- */
+.chk-summary {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s2); margin-bottom: var(--s1);
+}
+.chk-card {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line); border-top: 3px solid var(--line-strong);
+  background: var(--surface-sunk);
+}
+.chk-card span {
+  font-size: .66rem; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-soft);
+}
+.chk-card b { font-size: .9rem; }
+.chk-card.is-ok { border-top-color: var(--ok); }
+.chk-card.is-ok b { color: var(--ok); }
+.chk-card.is-minor { border-top-color: var(--warn); }
+.chk-card.is-minor b { color: var(--warn); }
+.chk-card.is-major { border-top-color: var(--danger); }
+.chk-card.is-major b { color: var(--danger); }
+
+@media (max-width: 860px) {
+  .fin-grid { grid-template-columns: 1fr; }
+  .fin-side { padding-left: 0; border-left: 0; }
+  .fin-item { grid-template-columns: 20px minmax(0, 1fr); }
+  .fin-item-act { grid-column: 2; justify-content: flex-start; }
+  .fin-item-act .btn, .fin-ack { width: auto; }
+}
+
+/* A note is a sentence, not a row. As a flex container, "The driver collects
+   <b>$4.50</b> at the door…" became three columns — the text before the figure,
+   the figure, and the text after — so it is a paragraph, and only a note that
+   opens with an icon lays the icon beside the text. */
+.fin-note { display: block; }
+.fin-note:has(> svg) { display: flex; }
