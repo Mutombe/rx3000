@@ -35,6 +35,17 @@ def check(label, ok, detail=""):
 def build_script(page, route_tab, terms):
     page.goto(BASE + "/dispense", wait_until="networkidle")
     page.wait_for_timeout(1400)
+    # A part-typed script is now kept and put back when you return to the
+    # screen, so coming here a second time lands on the previous one rather
+    # than a blank form — the patient search is a chip by then, and filling it
+    # times out. Each route starts a new script the way a dispenser does, with
+    # the button that says so; it clears what was kept with it.
+    if page.query_selector(".disp-patient-picked") or page.query_selector(
+            ".disp-grid > .rx-item:not(.rx-item-waiting)"):
+        fresh = page.query_selector(".page-actions button:has-text('New script')")
+        if fresh:
+            fresh.click()
+            page.wait_for_timeout(900)
     if route_tab:
         tab = page.query_selector(f".disp-routes button:has-text('{route_tab}')")
         if not tab:

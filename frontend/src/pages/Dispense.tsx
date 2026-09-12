@@ -5,6 +5,7 @@ import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorkl
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
 import { useSession } from "../session";
+import { clearScriptDraft, readScriptDraft, writeScriptDraft } from "../hooks/scriptDraft";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import AiOutput from "../components/AiOutput";
@@ -456,8 +457,31 @@ export default function Dispense() {
     api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=8`).then(setPatients);
   }, [patientQ]);
 
+  /** The dispenser choosing a different route starts a different script.
+   *
+   *  Clearing belongs to the choice, not to the route changing, and that
+   *  distinction is the whole of the bug below.
+   */
+  function chooseRoute(next: Route) {
+    if (next === route) return;
+    setItems([]);
+    aiCheck.reset();
+    setRoute(next);
+  }
+
+  /* Changing route changes what the medicine search offers, so the search is
+     reset with it.
+     It used to empty the script here as well, and that quietly broke opening a
+     script that is not on the route currently showing. `openQueued` sets the
+     patient, moves to the script's route and sets its lines in one go; this
+     effect then ran — because the route had just changed — and cleared the
+     lines it had only just been given. Opening a Schedule 5 script by link
+     landed on Dangerous Drugs with the patient loaded and an empty table, and
+     nothing said why. Verified: /dispense?rx=<a controlled script> loaded the
+     patient and none of its lines.
+     Now only a tab press clears, which is what a dispenser means by it. */
   useEffect(() => {
-    setItems([]); setProductQ(""); setProductResults([]); aiCheck.reset();
+    setProductQ(""); setProductResults([]); aiCheck.reset();
   }, [route]);
 
   useEffect(() => {
@@ -474,6 +498,42 @@ export default function Dispense() {
   const policyFor = (schedule: number) => policies.find((p) => p.schedule === schedule);
   const highestSchedule = items.reduce((m, i) => Math.max(m, i.product.schedule || 0), 0);
   const activePolicy = policyFor(highestSchedule);
+  /* THE COMPLIANCE RECORD IS THE LINES' QUESTION, NOT THE TAB'S.
+   *
+   *  The server decides it from the highest schedule on the script:
+   *  `policy_for(max schedule).route == "controlled"`, then asks for each
+   *  verification that policy names. This screen decided it from the route tab
+   *  the dispenser happened to be on — so a Schedule 5 line captured on the
+   *  Prescription tab was refused at the last step with
+   *
+   *    "Prescription preparation - Tenth Schedule requires: patient identity
+   *     verification, original prescription sighted, prescriber verification."
+   *
+   *  and there was nowhere on the screen to give any of the three: the section
+   *  holding those tickboxes only rendered on the Dangerous Drugs tab, and the
+   *  fields were dropped from the payload for the same reason. The button was
+   *  enabled, the dispensing was impossible, and the sentence named things the
+   *  dispenser could not do. The same shape of dead end as the blocking
+   *  warning that could never be acknowledged.
+   *
+   *  Read from the lines, so the two cannot disagree — and per flag, so this
+   *  asks for exactly what the jurisdiction pack asks for and no more.
+   *
+   *  When the policies have not loaded, the schedule decides and all three are
+   *  asked for: the failure has to be "this screen asked for too much", never
+   *  "this screen refused to ask". */
+  const needsCompliance = activePolicy
+    ? activePolicy.route === "controlled"
+    : highestSchedule >= 5;
+  const policyWants = (flag: keyof SchedulePolicy) =>
+    needsCompliance && (activePolicy ? !!activePolicy[flag] : true);
+  const needsIdVerified = policyWants("requires_id_verification");
+  const needsScriptSighted = policyWants("requires_script_sighted");
+  const needsPrescriberVerified = policyWants("requires_prescriber_verification");
+  const complianceDone =
+    (!needsIdVerified || idVerified)
+    && (!needsScriptSighted || scriptSighted)
+    && (!needsPrescriberVerified || prescriberVerified);
   // The policy field is still called requires_witness — it is the jurisdiction
   // pack's name for "this needs a second signature". What satisfies it is now
   // the checking pharmacist's initials.
@@ -522,9 +582,56 @@ export default function Dispense() {
    *  draft behind for somebody else to wonder about. */
   const [quoting, setQuoting] = useState(false);
 
+  /* WHAT WAS BEING CAPTURED WHEN SOMEBODY WALKED AWAY.
+   *
+   *  Leaving this screen mid-script unmounted it and took the capture with it,
+   *  and leaving it mid-script is normal: a stock lookup, a price, a patient's
+   *  history, the telephone. It is kept rather than prompted for — the reasons
+   *  are in hooks/scriptDraft.ts, with what is deliberately not kept (the
+   *  compliance ticks and the initials, which are somebody's statement that
+   *  they checked something, not typing).
+   *
+   *  `draftReady` is the ordering, and it is load-bearing. Both effects run in
+   *  the same pass on mount; without it the saving one would run with the
+   *  empty script of first render and wipe the very draft the other was about
+   *  to restore. It gates saving until the restore has been through a render,
+   *  so the first thing saved is what came back. */
+  const [draftReady, setDraftReady] = useState(false);
+  useEffect(() => {
+    if (draftReady || !session.me) return;
+    const kept = readScriptDraft<DraftItem>(session.me.id);
+    if (kept) {
+      setItems(kept.items);
+      if (kept.patient) setPatient(kept.patient as Patient);
+      setDoctorId(kept.doctorId);
+      setQuoting(kept.quoting);
+      goToRoute(kept.route as Route);
+      const who = kept.patient
+        ? ` for ${(kept.patient as Patient).first_name} ${(kept.patient as Patient).last_name}`
+        : "";
+      toast.ok(`Picked up where you left off — ${kept.items.length} `
+               + `line${kept.items.length === 1 ? "" : "s"}${who}. Escape clears it.`);
+    }
+    setDraftReady(true);
+  }, [draftReady, session.me, goToRoute, toast]);
+
+  useEffect(() => {
+    if (!draftReady || !session.me) return;
+    writeScriptDraft<DraftItem>({
+      userId: session.me.id, patient, doctorId, route, quoting, items,
+    });
+  }, [draftReady, session.me, patient, doctorId, route, quoting, items]);
+
   /** Start again, cleanly. */
   function newScript() {
+    clearScriptDraft();
     setItems([]); setPatient(null); setPatientQ(""); setDoneSale(null);
+    // The prescriber belongs to the script, so it goes with it. It was left
+    // behind here, which never showed while every fresh visit to the screen
+    // started blank: now that a part-typed script comes back, pressing New
+    // script left the previous doctor attached to a script that no longer
+    // exists — a prescriber nobody chose, on the next patient's supply.
+    setDoctorId(""); setDoctorQ("");
     setFromRx(null); setQuoting(false); aiCheck.reset();
     setFinishing(null); setChecking(null); setEditing(null); setLineChecks({}); setLaneOpen(null);
     setPrintPick({});
@@ -576,8 +683,7 @@ export default function Dispense() {
     !blocked &&
     // Initials gate every route when the setting demands them.
     (!needsInitials || initials.trim() !== "") &&
-    (route !== "controlled" ||
-    (items.length > 0 && idVerified && scriptSighted && prescriberVerified));
+    (!needsCompliance || (items.length > 0 && complianceDone));
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -816,7 +922,7 @@ export default function Dispense() {
     if (!patient) return focus("[data-hk='patient']");
     if (doctorId === "") return focus("#step-patient .disp-doctor button, #step-patient .disp-doctor input");
     if (items.length === 0) return focus("[data-hk='product']");
-    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
+    if (needsCompliance && !complianceDone)
       return openFinish("finish-compliance");
     if (blocked) return openFinish("finish-warnings");
     if (needsInitials && !initials.trim()) return focus("#disp-initials");
@@ -923,8 +1029,7 @@ export default function Dispense() {
 
   const complianceReady =
     (!needsInitials || initials.trim() !== "") &&
-    (route !== "controlled" ||
-    (items.length > 0 && idVerified && scriptSighted && prescriberVerified)) &&
+    (!needsCompliance || (items.length > 0 && complianceDone)) &&
     // A major interaction has to be acknowledged, not blocked. The checker holds
     // twelve pairs and says so; refusing outright on twelve while missing
     // thousands teaches a pharmacist that a clear result means safe.
@@ -945,8 +1050,8 @@ export default function Dispense() {
     // grey with no sentence beside it.
     if (doctorId === "") return "Choose the prescriber.";
     if (items.length === 0) return "Add at least one medicine to the script.";
-    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
-      return "Complete the compliance record for this controlled substance.";
+    if (needsCompliance && !complianceDone)
+      return `Complete the compliance record for ${activePolicy?.label ?? "this controlled substance"}.`;
     if (blocked) return "Acknowledge the blocking warning first.";
     if (needsInitials && !initials.trim())
       return "Enter the checking pharmacist's initials.";
@@ -966,10 +1071,10 @@ export default function Dispense() {
   const blockedAt = (): string => {
     if (!patient) return "step-patient";
     if (items.length === 0) return "step-items";
-    if (route === "controlled" && !(idVerified && scriptSighted && prescriberVerified))
+    if (needsCompliance && !complianceDone)
       return "step-compliance";
     if (needsInitials && !initials.trim())
-      return route === "controlled" ? "step-compliance" : "step-dispense";
+      return needsCompliance ? "step-compliance" : "step-dispense";
     return "step-dispense";
   };
 
@@ -1147,7 +1252,11 @@ export default function Dispense() {
     const initial = initials.trim();
     return {
       ...(initial ? { pharmacist_initial: initial } : {}),
-      ...(route === "controlled"
+      // Sent when the *lines* call for it. Keyed to the route tab, a Schedule 5
+      // line captured on the Prescription tab had these dropped here and was
+      // refused by the server for missing exactly what this screen had chosen
+      // not to send.
+      ...(needsCompliance
         ? {
             id_verified: idVerified, id_number_seen: idNumber, script_sighted: scriptSighted,
             prescriber_verified: prescriberVerified,
@@ -1549,6 +1658,8 @@ export default function Dispense() {
         }
       }
 
+      // It has been dispensed: there is nothing left to come back to.
+      clearScriptDraft();
       setDoneSale(finished); setDoneRxId(rx.id);
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
@@ -1711,16 +1822,16 @@ export default function Dispense() {
       // TypeScript widens `tone` to `string`, and a tone that is not one of
       // the four does nothing at all, silently, which is the same failure
       // as a class the stylesheet has never heard of.
-      ...(route === "controlled" ? ([{
+      ...(needsCompliance ? ([{
         n: 3, title: "Compliance record", anchor: "step-compliance", tone: "check",
-        done: items.length > 0 && idVerified && scriptSighted
-          && prescriberVerified && (!needsInitials || initials.trim() !== ""),
+        done: items.length > 0 && complianceDone
+          && (!needsInitials || initials.trim() !== ""),
         needs: items.length === 0
           ? "Add a medicine first — the record is about what is being supplied."
           : "Tick the script, the prescriber and the patient's identity, and "
             + "initial it.",
       }] as Step[]) : []),
-      { n: route === "controlled" ? 4 : 3, title: "Safety check & dispense",
+      { n: needsCompliance ? 4 : 3, title: "Safety check & dispense",
         anchor: "step-dispense", tone: "go",
         // Never "done" until it has happened; the screen clears when it does.
         done: false,
@@ -1887,7 +1998,7 @@ export default function Dispense() {
           <div className="pill-tabs disp-routes">
             {visibleRoutes.map((t) => (
               <button key={t.key} className={route === t.key ? "active" : ""}
-                      onClick={() => setRoute(t.key)}>
+                      onClick={() => chooseRoute(t.key)}>
                 {t.tab}
               </button>
             ))}
@@ -2802,14 +2913,21 @@ ${d.action}`}
                   at its floor. A fixed eight overflowed as soon as the patient's
                   details made the lane above taller, and an empty table grew a
                   scrollbar for rows with nothing in them. */}
-              <div className="rx-waiting" aria-hidden="true">
+              {/* The empty rows are where the next line goes, so double-clicking
+                  one starts the work rather than doing nothing — the same gesture
+                  that edits a line that is already there. Mouse-only and
+                  decorative, so it stays hidden from assistive technology: the
+                  keyboard has F3, which is the documented way in. */}
+              <div className="rx-waiting" aria-hidden="true"
+                   onDoubleClick={() => document
+                     .querySelector<HTMLInputElement>("[data-hk='product']")?.focus()}>
               {Array.from({ length: 24 }).map((_, i) => (
                 <div key={`waiting-${i}`} className="rx-item rx-item-waiting"
                      aria-hidden="true">
                   <div className="rx-item-head">
                     <span className="rx-item-name">
                       {i === 0 && items.length === 0 && (
-                        <em className="rx-item-hint">Search a medicine above, or press F3</em>
+                        <em className="rx-item-hint">Double-click here to start, or press F3</em>
                       )}
                     </span>
                     <span /><span /><span /><span /><span />
@@ -2996,7 +3114,7 @@ ${d.action}`}
                 <div className="modal-backdrop" role="dialog" aria-modal="true"
                      aria-label={stage === "settle" ? "Before you finish" : "Pay and dispense"}
                      onClick={(e) => { if (e.target === e.currentTarget) setFinishing(null); }}>
-                  <div className={`modal disp-finish is-${stage}${route === "controlled" ? " is-controlled" : ""}`}>
+                  <div className={`modal disp-finish is-${stage}${needsCompliance ? " is-controlled" : ""}`}>
                     <h2>
                       {stage === "settle" ? "Before you finish" : "Pay & dispense"}
                       {hasSettle && (
@@ -3159,7 +3277,7 @@ ${d.action}`}
                         )}
                       </div>
                     ) : (
-                      <div className={`fin-grid${route === "controlled" ? " is-three" : ""}`}>
+                      <div className={`fin-grid${needsCompliance ? " is-three" : ""}`}>
                         <section className="finish-sec fin-pay" id="finish-pay">
                           <h4>How it is paid</h4>
                           <div className="seg fin-seg" role="radiogroup" aria-label="How this is paid for">
@@ -3350,15 +3468,23 @@ ${d.action}`}
                             </p>
                           </section>
                         </aside>
-                          {route === "controlled" && (
+                          {needsCompliance && (
                             <section className="finish-sec fin-compliance" id="finish-compliance">
                               <h4>
                                 Compliance record
                                 {activePolicy && <span className="badge danger">{activePolicy.label}</span>}
                               </h4>
-                              <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
-                              <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
-                              <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
+                              {/* Each tick is one the server will ask for, and only
+                                  those: the pack decides what this schedule needs. */}
+                              {needsScriptSighted && (
+                                <Checkbox checked={scriptSighted} onChange={setScriptSighted}>Original prescription sighted and retained</Checkbox>
+                              )}
+                              {needsPrescriberVerified && (
+                                <Checkbox checked={prescriberVerified} onChange={setPrescriberVerified}>Prescriber and practice number verified</Checkbox>
+                              )}
+                              {needsIdVerified && (
+                                <Checkbox checked={idVerified} onChange={setIdVerified}>Patient identity document verified</Checkbox>
+                              )}
                               <div className="field">
                                 <label>ID sighted</label>
                                 <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)}

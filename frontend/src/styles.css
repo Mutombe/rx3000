@@ -9160,3 +9160,24 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .disp-bar .btn { height: 26px; }
 .disp-dense .disp-bar .disp-commit-row > .field input { height: 24px; }
 .disp-dense .disp-bar .disp-chip { height: 20px; }
+
+/* ========================================================================
+   THE BUTTON THAT DISPENSES, the same height as the one beside it.
+   It carries two labels — what it does, and what it will print — and it
+   stacked them, so it stood 40px+ beside a 38px "Back to the script" and
+   the foot read as two different rows of controls. The labels now sit on
+   one line, separated by a dot, inside the height every other control on
+   the screen uses. Nothing is dropped: the print count is still on the
+   button, which is the point of it.
+   ======================================================================== */
+.fin-dispense {
+  flex-direction: row; align-items: center; justify-content: center;
+  height: var(--control); min-height: 0; padding: 0 18px; line-height: 1;
+}
+.fin-dispense-main { font-weight: 700; }
+.fin-dispense-sub { font-size: .74rem; font-weight: 500; opacity: .78; }
+.fin-dispense-sub::before { content: "·"; margin: 0 6px; opacity: .7; }
+
+/* The empty rows of the table are where the next line goes, so double-clicking
+   one starts the search rather than doing nothing. The cursor says so. */
+.disp-dense .disp-grid > .rx-waiting { cursor: text; }
