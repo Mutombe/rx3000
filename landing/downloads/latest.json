@@ -1,11 +1,11 @@
 {
-  "version": "1.6.21",
-  "notes": "A calmer, tighter dispensary.\n\n**Windows that do not jump**\n\nEvery window on the dispensary opens at its full size. While it loads\nit shows the outline of what is coming, then fills in, so buttons never\nmove under your pointer. Long lists scroll inside the window.\n\n**Everything in its own tray**\n\nThe worklist, the finish bar and the function keys now sit in the same\nneat trays as the Prescription, Dangerous Drugs and OTC tabs. The one\nyou have chosen stands out; everything else sits quietly in the tray.\n\n**More room for the script**\n\nThe bar with Checked by, Save for later and Finish is slimmer, so the\ntable has more space.",
-  "pub_date": "2026-09-11T21:20:38+00:00",
+  "version": "1.6.22",
+  "notes": "More of the screen for the script.\n\n**A slimmer bar under the table**\n\nThe strip holding Checked by, Save for later and Finish is now about\nhalf its old height, so the script table shows more lines. Nothing\nmoved: the reason a script cannot go yet still reads on the left, with\nthe warnings beside it, and Finish stays on the right with F12.",
+  "pub_date": "2026-09-12T05:47:27+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakh1cXNmU2FuSFI0K2JrcXdNTWRLUTNuM3hsRHc2WnpZcVpUSUZBSW15STlwM1RHUk9KREdXL0pNb2NLRmlXMnNQWVhQRHhJK0prd090UW9HUE95WUFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTYxNjM4CWZpbGU6Ulg1MDAwXzEuNi4yMV94NjQtc2V0dXAuZXhlCkIvV3VVUlBYNTZEcUVnQXMrMVpDYyttb3loY2JlMmF0L3FvUDBqenkxSTBSVTMyWnUxT1FNMmRaYTlnamVOWkRtU0crS1lNMXZCWXlZTGM2K1RSeUFnPT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.21_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakd1YkxnaG90ZUwrZ3A4Y3hCU2k3Tjh4dVVhNUJIeEVzNmlTVi9BVElNdkczYSszamtQNUlteUdERU14bDkzUGRDcG1IOVVYWG9TSStuak1VSWduNkEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5MTkyMDQ2CWZpbGU6Ulg1MDAwXzEuNi4yMl94NjQtc2V0dXAuZXhlCmVDUUIwYVJxOUE2ZGkyUlN4ZkU4TGt4eVk5UVRCa2xaVkhCbFRFdWMwZklJSDQyY1BGV1E3YXhJSUpxTUthMDVRNUU2UmtzcUtCbFliVzBlbUNOSUFnPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.22_x64-setup.exe"
     }
   }
 }
