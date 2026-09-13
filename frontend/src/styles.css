@@ -9181,3 +9181,68 @@ button.fin-ack { cursor: pointer; }
 /* The empty rows of the table are where the next line goes, so double-clicking
    one starts the search rather than doing nothing. The cursor says so. */
 .disp-dense .disp-grid > .rx-waiting { cursor: text; }
+
+/* ========================================================================
+   CHECKED BY — a field that says what it is, then what to type.
+   It was a label reading "Checked by" beside a box whose placeholder read
+   "Initials": two words for one thing, and neither said whose initials or
+   what they are for. It now carries the lane's pattern — its name where the
+   placeholder sits, the hint once the cursor is in it, a function icon at the
+   right end — and signs itself with a tick when it holds something.
+   ======================================================================== */
+.disp-initials, .finish-initials { flex: 0 0 auto; width: 10.5rem; margin: 0; }
+.disp-initials > input, .finish-initials > input { text-transform: uppercase; }
+.disp-dense .disp-bar .disp-initials > input { height: 26px; }
+.finish-foot .finish-initials > input { height: 30px; }
+/* Once signed it reads as a signature: the initials, not a word in a box. */
+.lane-field.is-signed > input {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-weight: 700; letter-spacing: .08em;
+}
+.lane-field.is-signed > .lane-icon { color: var(--ok); }
+
+/* ========================================================================
+   THE LANE, containered like the route tabs — with one difference.
+   The tabs' well shrinks to fit what is in it. This one does the opposite:
+   the band keeps the width it has and the three fields grow to meet it, so
+   the patient — the thing a dispenser looks for first — is the biggest
+   target on the row rather than a 30px chip sitting in a 38px slot.
+   ======================================================================== */
+.disp-dense .card.sec-patient {
+  padding: 2px;
+  column-gap: 2px;
+  background: var(--surface-sunk);
+  border-radius: var(--r-md);
+  align-items: stretch;
+  /* Three equal thirds gave the patient the same room as the practice number
+     beside it. Who the medicine is for is the thing a dispenser looks at first
+     and checks last, so it takes the largest share of the band and the other
+     two give it up — they hold a name and a medicine, both of which truncate
+     with a tooltip; a patient read wrong is a different order of mistake. */
+  /* The patient takes the largest share; the other two keep the order an
+     earlier round settled on — widths follow the data, and a prescriber
+     carries a name and a practice number where a medicine carries a name. */
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.05fr) minmax(0, 1fr);
+}
+/* Every field on the lane is one height, and it is a big one. */
+.disp-dense .sec-patient > .lane-field { height: var(--lane-h, 40px); }
+.disp-dense .sec-patient > .lane-field > input { height: var(--lane-h, 40px); }
+.disp-dense .sec-patient > .lane-field.is-picked {
+  height: var(--lane-h, 40px); min-height: 0; padding: 0 3px 0 10px;
+}
+/* The picked patient is the one that has to carry furthest across the room. */
+/* Larger, but not at the ID's expense.
+   The chip is built to drop the ID first when it runs out of room — it carries
+   `flex: 0 1000 auto`, so it gives way a thousand times more readily than the
+   name — and a name at 15.2px beside five 26px tools left 140px for text that
+   wanted 250. The ID did exactly what it was built to do: it wrapped to a
+   second line and was clipped by the 20px the chip allows. Which meant the one
+   field this band exists to enlarge had quietly stopped showing the thing a
+   dispenser checks a patient by. The room comes from the column, not from the
+   ID: the patient takes a larger share of the lane and the tools go back to
+   the size they are everywhere else. */
+.disp-dense .sec-patient > .disp-patient-picked .dpp-who { font-size: .9rem; }
+/* What a search opens sits on the well's ground, inset from its edge. */
+.disp-dense .sec-patient > .product-pick,
+.disp-dense .sec-patient > .pick-none,
+.disp-dense .sec-patient > .doc-pick { margin: 0 3px; }

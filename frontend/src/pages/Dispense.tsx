@@ -45,7 +45,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -72,6 +72,15 @@ const PATIENT_HINT = "Name, ID, phone or aid no.";
 const PRESCRIBER_HINT = "Name or practice no.";
 const MEDICINE_HINT = "Search by name";
 const CONTROLLED_HINT = "S5–S6, by name";
+/* The initials box, which said the least of any field on the screen: a label
+   reading "Checked by" next to a box whose placeholder read "Initials" — two
+   words for one thing, and between them they never said whose initials, or
+   why anybody wants them. The field now carries its own name where the
+   placeholder sits, says what to type once the cursor is in it, and the whole
+   sentence is on the field itself for anyone who hovers or reads it aloud. */
+const INITIALS_HINT = "Your initials, e.g. TM";
+const INITIALS_TITLE = "The initials of the pharmacist who checked this "
+  + "dispensing. This is the record that somebody checked it.";
 
 interface DraftItem {
   product: Product;
@@ -390,6 +399,14 @@ export default function Dispense() {
   // independent-witness selector: the server now asks for initials wherever it
   // used to ask for a second member of staff.
   const [initials, setInitials] = useState("");
+  /** Which initials box the cursor is in.
+   *
+   *  The field says what it is while nobody is typing and what to type once
+   *  somebody is, the same way the patient, prescriber and medicine searches
+   *  do. Two boxes carry it — the one on the bar and the one in Finish — and
+   *  both are in the document at the same time, so the focus is named rather
+   *  than a boolean that would light up whichever one you are not looking at. */
+  const [initialsFocus, setInitialsFocus] = useState<"bar" | "finish" | null>(null);
   const [complianceNotes, setComplianceNotes] = useState("");
   const [controlledLog, setControlledLog] = useState<ControlledDispensing[]>([]);
   const [controlledMeta, setControlledMeta] = useState<Paged<ControlledDispensing> | null>(null);
@@ -637,6 +654,9 @@ export default function Dispense() {
     setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
+    // A new script is a new number: whatever was dispensed while this screen
+    // was open has taken one since it last asked.
+    refreshNextNumber();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   /** The queued script this screen was opened from, if any.
@@ -650,6 +670,28 @@ export default function Dispense() {
   const [fromRx, setFromRx] = useState<
     { id: number; number: string; draft?: boolean; date?: string } | null>(null);
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
+
+  /** The number this script will be given, shown before it is given.
+   *
+   *  The screen used to say "New script · numbered on dispensing", which is
+   *  true and useless: the number is what everything else in the building is
+   *  filed under, and the dispenser could not see it until the medicine had
+   *  gone out. It is read here on open, and again after each dispensing, so
+   *  coming back to the screen shows the next one.
+   *
+   *  A prediction, not a reservation — see the endpoint for why nothing is
+   *  held. Two tills are told the same number and the first to dispense takes
+   *  it, so the line beneath says the number is taken on dispensing rather
+   *  than claiming this script already owns it. If the read fails the header
+   *  falls back to the words it used to show; a number nobody can reach is
+   *  not worth an error on a screen that is otherwise working. */
+  const [nextNumber, setNextNumber] = useState<string | null>(null);
+  const refreshNextNumber = useCallback(() => {
+    api.get<{ number: string }>("/api/prescriptions/next-number")
+      .then((d) => setNextNumber(d.number || null))
+      .catch(() => setNextNumber(null));
+  }, []);
+  useEffect(() => { refreshNextNumber(); }, [refreshNextNumber]);
   // A blocking counter message stops the dispense. The server enforces this
   // too; the button is disabled so the pharmacist is not invited to try.
   const [blocked, setBlocked] = useState(false);
@@ -1658,8 +1700,10 @@ export default function Dispense() {
         }
       }
 
-      // It has been dispensed: there is nothing left to come back to.
+      // It has been dispensed: there is nothing left to come back to, and the
+      // number this one took is gone — the next script gets the one after it.
       clearScriptDraft();
+      refreshNextNumber();
       setDoneSale(finished); setDoneRxId(rx.id);
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
@@ -1985,12 +2029,13 @@ export default function Dispense() {
             script has no number until it is dispensed, and says so rather than
             showing one that might not be the one it gets. */}
         <div className="disp-scriptid" aria-live="polite">
-          <span className={`disp-scriptid-no${fromRx ? " is-number" : ""}`}>
-            {fromRx ? fromRx.number : quoting ? "Quote" : "New script"}
+          <span className={`disp-scriptid-no${fromRx || (!quoting && nextNumber) ? " is-number" : ""}`}>
+            {fromRx ? fromRx.number : quoting ? "Quote" : nextNumber ?? "New script"}
           </span>
           <span className="disp-scriptid-date">
             {fmtDate(fromRx?.date ?? new Date().toISOString().slice(0, 10))}
-            {fromRx?.draft ? " · N-Repeat" : fromRx ? "" : quoting ? " · not a script" : " · numbered on dispensing"}
+            {fromRx?.draft ? " · N-Repeat" : fromRx ? "" : quoting ? " · not a script"
+              : nextNumber ? " · taken on dispensing" : " · numbered on dispensing"}
           </span>
         </div>
         <span className="spacer" />
@@ -3043,11 +3088,17 @@ ${d.action}`}
               </div>
               <div className="disp-commit-row">
                 {needsInitials && !quoting && (
-                  <div className="field">
-                    <label htmlFor="disp-initials">Checked by</label>
+                  <div className={`lane-field disp-initials${initials.trim() ? " is-signed" : ""}`}>
                     <input id="disp-initials" value={initials} maxLength={8}
-                      onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                      placeholder="Initials" />
+                      aria-label="Checked by: the initials of the pharmacist who checked this dispensing"
+                      title={INITIALS_TITLE}
+                      placeholder={initialsFocus === "bar" ? INITIALS_HINT : "Checked by"}
+                      onFocus={() => setInitialsFocus("bar")}
+                      onBlur={() => setInitialsFocus(null)}
+                      onChange={(e) => setInitials(e.target.value.toUpperCase())} />
+                    {initials.trim()
+                      ? <Check className="lane-icon" size={14} weight="bold" aria-hidden="true" />
+                      : <Signature className="lane-icon" size={15} aria-hidden="true" />}
                   </div>
                 )}
                 {/* Put it down and come back to it. Not while quoting: a quote
@@ -3520,11 +3571,17 @@ ${d.action}`}
                     ) : (
                       <div className="finish-foot">
                         {needsInitials && (
-                          <div className="field finish-initials">
-                            <label htmlFor="finish-initials">Checked by</label>
+                          <div className={`lane-field finish-initials${initials.trim() ? " is-signed" : ""}`}>
                             <input id="finish-initials" value={initials} maxLength={8}
-                              onChange={(e) => setInitials(e.target.value.toUpperCase())}
-                              placeholder="Initials" />
+                              aria-label="Checked by: the initials of the pharmacist who checked this dispensing"
+                              title={INITIALS_TITLE}
+                              placeholder={initialsFocus === "finish" ? INITIALS_HINT : "Checked by"}
+                              onFocus={() => setInitialsFocus("finish")}
+                              onBlur={() => setInitialsFocus(null)}
+                              onChange={(e) => setInitials(e.target.value.toUpperCase())} />
+                            {initials.trim()
+                              ? <Check className="lane-icon" size={14} weight="bold" aria-hidden="true" />
+                              : <Signature className="lane-icon" size={15} aria-hidden="true" />}
                           </div>
                         )}
                         {why && (

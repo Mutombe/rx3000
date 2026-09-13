@@ -126,6 +126,28 @@ def script_table(q: str = "", status: str = "", patient_id: int = 0,
     return {**result.envelope(), "items": scripts.rows(db, result.items)}
 
 
+# Registered above /prescriptions/{rx_id} for the same reason as the one above:
+# it would otherwise match "next-number" as an id and answer 422.
+@router.get("/prescriptions/next-number")
+def next_script_number(db: Session = Depends(get_db),
+                       _: User = Depends(get_current_user)):
+    """The number the next script will take, so the screen can show it on open.
+
+    A prediction, not a reservation. Nothing is written and nothing is held:
+    this reads the highest number issued this month and walks to the first free
+    one, which is exactly what the capture does when it writes. Two tills
+    asking at the same moment are told the same number, and whichever dispenses
+    first takes it — so the screen presents it as the number this script will
+    be given, not one it already owns.
+
+    Reserving would be the alternative and it is worse: every script started
+    and abandoned would burn a number, and a hole in a numbered register is
+    precisely what an inspector asks about. See `helpers.next_number` for why
+    counting rows is wrong.
+    """
+    return {"number": helpers.next_number(db, Prescription, "RX", "rx_number")}
+
+
 @router.get("/prescriptions/{rx_id}/full")
 def script_detail(rx_id: int, db: Session = Depends(get_db),
                   _: User = Depends(get_current_user)):

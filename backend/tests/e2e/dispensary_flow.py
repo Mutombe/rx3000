@@ -110,8 +110,13 @@ with sync_playwright() as pw:
                    date: document.querySelector('.disp-scriptid-date')?.textContent,
                    order: !!(id && tabs && acts) && id.right <= tabs.left && tabs.right <= acts.left + 1 };
         }""")
+        # It used to read "New script" and wait for a number until the medicine
+        # had gone out. The number the script will be given is now read from the
+        # server when the screen opens, so this asks that the header names the
+        # script — not that it still says the words it used to.
         check("the header names the script on the far left, with its date",
-              head["no"] == "New script" and bool(head["date"]), str(head))
+              (head["no"] or "").strip().startswith("RX") and bool(head["date"]),
+              str(head))
         check("…and the routes sit on the right, beside the actions", head["order"], str(head))
         check("no line joins the lane to the worklist", page.evaluate(
             "parseFloat(getComputedStyle(document.querySelector('.disp-head')).borderBottomWidth) === 0"))
@@ -244,8 +249,17 @@ with sync_playwright() as pw:
             "[...document.querySelectorAll('.disp-patient-picked .lane-tool')].map((b) => b.className)")
         check("the patient box carries its five tools", len(tools) == 5, str(tools))
         check("no chip row under the lane any more", page.query_selector(".disp-context") is None)
+        # "One field high" is the point, and the field grew. The lane is
+        # containered like the route tabs now, with what sits in it stretched
+        # out to the band's own border instead of a 30px chip floating in a
+        # taller box. So this asks what it always meant — the patient box is
+        # exactly as tall as the medicine search beside it — rather than a
+        # number that was only ever the field height on the day it was written.
         check("the patient box is one field high", page.evaluate(
-            "Math.round(document.querySelector('.disp-patient-picked').getBoundingClientRect().height) <= 32"))
+            "(() => { const r = (s) => { const e = document.querySelector(s);"
+            " return e ? Math.round(e.getBoundingClientRect().height) : null; };"
+            " const who = r('.disp-patient-picked'), med = r('.disp-medicine');"
+            " return who !== null && who === med && who >= 38; })()"))
         check("the patient's name is not cut off by the tools", page.evaluate(
             "(() => { const b = document.querySelector('.disp-patient-picked .dpp-who b'); if (!b) return false;"
             " const r = document.createRange(); r.selectNodeContents(b);"
