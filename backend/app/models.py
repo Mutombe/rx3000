@@ -513,6 +513,9 @@ class Patient(Base, TenantMixin):
     #: database can take the column before its existing patients are numbered;
     #: every new patient gets one at flush (patient_numbers.py).
     profile_number = Column(String(20), nullable=True, index=True)
+    #: Registered although they matched this patient, by somebody who said they
+    #: were a different person. Kept so a merge review starts from a list.
+    possible_duplicate_of_id = Column(Integer, nullable=True, index=True)
     first_name = Column(String(80), nullable=False)
     last_name = Column(String(80), nullable=False, index=True)
     id_number = Column(String(30), default="", index=True)

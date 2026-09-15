@@ -21,8 +21,8 @@
  *  twice, which is how a register acquires duplicates of the people who were
  *  in the biggest hurry.
  */
-import { FormEvent, useEffect, useState } from "react";
-import { api, errorText } from "../api";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { api, errorText, fmtDate } from "../api";
 import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
 import Select from "./Select";
@@ -57,6 +57,19 @@ export function draftFrom(query: string): PatientDraft {
   };
 }
 
+/** Somebody on file who may be the person being registered, and why. */
+interface DuplicateMatch {
+  id: number;
+  profile_number: string | null;
+  first_name: string;
+  last_name: string;
+  id_number: string;
+  date_of_birth: string | null;
+  phone: string;
+  reasons: string[];
+  strength: "strong" | "likely";
+}
+
 export default function PatientForm({
   open, initial, editing, onClose, onSaved, title,
 }: {
@@ -73,11 +86,29 @@ export default function PatientForm({
   const [form, setForm] = useState<PatientDraft>({ ...EMPTY_PATIENT });
   const [aids, setAids] = useState<MedicalAid[]>([]);
   const toast = useToast();
+  /** Who on file may already be this person — null until asked.
+   *
+   *  Registration used to save without looking, and with fourteen thousand
+   *  patients a second record is not hypothetical: a surname typed with a
+   *  trailing space, an ID without its hyphens. A second record splits one
+   *  person's allergies, repeat counts and claims across two, and nobody sees
+   *  the whole of either. (CareXpress To-Be blueprint §6, §7.) */
+  const [matches, setMatches] = useState<DuplicateMatch[] | null>(null);
+  const reviewRef = useRef<HTMLElement>(null);
+  // Brought into view when it appears. Somebody who scrolled down to fill in
+  // the caregiver has the top of the form out of sight, and a review they
+  // cannot see is the same as no review — the button just changes its words.
+  useEffect(() => {
+    if (matches && matches.length) {
+      reviewRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+  }, [matches]);
 
   // Reset every time it opens. A dialog that keeps the last person's details
   // is how a nurse's telephone number ends up on a stranger's record.
   useEffect(() => {
     if (!open) return;
+    setMatches(null);
     setForm({ ...EMPTY_PATIENT, ...(initial ?? {}) });
   }, [open, JSON.stringify(initial ?? {})]);
 
@@ -88,22 +119,46 @@ export default function PatientForm({
 
   if (!open) return null;
 
-  async function save(e?: FormEvent) {
-    e?.preventDefault();
-    const body = {
+  function bodyOf() {
+    return {
       ...form,
       date_of_birth: form.date_of_birth || null,
       medical_aid_id: form.medical_aid_id === "" ? null : Number(form.medical_aid_id),
     };
+  }
+
+  async function register(confirmedDistinct: boolean) {
+    const saved = await api.post<Patient>("/api/patients", {
+      ...bodyOf(),
+      confirmed_distinct: confirmedDistinct,
+      possible_duplicate_of_id: confirmedDistinct ? (matches?.[0]?.id ?? null) : null,
+    });
+    toast.ok(`${form.first_name} ${form.last_name} added`
+      + (saved.profile_number ? ` as ${saved.profile_number}.` : "."));
+    onSaved(saved);
+    onClose();
+  }
+
+  async function save(e?: FormEvent) {
+    e?.preventDefault();
     try {
-      const saved = editing
-        ? await api.put<Patient>(`/api/patients/${editing.id}`, body)
-        : await api.post<Patient>("/api/patients", body);
-      toast.ok(editing
-        ? `${form.first_name} ${form.last_name} updated.`
-        : `${form.first_name} ${form.last_name} added.`);
-      onSaved(saved);
-      onClose();
+      if (editing) {
+        const saved = await api.put<Patient>(`/api/patients/${editing.id}`, bodyOf());
+        toast.ok(`${form.first_name} ${form.last_name} updated.`);
+        onSaved(saved);
+        onClose();
+        return;
+      }
+      // Look before registering. The server refuses a match that has not been
+      // reviewed, but it can only say so in a sentence; the list of who matched
+      // and why has to be asked for, so that it can be shown.
+      if (matches === null) {
+        const found = await api.post<DuplicateMatch[]>("/api/patients/duplicates", bodyOf());
+        if (found.length) { setMatches(found); return; }
+      } else if (matches.length) {
+        return;                       // the choice is waiting in the panel
+      }
+      await register(false);
     } catch (err) {
       // Left open with what was typed still in it. Closing on a failure means
       // retyping a whole record because a member number was too long.
@@ -111,8 +166,33 @@ export default function PatientForm({
     }
   }
 
-  const set = (k: keyof PatientDraft) => (e: any) =>
+  /** It is them: carry on with the record that already exists. */
+  async function useExisting(id: number) {
+    try {
+      const existing = await api.get<Patient>(`/api/patients/${id}`);
+      toast.ok(`Using ${existing.first_name} ${existing.last_name}, already on file.`);
+      onSaved(existing);
+      onClose();
+    } catch (err) {
+      toast.error(errorText(err, "That record could not be opened."));
+    }
+  }
+
+  /** It is not them: register, and keep the match for a merge review. */
+  async function registerAnyway() {
+    try {
+      await register(true);
+    } catch (err) {
+      toast.error(errorText(err, "That patient could not be saved."));
+    }
+  }
+
+  // Changing what was typed changes who it might match, so the last answer
+  // stops applying and the next save asks again.
+  const set = (k: keyof PatientDraft) => (e: any) => {
     setForm({ ...form, [k]: e.target.value });
+    setMatches(null);
+  };
   const ready = form.first_name.trim() !== "" && form.last_name.trim() !== "";
 
   return (
@@ -120,6 +200,51 @@ export default function PatientForm({
       <form className="modal modal-wide" onClick={(e) => e.stopPropagation()}
             onSubmit={save}>
         <h2>{title ?? (editing ? "Edit patient" : "New patient")}</h2>
+
+        {/* Who may already be this person — at the top, where the eye already
+            is. It sat above the buttons at first, which on this form is below
+            the caregiver section: the panel was on the page and out of sight,
+            and all a dispenser saw was the button changing to "They're a
+            different person" with no reason visible. */}
+        {matches && matches.length > 0 && (
+          <section className="dup-review" aria-live="polite" ref={reviewRef}>
+            <h3>
+              {matches.length === 1
+                ? "This may be someone already on file"
+                : `These ${matches.length} may already be on file`}
+            </h3>
+            <p className="muted">
+              A second record splits one person's allergies, repeats and claims.
+              If it's them, use their record.
+            </p>
+            <ul className="dup-list">
+              {matches.map((m) => (
+                <li key={m.id} className={`dup-item is-${m.strength}`}>
+                  <div className="dup-who">
+                    <div>
+                      <b>{m.first_name} {m.last_name}</b>
+                      {m.profile_number && <span className="mono muted"> {m.profile_number}</span>}
+                    </div>
+                    <div className="muted dup-facts">
+                      {[m.id_number && `ID ${m.id_number}`,
+                        m.date_of_birth && `Born ${fmtDate(m.date_of_birth)}`,
+                        m.phone].filter(Boolean).join(" · ")}
+                    </div>
+                    <div className="dup-reasons">
+                      {m.reasons.map((r) => (
+                        <span key={r} className={`badge ${m.strength === "strong" ? "danger" : "warn"}`}>{r}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <button type="button" className="btn secondary" onClick={() => useExisting(m.id)}>
+                    Use this patient
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
 
         <div className="form-row">
           <div className="field span-6"><label>First name</label>
@@ -207,11 +332,20 @@ export default function PatientForm({
 
         <div className="modal-actions">
           <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
-          <BusyButton type="submit" className="btn primary" disabled={!ready}
-                      busyLabel={editing ? "Saving…" : "Adding…"}
-                      onClick={() => save()}>
-            {editing ? "Save patient" : "Add patient"}
-          </BusyButton>
+          {matches && matches.length > 0 ? (
+            // Registering past a match is allowed — namesakes exist — but it is
+            // a stated choice, not the same button pressed a second time.
+            <BusyButton type="button" className="btn primary" disabled={!ready}
+                        busyLabel="Adding…" onClick={registerAnyway}>
+              They're a different person — add them
+            </BusyButton>
+          ) : (
+            <BusyButton type="submit" className="btn primary" disabled={!ready}
+                        busyLabel={editing ? "Saving…" : "Checking…"}
+                        onClick={() => save()}>
+              {editing ? "Save patient" : "Add patient"}
+            </BusyButton>
+          )}
         </div>
       </form>
     </div>

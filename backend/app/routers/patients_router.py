@@ -8,6 +8,7 @@ from .. import schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import insurance_standing
+from ..services import patient_duplicates
 from ..services import paging
 from ..models import (BatchAllocation, Doctor, MedicalAid, Patient, Sale,
                       SaleItem, User)
@@ -64,12 +65,42 @@ def list_patients_paged(
     )
 
 
+@router.post("/patients/duplicates")
+def possible_duplicates(body: schemas.PatientCreate, db: Session = Depends(get_db)):
+    """Who on file may already be this person — asked before registering.
+
+    The registration form calls this first and shows the matches, because the
+    client flattens an error body to a sentence and could not show a list from
+    a refusal. The registration endpoint enforces the same rule regardless.
+    """
+    return patient_duplicates.find(
+        db, first_name=body.first_name, last_name=body.last_name,
+        id_number=body.id_number, date_of_birth=body.date_of_birth, phone=body.phone)
+
+
 @router.post("/patients", response_model=schemas.PatientOut)
-def create_patient(body: schemas.PatientCreate, db: Session = Depends(get_db)):
-    patient = Patient(**body.model_dump())
+def create_patient(body: schemas.PatientRegistration, db: Session = Depends(get_db)):
+    # Checked here as well as by the form, so a client that skips the review —
+    # another integration, a second tab — cannot quietly make a second record.
+    if not body.confirmed_distinct:
+        matches = patient_duplicates.find(
+            db, first_name=body.first_name, last_name=body.last_name,
+            id_number=body.id_number, date_of_birth=body.date_of_birth, phone=body.phone)
+        if matches:
+            m = matches[0]
+            more = f" and {len(matches) - 1} more" if len(matches) > 1 else ""
+            raise HTTPException(status_code=409, detail=(
+                f"{m['first_name']} {m['last_name']} ({m['profile_number'] or 'no profile number'}) "
+                f"is already on file — {m['reasons'][0].lower()}{more}. Open that record, or "
+                "confirm this is a different person to register them."))
+    data = body.model_dump(exclude={"confirmed_distinct"})
+    patient = Patient(**data)
     db.add(patient)
     db.commit()
     db.refresh(patient)
+    if body.confirmed_distinct and body.possible_duplicate_of_id:
+        log.info("Patient %s registered as distinct from possible duplicate %s",
+                 patient.id, body.possible_duplicate_of_id)
     return patient
 
 

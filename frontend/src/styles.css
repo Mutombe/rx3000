@@ -9246,3 +9246,32 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .sec-patient > .product-pick,
 .disp-dense .sec-patient > .pick-none,
 .disp-dense .sec-patient > .doc-pick { margin: 0 3px; }
+
+/* ========================================================================
+   POSSIBLE DUPLICATES — shown in the registration form before saving.
+   Each match is one row: who, the facts that identify them, why they matched,
+   and the one action that means "it is them".
+   ======================================================================== */
+.dup-review {
+  margin: var(--s4) 0 0; padding: var(--s4);
+  /* Scrolled to when it appears. Without this it stops at the very top of the
+     form's scroll area, which the dialog's sticky title covers, and the
+     heading that explains the list is the part hidden. */
+  scroll-margin-top: 5rem;
+  border: 1px solid var(--warn-line); border-radius: var(--r-md);
+  background: var(--warn-soft);
+}
+.dup-review h3 { margin: 0 0 4px; font-size: 1rem; }
+.dup-review > p { margin: 0 0 var(--s3); font-size: .86rem; }
+.dup-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.dup-item {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s3);
+  padding: var(--s3); border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.dup-item.is-strong { border-color: var(--danger-line); }
+.dup-who { min-width: 0; display: grid; gap: 3px; }
+.dup-facts { font-size: .84rem; }
+.dup-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.dup-item > .btn { flex: 0 0 auto; }
+.dup-flag { margin-bottom: var(--s3); }

@@ -37,6 +37,8 @@ export interface Patient {
   /** `PT2609…`, issued by the server when the patient is first written and
    *  never chosen by a client. Optional only for an older server. */
   profile_number?: string | null;
+  /** Registered despite matching this patient, as a different person. */
+  possible_duplicate_of_id?: number | null;
   first_name: string;
   last_name: string;
   id_number: string;

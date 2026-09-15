@@ -193,11 +193,28 @@ class PatientCreate(PatientBase):
     pass
 
 
+class PatientRegistration(PatientCreate):
+    """A new patient, and what the person registering them knows about matches.
+
+    Separate from PatientCreate on purpose: the edit endpoint writes every
+    field of that schema back onto the record, so adding these there would
+    have wiped a patient's duplicate flag every time their phone number was
+    corrected.
+    """
+    # Registering despite a possible match is allowed — namesakes exist — but
+    # it has to be said, not stumbled into.
+    confirmed_distinct: bool = False
+    # The record they might duplicate, kept so a later merge starts from a list
+    # rather than a search (blueprint §7: "duplicate flagged for merge").
+    possible_duplicate_of_id: Optional[int] = None
+
+
 class PatientOut(ORM, PatientBase):
     id: int
     # Issued by the system, never accepted from a client: it is on the output
     # schema only, so a registration cannot choose its own number.
     profile_number: Optional[str] = None
+    possible_duplicate_of_id: Optional[int] = None
     loyalty_points: int = 0
     medical_aid: Optional[MedicalAidOut] = None
 

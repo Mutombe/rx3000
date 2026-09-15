@@ -135,6 +135,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # The profile number the blueprint asks for (§3 step 1). Filled for
         # existing patients by `_number_the_patients`, below.
         "profile_number": "VARCHAR(20)",
+        # Registered despite a possible match; see services/patient_duplicates.py.
+        "possible_duplicate_of_id": "INTEGER",
         # The portal's own second factor, replacing date of birth, which a
         # forwarded message usually reaches somebody who already knows.
         "portal_code": "VARCHAR(8) DEFAULT ''",

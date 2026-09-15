@@ -236,6 +236,18 @@ export default function PatientDetail() {
           </button>
         }
       />
+      {/* Registered although they matched somebody already on file. Said on the
+          record itself, so whoever next opens either one can check, and a merge
+          review has somewhere to start. */}
+      {patient.possible_duplicate_of_id && (
+        <div className="alert warn dup-flag" role="note">
+          <span>
+            Registered as a different person from a patient they matched.{" "}
+            <Link to={`/patients/${patient.possible_duplicate_of_id}`}>Open that record</Link>{" "}
+            to compare before relying on either history.
+          </span>
+        </div>
+      )}
       <div className="page-head">
         <div>
           <h1>{patient.first_name} {patient.last_name}</h1>
