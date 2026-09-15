@@ -72,6 +72,20 @@ const PATIENT_HINT = "Name, ID, phone or aid no.";
 const PRESCRIBER_HINT = "Name or practice no.";
 const MEDICINE_HINT = "Name, or scan a pack";
 
+/** Initials from a person's name: "System Administrator" → "SA",
+ *  "Dr Tendai M. Moyo" → "TMM". Titles are not initials. Falls back to the
+ *  username's letters when the name has none. Eight at most, as the field is. */
+const TITLES = new Set(["dr", "mr", "mrs", "ms", "miss", "prof", "sr", "sister"]);
+function initialsOf(fullName?: string | null, username?: string | null): string {
+  const words = (fullName || "")
+    .replace(/\(.*?\)/g, " ")
+    .split(/\s+/)
+    .map((w) => w.replace(/[^A-Za-z]/g, ""))
+    .filter((w) => w && !TITLES.has(w.toLowerCase()));
+  if (words.length) return words.map((w) => w[0]).join("").toUpperCase().slice(0, 8);
+  return (username || "").replace(/[^A-Za-z]/g, "").slice(0, 3).toUpperCase();
+}
+
 /** Today as YYYY-MM-DD in the pharmacy's own time, to compare with a date input.
  *  `toISOString` is UTC, which for two hours after midnight in Harare is still
  *  yesterday. */
@@ -437,6 +451,16 @@ export default function Dispense() {
   // independent-witness selector: the server now asks for initials wherever it
   // used to ask for a second member of staff.
   const [initials, setInitials] = useState("");
+  /** The signed-in person's initials, filled into Checked by.
+   *
+   *  Somebody is signed in, and it is almost always the person who checked the
+   *  script, so making them type two letters they already are on every
+   *  dispensing was a keystroke tax with no information in it. Filled in; a
+   *  pharmacist checking for somebody else simply types over it. */
+  const myInitials = initialsOf(session.me?.full_name, session.me?.username);
+  useEffect(() => {
+    if (myInitials) setInitials((current) => (current.trim() ? current : myInitials));
+  }, [myInitials]);
   /** Which initials box the cursor is in.
    *
    *  The field says what it is while nobody is typing and what to type once
@@ -751,7 +775,7 @@ export default function Dispense() {
     setFinishing(null); setChecking(null); setEditing(null); setLineChecks({}); setLaneOpen(null);
     setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
-    setInitials(""); setIdNumber(""); setComplianceNotes("");
+    setInitials(myInitials); setIdNumber(""); setComplianceNotes("");
     setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
     // A new script is a new number: whatever was dispensed while this screen
     // was open has taken one since it last asked.
@@ -2012,7 +2036,7 @@ export default function Dispense() {
       setDoneSale(finished); setDoneRxId(rx.id);
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
-      setInitials(""); setIdNumber(""); setComplianceNotes("");
+      setInitials(myInitials); setIdNumber(""); setComplianceNotes("");
       setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
