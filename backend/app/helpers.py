@@ -297,6 +297,11 @@ def consume_stock_fefo(
         )
         hint = (f" Another branch holds {int(elsewhere)}, raise a transfer."
                 if elsewhere else "")
+        # Named only when some of the shelf really is undated or expired. A plain
+        # shortage used to come through here too and read "only 4 in-date units
+        # — . Take the expired stock off the shelf." on a shelf with none.
+        parts: list[str] = []
+        action = ""
         if not allow_expired and total_any and available < quantity:
             # Say which it is. This said "check batches for expired stock" for
             # every shortfall of dated stock, and on the CareXpress import most
@@ -305,13 +310,13 @@ def consume_stock_fefo(
             # cannot count. A dispenser was sent looking for expired packs on a
             # shelf of good ones.
             undated, expired = stock_without_a_good_date(db, product, branch_id)
-            parts = []
             if undated:
                 parts.append(f"{undated} unit(s) have no expiry date recorded")
             if expired:
                 parts.append(f"{expired} unit(s) are past their expiry")
             action = (" Enter the expiry printed on the pack to dispense them."
                       if undated else " Take the expired stock off the shelf.")
+        if parts:
             raise HTTPException(
                 status_code=400,
                 detail=(f"{product.name}: only {available} in-date unit(s) at this branch — "
