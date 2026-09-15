@@ -195,6 +195,9 @@ class PatientCreate(PatientBase):
 
 class PatientOut(ORM, PatientBase):
     id: int
+    # Issued by the system, never accepted from a client: it is on the output
+    # schema only, so a registration cannot choose its own number.
+    profile_number: Optional[str] = None
     loyalty_points: int = 0
     medical_aid: Optional[MedicalAidOut] = None
 

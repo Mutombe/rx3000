@@ -2414,7 +2414,11 @@ export default function Dispense() {
                   {patients.map((p) => (
                     <div key={p.id} className="product-pick"
                       onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); setIdNumber(p.id_number); }}>
-                      <span><b>{p.last_name}, {p.first_name}</b> <span className="muted">{p.id_number}</span></span>
+                      <span>
+                        <b>{p.last_name}, {p.first_name}</b>
+                        {p.profile_number && <span className="muted mono"> {p.profile_number}</span>}
+                        <span className="muted"> {p.id_number}</span>
+                      </span>
                       <span className="muted">{p.medical_aid?.name ?? "Private"}</span>
                     </div>
                   ))}

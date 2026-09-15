@@ -508,6 +508,11 @@ class Doctor(Base, TenantMixin):
 class Patient(Base, TenantMixin):
     __tablename__ = "patients"
     id = Column(Integer, primary_key=True)
+    #: `PT2609` + a five-digit sequence, issued once when the patient is first
+    #: written and never changed. Unique within a pharmacy. Nullable only so a
+    #: database can take the column before its existing patients are numbered;
+    #: every new patient gets one at flush (patient_numbers.py).
+    profile_number = Column(String(20), nullable=True, index=True)
     first_name = Column(String(80), nullable=False)
     last_name = Column(String(80), nullable=False, index=True)
     id_number = Column(String(30), default="", index=True)

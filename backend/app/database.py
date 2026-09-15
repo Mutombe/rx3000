@@ -107,6 +107,12 @@ from . import branch_scope  # noqa: E402
 
 branch_scope.install(SessionLocal)
 
+# Every new patient is given a profile number as it is written, by whichever
+# door it came in. See patient_numbers.py.
+from . import patient_numbers  # noqa: E402
+
+patient_numbers.install()
+
 
 def get_db():
     db = SessionLocal()

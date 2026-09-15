@@ -116,7 +116,10 @@ export default function Patients() {
                       title={`${p.last_name}, ${p.first_name}`}>
                       <b>{p.last_name}, {p.first_name}</b>
                     </Link>
-                    <div className="muted clip">{fmtDate(p.date_of_birth)}</div>
+                    <div className="muted clip">
+                      {p.profile_number && <><span className="mono">{p.profile_number}</span> · </>}
+                      {fmtDate(p.date_of_birth)}
+                    </div>
                   </td>
                   <td className="mono">{p.id_number || "—"}</td>
                   <td>

@@ -28,6 +28,8 @@ def _patient_search(db: Session, q: str):
             Patient.id_number.ilike(like),
             Patient.phone.ilike(like),
             Patient.medical_aid_number.ilike(like),
+            # A number read off a label or a card finds the patient.
+            Patient.profile_number.ilike(like),
         ))
     return query.order_by(Patient.last_name, Patient.first_name)
 

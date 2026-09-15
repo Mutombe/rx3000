@@ -11,55 +11,31 @@ Checked against real dispensings in a snapshot of the local database:
   - a line on the same script that has not been dispensed is refused
   - once that batch has no expiry on file, the label is refused and names it
 
-Runs in-process, no server, real data untouched:
-
   python tests/test_label_batch_expiry.py
 """
-import os
-import sqlite3
 import sys
-import tempfile
-from pathlib import Path
 
-BACKEND = Path(__file__).resolve().parents[1]
-_snapshot_dir = tempfile.mkdtemp(prefix="rx5000-labels-")
-SNAPSHOT = Path(_snapshot_dir) / "snapshot.db"
-with sqlite3.connect(str(BACKEND / "rx3000.db")) as src, sqlite3.connect(str(SNAPSHOT)) as dst:
-    src.backup(dst)
-os.environ["DATABASE_URL"] = f"sqlite:///{SNAPSHOT.as_posix()}"
-sys.path.insert(0, str(BACKEND))
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from app.main import app  # noqa: E402
+from snapshot_app import client, execute
 
 LINE = {"dosage_instructions": "One daily", "repeats_allowed": 0,
         "repeat_interval_days": 30, "auto_refill": False, "icd10_code": "I10"}
 
 
-def _client():
-    client = TestClient(app)
-    r = client.post("/api/auth/login", json={"username": "admin", "password": "admin123"})
-    assert r.status_code == 200, r.text
-    client.headers["Authorization"] = "Bearer " + r.json()["access_token"]
-    return client
-
-
-def _dispense_one_of_two(client):
+def _dispense_one_of_two(c):
     """A two-line script with only the first line dispensed."""
-    doctors = client.get("/api/doctors?limit=3").json()
+    doctors = c.get("/api/doctors?limit=3").json()
     doctor = (doctors["items"] if isinstance(doctors, dict) else doctors)[0]
-    stocked = [p for p in client.get("/api/dispensing/products?route=prescription&limit=40").json()
+    stocked = [p for p in c.get("/api/dispensing/products?route=prescription&limit=40").json()
                if (p.get("quantity_on_hand") or 0) >= 5]
     first, second = stocked[0], stocked[1]
-    for patient in client.get("/api/patients?q=a&limit=25").json():
-        rx = client.post("/api/prescriptions", json={
+    for patient in c.get("/api/patients?q=a&limit=25").json():
+        rx = c.post("/api/prescriptions", json={
             "patient_id": patient["id"], "doctor_id": doctor["id"], "notes": "label test",
             "items": [{**LINE, "product_id": first["id"], "quantity": 2},
                       {**LINE, "product_id": second["id"], "quantity": 2}],
         }).json()
         dispensed = next(i for i in rx["items"] if i["product_id"] == first["id"])
-        r = client.post(f"/api/prescriptions/{rx['id']}/dispense", json={
+        r = c.post(f"/api/prescriptions/{rx['id']}/dispense", json={
             "item_ids": [dispensed["id"]], "payment_method": "cash", "pharmacist_initial": "TM"})
         if r.status_code == 409:
             continue
@@ -73,9 +49,9 @@ def _label_for(labels, product):
 
 
 def run():
-    client = _client()
-    rx, first, second = _dispense_one_of_two(client)
-    labels = client.get(f"/api/prescriptions/{rx['id']}/labels").json()
+    c = client()
+    rx, first, second = _dispense_one_of_two(c)
+    labels = c.get(f"/api/prescriptions/{rx['id']}/labels").json()
 
     went_out = _label_for(labels, first)
     assert went_out["batch_number"] and went_out["expiry_date"], went_out
@@ -90,10 +66,9 @@ def run():
 
     # Take the expiry off the batch that line came from, as an imported or
     # hand-entered batch might arrive, and ask again.
-    with sqlite3.connect(str(SNAPSHOT)) as c:
-        c.execute("update stock_batches set expiry_date = null where batch_number = ?",
-                  (went_out["batch_number"],))
-    relabel = _label_for(client.get(f"/api/prescriptions/{rx['id']}/labels").json(), first)
+    execute("update stock_batches set expiry_date = null where batch_number = ?",
+            (went_out["batch_number"],))
+    relabel = _label_for(c.get(f"/api/prescriptions/{rx['id']}/labels").json(), first)
     assert relabel["printable"] is False, f"a label with no expiry on file would print: {relabel}"
     assert went_out["batch_number"] in relabel["blocked_reason"], relabel["blocked_reason"]
     assert "no expiry" in relabel["blocked_reason"], relabel["blocked_reason"]

@@ -132,6 +132,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "currency_code": "VARCHAR(5) DEFAULT ''",
     },
     "patients": {
+        # The profile number the blueprint asks for (§3 step 1). Filled for
+        # existing patients by `_number_the_patients`, below.
+        "profile_number": "VARCHAR(20)",
         # The portal's own second factor, replacing date of birth, which a
         # forwarded message usually reaches somebody who already knows.
         "portal_code": "VARCHAR(8) DEFAULT ''",
@@ -896,6 +899,75 @@ def _add_tenant_columns(conn, inspector, existing_tables) -> int:
     return added
 
 
+from datetime import datetime  # noqa: E402  (only the numbering pass needs it)
+
+
+def _number_the_patients(conn, existing_tables: set) -> int:
+    """Give every patient already on file a profile number, then make it unique.
+
+    New patients are numbered as they are written (patient_numbers.py). The
+    ones who were here first are numbered by the month they were registered
+    and in the order they arrived, continuing from any number already issued
+    that month in that pharmacy — so running this twice, or after the counter
+    has issued a few, changes nothing that is already right.
+
+    The unique index is created only after every row has a number, and only if
+    no pharmacy holds the same number twice; otherwise it is left indexed and
+    the clash is logged, rather than refusing to start the application.
+    """
+    if "patients" not in existing_tables:
+        return 0
+    # Read the table directly: the inspector's column list was taken before the
+    # column was added a few lines up and would say it is not there.
+    try:
+        rows = conn.execute(text(
+            "SELECT id, pharmacy_id, created_at, profile_number FROM patients "
+            "ORDER BY pharmacy_id, created_at, id")).fetchall()
+    except Exception:                                  # pragma: no cover
+        log.warning("patients.profile_number is not readable yet; numbering skipped")
+        return 0
+
+    def month(value) -> str:
+        if value is None:
+            return f"{datetime.utcnow():%y%m}"
+        if isinstance(value, str):
+            return value[2:4] + value[5:7]             # "2026-08-26 …" -> "2608"
+        return f"{value:%y%m}"
+
+    # The highest sequence already issued, per pharmacy and month.
+    highest: dict[tuple, int] = {}
+    for _id, pharmacy, _created, number in rows:
+        number = (number or "").strip()
+        if number.startswith("PT") and len(number) > 6 and number[6:].isdigit():
+            key = (pharmacy, number[2:6])
+            highest[key] = max(highest.get(key, 0), int(number[6:]))
+
+    updates = []
+    for pid, pharmacy, created, number in rows:
+        if (number or "").strip():
+            continue
+        key = (pharmacy, month(created))
+        highest[key] = highest.get(key, 0) + 1
+        updates.append({"n": f"PT{key[1]}{highest[key]:05d}", "id": pid})
+
+    if updates:
+        conn.execute(text("UPDATE patients SET profile_number = :n WHERE id = :id"), updates)
+        log.info("Numbered %d existing patient(s)", len(updates))
+
+    clash = conn.execute(text(
+        "SELECT COUNT(*) FROM (SELECT pharmacy_id, profile_number FROM patients "
+        "WHERE profile_number IS NOT NULL "
+        "GROUP BY pharmacy_id, profile_number HAVING COUNT(*) > 1) d")).scalar()
+    if clash:
+        log.warning("patients.profile_number is duplicated %d time(s) within one "
+                    "pharmacy; left indexed but not unique", clash)
+    else:
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_patients_tenant_profile_number "
+            "ON patients (pharmacy_id, profile_number)"))
+    return len(updates)
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -922,6 +994,7 @@ def run_migrations(engine: Engine) -> int:
 
         applied += _add_tenant_columns(conn, inspector, existing_tables)
         applied += _fill_null_text(conn, inspector, existing_tables)
+        applied += _number_the_patients(conn, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)

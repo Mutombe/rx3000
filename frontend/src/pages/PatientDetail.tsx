@@ -240,6 +240,7 @@ export default function PatientDetail() {
         <div>
           <h1>{patient.first_name} {patient.last_name}</h1>
           <div className="sub">
+            {patient.profile_number && <><span className="mono">{patient.profile_number}</span> · </>}
             {patient.id_number && <>ID {patient.id_number} · </>}
             DOB {fmtDate(patient.date_of_birth)} · {patient.phone || "no phone"} ·{" "}
             {patient.medical_aid ? `${patient.medical_aid.name} #${patient.medical_aid_number}` : "Private patient"} ·{" "}

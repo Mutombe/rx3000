@@ -57,6 +57,7 @@ export default function PatientCardModal({ patient, canLeave, onClose }: {
             <section className="ed-sec">
               <h4>Identity</h4>
               <dl className="ed-facts pt-facts">
+                <dt>Profile no.</dt><dd className="mono">{patient.profile_number || dash}</dd>
                 <dt>ID number</dt><dd>{patient.id_number || dash}</dd>
                 <dt>Date of birth</dt>
                 <dd>{patient.date_of_birth ? `${fmtDate(patient.date_of_birth)}${age !== null ? ` · ${age} yrs` : ""}` : dash}</dd>

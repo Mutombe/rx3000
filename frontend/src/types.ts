@@ -34,6 +34,9 @@ export interface Supplier {
 
 export interface Patient {
   id: number;
+  /** `PT2609…`, issued by the server when the patient is first written and
+   *  never chosen by a client. Optional only for an older server. */
+  profile_number?: string | null;
   first_name: string;
   last_name: string;
   id_number: string;
