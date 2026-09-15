@@ -127,10 +127,18 @@ with sync_playwright() as pw:
     # ---- 1 · the worklist row that does not carry the controlled line -----------
     rows = page.evaluate("[...document.querySelectorAll('.wl-row')]"
                          ".map((e) => e.innerText.split(" + NL + ").join(' / '))")
-    wanted = [i for i, r in enumerate(rows)
-              if patient["last_name"] in r and ordinary["name"].split()[0] in r]
+    # This script's own row, found by its prescription id in the order the
+    # worklist returns — the order the panel draws. Matching by patient and
+    # medicine picked the first Andela + Amlodipine row in the queue, which once
+    # other suites had left single-line Amlodipine scripts for the same patient
+    # was one of theirs: it opened with one line, and the test blamed the
+    # dispensary for a script it had not been given.
+    token = api("/api/auth/login", {"username": "admin", "password": "admin123"})["access_token"]
+    queue = api("/api/dispensary/worklist", token=token)["queue"]
+    wanted = [i for i, r in enumerate(queue)
+              if r["prescription_id"] == rx["id"] and r["schedule"] < 5 and i < len(rows)]
     check("the queue offers the ordinary line of the mixed script", bool(wanted),
-          f"{len(rows)} rows, none matching {patient['last_name']} + {ordinary['name']}")
+          f"{rx.get('rx_number')} not among the {len(rows)} rows on show")
 
     if wanted:
         page.query_selector_all(".wl-row")[wanted[0]].click()
