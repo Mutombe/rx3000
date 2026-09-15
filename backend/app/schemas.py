@@ -433,6 +433,10 @@ class DispenseRequest(BaseModel):
     # says so for this script; recorded whenever it is given.
     counselling_points: list[str] = []
     counselling_notes: str = ""
+    # The code scanned off the pack for each line, by prescription item id. The
+    # server resolves each one again and refuses a code that is not that line's
+    # medicine, so a check cannot be claimed for the wrong pack.
+    scanned_codes: dict[int, str] = {}
 
 
 class SchedulePolicyOut(BaseModel):

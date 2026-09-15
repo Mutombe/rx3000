@@ -886,6 +886,10 @@ class Dispensing(Base, TenantMixin):
     counselling_notes = Column(Text, default="")
     #: Who recorded it. Empty when nothing was recorded.
     counselled_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # ---- the pack, scanned against the script ----
+    #: The code read off the pack, and whether it resolved to this line's medicine.
+    scan_code = Column(String(64), default="")
+    scan_verified = Column(Boolean, default=False)
 
     prescription_item = relationship("PrescriptionItem", back_populates="dispensings")
     dispensed_by = relationship("User", foreign_keys=[dispensed_by_id])

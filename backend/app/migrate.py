@@ -246,6 +246,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "counselling_points": "TEXT DEFAULT ''",
         "counselling_notes": "TEXT DEFAULT ''",
         "counselled_by_id": "INTEGER",
+        # The pack scanned against the script (blueprint §5, §8).
+        "scan_code": "VARCHAR(64) DEFAULT ''",
+        "scan_verified": "BOOLEAN DEFAULT 0",
     },
 }
 

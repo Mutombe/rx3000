@@ -627,6 +627,9 @@ def dispensing_detail(dispensing_id: int, db: Session = Depends(get_db)):
             for key, label in counselling.POINTS.items()
         ],
         "counselling_notes": d.counselling_notes or "",
+        # Whether the pack was scanned and matched to the script line.
+        "scan_verified": bool(getattr(d, "scan_verified", False)),
+        "scan_code": getattr(d, "scan_code", "") or "",
         "counselled_by": ((getattr(db.get(User, d.counselled_by_id), "full_name", "") or "")
                           if d.counselled_by_id else ""),
         # ---- collection ---------------------------------------------------

@@ -18,7 +18,7 @@ the operator a dead end; this returns `found: false` along with the closest
 candidates and the batch data we did manage to read, so the next tap is a choice
 rather than a retype.
 """
-from datetime import datetime
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -27,7 +27,8 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
-from ..models import Product, ProductBarcode, PurchaseOrderItem, StockBatch, User
+from ..models import (Product, ProductBarcode, PrescriptionItem, PurchaseOrderItem,
+                      StockBatch, User)
 from ..services import barcodes as bc
 from ..services import branches as branch_svc
 
@@ -37,9 +38,11 @@ router = APIRouter(prefix="/api/scan", tags=["scan"], dependencies=[Depends(get_
 class ScanIn(BaseModel):
     code: str = Field(..., min_length=1, max_length=200)
     # Where the scan happened. Shapes the extras, not the lookup.
-    context: str = "pos"          # pos | stock | receive
+    context: str = "pos"          # pos | stock | receive | dispense
     branch_id: int | None = None
     order_id: int | None = None   # receiving against a specific purchase order
+    # Dispensing against a saved script: the pack is checked against its lines.
+    prescription_id: int | None = None
 
 
 class LinkIn(BaseModel):
@@ -207,6 +210,30 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
             }
             for b in existing
         ]
+
+    if body.context == "dispense":
+        # CareXpress To-Be blueprint §5 and §8: the pack picked off the shelf is
+        # checked against the prescription line before it goes out. The screen
+        # says what matched; the dispensing re-checks the code itself, so a
+        # verification cannot be claimed for a pack that was never this medicine.
+        if scan.expiry and scan.expiry < date.today():
+            out["warnings"].append(
+                f"This pack expired on {scan.expiry:%d %b %Y}. Take another from the shelf.")
+            out["expired"] = True
+        out["script_line"] = None
+        if body.prescription_id:
+            line = (
+                db.query(PrescriptionItem)
+                .filter(PrescriptionItem.prescription_id == body.prescription_id)
+                .filter(PrescriptionItem.product_id == product.id)
+                .first()
+            )
+            if line:
+                out["script_line"] = {"item_id": line.id, "product_id": product.id}
+            else:
+                out["warnings"].append(
+                    f"{product.name} is not on this script. Check the pack against "
+                    "what was prescribed.")
 
     if body.context == "receive" and body.order_id:
         line = (

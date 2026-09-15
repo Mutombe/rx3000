@@ -45,7 +45,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature, Barcode } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -70,7 +70,19 @@ const lineName = (p: Product) => `${p.name} ${p.strength || ""}`.trim();
  *  promising only what the search behind it actually matches. */
 const PATIENT_HINT = "Name, ID, phone or aid no.";
 const PRESCRIBER_HINT = "Name or practice no.";
-const MEDICINE_HINT = "Search by name";
+const MEDICINE_HINT = "Name, or scan a pack";
+
+/** Whether what arrived in the medicine box is a scanned code rather than a name.
+ *
+ *  A wedge scanner types the code and presses Enter, into whatever has the
+ *  cursor. A person looking for a medicine types letters. Eight to fourteen
+ *  digits is a retail barcode (EAN-8 up to GTIN-14); a GS1 string carries an
+ *  application identifier or the group separator. Anything else is a search. */
+function looksLikeCode(text: string): boolean {
+  const t = text.trim();
+  if (t.startsWith("(01)") || t.startsWith("]C1") || t.includes("")) return true;
+  return /^\d{8,14}$/.test(t);
+}
 const CONTROLLED_HINT = "S5–S6, by name";
 /* The initials box, which said the least of any field on the screen: a label
    reading "Checked by" next to a box whose placeholder read "Initials" — two
@@ -585,6 +597,13 @@ export default function Dispense() {
   /** What the patient was told on this script, and anything the points miss. */
   const [counselPoints, setCounselPoints] = useState<string[]>([]);
   const [counselNotes, setCounselNotes] = useState("");
+  /** The code scanned off each line's pack, by product — present only once the
+   *  pack has matched. CareXpress To-Be blueprint §5: the medicine picked is
+   *  checked against the line before it goes out. The server resolves every
+   *  code again, so this is what the screen shows, not what it is trusted on. */
+  const [scanChecks, setScanChecks] = useState<Record<number, string>>({});
+  /** Whether this pharmacy will not dispense a pack nobody scanned. */
+  const [requireScan, setRequireScan] = useState(false);
   useEffect(() => {
     // `groups` is an object keyed by group name, each holding a list of
     // settings — not a list of groups with a `settings` field, which is what I
@@ -606,6 +625,8 @@ export default function Dispense() {
         const counsel = String(all.find((x: any) => x?.key === "dispensing.require_counselling")?.value
                                ?? "never").trim().toLowerCase();
         setCounselRule(counsel === "always" || counsel === "controlled" ? counsel : "never");
+        const scanRule = all.find((x: any) => x?.key === "dispensing.require_scan_check")?.value;
+        setRequireScan(scanRule === true || scanRule === "true");
       })
       .catch(() => undefined);   // the server enforces it regardless
   }, []);
@@ -618,6 +639,8 @@ export default function Dispense() {
   const counsellingRequired =
     counselRule === "always" || (counselRule === "controlled" && needsCompliance);
   const counsellingMissing = counsellingRequired && counselPoints.length === 0;
+  const unscannedLines = requireScan ? items.filter((i) => !scanChecks[i.product.id]).length : 0;
+  const scanMissing = unscannedLines > 0;
 
   const navigate = useNavigate();
   const [showKeys, setShowKeys] = useState(false);
@@ -688,7 +711,7 @@ export default function Dispense() {
     setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
-    setCounselPoints([]); setCounselNotes("");
+    setCounselPoints([]); setCounselNotes(""); setScanChecks({});
     // A new script is a new number: whatever was dispensed while this screen
     // was open has taken one since it last asked.
     refreshNextNumber();
@@ -755,6 +778,63 @@ export default function Dispense() {
       toast.error(errorText(e, "That script could not be put on hold."));
     }
   }
+
+  /** A pack scanned into the medicine box.
+   *
+   *  On a saved script it is a check: a pack on the script ticks its line; a
+   *  pack that is not is refused out loud, because that is precisely the error
+   *  the check exists to catch. While capturing a new script it is the quicker
+   *  way to find the medicine, and the line starts out checked — it is that
+   *  pack. An expired GS1 pack is refused either way. */
+  async function scanPack(code: string) {
+    try {
+      const res = await api.post<any>("/api/scan", {
+        code, context: "dispense",
+        prescription_id: fromRx && !fromRx.draft ? fromRx.id : null,
+      });
+      if (!res.found) {
+        toast.error(res.message || "Nothing is stocked under that code.");
+        return;
+      }
+      if (res.expired) {
+        toast.error(res.warnings.find((w: string) => w.includes("expired")) || "That pack has expired.");
+        return;
+      }
+      const line = items.find((i) => i.product.id === res.product.id);
+      if (line) {
+        setScanChecks((cur) => ({ ...cur, [res.product.id]: code }));
+        toast.ok(`${lineName(line.product)} — the pack matches the script.`);
+        return;
+      }
+      if (fromRx && !fromRx.draft) {
+        toast.error(`${res.product.name} is not on this script. Check the pack against what was prescribed.`);
+        return;
+      }
+      // The route decides which medicines may go on this script, scanned or
+      // searched: a scan must not be a way round the tab.
+      const fits = route === "controlled" ? res.product.schedule >= 5 : res.product.schedule < 5;
+      if (!fits) {
+        toast.warn(`${res.product.name} is Schedule ${res.product.schedule} — use the `
+          + `${res.product.schedule >= 5 ? "Dangerous Drugs" : "Prescription"} tab.`);
+        return;
+      }
+      const full = await api.get<any>(`/api/products/${res.product.id}`);
+      addItem(full.product ?? full);
+      setScanChecks((cur) => ({ ...cur, [res.product.id]: code }));
+    } catch (e) {
+      toast.error(errorText(e, "That scan could not be read."));
+    }
+  }
+
+  // A line taken off takes its scan with it, so a medicine removed and typed
+  // back on does not come back already checked.
+  useEffect(() => {
+    setScanChecks((cur) => {
+      const onScreen = new Set(items.map((i) => i.product.id));
+      const kept = Object.fromEntries(Object.entries(cur).filter(([pid]) => onScreen.has(Number(pid))));
+      return Object.keys(kept).length === Object.keys(cur).length ? cur : kept;
+    });
+  }, [items]);
 
   async function releaseHold() {
     if (!hold || !fromRx) return;
@@ -824,7 +904,7 @@ export default function Dispense() {
     // Initials gate every route when the setting demands them.
     (!needsInitials || initials.trim() !== "") &&
     (!needsCompliance || (items.length > 0 && complianceDone)) &&
-    !counsellingMissing && !hold;
+    !counsellingMissing && !hold && !scanMissing;
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -1069,6 +1149,7 @@ export default function Dispense() {
     if (needsCompliance && !complianceDone)
       return openFinish("finish-compliance");
     if (blocked) return openFinish("finish-warnings");
+    if (scanMissing) return focus("[data-hk='product']");
     if (needsInitials && !initials.trim()) return focus("#disp-initials");
     if (counsellingMissing) return openFinish("finish-counselling");
     return openFinish(ixMajor > 0 && !ixAcknowledged ? "finish-warnings" : undefined);
@@ -1176,7 +1257,7 @@ export default function Dispense() {
   const complianceReady =
     (!needsInitials || initials.trim() !== "") &&
     (!needsCompliance || (items.length > 0 && complianceDone)) &&
-    !counsellingMissing && !hold &&
+    !counsellingMissing && !hold && !scanMissing &&
     // A major interaction has to be acknowledged, not blocked. The checker holds
     // twelve pairs and says so; refusing outright on twelve while missing
     // thousands teaches a pharmacist that a clear result means safe.
@@ -1206,6 +1287,11 @@ export default function Dispense() {
     if (needsCompliance && !complianceDone)
       return `Complete the compliance record for ${activePolicy?.label ?? "this controlled substance"}.`;
     if (blocked) return "Acknowledge the blocking warning first.";
+    // Before the initials: the packs are picked and scanned, then checked and
+    // signed for. Named after them, the count of unscanned packs stayed hidden
+    // behind a request for initials until somebody had already signed.
+    if (scanMissing)
+      return `Scan each pack against the script — ${unscannedLines} not yet scanned.`;
     if (needsInitials && !initials.trim())
       return "Enter the checking pharmacist's initials.";
     if (counsellingMissing)
@@ -1733,6 +1819,12 @@ export default function Dispense() {
       }
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: selected,
+        // The code scanned for each line, keyed by the script's own item ids,
+        // which only exist once the script has been written.
+        scanned_codes: Object.fromEntries(
+          (rx.items ?? [])
+            .filter((i: any) => onScreen.has(i.product_id) && scanChecks[i.product_id])
+            .map((i: any) => [i.id, scanChecks[i.product_id]])),
         ...compliancePayload(),
         // The warnings acknowledged at the counter, recorded against this
         // script by the server as it is dispensed.
@@ -1830,7 +1922,7 @@ export default function Dispense() {
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
-      setCounselPoints([]); setCounselNotes("");
+      setCounselPoints([]); setCounselNotes(""); setScanChecks({});
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
@@ -2559,7 +2651,16 @@ export default function Dispense() {
                   value={productQ}
                   onFocus={() => setLaneFocus("product")}
                   onBlur={() => setLaneFocus(null)}
-                  onChange={(e) => setProductQ(e.target.value)} />
+                  onChange={(e) => setProductQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    // A scanner's Enter, not a person's: check the pack.
+                    if (e.key === "Enter" && looksLikeCode(productQ)) {
+                      e.preventDefault();
+                      const code = productQ.trim();
+                      setProductQ("");
+                      scanPack(code);
+                    }
+                  }} />
                 <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
               </div>
               {/* Read before the first medicine goes on the script, not after
@@ -2977,6 +3078,17 @@ ${d.action}`}
                           );
                         })()}
                         <span className="cell-text">{it.product.name} {it.product.strength}</span>
+                        {/* The pack on the counter was scanned and is this line's
+                            medicine. Absent, not red, when it has not been: most
+                            tills have no scanner, and a row of warnings nobody can
+                            clear would teach everybody to ignore the column. */}
+                        {scanChecks[it.product.id] && (
+                          <span className="rx-scan-ok" role="img"
+                                title={`Pack scanned and matched · ${scanChecks[it.product.id]}`}
+                                aria-label="Pack scanned and matched">
+                            <Barcode size={13} weight="bold" />
+                          </span>
+                        )}
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>

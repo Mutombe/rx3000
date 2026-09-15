@@ -481,6 +481,35 @@ def dispense(
             "patient was told. This pharmacy requires it"
             + (" for controlled medicines." if counselling.rule(db) == "controlled" else ".")))
 
+    # The packs, scanned against the script (blueprint §5, §8). Every code sent
+    # is resolved again here and must be that line's medicine: the screen's word
+    # that a pack matched is not taken, because a check that can be claimed is
+    # not a check. Done before anything is built, so a wrong pack refuses the
+    # dispensing cleanly.
+    from .scan_router import _match as match_scanned
+    from ..services import barcodes as bc
+
+    scanned: dict[int, str] = {}
+    for item in items:
+        code = (body.scanned_codes.get(item.id) or "").strip()
+        if not code:
+            continue
+        found, _mult, _on = match_scanned(db, bc.read(code).keys)
+        if not found or found.id != item.product_id:
+            raise HTTPException(status_code=400, detail=(
+                f"The pack scanned for {item.product.name} is "
+                + (f"{found.name}" if found else "not a medicine this pharmacy stocks")
+                + ". Scan the right pack, or clear the scan."))
+        scanned[item.id] = code[:64]
+    from .settings_router import get_value as setting
+
+    if setting(db, "dispensing.require_scan_check"):
+        unscanned = [i.product.name for i in items if i.id not in scanned]
+        if unscanned:
+            raise HTTPException(status_code=400, detail=(
+                "Scan each pack against the script before dispensing — not yet scanned: "
+                + ", ".join(unscanned) + "."))
+
     sale = Sale(
         sale_number=helpers.next_number(db, Sale, "INV", "sale_number"),
         patient_id=rx.patient_id,
@@ -603,6 +632,8 @@ def dispense(
             counselling_points=",".join(counselled_points),
             counselling_notes=counselled_notes,
             counselled_by_id=user.id if (counselled_points or counselled_notes) else None,
+            scan_code=scanned.get(item.id, ""),
+            scan_verified=item.id in scanned,
         )
         db.add(dispensing)
 

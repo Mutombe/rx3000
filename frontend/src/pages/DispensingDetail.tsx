@@ -37,6 +37,9 @@ interface Detail {
   counselling?: { key: string; label: string; covered: boolean }[];
   counselling_notes?: string;
   counselled_by?: string;
+  /** The pack was scanned and matched to the script line. */
+  scan_verified?: boolean;
+  scan_code?: string;
   collected_at: string | null; collected_name: string; collected_by: string;
   days_waiting: number | null;
   product: { id: number; name: string; form: string; schedule: number } | null;
@@ -314,6 +317,11 @@ export default function DispensingDetail() {
                 </dd>
               </dl>
               <ul className="plain-list">
+                {d.scan_verified !== undefined && (
+                  <Checked ok={!!d.scan_verified}>
+                    Pack scanned against the script{d.scan_code && ` — ${d.scan_code}`}
+                  </Checked>
+                )}
                 <Checked ok={d.script_sighted}>Original script sighted</Checked>
                 <Checked ok={d.prescriber_verified}>Prescriber verified</Checked>
                 <Checked ok={d.id_verified}>

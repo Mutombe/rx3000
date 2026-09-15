@@ -9336,3 +9336,6 @@ button.fin-ack { cursor: pointer; }
    Without this the placeholder read "CHECKED BY" — the uppercase rule for the
    initials reached the words describing the field. */
 .disp-initials > input::placeholder, .finish-initials > input::placeholder { text-transform: none; }
+
+/* A line whose pack was scanned and matched. */
+.rx-scan-ok { display: inline-grid; place-items: center; flex: 0 0 auto; color: var(--ok); margin-left: 2px; }

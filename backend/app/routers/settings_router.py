@@ -108,6 +108,10 @@ DECLARED: tuple[Declared, ...] = (
              "never, controlled, or always. When required, a script cannot be "
              "dispensed until the points the patient was told are recorded. "
              "Controlled means Schedule 5 and 6 scripts only."),
+    Declared("dispensing.require_scan_check", "Require each pack to be scanned",
+             "bool", "false", "Dispensing",
+             "When on, a script cannot be dispensed until every pack has been "
+             "scanned and matched to its line. Leave off on a till with no scanner."),
 
     # ---- claims
     Declared("claims.chase_after_days", "Chase a claim after", "number", "30", "Claims",
