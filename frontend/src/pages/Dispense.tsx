@@ -28,7 +28,7 @@ import CellMedicineSearch from "../components/CellMedicineSearch";
 import PatientHistoryModal from "../components/PatientHistoryModal";
 import PatientCardModal from "../components/PatientCardModal";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
-import { printLabels } from "../print";
+import { printLabels, refusedSummary, splitPrintable } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
 import { deliveryLabelLines, priceLabelLines } from "../deviceAgent";
@@ -1159,7 +1159,12 @@ export default function Dispense() {
   async function printRxLabels(rxId: number) {
     setLastRxId(rxId);
     try {
-      const labels = await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`);
+      // A label that cannot name its batch and expiry does not print, on any
+      // route — and the dispenser is told which box is still without one.
+      const { printable: labels, refused } = splitPrintable(
+        await api.get<Label[]>(`/api/prescriptions/${rxId}/labels`));
+      if (refused.length) toast.warn(refusedSummary(refused));
+      if (labels.length === 0) return;
       if (roll.labelsGoStraightToRoll()) {
         try {
           for (const l of labels) await roll.printLines(labelLines(l, roll.printerWidth()));

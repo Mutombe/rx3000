@@ -919,6 +919,12 @@ class LabelOut(BaseModel):
     # is missing, and the practice number the prescriber is registered under.
     item_number: int = 1
     item_count: int = 1
+    # Whether this label may be printed at all, and if not, why — in words a
+    # dispenser can act on. A medicine label that cannot name its batch and
+    # expiry is refused rather than printed with those lines missing: they are
+    # what a recall is traced by (CareXpress To-Be blueprint §5 and §7).
+    printable: bool = True
+    blocked_reason: str = ""
     doctor_practice_no: str = ""
     unit_price: float = 0.0
     line_total: float = 0.0

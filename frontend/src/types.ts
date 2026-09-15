@@ -356,6 +356,11 @@ export interface Label {
   branch_phone: string;
   branch_reg_no: string;
   dispensing_id: number | null;
+  /** Whether the server will let this be printed, and why not. Optional: an
+   *  older server sends neither, and the browser then applies the same rule
+   *  itself — see `labelRefusal` in print.ts. */
+  printable?: boolean;
+  blocked_reason?: string;
 }
 
 export interface SchedulePolicy {

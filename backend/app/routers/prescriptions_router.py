@@ -701,7 +701,28 @@ def prescription_labels(
                 batch_number = allocation.batch.batch_number
                 expiry = allocation.batch.expiry_date
 
+        # A medicine label names the batch it came from and when that batch
+        # expires, or it does not print. It used to print regardless, with the
+        # batch and expiry lines simply left off — so a box could leave the
+        # counter carrying nothing a recall could be traced by, and nobody would
+        # know until the recall. Refused here, with the reason a dispenser can
+        # act on, and refused again in the browser in case this is an older
+        # server that sends no verdict.
+        if dispensing is None:
+            blocked_reason = ("Not dispensed yet. A label names the batch it was "
+                              "dispensed from, so it prints once this line has gone out.")
+        elif not batch_number:
+            blocked_reason = ("No batch was recorded when this line was dispensed, "
+                              "and a medicine label must name its batch.")
+        elif expiry is None:
+            blocked_reason = (f"Batch {batch_number} has no expiry date on file. "
+                              "Add it to the batch, then print.")
+        else:
+            blocked_reason = ""
+
         labels.append(schemas.LabelOut(
+            printable=not blocked_reason,
+            blocked_reason=blocked_reason,
             patient_name=f"{rx.patient.first_name} {rx.patient.last_name}",
             patient_id_number=rx.patient.id_number,
             rx_number=rx.rx_number,

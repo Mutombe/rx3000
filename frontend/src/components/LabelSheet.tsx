@@ -15,7 +15,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../api";
-import { labelPreviewDoc, printLabels } from "../print";
+import { labelPreviewDoc, printLabels, refusedSummary, splitPrintable } from "../print";
 import { asText } from "../escpos";
 import * as roll from "../shellPrinter";
 import { canPrintLabels, labelLines, printLabelsOnAgent, probe } from "../deviceAgent";
@@ -137,13 +137,18 @@ export default function LabelSheet({
     // dialog renders an empty state while the labels are still loading, and
     // the button is only reachable after they arrive.
     if (!labels || labels.length === 0) { onClose(); return; }
+    // Only what may print goes to any printer; the rest are already listed on
+    // this dialog with the reason, and said again as it closes.
+    const { printable: ready, refused: held } = splitPrintable(labels);
+    if (ready.length === 0) { toast.warn(refusedSummary(held)); return; }
+    if (held.length) toast.warn(refusedSummary(held));
     // The shell first: it needs no separate service on the machine, which is
     // the difference between a pharmacy downloading one thing and two.
     if (roll.labelsGoStraightToRoll()) {
       try {
-        for (const l of labels) await roll.printLines(rollLines(l), copies);
+        for (const l of ready) await roll.printLines(rollLines(l), copies);
         await record();
-        toast.ok(`${labels.length * copies} label(s) printed.`);
+        toast.ok(`${ready.length * copies} label(s) printed.`);
         onClose();
         return;
       } catch (e) {
@@ -152,16 +157,16 @@ export default function LabelSheet({
     }
     if (agentRoll) {
       try {
-        await printLabelsOnAgent(labels, copies, agent?.printers?.label?.width ?? 32);
+        await printLabelsOnAgent(ready, copies, agent?.printers?.label?.width ?? 32);
         await record();
-        toast.ok(`${labels.length * copies} label(s) sent to the roll.`);
+        toast.ok(`${ready.length * copies} label(s) sent to the roll.`);
         onClose();
         return;
       } catch (e) {
         toast.error(errorText(e, "The label roll did not answer — using the print dialog."));
       }
     }
-    printLabels(labels, copies);
+    printLabels(ready, copies);
     await record();
     onClose();
   }
@@ -170,11 +175,32 @@ export default function LabelSheet({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal lbl-modal" onClick={(e) => e.stopPropagation()}>
         <h2>Reprint labels</h2>
-        <p className="muted">
-          {labels.length} item{labels.length === 1 ? "" : "s"} on {labels[0].rx_number}
-          {" · "}{labels.length * copies} sticker
-          {labels.length * copies === 1 ? "" : "s"} will print.
-        </p>
+        {(() => {
+          const { printable: ready, refused: held } = splitPrintable(labels);
+          return (
+            <>
+              <p className="muted">
+                {labels.length} item{labels.length === 1 ? "" : "s"} on {labels[0].rx_number}
+                {" · "}{ready.length * copies} sticker
+                {ready.length * copies === 1 ? "" : "s"} will print.
+              </p>
+              {/* Said before anybody presses Print, not discovered on the roll:
+                  which box will be left without a sticker, and why. */}
+              {held.length > 0 && (
+                <div className="alert warn lbl-held">
+                  <b>{held.length === 1 ? "One label won't print." : `${held.length} labels won't print.`}</b>
+                  <ul>
+                    {held.map((h) => (
+                      <li key={`${h.label.item_number}-${h.label.product_name}`}>
+                        {h.label.product_name}{h.label.strength ? ` ${h.label.strength}` : ""}: {h.why}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {before > 0 && (
           <div className="alert warn">

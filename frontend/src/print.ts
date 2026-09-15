@@ -363,9 +363,50 @@ export function labelPreviewDoc(labels: Label[]): string {
     `</body></html>`;
 }
 
-export function printLabels(labels: Label[], copies = 1) {
-  if (labels.length === 0) return;
-  const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
+/** Why this label may not print, or "" when it may.
+ *
+ *  A medicine label names its batch and its expiry, or it does not go on a box:
+ *  those two lines are what a recall is traced by. The server decides and says
+ *  why; this applies the same rule when it has not, so an older server cannot
+ *  let a label out that a newer one would refuse.
+ */
+export function labelRefusal(l: Label): string {
+  if (l.printable === false) return l.blocked_reason || "This label can't be printed.";
+  if (!l.batch_number) return "No batch on this line, and a medicine label must name its batch.";
+  if (!l.expiry_date) return `Batch ${l.batch_number} has no expiry date on file.`;
+  return "";
+}
+
+export interface RefusedLabel { label: Label; why: string }
+
+/** The labels that may print, and the ones held back with the reason for each. */
+export function splitPrintable(labels: Label[]): { printable: Label[]; refused: RefusedLabel[] } {
+  const printable: Label[] = [];
+  const refused: RefusedLabel[] = [];
+  for (const label of labels) {
+    const why = labelRefusal(label);
+    if (why) refused.push({ label, why });
+    else printable.push(label);
+  }
+  return { printable, refused };
+}
+
+/** What to tell the dispenser about labels that were held back — by medicine,
+ *  so they know which box is still without a sticker. */
+export function refusedSummary(refused: RefusedLabel[]): string {
+  const name = (l: Label) => `${l.product_name}${l.strength ? ` ${l.strength}` : ""}`;
+  if (refused.length === 1) return `${name(refused[0].label)} was not printed: ${refused[0].why}`;
+  return `${refused.length} labels were not printed. `
+    + refused.map((r) => `${name(r.label)}: ${r.why}`).join(" ");
+}
+
+/** Print through the browser's dialog. Refused labels never reach the sheet,
+ *  whoever called this; what was held back is returned so the caller can say. */
+export function printLabels(labels: Label[], copies = 1): { printed: number; refused: RefusedLabel[] } {
+  const { printable, refused } = splitPrintable(labels);
+  if (printable.length === 0) return { printed: 0, refused };
+  const sheet = Array.from({ length: Math.max(1, copies) }, () => printable).flat();
   printHtml("Dispensing labels", LABEL_CSS,
             labelSheetHtml(sheet).replace(/^<style>[\s\S]*?<\/style>/, ""));
+  return { printed: sheet.length, refused };
 }

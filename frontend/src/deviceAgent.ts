@@ -7,6 +7,7 @@
  */
 import { Label, Sale } from "./types";
 import { money } from "./api";
+import { splitPrintable } from "./print";
 
 const AGENT = "http://127.0.0.1:9110";
 
@@ -370,7 +371,10 @@ export function labelLines(l: Label, width = 32): Line[] {
 
 /** Print labels on the label roll. One document per label, so each is cut. */
 export async function printLabelsOnAgent(labels: Label[], copies = 1, width = 32) {
-  const sheet = Array.from({ length: Math.max(1, copies) }, () => labels).flat();
+  // The same refusal as the print dialog: a label without its batch and expiry
+  // does not reach the roll either, whichever route the till takes.
+  const { printable } = splitPrintable(labels);
+  const sheet = Array.from({ length: Math.max(1, copies) }, () => printable).flat();
   for (const label of sheet) {
     await call<{ printed: boolean }>("/print", {
       lines: labelLines(label, width),

@@ -10,7 +10,7 @@ import { letterhead } from "../letterhead";
 import AiStreamBlock from "../components/AiStreamBlock";
 import ConsentPanel from "../components/ConsentPanel";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
-import { printLabels } from "../print";
+import { printLabels, refusedSummary } from "../print";
 import { Label, Patient, Prescription, Sale, TimelineEntry } from "../types";
 import { DRAFT_SCRIPT } from "../terms";
 import Select from "../components/Select";
@@ -347,7 +347,12 @@ export default function PatientDetail() {
               )}
               {" · "}{fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
               <button className="ghost small" onClick={() =>
-                api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`).then(printLabels)}>
+                api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`).then((labels) => {
+                  // Held-back labels are named rather than silently missing
+                  // from the sheet: somebody is standing there with the box.
+                  const { refused } = printLabels(labels);
+                  if (refused.length) toast.warn(refusedSummary(refused));
+                })}>
                 🖨 Labels
               </button>
               <table style={{ marginTop: 6 }}>
