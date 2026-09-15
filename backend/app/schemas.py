@@ -398,6 +398,22 @@ class PrescriptionOut(ORM):
     doctor: Optional[DoctorOut] = None
 
 
+class DispenseClaim(BaseModel):
+    """Paid by medical aid, as chosen in Finish.
+
+    The scheme and member number are what is on the card at the counter. Where
+    they differ from the patient's record, or the patient had none, the record is
+    updated with them when the script is dispensed. `hold` raises the claim
+    without sending it — the scheme cannot be reached, or an authorisation is
+    pending — and needs the reason.
+    """
+    medical_aid_id: int
+    member_number: str
+    dependent_code: str = "00"
+    hold: bool = False
+    hold_reason: str = ""
+
+
 class DispenseRequest(BaseModel):
     item_ids: list[int]
     # Blocking counter messages the pharmacist acknowledged at the counter, by
@@ -441,6 +457,9 @@ class DispenseRequest(BaseModel):
     # out from stock with no expiry recorded. Written onto that stock before it
     # is drawn (helpers.date_undated_stock).
     pack_expiries: dict[int, date] = {}
+    # Paid by medical aid, chosen at Finish. Absent, a patient with a scheme on
+    # file is claimed automatically, as before.
+    claim: Optional[DispenseClaim] = None
 
 
 class SchedulePolicyOut(BaseModel):

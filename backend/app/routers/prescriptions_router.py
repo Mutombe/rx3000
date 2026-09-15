@@ -80,6 +80,8 @@ def list_prescriptions(
 @router.post("/claim-estimate")
 def claim_estimate(patient_id: int | None = Body(default=None),
                    items: list[dict] = Body(default=[]),
+                   medical_aid_id: int | None = Body(default=None),
+                   member_number: str = Body(default=""),
                    db: Session = Depends(get_db),
                    _: User = Depends(get_current_user)):
     """What the scheme will carry and what the patient will owe, before dispensing.
@@ -98,6 +100,18 @@ def claim_estimate(patient_id: int | None = Body(default=None),
         product = db.get(Product, int(line.get("product_id") or 0))
         if product:
             rows.append((product, int(line.get("quantity") or 1)))
+    # The scheme and member number chosen in Finish, where they are not (yet) on
+    # the patient's record: a card shown at the counter. Estimated against them
+    # without saving anything — the record is only changed when the script is
+    # actually dispensed on that claim.
+    if medical_aid_id:
+        from types import SimpleNamespace
+
+        from ..models import MedicalAid
+        scheme = db.get(MedicalAid, medical_aid_id)
+        if scheme:
+            patient = SimpleNamespace(medical_aid_id=scheme.id, medical_aid=scheme,
+                                      medical_aid_number=(member_number or "").strip())
     return claims_engine.estimate(db, patient, rows)
 
 
@@ -533,6 +547,22 @@ def dispense(
                 "Scan each pack against the script before dispensing — not yet scanned: "
                 + ", ".join(unscanned) + "."))
 
+    # Paid by medical aid, chosen at Finish: checked before anything is built, so
+    # a missing member number refuses the dispensing cleanly rather than leaving
+    # a sale with a claim that cannot be raised.
+    chosen_scheme = None
+    if body.claim:
+        from ..models import MedicalAid
+
+        chosen_scheme = db.get(MedicalAid, body.claim.medical_aid_id)
+        if not chosen_scheme:
+            raise HTTPException(status_code=400, detail="Choose the medical aid scheme to claim from.")
+        if not body.claim.member_number.strip():
+            raise HTTPException(status_code=400, detail=(
+                f"Enter the {chosen_scheme.name} member number from the patient's card."))
+        if body.claim.hold and len(body.claim.hold_reason.strip()) < 3:
+            raise HTTPException(status_code=400, detail="Say why the claim is being held.")
+
     # The expiry read off the pack, for stock that arrived without one. Written
     # onto the undated stock before anything is drawn, inside this transaction —
     # so a dispensing that fails later leaves the batch as it was. A pack already
@@ -700,7 +730,31 @@ def dispense(
     # claim that could not be raised is held, which is the state the claiming
     # screens exist to work through.
     patient = rx.patient
-    if patient is not None and patient.medical_aid_id:
+    if patient is not None and body.claim and chosen_scheme is not None:
+        # Paid by medical aid, chosen at Finish. The card at the counter is the
+        # authority: the patient's record takes its scheme and number, so the
+        # claim, the next dispensing and the patient's page all agree with it.
+        changed = (patient.medical_aid_id != chosen_scheme.id
+                   or (patient.medical_aid_number or "") != body.claim.member_number.strip()
+                   or (patient.dependent_code or "00") != (body.claim.dependent_code or "00"))
+        patient.medical_aid_id = chosen_scheme.id
+        patient.medical_aid_number = body.claim.member_number.strip()
+        patient.dependent_code = (body.claim.dependent_code or "00").strip() or "00"
+        if changed:
+            log.info("Medical aid on patient %s set from the card at dispensing: %s %s",
+                     patient.id, chosen_scheme.name, patient.medical_aid_number)
+        db.flush()
+        if body.claim.hold:
+            claims_engine.defer_claim(db, sale, patient, body.claim.hold_reason.strip())
+        else:
+            try:
+                claims_engine.submit_claim(db, sale, patient)
+            except Exception as exc:                   # noqa: BLE001
+                log.warning("claim for %s could not be raised: %s", rx.rx_number, exc)
+                claims_engine.defer_claim(
+                    db, sale, patient,
+                    "Could not be adjudicated when dispensed; held at the counter.")
+    elif patient is not None and patient.medical_aid_id:
         try:
             claims_engine.submit_claim(db, sale, patient)
         except Exception as exc:                       # noqa: BLE001

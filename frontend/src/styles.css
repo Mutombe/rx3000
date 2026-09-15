@@ -8519,7 +8519,7 @@ button.fin-ack { cursor: pointer; }
   display: flex; flex-direction: column; gap: var(--s4);
   padding-left: var(--s5); border-left: 1px solid var(--line);
 }
-.fin-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.fin-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; }
 .fin-seg button { justify-content: center; text-align: center; white-space: nowrap; }
 .fin-hint { margin: var(--s2) 0 var(--s3); font-size: .8rem; color: var(--ink-soft); }
 .fin-panel {
@@ -9395,3 +9395,31 @@ button.fin-ack { cursor: pointer; }
 }
 .wl-row-cancel:focus-visible { outline: 2px solid var(--danger); outline-offset: -2px; }
 .cancel-which { margin: 0 0 var(--s2); }
+
+/* ========================================================================
+   PAID BY MEDICAL AID. The card as it reads — scheme, member number, dependant
+   — on one row, then whether the claim goes now, then the shortfall.
+   ======================================================================== */
+.fin-seg button { padding-inline: 6px; }
+.fin-aid { display: flex; flex-direction: column; gap: var(--s2); align-items: stretch; }
+.fin-aid-card { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 4.2rem; gap: var(--s2); }
+.fin-aid-card .field { margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fin-aid-card .field > label { font-size: .72rem; color: var(--ink-3, var(--muted)); }
+.fin-aid-card .field { display: flex !important; flex-direction: column; justify-content: flex-end; }
+.fin-aid-card .field > * { grid-column: 1 / -1; width: 100%; text-align: left; }
+.fin-aid-card .field > label { margin: 0; line-height: 1.2; }
+.fin-aid-card .field input, .fin-aid-card .sel-trigger { height: 34px; min-height: 34px; box-sizing: border-box; }
+.fin-aid-row { display: flex; gap: var(--s2); align-items: stretch; }
+.fin-aid-when { display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 0; min-width: 13rem; }
+.fin-aid-row:has(.fin-aid-reason) .fin-aid-when { flex: 0 0 15rem; }
+.fin-aid-when button { justify-content: center; white-space: nowrap; }
+.fin-aid-reason { flex: 1 1 auto; min-width: 0; height: auto; min-height: 34px; padding: 6px 10px; box-sizing: border-box; }
+.fin-aid .fin-note { margin: 0; }
+@media (max-width: 640px) {
+  .fin-aid-card { grid-template-columns: 1fr 1fr; }
+  .fin-aid-card .field:first-child { grid-column: 1 / -1; }
+}
+.disp-finish .fin-aid-card .field > label { text-align: left; justify-self: start; align-self: flex-start; }
+/* Four ways to pay do not fit one row in the controlled route's narrower pay
+   column; two by two there, every label in full. */
+.fin-grid.is-three .fin-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 2px; }

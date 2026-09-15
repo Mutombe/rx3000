@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "../components/Toast";
-import Tenders, { TenderLine, currencyWorld } from "../components/Tenders";
+import Tenders, { TenderLine, currencyWorld, inBase } from "../components/Tenders";
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
@@ -249,6 +249,12 @@ const PAY_CHOICES = [
   // sitting on a till nobody is standing at.
   { key: "delivery", label: "Out for delivery",
     hint: "The driver collects at the door and hands it in on their return" },
+  // Paid by the scheme, from the card in the patient's hand. Chosen here, the
+  // scheme and member number are whatever the card says — filled from the
+  // patient where they are on file, typed where they are not — and the claim is
+  // sent or held as the counter decides, with the shortfall taken on the spot.
+  { key: "aid", label: "Medical aid",
+    hint: "Claim from the scheme on the card and take the patient's shortfall here" },
 ];
 
 export default function Dispense() {
@@ -416,6 +422,26 @@ export default function Dispense() {
     }
   }, [payHow, patient?.id]);
   const [tenders, setTenders] = useState<TenderLine[]>([]);
+  /** Paid by medical aid: the card at the counter. */
+  const [schemes, setSchemes] = useState<{ id: number; name: string }[]>([]);
+  const [aidScheme, setAidScheme] = useState<number | "">("");
+  const [aidMember, setAidMember] = useState("");
+  const [aidDep, setAidDep] = useState("00");
+  const [aidHold, setAidHold] = useState(false);
+  const [aidHoldReason, setAidHoldReason] = useState("");
+  useEffect(() => {
+    if (payHow !== "aid" || schemes.length) return;
+    api.get<typeof schemes>("/api/medical-aids").then(setSchemes).catch(() => setSchemes([]));
+  }, [payHow]);
+  // Whatever the patient's record holds, as the starting point: most members
+  // show the same card every month, and retyping it is where numbers go wrong.
+  useEffect(() => {
+    setAidScheme(patient?.medical_aid_id ?? "");
+    setAidMember(patient?.medical_aid_number ?? "");
+    setAidDep(patient?.dependent_code || "00");
+    setAidHold(false);
+    setAidHoldReason("");
+  }, [patient?.id]);
   const [currencyState, setCurrencyState] = useState<any>(null);
   /** What the patient will actually hand over, once the claim is off it. */
   const [dueNow, setDueNow] = useState(0);
@@ -1404,6 +1430,15 @@ export default function Dispense() {
       return "Record what the patient was told — tick the points covered.";
     if (ixMajor > 0 && !ixAcknowledged)
       return "A dose is over the maximum and has to be acknowledged.";
+    if (payHow === "aid") {
+      if (aidScheme === "") return "Choose the medical aid scheme on the card.";
+      if (!aidMember.trim()) return "Enter the member number from the card.";
+      if (aidHold && aidHoldReason.trim().length < 3) return "Say why the claim is being held.";
+      const world = currencyWorld(currencyState);
+      const took = tenders.reduce((n, t) => n + inBase(t, world.rates, world.base), 0);
+      if (dueNow > 0.005 && took + 0.005 < dueNow)
+        return `Take the patient's ${money(dueNow)} — ${money(took)} entered so far.`;
+    }
     return "";
   };
 
@@ -1953,27 +1988,44 @@ export default function Dispense() {
         // The warnings acknowledged at the counter, recorded against this
         // script by the server as it is dispensed.
         acknowledged_message_ids: [...counter.acked],
+        // Paid by medical aid: the card, and whether the claim goes now.
+        ...(payHow === "aid" && aidScheme !== "" ? {
+          claim: {
+            medical_aid_id: aidScheme, member_number: aidMember.trim(),
+            dependent_code: aidDep.trim() || "00",
+            hold: aidHold, hold_reason: aidHold ? aidHoldReason.trim() : "",
+          },
+        } : {}),
       });
       // Take the money here when that is what was asked for. The sale is
       // raised pending either way; settling it is the same call the till makes,
       // so there is one payment path in the system rather than two that can
       // disagree about what a scheme has already covered.
       let finished = sale;
-      if (payHow === "now") {
+      if (payHow === "now" || payHow === "aid") {
         try {
           const due = patientPortion(sale);
           const lines = tenders.filter((t) => Number(t.amount) > 0);
+          // The scheme's share, as adjudicated, settles as a medical aid tender
+          // exactly as the till does it. Without it the sale was asked for its
+          // gross against the patient's share alone and refused as short, so
+          // "Take payment now" never settled a scheme member's script.
+          const covered = Math.round((sale.total - due) * 100) / 100;
           finished = await api.post<Sale>(`/api/pos/sales/${sale.id}/pay`, {
             payment_method: "split",
             // Each piece kept separate, with what it needs to be matched to a
             // statement later: the wallet and number, or the bank and last four.
-            tenders: lines.map((t) => ({
+            tenders: [
+              ...(covered > 0.005 ? [{ method: "medical_aid",
+                currency_code: currencyState?.base ?? "USD", amount: covered, reference: "" }] : []),
+              ...lines.map((t) => ({
               method: t.method,
               currency_code: t.currency_code || (currencyState?.base ?? "USD"),
               amount: Number(t.amount),
               reference: [t.wallet, t.phone, t.scheme, t.last4 && `••${t.last4}`, t.auth]
                 .filter(Boolean).join(" "),
             })),
+            ],
           });
           // What was actually collected, against what the scheme actually
           // allowed. `due` is the server's figure after adjudication, and the
@@ -2149,12 +2201,19 @@ export default function Dispense() {
     covered: boolean; scheme?: string; why?: string;
   } | null>(null);
 
-  const splitKey = JSON.stringify(pricedItems) + `|${patient?.id ?? ""}`;
+  // On the medical aid choice the estimate is made against the card, which may
+  // not be on the patient's record yet.
+  const aidCard = payHow === "aid" && aidScheme !== ""
+    ? { medical_aid_id: aidScheme, member_number: aidMember } : {};
+  /** Whether the bill should show the scheme carrying part of it. */
+  const claimHeld = payHow === "aid" && aidHold;
+  const schemeCarries = !!split?.covered && !claimHeld;
+  const splitKey = JSON.stringify(pricedItems) + `|${patient?.id ?? ""}|${JSON.stringify(aidCard)}`;
   useEffect(() => {
     if (!items.length) { setSplit(null); return; }
     let live = true;
     api.post<typeof split>("/api/claim-estimate", {
-      patient_id: patient?.id ?? null, items: pricedItems,
+      patient_id: patient?.id ?? null, items: pricedItems, ...aidCard,
     })
       .then((d) => { if (live) setSplit(d); })
       // A figure that cannot be worked out must not stop anybody dispensing.
@@ -2174,8 +2233,10 @@ export default function Dispense() {
   useEffect(() => {
     const gross = items.reduce(
       (n, i) => n + perUnit(i.product) * (i.quantity || 0), 0);
-    setDueNow(split ? split.patient_pays : gross);
-  }, [items, split]);
+    // A held claim has not been sent, so nothing is promised on the scheme's
+    // behalf: the patient settles the whole of it, as the server records.
+    setDueNow(payHow === "aid" && aidHold ? gross : split ? split.patient_pays : gross);
+  }, [items, split, payHow, aidHold]);
 
   /** The same conditions again, as a trail across the top of the screen.
    *
@@ -3826,6 +3887,78 @@ ${d.action}`}
                             </div>
                           )}
 
+                          {payHow === "aid" && (
+                            <div className="fin-panel is-form fin-aid" id="finish-aid">
+                              <div className="fin-aid-card">
+                                <div className="field">
+                                  <label htmlFor="aid-scheme">Scheme</label>
+                                  <Select
+                                    id="aid-scheme" ariaLabel="Scheme"
+                                    value={String(aidScheme)}
+                                    onChange={(v) => setAidScheme(v === "" ? "" : Number(v))}
+                                    options={[
+                                      { value: "", label: schemes.length ? "Choose the scheme…" : "Loading schemes…" },
+                                      ...schemes.map((m) => ({ value: String(m.id), label: m.name })),
+                                    ]}
+                                  />
+                                </div>
+                                <div className="field">
+                                  <label htmlFor="aid-member">Member no.</label>
+                                  <input id="aid-member" value={aidMember} maxLength={40}
+                                         placeholder="From the card"
+                                         onChange={(e) => setAidMember(e.target.value)} />
+                                </div>
+                                <div className="field fin-aid-dep">
+                                  <label htmlFor="aid-dep">Dep.</label>
+                                  <input id="aid-dep" value={aidDep} maxLength={10} placeholder="00"
+                                         title="Dependant code — 00 for the principal member"
+                                         onChange={(e) => setAidDep(e.target.value)} />
+                                </div>
+                              </div>
+                              <div className="fin-aid-row">
+                              <div className="seg fin-aid-when" role="radiogroup" aria-label="When the claim is sent">
+                                <button type="button" role="radio" aria-checked={!aidHold}
+                                        className={!aidHold ? "on" : ""} onClick={() => setAidHold(false)}>
+                                  Claim now
+                                </button>
+                                <button type="button" role="radio" aria-checked={aidHold}
+                                        className={aidHold ? "on" : ""} onClick={() => setAidHold(true)}>
+                                  Hold the claim
+                                </button>
+                              </div>
+                              {aidHold && (
+                                <input id="aid-hold-reason" className="fin-aid-reason" value={aidHoldReason}
+                                       maxLength={200}
+                                       placeholder="Why — scheme offline, authorisation pending, card not here…"
+                                       aria-label="Why the claim is held"
+                                       onChange={(e) => setAidHoldReason(e.target.value)} />
+                              )}
+                              </div>
+                              {patient && aidScheme !== "" && aidMember.trim()
+                                && (patient.medical_aid_id !== aidScheme
+                                  || (patient.medical_aid_number ?? "") !== aidMember.trim()) && (
+                                <p className="fin-note fin-aid-record">
+                                  {patient.medical_aid_id
+                                    ? "Differs from the patient's record, which is updated to this card."
+                                    : "Saved to the patient's record when dispensed."}
+                                </p>
+                              )}
+                              {dueNow > 0.005 ? (
+                                <Tenders
+                                  lines={tenders}
+                                  onChange={setTenders}
+                                  owed={dueNow}
+                                  allowAid={false}
+                                  {...currencyWorld(currencyState)}
+                                />
+                              ) : (
+                                <p className="fin-note">
+                                  Fully covered — nothing to collect from the patient.
+                                </p>
+                              )}
+                            </div>
+                          )}
+
                           {payHow === "delivery" && (
                             <div className="fin-panel is-form" id="step-delivery">
                               <div className="field">
@@ -3940,20 +4073,27 @@ ${d.action}`}
                             <dl className="ed-facts fin-facts">
                               <dt>Lines</dt><dd>{items.length}</dd>
                               <dt>Gross</dt><dd>{pricing || split ? money(gross) : <span className="skel" style={{ width: 56 }} />}</dd>
-                              {split?.covered && (
-                                <><dt>{split.scheme || "Scheme"} pays</dt><dd>{money(split.scheme_pays)}</dd></>
+                              {schemeCarries && (
+                                <><dt>{split!.scheme || "Scheme"} pays</dt><dd>{money(split.scheme_pays)}</dd></>
                               )}
                               {fee > 0 && (<><dt>Delivery</dt><dd>{money(fee)}</dd></>)}
                             </dl>
                             <div className="fin-due">
-                              <span>{split?.covered ? TERMS.shortfall : "Patient pays"}</span>
+                              <span>{schemeCarries ? TERMS.shortfall : "Patient pays"}</span>
                               <b>{pricing || split ? money(dueNow + fee) : <span className="skel skel-num is-big" />}</b>
                               <small>
                                 {payHow === "till" ? "at the till"
-                                  : payHow === "now" ? "here, now" : "to the driver, at the door"}
+                                  : payHow === "now" || payHow === "aid" ? "here, now"
+                                    : "to the driver, at the door"}
                               </small>
                             </div>
-                            {split?.covered && (
+                            {claimHeld && (
+                              <p className="fin-note">
+                                The claim is held, so nothing is on {split?.scheme || "the scheme"} yet:
+                                the patient pays in full and is refunded when it pays.
+                              </p>
+                            )}
+                            {schemeCarries && (
                               <p className="fin-note">
                                 Estimated on {split.scheme || "the scheme"}&rsquo;s terms; the
                                 claim&rsquo;s adjudication settles it.

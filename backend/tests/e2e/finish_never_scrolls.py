@@ -3,7 +3,7 @@ laptop size and a till size.
 
 For Prescription and Dangerous Drugs, with a real patient, prescriber and
 medicine, it opens Finish, proceeds past the settling stage when it can, and
-for each of Send to till, Take payment now and Out for delivery asserts that
+for each of Send to till, Take payment now, Out for delivery and Medical aid asserts that
 the dialog's content fits its box. The settling stage is measured too.
 
 The controlled route is the hard case: its compliance record used to stack
@@ -117,7 +117,7 @@ with sync_playwright() as pw:
                 check(f"{label}: reaches payment", False, "still settling")
                 page.keyboard.press("Escape")
                 continue
-            for i, choice in enumerate(("Send to till", "Take payment now", "Out for delivery")):
+            for i, choice in enumerate(("Send to till", "Take payment now", "Out for delivery", "Medical aid")):
                 page.click(f".disp-finish .fin-seg button:has-text('{choice}')")
                 page.wait_for_timeout(700)
                 sizes = page.evaluate(FITS)
@@ -129,6 +129,9 @@ with sync_playwright() as pw:
                 cut = page.evaluate("[...document.querySelectorAll('.disp-finish .fin-print-name')]"
                                     ".filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent)")
                 check(f"{label} · {choice}: every print is named in full", not cut, str(cut))
+                clipped = page.evaluate("[...document.querySelectorAll('.disp-finish .fin-seg button')]"
+                                        ".filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent)")
+                check(f"{label} · {choice}: every way to pay is named in full", not clipped, str(clipped))
                 if SHOT is not None:
                     page.screenshot(path=str(SHOT / f"never-{label.split()[0].lower()}-{i}-{w}.png"))
             page.keyboard.press("Escape")
