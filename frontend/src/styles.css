@@ -9361,7 +9361,37 @@ button.fin-ack { cursor: pointer; }
 .cancel-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--s4); }
 /* The label above the box in these two dialogs. Beside it, in a column sized
    for one word, "Why it is being cancelled" was cut to "Why it is bei…". */
-.disp-cancel-modal .field, .disp-hold-modal .field {
+/* Specific enough to beat `.disp-dense .field`, which lays every field on the
+   dispensary out as a label column beside the box and, being as specific as the
+   plain rule, won — the label kept a column and the placeholder was cut. */
+.modal.disp-cancel-modal .field, .modal.disp-hold-modal .field {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px;
 }
-.disp-cancel-modal .field > label, .disp-hold-modal .field > label { white-space: normal; }
+.modal.disp-cancel-modal .field > *, .modal.disp-hold-modal .field > * {
+  /* The dispensary pins a field's label and box to columns 1 and 2, which makes
+     the grid invent a second column whatever the field itself says. */
+  grid-column: 1 / -1;
+}
+.modal.disp-cancel-modal .field > label, .modal.disp-hold-modal .field > label { white-space: normal; }
+
+/* ========================================================================
+   CANCEL, FROM THE WORKLIST — a slim strip on the right edge of each queued
+   line, for those who may cancel. Always drawn, muted until pointed at: a
+   control that appears only on hover is one nobody finds, and the first
+   question asked of this feature was where the button was.
+   ======================================================================== */
+.wl-row-wrap { display: flex; align-items: stretch; flex: 0 0 auto; min-width: 0; }
+.wl-row-wrap > .wl-row { flex: 1 1 auto; min-width: 0; }
+.wl-row-wrap.has-cancel > .wl-row { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.wl-row-cancel {
+  flex: 0 0 30px; display: grid; place-items: center;
+  height: auto; min-height: 0; padding: 0;
+  color: var(--ink-soft); background: var(--surface);
+  border: 1px solid var(--line); border-left: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0; box-shadow: none; cursor: pointer;
+}
+.wl-row-cancel:hover, .wl-row-cancel:focus-visible {
+  color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line);
+}
+.wl-row-cancel:focus-visible { outline: 2px solid var(--danger); outline-offset: -2px; }
+.cancel-which { margin: 0 0 var(--s2); }

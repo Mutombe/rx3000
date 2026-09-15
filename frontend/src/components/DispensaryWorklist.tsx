@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../api";
 import { useToast } from "./Toast";
-import { ArrowsClockwise, Phone } from "@phosphor-icons/react";
+import { ArrowsClockwise, Phone, XCircle } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
 import RepeatValue from "./RepeatValue";
 import { DRAFT_SCRIPT_PLURAL } from "../terms";
@@ -67,6 +67,7 @@ export default function DispensaryWorklist({
   onPick,
   onPickDraft,
   onPickRepeat,
+  onCancel,
   panel: panelProp,
   onPanelChange,
   reloadOn,
@@ -85,6 +86,10 @@ export default function DispensaryWorklist({
   onPickDraft?: (draft: any) => void;
   /** Called when a dispenser clicks a queued line, so the page can open it. */
   onPick?: (row: QueueRow) => void;
+  /** Cancel the script a queued line belongs to, without opening it. Absent for
+   *  people who may not, and then no control is drawn. `lines` is how many
+   *  queued lines that script has, since cancelling takes all of them. */
+  onCancel?: (row: QueueRow, lines: number) => void;
   /** Called when a dispenser clicks a repeat that is due. */
   onPickRepeat?: (row: ReminderRow) => void;
 }) {
@@ -256,8 +261,11 @@ export default function DispensaryWorklist({
         <div className="wl-list">
           {data.queue.length === 0 && <p className="wl-empty">Nothing waiting to be dispensed.</p>}
           {data.queue.map((row) => (
+            // One wrapper per line: the row opens the script, and the cancel
+            // control beside it cannot live inside it — a button inside a
+            // button is not allowed, and the click would open the script too.
+            <div key={row.item_id} className={`wl-row-wrap${onCancel ? " has-cancel" : ""}`}>
             <button
-              key={row.item_id}
               className={`wl-row ${BAND_CLASS[row.band]}`}
               onClick={() => onPick?.(row)}
               title={`${row.reason} · booked ${row.booked_for}`}
@@ -303,6 +311,16 @@ export default function DispensaryWorklist({
                 </span>
               </span>
             </button>
+            {onCancel && (
+              <button type="button" className="wl-row-cancel"
+                      title={`Cancel ${row.rx_number}`}
+                      aria-label={`Cancel ${row.rx_number} for ${row.patient}`}
+                      onClick={() => onCancel(row, data.queue.filter(
+                        (q) => q.prescription_id === row.prescription_id).length)}>
+                <XCircle size={16} />
+              </button>
+            )}
+            </div>
           ))}
           {counts.showing < counts.waiting && (
             // Said plainly. A list that quietly shows 200 of 258 is the same

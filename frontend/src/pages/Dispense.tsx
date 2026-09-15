@@ -820,17 +820,26 @@ export default function Dispense() {
    *  (backend/app/services/script_cancel.py). A saved, undispensed script had
    *  no way off the queue — including the copies refused dispensings left
    *  behind — so it sat there looking like a patient waiting. */
-  const [cancellingScript, setCancellingScript] = useState(false);
+  /** The script the Cancel dialog is about — the one open on screen, or one
+   *  picked from the worklist without opening it. */
+  const [cancelTarget, setCancelTarget] = useState<
+    { id: number; number: string; patient?: string; product?: string; lines?: number } | null>(null);
+  function openCancel(target: NonNullable<typeof cancelTarget>) {
+    setCancelReason("");
+    setCancelTarget(target);
+  }
   const [cancelReason, setCancelReason] = useState("");
   const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
 
   async function cancelScript() {
-    if (!fromRx || cancelReason.trim().length < 3) return;
-    const number = fromRx.number;
+    if (!cancelTarget || cancelReason.trim().length < 3) return;
+    const { id, number } = cancelTarget;
     try {
-      await api.post(`/api/prescriptions/${fromRx.id}/cancel`, { reason: cancelReason.trim() });
-      setCancellingScript(false);
-      newScript();
+      await api.post(`/api/prescriptions/${id}/cancel`, { reason: cancelReason.trim() });
+      setCancelTarget(null);
+      // Clear the screen only if the cancelled script is the one on it; one
+      // cancelled from the worklist leaves whatever is being worked on alone.
+      if (fromRx?.id === id) newScript();
       setWorklistNonce((n) => n + 1);
       toast.ok(`${number} is cancelled and off the worklist.`);
     } catch (e) {
@@ -1336,9 +1345,9 @@ export default function Dispense() {
     // empty the script behind the dialog being closed.
     { combo: "Escape", label: "Close, or clear the script", group: "Finish",
       disabled: items.length === 0 && finishing === null && editing === null
-        && checking === null && laneOpen === null && !holding && !cancellingScript,
+        && checking === null && laneOpen === null && !holding && !cancelTarget,
       run: () => {
-        if (cancellingScript) return setCancellingScript(false);
+        if (cancelTarget) return setCancelTarget(null);
         if (holding) return setHolding(false);
         if (laneOpen !== null) return setLaneOpen(null);
         if (finishing !== null) return setFinishing(null);
@@ -2404,7 +2413,9 @@ export default function Dispense() {
                     title={mayCancelScript
                       ? "Take this script off the worklist, with the reason"
                       : "A pharmacist or a manager cancels a script"}
-                    onClick={() => { setCancelReason(""); setCancellingScript(true); }}>
+                    onClick={() => openCancel({ id: fromRx.id, number: fromRx.number,
+                                                patient: patient ? `${patient.first_name} ${patient.last_name}` : undefined,
+                                                lines: items.length })}>
               <XCircle size={14} /> Cancel script
             </button>
           )}
@@ -4103,11 +4114,22 @@ ${d.action}`}
 
             {/* Cancelling a saved script: why, in a word or a sentence, and what
                 happens — said before the button, not discovered after it. */}
-            {cancellingScript && fromRx && (
+            {cancelTarget && (
               <div className="modal-backdrop" role="dialog" aria-modal="true"
-                   aria-labelledby="cancel-title" onClick={() => setCancellingScript(false)}>
+                   aria-labelledby="cancel-title" onClick={() => setCancelTarget(null)}>
                 <div className="modal disp-cancel-modal" onClick={(e) => e.stopPropagation()}>
-                  <h2 id="cancel-title">Cancel {fromRx.number}</h2>
+                  <h2 id="cancel-title">Cancel {cancelTarget.number}</h2>
+                  {/* Which script, in words — from the worklist it has not been
+                      opened, and a row is one line of it. */}
+                  {(cancelTarget.patient || cancelTarget.lines) && (
+                    <p className="cancel-which">
+                      {cancelTarget.patient && <b>{cancelTarget.patient}</b>}
+                      {cancelTarget.product && <> · {cancelTarget.product}</>}
+                      {cancelTarget.lines && cancelTarget.lines > 1 && (
+                        <> · the whole script, all {cancelTarget.lines} lines</>
+                      )}
+                    </p>
+                  )}
                   <p className="muted">
                     It comes off the worklist and can&rsquo;t be dispensed. Nothing on it has
                     gone out, so no stock, sale or claim is touched. The reason is kept on
@@ -4130,7 +4152,7 @@ ${d.action}`}
                            placeholder="Pick one above, or say it in your own words" />
                   </div>
                   <div className="modal-actions">
-                    <button type="button" className="btn ghost" onClick={() => setCancellingScript(false)}>
+                    <button type="button" className="btn ghost" onClick={() => setCancelTarget(null)}>
                       Keep the script
                     </button>
                     <BusyButton className="btn danger" busyLabel="Cancelling…"
@@ -4291,6 +4313,12 @@ ${d.action}`}
 
       <DispensaryWorklist
         reloadOn={worklistNonce}
+        // Cancel straight from the queue, where the script is sitting — for
+        // those who may; nobody else sees the control.
+        onCancel={mayCancelScript
+          ? (row, lines) => openCancel({ id: row.prescription_id, number: row.rx_number,
+                                         patient: row.patient, product: row.product, lines })
+          : undefined}
         panel={worklistPanel}
         onPanelChange={setWorklistPanel}
         onPickRepeat={(row) => {

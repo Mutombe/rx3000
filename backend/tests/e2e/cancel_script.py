@@ -121,6 +121,62 @@ with sync_playwright() as pw:
     page.keyboard.press("Escape")
     page.wait_for_timeout(500)
     check("Escape closes the dialog", page.query_selector(".disp-cancel-modal") is None)
+
+    # ---- straight from the worklist, the way the duplicates are found ---------
+    twin_a = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
+                                        "notes": "duplicate a", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
+                 token=token)
+    twin_b = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
+                                        "notes": "duplicate b", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
+                 token=token)
+    pair = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
+                                      "notes": "two lines", "items": [{**LINE, "product_id": stocked[0]["id"]},
+                                                                      {**LINE, "product_id": stocked[1]["id"]}]},
+               token=token)
+    page.goto(BASE + "/dispense", wait_until="networkidle")
+    page.wait_for_timeout(2500)
+    if page.query_selector(".disp-patient-picked"):
+        page.locator(".page-actions").get_by_role("button", name="New script").click()
+        page.wait_for_timeout(900)
+
+    def wrap_index(rx_id):
+        queue = api("/api/dispensary/worklist", token=token)["queue"]
+        shown = page.locator(".wl-row-wrap").count()
+        return next((i for i, q in enumerate(queue) if q["prescription_id"] == rx_id and i < shown), None)
+
+    check("worklist rows carry a cancel control", page.locator(".wl-row-wrap .wl-row-cancel").count() > 0)
+    idx = wrap_index(twin_a["id"])
+    check("the duplicate is on the worklist", idx is not None, f"{twin_a['rx_number']} not among the rows shown")
+    if idx is not None:
+        page.locator(".wl-row-wrap").nth(idx).locator(".wl-row-cancel").click()
+        page.wait_for_timeout(700)
+        modal = page.query_selector(".disp-cancel-modal")
+        check("pressing it opens the dialog for that script",
+              modal is not None and twin_a["rx_number"] in modal.inner_text(),
+              modal.inner_text()[:120] if modal else "")
+        check("…naming the patient", modal is not None and patient["last_name"] in modal.inner_text())
+        check("…without opening the script behind it", page.query_selector(".disp-patient-picked") is None)
+        if SHOT:
+            page.screenshot(path=str(SHOT / "cancel-from-worklist.png"))
+        page.locator(".disp-cancel-modal .hold-reason", has_text="Captured twice by mistake").click()
+        page.locator(".disp-cancel-modal").get_by_role("button", name="Cancel script").click()
+        page.wait_for_timeout(2200)
+        queue = api("/api/dispensary/worklist", token=token)["queue"]
+        check("cancelled from the worklist, its line leaves the rail",
+              not any(q["prescription_id"] == twin_a["id"] for q in queue)
+              and page.locator(f".wl-row-wrap").count() >= 1)
+        check("…and its twin stays, still waiting", any(q["prescription_id"] == twin_b["id"] for q in queue))
+
+    idx = wrap_index(pair["id"])
+    if idx is not None:
+        page.locator(".wl-row-wrap").nth(idx).locator(".wl-row-cancel").click()
+        page.wait_for_timeout(700)
+        text = page.inner_text(".disp-cancel-modal")
+        check("a two-line script says cancelling takes the whole script", "all 2 lines" in text, text[:160])
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(400)
+    else:
+        print("  --    the two-line script is past the rows shown; not exercised")
     browser.close()
 
 print(f"\n{len(fails)} failed" if fails else "\nall passed")
