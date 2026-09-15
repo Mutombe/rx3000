@@ -437,6 +437,10 @@ class DispenseRequest(BaseModel):
     # server resolves each one again and refuses a code that is not that line's
     # medicine, so a check cannot be claimed for the wrong pack.
     scanned_codes: dict[int, str] = {}
+    # The expiry printed on the pack, by product id, for a line that can only go
+    # out from stock with no expiry recorded. Written onto that stock before it
+    # is drawn (helpers.date_undated_stock).
+    pack_expiries: dict[int, date] = {}
 
 
 class SchedulePolicyOut(BaseModel):

@@ -29,6 +29,37 @@ def dispensing_policy():
     return schedule_policy.all_policies()
 
 
+@router.post("/expiry-needed")
+def expiry_needed(lines: list[dict] = Body(..., embed=True), db: Session = Depends(get_db)):
+    """Which lines can only go out from stock with no expiry recorded.
+
+    Asked before Finish, so the dispenser can be asked for the date on the pack
+    in their hand before paying rather than refused after (see
+    helpers.date_undated_stock). A line needs one when this branch's in-date
+    stock does not cover it and undated stock exists to make up the rest.
+    `lines` is [{product_id, quantity}], quantity in units, as dispensed.
+    """
+    from ..models import Product
+    from ..services import branches as branch_svc
+
+    branch_id = branch_svc.default_branch(db).id
+    out = []
+    for line in lines:
+        product = db.get(Product, int(line.get("product_id") or 0))
+        needed = int(line.get("quantity") or 0)
+        if not product or needed <= 0:
+            continue
+        dated = helpers.dated_stock(db, product, branch_id)
+        if dated >= needed:
+            continue
+        undated, _expired = helpers.stock_without_a_good_date(db, product, branch_id)
+        if undated:
+            out.append({"product_id": product.id,
+                        "name": f"{product.name} {product.strength or ''}".strip(),
+                        "needed_units": needed, "dated_units": dated, "undated_units": undated})
+    return out
+
+
 @router.get("/products", response_model=list[schemas.ProductOut])
 def products_by_route(route: str = "otc", q: str = "", limit: int = 40, db: Session = Depends(get_db)):
     """Products available on a given dispensing route (otc | prescription | controlled)."""

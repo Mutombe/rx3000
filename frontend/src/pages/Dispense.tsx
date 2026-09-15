@@ -45,7 +45,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
-  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature, Barcode } from "@phosphor-icons/react";
+  ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature, Barcode, CalendarBlank } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
@@ -71,6 +71,14 @@ const lineName = (p: Product) => `${p.name} ${p.strength || ""}`.trim();
 const PATIENT_HINT = "Name, ID, phone or aid no.";
 const PRESCRIBER_HINT = "Name or practice no.";
 const MEDICINE_HINT = "Name, or scan a pack";
+
+/** Today as YYYY-MM-DD in the pharmacy's own time, to compare with a date input.
+ *  `toISOString` is UTC, which for two hours after midnight in Harare is still
+ *  yesterday. */
+function localIsoDate(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
 
 /** Whether what arrived in the medicine box is a scanned code rather than a name.
  *
@@ -604,6 +612,39 @@ export default function Dispense() {
   const [scanChecks, setScanChecks] = useState<Record<number, string>>({});
   /** Whether this pharmacy will not dispense a pack nobody scanned. */
   const [requireScan, setRequireScan] = useState(false);
+
+  /** Lines that can only go out from stock with no expiry recorded, and the date
+   *  read off the pack for each.
+   *
+   *  The CareXpress opening stock came in as one batch per product with no
+   *  expiry, so ninety-two products in a hundred could not be dispensed at all —
+   *  and the refusal came after the money had been chosen, calling the stock
+   *  expired. The dispenser is asked instead, before paying, for the date on the
+   *  pack in their hand; the server writes it onto the stock, and the label
+   *  prints with it. The shelf gets dated one dispensing at a time. */
+  const [expiryNeeded, setExpiryNeeded] = useState<
+    { product_id: number; name: string; needed_units: number; dated_units: number; undated_units: number }[]>([]);
+  const [packExpiry, setPackExpiry] = useState<Record<number, string>>({});
+  const stockKey = items.map((i) => `${i.product.id}:${i.quantity}`).join(",");
+  useEffect(() => {
+    if (!items.length || route === "otc") { setExpiryNeeded([]); return; }
+    const t = window.setTimeout(() => {
+      api.post<typeof expiryNeeded>("/api/dispensing/expiry-needed", {
+        lines: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
+      }).then(setExpiryNeeded).catch(() => setExpiryNeeded([]));
+    }, 250);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockKey, route]);
+  /** The first line still needing a date from its pack, or a date already past. */
+  const expiryProblem = (): string => {
+    const today = localIsoDate();
+    const past = expiryNeeded.find((l) => packExpiry[l.product_id] && packExpiry[l.product_id] < today);
+    if (past) return `The pack of ${past.name} has expired — take another from the shelf.`;
+    const missing = expiryNeeded.find((l) => !packExpiry[l.product_id]);
+    if (missing) return `Enter the expiry printed on the pack of ${missing.name}.`;
+    return "";
+  };
   useEffect(() => {
     // `groups` is an object keyed by group name, each holding a list of
     // settings — not a list of groups with a `settings` field, which is what I
@@ -711,7 +752,7 @@ export default function Dispense() {
     setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
-    setCounselPoints([]); setCounselNotes(""); setScanChecks({});
+    setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
     // A new script is a new number: whatever was dispensed while this screen
     // was open has taken one since it last asked.
     refreshNextNumber();
@@ -799,6 +840,11 @@ export default function Dispense() {
       if (res.expired) {
         toast.error(res.warnings.find((w: string) => w.includes("expired")) || "That pack has expired.");
         return;
+      }
+      // A GS1 pack carries its own expiry. Where the stock has none recorded,
+      // the scan answers the question Finish would otherwise ask.
+      if (res.expiry_date && expiryNeeded.some((l) => l.product_id === res.product.id)) {
+        setPackExpiry((cur) => ({ ...cur, [res.product.id]: res.expiry_date }));
       }
       const line = items.find((i) => i.product.id === res.product.id);
       if (line) {
@@ -1009,7 +1055,7 @@ export default function Dispense() {
 
   /** Anything the first stage of Finish would show. */
   function needsSettling() {
-    return (counter.data?.count ?? 0) > 0 || doseScreen.major > 0
+    return (counter.data?.count ?? 0) > 0 || doseScreen.major > 0 || expiryNeeded.length > 0
       || !!(coverage && (!coverage.all_claimable || coverage.authorisation_required));
   }
 
@@ -1019,6 +1065,8 @@ export default function Dispense() {
     const n = counter.outstanding.length;
     if (n > 0) return `Acknowledge the ${n === 1 ? "blocking warning" : `${n} blocking warnings`} to continue.`;
     if (doseScreen.major > 0 && !ixAcknowledged) return "Confirm the dose over the maximum to continue.";
+    const expiry = expiryProblem();
+    if (expiry) return expiry;
     return "";
   }
 
@@ -1807,6 +1855,20 @@ export default function Dispense() {
       // Matching on the product is stable across all of that, and still honours
       // a line the dispenser took off the screen. Products are unique on a
       // script here: `addItem` refuses a second line for the same one.
+      // The script exists from here on, whatever happens to the dispensing.
+      //
+      // It was created and then dispensed as two steps, and a refusal in the
+      // second left the first behind: a saved, undispensed script, on the
+      // worklist, with a number taken. Pressing Dispense again created another.
+      // Three tries at a line with no dated stock made three identical scripts
+      // for one patient and spent three numbers. The screen now takes the saved
+      // script as its own, so a retry dispenses that one, and the worklist
+      // shows the one script that is genuinely still waiting.
+      if (!fromRx) {
+        setFromRx({ id: rx.id, date: (rx as any).date_prescribed,
+                    number: (rx as any).rx_number || `#${rx.id}`, draft: false });
+        adoptIds(rx);
+      }
       const onScreen = new Set(items.map((i) => i.product.id));
       const selected = (rx.items ?? [])
         .filter((i: any) => onScreen.has(i.product_id))
@@ -1825,6 +1887,10 @@ export default function Dispense() {
           (rx.items ?? [])
             .filter((i: any) => onScreen.has(i.product_id) && scanChecks[i.product_id])
             .map((i: any) => [i.id, scanChecks[i.product_id]])),
+        // The date read off each pack whose stock had none recorded.
+        pack_expiries: Object.fromEntries(
+          expiryNeeded.filter((l) => packExpiry[l.product_id])
+            .map((l) => [l.product_id, packExpiry[l.product_id]])),
         ...compliancePayload(),
         // The warnings acknowledged at the counter, recorded against this
         // script by the server as it is dispensed.
@@ -1922,7 +1988,7 @@ export default function Dispense() {
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
-      setCounselPoints([]); setCounselNotes(""); setScanChecks({});
+      setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
@@ -1954,7 +2020,12 @@ export default function Dispense() {
       if (payHow === "till" && finished?.id) {
         navigate(`/pos?settle=${finished.id}&tab=pending`);
       }
-    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
+    } catch (e: any) {
+      toast.error(errorText(e));
+      // A refusal can leave a script that was saved a moment ago; the worklist
+      // should show it now rather than at its next two-minute refresh.
+      setWorklistNonce((n) => n + 1);
+    } finally { setBusy(false); }
   }
 
   async function sellOtc() {
@@ -3419,7 +3490,9 @@ ${d.action}`}
               const hasSettle = needsSettling();
               const stage = hasSettle ? finishStage : "pay";
               const toAck = counter.outstanding.length
-                + (doseMajors.length > 0 && !ixAcknowledged ? 1 : 0);
+                + (doseMajors.length > 0 && !ixAcknowledged ? 1 : 0)
+                + expiryNeeded.filter((l) => !packExpiry[l.product_id]
+                    || packExpiry[l.product_id] < localIsoDate()).length;
               const worthKnowing = advisoryMsgs.length + (notCovered ? 1 : 0) + (needsAuth ? 1 : 0);
               const held = settleBlocks();
               const why = blockedBecause();
@@ -3470,6 +3543,52 @@ ${d.action}`}
                             <b>{items.length}</b><span>line{items.length === 1 ? "" : "s"} screened</span>
                           </div>
                         </div>
+
+                        {/* Stock with no expiry recorded. Asked here, before
+                            paying, of the person holding the pack — rather than
+                            refused after, as "expired", which it was not. */}
+                        {expiryNeeded.length > 0 && (
+                          <section className="fin-group fin-expiry" id="finish-expiry">
+                            <h4>Expiry from the pack</h4>
+                            <p className="fin-note">
+                              This stock came in with no expiry date recorded. Enter the date
+                              printed on the pack you are handing over — it is saved to the
+                              stock, and printed on the label.
+                            </p>
+                            <ul className="fin-list">
+                              {expiryNeeded.map((l) => {
+                                const value = packExpiry[l.product_id] ?? "";
+                                const past = !!value && value < localIsoDate();
+                                return (
+                                  <li key={l.product_id}
+                                      className={`fin-item ${!value || past ? "is-stop" : "is-done"}`}>
+                                    <span className="fin-item-icon"><CalendarBlank size={16} /></span>
+                                    <div className="fin-item-body">
+                                      <p><b>{l.name}</b></p>
+                                      <p className="muted small">
+                                        {l.undated_units} on the shelf with no expiry recorded
+                                        {l.dated_units ? `, ${l.dated_units} dated` : ""}
+                                      </p>
+                                      {past && (
+                                        <p className="fin-note is-bad">
+                                          <Warning size={13} weight="fill" />
+                                          <span>That pack has expired — take another from the shelf.</span>
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="fin-item-act">
+                                      <input type="date" id={`pack-expiry-${l.product_id}`}
+                                             aria-label={`Expiry printed on the pack of ${l.name}`}
+                                             value={value}
+                                             onChange={(e) => setPackExpiry((cur) => ({
+                                               ...cur, [l.product_id]: e.target.value }))} />
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </section>
+                        )}
 
                         {(doseMajors.length > 0 || blockingMsgs.length > 0) && (
                           <section className="fin-group">

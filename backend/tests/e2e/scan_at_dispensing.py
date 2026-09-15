@@ -69,9 +69,30 @@ for p in api("/api/dispensing/products?route=prescription&limit=200", token=toke
     if len(barcoded) == 2:
         break
 (right, right_code), (wrong, wrong_code) = barcoded
-patient = api("/api/patients?q=Andela&limit=3", token=token)[0]
 doctors = api("/api/doctors?limit=3", token=token)
 doctor = (doctors["items"] if isinstance(doctors, dict) else doctors)[0]
+
+
+def blocking_for(p):
+    q = (f"/api/counter-messages/for-dispensing?patient_id={p['id']}&product_ids={right['id']}"
+         f"&doctor_id={doctor['id']}")
+    if p.get("medical_aid_id"):
+        q += f"&medical_aid_id={p['medical_aid_id']}"
+    return api(q, token=token)["blocking"]
+
+
+# A patient with nothing blocking this medicine. The bar names the first thing
+# in the way, and a real blocking warning — an allergy, a scheme rule — rightly
+# comes before a count of unscanned packs; the scan count is what this checks.
+patient = None
+for candidate in api("/api/patients?q=a&limit=40", token=token):
+    blocks = blocking_for(candidate)
+    if not blocks:
+        patient = candidate
+        break
+    print(f"  --    passing over {candidate['first_name']} {candidate['last_name']}: "
+          + "; ".join(f"{b.get('category')} — {b.get('body', '')[:90]}" for b in blocks[:2]))
+assert patient, "no patient in the local database is free of blocking warnings for this medicine"
 rx = api("/api/prescriptions", {
     "patient_id": patient["id"], "doctor_id": doctor["id"], "notes": "scan in the browser",
     "items": [{"product_id": right["id"], "quantity": 1, "dosage_instructions": "One daily",

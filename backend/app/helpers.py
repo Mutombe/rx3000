@@ -167,6 +167,69 @@ def receive_stock_batch(
     return batch
 
 
+def stock_without_a_good_date(db: Session, product: Product, branch_id: int) -> tuple[int, int]:
+    """Units at this branch that dispensing cannot count: (undated, expired)."""
+    undated = (db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+               .filter(StockBatch.product_id == product.id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.branch_id == branch_id,
+                       StockBatch.expiry_date.is_(None))
+               .scalar() or 0)
+    expired = (db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+               .filter(StockBatch.product_id == product.id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.branch_id == branch_id,
+                       StockBatch.expiry_date < date.today())
+               .scalar() or 0)
+    return int(undated), int(expired)
+
+
+def dated_stock(db: Session, product: Product, branch_id: int) -> int:
+    """Units at this branch that dispensing can draw: in date, with a date."""
+    return int(db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+               .filter(StockBatch.product_id == product.id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.branch_id == branch_id,
+                       StockBatch.expiry_date >= date.today())
+               .scalar() or 0)
+
+
+def date_undated_stock(db: Session, product: Product, expiry: date, user_id: int | None,
+                       branch_id: int | None = None) -> list[StockBatch]:
+    """Record the expiry read off the pack on this branch's undated stock.
+
+    The CareXpress opening stock arrived as one batch per product with no expiry,
+    which dispensing cannot draw from: its whole point is refusing stock that
+    might be out of date. Rather than let undated stock through, the dispenser
+    holding the pack is asked for the date printed on it, and the batch is dated
+    with it — so the shelf is dated one dispensing at a time, and the label that
+    goes on the box carries a real expiry.
+
+    Each dating is recorded as a zero-quantity stock movement: who read the date,
+    when, and onto which batch. A batch has nowhere else to say it.
+    """
+    if branch_id is None:
+        from .services import branches as _branches
+        branch_id = _branches.default_branch(db).id
+    undated = (db.query(StockBatch)
+               .filter(StockBatch.product_id == product.id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.branch_id == branch_id,
+                       StockBatch.expiry_date.is_(None))
+               .all())
+    for batch in undated:
+        batch.expiry_date = expiry
+        db.add(StockMovement(
+            product_id=product.id, movement_type="adjustment", quantity_delta=0,
+            balance_after=product.quantity_on_hand or 0,
+            reference=f"EXPIRY {batch.batch_number}"[:60],
+            notes=f"Expiry {expiry:%d %b %Y} recorded from the pack at dispensing.",
+            user_id=user_id, branch_id=branch_id,
+        ))
+    db.flush()
+    return undated
+
+
 def consume_stock_fefo(
     db: Session,
     product: Product,
@@ -235,10 +298,24 @@ def consume_stock_fefo(
         hint = (f" Another branch holds {int(elsewhere)}, raise a transfer."
                 if elsewhere else "")
         if not allow_expired and total_any and available < quantity:
+            # Say which it is. This said "check batches for expired stock" for
+            # every shortfall of dated stock, and on the CareXpress import most
+            # of it is not expired at all: the opening stock came in as one
+            # batch per product with no expiry recorded, which a dated check
+            # cannot count. A dispenser was sent looking for expired packs on a
+            # shelf of good ones.
+            undated, expired = stock_without_a_good_date(db, product, branch_id)
+            parts = []
+            if undated:
+                parts.append(f"{undated} unit(s) have no expiry date recorded")
+            if expired:
+                parts.append(f"{expired} unit(s) are past their expiry")
+            action = (" Enter the expiry printed on the pack to dispense them."
+                      if undated else " Take the expired stock off the shelf.")
             raise HTTPException(
                 status_code=400,
-                detail=f"{product.name}: only {available} unexpired unit(s) at this "
-                       f"branch. Check batches for expired stock.{hint}",
+                detail=(f"{product.name}: only {available} in-date unit(s) at this branch — "
+                        + " and ".join(parts) + "." + action + hint),
             )
         raise HTTPException(
             status_code=400,

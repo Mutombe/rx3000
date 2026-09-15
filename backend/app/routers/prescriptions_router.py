@@ -322,6 +322,23 @@ def place_hold(rx_id: int, reason_code: str = Body(...), note: str = Body(defaul
     return holds.summarise(db, hold)
 
 
+@router.post("/prescriptions/{rx_id}/cancel")
+def cancel_script(rx_id: int, reason: str = Body(..., embed=True),
+                  db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Take a script that was never dispensed off the worklist, with the reason."""
+    from ..services import script_cancel
+
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    try:
+        script_cancel.cancel(db, rx=rx, reason=reason, user=user)
+    except script_cancel.CancelError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    db.commit()
+    return {"id": rx.id, "rx_number": rx.rx_number, "status": rx.status}
+
+
 @router.post("/prescriptions/{rx_id}/dispense", response_model=schemas.SaleOut)
 def dispense(
     rx_id: int,
@@ -340,6 +357,12 @@ def dispense(
                    "entered in the register.")
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
+    # Cancelled means it does not go out — reached by a link, an old tab, or a
+    # screen opened before somebody cancelled it.
+    if rx.status == "cancelled":
+        raise HTTPException(status_code=400, detail=(
+            f"{rx.rx_number or 'This script'} was cancelled and cannot be dispensed. "
+            "Capture a new script if it is needed after all."))
 
     # A held script does not go out, whatever the screen that sent this thinks.
     # Somebody stopped it for a reason, and releasing it is a decision about
@@ -509,6 +532,21 @@ def dispense(
             raise HTTPException(status_code=400, detail=(
                 "Scan each pack against the script before dispensing — not yet scanned: "
                 + ", ".join(unscanned) + "."))
+
+    # The expiry read off the pack, for stock that arrived without one. Written
+    # onto the undated stock before anything is drawn, inside this transaction —
+    # so a dispensing that fails later leaves the batch as it was. A pack already
+    # out of date is refused here, by name: the date was asked for to stop
+    # exactly that pack going out.
+    for item in items:
+        expiry = body.pack_expiries.get(item.product_id)
+        if not expiry:
+            continue
+        if expiry < date.today():
+            raise HTTPException(status_code=400, detail=(
+                f"The pack of {item.product.name} expired on {expiry:%d %b %Y}. "
+                "Take another pack from the shelf."))
+        helpers.date_undated_stock(db, item.product, expiry, user.id)
 
     sale = Sale(
         sale_number=helpers.next_number(db, Sale, "INV", "sale_number"),
