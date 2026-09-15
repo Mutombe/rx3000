@@ -9312,3 +9312,27 @@ button.fin-ack { cursor: pointer; }
 .dd-counsel { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
 .dd-counsel h4 { margin: 0 0 var(--s2); }
 .dd-counsel h4 .muted { font-weight: 400; }
+
+/* ========================================================================
+   HOLDS — putting a script down on purpose, and seeing that it is down.
+   ======================================================================== */
+.disp-dense .disp-bar .btn.disp-hold.is-held {
+  color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft);
+}
+.disp-hold-modal { max-width: 34rem; }
+.disp-hold-modal > p { margin: 0 0 var(--s3); }
+.hold-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--s4); }
+.hold-reason {
+  height: 32px; padding: 0 12px;
+  font-size: .85rem; font-weight: 500;
+  color: var(--ink-soft); background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: 999px; box-shadow: none;
+}
+.hold-reason:hover { color: var(--ink); border-color: var(--line-strong); }
+.hold-reason.is-on { color: var(--ink); background: var(--surface); border-color: var(--accent); font-weight: 600; }
+.wl-tag.wl-tag-held { color: var(--warn); background: var(--warn-soft); border-color: var(--warn-line); }
+
+/* The initials are upper-cased as they are typed; the field's own name is not.
+   Without this the placeholder read "CHECKED BY" — the uppercase rule for the
+   initials reached the words describing the field. */
+.disp-initials > input::placeholder, .finish-initials > input::placeholder { text-transform: none; }

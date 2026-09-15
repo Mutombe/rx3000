@@ -27,6 +27,8 @@ interface QueueRow {
    *  A repeat is checked differently from a first dispensing, and the queue used
    *  to say nothing — you had to open the script to find out. */
   is_repeat: boolean; repeats_used: number; repeats_allowed: number; repeats_left: number;
+  /** Put down on purpose, and why. Held rows come after every workable one. */
+  hold?: { reason: string; since: string | null } | null;
 }
 interface ChronicRow {
   patient_id: number; patient: string; conditions: string;
@@ -273,6 +275,12 @@ export default function DispensaryWorklist({
               </span>
               <span className="wl-row-mid">{row.product}</span>
               <span className="wl-row-foot">
+                {/* First, so a held patient is not called to the counter. */}
+                {row.hold && (
+                  <span className="wl-tag wl-tag-held" title={`On hold — ${row.hold.reason}`}>
+                    on hold
+                  </span>
+                )}
                 <span className="wl-tag">{row.band_label}</span>
                 {row.is_repeat && (
                   <span className="wl-tag wl-tag-repeat"

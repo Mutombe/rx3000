@@ -180,6 +180,19 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
         db.query(Patient).filter(
             Patient.id.in_({s.patient_id for _i, s, _p, _q in rows if s.patient_id})).all()
     }
+    # Scripts somebody has put down on purpose. Still on the queue — they are
+    # still owed — but marked, and below everything that can be worked, so the
+    # next patient called is not one who cannot be served. One query for the
+    # lot, not one per row.
+    from ..models import PrescriptionHold
+    from .holds import REASONS as HOLD_REASONS
+
+    held = {
+        h.prescription_id: h for h in
+        db.query(PrescriptionHold).filter(
+            PrescriptionHold.prescription_id.in_({s.id for _i, s, _p, _q in rows}),
+            PrescriptionHold.cleared_at.is_(None)).all()
+    }
     out = []
     for item, script, product, dispensed in rows:
         outstanding = (item.quantity or 0) - int(dispensed or 0)
@@ -225,10 +238,15 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             "value_remaining": _value(
                 product, item.quantity or 0,
                 times=max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0))),
+            "hold": ({
+                "reason": HOLD_REASONS.get(held[script.id].reason_code, held[script.id].reason_code),
+                "since": held[script.id].placed_at.isoformat() if held[script.id].placed_at else None,
+            } if script.id in held else None),
         })
-    # Severity band first, then how long it has been waiting. Within a band the
-    # oldest booking goes first, which is the only fair reading of a queue.
-    out.sort(key=lambda r: (r["band"], -r["waiting_days"], r["patient"]))
+    # Workable before held, then severity band, then how long it has been
+    # waiting. Within a band the oldest booking goes first, which is the only
+    # fair reading of a queue.
+    out.sort(key=lambda r: (r["hold"] is not None, r["band"], -r["waiting_days"], r["patient"]))
     return out[:limit], len(out), out
 
 

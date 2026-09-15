@@ -2765,6 +2765,65 @@ def _prescribers(db: Session, p: dict):
 
 
 register(Report(
+    key="dispensing_holds",
+    title="Dispensing holds",
+    module="Dispensary",
+    purpose="Every script put on hold in the period: why, who held it, who "
+            "released it, and how long it waited. The ones still held are the "
+            "patients still waiting.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("placed_at", "Held", "datetime"),
+        Column("rx_number", "Script", "code"),
+        Column("patient", "Patient", "text"),
+        Column("reason", "Reason", "text"),
+        Column("placed_by", "Held by", "text"),
+        Column("cleared_at", "Released", "datetime"),
+        Column("cleared_by", "Released by", "text"),
+        Column("hours_held", "Hours held", "number"),
+        Column("status", "Status", "text"),
+    ],
+    rows=lambda db, p: _dispensing_holds(db, p),
+))
+
+
+def _dispensing_holds(db: Session, p: dict):
+    """CareXpress To-Be blueprint §8: hold duration tracked and reported."""
+    from ...models import PrescriptionHold
+    from ..holds import REASONS, hours_held
+
+    held = (
+        db.query(PrescriptionHold, Prescription)
+        .join(Prescription, PrescriptionHold.prescription_id == Prescription.id)
+        .filter(func.date(PrescriptionHold.placed_at) >= p["date_from"])
+        .filter(func.date(PrescriptionHold.placed_at) <= p["date_to"])
+        .order_by(PrescriptionHold.placed_at.desc())
+        .all()
+    )
+    if not held:
+        return []
+    patients = {
+        pt.id: f"{pt.first_name} {pt.last_name}".strip() for pt in
+        db.query(Patient).filter(
+            Patient.id.in_({rx.patient_id for _h, rx in held if rx.patient_id})).all()
+    }
+    user_ids = {h.placed_by_id for h, _rx in held} | {h.cleared_by_id for h, _rx in held if h.cleared_by_id}
+    users = {u.id: (u.full_name or u.username) for u in
+             db.query(User).filter(User.id.in_(user_ids)).all()}
+    return [{
+        "placed_at": h.placed_at,
+        "rx_number": rx.rx_number or f"#{rx.id}",
+        "patient": patients.get(rx.patient_id, "—"),
+        "reason": REASONS.get(h.reason_code, h.reason_code),
+        "placed_by": users.get(h.placed_by_id, ""),
+        "cleared_at": h.cleared_at,
+        "cleared_by": users.get(h.cleared_by_id, "") if h.cleared_by_id else "",
+        "hours_held": hours_held(h),
+        "status": "Released" if h.cleared_at else "Still held",
+    } for h, rx in held]
+
+
+register(Report(
     key="script_book",
     title="Script book",
     module="Dispensary",

@@ -37,7 +37,7 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import (branches, claims_engine, counselling, messages, paging,
+from ..services import (branches, claims_engine, counselling, holds, messages, paging,
                         permissions, proppharm,
                         sig, to_follows)
 
@@ -124,6 +124,33 @@ def script_table(q: str = "", status: str = "", patient_id: int = 0,
                            altered_only=altered_only)
     result = paging.page(query, page=page, per_page=per_page)
     return {**result.envelope(), "items": scripts.rows(db, result.items)}
+
+
+# ---- holds (services/holds.py) ----------------------------------------------
+# The clearing route is registered here, above every /prescriptions/{rx_id}
+# route, so "holds" is never read as a script id.
+@router.post("/prescriptions/holds/{hold_id}/clear")
+def clear_hold(hold_id: int, note: str = Body(default="", embed=True),
+               db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Release a held script. A pharmacist or a manager."""
+    from ..models import PrescriptionHold
+
+    hold = db.get(PrescriptionHold, hold_id)
+    if not hold:
+        raise HTTPException(status_code=404, detail="That hold was not found.")
+    try:
+        holds.clear(db, hold=hold, note=note, user=user)
+    except holds.HoldError as exc:
+        status = 403 if user.role not in holds.CLEARERS else 400
+        raise HTTPException(status_code=status, detail=str(exc)) from exc
+    db.commit()
+    return holds.summarise(db, hold)
+
+
+@router.get("/prescriptions/holds/reasons")
+def hold_reasons():
+    """The reason codes, in the order they are offered."""
+    return [{"code": code, "label": label} for code, label in holds.REASONS.items()]
 
 
 # Registered above /prescriptions/{rx_id} for the same reason as the one above:
@@ -262,6 +289,39 @@ def get_prescription(rx_id: int, db: Session = Depends(get_db), _: User = Depend
     return rx
 
 
+@router.get("/prescriptions/{rx_id}/holds")
+def list_holds(rx_id: int, db: Session = Depends(get_db),
+               _: User = Depends(get_current_user)):
+    """Every hold this script has had, newest first. The open one, if any, first."""
+    from ..models import PrescriptionHold
+
+    if not db.get(Prescription, rx_id):
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    rows = (db.query(PrescriptionHold)
+            .filter(PrescriptionHold.prescription_id == rx_id)
+            .order_by(PrescriptionHold.placed_at.desc()).all())
+    return [holds.summarise(db, h) for h in rows]
+
+
+@router.post("/prescriptions/{rx_id}/holds")
+def place_hold(rx_id: int, reason_code: str = Body(...), note: str = Body(default=""),
+               db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    """Put a script down, with the reason, until somebody releases it."""
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    if rx.status == "draft":
+        raise HTTPException(status_code=400, detail=(
+            f"{rx.draft_ref or 'This script'} is still being captured. Save it for later "
+            "instead — a hold is for a script that could otherwise be dispensed."))
+    try:
+        hold = holds.place(db, prescription=rx, reason_code=reason_code, note=note, user=user)
+    except holds.HoldError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return holds.summarise(db, hold)
+
+
 @router.post("/prescriptions/{rx_id}/dispense", response_model=schemas.SaleOut)
 def dispense(
     rx_id: int,
@@ -280,6 +340,17 @@ def dispense(
                    "entered in the register.")
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")
+
+    # A held script does not go out, whatever the screen that sent this thinks.
+    # Somebody stopped it for a reason, and releasing it is a decision about
+    # that reason, not a side effect of pressing Dispense.
+    held = holds.open_hold(db, rx.id)
+    if held:
+        summary = holds.summarise(db, held)
+        raise HTTPException(status_code=409, detail=(
+            f"{rx.rx_number or 'This script'} is on hold — {summary['reason'].lower()}"
+            + (f", placed by {summary['placed_by']}" if summary["placed_by"] else "")
+            + ". A pharmacist or a manager clears the hold before it can be dispensed."))
 
     items = [i for i in rx.items if i.id in body.item_ids]
     if not items:

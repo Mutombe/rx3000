@@ -782,6 +782,25 @@ class Prescription(Base, TenantMixin):
     items = relationship("PrescriptionItem", back_populates="prescription", cascade="all, delete-orphan")
 
 
+class PrescriptionHold(Base, TenantMixin):
+    """A script put down on purpose (services/holds.py).
+
+    A row per hold rather than a status on the script, so a script held twice
+    keeps both, and how long each one waited can be reported.
+    """
+    __tablename__ = "prescription_holds"
+    id = Column(Integer, primary_key=True)
+    prescription_id = Column(Integer, ForeignKey("prescriptions.id"), nullable=False, index=True)
+    reason_code = Column(String(30), nullable=False)
+    note = Column(Text, default="")
+    placed_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    placed_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    #: Empty while the hold is open — which is what "on hold" means.
+    cleared_at = Column(DateTime, nullable=True, index=True)
+    cleared_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    clear_note = Column(Text, default="")
+
+
 class PrescriptionItem(Base, TenantMixin):
     __tablename__ = "prescription_items"
     id = Column(Integer, primary_key=True)

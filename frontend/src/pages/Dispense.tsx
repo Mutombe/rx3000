@@ -94,6 +94,12 @@ const COUNSELLING_POINTS: { key: string; short: string }[] = [
 const INITIALS_TITLE = "The initials of the pharmacist who checked this "
   + "dispensing. This is the record that somebody checked it.";
 
+/** An open hold on a script (backend/app/services/holds.py). */
+interface HoldSummary {
+  id: number; reason_code: string; reason: string; note: string;
+  placed_by: string; placed_at: string; open: boolean; hours_held: number;
+}
+
 interface DraftItem {
   product: Product;
   quantity: number;
@@ -698,6 +704,69 @@ export default function Dispense() {
    *  point what is on screen is no longer the thing that was queued. */
   const [fromRx, setFromRx] = useState<
     { id: number; number: string; draft?: boolean; date?: string } | null>(null);
+
+  /** The open hold on the script on screen, if somebody put it down.
+   *
+   *  CareXpress To-Be blueprint §8. A script waiting on a prescriber's call used
+   *  to look exactly like one waiting to be dispensed. Held, it says why on the
+   *  bar, the button will not go, and the worklist marks it — and the server
+   *  refuses it regardless of what this screen believes. */
+  const [hold, setHold] = useState<HoldSummary | null>(null);
+  const [holdReasons, setHoldReasons] = useState<{ code: string; label: string }[]>([]);
+  const [holding, setHolding] = useState(false);
+  const [holdReason, setHoldReason] = useState("");
+  const [holdNote, setHoldNote] = useState("");
+  const loadHold = useCallback((rxId: number | null) => {
+    if (!rxId) { setHold(null); return; }
+    api.get<HoldSummary[]>(`/api/prescriptions/${rxId}/holds`)
+      .then((all) => setHold(all.find((h) => h.open) ?? null))
+      .catch(() => setHold(null));
+  }, []);
+  useEffect(() => {
+    loadHold(fromRx && !fromRx.draft ? fromRx.id : null);
+  }, [fromRx?.id, fromRx?.draft, loadHold]);
+  /** Releasing a hold is a decision about why it was placed. */
+  const mayReleaseHold = ["pharmacist", "manager", "admin"].includes(session.role);
+
+  async function openHoldDialog() {
+    if (holdReasons.length === 0) {
+      try {
+        setHoldReasons(await api.get<{ code: string; label: string }[]>("/api/prescriptions/holds/reasons"));
+      } catch (e) {
+        toast.error(errorText(e, "The hold reasons could not be loaded."));
+        return;
+      }
+    }
+    setHoldReason("");
+    setHoldNote("");
+    setHolding(true);
+  }
+
+  async function placeHold() {
+    if (!fromRx || !holdReason) return;
+    try {
+      const placed = await api.post<HoldSummary>(`/api/prescriptions/${fromRx.id}/holds`,
+                                                 { reason_code: holdReason, note: holdNote.trim() });
+      setHold(placed);
+      setHolding(false);
+      setWorklistNonce((n) => n + 1);
+      toast.ok(`${fromRx.number} is on hold — ${placed.reason.toLowerCase()}.`);
+    } catch (e) {
+      toast.error(errorText(e, "That script could not be put on hold."));
+    }
+  }
+
+  async function releaseHold() {
+    if (!hold || !fromRx) return;
+    try {
+      await api.post(`/api/prescriptions/holds/${hold.id}/clear`, { note: "" });
+      setHold(null);
+      setWorklistNonce((n) => n + 1);
+      toast.ok(`${fromRx.number} is released and can be dispensed.`);
+    } catch (e) {
+      toast.error(errorText(e, "That hold could not be released."));
+    }
+  }
   const [coverage, setCoverage] = useState<CoverageReport | null>(null);
 
   /** The number this script will be given, shown before it is given.
@@ -755,7 +824,7 @@ export default function Dispense() {
     // Initials gate every route when the setting demands them.
     (!needsInitials || initials.trim() !== "") &&
     (!needsCompliance || (items.length > 0 && complianceDone)) &&
-    !counsellingMissing;
+    !counsellingMissing && !hold;
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -991,6 +1060,9 @@ export default function Dispense() {
   function takeMeThere() {
     const focus = (sel: string) => window.setTimeout(
       () => document.querySelector<HTMLElement>(sel)?.focus(), 30);
+    // Held: there is nowhere to take anybody. The bar already says why, and the
+    // release is beside it.
+    if (hold) return;
     if (!patient) return focus("[data-hk='patient']");
     if (doctorId === "") return focus("#step-patient .disp-doctor button, #step-patient .disp-doctor input");
     if (items.length === 0) return focus("[data-hk='product']");
@@ -1087,8 +1159,9 @@ export default function Dispense() {
     // empty the script behind the dialog being closed.
     { combo: "Escape", label: "Close, or clear the script", group: "Finish",
       disabled: items.length === 0 && finishing === null && editing === null
-        && checking === null && laneOpen === null,
+        && checking === null && laneOpen === null && !holding,
       run: () => {
+        if (holding) return setHolding(false);
         if (laneOpen !== null) return setLaneOpen(null);
         if (finishing !== null) return setFinishing(null);
         if (checking !== null) return setChecking(null);
@@ -1103,7 +1176,7 @@ export default function Dispense() {
   const complianceReady =
     (!needsInitials || initials.trim() !== "") &&
     (!needsCompliance || (items.length > 0 && complianceDone)) &&
-    !counsellingMissing &&
+    !counsellingMissing && !hold &&
     // A major interaction has to be acknowledged, not blocked. The checker holds
     // twelve pairs and says so; refusing outright on twelve while missing
     // thousands teaches a pharmacist that a clear result means safe.
@@ -1119,6 +1192,12 @@ export default function Dispense() {
    *  unmet condition is named, in the order somebody would fix them.
    */
   const blockedBecause = (): string => {
+    // First, because nothing below it matters until it is released.
+    if (hold) {
+      return `On hold — ${hold.reason.toLowerCase()}`
+        + (hold.placed_by ? `, placed by ${hold.placed_by}` : "")
+        + ". A pharmacist or a manager releases it.";
+    }
     if (!patient) return "Find the patient first.";
     // The server refuses without one and this never said so: the button went
     // grey with no sentence beside it.
@@ -3149,6 +3228,25 @@ ${d.action}`}
                       : <Signature className="lane-icon" size={15} aria-hidden="true" />}
                   </div>
                 )}
+                {/* A saved script can be put down on purpose, with the reason.
+                    Held, the same place offers the release — to a pharmacist or
+                    a manager, and says so to anybody else. */}
+                {fromRx && !fromRx.draft && !quoting && (hold ? (
+                  <BusyButton className="btn secondary disp-hold is-held" busyLabel="Releasing…"
+                              disabled={!mayReleaseHold}
+                              title={mayReleaseHold
+                                ? "Release this script so it can be dispensed"
+                                : "A pharmacist or a manager releases a hold"}
+                              onClick={releaseHold}>
+                    Release hold
+                  </BusyButton>
+                ) : (
+                  <button type="button" className="btn secondary disp-hold"
+                          title="Put this script down, with the reason, until it can go out"
+                          onClick={openHoldDialog}>
+                    Hold
+                  </button>
+                ))}
                 {/* Put it down and come back to it. Not while quoting: a quote
                     saved as a draft would put a price enquiry on the worklist. */}
                 {!quoting && (
@@ -3173,7 +3271,13 @@ ${d.action}`}
                   </BusyButton>
                 ) : (
                   <button type="button" className="btn primary disp-go"
-                          disabled={busy || !patient || items.length === 0}
+                          // Finish only opens a dialog, which commits nothing, so it
+                          // stays open to a script that is not ready yet. A held one
+                          // is different: nothing in that dialog can be done until
+                          // somebody releases it, and choosing how to pay for what
+                          // cannot go out is time taken from the next patient.
+                          disabled={busy || !patient || items.length === 0 || !!hold}
+                          title={hold ? "On hold — release it before finishing" : undefined}
                           onClick={() => openFinish()}>
                     Finish <kbd className="disp-kbd">F12</kbd>
                   </button>
@@ -3702,6 +3806,46 @@ ${d.action}`}
                 </div>
               );
             })()}
+
+            {/* Putting a script on hold: why, and a note. Short on purpose — the
+                person holding it has just found a problem and is at the counter. */}
+            {holding && fromRx && (
+              <div className="modal-backdrop" role="dialog" aria-modal="true"
+                   aria-labelledby="hold-title" onClick={() => setHolding(false)}>
+                <div className="modal disp-hold-modal" onClick={(e) => e.stopPropagation()}>
+                  <h2 id="hold-title">Hold {fromRx.number}</h2>
+                  <p className="muted">
+                    It stays on the worklist, marked, and can&rsquo;t be dispensed until a
+                    pharmacist or a manager releases it.
+                  </p>
+                  <div className="hold-reasons" role="radiogroup" aria-label="Why it is being held">
+                    {holdReasons.map((r) => (
+                      <button key={r.code} type="button" role="radio"
+                              aria-checked={holdReason === r.code}
+                              className={`hold-reason${holdReason === r.code ? " is-on" : ""}`}
+                              onClick={() => setHoldReason(r.code)}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="field">
+                    <label htmlFor="hold-note">Note</label>
+                    <input id="hold-note" value={holdNote} maxLength={300}
+                           onChange={(e) => setHoldNote(e.target.value)}
+                           placeholder="e.g. Calling Dr Moyo about the dose" />
+                  </div>
+                  <div className="modal-actions">
+                    <button type="button" className="btn ghost" onClick={() => setHolding(false)}>
+                      Cancel
+                    </button>
+                    <BusyButton className="btn primary" busyLabel="Holding…"
+                                disabled={!holdReason} onClick={placeHold}>
+                      Put on hold
+                    </BusyButton>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* A line's check, opened from its shield. */}
             {checking !== null && (() => {
