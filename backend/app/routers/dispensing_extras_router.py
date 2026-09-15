@@ -1176,6 +1176,107 @@ def expand_dosage(shorthand: str = Body(..., embed=True),
 
 
 # ------------------------------------------------------ the dispensary worklist
+@router.get("/dispensary/operations")
+def dispensary_operations(db: Session = Depends(get_db)):
+    """The dispensary's day, as it is happening.
+
+    CareXpress To-Be blueprint §10 (Dispensing Operations Dashboard): scripts
+    processed, queue depth, average processing time, holds, and reversals
+    today, in real time.
+
+    What "today" is — and which hour a dispensing fell in — is left to the
+    browser. Everything here is stored in UTC, the server's clock is not the
+    pharmacy's, and a day cut at UTC midnight splits a Harare morning at two
+    o'clock. So the events of the last thirty-six hours are sent as they
+    happened, and the page counts them in the time zone it is being read in.
+    What has no day boundary — how long the queue is, what is on hold right
+    now — is answered here.
+
+    Reversals: RX5000 reverses a whole sale, not a single dispensing, and a sale
+    keeps no time it was voided. The stock returned by a void is timestamped
+    and referenced "VOID <sale number>", so that is what is counted — sales that
+    carried a dispensing, voided — and it is called that on the page rather than
+    "reversals", which would claim a control that does not exist yet.
+    """
+    from datetime import timedelta
+
+    from ..models import Dispensing, PrescriptionHold, PrescriptionItem, StockMovement
+    from ..services import holds as holds_svc
+    from ..services import worklist
+
+    now = datetime.utcnow()
+    since = now - timedelta(hours=36)
+
+    def utc(value):
+        return value.isoformat() + "Z" if value else None
+
+    rows = (
+        db.query(Dispensing, Prescription)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
+        .filter(Dispensing.dispensed_at >= since)
+        .all()
+    )
+    users = {u.id: (u.full_name or u.username) for u in
+             db.query(User).filter(User.id.in_({d.dispensed_by_id for d, _rx in rows})).all()} if rows else {}
+    dispensings = [{
+        "at": utc(d.dispensed_at),
+        "prescription_id": rx.id,
+        "patient_id": rx.patient_id,
+        "dispenser": users.get(d.dispensed_by_id, ""),
+        # From the script being captured to its line going out.
+        "waited_minutes": (round((d.dispensed_at - rx.created_at).total_seconds() / 60, 1)
+                           if d.dispensed_at and rx.created_at else None),
+    } for d, rx in rows]
+
+    voided_refs = (
+        db.query(StockMovement.reference, func.min(StockMovement.created_at))
+        .filter(StockMovement.reference.like("VOID %"))
+        .filter(StockMovement.created_at >= since)
+        .group_by(StockMovement.reference)
+        .all()
+    )
+    voids = []
+    for reference, at in voided_refs:
+        number = reference[len("VOID "):].strip()
+        sale = db.query(Sale).filter(Sale.sale_number == number).first()
+        if sale and db.query(Dispensing.id).filter(Dispensing.sale_id == sale.id).first():
+            voids.append({"at": utc(at), "sale_number": number})
+
+    open_holds = (db.query(PrescriptionHold, Prescription)
+                  .join(Prescription, PrescriptionHold.prescription_id == Prescription.id)
+                  .filter(PrescriptionHold.cleared_at.is_(None))
+                  .order_by(PrescriptionHold.placed_at.asc())
+                  .all())
+    patients = {p.id: f"{p.first_name} {p.last_name}".strip() for p in
+                db.query(Patient).filter(
+                    Patient.id.in_({rx.patient_id for _h, rx in open_holds if rx.patient_id})).all()} \
+        if open_holds else {}
+    holders = {u.id: (u.full_name or u.username) for u in
+               db.query(User).filter(User.id.in_({h.placed_by_id for h, _rx in open_holds})).all()} \
+        if open_holds else {}
+    placed = (db.query(PrescriptionHold.placed_at)
+              .filter(PrescriptionHold.placed_at >= since).all())
+
+    return {
+        "as_of": utc(now),
+        "queue_lines": worklist.pending_count(db),
+        "dispensings": dispensings,
+        "voids": voids,
+        "holds_placed": [utc(p[0]) for p in placed],
+        "open_holds": [{
+            "id": h.id,
+            "prescription_id": rx.id,
+            "rx_number": rx.rx_number or f"#{rx.id}",
+            "patient": patients.get(rx.patient_id, "—"),
+            "reason": holds_svc.REASONS.get(h.reason_code, h.reason_code),
+            "placed_by": holders.get(h.placed_by_id, ""),
+            "placed_at": utc(h.placed_at),
+            "hours_held": holds_svc.hours_held(h, now),
+        } for h, rx in open_holds],
+    }
+
+
 @router.get("/dispensary/worklist")
 def dispensary_worklist(db: Session = Depends(get_db)):
     """What to dispense today, who is chronic, and who is due a repeat.

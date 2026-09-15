@@ -9339,3 +9339,17 @@ button.fin-ack { cursor: pointer; }
 
 /* A line whose pack was scanned and matched. */
 .rx-scan-ok { display: inline-grid; place-items: center; flex: 0 0 auto; color: var(--ok); margin-left: 2px; }
+
+/* ========================================================================
+   DISPENSARY OPERATIONS — the day as it happens.
+   Five headline figures in one row; below, the hours and the people, then
+   what is on hold. Five, not four, so a tile never sits alone on a row.
+   ======================================================================== */
+.ops-tiles { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1280px) { .ops-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .ops-tiles { grid-template-columns: 1fr; } }
+.stat .value.warn { color: var(--warn); }
+.ops-table th, .ops-table td { padding: var(--s2) var(--s3); }
+.ops-table td.num, .ops-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.ops-table td.actions { text-align: right; white-space: nowrap; }
+.ops-empty { margin: var(--s4) 0; }

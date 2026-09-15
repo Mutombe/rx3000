@@ -12,6 +12,7 @@
  *  actually choose from.
  */
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import ReportRunner, { ReportDef } from "./ReportRunner";
 import { TableSkeleton } from "./Skeleton";
@@ -26,6 +27,19 @@ export default function ReportCatalogue() {
       .then((r) => setReports(r.reports))
       .catch(() => setReports([]));
   }, []);
+
+  // Opened straight to one report by `?report=<key>`, so another screen can
+  // link to the report it is summarising — the operations dashboard to its
+  // holds — instead of to a list of a hundred to search. Once, on arrival:
+  // pressing Back returns to the catalogue rather than reopening the report.
+  const [params] = useSearchParams();
+  const wanted = params.get("report");
+  useEffect(() => {
+    if (!reports || !wanted) return;
+    const hit = reports.find((r) => r.key === wanted);
+    if (hit) setOpen(hit);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reports, wanted]);
 
   const groups = useMemo(() => {
     const needle = q.trim().toLowerCase();

@@ -46,6 +46,7 @@ import {
   Basket,
   SealCheck,
   TrendUp,
+  Gauge,
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
@@ -124,6 +125,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // What has already gone out, as against what is still to go. A
       // dispensary is asked about yesterday several times a day.
       { to: "/dispensing-history", label: "Dispensing history", icon: ClockCounterClockwise },
+      // Today, as it is happening: how much has gone out, what is waiting,
+      // how long people wait, what is on hold. History is the ledger; this
+      // is the board.
+      { to: "/dispensary/operations", label: "Operations", icon: Gauge },
       // Scripts by their number. The history above lists dispensings —
       // the events, so a script supplied over four visits appears four
       // times there and one never dispensed appears not at all.

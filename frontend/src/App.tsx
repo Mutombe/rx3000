@@ -72,6 +72,7 @@ const HeadOffice = lazy(() => import("./pages/HeadOffice"));
 const Settlements = lazy(() => import("./pages/Settlements"));
 const StockPerformance = lazy(() => import("./pages/StockPerformance"));
 const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
+const DispensaryOperations = lazy(() => import("./pages/DispensaryOperations"));
 const Scripts = lazy(() => import("./pages/Scripts"));
 const RepeatDetail = lazy(() => import("./pages/RepeatDetail"));
 const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
@@ -162,6 +163,7 @@ export default function App() {
                 <Route path="/recall" element={<Recall />} />
                 <Route path="/payables" element={<Payables />} />
                 <Route path="/dispensing-history" element={<DispensingHistory />} />
+                <Route path="/dispensary/operations" element={<DispensaryOperations />} />
                 <Route path="/dispensings/:id" element={<DispensingDetail />} />
                 <Route path="/scripts" element={<Scripts />} />
                 <Route path="/money-owed" element={<MoneyOwed />} />
