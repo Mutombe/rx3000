@@ -46,7 +46,22 @@ def record(db: Session, *, product: Product, quantity_owed: int,
            patient_id: int | None = None, prescription_item_id: int | None = None,
            sale_id: int | None = None, user_id: int | None = None,
            promised_for: date | None = None, notes: str = "") -> OwedItem:
-    """Record what could not be handed over."""
+    """Record what could not be handed over.
+
+    Flushes; never commits. The caller owns the unit of work.
+
+    It used to commit, and it is called from inside the dispensing loop, which
+    builds a sale, deducts stock and records owed balances line by line and
+    commits once at the end — so that a refusal on any line undoes the lot. A
+    commit here closed that transaction halfway: a script whose first line was
+    partly supplied and whose second was refused for stock left the first
+    line's deduction, this balance and a half-built sale saved, while the
+    dispenser was told the dispensing had failed. A pharmacy would then owe a
+    patient medicine for a supply that never happened.
+
+    Flushing still gives the row its id and makes it visible to the rest of the
+    transaction. Committing is left to whoever decided what one transaction is.
+    """
     if quantity_owed <= 0:
         raise OwedError("An owed quantity must be positive.")
     owed = OwedItem(
@@ -61,8 +76,7 @@ def record(db: Session, *, product: Product, quantity_owed: int,
         created_by_id=user_id,
     )
     db.add(owed)
-    db.commit()
-    db.refresh(owed)
+    db.flush()
     return owed
 
 

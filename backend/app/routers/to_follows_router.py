@@ -58,6 +58,10 @@ def create(product_id: int = Body(...), quantity: int = Body(...),
                                  notes=notes)
     except to_follows.OwedError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # The whole unit of work here is this one record, so this is where it is
+    # committed — `record` no longer does it for everybody.
+    db.commit()
+    db.refresh(owed)
     return to_follows.summarise(owed)
 
 
@@ -89,6 +93,8 @@ def promise(product_id: int = Body(...), quantity: int = Body(...),
             promised_for=promised_for, notes=notes.strip())
     except to_follows.OwedError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(owed)
     return to_follows.summarise(owed)
 
 
