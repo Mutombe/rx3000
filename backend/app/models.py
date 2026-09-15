@@ -861,6 +861,12 @@ class Dispensing(Base, TenantMixin):
     # Kept for scripts dispensed before the change. Nothing writes to it.
     witness_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     compliance_notes = Column(Text, default="")
+    # ---- counselling (services/counselling.py) ----
+    #: The points covered, as comma-separated keys from counselling.POINTS.
+    counselling_points = Column(Text, default="")
+    counselling_notes = Column(Text, default="")
+    #: Who recorded it. Empty when nothing was recorded.
+    counselled_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     prescription_item = relationship("PrescriptionItem", back_populates="dispensings")
     dispensed_by = relationship("User", foreign_keys=[dispensed_by_id])

@@ -428,6 +428,11 @@ class DispenseRequest(BaseModel):
     # all, on 1,047 rows.
     pharmacist_initial: str = ""
     compliance_notes: str = ""
+    # What the patient was told, as keys from services/counselling.POINTS, and
+    # anything the points cannot hold. Required when the pharmacy's setting
+    # says so for this script; recorded whenever it is given.
+    counselling_points: list[str] = []
+    counselling_notes: str = ""
 
 
 class SchedulePolicyOut(BaseModel):

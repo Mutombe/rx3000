@@ -79,6 +79,18 @@ const CONTROLLED_HINT = "S5–S6, by name";
    placeholder sits, says what to type once the cursor is in it, and the whole
    sentence is on the field itself for anyone who hovers or reads it aloud. */
 const INITIALS_HINT = "Your initials, e.g. TM";
+/* What the patient was told, as the server names the points
+   (backend/app/services/counselling.py) — worded short, because they sit as
+   chips in a dialog that must not scroll. The server keeps the long labels
+   for the record, and drops any key it does not know. */
+const COUNSELLING_POINTS: { key: string; short: string }[] = [
+  { key: "dose", short: "Dose & timing" },
+  { key: "duration", short: "How long" },
+  { key: "side_effects", short: "Side effects" },
+  { key: "warnings", short: "Warnings" },
+  { key: "missed_dose", short: "Missed dose" },
+  { key: "storage", short: "Storage" },
+];
 const INITIALS_TITLE = "The initials of the pharmacist who checked this "
   + "dispensing. This is the record that somebody checked it.";
 
@@ -562,6 +574,11 @@ export default function Dispense() {
   // dispensing with a 400 that the dispenser could do nothing about. Two rules
   // for one question, and the one the user could see was the wrong one.
   const [initialAlwaysRequired, setInitialAlwaysRequired] = useState(false);
+  /** When a counselling record is required: the pharmacy's setting. */
+  const [counselRule, setCounselRule] = useState<"never" | "controlled" | "always">("never");
+  /** What the patient was told on this script, and anything the points miss. */
+  const [counselPoints, setCounselPoints] = useState<string[]>([]);
+  const [counselNotes, setCounselNotes] = useState("");
   useEffect(() => {
     // `groups` is an object keyed by group name, each holding a list of
     // settings — not a list of groups with a `settings` field, which is what I
@@ -577,6 +594,12 @@ export default function Dispense() {
           : Object.values(groups).flat();
         const rule = all.find((x: any) => x?.key === "dispensing.require_pharmacist_initial");
         setInitialAlwaysRequired(rule?.value === true || rule?.value === "true");
+        // Read the same way the server reads it: anything it does not
+        // recognise is "never", so the screen never demands what the server
+        // would not.
+        const counsel = String(all.find((x: any) => x?.key === "dispensing.require_counselling")?.value
+                               ?? "never").trim().toLowerCase();
+        setCounselRule(counsel === "always" || counsel === "controlled" ? counsel : "never");
       })
       .catch(() => undefined);   // the server enforces it regardless
   }, []);
@@ -584,6 +607,11 @@ export default function Dispense() {
   const needsInitials =
     initialAlwaysRequired ||
     items.some((i) => policyFor(i.product.schedule)?.requires_witness);
+  /** Whether this script cannot go without a counselling record. Decided from
+   *  the lines, like the compliance record, not from the tab. */
+  const counsellingRequired =
+    counselRule === "always" || (counselRule === "controlled" && needsCompliance);
+  const counsellingMissing = counsellingRequired && counselPoints.length === 0;
 
   const navigate = useNavigate();
   const [showKeys, setShowKeys] = useState(false);
@@ -654,6 +682,7 @@ export default function Dispense() {
     setPrintPick({});
     setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
     setInitials(""); setIdNumber(""); setComplianceNotes("");
+    setCounselPoints([]); setCounselNotes("");
     // A new script is a new number: whatever was dispensed while this screen
     // was open has taken one since it last asked.
     refreshNextNumber();
@@ -725,7 +754,8 @@ export default function Dispense() {
     !blocked &&
     // Initials gate every route when the setting demands them.
     (!needsInitials || initials.trim() !== "") &&
-    (!needsCompliance || (items.length > 0 && complianceDone));
+    (!needsCompliance || (items.length > 0 && complianceDone)) &&
+    !counsellingMissing;
 
   // One declaration drives the bindings, the bottom bar and the help overlay,
   // so a shortcut can never exist without being documented.
@@ -968,6 +998,7 @@ export default function Dispense() {
       return openFinish("finish-compliance");
     if (blocked) return openFinish("finish-warnings");
     if (needsInitials && !initials.trim()) return focus("#disp-initials");
+    if (counsellingMissing) return openFinish("finish-counselling");
     return openFinish(ixMajor > 0 && !ixAcknowledged ? "finish-warnings" : undefined);
   }
 
@@ -1072,6 +1103,7 @@ export default function Dispense() {
   const complianceReady =
     (!needsInitials || initials.trim() !== "") &&
     (!needsCompliance || (items.length > 0 && complianceDone)) &&
+    !counsellingMissing &&
     // A major interaction has to be acknowledged, not blocked. The checker holds
     // twelve pairs and says so; refusing outright on twelve while missing
     // thousands teaches a pharmacist that a clear result means safe.
@@ -1097,6 +1129,8 @@ export default function Dispense() {
     if (blocked) return "Acknowledge the blocking warning first.";
     if (needsInitials && !initials.trim())
       return "Enter the checking pharmacist's initials.";
+    if (counsellingMissing)
+      return "Record what the patient was told — tick the points covered.";
     if (ixMajor > 0 && !ixAcknowledged)
       return "A dose is over the maximum and has to be acknowledged.";
     return "";
@@ -1299,6 +1333,10 @@ export default function Dispense() {
     const initial = initials.trim();
     return {
       ...(initial ? { pharmacist_initial: initial } : {}),
+      // Sent on every dispensing: recorded whenever it was given, whether or
+      // not this pharmacy requires it.
+      counselling_points: counselPoints,
+      counselling_notes: counselNotes.trim(),
       // Sent when the *lines* call for it. Keyed to the route tab, a Schedule 5
       // line captured on the Prescription tab had these dropped here and was
       // refused by the server for missing exactly what this screen had chosen
@@ -1713,6 +1751,7 @@ export default function Dispense() {
       setItems([]); aiCheck.reset(); setFromRx(null);
       setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
       setInitials(""); setIdNumber(""); setComplianceNotes("");
+      setCounselPoints([]); setCounselNotes("");
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
@@ -3447,6 +3486,43 @@ ${d.action}`}
                               })()}
                             </div>
                           )}
+
+                          {/* What the patient was told, as it is handed over.
+                              The points, not a box to type "counselled" into:
+                              a box records that a key was pressed, the points
+                              record what was said. Chips, so it costs one row
+                              in a dialog that must not scroll. */}
+                          <div className={`fin-counsel${counsellingMissing ? " is-needed" : ""}`}
+                               id="finish-counselling">
+                            <div className="fin-counsel-head">
+                              <h4>Counselling</h4>
+                              <span className="fin-counsel-state">
+                                {counselPoints.length
+                                  ? `${counselPoints.length} covered`
+                                  : counsellingRequired ? "Required" : "Optional"}
+                              </span>
+                            </div>
+                            <div className="fin-counsel-points" role="group"
+                                 aria-label="Points the patient was told">
+                              {COUNSELLING_POINTS.map((p) => {
+                                const on = counselPoints.includes(p.key);
+                                return (
+                                  <button key={p.key} type="button" role="checkbox" aria-checked={on}
+                                          className={`fin-chip${on ? " is-on" : ""}`}
+                                          onClick={() => setCounselPoints((cur) =>
+                                            on ? cur.filter((k) => k !== p.key) : [...cur, p.key])}>
+                                    {on && <Check size={11} weight="bold" />}
+                                    {p.short}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <input id="finish-counsel-notes" className="fin-counsel-notes"
+                                   value={counselNotes} maxLength={500}
+                                   onChange={(e) => setCounselNotes(e.target.value)}
+                                   placeholder="Anything else they were told"
+                                   aria-label="Counselling notes" />
+                          </div>
                         </section>
 
                         <aside className="fin-side">

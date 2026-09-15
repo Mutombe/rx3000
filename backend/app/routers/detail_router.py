@@ -26,7 +26,7 @@ from ..models import (
     PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem, Sale, Shift,
     StockBatch, Supplier, SupplierInvoice, SupplierPayment, User,
 )
-from ..services import payables
+from ..services import counselling, payables
 
 router = APIRouter(prefix="/api", tags=["detail"],
                    dependencies=[Depends(get_current_user)])
@@ -618,6 +618,17 @@ def dispensing_detail(dispensing_id: int, db: Session = Depends(get_db)):
         "script_sighted": bool(d.script_sighted),
         "prescriber_verified": bool(d.prescriber_verified),
         "compliance_notes": d.compliance_notes or "",
+        # ---- what the patient was told -----------------------------------
+        # Named points in the order they are said, so the record reads as what
+        # was covered rather than as a list of codes.
+        "counselling": [
+            {"key": key, "label": label,
+             "covered": key in (d.counselling_points or "").split(",")}
+            for key, label in counselling.POINTS.items()
+        ],
+        "counselling_notes": d.counselling_notes or "",
+        "counselled_by": ((getattr(db.get(User, d.counselled_by_id), "full_name", "") or "")
+                          if d.counselled_by_id else ""),
         # ---- collection ---------------------------------------------------
         "collected_at": d.collected_at,
         "collected_name": d.collected_name or "",

@@ -37,7 +37,7 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import (branches, claims_engine, messages, paging,
+from ..services import (branches, claims_engine, counselling, messages, paging,
                         permissions, proppharm,
                         sig, to_follows)
 
@@ -398,6 +398,18 @@ def dispense(
                            "permitted. A fresh prescription is required.",
                 )
 
+    # What the patient was told. Required when the pharmacy says so for this
+    # script (CareXpress blueprint §5; when is §13's open decision, so it is a
+    # setting). Unknown points are dropped rather than refused: the list is the
+    # server's, and a stale client should not stop a dispensing over a label.
+    counselled_points = counselling.clean(body.counselling_points)
+    counselled_notes = (body.counselling_notes or "").strip()
+    if counselling.required(db, controlled=policy.route == "controlled") and not counselled_points:
+        raise HTTPException(status_code=400, detail=(
+            "Record the counselling given before dispensing — tick the points the "
+            "patient was told. This pharmacy requires it"
+            + (" for controlled medicines." if counselling.rule(db) == "controlled" else ".")))
+
     sale = Sale(
         sale_number=helpers.next_number(db, Sale, "INV", "sale_number"),
         patient_id=rx.patient_id,
@@ -517,6 +529,9 @@ def dispense(
             # checked their medicine is not asking only about schedule 5.
             pharmacist_initial=body.pharmacist_initial.strip().upper(),
             compliance_notes=body.compliance_notes,
+            counselling_points=",".join(counselled_points),
+            counselling_notes=counselled_notes,
+            counselled_by_id=user.id if (counselled_points or counselled_notes) else None,
         )
         db.add(dispensing)
 

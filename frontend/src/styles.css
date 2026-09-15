@@ -9275,3 +9275,40 @@ button.fin-ack { cursor: pointer; }
 .dup-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
 .dup-item > .btn { flex: 0 0 auto; }
 .dup-flag { margin-bottom: var(--s3); }
+
+/* ========================================================================
+   COUNSELLING — in the Finish dialog, under how it is paid.
+   One row of chips for the points covered and one line for the rest, so it
+   costs little height in a dialog that must never scroll. A required record
+   that is still empty is marked the way a blocked control is.
+   ======================================================================== */
+.fin-counsel {
+  margin-top: var(--s3); padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+  display: grid; gap: 6px;
+}
+.fin-counsel-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+.fin-counsel-head h4 { margin: 0; }
+.fin-counsel-state { font-size: .76rem; font-weight: 600; color: var(--ink-soft); }
+.fin-counsel.is-needed .fin-counsel-state { color: var(--warn); }
+.fin-counsel-points { display: flex; flex-wrap: wrap; gap: 3px; }
+.fin-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  /* Sized so the six fit one row at a laptop width; they wrap below that. */
+  height: 26px; padding: 0 7px;
+  font-size: .77rem; font-weight: 500;
+  color: var(--ink-soft); background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: 999px; box-shadow: none;
+}
+.fin-chip:hover { color: var(--ink); border-color: var(--line-strong); }
+.fin-chip.is-on {
+  color: var(--ink); background: var(--surface);
+  border-color: var(--accent); font-weight: 600;
+}
+.fin-chip.is-on svg { color: var(--accent); }
+.fin-counsel.is-needed .fin-chip { border-color: var(--warn-line); }
+.fin-counsel-notes { height: 30px; font-size: .84rem; }
+
+.dd-counsel { margin-top: var(--s4); padding-top: var(--s3); border-top: 1px solid var(--line); }
+.dd-counsel h4 { margin: 0 0 var(--s2); }
+.dd-counsel h4 .muted { font-weight: 400; }

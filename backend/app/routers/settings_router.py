@@ -103,6 +103,11 @@ DECLARED: tuple[Declared, ...] = (
              "bool", "true", "Dispensing",
              "Dispensing cannot be completed without initials. This is the record "
              "that somebody checked it."),
+    Declared("dispensing.require_counselling", "Require a counselling record", "text",
+             "never", "Dispensing",
+             "never, controlled, or always. When required, a script cannot be "
+             "dispensed until the points the patient was told are recorded. "
+             "Controlled means Schedule 5 and 6 scripts only."),
 
     # ---- claims
     Declared("claims.chase_after_days", "Chase a claim after", "number", "30", "Claims",

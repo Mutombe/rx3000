@@ -32,6 +32,11 @@ interface Detail {
   id_verified: boolean; id_number_seen: string;
   script_sighted: boolean; prescriber_verified: boolean;
   compliance_notes: string;
+  /** Every point that could have been covered, each marked. Optional for an
+   *  older server. */
+  counselling?: { key: string; label: string; covered: boolean }[];
+  counselling_notes?: string;
+  counselled_by?: string;
   collected_at: string | null; collected_name: string; collected_by: string;
   days_waiting: number | null;
   product: { id: number; name: string; form: string; schedule: number } | null;
@@ -317,6 +322,28 @@ export default function DispensingDetail() {
               </ul>
               {d.compliance_notes && (
                 <p className="prose">{d.compliance_notes}</p>
+              )}
+
+              {/* What the patient was told. Every point is listed, covered or
+                  not, so a record with nothing ticked reads as nothing covered
+                  rather than as a section somebody has to notice is absent. */}
+              {d.counselling && (
+                <div className="dd-counsel">
+                  <h4>
+                    Counselling
+                    <span className="muted">
+                      {d.counselling.some((p) => p.covered)
+                        ? (d.counselled_by ? ` · recorded by ${d.counselled_by}` : "")
+                        : " · none recorded"}
+                    </span>
+                  </h4>
+                  <ul className="plain-list">
+                    {d.counselling.map((p) => (
+                      <Checked key={p.key} ok={p.covered}>{p.label}</Checked>
+                    ))}
+                  </ul>
+                  {d.counselling_notes && <p className="prose">{d.counselling_notes}</p>}
+                </div>
               )}
             </Panel>
           </div>

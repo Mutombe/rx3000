@@ -242,6 +242,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "prescriber_verified": "BOOLEAN DEFAULT 0",
         "witness_id": "INTEGER",
         "compliance_notes": "TEXT DEFAULT ''",
+        # What the patient was told (services/counselling.py).
+        "counselling_points": "TEXT DEFAULT ''",
+        "counselling_notes": "TEXT DEFAULT ''",
+        "counselled_by_id": "INTEGER",
     },
 }
 
