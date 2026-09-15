@@ -54,7 +54,7 @@ import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
-import { Plus, Receipt, PencilSimpleLine } from "@phosphor-icons/react";
+import { Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import DriverForm from "../components/DriverForm";
@@ -792,6 +792,30 @@ export default function Dispense() {
   /** Releasing a hold is a decision about why it was placed. */
   const mayReleaseHold = ["pharmacist", "manager", "admin"].includes(session.role);
 
+  /** Taking a script that never went out off the worklist
+   *  (backend/app/services/script_cancel.py). A saved, undispensed script had
+   *  no way off the queue — including the copies refused dispensings left
+   *  behind — so it sat there looking like a patient waiting. */
+  const [cancellingScript, setCancellingScript] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
+
+  async function cancelScript() {
+    if (!fromRx || cancelReason.trim().length < 3) return;
+    const number = fromRx.number;
+    try {
+      await api.post(`/api/prescriptions/${fromRx.id}/cancel`, { reason: cancelReason.trim() });
+      setCancellingScript(false);
+      newScript();
+      setWorklistNonce((n) => n + 1);
+      toast.ok(`${number} is cancelled and off the worklist.`);
+    } catch (e) {
+      // Left open with the reason still typed: "already dispensed in part" is
+      // an answer to read, and to act on with Alter script.
+      toast.error(errorText(e, "That script could not be cancelled."));
+    }
+  }
+
   async function openHoldDialog() {
     if (holdReasons.length === 0) {
       try {
@@ -1288,8 +1312,9 @@ export default function Dispense() {
     // empty the script behind the dialog being closed.
     { combo: "Escape", label: "Close, or clear the script", group: "Finish",
       disabled: items.length === 0 && finishing === null && editing === null
-        && checking === null && laneOpen === null && !holding,
+        && checking === null && laneOpen === null && !holding && !cancellingScript,
       run: () => {
+        if (cancellingScript) return setCancellingScript(false);
         if (holding) return setHolding(false);
         if (laneOpen !== null) return setLaneOpen(null);
         if (finishing !== null) return setFinishing(null);
@@ -2345,6 +2370,20 @@ export default function Dispense() {
           <button className="btn secondary" onClick={() => setAltering(true)}>
             <PencilSimpleLine size={14} /> Alter script
           </button>
+          {/* Beside Alter script, because they answer the same question — this
+              script is wrong — for the two cases: part of it (alter) and all of
+              it, before anything has gone out (cancel). Only on a saved script;
+              a new capture is cleared with New script. */}
+          {fromRx && !fromRx.draft && (
+            <button className="btn secondary disp-cancel-open"
+                    disabled={!mayCancelScript}
+                    title={mayCancelScript
+                      ? "Take this script off the worklist, with the reason"
+                      : "A pharmacist or a manager cancels a script"}
+                    onClick={() => { setCancelReason(""); setCancellingScript(true); }}>
+              <XCircle size={14} /> Cancel script
+            </button>
+          )}
           <Link className="btn secondary" to="/dispensing-history">
             <ClockCounterClockwise size={15} /> History
           </Link>
@@ -4037,6 +4076,47 @@ ${d.action}`}
                 </div>
               );
             })()}
+
+            {/* Cancelling a saved script: why, in a word or a sentence, and what
+                happens — said before the button, not discovered after it. */}
+            {cancellingScript && fromRx && (
+              <div className="modal-backdrop" role="dialog" aria-modal="true"
+                   aria-labelledby="cancel-title" onClick={() => setCancellingScript(false)}>
+                <div className="modal disp-cancel-modal" onClick={(e) => e.stopPropagation()}>
+                  <h2 id="cancel-title">Cancel {fromRx.number}</h2>
+                  <p className="muted">
+                    It comes off the worklist and can&rsquo;t be dispensed. Nothing on it has
+                    gone out, so no stock, sale or claim is touched. The reason is kept on
+                    the script&rsquo;s history.
+                  </p>
+                  <div className="cancel-reasons" role="group" aria-label="Common reasons">
+                    {["Captured twice by mistake", "Patient no longer wants it",
+                      "Prescriber changed the script"].map((r) => (
+                      <button key={r} type="button"
+                              className={`hold-reason${cancelReason === r ? " is-on" : ""}`}
+                              onClick={() => setCancelReason(r)}>
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="field">
+                    <label htmlFor="cancel-reason">Why it is being cancelled</label>
+                    <input id="cancel-reason" value={cancelReason} maxLength={240} autoFocus
+                           onChange={(e) => setCancelReason(e.target.value)}
+                           placeholder="Pick one above, or say it in your own words" />
+                  </div>
+                  <div className="modal-actions">
+                    <button type="button" className="btn ghost" onClick={() => setCancellingScript(false)}>
+                      Keep the script
+                    </button>
+                    <BusyButton className="btn danger" busyLabel="Cancelling…"
+                                disabled={cancelReason.trim().length < 3} onClick={cancelScript}>
+                      Cancel script
+                    </BusyButton>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Putting a script on hold: why, and a note. Short on purpose — the
                 person holding it has just found a problem and is at the counter. */}

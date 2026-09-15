@@ -9353,3 +9353,15 @@ button.fin-ack { cursor: pointer; }
 .ops-table td.num, .ops-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .ops-table td.actions { text-align: right; white-space: nowrap; }
 .ops-empty { margin: var(--s4) 0; }
+
+/* Cancelling a script: the reasons are the hold dialog's chips, one decision
+   laid out the same way as the other. */
+.disp-cancel-modal { max-width: 34rem; }
+.disp-cancel-modal > p { margin: 0 0 var(--s3); }
+.cancel-reasons { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--s4); }
+/* The label above the box in these two dialogs. Beside it, in a column sized
+   for one word, "Why it is being cancelled" was cut to "Why it is bei…". */
+.disp-cancel-modal .field, .disp-hold-modal .field {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px;
+}
+.disp-cancel-modal .field > label, .disp-hold-modal .field > label { white-space: normal; }
