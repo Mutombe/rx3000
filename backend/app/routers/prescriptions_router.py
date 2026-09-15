@@ -362,6 +362,11 @@ def dispense(
 ):
     """Dispense selected script items: stock out, register entries for S5/S6,
     repeat tracking, and a pending sale handed over to the POS for payment."""
+    # One dispensing of a script at a time. Pressed from two terminals at once,
+    # both requests found no dispensing yet and both went out. Taken before the
+    # script is read, so what is read below is what the other request committed.
+    from .. import concurrency
+    concurrency.serialise(db, f"dispense:{rx_id}")
     rx = db.get(Prescription, rx_id)
     if rx and rx.status == "draft":
         raise HTTPException(

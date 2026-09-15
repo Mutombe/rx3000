@@ -44,6 +44,11 @@ def next_number(db: Session, model, prefix: str, field: str) -> str:
     """
     stamp = f"{prefix}{datetime.utcnow():%y%m}"
     column = getattr(model, field)
+    # Two requests reading the same highest number issued the same next one, and
+    # the second insert broke the unique index. Held until this transaction ends,
+    # so the number is written before anybody else reads.
+    from . import concurrency
+    concurrency.serialise(db, f"number:{model.__tablename__}:{field}:{prefix}")
 
     highest = (db.query(func.max(column))
                .filter(column.like(f"{stamp}%")).scalar())
@@ -97,6 +102,8 @@ def move_stock(
     `in_packs` says whether `delta` counts packs or dispensable units. Stock is
     held in units; see `in_units` above.
     """
+    from . import concurrency
+    concurrency.lock_product(db, product)
     delta = in_units(product, delta, in_packs) if delta >= 0 else -in_units(
         product, -delta, in_packs)
     product.quantity_on_hand = (product.quantity_on_hand or 0) + delta
@@ -142,6 +149,8 @@ def receive_stock_batch(
     if branch_id is None:
         from .services import branches as _branches
         branch_id = _branches.default_branch(db).id
+    from . import concurrency
+    concurrency.lock_product(db, product)
     batch = StockBatch(
         product_id=product.id,
         batch_number=batch_number or f"AUTO-{datetime.utcnow():%y%m%d%H%M%S}",
@@ -265,6 +274,10 @@ def consume_stock_fefo(
     # tablets. Converted here so the FEFO walk below draws the right amount
     # whichever door the sale came through.
     quantity = in_units(product, quantity, in_packs)
+    # The shelf as it is now, not as it was when this request first looked:
+    # two counters reading ten units each drew one and both wrote nine.
+    from . import concurrency
+    concurrency.lock_product(db, product)
 
     query = (
         db.query(StockBatch)
@@ -363,6 +376,8 @@ def restore_allocations(
     reference: str = "",
 ) -> int:
     """Return voided stock to the exact batches it was drawn from."""
+    from . import concurrency
+    concurrency.lock_product(db, product)
     allocations = (
         db.query(BatchAllocation).filter(BatchAllocation.sale_item_id == sale_item_id).all()
     )

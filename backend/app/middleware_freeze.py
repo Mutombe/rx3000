@@ -23,6 +23,7 @@ from __future__ import annotations
 import jwt
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .config import settings
@@ -57,11 +58,12 @@ class BranchFreezeMiddleware(BaseHTTPMiddleware):
             # The token predates branch scoping, or the user belongs to no
             # branch. Looked up rather than assumed, because "we could not tell
             # which branch" must not become "not frozen".
-            branch_id = _branch_of(payload.get("sub"))
+            # Off the event loop: a blocking lookup here stalls every request.
+            branch_id = await run_in_threadpool(_branch_of, payload.get("sub"))
         if not branch_id:
             return await call_next(request)
 
-        why = _frozen_reason(branch_id, path, request.method)
+        why = await run_in_threadpool(_frozen_reason, branch_id, path, request.method)
         if why:
             # 423 Locked, which is what this is: the resource exists and is
             # deliberately unavailable. A 403 would read as "you personally may

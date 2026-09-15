@@ -94,6 +94,11 @@ async def lifespan(app: FastAPI):
         if moved:
             log.info("Backfilled %s row(s) to the default branch", moved)
     db = SessionLocal()
+    # Seeded rows belong to the founding pharmacy, as a request's would. Without
+    # the stamp a fresh database wrote its first users with no pharmacy, the
+    # scoping then hid them from the very next query, and startup failed on
+    # "no admin" — every new installation, before anybody could sign in.
+    _tenancy.stamp(db)
     try:
         seed(db)
         seed_crm_if_empty(db)

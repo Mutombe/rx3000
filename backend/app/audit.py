@@ -7,6 +7,7 @@ controlled-substance compliance and dispute resolution.
 import logging
 
 import jwt
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -71,24 +72,33 @@ class AuditMiddleware(BaseHTTPMiddleware):
             except jwt.PyJWTError:
                 username = "(invalid token)"
 
-        db = SessionLocal()
-        try:
-            db.add(AuditLog(
-                user_id=user_id,
-                username=username,
-                acted_as_id=acted_as_id,
-                acted_as=acted_as,
-                action=method,
-                path=path,
-                summary=_describe(method, path),
-                status_code=response.status_code,
-                ip_address=request.client.host if request.client else "",
-            ))
-            db.commit()
-        except Exception as exc:  # noqa: BLE001 — auditing must never break a request
-            log.warning("Audit write failed: %s", exc)
-            db.rollback()
-        finally:
-            db.close()
-
+        # Written in a worker thread, not on the event loop. This is a blocking
+        # database write inside an async middleware: under load it waited for a
+        # pooled connection, or for SQLite's write lock, with the event loop
+        # stopped behind it — every other request in the building frozen until
+        # it got one. Three counters dispensing at once was enough.
+        row = AuditLog(
+            user_id=user_id,
+            username=username,
+            acted_as_id=acted_as_id,
+            acted_as=acted_as,
+            action=method,
+            path=path,
+            summary=_describe(method, path),
+            status_code=response.status_code,
+            ip_address=request.client.host if request.client else "",
+        )
+        await run_in_threadpool(_write, row)
         return response
+
+
+def _write(row: AuditLog) -> None:
+    db = SessionLocal()
+    try:
+        db.add(row)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — auditing must never break a request
+        log.warning("Audit write failed: %s", exc)
+        db.rollback()
+    finally:
+        db.close()

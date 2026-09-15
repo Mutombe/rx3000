@@ -47,6 +47,13 @@ engine = create_engine(
     connect_args=({"check_same_thread": False, "timeout": 30} if _is_sqlite
                   else _PG_CONNECT_ARGS),
     pool_pre_ping=True,
+    # More connections than the worker threads that can ask for one. At the
+    # default five-plus-ten, requests waiting their turn on a lock held every
+    # connection, and the request holding the lock could not get one to finish
+    # with: thirty seconds of nothing, then errors, from twenty scripts at once.
+    # Starlette runs sync endpoints on forty threads; middleware needs a few more.
+    pool_size=10,
+    max_overflow=40,
 )
 
 
