@@ -8739,6 +8739,74 @@ button.fin-ack { cursor: pointer; }
 }
 .disp-dense .rx-item-money.is-hand-set { color: var(--warn-ink, var(--ink)); }
 .rx-hand-set { display: inline-flex; flex: 0 0 auto; opacity: .75; }
+
+/* ---------- what the funder calls this medicine ----------
+   Nothing here exists on a cash script. On a scheme script the only thing that
+   earns space on the row is the line the funder will reject: a code that is
+   already right is silence, because a column of codes that are nearly always
+   right is a column nobody reads. */
+.rx-nocode {
+  display: inline-flex; flex: 0 0 auto; cursor: pointer;
+  color: var(--warn, #b26a00);
+}
+.rx-nocode:hover { color: var(--danger); }
+
+.sc-field { display: inline-flex; align-items: center; }
+.sc-input {
+  width: 7.5rem; height: 26px; padding: 0 7px;
+  font-variant-numeric: tabular-nums; font-size: .84rem;
+  border: 1px solid var(--line-strong); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink);
+}
+.sc-field.is-missing .sc-input {
+  border-color: var(--warn, #b26a00);
+  background: var(--warn-soft, transparent);
+}
+.sc-compact { display: inline-flex; align-items: center; gap: var(--s2); }
+.sc-borrowed { font-size: .74rem; color: var(--ink-soft); font-style: normal; }
+.sc-missing {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; font-size: .78rem; font-weight: 600;
+  border: 1px solid var(--warn, #b26a00); border-radius: var(--r-sm);
+  background: none; color: var(--warn, #b26a00); cursor: pointer;
+}
+.sc-missing:hover { background: var(--warn-soft, var(--hover)); }
+.sc-line .hint { display: flex; align-items: center; gap: 4px; }
+
+/* The billing list: one line a medicine, the code first because the code is
+   what the claim is decided on.
+
+   `display: block` is not decoration. `.fin-panel:not(.is-form)` is a flex row —
+   it was written for a panel that is an icon and a sentence — and this panel
+   inherited it, which put the heading and the list side by side and squeezed
+   "What Cimas will be billed" into a column five words tall. */
+/* `.fin-panel:not(.is-form)` scores two classes, so `.fin-codes` alone loses
+   to it and the panel stayed a flex row. Both classes, and it wins. */
+.fin-panel.fin-codes { display: block; }
+.fin-codes h4 {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--s2);
+  margin: 0 0 var(--s2); font-size: .8rem; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--ink-mid);
+}
+.fin-code-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+/* The dialog's left column is narrow, so the money column is the one that goes
+   first: the amounts are already totalled on the right of the dialog, and what
+   this list is for is the code. */
+.fin-code-list li {
+  display: grid; grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  align-items: center; gap: var(--s2); font-size: .82rem; min-width: 0;
+}
+.fin-code-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-code-qty { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.fin-code-money { display: none; }
+.fin-codes .sc-input { width: 100%; }
+/* The "add it" button replaces the field, so it must not be wider than the
+   column the field sits in or the medicine's name is pushed off the row. */
+.fin-codes .sc-missing {
+  width: 100%; justify-content: center; padding: 3px 4px;
+  font-size: .72rem; white-space: nowrap; overflow: hidden;
+}
+.fin-codes .sc-compact { min-width: 0; }
 .rx-price-waiting { display: inline-flex; align-items: center; gap: 4px; opacity: .6; }
 .rx-price-waiting svg { flex: 0 0 auto; }
 

@@ -2085,6 +2085,47 @@ class PriceOverride(Base, TenantMixin):
         return round((self.now or 0.0) - (self.was or 0.0), 4)
 
 
+class SchemeProductCode(Base, TenantMixin):
+    """What one funder calls this medicine.
+
+    A NAPPI code identifies a medicine on a claim, and the funder adjudicates on
+    it: a line they cannot identify is a line they do not pay. The catch is that
+    the code is not a property of the medicine. Each scheme issues its own, most
+    of them never tell a pharmacy when one changes, and a pharmacy dispensing to
+    six funders is holding six different codes for the same box.
+
+    So it is a code per (scheme, product) rather than a column on the product.
+    `Product.nappi_code` stays as the pharmacy's own general one and is the
+    fallback where a scheme has said nothing — which is most of them. Cimas is
+    the exception that publishes a list, and that list lands here.
+
+    Kept against the product rather than the script line on purpose. The code is
+    the same on every script that medicine ever appears on, so a dispenser who
+    corrects it once at the counter has corrected it for the whole pharmacy and
+    for everybody after them — the way an unrecognised barcode is taught to the
+    catalogue instead of being fixed on one sale.
+    """
+    __tablename__ = "scheme_product_codes"
+    __table_args__ = (
+        UniqueConstraint("medical_aid_id", "product_id",
+                         name="uq_scheme_product_code"),
+    )
+    id = Column(Integer, primary_key=True)
+    medical_aid_id = Column(Integer, ForeignKey("medical_aids.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    code = Column(String(24), default="", index=True)
+    #: Where it came from — a published formulary, or somebody at the counter.
+    #: A code the pharmacy typed should not be silently overwritten by next
+    #: year's file, and one from a file should be replaceable when it changes.
+    source = Column(String(40), default="")
+    set_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    medical_aid = relationship("MedicalAid")
+    product = relationship("Product")
+    set_by = relationship("User")
+
+
 class OwedItem(Base, TenantMixin):
     """A "to follow" — medicine the patient has paid for and the pharmacy still owes.
 

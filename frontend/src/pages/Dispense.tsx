@@ -24,6 +24,7 @@ import { useDoing } from "../components/Doing";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
+import SchemeCodeField, { NoCodeMark, useSchemeCodes } from "../components/SchemeCode";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -2546,6 +2547,20 @@ export default function Dispense() {
     ...(i.price !== undefined ? { unit_price: i.price } : {}),
   }));
   const pricing = useScriptPricing(pricedItems, patient?.medical_aid_id ?? null);
+
+  /** Which funder this script will be claimed against, if any.
+   *
+   *  The scheme chosen on the Finish dialog wins over the one on the patient's
+   *  record, because the card in the dispenser's hand is the current fact and
+   *  the record may be a year old. Null on a cash script — and on a cash script
+   *  nothing about NAPPI codes appears anywhere on this screen.
+   */
+  const claimingAgainst = (payHow === "aid" && aidScheme !== "")
+    ? Number(aidScheme)
+    : (patient?.medical_aid_id ?? null);
+  const schemeName = schemes.find((m) => m.id === claimingAgainst)?.name || "the scheme";
+  const { codes: schemeCodes, reload: reloadSchemeCodes } =
+    useSchemeCodes(claimingAgainst, items.map((i) => i.product.id));
   const marginFor = (productId: number) =>
     pricing?.lines.find((l) => l.product_id === productId);
 
@@ -3506,6 +3521,20 @@ export default function Dispense() {
                                   ? <span className="hint">Default — change it if the script gives one</span>
                                   : null}
                             </div>
+                            {/* What the funder calls it. Here because this is
+                                where the dispenser lands with the box in their
+                                hand, and the code is printed on the box. Absent
+                                entirely on a cash script. */}
+                            {claimingAgainst && (
+                              <SchemeCodeField
+                                medicalAidId={claimingAgainst}
+                                scheme={schemeName}
+                                productId={it.product.id}
+                                productName={it.product.name}
+                                known={schemeCodes[it.product.id]}
+                                onSaved={reloadSchemeCodes}
+                              />
+                            )}
                             {(() => {
                       const cov = coverageFor(it.product.id);
                       if (!cov || cov.status === "unknown") return null;
@@ -3762,6 +3791,16 @@ ${d.action}`}
                             <Barcode size={13} weight="bold" />
                           </span>
                         )}
+                        {/* Only on a scheme script, and only when there is no
+                            code at all: this line will be rejected, and it is
+                            the one thing on the row worth a mark. A line
+                            standing on the pharmacy's own NAPPI is not marked —
+                            it has a code and the claim carries it. */}
+                        <NoCodeMark
+                          known={schemeCodes[it.product.id]}
+                          scheme={schemeName}
+                          onFix={() => { setOpenItem(idx); setEditing(idx); }}
+                        />
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
                           S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
                         </span>
@@ -4431,6 +4470,57 @@ ${d.action}`}
                                        onChange={(e) => setAidHoldReason(e.target.value)} />
                               )}
                               </div>
+                              {/* What the funder will actually be sent.
+                                  The claim is adjudicated on the code, not the
+                                  name: a line with none is rejected, and the
+                                  pharmacy learns that weeks later in a
+                                  remittance. This is the last moment anybody
+                                  can do anything about it, so it is said here
+                                  rather than discovered there. It does not
+                                  block — a pharmacy may well claim anyway and
+                                  chase the code afterwards. */}
+                              {aidScheme !== "" && items.length > 0 && (
+                                <div className="fin-panel fin-codes">
+                                  <h4>
+                                    What {schemeName} will be billed
+                                    {(() => {
+                                      const short = items.filter(
+                                        (i) => schemeCodes[i.product.id]?.origin === "none").length;
+                                      return short ? (
+                                        <span className="badge warn">
+                                          {short} line{short === 1 ? "" : "s"} it cannot identify
+                                        </span>
+                                      ) : null;
+                                    })()}
+                                  </h4>
+                                  <ul className="fin-code-list">
+                                    {items.map((i, at) => (
+                                      <li key={i.product.id}>
+                                        <SchemeCodeField
+                                          compact
+                                          medicalAidId={Number(aidScheme)}
+                                          scheme={schemeName}
+                                          productId={i.product.id}
+                                          productName={i.product.name}
+                                          known={schemeCodes[i.product.id]}
+                                          onSaved={reloadSchemeCodes}
+                                        />
+                                        <span className="fin-code-name">
+                                          {i.product.name} {i.product.strength}
+                                        </span>
+                                        <span className="fin-code-qty">×{i.quantity}</span>
+                                        <span className="fin-code-money">
+                                          {money(lineEach(i) * (i.quantity || 0))}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <p className="fin-note">
+                                    A code typed here is kept against the medicine, so the
+                                    next script carrying it is already right.
+                                  </p>
+                                </div>
+                              )}
                               {patient && aidScheme !== "" && aidMember.trim()
                                 && (patient.medical_aid_id !== aidScheme
                                   || (patient.medical_aid_number ?? "") !== aidMember.trim()) && (

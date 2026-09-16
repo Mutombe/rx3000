@@ -20,7 +20,7 @@ from ..models import (
     Sale, Shift, User, Waybill,
 )
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
-                        repeat_performance)
+                        repeat_performance, scheme_codes as scheme_codes_svc)
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -79,6 +79,63 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
         "note": ("" if not aid else
                  "An estimate from the scheme's terms on file. The funder's own "
                  "adjudication is the final answer."),
+    }
+
+
+# ---------------------------------------------------------------------------
+# What the funder calls this medicine
+# ---------------------------------------------------------------------------
+
+@router.post("/scheme-codes")
+def scheme_codes(medical_aid_id: int | None = Body(default=None),
+                 product_ids: list[int] = Body(default=[]),
+                 db: Session = Depends(get_db)):
+    """The NAPPI code each of these medicines claims under, for this funder.
+
+    A POST because it takes a basket. Asked once per basket rather than once per
+    line: this is read while a script is being built, and a query a line is a
+    round trip a line on the screen a pharmacy lives in.
+    """
+    return {"codes": list(scheme_codes_svc.for_products(
+        db, medical_aid_id, product_ids).values())}
+
+
+@router.put("/scheme-codes/{medical_aid_id}/{product_id}")
+def set_scheme_code(medical_aid_id: int, product_id: int,
+                    code: str = Body(default="", embed=True),
+                    db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)):
+    """Teach the catalogue what this funder calls this medicine.
+
+    Written against the product, not the script line, because the answer is the
+    same on every script it will ever appear on. A dispenser who corrects one
+    code at the counter has corrected it for the whole pharmacy — the way an
+    unrecognised barcode is taught rather than patched onto one sale.
+    """
+    aid = db.get(MedicalAid, medical_aid_id)
+    product = db.get(Product, product_id)
+    if aid is None:
+        raise HTTPException(status_code=404, detail="Scheme not found")
+    if product is None:
+        raise HTTPException(status_code=404, detail="Product not found")
+    typed = (code or "").strip()
+    # A NAPPI is digits. Letters here mean somebody has typed the medicine's
+    # name or a stock code into the wrong box, and a claim carrying it is
+    # rejected for a reason nobody will connect to this moment.
+    if typed and not typed.isdigit():
+        raise HTTPException(
+            status_code=400,
+            detail=f"A NAPPI code is digits only. '{typed}' is not one — check "
+                   "you have not read across from the stock code column.")
+    scheme_codes_svc.remember(db, medical_aid_id=aid.id, product_id=product.id,
+                              code=typed, user=user,
+                              pharmacy_id=getattr(product, "pharmacy_id", None))
+    known = scheme_codes_svc.for_products(db, aid.id, [product.id])[product.id]
+    return {
+        **known,
+        "message": (f"{aid.name} will be billed {typed} for {product.name}."
+                    if typed else
+                    f"Cleared. {product.name} falls back to the pharmacy's own NAPPI."),
     }
 
 
