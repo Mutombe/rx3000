@@ -31,6 +31,7 @@ import { getToken } from "./api";
 import Login from "./pages/Login";
 import { PageSkeleton } from "./components/Skeleton";
 import { ToastProvider } from "./components/Toast";
+import { DoingProvider } from "./components/Doing";
 import { ConfirmProvider } from "./components/Confirm";
 import { ConnectionProvider, RequiresConnection } from "./components/Connection";
 import { SessionProvider } from "./session";
@@ -123,6 +124,8 @@ function Protected({ children }: { children: JSX.Element }) {
 export default function App() {
   return (
     <ToastProvider>
+    {/* Work the counter started and need not wait for. */}
+    <DoingProvider>
     <ConfirmProvider>
     <ConnectionProvider>
     <Routes>
@@ -255,6 +258,7 @@ export default function App() {
     </Routes>
     </ConnectionProvider>
     </ConfirmProvider>
+    </DoingProvider>
     </ToastProvider>
   );
 }

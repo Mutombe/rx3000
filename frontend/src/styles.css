@@ -9482,3 +9482,69 @@ button.fin-ack { cursor: pointer; }
 @media (max-width: 640px) {
   .mix-row, .mix-sum { grid-template-columns: 1fr 1fr; }
 }
+
+/* ========================================================================
+   WORK IN FLIGHT. The dialog closed on the keystroke; this is what became of
+   it. Bottom left, out of the way of the bar and the toasts, and never silent:
+   every chip ends in a tick or a reason.
+   ======================================================================== */
+.doing {
+  /* Clear of the dispensary's key bar, which lives along the bottom: a chip
+     half under F3 is a chip nobody reads. */
+  position: fixed; left: var(--s3); bottom: 5.4rem; z-index: 450;
+  display: flex; flex-direction: column-reverse; gap: 6px; max-width: min(26rem, 84vw);
+}
+.doing-chip {
+  position: relative; overflow: hidden;
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(16, 16, 22, .14);
+  font-size: .82rem; animation: doing-in 160ms ease-out;
+}
+@keyframes doing-in { from { opacity: 0; transform: translateY(6px); } }
+.doing-chip.is-done { border-color: var(--ok-line, #9fd3ae); }
+.doing-chip.is-done .doing-icon { color: var(--ok-ink, #1d7a3c); }
+.doing-chip.is-failed { border-color: var(--bad-line, #e2a3a3); align-items: flex-start; }
+.doing-chip.is-failed .doing-icon { color: var(--bad-ink, #a32020); }
+.doing-what { display: flex; flex-direction: column; min-width: 0; }
+.doing-why {
+  font-size: .74rem; color: var(--ink-2, var(--muted));
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.doing-icon { display: inline-flex; width: 14px; justify-content: center; flex: 0 0 auto; }
+.doing-spin {
+  width: 11px; height: 11px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--brand, #12306b);
+  animation: doing-turn 700ms linear infinite;
+}
+@keyframes doing-turn { to { transform: rotate(360deg); } }
+/* A thread of light under the chip while the work is out: movement that says
+   "still going" without pretending to know how far along it is. */
+.doing-bar {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 40%;
+  background: linear-gradient(90deg, transparent, var(--brand, #12306b), transparent);
+  animation: doing-sweep 1100ms ease-in-out infinite;
+}
+@keyframes doing-sweep { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+.doing-act {
+  display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
+  border: 0; background: transparent; cursor: pointer; padding: 2px 4px;
+  font-size: .76rem; font-weight: 600; color: var(--brand, #12306b);
+}
+.doing-act.is-quiet { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) {
+  .doing-chip { animation: none; }
+  .doing-spin, .doing-bar { animation-duration: 3s; }
+}
+
+/* A row on its way off the rail: cancelled a moment ago, the server still
+   being told. It leaves visibly rather than blinking out, so a failure that
+   puts it back reads as the same row returning. */
+.wl-row-wrap.is-leaving {
+  opacity: .45; filter: grayscale(.6); pointer-events: none;
+  transform: translateX(-4px);
+  transition: opacity 180ms ease, transform 180ms ease, filter 180ms ease;
+}
+@media (prefers-reduced-motion: reduce) { .wl-row-wrap.is-leaving { transition: none; } }

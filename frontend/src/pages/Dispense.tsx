@@ -20,6 +20,7 @@ import { useTypewriter } from "../hooks/useTypewriter";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import MixAtTheCounter, { MadeUp } from "../components/MixAtTheCounter";
+import { useDoing } from "../components/Doing";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -838,6 +839,20 @@ export default function Dispense() {
    *  bar, the button will not go, and the worklist marks it — and the server
    *  refuses it regardless of what this screen believes. */
   const [hold, setHold] = useState<HoldSummary | null>(null);
+  /** Work the counter started and need not stand and watch. */
+  const doing = useDoing();
+  /** Scripts whose cancellation is still in flight: off the rail already,
+   *  because the decision was made when the reason was typed. */
+  const [cancelling, setCancelling] = useState<number[]>([]);
+  /** The script on screen, readable from inside work that outlives this render. */
+  const fromRxRef = useRef<{ id: number; number: string } | null>(null);
+  useEffect(() => { fromRxRef.current = fromRx; }, [fromRx]);
+  /** Whether the dispenser has moved on to somebody else while work is in
+   *  flight. Work that lands afterwards must not take their screen. */
+  const itemsRef = useRef<DraftItem[]>([]);
+  const patientRef = useRef<Patient | null>(null);
+  useEffect(() => { itemsRef.current = items; }, [items]);
+  useEffect(() => { patientRef.current = patient; }, [patient]);
   const [holdReasons, setHoldReasons] = useState<{ code: string; label: string }[]>([]);
   const [holding, setHolding] = useState(false);
   const [holdReason, setHoldReason] = useState("");
@@ -869,22 +884,40 @@ export default function Dispense() {
   const [cancelReason, setCancelReason] = useState("");
   const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
 
-  async function cancelScript() {
+  /** Cancel a script, without standing there while it happens.
+   *
+   *  The dialog closes on the keystroke and the row goes at once, because the
+   *  decision was made when the reason was typed. The work carries on in the
+   *  tray, and if the server refuses — "already dispensed in part", which is an
+   *  answer to act on with Alter script — the row comes back and the reason is
+   *  handed back with it, so it can be re-opened rather than retyped.
+   */
+  function cancelScript() {
     if (!cancelTarget || cancelReason.trim().length < 3) return;
     const { id, number } = cancelTarget;
-    try {
-      await api.post(`/api/prescriptions/${id}/cancel`, { reason: cancelReason.trim() });
-      setCancelTarget(null);
-      // Clear the screen only if the cancelled script is the one on it; one
-      // cancelled from the worklist leaves whatever is being worked on alone.
-      if (fromRx?.id === id) newScript();
-      setWorklistNonce((n) => n + 1);
-      toast.ok(`${number} is cancelled and off the worklist.`);
-    } catch (e) {
-      // Left open with the reason still typed: "already dispensed in part" is
-      // an answer to read, and to act on with Alter script.
-      toast.error(errorText(e, "That script could not be cancelled."));
-    }
+    const reason = cancelReason.trim();
+    const wasOnScreen = fromRx?.id === id;
+
+    setCancelTarget(null);
+    setCancelReason("");
+    setCancelling((live) => [...live, id]);
+    if (wasOnScreen) newScript();
+
+    doing.run({
+      label: `Cancelling ${number}`,
+      said: `${number} is cancelled and off the worklist.`,
+      run: () => api.post(`/api/prescriptions/${id}/cancel`, { reason }),
+      done: () => {
+        setCancelling((live) => live.filter((x) => x !== id));
+        setWorklistNonce((n) => n + 1);
+      },
+      undo: () => {
+        // Back on the rail, with what was typed, ready to be looked at again.
+        setCancelling((live) => live.filter((x) => x !== id));
+        setWorklistNonce((n) => n + 1);
+        setCancelReason(reason);
+      },
+    });
   }
 
   async function openHoldDialog() {
@@ -901,18 +934,32 @@ export default function Dispense() {
     setHolding(true);
   }
 
-  async function placeHold() {
+  function placeHold() {
     if (!fromRx || !holdReason) return;
-    try {
-      const placed = await api.post<HoldSummary>(`/api/prescriptions/${fromRx.id}/holds`,
-                                                 { reason_code: holdReason, note: holdNote.trim() });
-      setHold(placed);
-      setHolding(false);
-      setWorklistNonce((n) => n + 1);
-      toast.ok(`${fromRx.number} is on hold — ${placed.reason.toLowerCase()}.`);
-    } catch (e) {
-      toast.error(errorText(e, "That script could not be put on hold."));
-    }
+    const script = fromRx;
+    const code = holdReason;
+    const note = holdNote.trim();
+    const before = hold;
+    // Held on screen straight away: the decision is made, and the label the
+    // server gives it back is the one this shows a moment later.
+    const label = (holdReasons.find((r) => r.code === code)?.label) || code;
+    setHold({ reason: label, placed_by: "", placed_at: new Date().toISOString() } as HoldSummary);
+    setHolding(false);
+
+    doing.run({
+      label: `Holding ${script.number}`,
+      said: `${script.number} is on hold — ${label.toLowerCase()}.`,
+      run: () => api.post<HoldSummary>(`/api/prescriptions/${script.id}/holds`,
+                                       { reason_code: code, note }),
+      done: (placed: HoldSummary) => {
+        if (fromRxRef.current?.id === script.id) setHold(placed);
+        setWorklistNonce((n) => n + 1);
+      },
+      undo: () => {
+        if (fromRxRef.current?.id === script.id) setHold(before);
+        setWorklistNonce((n) => n + 1);
+      },
+    });
   }
 
   /** A pack scanned into the medicine box.
@@ -1946,18 +1993,116 @@ export default function Dispense() {
     }
   }
 
-  async function createAndDispense() {
+  /** Dispense, and let the counter get on with the next patient.
+   *
+   *  Everything below this point is bookkeeping the dispenser has already
+   *  decided: the packs are picked, the initials are in, the money is settled
+   *  or on its way to the till. Standing in front of a spinner while a hosted
+   *  database in another city writes eleven rows is time taken from the person
+   *  next in the queue.
+   *
+   *  So the screen clears on the keystroke and the work goes to the tray, where
+   *  it is visible, named, and answered — in a toast and on the chip — whichever
+   *  way it lands. A refusal puts the whole script back exactly as it was,
+   *  including the packs scanned and the expiry dates read off them, and offers
+   *  Try again rather than retrying anything by itself.
+   */
+  function createAndDispense() {
     if (!patient || doctorId === "" || items.length === 0) {
       toast.error("Select a patient, a doctor and at least one medication.");
       return;
     }
-    setBusy(true);
-    try {
+
+    // What the screen would have to become again, if this does not happen.
+    const before = {
+      patient, doctorId, items, fromRx, route, initials, idNumber, complianceNotes,
+      idVerified, scriptSighted, prescriberVerified, counselPoints, counselNotes,
+      scanChecks, packExpiry, payHow, tenders, driverId, deliverTo, deliveryFee,
+      printPick, aidScheme, aidMember, aidDep, aidHold, aidHoldReason,
+    };
+    const said = `${fromRx?.number ?? "This script"} for ${patient.first_name} ${patient.last_name}`;
+
+    // Cleared here, once, rather than on the way out of the request: by the time
+    // the server answers, the dispenser may be three lines into the next script
+    // and clearing then would take it off them.
+    setFinishing(null);
+    clearScriptDraft();
+    refreshNextNumber();
+    setItems([]); aiCheck.reset(); setFromRx(null);
+    setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
+    setInitials(myInitials); setIdNumber(""); setComplianceNotes("");
+    setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
+    setPrintPick({});
+    setTenders([{ method: "cash", currency_code: currencyState?.base ?? "USD", amount: "" }]);
+    loadLists();
+    setWorklistNonce((n) => n + 1);
+
+    // A script created by a first attempt is dispensed by the second, never
+    // created twice: three tries at a line with no dated stock used to make
+    // three identical scripts and spend three numbers.
+    let already: { id: number; rx: any } | null = fromRx ? { id: fromRx.id, rx: null } : null;
+
+    doing.run({
+      label: `Dispensing ${said}`,
+      said: `${said} — dispensed.`,
+      run: () => dispenseTheScript(before, already, (made) => { already = made; }),
+      // Where it goes next is the answer to "how it is paid", which was decided
+      // in Finish a moment ago:
+      //
+      //   to the till       the sale is waiting there for the patient's share
+      //   out for delivery  it is on a driver's run, and that is the screen
+      //   taken here        the money is already in; there is nowhere to go
+      //
+      // Offered rather than taken. By the time this lands the dispenser may be
+      // half way through the next patient, and moving their screen then is the
+      // very thing that made them wait for a spinner in the first place.
+      next: (sale: any) => {
+        if (before.payHow === "till" && sale?.id) {
+          return { label: "Take payment →",
+                   go: () => navigate(`/pos?settle=${sale.id}&tab=pending`) };
+        }
+        if (before.payHow === "delivery") {
+          return { label: "Deliveries →", go: () => navigate("/deliveries") };
+        }
+        return null;
+      },
+      undo: () => {
+        // Back exactly as it was, down to the packs already scanned.
+        setPatient(before.patient); setDoctorId(before.doctorId); setItems(before.items);
+        setFromRx(already ? { id: already.id, number: already.rx?.rx_number ?? before.fromRx?.number ?? `#${already.id}`,
+                              draft: false } : before.fromRx);
+        setRoute(before.route); setInitials(before.initials); setIdNumber(before.idNumber);
+        setComplianceNotes(before.complianceNotes); setIdVerified(before.idVerified);
+        setScriptSighted(before.scriptSighted); setPrescriberVerified(before.prescriberVerified);
+        setCounselPoints(before.counselPoints); setCounselNotes(before.counselNotes);
+        setScanChecks(before.scanChecks); setPackExpiry(before.packExpiry);
+        setPayHow(before.payHow); setTenders(before.tenders); setDriverId(before.driverId);
+        setDeliverTo(before.deliverTo); setDeliveryFee(before.deliveryFee);
+        setPrintPick(before.printPick); setAidScheme(before.aidScheme);
+        setAidMember(before.aidMember); setAidDep(before.aidDep);
+        setAidHold(before.aidHold); setAidHoldReason(before.aidHoldReason);
+        setWorklistNonce((n) => n + 1);
+      },
+    });
+  }
+
+  /** The dispensing itself, run from the tray. */
+  async function dispenseTheScript(
+    before: any,
+    already: { id: number; rx: any } | null,
+    remember: (made: { id: number; rx: any }) => void,
+  ) {
+    const { patient, doctorId, items, scanChecks, packExpiry, payHow, tenders } = before as {
+      patient: Patient; doctorId: number | ""; items: DraftItem[];
+      scanChecks: Record<number, string>; packExpiry: Record<number, string>;
+      payHow: string; tenders: TenderLine[];
+    };
+    {
       // A queued script is dispensed as itself. Capturing it again would leave
       // the original waiting in the queue for ever, which is exactly what used
       // to happen: the worklist never went down however many people you served.
-      const rx = fromRx
-        ? await api.get<Prescription>(`/api/prescriptions/${fromRx.id}`)
+      const rx = already
+        ? await api.get<Prescription>(`/api/prescriptions/${already.id}`)
         : await api.post<Prescription>("/api/prescriptions", {
           patient_id: patient.id, doctor_id: doctorId,
           items: items.map((i) => ({
@@ -1991,20 +2136,18 @@ export default function Dispense() {
       // for one patient and spent three numbers. The screen now takes the saved
       // script as its own, so a retry dispenses that one, and the worklist
       // shows the one script that is genuinely still waiting.
-      if (!fromRx) {
-        setFromRx({ id: rx.id, date: (rx as any).date_prescribed,
-                    number: (rx as any).rx_number || `#${rx.id}`, draft: false });
-        adoptIds(rx);
+      if (!already) {
+        // Remembered, so a Try again dispenses this script rather than making
+        // another one for the same patient.
+        remember({ id: rx.id, rx });
       }
       const onScreen = new Set(items.map((i) => i.product.id));
       const selected = (rx.items ?? [])
         .filter((i: any) => onScreen.has(i.product_id))
         .map((i: any) => i.id);
       if (!selected.length) {
-        toast.error("None of the lines on screen are on that script any more. "
-                    + "Reopen it and try again.");
-        setBusy(false);
-        return;
+        throw new Error("None of the lines on screen are on that script any more. "
+                        + "Reopen it and try again.");
       }
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: selected,
@@ -2124,15 +2267,13 @@ export default function Dispense() {
         }
       }
 
-      // It has been dispensed: there is nothing left to come back to, and the
-      // number this one took is gone — the next script gets the one after it.
-      clearScriptDraft();
-      refreshNextNumber();
-      setDoneSale(finished); setDoneRxId(rx.id);
-      setItems([]); aiCheck.reset(); setFromRx(null);
-      setIdVerified(false); setScriptSighted(false); setPrescriberVerified(false);
-      setInitials(myInitials); setIdNumber(""); setComplianceNotes("");
-      setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
+      // The screen was cleared when the button was pressed. What is left is
+      // the outcome — and it is only put on the bar if the dispenser has not
+      // already started the next script, because taking their screen over to
+      // report on the last one is the thing this change exists to stop.
+      if (!itemsRef.current.length && !patientRef.current) {
+        setDoneSale(finished); setDoneRxId(rx.id);
+      }
       loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
@@ -2147,8 +2288,10 @@ export default function Dispense() {
       // labels bound for the same roll cannot interleave. Labels first: they go
       // on the box being handed over. The price label reads the lines from this
       // pass, before the cleared script reaches the screen.
-      const prints = { label: willPrint("label"), claim: willPrint("claim"),
-                       delivery: willPrint("delivery"), price: willPrint("price") };
+      const prints = { label: !!before.printPick.label || printDefault("label"),
+                       claim: before.printPick.claim ?? printDefault("claim"),
+                       delivery: before.printPick.delivery ?? printDefault("delivery"),
+                       price: before.printPick.price ?? printDefault("price") };
       const rxNumber = (rx as any).rx_number as string | undefined;
       void (async () => {
         if (prints.label) await printRxLabels(rx.id);
@@ -2161,15 +2304,9 @@ export default function Dispense() {
       // raise the invoice and stay put with a banner, leaving the dispenser to
       // find the front shop and search for the sale they had just made — two
       // screens for one act, and the commonest way a pending sale is forgotten.
-      if (payHow === "till" && finished?.id) {
-        navigate(`/pos?settle=${finished.id}&tab=pending`);
-      }
-    } catch (e: any) {
-      toast.error(errorText(e));
-      // A refusal can leave a script that was saved a moment ago; the worklist
-      // should show it now rather than at its next two-minute refresh.
       setWorklistNonce((n) => n + 1);
-    } finally { setBusy(false); }
+      return finished;
+    }
   }
 
   async function sellOtc() {
@@ -4592,6 +4729,7 @@ ${d.action}`}
         reloadOn={worklistNonce}
         // Cancel straight from the queue, where the script is sitting — for
         // those who may; nobody else sees the control.
+        leaving={cancelling}
         onCancel={mayCancelScript
           ? (row, lines) => openCancel({ id: row.prescription_id, number: row.rx_number,
                                          patient: row.patient, product: row.product, lines })

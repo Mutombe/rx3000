@@ -68,6 +68,7 @@ export default function DispensaryWorklist({
   onPickDraft,
   onPickRepeat,
   onCancel,
+  leaving = [],
   panel: panelProp,
   onPanelChange,
   reloadOn,
@@ -90,6 +91,10 @@ export default function DispensaryWorklist({
    *  people who may not, and then no control is drawn. `lines` is how many
    *  queued lines that script has, since cancelling takes all of them. */
   onCancel?: (row: QueueRow, lines: number) => void;
+  /** Scripts on their way off the rail — cancelled a moment ago, the server
+   *  still being told. Shown going rather than vanishing, so the eye follows
+   *  what happened and a failure putting one back is not a surprise. */
+  leaving?: number[];
   /** Called when a dispenser clicks a repeat that is due. */
   onPickRepeat?: (row: ReminderRow) => void;
 }) {
@@ -264,7 +269,9 @@ export default function DispensaryWorklist({
             // One wrapper per line: the row opens the script, and the cancel
             // control beside it cannot live inside it — a button inside a
             // button is not allowed, and the click would open the script too.
-            <div key={row.item_id} className={`wl-row-wrap${onCancel ? " has-cancel" : ""}`}>
+            <div key={row.item_id}
+                 className={`wl-row-wrap${onCancel ? " has-cancel" : ""}`
+                   + (leaving.includes(row.prescription_id) ? " is-leaving" : "")}>
             <button
               className={`wl-row ${BAND_CLASS[row.band]}`}
               onClick={() => onPick?.(row)}
