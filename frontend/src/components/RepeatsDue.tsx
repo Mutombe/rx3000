@@ -75,7 +75,7 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
       <button type="button"
               className={`lane-tool is-repeats${due.length ? (late ? " is-warn" : " is-counted") : ""}`}
               disabled={due.length === 0} onClick={onOpen} title={label} aria-label={label}>
-        <ArrowClockwise size={15} weight="bold" />
+        <ArrowClockwise size={17} weight="bold" />
         {due.length > 0 && <span className="lane-tool-count">{due.length}</span>}
       </button>
     );

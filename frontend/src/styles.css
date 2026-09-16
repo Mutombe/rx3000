@@ -8932,17 +8932,33 @@ button.fin-ack { cursor: pointer; }
 }
 .disp-dense .lane-field.is-picked.disp-patient-picked { gap: 6px; padding-right: 2px; }
 .lane-field.is-picked .dpp-who { display: flex; min-width: 0; }
+/* The five things worth knowing about the person in front of you: what they
+   are allergic to, who pays, what is due, what they have had, who they are.
+   This row is why the lane is as tall as it is — the whole band was made
+   bigger to hold them — and they were then drawn at 22px, smaller than the
+   route tabs they are supposed to outweigh. They carry the weight now: each is
+   its own shaped control, not an icon floating in a gap. */
 .lane-tools {
-  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 1px;
-  padding: 0 4px; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px;
+  padding: 0 6px; border-left: 1px solid var(--line); border-right: 1px solid var(--line);
 }
 .lane-tool {
   position: relative; display: inline-grid; place-items: center;
-  width: 24px; height: 24px; padding: 0;
-  border: 0; border-radius: var(--r-sm); background: none;
-  color: var(--ink-soft); cursor: pointer;
+  width: 30px; height: 30px; padding: 0;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+  color: var(--ink-mid); cursor: pointer;
+  transition: background 90ms ease, border-color 90ms ease, color 90ms ease;
 }
-.lane-tool:hover:not(:disabled) { background: var(--hover); color: var(--ink); }
+.lane-tool:hover:not(:disabled) {
+  background: var(--surface); border-color: var(--line-strong); color: var(--ink);
+}
+/* One that has something to say is filled rather than merely tinted: on a rail
+   scanned forty times a morning, colour alone on a 15px glyph is not a signal
+   anybody catches. */
+.lane-tool.is-alert, .lane-tool.is-warn {
+  background: var(--surface); border-color: currentColor;
+}
 .lane-tool:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .lane-tool:disabled { opacity: .35; cursor: default; }
 .lane-tool.is-alert { color: var(--danger); }
@@ -9011,12 +9027,16 @@ button.fin-ack { cursor: pointer; }
 /* Sized from measurement at 1366x768. Widening the patient column for its
    tools took the prescriber to 125px for a 138px hint and the medicine to 97px
    for a 107px one. The tools give 2px each and the columns rebalance, which
-   leaves every hint and the patient's name room to spare. */
+   leaves every hint and the patient's name room to spare.
+
+   Superseded: a later `.disp-dense .sec-patient` near the end of this file
+   wins on source order and is the one that decides these columns. Tuned here,
+   nothing happens — which cost an hour once. The live figures are there. */
 .disp-dense .sec-patient {
   grid-template-columns: minmax(0, 2.05fr) minmax(0, 1.3fr) minmax(0, 1.1fr);
 }
 .lane-tools { padding: 0 3px; gap: 0; }
-.lane-tool { width: 22px; height: 22px; }
+.lane-tool { width: 28px; height: 28px; }
 
 /* A count sits on its own icon, not on the next one: smaller, lifted to the
    corner, ringed in the box's colour so it reads as a badge, and a little air
@@ -9033,8 +9053,8 @@ button.fin-ack { cursor: pointer; }
    from inside the box, not from the fields beside it, which have only 5-7px to
    spare over their hints. */
 .disp-dense .lane-field.is-picked.disp-patient-picked { gap: 4px; }
-.lane-tools { gap: 2px; padding: 0 0 0 3px; }
-.disp-patient-picked .dpp-change { width: 22px; height: 22px; }
+.lane-tools { gap: 3px; padding: 0 1px 0 4px; }
+.disp-patient-picked .dpp-change { width: 26px; height: 26px; }
 
 /* In a picked box the name is what is being confirmed, so it is the last thing
    to give way. Name and ID were one run of text with one ellipsis, which landed
@@ -9245,6 +9265,18 @@ button.fin-ack { cursor: pointer; }
   border-radius: var(--r-md);
   padding: 3px; gap: 3px;
   box-shadow: none;
+  /* The panel does not scroll here; the list inside it does. It carried
+     `overflow-y: auto` with `scrollbar-gutter: stable`, which reserves a lane
+     for a scrollbar whether or not one is ever drawn — so every child stopped
+     17px short of the right edge while sitting flush against the left. Four
+     pixels of air on one side and twenty-one on the other, on a rail that runs
+     the height of the screen, which is what makes it read as slipped.
+
+     The same mistake was found and fixed on `.wl-list` below; it was left
+     here. Hidden rather than visible, because this panel is the thing keeping
+     the rail inside the scrollport. */
+  overflow: hidden;
+  scrollbar-gutter: auto;
 }
 .disp-with-worklist .wl-head { color: var(--ink-soft); padding: 5px 8px 3px; }
 
@@ -9403,8 +9435,17 @@ button.fin-ack { cursor: pointer; }
      with a tooltip; a patient read wrong is a different order of mistake. */
   /* The patient takes the largest share; the other two keep the order an
      earlier round settled on — widths follow the data, and a prescriber
-     carries a name and a practice number where a medicine carries a name. */
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.05fr) minmax(0, 1fr);
+     carries a name and a practice number where a medicine carries a name.
+
+     Re-measured when the tools grew from 22px to 28. This band is TALLER than
+     the route tabs beside it precisely so it can hold those five controls, and
+     drawing them smaller than the tabs they are meant to outweigh made the
+     height read as padding rather than purpose. The five of them plus their
+     gaps take 29px more than they did, and it comes out of the two columns
+     that can spare it: at 1366 the prescriber keeps 190px for a 138px hint and
+     the medicine 181 for a 107px one, both still clear. The patient gets it,
+     which is what keeps the ID beside the name at 1512. */
+  grid-template-columns: minmax(0, 1.78fr) minmax(0, 1.02fr) minmax(0, .97fr);
 }
 /* Every field on the lane is one height, and it is a big one. */
 .disp-dense .sec-patient > .lane-field { height: var(--lane-h, 40px); }
@@ -9661,34 +9702,61 @@ button.fin-ack { cursor: pointer; }
    every chip ends in a tick or a reason.
    ======================================================================== */
 .doing {
-  /* Clear of the dispensary's key bar, which lives along the bottom: a chip
-     half under F3 is a chip nobody reads. */
-  position: fixed; left: var(--s3); bottom: 5.4rem; z-index: 450;
+  /* Clear of the dispensary's key bar AND the finish bar above it. 5.4rem
+     cleared the keys and landed on the bar, which was survivable while the chip
+     was white on white and is not now it is a solid slab: it sat across "Add a
+     medicine to the script" and the prescriber warning, which are the two
+     sentences that tell somebody what to do next. */
+  position: fixed; left: var(--s3); bottom: 8rem; z-index: 450;
   display: flex; flex-direction: column-reverse; gap: 6px; max-width: min(26rem, 84vw);
 }
+/* A chip of its own colour, and that colour is graphite.
+ *
+ * It was drawn on `--surface` with a hairline, which is what a card is made of
+ * — so work in flight looked like one more panel that had drifted to the corner
+ * of the screen, competing with the script behind it. It is not part of the
+ * document: it is the system talking, briefly, about something it is doing
+ * somewhere else.
+ *
+ * So it is inverted. Graphite carries no hue of its own, which is the point:
+ * this thing appears over a dispensary already spending its colour on schedule
+ * badges, margins and warnings, and a sixth hue there would be noise. Against
+ * that it reads instantly and belongs to none of it. The states are then free
+ * to use colour meaningfully — a green rail when it lands, a red one when it
+ * does not — because nothing else on the chip is competing for it.
+ */
 .doing-chip {
   position: relative; overflow: hidden;
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 10px; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--line);
-  box-shadow: 0 6px 20px rgba(16, 16, 22, .14);
-  font-size: .82rem; animation: doing-in 160ms ease-out;
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 13px 9px 12px; border-radius: 12px;
+  background: var(--doing-bg, #23262e);
+  color: var(--doing-ink, #f2f3f5);
+  border: 1px solid var(--doing-edge);
+  box-shadow: 0 10px 28px rgba(12, 14, 20, .3), 0 2px 6px rgba(12, 14, 20, .2);
+  font-size: .82rem; animation: doing-in 170ms cubic-bezier(.2, .8, .3, 1);
 }
-@keyframes doing-in { from { opacity: 0; transform: translateY(6px); } }
-.doing-chip.is-done { border-color: var(--ok-line, #9fd3ae); }
-.doing-chip.is-done .doing-icon { color: var(--ok-ink, #1d7a3c); }
-.doing-chip.is-failed { border-color: var(--bad-line, #e2a3a3); align-items: flex-start; }
-.doing-chip.is-failed .doing-icon { color: var(--bad-ink, #a32020); }
+/* The state as an edge down the leading side, where a list of chips lines them
+   up and the colour reads as a column. */
+.doing-chip::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--doing-rail, transparent);
+}
+@keyframes doing-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+.doing-chip.is-working { --doing-rail: var(--doing-line); }
+.doing-chip.is-done { --doing-rail: #4ac07a; }
+.doing-chip.is-done .doing-icon { color: #4ac07a; }
+.doing-chip.is-failed { --doing-rail: #ef6d6d; align-items: flex-start; }
+.doing-chip.is-failed .doing-icon { color: #ef6d6d; }
 .doing-what { display: flex; flex-direction: column; min-width: 0; }
 .doing-why {
-  font-size: .74rem; color: var(--ink-2, var(--muted));
+  font-size: .74rem; color: var(--doing-soft);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.doing-icon { display: inline-flex; width: 14px; justify-content: center; flex: 0 0 auto; }
+.doing-icon { display: inline-flex; width: 15px; justify-content: center; flex: 0 0 auto; }
 .doing-spin {
-  width: 11px; height: 11px; border-radius: 50%;
-  border: 2px solid var(--line); border-top-color: var(--brand, #12306b);
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--doing-line); border-top-color: var(--doing-ink);
   animation: doing-turn 700ms linear infinite;
 }
 @keyframes doing-turn { to { transform: rotate(360deg); } }
@@ -9696,16 +9764,51 @@ button.fin-ack { cursor: pointer; }
    "still going" without pretending to know how far along it is. */
 .doing-bar {
   position: absolute; left: 0; bottom: 0; height: 2px; width: 40%;
-  background: linear-gradient(90deg, transparent, var(--brand, #12306b), transparent);
+  background: linear-gradient(90deg, transparent, var(--doing-sweep), transparent);
   animation: doing-sweep 1100ms ease-in-out infinite;
 }
 @keyframes doing-sweep { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
 .doing-act {
   display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto;
-  border: 0; background: transparent; cursor: pointer; padding: 2px 4px;
-  font-size: .76rem; font-weight: 600; color: var(--brand, #12306b);
+  border: 1px solid var(--doing-line); border-radius: 7px;
+  background: var(--doing-fill); cursor: pointer; padding: 3px 9px;
+  font-size: .76rem; font-weight: 600; color: var(--doing-ink);
 }
-.doing-act.is-quiet { color: var(--muted); }
+.doing-act:hover { background: var(--doing-fill-hi); border-color: var(--doing-line-hi); }
+.doing-act.is-quiet {
+  border-color: transparent; background: none; color: var(--doing-soft);
+}
+.doing-act.is-quiet:hover { background: var(--doing-fill); color: var(--doing-ink); }
+/* One block, following this stylesheet's own rule: the device preference is
+   resolved in JavaScript and written to `data-theme`, so there is no
+   `prefers-color-scheme` copy to drift out of step.
+
+   In the dark theme the page is already graphite, so the chip inverts the other
+   way — a pale slab over a dark page — to stay a layer above it rather than
+   dissolving into it. Everything on the chip is expressed against these four
+   tokens, so neither theme has a hard-coded white sitting on a light ground. */
+:root {
+  --doing-bg: #23262e;
+  --doing-ink: #f2f3f5;
+  --doing-soft: rgba(255, 255, 255, .62);
+  --doing-edge: rgba(255, 255, 255, .09);
+  --doing-fill: rgba(255, 255, 255, .08);
+  --doing-fill-hi: rgba(255, 255, 255, .16);
+  --doing-line: rgba(255, 255, 255, .22);
+  --doing-line-hi: rgba(255, 255, 255, .38);
+  --doing-sweep: rgba(255, 255, 255, .85);
+}
+:root[data-theme="dark"] {
+  --doing-bg: #eef0f3;
+  --doing-ink: #1b1d23;
+  --doing-soft: rgba(20, 22, 28, .62);
+  --doing-edge: rgba(20, 22, 28, .12);
+  --doing-fill: rgba(20, 22, 28, .06);
+  --doing-fill-hi: rgba(20, 22, 28, .12);
+  --doing-line: rgba(20, 22, 28, .2);
+  --doing-line-hi: rgba(20, 22, 28, .36);
+  --doing-sweep: rgba(20, 22, 28, .8);
+}
 @media (prefers-reduced-motion: reduce) {
   .doing-chip { animation: none; }
   .doing-spin, .doing-bar { animation-duration: 3s; }

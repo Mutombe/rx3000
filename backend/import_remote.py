@@ -92,6 +92,34 @@ if WHAT == "status":
     status()
     raise SystemExit(0)
 
+# The newer jobs take arguments rather than a single file — which branch, which
+# pharmacy, dry run or not — so they are handed the rest of the command line as
+# it stands. They come through here rather than growing a second way into the
+# hosted database: one door, one place that reads the target, one place to look
+# when somebody asks what was run against production.
+JOBS = {
+    "stock": "app.importers.carexpress_stock_on_hand",
+    "catalogue": "app.importers.carexpress_stock_totals",
+    "cimas": "app.importers.cimas_formulary",
+    "prescribers": "app.importers.carexpress_prescribers",
+    "retire-prescribers": "app.importers.retire_unnumbered_prescribers",
+    "schedules": "app.classify_schedules",
+    "prices-from-history": "app.services.price_from_history",
+}
+if WHAT == "job":
+    if len(sys.argv) < 3 or sys.argv[2] not in JOBS:
+        raise SystemExit("Which job? One of: " + ", ".join(sorted(JOBS)))
+    import importlib
+
+    from app.tenancy import unscoped as _unscoped
+
+    module = importlib.import_module(JOBS[sys.argv[2]])
+    with _unscoped():
+        code = module.main(sys.argv[3:])
+    print("\nafter:")
+    status()
+    raise SystemExit(code or 0)
+
 if len(sys.argv) < 3:
     raise SystemExit(f"Give me the file to import for {WHAT!r}.")
 path = sys.argv[2]

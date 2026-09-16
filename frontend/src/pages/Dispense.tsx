@@ -77,7 +77,9 @@ const lineName = (p: Product) => `${p.name} ${p.strength || ""}`.trim();
  *  promising only what the search behind it actually matches. */
 const PATIENT_HINT = "Name, ID, phone or aid no.";
 const PRESCRIBER_HINT = "Name or practice no.";
-const MEDICINE_HINT = "Name, or scan a pack";
+// Short because the field is: the tools on the patient beside it took the
+// room, and a hint wider than its box is an ellipsis, not a hint.
+const MEDICINE_HINT = "Name or scan";
 
 /** Initials from a person's name: "System Administrator" → "SA",
  *  "Dr Tendai M. Moyo" → "TMM". Titles are not initials. Falls back to the
@@ -2860,7 +2862,7 @@ export default function Dispense() {
             </button>
           )}
           <Link className="btn secondary" to="/dispensing-history">
-            <ClockCounterClockwise size={15} /> History
+            <ClockCounterClockwise size={17} /> History
           </Link>
         </div>
       </div>
@@ -3144,7 +3146,7 @@ export default function Dispense() {
                                 className={`lane-tool is-allergies${list.length ? " is-alert" : ""}`}
                                 title={label} aria-label={label}
                                 onClick={() => setLaneOpen("details")}>
-                          <FirstAidKit size={15} weight={list.length ? "fill" : "regular"} />
+                          <FirstAidKit size={17} weight={list.length ? "fill" : "regular"} />
                           {list.length > 0 && <span className="lane-tool-count">{list.length}</span>}
                         </button>
                       );
@@ -3160,12 +3162,12 @@ export default function Dispense() {
                     <button type="button" className="lane-tool is-history"
                             title="Prescription history" aria-label="Prescription history"
                             onClick={() => setLaneOpen("history")}>
-                      <ClockCounterClockwise size={15} />
+                      <ClockCounterClockwise size={17} />
                     </button>
                     <button type="button" className="lane-tool is-details"
                             title="Patient details" aria-label="Patient details"
                             onClick={() => setLaneOpen("details")}>
-                      <IdentificationCard size={15} />
+                      <IdentificationCard size={17} />
                     </button>
                   </span>
                   <button type="button" className="lane-icon-btn dpp-change" onClick={() => setPatient(null)}

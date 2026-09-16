@@ -113,6 +113,22 @@ with sync_playwright() as pw:
     if SHOT and tray:
         page.screenshot(path=str(SHOT / "optimistic-dispensing.png"))
 
+    # The tray floats over a working screen, so it must not come to rest on the
+    # two things that say what to do next. It is a solid slab now; at 5.4rem it
+    # lay across the finish bar.
+    clear = page.evaluate("""() => {
+      const box = (s) => { const e = document.querySelector(s);
+        if (!e) return null; const r = e.getBoundingClientRect();
+        return {l: r.left, r: r.right, t: r.top, b: r.bottom}; };
+      const hits = (a, b) => !!a && !!b && a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+      const chip = box('.doing-chip');
+      return {chip, onBar: hits(chip, box('.disp-foot, .disp-bar, .disp-finish-bar')),
+              onKeys: hits(chip, box('.keybar'))};
+    }""")
+    check("the tray rests on neither the finish bar nor the key strip",
+          clear["chip"] and not clear["onBar"] and not clear["onKeys"],
+          f"bar={clear['onBar']} keys={clear['onKeys']}")
+
     # The dispenser starts the next patient while it is still in flight.
     page.fill("[data-hk='product']", "atorva")
     page.wait_for_timeout(1200)

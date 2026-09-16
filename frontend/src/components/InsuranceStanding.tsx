@@ -93,7 +93,7 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
       <button type="button"
               className={`lane-tool is-aid${tone ? ` is-${tone.cls}` : ""}`}
               disabled={!covered} onClick={onOpen} title={label} aria-label={label}>
-        <Icon size={15} weight={covered ? "fill" : "regular"} />
+        <Icon size={17} weight={covered ? "fill" : "regular"} />
       </button>
     );
   }

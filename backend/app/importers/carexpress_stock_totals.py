@@ -124,7 +124,8 @@ def read(path: str) -> list[dict]:
     return rows
 
 
-def plan(db, rows: list[dict], *, rename: bool) -> tuple[Summary, list[tuple]]:
+def plan(db, rows: list[dict], *, rename: bool,
+         retire: bool = False) -> tuple[Summary, list[tuple]]:
     """What would change, without changing anything."""
     summary = Summary(rows=len(rows))
     products = {(p.stock_code or "").strip().upper(): p
@@ -185,14 +186,22 @@ def plan(db, rows: list[dict], *, rename: bool) -> tuple[Summary, list[tuple]]:
             elif product.category_id != existing.id:
                 changes["category_id"] = existing.id
 
-        # Still sold, or not. Their export knows: 14,092 of 16,038 lines are
+        # Still sold, or not. Their export knows: 14,092 of 16,037 lines are
         # already switched off in the system the pharmacy uses every day, and a
         # catalogue that offers all of them is one nobody can search.
+        #
+        # Opt-in, though, and that is the point of `retire`. `active` is not a
+        # field like the others: false takes a medicine out of the dispensary
+        # search AND the stock list, so a run that refreshed prices would also,
+        # silently, have put 14,065 of 16,407 products beyond reach — 86% of the
+        # catalogue, as a side effect of a price update nobody thought was
+        # destructive. It is reported either way, and only written when asked.
         active = _text(row.get("ISACTIV")).upper() == "Y"
         discontinued = _text(row.get("ISDISCONT")).upper() == "Y"
         should_be = active and not discontinued
         if bool(product.active) != should_be:
-            changes["active"] = should_be
+            if retire:
+                changes["active"] = should_be
             if should_be:
                 summary.restored += 1
             else:
@@ -243,6 +252,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true", help="write the changes")
     parser.add_argument("--rename", action="store_true",
                         help="also take names that differ by more than spacing")
+    parser.add_argument("--retire-unsold", action="store_true",
+                        help="also switch off the lines the export says are no longer "
+                             "sold — this hides them from the dispensary and the stock "
+                             "list, so it is never done as a side effect of a refresh")
     parser.add_argument("--report", help="write every planned change to this CSV")
     args = parser.parse_args(argv)
 
@@ -250,7 +263,8 @@ def main(argv: list[str] | None = None) -> int:
     token = set_current_pharmacy(args.pharmacy)
     db = SessionLocal()
     try:
-        summary, edits = plan(db, rows, rename=args.rename)
+        summary, edits = plan(db, rows, rename=args.rename,
+                              retire=args.retire_unsold)
         print(f"\n{summary.rows:,} rows read, {summary.matched:,} matched, "
               f"{len(summary.unmatched):,} not in the catalogue")
         print(f"{summary.changed:,} product(s) would change"
@@ -258,7 +272,9 @@ def main(argv: list[str] | None = None) -> int:
         for name, count in sorted(summary.fields.items(), key=lambda kv: -kv[1]):
             print(f"    {count:>6,}  {name}")
         if summary.retired or summary.restored:
-            print(f"    {summary.retired:>6,}  retired (not sold any more)")
+            print(f"    {summary.retired:>6,}  no longer sold, per the export"
+                  + ("  — RETIRED" if args.retire_unsold else
+                     "  — left alone; --retire-unsold hides them"))
             print(f"    {summary.restored:>6,}  brought back")
         if summary.departments:
             print("  departments this file names that we do not have:")
