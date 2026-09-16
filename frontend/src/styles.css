@@ -9453,3 +9453,32 @@ button.fin-ack { cursor: pointer; }
   font-size: .78rem; color: var(--ink-2, var(--muted));
   max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ========================================================================
+   MIXED AT THE COUNTER. The ingredients, what it costs and what schedule it
+   will be, in the order a dispenser decides them.
+   ======================================================================== */
+.mix-modal { max-width: 38rem; display: flex; flex-direction: column; gap: var(--s2); }
+.mix-modal .field { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.mix-modal .field > * { grid-column: 1 / -1; width: 100%; }
+.mix-modal .field > label { text-align: left; justify-self: start; margin: 0; }
+.mix-ingredients {
+  border: 1px solid var(--line); border-radius: var(--r2); padding: var(--s2);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.mix-head { display: flex; justify-content: space-between; font-size: .78rem; font-weight: 600; }
+.mix-line { display: grid; grid-template-columns: 1fr 6rem auto; gap: var(--s2); align-items: center; }
+.mix-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mix-find { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--line); padding-top: 6px; }
+.mix-find input { flex: 1 1 auto; border: 0; outline: 0; background: transparent; }
+.mix-hits { display: flex; flex-direction: column; max-height: 11rem; overflow-y: auto; }
+.mix-row { display: grid; grid-template-columns: 5rem 1fr 6rem; gap: var(--s2); }
+.mix-sum {
+  display: grid; grid-template-columns: 1fr 1fr 8rem; gap: var(--s2); align-items: end;
+  border-top: 1px solid var(--line); padding-top: var(--s2);
+}
+.mix-sum > div { display: flex; flex-direction: column; }
+.mix-sum b { font-size: 1.05rem; }
+@media (max-width: 640px) {
+  .mix-row, .mix-sum { grid-template-columns: 1fr 1fr; }
+}

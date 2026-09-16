@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
 from .. import schemas
@@ -9,6 +9,56 @@ from ..services import compounding
 
 router = APIRouter(prefix="/api/compounding", tags=["compounding"],
                    dependencies=[Depends(get_current_user)])
+
+
+# ---------- made up at the counter, while the patient waits ----------
+@router.post("/at-the-counter/quote")
+def quote_counter_mix(body: dict = Body(...), db: Session = Depends(get_db),
+                      _: User = Depends(get_current_user)):
+    """What it would cost and what schedule it would be — writing nothing."""
+    from ..services import counter_mixing
+
+    try:
+        return counter_mixing.quote(db, ingredients=body.get("ingredients") or [],
+                                    fee=float(body.get("fee") or 0))
+    except counter_mixing.MixingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/at-the-counter")
+def mix_at_the_counter(body: dict = Body(...), db: Session = Depends(get_db),
+                       user: User = Depends(get_current_user)):
+    """Make a preparation up now: ingredients out of stock, a batch of its own.
+
+    A pharmacist's job, or a dispenser working under one — the same people the
+    schedule of the strongest ingredient would require at the counter.
+    """
+    from ..services import branches as _branches
+    from ..services import counter_mixing
+    from .. import tenancy
+
+    if user.role not in ("pharmacist", "admin", "manager"):
+        raise HTTPException(
+            status_code=403,
+            detail="A preparation is made up by a pharmacist, or under one.")
+    try:
+        return counter_mixing.make(
+            db,
+            name=body.get("name") or "",
+            ingredients=body.get("ingredients") or [],
+            user_id=user.id,
+            makes=int(body.get("makes") or 1),
+            unit=body.get("unit") or "",
+            shelf_life_days=int(body.get("shelf_life_days") or 30),
+            directions=body.get("directions") or "",
+            price=float(body.get("price") or 0),
+            fee=float(body.get("fee") or 0),
+            keep_formula=bool(body.get("keep_formula")),
+            branch_id=(_branches.default_branch(db).id),
+            pharmacy_id=tenancy.current_pharmacy_id(),
+        )
+    except counter_mixing.MixingError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/mixtures", response_model=list[schemas.MixtureOut])

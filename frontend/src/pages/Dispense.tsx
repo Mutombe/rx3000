@@ -19,6 +19,7 @@ import { useAiStream } from "../hooks/useAiStream";
 import { useTypewriter } from "../hooks/useTypewriter";
 import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
+import MixAtTheCounter, { MadeUp } from "../components/MixAtTheCounter";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -737,6 +738,8 @@ export default function Dispense() {
   const [showKeys, setShowKeys] = useState(false);
   /** Somebody at the counter who is not on file yet. */
   const [newPatient, setNewPatient] = useState(false);
+  /** Making something up at the counter, to go on this script. */
+  const [mixing, setMixing] = useState(false);
   /** A prescriber nobody has written down yet.
    *
    *  A script arrives from a doctor who is not on file and the search said
@@ -1347,8 +1350,10 @@ export default function Dispense() {
 
   const hotkeys: Hotkey[] = [
     // Mix — a preparation made up here rather than dispensed from a box.
+    // Made up here, onto the script in front of us — not a different screen
+    // with the patient left waiting on this one.
     { combo: "F1", label: "Mix", group: "Capture",
-      run: () => navigate("/compounding") },
+      run: () => setMixing(true) },
     { combo: "F2", label: "Find patient", group: "Capture",
       run: () => document.querySelector<HTMLInputElement>("[data-hk='patient']")?.focus() },
     { combo: "F3", label: "Add medicine", group: "Capture",
@@ -4359,6 +4364,30 @@ ${d.action}`}
                 </div>
               </div>
             )}
+
+            {/* Made up at the counter: the ingredients come off stock, and what
+                comes back is an ordinary line on this script. */}
+            <MixAtTheCounter
+              open={mixing}
+              onClose={() => setMixing(false)}
+              onMade={(made: MadeUp) => {
+                addItem({
+                  id: made.product_id, name: made.name, strength: "",
+                  dosage_form: "", schedule: made.schedule,
+                  unit_price: made.unit_price, quantity_on_hand: made.quantity,
+                } as any);
+                // The directions it was made up with, and how much of it there
+                // is: both were typed a moment ago and neither should be typed
+                // again.
+                window.setTimeout(() => {
+                  setItems((current) => current.map((it) => (
+                    it.product.id === made.product_id
+                      ? { ...it, quantity: made.quantity,
+                          dosage_instructions: made.directions || it.dosage_instructions }
+                      : it)));
+                }, 0);
+              }}
+            />
 
             {/* Cancelling a saved script: why, in a word or a sentence, and what
                 happens — said before the button, not discovered after it. */}
