@@ -123,6 +123,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "hpa_number": "VARCHAR(40) DEFAULT ''",
         "speciality": "VARCHAR(80) DEFAULT ''",
     },
+    "branch_transfers": {
+        # Which batches physically left, so the receiving branch can put the
+        # same boxes on its shelf. Without it a transfer created one undated
+        # batch at the far end and erased the expiry off everything it moved.
+        "drawn_json": "TEXT",
+    },
     "sales": {
         # Who actually took the money, as against who rang the sale up. A
         # dispensary sale is created by the dispenser and paid at the till.

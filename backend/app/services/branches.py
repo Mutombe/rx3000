@@ -16,7 +16,8 @@ not on the shelf in Bulawayo yet; showing them as available at the destination
 invites someone to sell stock that is in a car on the Harare road. Despatch
 removes, receipt adds, and the gap between the two is stock in transit.
 """
-from datetime import datetime
+import json
+from datetime import date, datetime
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
@@ -192,17 +193,27 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
                        StockBatch.branch_id == from_branch_id,
                        StockBatch.quantity_remaining > 0)
                .order_by(StockBatch.expiry_date.asc()).all())
+    # What physically left, batch by batch, so the receiving branch can put the
+    # same boxes on its shelf rather than one anonymous undated heap. A transfer
+    # used to erase the expiry off everything it moved.
+    drawn: list[dict] = []
     for batch in batches:
         if remaining <= 0:
             break
         take = min(batch.quantity_remaining, remaining)
         batch.quantity_remaining -= take
         remaining -= take
+        drawn.append({
+            "batch_number": batch.batch_number or "",
+            "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
+            "quantity": int(take),
+            "unit_cost": float(batch.unit_cost or 0.0),
+        })
 
     transfer = BranchTransfer(
         reference=_next_reference(db),
         from_branch_id=from_branch_id, to_branch_id=to_branch_id,
-        product_id=product_id, quantity=quantity,
+        product_id=product_id, quantity=quantity, drawn_json=json.dumps(drawn),
         status="despatched", notes=notes, despatched_by_id=user_id)
     db.add(transfer)
     db.add(StockMovement(
@@ -224,15 +235,37 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTran
             f"This transfer is already '{transfer.status}'. Only stock in "
             "transit can be received.")
 
-    # A new batch at the destination rather than a moved one: the receiving
-    # branch needs its own batch record to dispense and to recall against.
-    db.add(StockBatch(
-        product_id=transfer.product_id,
-        batch_number=f"{transfer.reference}",
-        quantity_received=transfer.quantity,
-        quantity_remaining=transfer.quantity,
-        reference=transfer.reference,
-        branch_id=transfer.to_branch_id))
+    # New batches at the destination rather than moved ones: the receiving
+    # branch needs its own batch records to dispense and to recall against.
+    #
+    # One per batch that actually left, carrying the expiry and the batch number
+    # it left with. The alternative — a single batch for the whole transfer —
+    # threw the dates away, so stock that had been checked at one shop arrived at
+    # the next as undated, and a pack with three weeks on it arrived looking like
+    # every other box on the shelf.
+    #
+    # `drawn` is empty on transfers raised before this was recorded, and those
+    # fall back to the old single undated batch: there is nothing else to know
+    # about them, and refusing to receive stock that is physically standing in
+    # the shop would be worse than booking it in for somebody to date.
+    moved = transfer.drawn_lines() or [{"batch_number": transfer.reference,
+                                        "expiry_date": None,
+                                        "quantity": transfer.quantity,
+                                        "unit_cost": 0.0}]
+    for line in moved:
+        expiry = line.get("expiry_date")
+        db.add(StockBatch(
+            product_id=transfer.product_id,
+            # The batch as the manufacturer numbered it, with the transfer that
+            # carried it, so a recall finds it at whichever shop it ended up in.
+            batch_number=(f"{line.get('batch_number')}" if line.get("batch_number")
+                          else f"{transfer.reference}")[:50],
+            quantity_received=int(line.get("quantity") or 0),
+            quantity_remaining=int(line.get("quantity") or 0),
+            expiry_date=date.fromisoformat(expiry) if expiry else None,
+            unit_cost=float(line.get("unit_cost") or 0.0),
+            reference=transfer.reference,
+            branch_id=transfer.to_branch_id))
     db.add(StockMovement(
         product_id=transfer.product_id, movement_type="transfer_in",
         quantity_delta=transfer.quantity,

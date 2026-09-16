@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date
 
 from sqlalchemy import (
@@ -2753,6 +2754,36 @@ class BranchTransfer(Base, TenantMixin):
     quantity = Column(Integer, nullable=False)
     # despatched | received | cancelled
     status = Column(String(12), default="despatched")
+    #: Which batches actually left, as [{batch_number, expiry_date, quantity}].
+    #:
+    #: Written when the stock is despatched and replayed when it is received, so
+    #: that the boxes arrive carrying what they left with. Without it the
+    #: receiving branch created one batch with no expiry at all, and a transfer
+    #: silently erased the dates off every pack it moved: stock that had been
+    #: dated at one shop arrived at the next looking like stock nobody had ever
+    #: checked, and a genuinely short-dated pack arrived indistinguishable from
+    #: the rest.
+    #:
+    #: A list rather than a column because one transfer can draw on several
+    #: batches with different expiries, and flattening them to a single date
+    #: would have to choose between overstating and understating the shelf life.
+    #:
+    #: Held as JSON text, the way `cashup_json` and the gateway's request and
+    #: response bodies are, rather than as a JSON column: this codebase keeps no
+    #: JSON columns, and the type maps differently on SQLite and PostgreSQL,
+    #: which is a dialect problem nobody needs for a field only two functions
+    #: read. `drawn_lines()` is the only thing that should parse it.
+    drawn_json = Column(Text, default="")
+
+    def drawn_lines(self) -> list[dict]:
+        """What left the sending branch, batch by batch. Empty for older rows."""
+        if not self.drawn_json:
+            return []
+        try:
+            lines = json.loads(self.drawn_json)
+        except (TypeError, ValueError):
+            return []
+        return lines if isinstance(lines, list) else []
     notes = Column(Text, default="")
     despatched_by_id = Column(Integer, ForeignKey("users.id"))
     received_by_id = Column(Integer, ForeignKey("users.id"))
