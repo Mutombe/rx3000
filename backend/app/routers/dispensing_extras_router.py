@@ -16,8 +16,8 @@ from .periods_router import require_step_up
 from ..config import settings
 from ..database import get_db
 from ..models import (
-    Driver, MedicalAid, Patient, Pharmacy, Prescription, Product, Sale,
-    Shift, User, Waybill,
+    Driver, MedicalAid, Patient, Pharmacy, Prescription, PriceOverride, Product,
+    Sale, Shift, User, Waybill,
 )
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
                         repeat_performance)
@@ -79,6 +79,79 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
         "note": ("" if not aid else
                  "An estimate from the scheme's terms on file. The funder's own "
                  "adjudication is the final answer."),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Setting a price by hand
+# ---------------------------------------------------------------------------
+
+@router.post("/price-override")
+def set_a_price(product_id: int = Body(...),
+                now: float = Body(...),
+                was: float | None = Body(default=None),
+                quantity: int = Body(default=1),
+                reason: str = Body(default=""),
+                db: Session = Depends(get_db),
+                user: User = Depends(get_current_user),
+                grant=Depends(require_step_up("script.price_set"))):
+    """Authorise a price set by hand, and keep the record of it.
+
+    Called the moment the code is accepted — not when the script is finished —
+    so an override somebody authorised and then walked away from still leaves a
+    row. That is the one an auditor wants and the one a "record it with the
+    sale" design loses.
+
+    What comes back is an id the script carries. The price itself is never
+    taken from the browser again: the line quotes this row, and the row was
+    written behind somebody's code. A screen free to name its own price has gone
+    round the code rather than through it.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    price = round(float(now or 0.0), 4)
+    if price < 0:
+        raise HTTPException(status_code=400, detail="A price cannot be negative.")
+    shelf = round(product.per_unit(), 4)
+    # A hundred times the shelf price is a typo — a decimal point in the wrong
+    # place — not a decision, and it is the shape of mistake that reaches a
+    # patient as a bill for two thousand dollars.
+    if shelf > 0 and price > shelf * 100:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{price:.2f} each is a hundred times the shelf price of "
+                   f"{shelf:.2f}. Check the decimal point.")
+
+    row = PriceOverride(
+        product_id=product.id,
+        was=round(float(was), 4) if was is not None else shelf,
+        now=price,
+        quantity=max(1, int(quantity or 1)),
+        reason=(reason or "").strip()[:160],
+        requested_by_id=user.id,
+        approved_by_id=getattr(grant, "approved_by_id", None),
+        grant_id=getattr(grant, "id", None),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+
+    cost = round(product.unit_cost(), 4)
+    return {
+        "id": row.id,
+        "product_id": product.id,
+        "product": f"{product.name} {product.strength}".strip(),
+        "was": row.was,
+        "now": row.now,
+        "difference": row.difference,
+        "approved_by": (row.approved_by.full_name or row.approved_by.username)
+                       if row.approved_by else "",
+        # Said here rather than left for a report: below cost is a decision the
+        # pharmacy is entitled to make and entitled to be told about.
+        "below_cost": bool(cost and price < cost),
+        "note": (f"Below the {cost:.2f} this costs to buy."
+                 if cost and price < cost else ""),
     }
 
 
@@ -597,7 +670,13 @@ def script_totals(items: list[dict] = Body(...),
                                 detail=f"Product {row.get('product_id')} not found")
         quantity = max(1, int(row.get("quantity") or 1))
         no_claim = bool(row.get("no_claim"))
-        priced = pricing.price_line(db, product, quantity, None if no_claim else aid)
+        # A price set by hand on the screen above. Priced through the same
+        # function as everything else, so the footer under the table adds up
+        # the figures the rows are showing rather than the catalogue's.
+        hand_set = row.get("unit_price")
+        priced = pricing.price_line(db, product, quantity, None if no_claim else aid,
+                                    unit_price=(None if hand_set in (None, "")
+                                                else float(hand_set)))
         # Per unit, matching `price_line` above. A per-unit price against a
         # per-pack cost reports a margin of minus several thousand percent.
         cost = round(product.unit_cost() * quantity, 2)

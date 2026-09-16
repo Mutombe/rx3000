@@ -79,6 +79,20 @@ register(Action(
     approvers=("admin", "pharmacist"), self_approval=False))
 
 register(Action(
+    key="script.price_set", name="Set a price on a script",
+    why="Catalogue prices come off a supplier file and are wrong often enough "
+        "that a dispenser has to be able to round one off or correct a margin. "
+        "It is allowed, and it costs a code, because a price nobody can be "
+        "named against is a price nobody set.",
+    # Self-approval on purpose, and the one place it differs from a till
+    # discount. The person dispensing is the senior person in the room, and
+    # sending them to find a second pharmacist to round $8.97 to $9.00 does not
+    # produce a second signature — it produces a calculator, a handwritten slip
+    # and no record at all, which is what this exists to prevent. A cashier is
+    # still not on the list.
+    approvers=("admin", "pharmacist", "manager"), self_approval=True))
+
+register(Action(
     key="sale.part_payment", name="Let a patient owe the balance",
     why="Medicine leaving the shop unpaid for is the pharmacy lending money, and "
         "a cashier under the eye of somebody who cannot pay today is exactly who "

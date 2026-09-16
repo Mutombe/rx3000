@@ -185,6 +185,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "supply_days": "INTEGER DEFAULT 30",
         "no_claim": "BOOLEAN DEFAULT 0",
         "not_dispensed": "BOOLEAN DEFAULT 0",
+        # Null means "price it off the shelf", which is what almost every line
+        # wants. A figure means somebody set this line's price by hand.
+        "unit_price_override": "FLOAT",
     },
     "remittance_lines": {"resolution_note": "VARCHAR(300) DEFAULT ''"},
     "medical_aids": {

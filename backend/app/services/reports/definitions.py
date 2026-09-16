@@ -15,8 +15,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ...models import (
-    Dispensing, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem,
-    SaleTender, StockBatch, StockMovement, Supplier, User,
+    Dispensing, Patient, Prescription, PrescriptionItem, PriceOverride, Product,
+    Sale, SaleItem, SaleTender, StockBatch, StockMovement, Supplier, User,
 )
 from .engine import Column, Param, Report, days_ago, month_start, register, today
 
@@ -2464,8 +2464,10 @@ register(Report(
     key="price_overrides",
     title="Price overrides",
     module="Till",
-    purpose="Where a line was sold for something other than its shelf price, "
-            "and by whom. Discounting is only visible if somebody looks.",
+    purpose="Where a price was set by hand instead of taken off the shelf, who "
+            "typed it and who signed for it. Discounting is only visible if "
+            "somebody looks — including the ones that were authorised and then "
+            "never reached a sale.",
     params=[DATE_FROM, DATE_TO],
     step_up=True,
     columns=[
@@ -2476,13 +2478,76 @@ register(Report(
         Column("sold_at", "Sold at", "money"),
         Column("difference", "Difference", "money", total=True),
         Column("percent", "Discount", "percent"),
-        Column("cashier", "Cashier", "text"),
+        Column("cashier", "Set by", "text"),
+        Column("approved_by", "Approved by", "text"),
+        Column("reason", "Reason", "text"),
     ],
     rows=lambda db, p: _overrides(db, p),
 ))
 
 
 def _overrides(db: Session, p: dict):
+    """Every hand-set price in the window, from two places that both count.
+
+    The authorised ones are rows of their own — they carry who approved them and
+    why, and they are here whether or not a sale ever followed, because an
+    override somebody got a password for and then abandoned is the interesting
+    one.
+
+    The till's own lines are still found by comparing what was charged against
+    the shelf, because a cashier editing a line there writes no such row. That
+    comparison must use the same divisor the line was billed on: a dispensary
+    line is priced per UNIT and the catalogue price is per PACK, so comparing
+    the two called every line of every multi-pack medicine a discount of
+    ninety-something percent. Dispensary lines are left to the rows above.
+    """
+    out = []
+    seen_sale_items = set()
+
+    authorised = (
+        db.query(PriceOverride)
+        .filter(func.date(PriceOverride.created_at) >= p["date_from"])
+        .filter(func.date(PriceOverride.created_at) <= p["date_to"])
+        .order_by(PriceOverride.created_at.desc())
+        .all()
+    )
+    sales = {}
+    if authorised:
+        sale_item_ids = {r.sale_item_id for r in authorised if r.sale_item_id}
+        if sale_item_ids:
+            sales = {
+                si.id: sale for si, sale in
+                db.query(SaleItem, Sale).join(Sale, Sale.id == SaleItem.sale_id)
+                .filter(SaleItem.id.in_(sale_item_ids)).all()
+            }
+    for row in authorised:
+        sale = sales.get(row.sale_item_id) if row.sale_item_id else None
+        if sale is not None and sale.status == "void":
+            continue
+        if row.sale_item_id:
+            seen_sale_items.add(row.sale_item_id)
+        was = round(row.was or 0.0, 2)
+        now = round(row.now or 0.0, 2)
+        quantity = row.quantity or 1
+        out.append({
+            "date": row.created_at.isoformat(sep=" ", timespec="minutes"),
+            "sale_number": (sale.sale_number or ("#" + str(sale.id))) if sale
+                           else "not sold",
+            "product": row.product.name if row.product else "-",
+            "shelf_price": was,
+            "sold_at": now,
+            "difference": round((now - was) * quantity, 2),
+            "percent": round((now - was) / was * 100, 1) if was else 0.0,
+            "cashier": (row.requested_by.full_name or row.requested_by.username)
+                       if row.requested_by else "-",
+            "approved_by": (row.approved_by.full_name or row.approved_by.username)
+                           if row.approved_by else "-",
+            "reason": row.reason or "",
+        })
+
+    # Till lines: sold for something other than the pack price, with no row of
+    # their own. Dispensary lines are excluded — they are priced per unit and
+    # would every one of them look like a discount.
     rows_q = (
         db.query(SaleItem, Sale, Product)
         .join(Sale, Sale.id == SaleItem.sale_id)
@@ -2490,20 +2555,20 @@ def _overrides(db: Session, p: dict):
         .filter(func.date(Sale.created_at) >= p["date_from"])
         .filter(func.date(Sale.created_at) <= p["date_to"])
         .filter(Sale.status != "void")
+        .filter(SaleItem.prescription_item_id.is_(None))
         .filter(SaleItem.unit_price != Product.unit_price)
         .order_by(Sale.created_at.desc())
         .all()
     )
-    if not rows_q:
-        return []
     names = {
         u.id: (u.full_name or u.username) for u in
         db.query(User).filter(User.id.in_(
             {s.settled_by_id or s.cashier_id for _i, s, _p in rows_q
-             if (s.settled_by_id or s.cashier_id)})).all()
-    }
-    out = []
+             if (s.settled_by_id or s.cashier_id)} or {0})).all()
+    } if rows_q else {}
     for item, sale, product in rows_q:
+        if item.id in seen_sale_items:
+            continue
         shelf = round(product.unit_price or 0, 2)
         sold = round(item.unit_price or 0, 2)
         quantity = item.quantity or 0
@@ -2516,7 +2581,10 @@ def _overrides(db: Session, p: dict):
             "difference": round((sold - shelf) * quantity, 2),
             "percent": round((sold - shelf) / shelf * 100, 1) if shelf else 0.0,
             "cashier": names.get(sale.settled_by_id or sale.cashier_id, "-"),
+            "approved_by": "-",
+            "reason": "",
         })
+
     out.sort(key=lambda r: r["difference"])
     return out
 

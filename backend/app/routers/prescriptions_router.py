@@ -28,7 +28,7 @@ import logging
 log = logging.getLogger("rx5000.dispensing")
 from ..models import (
     Branch, Dispensing, Patient, Pharmacy, Prescription, PrescriptionItem,
-    Product, Sale, SaleItem, User,
+    PriceOverride, Product, Sale, SaleItem, User,
 )
 # `sig` is imported here, at module level, and not inside one function.
 # It was imported inside the shorthand-expansion endpoint only, while three
@@ -42,6 +42,84 @@ from ..services import (branches, claims_engine, counselling, holds, messages, p
                         sig, to_follows)
 
 router = APIRouter(prefix="/api", tags=["prescriptions"])
+
+
+def _hand_set_price(db: Session, user: User, override_id, product_id: int,
+                    rx_id: int | None = None):
+    """Turn "this line was authorised at another price" into the price itself.
+
+    The browser quotes a record id, never a figure. The figure is read off the
+    row that was written when somebody's code was accepted, which is the whole
+    reason the code was asked for: a client free to name its own price has
+    walked round the password rather than through it.
+
+    Refuses somebody else's authorisation, an authorisation for a different
+    medicine, and one already spent on somebody else's line — the three ways a
+    single approval could otherwise be turned into a standing discount.
+
+    It does *not* refuse the line it is already on. A draft is saved by
+    replacing every item, and the same script is temp-saved and then finished, so
+    a strictly single-use rule would have made Temp Save destroy the price it had
+    just been given a password for.
+    """
+    if not override_id:
+        return None, None
+    row = db.get(PriceOverride, int(override_id))
+    if row is None:
+        raise HTTPException(status_code=404,
+                            detail="That price authorisation could not be found.")
+    if row.requested_by_id != user.id:
+        raise HTTPException(status_code=403,
+                            detail="That price authorisation was issued to somebody else.")
+    if row.product_id != product_id:
+        raise HTTPException(
+            status_code=400,
+            detail="That price authorisation was given for a different medicine.")
+    if row.prescription_item_id:
+        held = db.get(PrescriptionItem, row.prescription_item_id)
+        # Gone, or on this very script: this is the same line being rewritten,
+        # not a second line helping itself to one approval.
+        if held is not None and (rx_id is None or held.prescription_id != rx_id):
+            raise HTTPException(status_code=409,
+                                detail="That price authorisation has already been used.")
+    return row, float(row.now)
+
+
+@router.post("/prescriptions/{rx_id}/items/{item_id}/price")
+def set_a_line_price(rx_id: int, item_id: int,
+                     price_override_id: int = Body(..., embed=True),
+                     db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Put an authorised price onto a line that is already on the server.
+
+    A script waiting on the worklist is dispensed *as itself* — the screen does
+    not re-create it, it fetches it — so a price set on one of its lines had
+    nowhere to go and was silently dropped at Finish. The patient was quoted one
+    figure on screen and charged another at the till, which is the worst
+    possible way for this to fail.
+
+    The authorisation is checked here exactly as it is on capture. Nothing about
+    a line already existing makes it cheaper to change its price.
+    """
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    line = db.get(PrescriptionItem, item_id)
+    if not line or line.prescription_id != rx.id:
+        raise HTTPException(status_code=404, detail="That line is not on this script.")
+    if rx.status in ("cancelled", "dispensed"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"This script is {rx.status}. Its prices are what it was dispensed at.")
+
+    authorised, hand_set = _hand_set_price(db, user, price_override_id,
+                                           line.product_id, rx_id=rx.id)
+    line.unit_price_override = hand_set
+    if authorised:
+        authorised.prescription_item_id = line.id
+        authorised.used_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True, "item_id": line.id, "unit_price": hand_set}
 
 
 def _rx_loaded(query):
@@ -272,7 +350,9 @@ def create_prescription(
             )
         # repeats are capped by what the schedule legally allows
         repeats = schedule_policy.effective_max_repeats(product.schedule, item.repeats_allowed)
-        db.add(PrescriptionItem(
+        authorised, hand_set = _hand_set_price(db, user, item.price_override_id,
+                                               item.product_id)
+        line = PrescriptionItem(
             prescription_id=rx.id,
             product_id=item.product_id,
             dosage_instructions=sig.expand(db, item.dosage_instructions),
@@ -289,7 +369,16 @@ def create_prescription(
             supply_days=item.supply_days,
             no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
-        ))
+            unit_price_override=hand_set,
+        )
+        db.add(line)
+        if authorised:
+            # Flushed so the override can point at the line it paid for. Without
+            # the id the trail says a price was approved and not which line it
+            # reached, which is the question that gets asked.
+            db.flush()
+            authorised.prescription_item_id = line.id
+            authorised.used_at = datetime.utcnow()
     db.commit()
     db.refresh(rx)
     return rx
@@ -641,7 +730,12 @@ def dispense(
         # a price per unit against a cost per pack would report a margin of
         # minus several thousand percent and look like a pricing error rather
         # than an arithmetic one.
-        per_unit = product.per_unit()
+        #
+        # A price set by hand at capture stands instead of the shelf price, and
+        # only because a `PriceOverride` row says somebody authorised it. Read
+        # off the line, not off the request: by the time it gets here the figure
+        # has been through a password, and the browser is not asked again.
+        per_unit = item.billed_per_unit()
         line_total = round(per_unit * item.quantity, 2)
         line_ex_vat = round(line_total / (1 + product.vat_rate), 2)
         subtotal += line_ex_vat
@@ -661,6 +755,15 @@ def dispense(
         )
         db.add(sale_item)
         db.flush()
+
+        # The authorisation follows the money. Asked in six weeks' time who
+        # discounted this sale, the answer is one join rather than a search
+        # through scripts for a line that happens to match.
+        if item.unit_price_override is not None:
+            (db.query(PriceOverride)
+             .filter(PriceOverride.prescription_item_id == item.id,
+                     PriceOverride.sale_item_id.is_(None))
+             .update({"sale_item_id": sale_item.id}, synchronize_session=False))
 
         # FEFO batch consumption — blocks expired stock from being dispensed.
         # Only what actually left the shelf moves; the owed balance is not stock
@@ -967,8 +1070,8 @@ def prescription_labels(
             doctor_practice_no=(rx.doctor.practice_number or "") if rx.doctor else "",
             # Per unit, matching what the sale actually charged. This read the
             # pack price, so a label for twenty-one capsules said $1,050.
-            unit_price=round(product.per_unit(), 2),
-            line_total=round(product.per_unit() * (item.quantity or 0), 2),
+            unit_price=round(item.billed_per_unit(), 2),
+            line_total=round(item.billed_per_unit() * (item.quantity or 0), 2),
             branch_code=(branch.code or "") if branch else "",
             # The branch's own name and number where it has them, the company's
             # where it does not — an empty line on a sticker is worse than a
@@ -1067,7 +1170,9 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
                                 detail=f"Product {item.product_id} not found")
         repeats = schedule_policy.effective_max_repeats(product.schedule,
                                                         item.repeats_allowed)
-        db.add(PrescriptionItem(
+        authorised, hand_set = _hand_set_price(db, user, item.price_override_id,
+                                               item.product_id, rx_id=rx.id)
+        line = PrescriptionItem(
             prescription_id=rx.id, product_id=item.product_id,
             dosage_instructions=sig.expand(db, item.dosage_instructions), quantity=item.quantity,
             repeats_allowed=repeats, repeat_interval_days=item.repeat_interval_days,
@@ -1080,7 +1185,13 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
                         or _default_icd10(db)),
             supply_days=item.supply_days, no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
-        ))
+            unit_price_override=hand_set,
+        )
+        db.add(line)
+        if authorised:
+            db.flush()
+            authorised.prescription_item_id = line.id
+            authorised.used_at = datetime.utcnow()
     db.commit()
     db.refresh(rx)
     return rx

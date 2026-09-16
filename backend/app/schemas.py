@@ -349,6 +349,13 @@ class PrescriptionItemCreate(BaseModel):
     supply_days: int = 30
     no_claim: bool = False
     not_dispensed: bool = False
+    # An authorised price set by hand, quoted rather than sent.
+    #
+    # The *price* never comes from the browser: this is the id of a record
+    # written when somebody's code was accepted, and the server reads the figure
+    # off that row. A client that simply named a price would have found the way
+    # round the password.
+    price_override_id: Optional[int] = None
 
 
 class PrescriptionCreate(BaseModel):

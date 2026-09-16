@@ -78,8 +78,15 @@ def professional_fee(model: FeeModel | None, base: float) -> float:
 
 
 def price_line(db: Session, product: Product, quantity: int,
-               scheme: MedicalAid | None = None) -> PricedLine:
-    """Price one dispensed line for a scheme (or privately when scheme is None)."""
+               scheme: MedicalAid | None = None,
+               unit_price: float | None = None) -> PricedLine:
+    """Price one dispensed line for a scheme (or privately when scheme is None).
+
+    `unit_price` is a price set by hand for this line — an authorised override —
+    and it stands in for the shelf price per unit. It is deliberately ignored
+    where a scheme prices off *cost*, because there the selling price is not
+    what the claim is built on and honouring it would quietly inflate a claim.
+    """
     quantity = max(1, int(quantity or 1))
     model = scheme.fee_model if scheme and scheme.fee_model else None
     basis = model.basis if model else "sep"
@@ -91,7 +98,12 @@ def price_line(db: Session, product: Product, quantity: int,
     #
     # This is the one every claim, estimate and coverage panel comes through,
     # which is why it is the one worth being right.
-    unit = product.unit_cost() if basis == "cost" else product.per_unit()
+    if basis == "cost":
+        unit = product.unit_cost()
+    elif unit_price is not None:
+        unit = float(unit_price)
+    else:
+        unit = product.per_unit()
     base = round((unit or 0.0) * quantity, 2)
 
     # MMAP: cap the medicine portion, and remember the excess — the patient pays

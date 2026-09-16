@@ -43,7 +43,10 @@ interface Reply { lines: Line[]; totals: Totals; scheme: string; warning: string
  *  than not showing it.
  */
 export function useScriptPricing(
-  items: { product_id: number; quantity: number; no_claim?: boolean }[],
+  items: { product_id: number; quantity: number; no_claim?: boolean;
+           /** A price set by hand for this line, per unit. Absent on almost
+            *  every line, which means "price it off the shelf". */
+           unit_price?: number }[],
   medicalAidId?: number | null,
 ): Reply | null {
   const [data, setData] = useState<Reply | null>(null);
@@ -65,7 +68,8 @@ export function useScriptPricing(
 
 export default function ScriptTotals({ items, medicalAidId, data: given, variant = "bar" }: {
   /** What is on the script now. Recomputed as it changes. */
-  items: { product_id: number; quantity: number; no_claim?: boolean }[];
+  items: { product_id: number; quantity: number; no_claim?: boolean;
+           unit_price?: number }[];
   medicalAidId?: number | null;
   /** The basket already priced by `useScriptPricing`. Given, it is used as it
    *  is and nothing is fetched a second time. */

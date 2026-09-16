@@ -844,10 +844,28 @@ class PrescriptionItem(Base, TenantMixin):
     # has to split the script by hand, which is where mistakes come from.
     no_claim = Column(Boolean, default=False)
     not_dispensed = Column(Boolean, default=False)
+    #: A price set by hand instead of taken from the catalogue, per UNIT.
+    #:
+    #: Null on almost every line, and that is the point: null means "whatever the
+    #: shelf says today", so a script captured in March and repeated in June
+    #: reprices itself, which is what a repeat should do. A figure here means
+    #: somebody decided this line's price and a `PriceOverride` row says who
+    #: authorised it.
+    unit_price_override = Column(Float, nullable=True)
 
     prescription = relationship("Prescription", back_populates="items")
     product = relationship("Product")
     dispensings = relationship("Dispensing", back_populates="prescription_item")
+
+    def billed_per_unit(self) -> float:
+        """What this line charges for one unit — the override, or the shelf.
+
+        One place, because six sites price a dispensary line and a hand-set
+        price honoured in five of them is a discount that reappears at the till.
+        """
+        if self.unit_price_override is not None:
+            return float(self.unit_price_override)
+        return self.product.per_unit() if self.product else 0.0
 
 
 class Dispensing(Base, TenantMixin):
@@ -2015,6 +2033,56 @@ class StepUpGrant(Base, TenantMixin):
 
     requested_by = relationship("User", foreign_keys=[requested_by_id])
     approved_by = relationship("User", foreign_keys=[approved_by_id])
+
+
+class PriceOverride(Base, TenantMixin):
+    """A price changed by hand at the counter, and who stood behind it.
+
+    Shelf prices come off a catalogue that is reloaded from a supplier file, and
+    they are wrong often enough that a dispenser has to be able to change one:
+    a margin loaded wrong on import, a figure that wants rounding to something a
+    person can hand over cash for, a line the pharmacist has agreed to hold at
+    last month's price. Refusing that outright does not stop it happening — it
+    moves it onto a calculator and a handwritten receipt, where nothing is
+    recorded at all.
+
+    So it is allowed, and it costs a code. The step-up grant proves somebody
+    authorised it; this row is what survives, because a grant is a permission
+    slip and the question asked six weeks later is a different one: *which*
+    medicine, on whose script, from what to what, and did it ever reach a sale.
+
+    Written when the code is accepted, not when the script is finished. An
+    override that was authorised and then abandoned is the interesting one, and
+    it would leave no trace at all if the row waited for a sale that never came.
+    """
+    __tablename__ = "price_overrides"
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    # Both per UNIT, the same divisor the dispensary bills on, so a row can be
+    # read against a sale line without knowing the pack size on the day.
+    was = Column(Float, default=0.0)
+    now = Column(Float, default=0.0)
+    quantity = Column(Integer, default=1)
+    reason = Column(String(160), default="")
+    # Who typed it and who signed for it — the same pair the grant carries, kept
+    # here so the trail reads without a join to a table that expires.
+    requested_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    grant_id = Column(Integer, ForeignKey("step_up_grants.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    # Where it landed. Null on an override that was authorised and abandoned.
+    used_at = Column(DateTime, nullable=True)
+    prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"),
+                                  nullable=True, index=True)
+    sale_item_id = Column(Integer, ForeignKey("sale_items.id"), nullable=True, index=True)
+
+    product = relationship("Product")
+    requested_by = relationship("User", foreign_keys=[requested_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+
+    @property
+    def difference(self) -> float:
+        return round((self.now or 0.0) - (self.was or 0.0), 4)
 
 
 class OwedItem(Base, TenantMixin):
