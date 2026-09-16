@@ -3128,13 +3128,21 @@ export default function Dispense() {
                   <div key={d.id} className="product-pick doc-pick"
                        onClick={() => { setDoctorId(d.id); setDoctorQ(""); }}>
                     <span>
-                      <b>{d.name}</b>{" "}
-                      <span className="muted">
-                        {[d.practice_number, d.ahfoz_number && `AHFoZ ${d.ahfoz_number}`]
-                          .filter(Boolean).join(" · ")}
-                      </span>
+                      <b>{d.name}</b>
+                      {d.phone && <span className="muted"> · {d.phone}</span>}
                     </span>
-                    <span className="muted">{d.phone}</span>
+                    {/* The numbers a claim is paid on, where the medicine
+                        search puts its price: the thing being chosen between
+                        when two prescribers share a surname, and the thing a
+                        funder rejects the claim for when it is missing. */}
+                    <span className="doc-nums">
+                      {d.practice_number
+                        ? <span className="doc-num"><span>Prac</span><b>{d.practice_number}</b></span>
+                        : <span className="doc-num is-missing"><span>Prac</span><b>none</b></span>}
+                      {d.ahfoz_number && d.ahfoz_number !== d.practice_number && (
+                        <span className="doc-num"><span>AHFoZ</span><b>{d.ahfoz_number}</b></span>
+                      )}
+                    </span>
                   </div>
                 ));
               })()}

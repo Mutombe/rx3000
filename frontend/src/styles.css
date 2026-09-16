@@ -9548,3 +9548,12 @@ button.fin-ack { cursor: pointer; }
   transition: opacity 180ms ease, transform 180ms ease, filter 180ms ease;
 }
 @media (prefers-reduced-motion: reduce) { .wl-row-wrap.is-leaving { transition: none; } }
+
+/* The prescriber search says what a claim is paid on, where the medicine search
+   says the price: two prescribers with one surname are told apart by the
+   number, and a blank one is the reason a claim comes back months later. */
+.doc-nums { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.doc-num { display: flex; align-items: baseline; gap: 4px; white-space: nowrap; }
+.doc-num > span { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.doc-num > b { font-family: var(--mono, ui-monospace, monospace); font-size: .86rem; }
+.doc-num.is-missing > b { color: var(--warn-ink, #8a6100); font-weight: 600; }

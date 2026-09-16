@@ -102,6 +102,20 @@ with sync_playwright() as pw:
           saved is not None and saved.get("practice_number") == "0301777"
           and saved.get("ahfoz_number") == f"AH-{tag}", str(saved))
 
+    # The numbers are on the search row, where the medicine search puts its price.
+    page.locator(".disp-doctor.is-picked .lane-icon-btn").click()   # change prescriber
+    page.wait_for_timeout(600)
+    page.fill("#disp-doctor", name[:14])
+    page.wait_for_timeout(1400)
+    row = page.locator(".doc-pick").first
+    check("the prescriber search shows the numbers a claim is paid on",
+          row.count() > 0 and "0301777" in row.inner_text() and f"AH-{tag}" in row.inner_text(),
+          row.inner_text()[:120] if row.count() else "no row")
+    if SHOT:
+        page.screenshot(path=str(SHOT / "prescriber-search.png"))
+    row.click()
+    page.wait_for_timeout(900)
+
     page.fill("[data-hk='product']", "atorva")
     page.wait_for_timeout(1600)
     page.query_selector_all("#step-items .product-pick")[0].click()
