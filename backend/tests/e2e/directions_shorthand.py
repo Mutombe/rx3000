@@ -84,6 +84,49 @@ with sync_playwright() as pw:
     if SHOT:
         page.screenshot(path=str(SHOT / "directions-typed.png"))
 
+    # ---- a code that longer codes begin with: the dispenser says which ------------
+    # `t1` is take ONE tablet, and t10, t12, t1h and t1q all start with it, so
+    # taking it the instant it is typed would be guessing a dose. Space says it.
+    field.fill("")
+    page.wait_for_timeout(300)
+    page.keyboard.type("t1", delay=90)
+    page.wait_for_timeout(700)
+    check("a code longer ones begin with waits, rather than guessing a dose",
+          field.input_value() == "t1", repr(field.input_value()))
+    page.keyboard.press("Space")
+    page.wait_for_timeout(500)
+    check("…space takes it, and stands ready for the next code",
+          field.input_value() == "t1 ", repr(field.input_value()))
+    preview = page.query_selector(".disp-edit .sig-preview")
+    check("…and the label reads from it",
+          preview is not None and "ONE tablet" in preview.inner_text(),
+          preview.inner_text()[:100] if preview else "no preview")
+
+    # The dispenser who meant t12 simply keeps typing; nothing was taken early.
+    field.fill("")
+    page.wait_for_timeout(300)
+    page.keyboard.type("t12", delay=120)
+    page.wait_for_timeout(700)
+    page.keyboard.press("Space")
+    page.wait_for_timeout(500)
+    check("typing on gives the longer code, whatever the pace", field.input_value() == "t12 ",
+          repr(field.input_value()))
+    preview = page.query_selector(".disp-edit .sig-preview")
+    check("…and the label says TWELVE, not ONE",
+          preview is not None and "TWELVE" in preview.inner_text().upper(),
+          preview.inner_text()[:100] if preview else "no preview")
+
+    # A code that needs no deciding still takes its own space, and pressing
+    # space there does not add a second one.
+    field.fill("")
+    page.wait_for_timeout(300)
+    page.keyboard.type("tds", delay=90)
+    page.wait_for_timeout(500)
+    page.keyboard.press("Space")
+    page.wait_for_timeout(400)
+    check("a space after an automatic one is not a second space",
+          field.input_value() == "tds ", repr(field.input_value()))
+
     # ---- a code others begin with waits to be chosen --------------------------------
     field.fill("")
     page.wait_for_timeout(300)

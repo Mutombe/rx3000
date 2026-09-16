@@ -117,6 +117,17 @@ const MANY = new Set(["two", "three", "four", "five", "six", "seven", "eight",
  *  missing part of its instruction is worse than one that reads awkwardly,
  *  because nothing on the box shows the omission.
  */
+/** The book, with the transposed quantity spellings added. Mirrors `sig.table`. */
+export function withFlipped(codes: Map<string, string>): Map<string, string> {
+  const all = new Map(codes);
+  for (const [code, expansion] of codes) {
+    if (!/^\d[a-z]+$/.test(code)) continue;
+    const other = code.slice(1) + code[0];
+    if (!all.has(other)) all.set(other, expansion);
+  }
+  return all;
+}
+
 export function expandLocal(shorthand: string, codes: Map<string, string>): string {
   const text = (shorthand || "").trim();
   if (!text) return "";
@@ -169,6 +180,9 @@ export default function SigInput({
    *  suggestion list should not be on screen at all. */
   const [typing, setTyping] = useState<{ word: string; from: number; to: number } | null>(null);
   const [cursor, setCursor] = useState(0);
+  /** Where the field put a space in by itself, so a space key there is not a
+   *  second one. */
+  const spaced = useRef<number | null>(null);
   const live = useRef(true);
   const panel = useRef<HTMLDivElement | null>(null);
   const field = useRef<HTMLInputElement | null>(null);
@@ -192,15 +206,37 @@ export default function SigInput({
     () => new Map(entries.map((e) => [e.code.toLowerCase(), e.expansion])),
     [entries]);
 
+  /** `t1` for `1t`, and the rest of the transposed quantity codes.
+   *
+   *  The quantities are a numeral then the thing — 1t, 2c, 1supp — and a hand
+   *  coming off another system reaches for `t1` just as readily. Typed that way
+   *  the field did nothing at all: not a code, so no completion, no space, and
+   *  a dispenser left wondering what they had done wrong. None of the flipped
+   *  spellings collides with a real code, so each one is taken as the code it
+   *  plainly means, and the field is corrected to the book's own spelling so
+   *  the record and the label agree with each other.
+   */
+  const alias = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of entries) {
+      const code = e.code.toLowerCase();
+      if (!/^\d[a-z]+$/.test(code)) continue;
+      const other = code.slice(1) + code[0];
+      if (!codes.has(other)) map.set(other, e.code);
+    }
+    return map;
+  }, [entries, codes]);
+
   /** What the label will say, right now. */
   const preview = useMemo(
-    () => (codes.size ? expandLocal(value, codes) : ""), [value, codes]);
+    () => (codes.size ? expandLocal(value, withFlipped(codes)) : ""), [value, codes]);
 
   /** Words the book does not recognise. Not an error — see the note above. */
   const unknown = useMemo(() => {
     if (!codes.size) return [];
+    const known = withFlipped(codes);
     return (value || "").trim().split(/\s+/)
-      .filter((t) => t && !codes.has(t.replace(/[.,;]+$/, "").toLowerCase()));
+      .filter((t) => t && !known.has(t.replace(/[.,;]+$/, "").toLowerCase()));
   }, [value, codes]);
 
   /** The codes that could complete the word being typed.
@@ -219,8 +255,14 @@ export default function SigInput({
     const q = (typing?.word ?? "").toLowerCase();
     if (!q || !entries.length) return [];
     const prefix = entries.filter((e) => e.code.toLowerCase().startsWith(q));
-    const pool = prefix.length ? prefix : entries.filter((e) =>
-      e.expansion.toLowerCase().includes(q));
+    // `t1` means `1t`; offer it rather than an empty box.
+    const flipped = entries.filter((e) => {
+      const code = e.code.toLowerCase();
+      return /^\d[a-z]+$/.test(code) && (code.slice(1) + code[0]).startsWith(q);
+    });
+    const pool = prefix.length ? prefix
+      : flipped.length ? flipped
+        : entries.filter((e) => e.expansion.toLowerCase().includes(q));
     return pool
       .sort((a, b) => a.code.length - b.code.length
         || a.code.toLowerCase().localeCompare(b.code.toLowerCase()))
@@ -235,12 +277,31 @@ export default function SigInput({
    *  dispenser has finished — they may be on their way to `iii`. Those wait to
    *  be chosen, as they always did.
    */
+  /** Whether a word is a code, and nothing longer starts with it. */
   const settled = (word: string) => {
     const w = word.toLowerCase();
-    if (!codes.has(w)) return false;
-    return !entries.some((e) => e.code.length > w.length
-      && e.code.toLowerCase().startsWith(w));
+    if (!codes.has(w) && !alias.has(w)) return false;
+    return !longerThan(w);
   };
+
+  /** Whether some code carries on where this word stops — `t1` into `t12`. */
+  const longerThan = (word: string) =>
+    entries.some((e) => e.code.length > word.length
+      && e.code.toLowerCase().startsWith(word.toLowerCase()));
+
+  /** Take the code, in the book's own spelling, and stand ready for the next. */
+  function advance(text: string, caret: number, word: string) {
+    const canonical = alias.get(word.toLowerCase()) ?? word;
+    const head = text.slice(0, caret - word.length) + canonical;
+    onChange(`${head} ${text.slice(caret)}`);
+    setTyping(null);
+    const at = head.length + 1;
+    spaced.current = at;
+    requestAnimationFrame(() => {
+      field.current?.focus();
+      field.current?.setSelectionRange(at, at);
+    });
+  }
 
   // Back to the top whenever the list changes under the highlight, so Enter
   // never takes a row that scrolled away while somebody was still typing.
@@ -260,7 +321,7 @@ export default function SigInput({
   function commit() {
     const shorthand = value.trim();
     if (!shorthand || !codes.size) return;
-    const next = expandLocal(shorthand, codes);
+    const next = expandLocal(shorthand, withFlipped(codes));
     if (next && next !== value) {
       // Kept so the dispenser can see what their shorthand became, and undo it
       // if the book expanded something they meant literally.
@@ -331,17 +392,17 @@ export default function SigInput({
             const word = text.slice(from, caret);
             const atWordEnd = caret === text.length || text[caret] === " ";
 
+            spaced.current = null;
             if (typed && atWordEnd && word && settled(word)) {
-              // The code is complete and unambiguous: give it its space and
-              // put the caret after it, ready for the next one.
-              const next = `${text.slice(0, caret)} ${text.slice(caret)}`;
-              onChange(next);
-              setTyping(null);
-              const at = caret + 1;
-              requestAnimationFrame(() => {
-                field.current?.focus();
-                field.current?.setSelectionRange(at, at);
-              });
+              // Complete, and nothing longer begins with it: the space goes in
+              // straight away. Written the other way round — `t1` for `1t` — it
+              // is corrected to the book's spelling on the way in.
+              //
+              // Where a longer code does begin with it — `t1`, with `t12` and
+              // `t1h` behind it — nothing happens here, because guessing which
+              // one was meant is guessing a dose. The dispenser says which by
+              // pressing space, or Enter, and both are handled below.
+              advance(text, caret, word);
               return;
             }
             onChange(text);
@@ -386,6 +447,24 @@ export default function SigInput({
                 // anything — this is the only thing it closes.
                 e.preventDefault();
                 setTyping(null);
+                return;
+              }
+            }
+            if (e.key === " ") {
+              const caret = e.currentTarget.selectionStart ?? value.length;
+              // The space this field put in a moment ago. A second one here is
+              // the dispenser reaching for a key the software already pressed.
+              if (spaced.current === caret) {
+                e.preventDefault();
+                return;
+              }
+              const from = value.lastIndexOf(" ", Math.max(0, caret - 1)) + 1;
+              const word = value.slice(from, caret);
+              // Space says which code was meant, so `t1` is taken as `t1`
+              // rather than waiting to see whether `t12` was coming.
+              if (word && (codes.has(word.toLowerCase()) || alias.has(word.toLowerCase()))) {
+                e.preventDefault();
+                advance(value, caret, word);
                 return;
               }
             }

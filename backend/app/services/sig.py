@@ -266,11 +266,29 @@ def refresh(db: Session) -> dict[str, list[str]]:
     return {"added": added, "corrected": corrected, "retired": retired}
 
 
+def flipped(code: str) -> str:
+    """`1t` written the other way round, as a dispenser often types it.
+
+    The quantity codes are a numeral then the thing — `1t`, `2c`, `1supp` — and
+    a hand coming off another system reaches for `t1` just as readily. Neither
+    spelling collides with any other code in the book, so both are accepted
+    rather than one of them silently doing nothing.
+    """
+    text = (code or "").lower()
+    return text[1:] + text[0] if re.fullmatch(r"\d[a-z]+", text) else ""
+
+
 def table(db: Session) -> dict[str, str]:
-    return {
+    codes = {
         row.code.lower(): row.expansion
         for row in db.query(DosageAbbreviation).filter(DosageAbbreviation.active).all()
     }
+    # The transposed spellings, added only where nothing already uses them.
+    for code, expansion in list(codes.items()):
+        other = flipped(code)
+        if other and other not in codes:
+            codes[other] = expansion
+    return codes
 
 
 #: Nouns a numeral in front of has to agree with, and their plurals.
