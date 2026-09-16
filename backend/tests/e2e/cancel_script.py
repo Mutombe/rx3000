@@ -13,6 +13,7 @@ Run against a local dev server on :4177 and API on :8099:
 """
 import json
 import pathlib
+from datetime import date, timedelta
 import sys
 import urllib.request
 
@@ -123,14 +124,18 @@ with sync_playwright() as pw:
     check("Escape closes the dialog", page.query_selector(".disp-cancel-modal") is None)
 
     # ---- straight from the worklist, the way the duplicates are found ---------
+    # Dated well back, so they sort to the top of their band and are on the rail
+    # whatever else is queued: the worklist shows its worst and oldest two
+    # hundred, and a long backlog would push a script captured today past the end.
+    long_ago = (date.today() - timedelta(days=900)).isoformat()
     twin_a = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
-                                        "notes": "duplicate a", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
+                                        "date_prescribed": long_ago, "notes": "duplicate a", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
                  token=token)
     twin_b = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
-                                        "notes": "duplicate b", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
+                                        "date_prescribed": long_ago, "notes": "duplicate b", "items": [{**LINE, "product_id": stocked[0]["id"]}]},
                  token=token)
     pair = api("/api/prescriptions", {"patient_id": patient["id"], "doctor_id": doctor["id"],
-                                      "notes": "two lines", "items": [{**LINE, "product_id": stocked[0]["id"]},
+                                      "date_prescribed": long_ago, "notes": "two lines", "items": [{**LINE, "product_id": stocked[0]["id"]},
                                                                       {**LINE, "product_id": stocked[1]["id"]}]},
                token=token)
     page.goto(BASE + "/dispense", wait_until="networkidle")
