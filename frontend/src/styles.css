@@ -9583,3 +9583,32 @@ button.fin-ack { cursor: pointer; }
 .lane-scan { margin-right: 2px; }
 .lane-field .lane-scan { color: var(--muted); }
 .lane-field .lane-scan:hover { color: var(--brand, #12306b); }
+
+/* Teaching the catalogue a pack it does not know. */
+.attach-modal { max-width: 32rem; display: flex; flex-direction: column; gap: var(--s2); }
+.attach-modal .field { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.attach-modal .field > * { grid-column: 1 / -1; width: 100%; }
+.attach-modal .field > label { text-align: left; justify-self: start; margin: 0; }
+.attach-find {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 8px;
+}
+.attach-find input { flex: 1 1 auto; border: 0; outline: 0; background: transparent; height: 34px; }
+.attach-hits { display: flex; flex-direction: column; max-height: 13rem; overflow-y: auto; }
+/* The rows are buttons here and divs elsewhere, and the button rules centred
+   their content and let the name collapse: the medicine being chosen did not
+   appear on the row offering it. */
+.attach-hits .product-pick {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s2);
+  width: 100%; height: auto; text-align: left; white-space: normal;
+  background: transparent; border: 0; border-bottom: 1px solid var(--line);
+  padding: 8px 6px; color: var(--ink);
+}
+.attach-hits .product-pick > span:first-child { flex: 1 1 auto; min-width: 0; }
+.attach-hits .product-pick:hover { background: var(--hover); }
+.attach-picked {
+  display: flex; align-items: center; gap: 8px; margin: 0;
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 8px 10px;
+  background: var(--surface-sunk);
+}
+.attach-picked > span { flex: 1 1 auto; min-width: 0; }

@@ -22,6 +22,7 @@ import SigInput from "../components/SigInput";
 import MixAtTheCounter, { MadeUp } from "../components/MixAtTheCounter";
 import { useDoing } from "../components/Doing";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
+import AttachBarcode from "../components/AttachBarcode";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -850,6 +851,8 @@ export default function Dispense() {
   useEffect(() => { fromRxRef.current = fromRx; }, [fromRx]);
   /** The camera, for a counter with no scanner on it. */
   const [cameraOpen, setCameraOpen] = useState(false);
+  /** A pack the catalogue does not know yet, waiting to be told what it is. */
+  const [unknownCode, setUnknownCode] = useState("");
   /** Whether the dispenser has moved on to somebody else while work is in
    *  flight. Work that lands afterwards must not take their screen. */
   const itemsRef = useRef<DraftItem[]>([]);
@@ -1005,7 +1008,11 @@ export default function Dispense() {
         prescription_id: fromRx && !fromRx.draft ? fromRx.id : null,
       });
       if (!res.found) {
-        toast.error(res.message || "Nothing is stocked under that code.");
+        // Two thirds of this catalogue arrived with no barcode at all, so an
+        // unrecognised pack is the ordinary case rather than an error. The
+        // dispenser is holding it and knows what it is; asking is quicker than
+        // a search, and the answer is kept for everybody.
+        setUnknownCode(code);
         return;
       }
       if (res.expired) {
@@ -4549,6 +4556,19 @@ ${d.action}`}
                   </div>
                 </div>
               </div>
+            )}
+
+            {unknownCode && (
+              <AttachBarcode
+                code={unknownCode}
+                route={route}
+                onClose={() => setUnknownCode("")}
+                onAttached={(product) => {
+                  // Straight onto the script, as though it had been recognised:
+                  // that is what the dispenser was doing when they scanned it.
+                  void scanPack(unknownCode);
+                }}
+              />
             )}
 
             {cameraOpen && (
