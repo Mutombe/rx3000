@@ -8691,6 +8691,20 @@ button.fin-ack { cursor: pointer; }
 .lane-icon-btn:hover { background: var(--hover); color: var(--ink); }
 .lane-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
+/* The camera belongs to the medicine field, so it has to be IN it.
+   `.lane-icon-btn` was written for a picked patient's box, which is a flex row
+   that lays its children out side by side. Dropped into the medicine search —
+   a plain relative block — the button had no position of its own, so it flowed
+   underneath the input and came to rest on top of the prescriber's results.
+   Somebody searching for a doctor got a camera sitting in the middle of the
+   answer, on a control belonging to a different field.
+   Placed like `.lane-icon`, inboard of the magnifier, with the input's own
+   padding opened up so a long medicine name never runs under either. */
+.lane-field > .lane-scan {
+  position: absolute; right: 30px; top: 50%; transform: translateY(-50%);
+}
+.disp-dense .lane-field.disp-medicine > input { padding-right: 58px; }
+
 /* The chips start where the fields start; there is no label column now. */
 .disp-context { padding-left: 0; }
 
