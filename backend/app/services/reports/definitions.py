@@ -208,7 +208,9 @@ register(Report(
 def _cashier_performance(db: Session, p: dict):
     groups: dict[int, dict] = {}
     for sale in _sales_in(db, p).all():
-        key = sale.cashier_id or 0
+        # Who took the money, where that is recorded; who rang it up otherwise,
+        # which is every sale from before the two were told apart.
+        key = sale.settled_by_id or sale.cashier_id or 0
         row = groups.setdefault(key, {
             "cashier": "(not recorded)", "transactions": 0,
             "amount": 0.0, "voids": 0, "_id": key,
@@ -583,7 +585,7 @@ def _voids(db: Session, p: dict):
         {
             "date": s.created_at.isoformat(sep=" ", timespec="minutes"),
             "sale_number": s.sale_number or ("#" + str(s.id)),
-            "cashier": names.get(s.cashier_id, "-"),
+            "cashier": names.get(s.settled_by_id or s.cashier_id, "-"),
             "method": s.payment_method or "-",
             "amount": round(s.total or 0, 2),
         }
@@ -2440,13 +2442,15 @@ def _tender_register(db: Session, p: dict):
         return []
     names = {
         u.id: (u.full_name or u.username) for u in
-        db.query(User).filter(User.id.in_({s.cashier_id for _t, s in rows_q if s.cashier_id})).all()
+        db.query(User).filter(User.id.in_(
+            {s.settled_by_id or s.cashier_id for _t, s in rows_q
+             if (s.settled_by_id or s.cashier_id)})).all()
     }
     return [
         {
             "date": sale.created_at.isoformat(sep=" ", timespec="minutes"),
             "sale_number": sale.sale_number or ("#" + str(sale.id)),
-            "cashier": names.get(sale.cashier_id, "-"),
+            "cashier": names.get(sale.settled_by_id or sale.cashier_id, "-"),
             "currency": tender.currency_code or "",
             "amount": round(tender.amount or 0, 2),
             "in_base": round(tender.amount_in_base or 0, 2),
@@ -2494,7 +2498,9 @@ def _overrides(db: Session, p: dict):
         return []
     names = {
         u.id: (u.full_name or u.username) for u in
-        db.query(User).filter(User.id.in_({s.cashier_id for _i, s, _p in rows_q if s.cashier_id})).all()
+        db.query(User).filter(User.id.in_(
+            {s.settled_by_id or s.cashier_id for _i, s, _p in rows_q
+             if (s.settled_by_id or s.cashier_id)})).all()
     }
     out = []
     for item, sale, product in rows_q:
@@ -2509,7 +2515,7 @@ def _overrides(db: Session, p: dict):
             "sold_at": sold,
             "difference": round((sold - shelf) * quantity, 2),
             "percent": round((sold - shelf) / shelf * 100, 1) if shelf else 0.0,
-            "cashier": names.get(sale.cashier_id, "-"),
+            "cashier": names.get(sale.settled_by_id or sale.cashier_id, "-"),
         })
     out.sort(key=lambda r: r["difference"])
     return out
@@ -3407,7 +3413,8 @@ def _cod_rows(db: Session, p: dict, status: str, transferred=None):
     users = {
         u.id: (u.full_name or u.username) for u in
         db.query(User).filter(
-            User.id.in_({s.cashier_id for s in sales if s.cashier_id}
+            User.id.in_({s.settled_by_id or s.cashier_id for s in sales
+                         if (s.settled_by_id or s.cashier_id)}
                         | {s.transferred_by_id for s in sales if s.transferred_by_id})).all()
     }
     # Whether the goods actually left, which is what makes an unpaid sale a COD
@@ -3431,7 +3438,7 @@ def _cod_rows(db: Session, p: dict, status: str, transferred=None):
             "amount": round(sale.total or 0, 2),
             "delivered": "yes" if sale.id in delivered else "",
             "days": (today_ - sale.created_at.date()).days if sale.created_at else 0,
-            "cashier": users.get(sale.cashier_id, "-"),
+            "cashier": users.get(sale.settled_by_id or sale.cashier_id, "-"),
             "transferred_by": users.get(sale.transferred_by_id, "-"),
             "transferred_on": (sale.transferred_at.date().isoformat()
                                if sale.transferred_at else ""),
@@ -4769,7 +4776,8 @@ def _invoice_shape(db: Session, rows_q):
     users = {
         u.id: (u.full_name or u.username) for u in
         db.query(User).filter(
-            User.id.in_({s.cashier_id for s in rows_q if s.cashier_id})).all()
+            User.id.in_({s.settled_by_id or s.cashier_id for s in rows_q
+                         if (s.settled_by_id or s.cashier_id)})).all()
     }
     counts = dict(
         db.query(SaleItem.sale_id, func.sum(SaleItem.quantity))
@@ -4785,7 +4793,7 @@ def _invoice_shape(db: Session, rows_q):
             "total": round(s.total or 0, 2),
             "method": (s.payment_method or "").replace("_", " "),
             "status": s.status or "",
-            "cashier": users.get(s.cashier_id, "-"),
+            "cashier": users.get(s.settled_by_id or s.cashier_id, "-"),
         }
         for s in rows_q
     ]

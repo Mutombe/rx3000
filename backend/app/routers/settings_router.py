@@ -108,6 +108,14 @@ DECLARED: tuple[Declared, ...] = (
              "never, controlled, or always. When required, a script cannot be "
              "dispensed until the points the patient was told are recorded. "
              "Controlled means Schedule 5 and 6 scripts only."),
+    Declared("dispensing.after_till", "After sending a sale to the till", "text",
+             "stay", "Dispensing",
+             "stay, or go. A pharmacy with a cashier leaves the dispenser on the "
+             "dispensary — the till is already showing what is waiting, and moving "
+             "somebody's screen mid-script is how the next patient is kept waiting. "
+             "Where one person does both, 'go' opens the till on that sale the "
+             "moment it is raised. Either way the dispensing says where it went and "
+             "offers to take you there."),
     Declared("dispensing.require_scan_check", "Require each pack to be scanned",
              "bool", "false", "Dispensing",
              "When on, a script cannot be dispensed until every pack has been "

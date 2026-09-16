@@ -230,6 +230,13 @@ export default function SaleDetail() {
           { label: "Total", value: money(sale.total), hint: `incl. VAT ${money(sale.vat_amount)}` },
           { label: "Tendered", value: money(sale.amount_tendered),
             hint: sale.change_due ? `change ${money(sale.change_due)}` : tender },
+          // Two people, and each answers only for their own half of it: the
+          // dispenser who rang it up when the medicine left the shelf, and
+          // whoever actually took the money at the front.
+          { label: "Rung up by", value: sale.cashier_name || "—" },
+          { label: "Payment taken by",
+            value: sale.settled_by_name || "not yet paid",
+            hint: sale.settled_at ? fmtDateTime(sale.settled_at) : undefined },
           { label: "Status", value: sale.status,
             hint: <span className={`badge ${sale.status === "paid" ? "ok" : sale.status === "void" ? "danger" : "warn"}`}>
               {sale.status}</span> },

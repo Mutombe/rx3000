@@ -347,9 +347,13 @@ def shift(shift_id: int, db: Session = Depends(get_db)):
         finish = row.closed_at or datetime.utcnow()
         sales = (db.query(Sale)
                    .options(joinedload(Sale.patient))
+                   # What this person actually took. A dispensary sale is rung
+                   # up by the dispenser and paid at the till, so counting by
+                   # who rang it up puts it in the wrong drawer; older sales,
+                   # from before the two were told apart, still count by that.
                    .filter(Sale.created_at >= row.opened_at,
                            Sale.created_at <= finish,
-                           Sale.cashier_id == row.user_id)
+                           func.coalesce(Sale.settled_by_id, Sale.cashier_id) == row.user_id)
                    .order_by(Sale.created_at.desc()).limit(200).all())
 
     return {

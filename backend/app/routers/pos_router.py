@@ -123,6 +123,13 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
                     body_tenders=None) -> None:
     patient = db.get(Patient, sale.patient_id) if sale.patient_id else None
 
+    # Whoever is taking the money, taking it. Stamped here rather than left to
+    # `cashier_id`, which says who rang the sale up: on a dispensary sale that
+    # is the dispenser, and crediting them with cash a cashier counted at the
+    # front is how one person is asked to answer for another's drawer.
+    sale.settled_by_id = user.id
+    sale.settled_at = datetime.utcnow()
+
     # Loyalty redemption is a tender, not a price reduction: sale.total (and
     # therefore VAT) stays intact; points settle part of the amount due.
     redeem_value = 0.0

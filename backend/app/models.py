@@ -946,7 +946,19 @@ class Sale(Base, TenantMixin):
     id = Column(Integer, primary_key=True)
     sale_number = Column(String(30), nullable=False, index=True)
     patient_id = Column(Integer, ForeignKey("patients.id"), nullable=True)
+    #: Who rang it up. On a dispensary sale that is the dispenser, at the
+    #: moment the medicine left the shelf — not whoever later took the money.
     cashier_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    #: Who actually took the payment, and when.
+    #:
+    #: Every cash-up and shift report used to attribute a sale by `cashier_id`,
+    #: which for a dispensary sale is the dispenser. So the cashier who really
+    #: took the cash at the front was short of it in their own drawer, and the
+    #: dispenser's figures carried money they never handled. Neither person can
+    #: answer for the other's total, and on a short drawer that is exactly what
+    #: they are asked to do.
+    settled_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    settled_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     subtotal = Column(Float, default=0.0)          # ex VAT
     vat_amount = Column(Float, default=0.0)
@@ -1004,6 +1016,17 @@ class Sale(Base, TenantMixin):
     # account, so the join has to say which one it means. Adding the second
     # FK without this broke every report in the catalogue at once.
     cashier = relationship("User", foreign_keys=[cashier_id])
+    settled_by = relationship("User", foreign_keys=[settled_by_id])
+
+    @property
+    def cashier_name(self) -> str:
+        """Who rang it up, in the name a person is called by."""
+        return (self.cashier.full_name or self.cashier.username) if self.cashier else ""
+
+    @property
+    def settled_by_name(self) -> str:
+        """Who took the money. Empty until somebody has."""
+        return (self.settled_by.full_name or self.settled_by.username) if self.settled_by else ""
     transferred_by = relationship("User", foreign_keys=[transferred_by_id])
     tenders = relationship("SaleTender", back_populates="sale", cascade="all, delete-orphan")
     items = relationship("SaleItem", back_populates="sale", cascade="all, delete-orphan")

@@ -722,6 +722,11 @@ export default function Dispense() {
         setCounselRule(counsel === "always" || counsel === "controlled" ? counsel : "never");
         const scanRule = all.find((x: any) => x?.key === "dispensing.require_scan_check")?.value;
         setRequireScan(scanRule === true || scanRule === "true");
+        // Whether a sale sent to the till takes the dispenser with it. A
+        // pharmacy with a cashier says stay; one person doing both says go.
+        const after = String(all.find((x: any) => x?.key === "dispensing.after_till")?.value
+                             ?? "stay").trim().toLowerCase();
+        setGoToTill(after === "go");
       })
       .catch(() => undefined);   // the server enforces it regardless
   }, []);
@@ -853,6 +858,10 @@ export default function Dispense() {
   const [cameraOpen, setCameraOpen] = useState(false);
   /** A pack the catalogue does not know yet, waiting to be told what it is. */
   const [unknownCode, setUnknownCode] = useState("");
+  /** Whether a sale sent to the till should take this screen with it. */
+  const [goToTill, setGoToTill] = useState(false);
+  const goToTillRef = useRef(false);
+  useEffect(() => { goToTillRef.current = goToTill; }, [goToTill]);
   /** Whether the dispenser has moved on to somebody else while work is in
    *  flight. Work that lands afterwards must not take their screen. */
   const itemsRef = useRef<DraftItem[]>([]);
@@ -2094,7 +2103,13 @@ export default function Dispense() {
       // very thing that made them wait for a spinner in the first place.
       next: (sale: any) => {
         if (before.payHow === "till" && sale?.id) {
-          return { label: "Take payment →",
+          // Offered, because the answer is about the shop rather than the
+          // software: with a cashier at the front, the sale is already on their
+          // pending list and this dispenser should stay where they are. Working
+          // alone, this is how they finish it — and the sale then records that
+          // they took the money, so nobody at the till answers for a drawer
+          // they never touched.
+          return { label: "Nobody at the till? Take it yourself →",
                    go: () => navigate(`/pos?settle=${sale.id}&tab=pending`) };
         }
         if (before.payHow === "delivery") {
@@ -2340,6 +2355,13 @@ export default function Dispense() {
       // raise the invoice and stay put with a banner, leaving the dispenser to
       // find the front shop and search for the sale they had just made — two
       // screens for one act, and the commonest way a pending sale is forgotten.
+      // Where one person does both jobs, the till is where they were going
+      // anyway — but only if this screen is still free. Somebody who has
+      // started the next patient is not asking to be taken anywhere.
+      if (goToTillRef.current && before.payHow === "till" && finished?.id
+          && !itemsRef.current.length && !patientRef.current) {
+        navigate(`/pos?settle=${finished.id}&tab=pending`);
+      }
       setWorklistNonce((n) => n + 1);
       return finished;
     }

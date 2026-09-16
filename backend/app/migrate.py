@@ -124,6 +124,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "speciality": "VARCHAR(80) DEFAULT ''",
     },
     "sales": {
+        # Who actually took the money, as against who rang the sale up. A
+        # dispensary sale is created by the dispenser and paid at the till.
+        "settled_by_id": "INTEGER",
+        "settled_at": "TIMESTAMP",
         # Which branch sold it. Drives branch takings and the branch VAT return.
         "branch_id": "INTEGER",
         # The till's own reference, so a sale replayed from the offline queue is

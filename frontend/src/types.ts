@@ -158,6 +158,13 @@ export interface SaleItem {
 export interface Sale {
   id: number;
   sale_number: string;
+  /** Who rang it up — on a dispensary sale, the dispenser. */
+  cashier_id?: number | null;
+  cashier_name?: string;
+  /** Who actually took the money, and when. Empty until somebody has. */
+  settled_by_id?: number | null;
+  settled_by_name?: string;
+  settled_at?: string | null;
   patient_id: number | null;
   created_at: string;
   subtotal: number;

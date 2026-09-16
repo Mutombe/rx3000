@@ -663,6 +663,13 @@ class ClaimOut(ORM):
 class SaleOut(ORM):
     id: int
     sale_number: str
+    #: Who rang it up, and who took the money — two people on a dispensary sale,
+    #: and each answers only for their own half of it.
+    cashier_id: Optional[int] = None
+    cashier_name: str = ""
+    settled_by_id: Optional[int] = None
+    settled_by_name: str = ""
+    settled_at: Optional[datetime] = None
     patient_id: Optional[int] = None
     created_at: datetime
     subtotal: float

@@ -392,7 +392,8 @@ def run_invoices(shift_id: int, db: Session = Depends(get_db),
             "status": sale.status,
             "total": round(float(sale.total or 0), 2),
             "methods": methods,
-            "cashier_id": sale.cashier_id,
+            "cashier_id": sale.settled_by_id or sale.cashier_id,
+            "rang_up_by_id": sale.cashier_id,
         })
 
     def summed(status: str) -> dict:
