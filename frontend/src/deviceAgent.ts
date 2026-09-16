@@ -320,7 +320,22 @@ export function labelLines(l: Label, width = 32): Line[] {
     return out;
   };
 
-  lines.push({ text: `${l.product_name} ${l.strength}`.trim().slice(0, width), bold: true });
+  // The medicine's name, in full, however many rows it takes.
+  //
+  // It was cut to the roll's width, so "SODIUM CHLORIDE 0.9% 1000ML" printed as
+  // "SODIUM CHLORIDE 0.9% 1000M" — the strength silently losing its last
+  // letter. A truncated name on a dispensing label is not cosmetic: it is the
+  // line a patient reads to know what is in the box, and 1000M is not a unit.
+  // Long names wrap; a word longer than the roll is broken rather than clipped,
+  // because there is no shorter true answer.
+  const wholeName = `${l.product_name} ${l.strength ?? ""}`.trim();
+  const nameRows = wrap(wholeName, width).flatMap((row) =>
+    row.length <= width
+      ? [row]
+      : (row.match(new RegExp(`.{1,${width}}`, "g")) ?? [row]));
+  for (const row of (nameRows.length ? nameRows : [wholeName])) {
+    lines.push({ text: row, bold: true });
+  }
   const qty = [
     l.quantity ? `${l.quantity} ${l.dosage_form || ""}`.trim() : "",
     l.line_total ? `x${l.line_total.toFixed(2)}` : "",

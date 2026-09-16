@@ -184,7 +184,19 @@ const LABEL_CSS = `
     display: flex; align-items: baseline; gap: 1.5mm;
     font-weight: bold; font-size: 7.6pt; line-height: 1.1;
   }
-  .med .name { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The medicine's name, in full, wrapping onto as many lines as it needs.
+     It was clipped with an ellipsis on one line, which printed
+     "SODIUM CHLORIDE 0.9% 1000M" on a real label — the strength losing its last
+     letter, and 1000M is not a unit. This is the line a patient reads to know
+     what is in the box, so it is the last thing on the sticker allowed to be
+     shortened, and break-word so a name longer than the sticker breaks rather
+     than running off the edge. */
+  .med .name {
+    flex: 1 1 auto; min-width: 0;
+    white-space: normal; overflow-wrap: break-word; word-break: break-word;
+    line-height: 1.15;
+  }
+  .med { align-items: flex-start; }
   .med .price { flex: 0 0 auto; font-size: 6.8pt; }
 
   /* The line the sticker exists for, and the only one allowed to grow.

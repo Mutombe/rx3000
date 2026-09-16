@@ -82,9 +82,31 @@ def run():
     execute("update pharmacies set registration_no = ?, address = ?, phone = ? where id = 1", was)
 
 
+def the_name_is_never_cut():
+    """A truncated medicine name is not cosmetic.
+
+    A real CareXpress label printed "SODIUM CHLORIDE 0.9% 1000M" — the strength
+    losing its last letter to the width of the roll. 1000M is not a unit, and
+    this is the line a patient reads to know what is in the box.
+    """
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "src"
+    agent = (root / "deviceAgent.ts").read_text(encoding="utf-8")
+    css = (root / "print.ts").read_text(encoding="utf-8")
+
+    assert "`${l.product_name} ${l.strength}`.trim().slice(0, width)" not in agent,         "the roll label is cutting the medicine name to the roll width again"
+    assert "const nameRows = wrap(wholeName, width)" in agent,         "the roll label no longer wraps the name"
+    med = re.search(r"\.med \.name \{[^}]*\}", css)
+    assert med, "the sheet label has no rule for the medicine name"
+    assert "nowrap" not in med.group(0),         "the sheet label is clipping the medicine name to one line again"
+    print("ok    neither label cuts the medicine name")
+
+
 if __name__ == "__main__":
     try:
         run()
+        the_name_is_never_cut()
     except Exception as exc:                  # noqa: BLE001
         import os
         import traceback
