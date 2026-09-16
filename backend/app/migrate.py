@@ -104,6 +104,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # added at all on SQLite.
     "stock_batches": {"branch_id": "INTEGER"},
     "stock_movements": {"branch_id": "INTEGER"},
+    "stock_categories": {
+        # Whether the dispensary offers what is filed here. Seeded from what is
+        # actually in each department; see _departments_that_dispense.
+        "dispensable": "BOOLEAN DEFAULT 1",
+    },
     "doctors": {
         # A prescriber who has retired, moved abroad or been struck off should
         # leave the picker while every script they wrote still names them.
@@ -1012,6 +1017,54 @@ def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
     return 1 if moved else 0
 
 
+def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
+    """Decide, once, which departments the dispensary should offer.
+
+    Every department arrived switched on, which is the safe default for a
+    column being added — nothing disappears from anybody's screen on upgrade.
+    It is the wrong answer for a real catalogue: CareXpress's sixteen thousand
+    lines are one pharmacy's whole shop, and a dispenser searching for a
+    medicine was offered Minute Maid, hair food and phone credit.
+
+    So each department is judged on what is actually filed in it: a department
+    that is mostly medicine dispenses, one that is mostly shop does not. Run
+    once, on the upgrade that adds the column, and never again — after that the
+    switch belongs to the pharmacy.
+    """
+    if not {"stock_categories", "products"} <= existing_tables:
+        return 0
+    cols = {c["name"] for c in inspect(conn).get_columns("stock_categories")}
+    if "dispensable" not in cols:
+        return 0
+    # Only on the upgrade that adds the column: a row that has been decided
+    # already is left alone.
+    if conn.execute(text("SELECT COUNT(*) FROM stock_categories WHERE dispensable = 0")).scalar():
+        return 0
+    rows = conn.execute(text("""
+        SELECT c.id,
+               COUNT(p.id) AS total,
+               SUM(CASE WHEN p.category = 'medicine' OR COALESCE(p.schedule, 0) > 0
+                        THEN 1 ELSE 0 END) AS medicines
+        FROM stock_categories c
+        LEFT JOIN products p ON p.category_id = c.id
+        GROUP BY c.id
+    """)).all()
+    switched = 0
+    for category_id, total, medicines in rows:
+        # An empty department is left on: there is nothing in it to judge, and
+        # a pharmacy that has just created one is about to file medicines there.
+        if not total:
+            continue
+        if (medicines or 0) / total >= 0.3:
+            continue
+        conn.execute(text("UPDATE stock_categories SET dispensable = 0 WHERE id = :i"),
+                     {"i": category_id})
+        switched += 1
+    if switched:
+        log.info("%s department(s) taken out of the dispensary's medicine search", switched)
+    return 1 if switched else 0
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -1043,6 +1096,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
+        applied += _departments_that_dispense(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 

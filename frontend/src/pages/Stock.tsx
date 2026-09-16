@@ -33,6 +33,10 @@ const EMPTY = {
   dosage_form: "", strength: "", pack_size: "", unit_price: 0, cost_price: 0,
   vat_rate: 0.15, quantity_on_hand: 0, reorder_level: 10, reorder_quantity: 20,
   supplier_id: "" as string | number,
+  // The pharmacy's own department. It decides which stocktake sheet the line
+  // is on, which margin it is judged against, and whether the dispensary
+  // offers it while a patient waits — and no screen could set it.
+  category_id: "" as string | number,
   // Where it sits on the shelf and who makes it. Both columns existed, both were
   // read by reports and by the stock-take sheet, and neither had a field on this
   // form, so they were NULL on all 545 products.
@@ -43,6 +47,7 @@ export default function Stock() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [departments, setDepartments] = useState<{ id: number; name: string; dispensable: boolean }[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [mvMeta, setMvMeta] = useState<Paged<StockMovement> | null>(null);
   const [mvPage, setMvPage] = useState(1);
@@ -205,6 +210,11 @@ export default function Stock() {
   useEffect(load, [q, lowOnly]);
   useEffect(() => { api.get<Supplier[]>("/api/suppliers").then(setSuppliers); }, []);
   useEffect(() => {
+    api.get<{ items: { id: number; name: string; dispensable: boolean }[] }>("/api/stock-categories")
+      .then((d) => setDepartments(d.items ?? []))
+      .catch(() => setDepartments([]));
+  }, []);
+  useEffect(() => {
     if (tab === "movements")
       api
         .get<Paged<StockMovement>>(`/api/stock/movements/paged?page=${mvPage}&per_page=${mvSize}`)
@@ -255,13 +265,15 @@ export default function Stock() {
   function openNew() { setEditing(null); setForm({ ...EMPTY }); setShowForm(true); }
   function openEdit(p: Product) {
     setEditing(p);
-    setForm({ ...p, supplier_id: p.supplier_id ?? "" });
+    setForm({ ...p, supplier_id: p.supplier_id ?? "", category_id: p.category_id ?? "" });
     setShowForm(true);
   }
 
   async function save(e: FormEvent) {
     e.preventDefault();
-    const body = { ...form, supplier_id: form.supplier_id === "" ? null : Number(form.supplier_id) };
+    const body = { ...form,
+                   supplier_id: form.supplier_id === "" ? null : Number(form.supplier_id),
+                   category_id: form.category_id === "" ? null : Number(form.category_id) };
     delete body.id; delete body.active; delete body.medical_aid;
     try {
       // Closed before the write, not after it. A record being created
@@ -453,6 +465,24 @@ export default function Stock() {
                       // The register requirement belongs beside the schedule, not
                       // in the head of whoever is filling the form in.
                       hint: n >= 5 ? "controlled, register entry required" : undefined,
+                    }))}
+                  />
+                </div>
+                <div className="field">
+                  <label>Department</label>
+                  <Select
+                    value={String(form.category_id ?? "")}
+                    onChange={(v) => set("category_id")({ target: { value: v } } as any)}
+                    placeholder="None"
+                    clearable
+                    searchable
+                    options={departments.map((d) => ({
+                      value: String(d.id),
+                      label: d.name,
+                      // Said here, where the filing decision is made: this is
+                      // what puts a line in front of a dispenser, or keeps it
+                      // in the shop.
+                      hint: d.dispensable ? "dispensed here" : "shop only",
                     }))}
                   />
                 </div>

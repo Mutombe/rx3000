@@ -262,6 +262,11 @@ class ProductBase(BaseModel):
     reorder_level: int = 10
     reorder_quantity: int = 20
     supplier_id: Optional[int] = None
+    #: The pharmacy's own department. It decides which stocktake sheet the line
+    #: appears on, which margin it is judged against — and now whether the
+    #: dispensary offers it while a patient waits, so it has to be settable
+    #: where the product is created rather than only by the bulk tagger.
+    category_id: Optional[int] = None
 
 
 class ProductCreate(ProductBase):
@@ -272,12 +277,6 @@ class ProductOut(ORM, ProductBase):
     id: int
     quantity_on_hand: int
     active: bool = True
-    #: Which department it is filed under, as against `category` above, which is
-    #: free text for the therapeutic class. Two different ideas with almost the
-    #: same name; the department is the one the shop is laid out by and the one
-    #: every stock report groups on. It was on the model and sent to nothing, so
-    #: the product record could not show it and no screen could set it.
-    category_id: Optional[int] = None
 
 
 class StockAdjust(BaseModel):

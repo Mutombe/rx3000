@@ -9433,3 +9433,7 @@ button.fin-ack { cursor: pointer; }
 .disp-doctor-nums { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
 .disp-doctor-nums .field { margin: 0; }
 .pick-none { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+
+/* Departments: whether the dispensary searches what is filed here. */
+.dept-dispensable { display: inline-flex; align-items: center; white-space: nowrap; }
+.dept-dispensable .cbx { font-size: .82rem; }

@@ -8,7 +8,7 @@ Three distinct workflows:
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_, true
 from sqlalchemy.orm import Session, joinedload
 
 from .. import helpers, schedule_policy, schemas
@@ -63,12 +63,48 @@ def expiry_needed(lines: list[dict] = Body(..., embed=True), db: Session = Depen
 @router.get("/products", response_model=list[schemas.ProductOut])
 def products_by_route(route: str = "otc", q: str = "", limit: int = 40, db: Session = Depends(get_db)):
     """Products available on a given dispensing route (otc | prescription | controlled)."""
+    from ..models import StockCategory
+
     schedules = schedule_policy.schedules_for_route(route)
     if not schedules:
         raise HTTPException(status_code=400, detail="Route must be otc, prescription or controlled")
-    query = db.query(Product).filter(Product.active, Product.schedule.in_(schedules))
+    controlled = schedule_policy.schedules_for_route("controlled")
+    query = db.query(Product).filter(Product.active)
+
+    if route == "prescription":
+        # Scheduled prescription medicines, and the unclassified ones.
+        #
+        # A catalogue that arrives from another system has no schedules on it —
+        # every one of CareXpress's sixteen thousand lines is schedule 0 — so a
+        # strict schedule filter offered the dispenser nothing at all on the
+        # tab they spend the day in. Anything not classified is therefore
+        # searchable on a script, and the department filter below is what keeps
+        # the crisps out. Controlled substances are never reached this way:
+        # they have their own tab and their own record.
+        query = query.filter(
+            or_(Product.schedule.in_(schedules),
+                func.coalesce(Product.schedule, 0) == 0),
+            ~Product.schedule.in_(controlled) if controlled else true(),
+        )
+    else:
+        query = query.filter(Product.schedule.in_(schedules))
     if route == "otc":
         query = query.filter(Product.category != "airtime")
+
+    # What this pharmacy dispenses, as the pharmacy itself has filed it.
+    #
+    # The shop's own departments already separate medicine from merchandise;
+    # without this the medicine search offered fizzy drinks, hair food and
+    # phone credit, which is both slower to use and a way to put a chocolate
+    # bar on a prescription.
+    query = (query.outerjoin(StockCategory, Product.category_id == StockCategory.id)
+             .filter(or_(
+                 # A scheduled medicine is a medicine wherever it is filed.
+                 func.coalesce(Product.schedule, 0) > 0,
+                 StockCategory.dispensable.is_(True),
+                 # Filed nowhere: the older, coarser field decides.
+                 and_(Product.category_id.is_(None), Product.category == "medicine"))))
+
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
     return query.order_by(Product.name).limit(limit).all()

@@ -626,6 +626,15 @@ class StockCategory(Base, TenantMixin):
     target_margin = Column(Float, default=0.0)
     notes = Column(Text, default="")
     active = Column(Boolean, default=True)
+    #: Whether the dispensary offers what is filed here.
+    #:
+    #: A pharmacy sells crisps, phone chargers and shampoo, and none of them
+    #: belongs in the list a dispenser searches while a patient waits. The
+    #: department already says which is which — it is the pharmacy's own
+    #: grouping — so this is the switch that keeps a script's medicine search to
+    #: medicines, and it is theirs to change: a shop that dispenses from its
+    #: surgical department turns that one on.
+    dispensable = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     products = relationship("Product", back_populates="stock_category")

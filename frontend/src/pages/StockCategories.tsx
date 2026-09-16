@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowClockwise, Warning } from "@phosphor-icons/react";
 import { api, money } from "../api";
 import BusyButton from "../components/BusyButton";
+import Checkbox from "../components/Checkbox";
 import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -25,6 +26,8 @@ import TagProducts from "../components/TagProducts";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
+  /** Whether the dispensary offers what is filed here. */
+  dispensable: boolean;
   active: boolean; products: number; in_stock: number; at_cost: number;
 }
 
@@ -66,7 +69,7 @@ export default function StockCategories() {
       {
         id: 0, name, code: form.code.trim(),
         target_margin: Number(form.target_margin) || 0,
-        active: true, products: 0, in_stock: 0, at_cost: 0,
+        dispensable: true, active: true, products: 0, in_stock: 0, at_cost: 0,
       },
       () => api.post<Category>("/api/stock-categories", {
         name, code: form.code.trim(),
@@ -127,8 +130,8 @@ export default function StockCategories() {
         <Refreshable
           loading={list.loading}
           hasData={rows.length > 0}
-          skeleton={<TableSkeleton cols={6} rows={5}
-            widths={["20ch", "8ch", "10ch", "10ch", "10ch", "12ch"]} />}
+          skeleton={<TableSkeleton cols={7} rows={5}
+            widths={["20ch", "8ch", "10ch", "10ch", "10ch", "14ch", "12ch"]} />}
         >
         <table className="dt">
           <thead>
@@ -138,6 +141,7 @@ export default function StockCategories() {
               <th className="num">With stock</th>
               <th className="num">At cost</th>
               <th className="num">Target margin</th>
+              <th>In the dispensary</th>
               <th className="actions" />
             </tr>
           </thead>
@@ -193,6 +197,29 @@ export default function StockCategories() {
                       );
                     }}
                   />
+                </td>
+                {/* What a dispenser is offered while a patient waits.
+                    Switched off, the department's lines stay on every stock
+                    screen and every report and simply stop appearing in the
+                    medicine search — which is what keeps crisps and phone
+                    credit off a prescription. */}
+                <td>
+                  {!list.isPending(c) && (
+                    <label className="dept-dispensable">
+                      <Checkbox
+                        checked={c.dispensable}
+                        onChange={(on) => list.update(
+                          c.id, { dispensable: on },
+                          () => api.put(`/api/stock-categories/${c.id}`, { dispensable: on }),
+                          on
+                            ? `${c.name} is now searched when dispensing.`
+                            : `${c.name} no longer appears in the medicine search.`,
+                        )}
+                      >
+                        {c.dispensable ? "Dispensed here" : "Shop only"}
+                      </Checkbox>
+                    </label>
+                  )}
                 </td>
                 <td className="actions">
                   {/* Nothing to look at yet on a department the server has not

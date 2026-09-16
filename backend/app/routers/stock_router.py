@@ -724,6 +724,8 @@ def list_stock_categories(db: Session = Depends(get_db),
         "id": c.id, "code": c.code or "", "name": c.name,
         "target_margin": c.target_margin or 0.0,
         "active": bool(c.active),
+        # Whether the dispensary offers what is filed here.
+        "dispensable": bool(c.dispensable),
         "products": rows.get(c.id, 0),
         "in_stock": stocked.get(c.id, 0),
         "at_cost": round(value.get(c.id, 0.0) or 0.0, 2),
@@ -751,11 +753,17 @@ def create_stock_category(body: dict, db: Session = Depends(get_db),
         return {"id": existing.id, "name": existing.name, "code": existing.code or ""}
     cat = StockCategory(name=name, code=(body.get("code") or "").strip()[:20],
                         target_margin=float(body.get("target_margin") or 0),
+                        # On unless the pharmacy says otherwise: a department
+                        # somebody has just made is usually about to hold
+                        # medicines, and a switch that hides them silently is
+                        # worse than one that shows a jar of sweets.
+                        dispensable=bool(body.get("dispensable", True)),
                         active=True)
     db.add(cat)
     db.commit()
     db.refresh(cat)
-    return {"id": cat.id, "name": cat.name, "code": cat.code or ""}
+    return {"id": cat.id, "name": cat.name, "code": cat.code or "",
+            "dispensable": bool(cat.dispensable)}
 
 
 @router.put("/stock-categories/{category_id}")
@@ -799,11 +807,14 @@ def update_stock_category(category_id: int, body: dict, db: Session = Depends(ge
         cat.target_margin = margin
     if "active" in body:
         cat.active = bool(body.get("active"))
+    if "dispensable" in body:
+        cat.dispensable = bool(body.get("dispensable"))
 
     db.commit()
     db.refresh(cat)
     return {"id": cat.id, "name": cat.name, "code": cat.code or "",
-            "target_margin": cat.target_margin, "active": cat.active}
+            "target_margin": cat.target_margin, "active": cat.active,
+            "dispensable": bool(cat.dispensable)}
 
 
 @router.post("/stock-categories/tag")
