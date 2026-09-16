@@ -50,6 +50,20 @@
  *  always did. Nothing is ever inserted without a keystroke that means it —
  *  there is no completion-on-blur and no first-match-wins, because a code
  *  quietly substituted into a direction is a label nobody chose.
+ *
+ *  A CODE TYPED IN FULL IS ALREADY CHOSEN
+ *
+ *  `1t tds pc` is three codes, and asking for Enter between them made the
+ *  dispenser stop and confirm something they had just spelt out in full. So a
+ *  word that IS a code takes its own space: type `1t` and the caret is waiting
+ *  after it, ready for `tds`. The list closes, because there is nothing left to
+ *  choose.
+ *
+ *  This is not first-match-wins. It fires only on an exact code that no longer
+ *  code begins with, so every character was typed by the person: `tds` advances
+ *  because nothing else starts with it, `i` never does because `ii` and `iii`
+ *  do, and the list stays open to be chosen from. Five of the seventy-five
+ *  codes are prefixes of another; the rest all advance.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass, Warning, X } from "@phosphor-icons/react";
@@ -215,6 +229,19 @@ export default function SigInput({
 
   const picking = suggestions.length > 0;
 
+  /** Whether a word is a code that nothing longer begins with.
+   *
+   *  `i` is a code and so are `ii` and `iii`, so typing `i` cannot mean the
+   *  dispenser has finished — they may be on their way to `iii`. Those wait to
+   *  be chosen, as they always did.
+   */
+  const settled = (word: string) => {
+    const w = word.toLowerCase();
+    if (!codes.has(w)) return false;
+    return !entries.some((e) => e.code.length > w.length
+      && e.code.toLowerCase().startsWith(w));
+  };
+
   // Back to the top whenever the list changes under the highlight, so Enter
   // never takes a row that scrolled away while somebody was still typing.
   useEffect(() => { setCursor(0); }, [typing?.word]);
@@ -295,8 +322,30 @@ export default function SigInput({
           aria-expanded={picking}
           onChange={(e) => {
             setExpandedFrom("");
-            onChange(e.target.value);
-            track(e.target.value, e.target.selectionStart ?? e.target.value.length);
+            const text = e.target.value;
+            const caret = e.target.selectionStart ?? text.length;
+            // One character further on than a moment ago, so this is somebody
+            // typing rather than deleting or pasting a line in.
+            const typed = text.length === value.length + 1;
+            const from = text.lastIndexOf(" ", Math.max(0, caret - 1)) + 1;
+            const word = text.slice(from, caret);
+            const atWordEnd = caret === text.length || text[caret] === " ";
+
+            if (typed && atWordEnd && word && settled(word)) {
+              // The code is complete and unambiguous: give it its space and
+              // put the caret after it, ready for the next one.
+              const next = `${text.slice(0, caret)} ${text.slice(caret)}`;
+              onChange(next);
+              setTyping(null);
+              const at = caret + 1;
+              requestAnimationFrame(() => {
+                field.current?.focus();
+                field.current?.setSelectionRange(at, at);
+              });
+              return;
+            }
+            onChange(text);
+            track(text, caret);
           }}
           // Moving the caret changes which word is being completed, so the list
           // has to follow it. Without this, clicking back into `1t tds` to fix
