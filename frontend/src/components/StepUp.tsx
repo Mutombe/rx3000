@@ -18,10 +18,22 @@
  *  The server is the authority on all of this. This component asks it what the
  *  action requires rather than hard-coding it, so protecting a new action never
  *  means editing the UI.
+ *
+ *  It also sets a code, in place, for somebody who has not got one.
+ *
+ *  That is not a settings screen wedged into a dialog: it is the only way the
+ *  moment works. A pharmacist walks to a cashier's till to approve an override,
+ *  the prompt asks for their code, and they have never set one. Without this
+ *  their route is to log the cashier out, sign in, find settings, set a code,
+ *  sign out, sign the cashier back in — and by then the transaction is gone and
+ *  the patient has been standing at a counter watching it happen. So the thing
+ *  they are missing is made here, and the dialog they were in is still open
+ *  behind it with everything they had typed.
  */
-import { useEffect, useState } from "react";
-import { Warning } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { Key, Warning } from "@phosphor-icons/react";
 import { api } from "../api";
+import { useSession } from "../session";
 import BusyButton from "./BusyButton";
 import PinInput from "./PinInput";
 
@@ -65,6 +77,73 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const needsSecondPerson = spec && !spec.self_approval;
+  const { me } = useSession();
+
+  /* Making a code, here, without leaving. Everything above stays mounted while
+     this is open, so the approver's username, the action and the context are
+     still there when it closes — which is the whole point of doing it here. */
+  const [making, setMaking] = useState(false);
+  const [newPin, setNewPin] = useState("");
+  const [againPin, setAgainPin] = useState("");
+  const [madeFor, setMadeFor] = useState("");
+  const pinBoxes = useRef<HTMLDivElement | null>(null);
+
+  /** Whose code is being set: the approver where a second person is required,
+   *  otherwise whoever is signed in. Editable, because the person standing at
+   *  the till may not be either. */
+  const owner = (needsSecondPerson ? approver.trim() : "") || me?.username || "";
+  const [makeAs, setMakeAs] = useState("");
+  /* The server's own words for "this person has no code", so the offer to make
+     one appears exactly when it is the answer rather than on every refusal. */
+  const noCodeYet = /no pin is set/i.test(error);
+
+  function startMaking() {
+    setMakeAs(owner);
+    setPassword("");
+    setNewPin("");
+    setAgainPin("");
+    setError("");
+    setMaking(true);
+  }
+
+  async function makeTheCode(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    if (newPin.length !== PIN_LENGTH || againPin.length !== PIN_LENGTH) return;
+    if (newPin !== againPin) {
+      // Said before the server is asked. A mismatch is not a refusal and should
+      // not read like one.
+      setError("Those two codes are not the same.");
+      setAgainPin("");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      const said = await api.post<{ full_name?: string; username?: string }>(
+        "/api/auth/pin",
+        { pin: newPin, password, username: makeAs.trim() },
+      );
+      // Straight back to what they were doing, with the code they have just
+      // chosen ready to type. Nothing that was filled in has moved.
+      setMaking(false);
+      setMadeFor(said?.full_name || said?.username || makeAs.trim());
+      setPassword("");
+      setNewPin("");
+      setAgainPin("");
+      setPin("");
+      setUsePassword(false);
+      if (needsSecondPerson && said?.username) setApprover(said.username);
+      window.setTimeout(
+        () => pinBoxes.current?.querySelector("input")?.focus(), 60);
+    } catch (err: any) {
+      setError(err.message);
+      setNewPin("");
+      setAgainPin("");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     api
@@ -86,15 +165,26 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     : pin.length === PIN_LENGTH;
   const ready = complete && (!needsSecondPerson || !!approver.trim());
 
-  async function submit(e?: React.FormEvent) {
+  /** `typed` is the PIN as the boxes have it *now*.
+   *
+   *  The fourth digit fires this from inside the box's own change handler, one
+   *  render before `pin` catches up — so reading state here meant `complete`
+   *  was false on the only keystroke that matters, and the dialog sat there
+   *  with four dots in it doing nothing. Passed in rather than read.
+   */
+  async function submit(e?: React.FormEvent, typed?: string) {
     e?.preventDefault();
-    if (!ready || busy) return;
+    const credential = usePassword ? password : (typed ?? pin);
+    const enough = usePassword
+      ? credential.length > 0
+      : credential.length === PIN_LENGTH;
+    if (!enough || (needsSecondPerson && !approver.trim()) || busy) return;
     setBusy(true);
     setError("");
     try {
       const res = await api.post<{ token: string }>("/api/step-up", {
         action,
-        ...(usePassword ? { password } : { pin }),
+        ...(usePassword ? { password: credential } : { pin: credential }),
         approver: approver.trim(),
         context,
       });
@@ -114,12 +204,94 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     }
   }
 
+  /* Making a code. The same dialog, a step deeper: the action, the context and
+     the approver's name are all still held above, so closing this returns to a
+     prompt that has not lost anything. */
+  if (making) {
+    const matched = newPin.length === PIN_LENGTH && againPin.length === PIN_LENGTH;
+    return (
+      <div className="modal-backdrop" onClick={(e) => e.stopPropagation()}>
+        <form className="modal su-make" onClick={(e) => e.stopPropagation()}
+              onSubmit={makeTheCode}>
+          <h2><Key size={18} weight="fill" /> Choose a code</h2>
+          <p className="muted">
+            Four digits, typed instead of a password when something needs
+            approving. It signs one action; it never signs anybody in, so it
+            cannot open a session anywhere.
+          </p>
+          <p className="muted small">
+            You will come straight back to {spec ? spec.name.toLowerCase() : "what you were doing"},
+            with everything still filled in.
+          </p>
+
+          {error && (
+            <div className="alert error su-error" role="alert">
+              <Warning size={16} weight="fill" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <label htmlFor="su-make-who">
+            Whose code
+            <input id="su-make-who" value={makeAs} autoComplete="off" autoFocus={!makeAs}
+                   onChange={(e) => setMakeAs(e.target.value)} />
+          </label>
+          <label htmlFor="su-make-pass">
+            {/* Their own password, because a code somebody else chose attributes
+                an action to the wrong person, which is the only thing the code
+                is for. */}
+            Their password
+            <input id="su-make-pass" type="password" value={password} autoComplete="off"
+                   autoFocus={!!makeAs}
+                   onChange={(e) => setPassword(e.target.value)} />
+          </label>
+
+          <div className="su-pin">
+            <span className="su-pin-label">New code</span>
+            <PinInput length={PIN_LENGTH} value={newPin} disabled={busy}
+                      onChange={(v) => { setNewPin(v); setError(""); }} />
+          </div>
+          <div className="su-pin">
+            <span className="su-pin-label">Again</span>
+            <PinInput length={PIN_LENGTH} value={againPin} disabled={busy}
+                      invalid={matched && newPin !== againPin}
+                      onChange={(v) => { setAgainPin(v); setError(""); }} />
+          </div>
+
+          <p className="muted small">
+            Not 1234, 0000, or four of the same digit — those are the first three
+            anybody tries. Five wrong attempts locks it for ten minutes.
+          </p>
+
+          <div className="modal-actions">
+            <button type="button" className="btn ghost"
+                    onClick={() => { setMaking(false); setError(""); setPassword(""); }}>
+              Back
+            </button>
+            <BusyButton type="submit" className="btn primary" busyLabel="Setting it…"
+                        disabled={!matched || !password || !makeAs.trim()}
+                        onClick={makeTheCode}>
+              Set the code
+            </BusyButton>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
       <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <h2>{spec ? spec.name : "Authorisation required"}</h2>
 
         {spec && <p className="muted">{spec.why}</p>}
+
+        {madeFor && (
+          <div className="alert ok su-made" role="status">
+            <Key size={15} weight="fill" />
+            <span>Code set for {madeFor}. Type it below.</span>
+          </div>
+        )}
 
         {needsSecondPerson ? (
           <p className="alert warn">
@@ -173,7 +345,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
             />
           </label>
         ) : (
-          <div className="su-pin">
+          <div className="su-pin" ref={pinBoxes}>
             <span className="su-pin-label">
               {needsSecondPerson ? "Approver's PIN" : "Your PIN"}
             </span>
@@ -185,7 +357,9 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
               // was built for and what nobody had connected. Held back while a
               // second person is required: the approver's username has to be
               // filled first, and submitting without it only earns a refusal.
-              onComplete={() => { if (!needsSecondPerson || approver.trim()) submit(); }}
+              onComplete={(typed) => {
+                if (!needsSecondPerson || approver.trim()) submit(undefined, typed);
+              }}
               autoFocus={!needsSecondPerson}
               invalid={pinRefused}
               disabled={busy}
@@ -193,13 +367,27 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           </div>
         )}
 
-        <button
-          type="button"
-          className="ghost small su-swap"
-          onClick={() => { setUsePassword((p) => !p); setPin(""); setPassword(""); }}
-        >
-          {usePassword ? "Use a PIN instead" : "Use a password instead"}
-        </button>
+        <div className="su-ways">
+          <button
+            type="button"
+            className="ghost small su-swap"
+            onClick={() => { setUsePassword((p) => !p); setPin(""); setPassword(""); }}
+          >
+            {usePassword ? "Use a PIN instead" : "Use a password instead"}
+          </button>
+          {/* Made here rather than sent to a settings page. The prompt is
+              where somebody finds out they have not got a code, and it is
+              also where the work they would lose by going to look for one is
+              sitting. Loud once the server has said there is none. */}
+          <button
+            type="button"
+            className={`ghost small su-make-offer${noCodeYet ? " is-needed" : ""}`}
+            onClick={startMaking}
+          >
+            <Key size={13} weight={noCodeYet ? "fill" : "regular"} />
+            {noCodeYet ? "Set a code now" : "No code yet?"}
+          </button>
+        </div>
 
         {spec && (
           <p className="muted small">

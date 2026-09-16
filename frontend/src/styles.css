@@ -4483,7 +4483,27 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 /* The PIN inside an authorisation prompt, and the way back to a password. */
 .su-pin { display: flex; flex-direction: column; gap: var(--s2); margin: var(--s3) 0; }
 .su-pin-label { font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid); }
-.su-swap { align-self: flex-start; margin-bottom: var(--s2); text-decoration: underline; }
+.su-swap { text-decoration: underline; }
+/* The two ways out of the prompt, on one line: a different credential, or the
+   code they have not got yet. Both are ways forward, so neither is buried. */
+.su-ways {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--s3); margin-bottom: var(--s2);
+}
+.su-make-offer {
+  display: inline-flex; align-items: center; gap: 5px;
+  text-decoration: underline;
+}
+/* Once the server has said there is no code, the offer stops being a footnote:
+   it is the only thing on the dialog that leads anywhere. */
+.su-make-offer.is-needed {
+  text-decoration: none; font-weight: 600;
+  padding: 4px 9px; border-radius: var(--r-sm);
+  border: 1px solid var(--accent); color: var(--accent);
+  background: var(--accent-soft, transparent);
+}
+.su-made { display: flex; align-items: center; gap: var(--s2); }
+.su-make .su-pin { margin: var(--s2) 0; }
 
 /* ---------- the till lock ----------
    Covers everything, including the navigation: a locked till that still lets
@@ -8291,6 +8311,13 @@ table.dt.sub th { font-size: var(--t-xs); }
 .ed-facts dt { color: var(--ink-soft); }
 .ed-facts dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ed-facts dd.is-bad { color: var(--danger); }
+/* The price, beside the quantity, because "how much and what does it come to"
+   is one thought. The way back to the shelf price sits next to it: an override
+   nobody can undo without fetching a manager again is one people avoid
+   starting. */
+.ed-price-row { display: flex; align-items: center; gap: var(--s2); }
+.ed-price-row input { flex: 0 0 8.5rem; font-variant-numeric: tabular-nums; }
+.ed-price-row .spin { flex: 0 0 auto; opacity: .6; }
 .ed-dose { display: flex; gap: 6px; margin: var(--s2) 0; font-size: .82rem; }
 .ed-dose.is-major { color: var(--danger); }
 .ed-dose.is-minor { color: var(--warn); }
@@ -8688,6 +8715,18 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .rx-item-sig.is-editing .sig-row { gap: 0; }
 .rx-col-edit { gap: 4px; }
 .rx-col-edit svg { flex: 0 0 auto; opacity: .55; }
+
+/* A price somebody set by hand.
+   Marked on the row rather than only in a report, because the next person to
+   look at this script has to be able to see that the amount is not the
+   catalogue's — it is the difference between a figure and a decision. */
+.disp-dense .rx-item-money {
+  display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+}
+.disp-dense .rx-item-money.is-hand-set { color: var(--warn-ink, var(--ink)); }
+.rx-hand-set { display: inline-flex; flex: 0 0 auto; opacity: .75; }
+.rx-price-waiting { display: inline-flex; align-items: center; gap: 4px; opacity: .6; }
+.rx-price-waiting svg { flex: 0 0 auto; }
 
 /* Matches for a swap, floated on the viewport so a scrolling table cannot
    clip them. */

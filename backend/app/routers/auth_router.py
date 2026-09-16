@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import auth, schemas
@@ -219,6 +220,7 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db),
 # ---------------------------------------------------------------- shared tills
 @router.post("/pin")
 def set_own_pin(pin: str = Body(...), password: str = Body(...),
+                username: str = Body(default=""),
                 db: Session = Depends(get_db),
                 user: User = Depends(get_current_user)):
     """Set or change your own till PIN. Proved with your password.
@@ -226,14 +228,36 @@ def set_own_pin(pin: str = Body(...), password: str = Body(...),
     Deliberately not something an administrator can do for somebody: a PIN that
     another person chose, or knows, attributes an action to the wrong human, and
     the whole point of the code is the attribution.
+
+    `username` does not weaken that. It exists because of where this is actually
+    needed: a pharmacist has walked to a cashier's till to approve an override,
+    the prompt asks for their code, and they have never set one. The session
+    belongs to the cashier, so without this the pharmacist's only route is to
+    log the cashier out, sign in, find settings, set a code, sign out, sign the
+    cashier back in — and abandon the transaction and the patient at the counter.
+
+    It is still only ever the owner setting their own: their username, their own
+    password, a code they choose. Nobody can set anybody else's without already
+    knowing the password that would have let them sign in as them.
     """
-    if not verify_password(password, user.password_hash):
+    who = user
+    wanted = (username or "").strip()
+    if wanted and wanted.lower() != (user.username or "").lower():
+        who = (db.query(User)
+               .filter(func.lower(User.username) == wanted.lower(),
+                       User.active.is_(True))
+               .first())
+        if who is None:
+            raise HTTPException(status_code=404,
+                                detail=f"No active user is called '{wanted}'.")
+    if not verify_password(password, who.password_hash):
         raise HTTPException(status_code=403, detail="That password was not accepted.")
     try:
-        pins.set_pin(db, user, pin)
+        pins.set_pin(db, who, pin)
     except pins.PinError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return {"ok": True, "pin_set": True}
+    return {"ok": True, "pin_set": True, "username": who.username,
+            "full_name": who.full_name or who.username}
 
 
 @router.get("/pin")
