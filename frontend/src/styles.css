@@ -2353,6 +2353,16 @@ input:disabled, select:disabled, textarea:disabled {
   border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface);
 }
 .pager button:disabled { opacity: 0.4; cursor: not-allowed; }
+/* Previous and Next carry their own shape. They sit on the page with nothing
+   around them, and a ghost button there is a word until the pointer finds it —
+   the same fault the worklist's filters had. Quiet, but pressable-looking while
+   nobody is touching them. */
+.pager button.ghost {
+  background: var(--surface); border-color: var(--line);
+}
+.pager button.ghost:hover:not(:disabled) {
+  background: var(--hover); border-color: var(--line-strong);
+}
 
 /* ==========================================================================
    Phones and small tablets
@@ -9086,31 +9096,41 @@ button.fin-ack { cursor: pointer; }
 }
 .disp-with-worklist .wl-head { color: var(--ink-soft); padding: 5px 8px 3px; }
 
-/* Its counters lie flat in the well; the chosen one rises out of it. */
+/* Its counters keep their shape in the well; the chosen one rises out of it.
+ *
+ * They used to be drawn with no border and no fill until the pointer found
+ * them, so four filters read as four runs of text and only the chosen one
+ * looked like a control. A thing that can be pressed should look like a thing
+ * that can be pressed while nobody is touching it: that is what the eye rests
+ * against when it scans a rail, and without it every glance has to work out
+ * the shape again. The hairline is quiet — quieter than the chosen one's, and
+ * quieter than a card's — but it is there. */
 .disp-with-worklist .wl-stats { gap: 2px; }
 .disp-with-worklist .wl-stat {
-  background: transparent; border: 1px solid transparent;
+  background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-sm); padding: 6px 8px; box-shadow: none;
 }
-.disp-with-worklist .wl-stat:hover { background: var(--surface); border-color: transparent; }
+.disp-with-worklist .wl-stat:hover {
+  background: var(--surface); border-color: var(--line-strong);
+}
 .disp-with-worklist .wl-stat.is-on,
 .disp-with-worklist .wl-stat.is-on:hover {
-  background: var(--surface); border-color: var(--line); box-shadow: var(--e1);
+  background: var(--surface); border-color: var(--accent); box-shadow: var(--e1);
 }
 
 /* Its tabs: the same, exactly as a route tab. */
 .disp-with-worklist .wl-tabs { gap: 2px; }
 .disp-with-worklist .wl-tabs button {
-  height: 26px; background: transparent; color: var(--ink-soft); font-weight: 500;
-  border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none;
+  height: 26px; background: var(--surface-sunk); color: var(--ink-soft); font-weight: 500;
+  border: 1px solid var(--line); border-radius: var(--r-sm); box-shadow: none;
 }
 .disp-with-worklist .wl-tabs button:hover {
-  background: var(--surface); color: var(--ink); border-color: transparent;
+  background: var(--surface); color: var(--ink); border-color: var(--line-strong);
 }
 .disp-with-worklist .wl-tabs button.on,
 .disp-with-worklist .wl-tabs button.on:hover {
   background: var(--surface); color: var(--ink); font-weight: 600;
-  border-color: var(--line); box-shadow: var(--e1);
+  border-color: var(--accent); box-shadow: var(--e1);
 }
 
 /* Its rows are content, so they are raised: cards resting in the well. */
