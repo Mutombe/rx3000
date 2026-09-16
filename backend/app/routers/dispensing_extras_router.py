@@ -17,7 +17,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import (
     Driver, MedicalAid, Patient, Pharmacy, Prescription, PriceOverride, Product,
-    Sale, Shift, User, Waybill,
+    Sale, Shift, StockMovement, User, Waybill,
 )
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
                         repeat_performance, scheme_codes as scheme_codes_svc)
@@ -149,6 +149,7 @@ def set_a_price(product_id: int = Body(...),
                 was: float | None = Body(default=None),
                 quantity: int = Body(default=1),
                 reason: str = Body(default=""),
+                keep: bool = Body(default=False),
                 db: Session = Depends(get_db),
                 user: User = Depends(get_current_user),
                 grant=Depends(require_step_up("script.price_set"))):
@@ -191,6 +192,24 @@ def set_a_price(product_id: int = Body(...),
         grant_id=getattr(grant, "id", None),
     )
     db.add(row)
+
+    # "This one script" or "from now on" are two different decisions and the
+    # dispenser is the only one who knows which they are making. A margin loaded
+    # wrong on import is wrong on every script until somebody fixes the shelf;
+    # a price rounded off for the person at the counter is nobody else's
+    # business. Guessing either way is how a catalogue drifts.
+    kept = False
+    if keep:
+        pack = max(1, product.units_per_pack or 1)
+        product.unit_price = round(price * pack, 4)
+        db.add(StockMovement(
+            product_id=product.id, movement_type="reprice", quantity_delta=0,
+            balance_after=product.quantity_on_hand or 0, user_id=user.id,
+            reference="price change",
+            notes=f"Shelf price set to {product.unit_price:.2f} a pack "
+                  f"(was {round(shelf * pack, 2):.2f})"
+                  + (f" — {reason}" if reason else "")))
+        kept = True
     db.commit()
     db.refresh(row)
 
@@ -202,11 +221,14 @@ def set_a_price(product_id: int = Body(...),
         "was": row.was,
         "now": row.now,
         "difference": row.difference,
+        "kept": kept,
+        "shelf_price": round(product.unit_price or 0, 2),
         "approved_by": (row.approved_by.full_name or row.approved_by.username)
                        if row.approved_by else "",
         # Said here rather than left for a report: below cost is a decision the
         # pharmacy is entitled to make and entitled to be told about.
         "below_cost": bool(cost and price < cost),
+        "margin_percent": (round(100 * (price - cost) / price, 1) if price else 0.0),
         "note": (f"Below the {cost:.2f} this costs to buy."
                  if cost and price < cost else ""),
     }

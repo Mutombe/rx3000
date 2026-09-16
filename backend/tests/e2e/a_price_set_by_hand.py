@@ -6,13 +6,16 @@ the same act has two different rules is a screen people work out how to route
 around.
 
   - the Amount column says it can be edited, before anybody touches it
-  - double-clicking one opens it with the current amount, selected
-  - typing a rounder figure asks for a code rather than just doing it
+  - double-clicking one opens the dialog that holds the whole decision
+  - price and margin are one number read two ways, and each moves the other
+  - it asks for a code rather than just doing it
   - cancelling the code leaves the old amount, not the new one
   - authorised, the row shows the new amount, marked as set by hand
   - the footer under the table adds up the figures the rows are showing
-  - the line editor shows the same price and offers the way back to the shelf's
+  - the line editor opens the same dialog, and offers the way back to the shelf
   - and the way back is free: nobody needs approval to charge what the shelf says
+  - "keep this price for good" changes the catalogue, so the next script is
+    priced at it and the line is no longer marked as a one-off
 
 Run against a local dev server on :4177 and API on :8099:
   python a_price_set_by_hand.py [screenshot-dir]
@@ -109,16 +112,30 @@ with sync_playwright() as pw:
     check("the amount starts on the catalogue's figure", "8.97" in before, before)
 
     cell.dblclick()
-    page.wait_for_timeout(600)
-    box = page.locator(".rx-item-money .cell-input")
-    check("double-clicking opens it, holding the amount that is there",
+    page.wait_for_timeout(900)
+    box = page.locator("#price-each")
+    check("double-clicking opens the price dialog, on the price it is at",
           box.count() == 1 and (box.first.input_value() or "").startswith("8.97"),
-          box.first.input_value() if box.count() else "no field")
+          box.first.input_value() if box.count() else "no dialog")
+
+    # Price and margin are one number read two ways. Cost is 4.00 against a
+    # price of 8.97, so the margin starts near 55%.
+    started = page.locator("#price-margin").input_value()
+    check("...and shows the margin that price makes",
+          abs(float(started or 0) - 55.4) < 0.4, started)
+    page.fill("#price-margin", "60")
+    page.wait_for_timeout(500)
+    worked = page.locator("#price-each").input_value()
+    check("typing a margin works out the price",
+          abs(float(worked or 0) - 10.00) < 0.02, worked)
+    if SHOT:
+        page.screenshot(path=str(SHOT / "price-dialog.png"))
 
     # Rounded off, the way a counter rounds.
-    box.first.fill("9.00")
-    box.first.press("Enter")
-    page.wait_for_timeout(1500)
+    page.fill("#price-each", "9.00")
+    page.wait_for_timeout(400)
+    page.locator(".price-modal").get_by_role("button", name="Set it for this script").click()
+    page.wait_for_timeout(1600)
 
     prompt = page.locator(".modal h2")
     said = prompt.first.inner_text() if prompt.count() else ""
@@ -134,9 +151,10 @@ with sync_playwright() as pw:
 
     # Again, and authorised this time.
     amount_cell(page).dblclick()
-    page.wait_for_timeout(500)
-    page.locator(".rx-item-money .cell-input").first.fill("9.00")
-    page.locator(".rx-item-money .cell-input").first.press("Enter")
+    page.wait_for_timeout(800)
+    page.fill("#price-each", "9.00")
+    page.wait_for_timeout(300)
+    page.locator(".price-modal").get_by_role("button", name="Set it for this script").click()
     page.wait_for_timeout(1500)
     for digit in PIN:
         page.keyboard.type(digit)
@@ -162,28 +180,58 @@ with sync_playwright() as pw:
     # The line editor: the same price, and the way back.
     page.locator(".rx-item-actions .rx-icon").nth(1).click()
     page.wait_for_timeout(1200)
-    field = page.locator("#ed-price")
-    check("the line editor shows the same price", field.count() == 1
-          and (field.first.input_value() or "").startswith("9.00"),
-          field.first.input_value() if field.count() else "no price field")
+    shown = page.locator(".ed-price-row .btn")
+    check("the line editor shows the same price", shown.count() >= 1
+          and "9.00" in shown.first.inner_text(),
+          shown.first.inner_text() if shown.count() else "no price control")
     back = page.locator(".ed-price-row .linkish")
     check("…and offers the way back to the shelf price, naming it",
           back.count() == 1 and "8.97" in back.first.inner_text(),
           back.first.inner_text() if back.count() else "no way back")
-    if SHOT and field.count():
+    if SHOT and shown.count():
         page.screenshot(path=str(SHOT / "price-in-the-line-editor.png"))
 
     back.first.click()
     page.wait_for_timeout(1200)
-    check("the way back is free — nobody needs approval to charge what the shelf says",
-          page.locator(".modal h2").count() == 0
-          or "code" not in page.locator(".modal h2").first.inner_text().lower(),
-          page.locator(".modal h2").first.inner_text() if page.locator(".modal h2").count() else "")
-    check("…and the price goes back to the catalogue's",
-          (page.locator("#ed-price").first.input_value() or "").startswith("8.97"),
-          page.locator("#ed-price").first.input_value())
+    check("the way back is free - nobody needs approval to charge what the shelf says",
+          page.locator(".price-modal").count() == 0
+          and page.locator(".su-pin").count() == 0)
+    check("...and the price goes back to the catalogue's",
+          "8.97" in page.locator(".ed-price-row .btn").first.inner_text(),
+          page.locator(".ed-price-row .btn").first.inner_text())
+    page.locator(".disp-edit").get_by_role("button", name="Done").click()
+    page.wait_for_timeout(800)
+
+    # Kept for good: the catalogue itself changes.
+    amount_cell(page).dblclick()
+    page.wait_for_timeout(800)
+    page.fill("#price-each", "9.50")
+    page.wait_for_timeout(300)
+    page.locator("#price-keep").click()
+    page.wait_for_timeout(400)
+    page.locator(".price-modal").get_by_role("button", name="Set it, and keep it").click()
+    page.wait_for_timeout(1500)
+    for digit in PIN:
+        page.keyboard.type(digit)
+        page.wait_for_timeout(120)
+    page.wait_for_timeout(2800)
+
+    cell = amount_cell(page)
+    check("kept for good, the row shows the new amount", "9.50" in cell.inner_text(),
+          cell.inner_text().strip())
+    check("...and is NOT marked as a one-off, because the shelf now says this",
+          "is-hand-set" not in (cell.get_attribute("class") or ""),
+          cell.get_attribute("class") or "")
+    if SHOT:
+        page.screenshot(path=str(SHOT / "price-kept-for-good.png"))
 
     browser.close()
+
+# The catalogue itself carries it now, so the next script is priced at it.
+found = api(f"/api/products?q=Awkward+Syrup+{tag}", token=token)
+again = next((p for p in (found or []) if p.get("id") == awkward["id"]), {})
+check("...and the catalogue itself now says 9.50",
+      abs((again.get("unit_price") or 0) - 9.50) < 0.005, str(again.get("unit_price")))
 
 print(f"\n{len(fails)} failed" if fails else "\nall passed")
 for f in fails:

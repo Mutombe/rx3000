@@ -25,6 +25,7 @@ import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scan
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
 import SchemeCodeField, { NoCodeMark, useSchemeCodes } from "../components/SchemeCode";
+import SetThePrice, { PriceAsked } from "../components/SetThePrice";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -336,14 +337,16 @@ export default function Dispense() {
   /** The table cell being edited in place. Keyed by product rather than row
    *  number, so deleting a line above cannot move the editor onto another. */
   const [cellEdit, setCellEdit] = useState<{
-    id: number; col: "medicine" | "qty" | "sig" | "money"; orig: string | number } | null>(null);
-  /** A price typed into a cell or the line editor, before it has been
-   *  authorised. Held as text so a half-typed "12." is not read as 12. */
-  const [priceDraft, setPriceDraft] = useState("");
+    id: number; col: "medicine" | "qty" | "sig"; orig: string | number } | null>(null);
   /** Lines whose price is being authorised, by product id. The row keeps its
    *  old figure with a spinner beside it rather than flickering to the new one
    *  and back if the code is refused. */
   const [authorisingPrice, setAuthorisingPrice] = useState<number | null>(null);
+  /** The line whose price is being set, by row. The dialog asks for the figure
+   *  — by price or by margin — and whether to keep it; the code is asked for
+   *  after, because a code typed before anybody has said what they want is a
+   *  code typed for nothing. */
+  const [pricingLine, setPricingLine] = useState<number | null>(null);
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   const cellEditRef = useRef(cellEdit);
   useEffect(() => { cellEditRef.current = cellEdit; }, [cellEdit]);
@@ -1324,9 +1327,10 @@ export default function Dispense() {
    *  figure would be the one thing on this page it is wrong to show early: money
    *  the patient has been quoted and nobody approved.
    */
-  async function setLinePrice(idx: number, each: number, reason = ""): Promise<boolean> {
+  async function setLinePrice(idx: number, asked: PriceAsked): Promise<boolean> {
     const it = items[idx];
     if (!it) return false;
+    const { each, keep, reason } = asked;
     const shelf = perUnit(it.product);
     const before = lineEach(it);
     if (!Number.isFinite(each) || each < 0) {
@@ -1341,11 +1345,13 @@ export default function Dispense() {
     setAuthorisingPrice(it.product.id);
     try {
       const said = await guarded<{ id: number; now: number; below_cost?: boolean;
-                                   note?: string; approved_by?: string }>(
+                                   note?: string; approved_by?: string;
+                                   kept?: boolean; shelf_price?: number;
+                                   margin_percent?: number }>(
         "script.price_set",
         (token) => api.post("/api/price-override", {
           product_id: it.product.id, now: Number(each.toFixed(4)), was: shelf,
-          quantity: it.quantity, reason,
+          quantity: it.quantity, reason, keep,
         }, token),
         `${lineName(it.product)} · ${money(before)} → ${money(each)} each`,
       );
@@ -1359,13 +1365,26 @@ export default function Dispense() {
           `/api/prescriptions/${fromRxRef.current.id}/items/${it.item_id}/price`,
           { price_override_id: said.id });
       }
-      setItems((list) => list.map((x, j) => (
-        j === idx ? { ...x, price: said.now, priceOverrideId: said.id } : x)));
+      setItems((list) => list.map((x, j) => {
+        if (j !== idx) return x;
+        // Kept for good, the catalogue itself now says this, so the line has no
+        // override at all — it is simply priced from the shelf like every other.
+        // Leaving one behind would make the row read "set by hand" for ever on
+        // a price that is now perfectly ordinary.
+        if (said.kept && said.shelf_price !== undefined) {
+          return { ...x, price: undefined, priceOverrideId: undefined,
+                   product: { ...x.product, unit_price: said.shelf_price } };
+        }
+        return { ...x, price: said.now, priceOverrideId: said.id };
+      }));
       toast.ok(
-        `${it.product.name} now ${money(said.now)} each on this script`
-        + (said.approved_by ? `, approved by ${said.approved_by}.` : ".")
-        + (said.below_cost ? ` ${said.note}` : ""),
+        said.kept
+          ? `${it.product.name} is now ${money(said.now)} each on every script`
+            + (said.approved_by ? `, changed by ${said.approved_by}.` : ".")
+          : `${it.product.name} now ${money(said.now)} each on this script`
+            + (said.approved_by ? `, approved by ${said.approved_by}.` : "."),
       );
+      if (said.below_cost && said.note) toast.warn(said.note);
       return true;
     } catch (e) {
       toast.error(errorText(e, "That price could not be authorised."));
@@ -1387,7 +1406,7 @@ export default function Dispense() {
   }
 
   // ---- editing in the table ---------------------------------------------
-  const CELL_ORDER = ["medicine", "qty", "sig", "money"] as const;
+  const CELL_ORDER = ["medicine", "qty", "sig"] as const;
   type CellCol = (typeof CELL_ORDER)[number];
 
   function editingCell(it: DraftItem, col: CellCol) {
@@ -1398,13 +1417,7 @@ export default function Dispense() {
     setTip(null);
     setOpenItem(idx);
     const next = { id: it.product.id, col,
-      orig: col === "qty" ? it.quantity : col === "sig" ? it.dosage_instructions
-        : col === "money" ? lineEach(it) * (it.quantity || 0) : "" };
-    // The amount column is typed as the amount, not as a price each: rounding
-    // a line off to twelve dollars is the thing people are actually doing, and
-    // making them divide by 30 in their head to do it is the reason they would
-    // reach for a calculator instead.
-    if (col === "money") setPriceDraft((lineEach(it) * (it.quantity || 0)).toFixed(2));
+      orig: col === "qty" ? it.quantity : col === "sig" ? it.dosage_instructions : "" };
     cellEditRef.current = next;
     setCellEdit(next);
   }
@@ -1417,21 +1430,6 @@ export default function Dispense() {
     if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
     cellEditRef.current = null;
     setCellEdit(null);
-    if (col === "money") commitTypedAmount(idx);
-  }
-
-  /** The amount somebody typed into the money cell, turned into a price each
-   *  and sent for authorisation. The cell has already closed: the code is asked
-   *  for over a table that is still legible, rather than behind a cell held open
-   *  in a way that reads as the edit having failed. */
-  function commitTypedAmount(idx: number) {
-    const it = items[idx];
-    const amount = Number(priceDraft);
-    const qty = Math.max(1, it?.quantity || 1);
-    if (it && priceDraft.trim() !== "" && Number.isFinite(amount)) {
-      void setLinePrice(idx, amount / qty, "Rounded at the counter");
-    }
-    setPriceDraft("");
   }
 
   /** Escape: put back what was there before the double-click. */
@@ -1441,13 +1439,11 @@ export default function Dispense() {
     cellEditRef.current = null;
     if (cur.col === "qty") updateItem(idx, { quantity: Number(cur.orig) || 1 });
     if (cur.col === "sig") updateItem(idx, { dosage_instructions: String(cur.orig) });
-    if (cur.col === "money") setPriceDraft("");
     setCellEdit(null);
   }
 
   function moveCellEdit(it: DraftItem, idx: number, col: CellCol, dir: 1 | -1) {
     if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
-    if (col === "money") commitTypedAmount(idx);
     const at = CELL_ORDER.indexOf(col) + dir;
     if (at < 0 || at >= CELL_ORDER.length) {
       cellEditRef.current = null;
@@ -3438,50 +3434,23 @@ export default function Dispense() {
                                 <b>{money(each * (it.quantity || 0))}</b>
                               </span>
                             </div>
-                            {/* The price, editable, here as well as on the table.
-                                Catalogue prices arrive from a supplier file and
-                                are wrong often enough that a dispenser has to be
-                                able to round one off or correct a margin — and
-                                the alternative to allowing it is a calculator and
-                                a handwritten slip, which records nothing. */}
+                            {/* The price. One way in, and it opens the dialog
+                                that holds the whole decision: the figure, or the
+                                margin it should make, and whether it outlives
+                                this script. A field here and a dialog on the
+                                table would be two rules for one act. */}
                             <div className="field ed-price">
-                              <label htmlFor="ed-price">Price each</label>
+                              <label>Price each</label>
                               <div className="ed-price-row">
-                                <input id="ed-price" type="number" min={0} step="0.01"
-                                  value={cellEdit?.id === it.product.id && cellEdit.col === "money"
-                                    ? priceDraft : each.toFixed(2)}
-                                  disabled={authorisingPrice === it.product.id}
-                                  onFocus={(e) => {
-                                    setPriceDraft(each.toFixed(2));
-                                    const next = { id: it.product.id, col: "money" as const,
-                                                   orig: each };
-                                    cellEditRef.current = next;
-                                    setCellEdit(next);
-                                    e.currentTarget.select();
-                                  }}
-                                  onChange={(e) => setPriceDraft(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
-                                    if (e.key === "Escape") {
-                                      e.preventDefault();
-                                      cellEditRef.current = null;
-                                      setCellEdit(null); setPriceDraft("");
-                                      e.currentTarget.blur();
-                                    }
-                                  }}
-                                  onBlur={() => {
-                                    const cur = cellEditRef.current;
-                                    if (!cur || cur.col !== "money") return;
-                                    cellEditRef.current = null;
-                                    setCellEdit(null);
-                                    const typed = Number(priceDraft);
-                                    if (priceDraft.trim() !== "" && Number.isFinite(typed)) {
-                                      void setLinePrice(idx, typed, "Set in the line editor");
-                                    }
-                                    setPriceDraft("");
-                                  }} />
-                                {authorisingPrice === it.product.id && (
-                                  <CircleNotch size={14} className="spin" />
+                                <button type="button" className="btn secondary small"
+                                        disabled={authorisingPrice === it.product.id}
+                                        onClick={() => { setEditing(null); setPricingLine(idx); }}>
+                                  {authorisingPrice === it.product.id
+                                    ? <><CircleNotch size={14} className="spin" /> Authorising…</>
+                                    : <><Tag size={14} /> {money(each)} each · change</>}
+                                </button>
+                                {priced && (
+                                  <MarginTag percent={priced.margin_percent} compact />
                                 )}
                                 {it.price !== undefined && authorisingPrice !== it.product.id && (
                                   <button type="button" className="linkish"
@@ -3492,7 +3461,7 @@ export default function Dispense() {
                               </div>
                               <span className="hint">
                                 {it.price !== undefined
-                                  ? <>Set by hand and authorised. The shelf price is {money(shelf)}.</>
+                                  ? <>Set by hand for this script. The shelf price is {money(shelf)}.</>
                                   : <>From the catalogue. Changing it needs a code, and is recorded.</>}
                               </span>
                             </div>
@@ -3848,22 +3817,14 @@ ${d.action}`}
                       {/* The amount, and the one cell on the row that costs a
                           code to change. Rounding a line off is ordinary work;
                           doing it without anybody knowing is not. */}
-                      <span className={`rx-item-money${editingCell(it, "money") ? " is-editing" : ""}`
+                      <span className={"rx-item-money"
                             + (it.price !== undefined ? " is-hand-set" : "")}
-                            onDoubleClick={() => startCellEdit(it, idx, "money")}
+                            onDoubleClick={() => setPricingLine(idx)}
                             title={it.price !== undefined
-                              ? `Set by hand. The shelf price is ${money(perUnit(it.product))} each.`
-                              : "Double-click to set this amount. It needs a code."}>
-                        {editingCell(it, "money") ? (
-                          <input className="cell-input is-num" type="number" min={0} step="0.01"
-                                 autoFocus
-                                 aria-label={`Amount for ${it.product.name}`}
-                                 value={priceDraft}
-                                 onFocus={(e) => e.currentTarget.select()}
-                                 onChange={(e) => setPriceDraft(e.target.value)}
-                                 onKeyDown={(e) => cellKeys(e, it, idx, "money")}
-                                 onBlur={() => finishCellEdit(idx, "money")} />
-                        ) : authorisingPrice === it.product.id ? (
+                              ? `Set by hand for this script. The shelf price is `
+                                + `${money(perUnit(it.product))} each.`
+                              : "Double-click to set the price. It needs a code."}>
+                        {authorisingPrice === it.product.id ? (
                           <span className="rx-price-waiting">
                             <CircleNotch size={12} className="spin" />
                             {money(each * (it.quantity || 0))}
@@ -4919,6 +4880,29 @@ ${d.action}`}
                 and the line editor — and neither of them unmounts while it is
                 open, so whatever was being typed is still there afterwards. */}
             {stepUpPrompt}
+
+            {/* Setting a price: the figure or the margin, and whether it
+                outlives this script. Asked before the code, because a code
+                typed before anybody has said what they want is a code typed
+                for nothing. */}
+            {pricingLine !== null && items[pricingLine] && (() => {
+              const at = pricingLine;
+              const line = items[at];
+              return (
+                <SetThePrice
+                  name={line.product.name}
+                  strength={line.product.strength}
+                  quantity={line.quantity}
+                  shelf={perUnit(line.product)}
+                  cost={(line.product.cost_price ?? 0)
+                    / Math.max(1, line.product.units_per_pack ?? 1)}
+                  current={lineEach(line)}
+                  busy={authorisingPrice === line.product.id}
+                  onCancel={() => setPricingLine(null)}
+                  onSet={(asked) => { setPricingLine(null); void setLinePrice(at, asked); }}
+                />
+              );
+            })()}
 
             {cameraOpen && (
               <ScanCamera
