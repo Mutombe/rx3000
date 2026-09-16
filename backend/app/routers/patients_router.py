@@ -230,8 +230,24 @@ def update_medical_aid_terms(
 
 
 @router.get("/doctors", response_model=list[schemas.DoctorOut])
-def list_doctors(db: Session = Depends(get_db)):
-    return db.query(Doctor).order_by(Doctor.name).all()
+def list_doctors(include_retired: bool = False, db: Session = Depends(get_db)):
+    """The prescribers a script can be captured against.
+
+    Retired ones are left out, which is what retiring is *for* and what this
+    did not do. `DELETE /doctors/{id}` has always set `active` to false rather
+    than deleting — the model says "Retired, never deleted", because every
+    script a prescriber wrote must go on naming them — but the picker read the
+    whole table, so retiring somebody changed nothing anybody could see. A
+    pharmacy with 539 prescribers it cannot identify to a funder had no way to
+    get them out of the list it types into forty times a morning.
+
+    `include_retired` is for the screens that maintain the list, where the
+    point is to see the ones that have been put away.
+    """
+    query = db.query(Doctor)
+    if not include_retired:
+        query = query.filter(Doctor.active.is_(True))
+    return query.order_by(Doctor.name).all()
 
 
 @router.post("/doctors", response_model=schemas.DoctorOut)
