@@ -340,6 +340,8 @@ export interface Label {
   warnings: string;
   schedule: number;
   batch_number: string;
+  /** Who made it — a recall and a reaction both start here. */
+  manufacturer?: string;
   expiry_date: string | null;
   repeats_remaining: number;
   next_repeat_date: string | null;

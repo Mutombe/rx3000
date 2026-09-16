@@ -960,6 +960,10 @@ class LabelOut(BaseModel):
     warnings: str = ""
     schedule: int = 0
     batch_number: str = ""
+    #: Who made it. A patient reacting to a medicine, and a recall, both start
+    #: with the manufacturer and the batch; the box has both and the sticker
+    #: covering the box had neither.
+    manufacturer: str = ""
     expiry_date: Optional[date] = None
     repeats_remaining: int = 0
     next_repeat_date: Optional[date] = None

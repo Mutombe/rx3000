@@ -898,6 +898,9 @@ def prescription_labels(
         return f"{street}, {city}" if street else city
 
     branch_address = _address(branch) if branch else ""
+    # Whose pharmacy this is: their own record, not the server's defaults.
+    from ..services import pharmacy_identity
+    identity = pharmacy_identity.of(db)
 
     labels = []
     for position, item in enumerate(items, start=1):
@@ -954,10 +957,11 @@ def prescription_labels(
             doctor_name=rx.doctor.name if rx.doctor else "",
             dispensed_by=_dispenser(dispensing, user),
             dispensed_at=(dispensing.dispensed_at if dispensing else datetime.utcnow()),
-            pharmacy_name=settings.PHARMACY_NAME,
-            pharmacy_reg_no=settings.PHARMACY_REG_NO,
-            pharmacy_address=settings.PHARMACY_ADDRESS,
-            pharmacy_phone=settings.PHARMACY_PHONE,
+            pharmacy_name=identity["name"],
+            pharmacy_reg_no=identity["reg_no"],
+            pharmacy_address=identity["address"],
+            pharmacy_phone=identity["phone"],
+            manufacturer=(product.manufacturer or ""),
             item_number=position,
             item_count=len(items),
             doctor_practice_no=(rx.doctor.practice_number or "") if rx.doctor else "",
@@ -969,10 +973,10 @@ def prescription_labels(
             # The branch's own name and number where it has them, the company's
             # where it does not — an empty line on a sticker is worse than a
             # slightly less specific one.
-            branch_name=(branch.name or settings.PHARMACY_NAME) if branch else settings.PHARMACY_NAME,
-            branch_address=branch_address or settings.PHARMACY_ADDRESS,
-            branch_phone=((branch.phone or "") if branch else "") or settings.PHARMACY_PHONE,
-            branch_reg_no=((branch.registration_no or "") if branch else "") or settings.PHARMACY_REG_NO,
+            branch_name=((branch.name or "") if branch else "") or identity["name"],
+            branch_address=branch_address or identity["address"],
+            branch_phone=((branch.phone or "") if branch else "") or identity["phone"],
+            branch_reg_no=((branch.registration_no or "") if branch else "") or identity["reg_no"],
             dispensing_id=dispensing.id if dispensing else None,
         ))
     return labels

@@ -226,6 +226,11 @@ const LABEL_CSS = `
     flex: 0 0 auto; margin-top: 0.8mm;
     font-size: 5.9pt; line-height: 1.2; color: #111;
   }
+  .sched {
+    flex: 0 0 auto; align-self: center; margin-left: 1mm; padding: 0 0.7mm;
+    border: 0.25mm solid #111; border-radius: 0.6mm;
+    font-size: 5.6pt; font-weight: bold; vertical-align: 0.4mm;
+  }
   .foot b {
     display: block; font-size: 6.4pt; font-weight: bold;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -295,6 +300,11 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
         l.expiry_date ? `Exp: ${esc(shortDate(l.expiry_date))}` : "",
       ].filter(Boolean).join("  ");
 
+      // Who made it, on its own line: sharing with the batch cost both of them
+      // their ends — "Batch: VX-4471 Exp: 31/03/2028 Mfr: Varichem Pharm…" —
+      // and a manufacturer truncated to a syllable answers nobody's question.
+      const madeBy = l.manufacturer ? `Mfr: ${esc(l.manufacturer)}` : "";
+
       // The patient and the moment it was handed over, on one line, which is
       // where a real label puts them, and it saves the heading a whole line.
       const whoLine = [esc(l.patient_name), esc(stamp(l.dispensed_at))]
@@ -316,14 +326,20 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
 
       return `
       <div class="label">
+        ${/* The schedule sits outside the name, which truncates: put inside
+              it, an S4 on a long medicine name was the first thing to be cut
+              off, and the schedule is the one word on the line that must not
+              be. */ ""}
         <div class="med">
           <span class="name">${esc(l.product_name)} ${esc(l.strength)}</span>
+          ${l.schedule ? `<span class="sched">S${l.schedule}</span>` : ""}
           <span class="price">${qty}</span>
         </div>
         <div class="dose">${esc(l.dosage_instructions)}</div>
         ${l.warnings ? `<div class="warn">${esc(l.warnings)}</div>` : ""}
         <div class="audit">
           ${batchLine ? `<div>${batchLine}</div>` : ""}
+          ${madeBy ? `<div>${madeBy}</div>` : ""}
           <div class="who">${whoLine}</div>
           ${l.dispensed_by ? `<div>Dispensed by: ${esc(l.dispensed_by)}</div>` : ""}
           ${l.doctor_name ? `<div>Doc. ${esc(l.doctor_name)}</div>` : ""}
@@ -333,8 +349,19 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
           <b>${esc(l.branch_name || l.pharmacy_name)}</b>
           ${l.branch_address || l.pharmacy_address
             ? `<div>${esc(l.branch_address || l.pharmacy_address)}</div>` : ""}
-          ${l.branch_phone || l.pharmacy_phone
-            ? `<div>${esc(l.branch_phone || l.pharmacy_phone)}</div>` : ""}
+          ${/* The telephone number and the premises registration on one line:
+                the first is how a patient reaches the shop at nine at night,
+                the second is how an inspector ties this sticker to a licence.
+                Printed only when the pharmacy has actually recorded them —
+                a plausible wrong registration number is worse than none. */ ""}
+          ${[l.branch_phone || l.pharmacy_phone,
+             (l.branch_reg_no || l.pharmacy_reg_no)
+               ? `Reg. ${l.branch_reg_no || l.pharmacy_reg_no}` : ""]
+            .filter(Boolean).map(esc).join("  ")
+            ? `<div>${[l.branch_phone || l.pharmacy_phone,
+                       (l.branch_reg_no || l.pharmacy_reg_no)
+                         ? `Reg. ${l.branch_reg_no || l.pharmacy_reg_no}` : ""]
+                 .filter(Boolean).map(esc).join("  ")}</div>` : ""}
         </div>
       </div>`;
     })
