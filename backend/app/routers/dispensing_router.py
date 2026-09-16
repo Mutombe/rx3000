@@ -101,7 +101,31 @@ def products_by_route(route: str = "otc", q: str = "", limit: int = 40,
 
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
-    found = query.order_by(Product.name).limit(limit).all()
+
+    # What this branch can hand over comes first.
+    #
+    # The list was ordered by name and then cut to `limit`, which is fine for a
+    # shop of four hundred lines and wrong for a catalogue of sixteen thousand:
+    # a dispenser typing "amox" got the first forty matches in the alphabet, and
+    # the one box actually on the shelf behind them was on page two of a list
+    # with no page two. Sorted this way, the medicine that can be dispensed today
+    # is at the top and the rest of the catalogue is still reachable underneath.
+    #
+    # Grouped over this branch's batches only — a couple of thousand rows, not a
+    # correlated lookup per candidate — because this runs on every keystroke.
+    branch_id = _branch_of(db, user)
+    shelf = (db.query(StockBatch.product_id.label("product_id"),
+                      func.sum(StockBatch.quantity_remaining).label("units"))
+             .filter(StockBatch.branch_id == branch_id,
+                     StockBatch.quantity_remaining > 0)
+             .group_by(StockBatch.product_id).subquery())
+    found = (query.outerjoin(shelf, shelf.c.product_id == Product.id)
+             # coalesce, not a bare comparison: a product with no row here joins
+             # to NULL, and NULL sorts FIRST under DESC in PostgreSQL — which
+             # would have put everything the branch does not stock at the top,
+             # the exact fault this is fixing, only harder to see.
+             .order_by((func.coalesce(shelf.c.units, 0) > 0).desc(), Product.name)
+             .limit(limit).all())
 
     # What THIS branch can hand over, beside each medicine.
     #
