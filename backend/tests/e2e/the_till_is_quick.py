@@ -123,6 +123,31 @@ with sync_playwright() as pw:
     if SHOT:
         page.screenshot(path=str(SHOT / "till-basket.png"))
 
+    # A price changed at the counter, in the cell it is shown in, on a code.
+    price_cell = page.locator(".till-price").first
+    price_cell.dblclick()
+    page.wait_for_timeout(600)
+    box = page.locator(".till-price .cell-input")
+    check("the till's price is edited where it is shown", box.count() == 1,
+          str(box.count()))
+    if box.count():
+        box.first.fill("5.00")
+        box.first.press("Enter")
+        page.wait_for_timeout(1500)
+        asked = page.locator(".modal h2")
+        check("…and it costs a code, like the dispensary's",
+              asked.count() == 1 and "price" in asked.first.inner_text().lower(),
+              asked.first.inner_text()[:80] if asked.count() else "no prompt")
+        for digit in "8261":
+            page.keyboard.type(digit)
+            page.wait_for_timeout(110)
+        page.wait_for_timeout(2500)
+        check("…and the basket reprices to it",
+              "5.00" in page.locator(".till-price").first.inner_text(),
+              page.locator(".till-price").first.inner_text().strip())
+        if SHOT:
+            page.screenshot(path=str(SHOT / "till-price-set.png"))
+
     # Take the money.
     page.fill("input[placeholder='0.00']", "10")
     page.wait_for_timeout(300)

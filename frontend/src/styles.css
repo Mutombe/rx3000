@@ -9991,3 +9991,9 @@ button.fin-ack { cursor: pointer; }
 /* Stock that is real but not yet usable: it is here, nobody has read the date
    off the pack, and dispensing asks for it the first time the line goes out. */
 .stock-undated { color: var(--warn, #b26a00); font-weight: 600; }
+/* A price changed at the till: editable where it is shown, marked once it has
+   been, and quiet while the code is being asked for. */
+.till-price { cursor: default; }
+.till-price.is-hand-set { font-weight: 600; }
+.till-price.is-busy { opacity: .55; }
+.till-price .rx-hand-set { margin-left: 2px; font-weight: 700; }

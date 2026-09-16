@@ -339,11 +339,14 @@ export default function Dispense() {
   /** The table cell being edited in place. Keyed by product rather than row
    *  number, so deleting a line above cannot move the editor onto another. */
   const [cellEdit, setCellEdit] = useState<{
-    id: number; col: "medicine" | "qty" | "sig"; orig: string | number } | null>(null);
+    id: number; col: "medicine" | "qty" | "sig" | "money"; orig: string | number } | null>(null);
   /** Lines whose price is being authorised, by product id. The row keeps its
    *  old figure with a spinner beside it rather than flickering to the new one
    *  and back if the code is refused. */
   const [authorisingPrice, setAuthorisingPrice] = useState<number | null>(null);
+  /** An amount typed into the money cell, before it has been authorised. Text,
+   *  so a half-typed "12." is not read as 12. */
+  const [priceDraft, setPriceDraft] = useState("");
   /** The line whose price is being set, by row. The dialog asks for the figure
    *  — by price or by margin — and whether to keep it; the code is asked for
    *  after, because a code typed before anybody has said what they want is a
@@ -1408,7 +1411,7 @@ export default function Dispense() {
   }
 
   // ---- editing in the table ---------------------------------------------
-  const CELL_ORDER = ["medicine", "qty", "sig"] as const;
+  const CELL_ORDER = ["medicine", "qty", "sig", "money"] as const;
   type CellCol = (typeof CELL_ORDER)[number];
 
   function editingCell(it: DraftItem, col: CellCol) {
@@ -1418,8 +1421,15 @@ export default function Dispense() {
   function startCellEdit(it: DraftItem, idx: number, col: CellCol) {
     setTip(null);
     setOpenItem(idx);
+    // The amount column is typed as the AMOUNT, not as a price each: rounding a
+    // line off to twelve dollars is what people are actually doing, and making
+    // them divide by thirty in their head to do it is why they reach for a
+    // calculator. Margin and "keep it for good" are the two answers a bare cell
+    // cannot hold, and they live behind the pencil.
+    if (col === "money") setPriceDraft((lineEach(it) * (it.quantity || 0)).toFixed(2));
     const next = { id: it.product.id, col,
-      orig: col === "qty" ? it.quantity : col === "sig" ? it.dosage_instructions : "" };
+      orig: col === "qty" ? it.quantity : col === "sig" ? it.dosage_instructions
+        : col === "money" ? lineEach(it) * (it.quantity || 0) : "" };
     cellEditRef.current = next;
     setCellEdit(next);
   }
@@ -1432,6 +1442,22 @@ export default function Dispense() {
     if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
     cellEditRef.current = null;
     setCellEdit(null);
+    if (col === "money") commitTypedAmount(idx);
+  }
+
+  /** The amount typed into the money cell, turned into a price each and sent
+   *  for authorisation. The cell closes first, so the code is asked for over a
+   *  table that is still legible rather than behind a cell held open in a way
+   *  that reads as the edit having failed. */
+  function commitTypedAmount(idx: number) {
+    const it = items[idx];
+    const amount = Number(priceDraft);
+    const qty = Math.max(1, it?.quantity || 1);
+    if (it && priceDraft.trim() !== "" && Number.isFinite(amount)) {
+      void setLinePrice(idx, { each: amount / qty, keep: false,
+                               reason: "Rounded at the counter" });
+    }
+    setPriceDraft("");
   }
 
   /** Escape: put back what was there before the double-click. */
@@ -1441,11 +1467,13 @@ export default function Dispense() {
     cellEditRef.current = null;
     if (cur.col === "qty") updateItem(idx, { quantity: Number(cur.orig) || 1 });
     if (cur.col === "sig") updateItem(idx, { dosage_instructions: String(cur.orig) });
+    if (cur.col === "money") setPriceDraft("");
     setCellEdit(null);
   }
 
   function moveCellEdit(it: DraftItem, idx: number, col: CellCol, dir: 1 | -1) {
     if (col === "qty" && !(items[idx]?.quantity >= 1)) updateItem(idx, { quantity: 1 });
+    if (col === "money") commitTypedAmount(idx);
     const at = CELL_ORDER.indexOf(col) + dir;
     if (at < 0 || at >= CELL_ORDER.length) {
       cellEditRef.current = null;
@@ -3832,14 +3860,23 @@ ${d.action}`}
                       {/* The amount, and the one cell on the row that costs a
                           code to change. Rounding a line off is ordinary work;
                           doing it without anybody knowing is not. */}
-                      <span className={"rx-item-money"
+                      <span className={`rx-item-money${editingCell(it, "money") ? " is-editing" : ""}`
                             + (it.price !== undefined ? " is-hand-set" : "")}
-                            onDoubleClick={() => setPricingLine(idx)}
+                            onDoubleClick={() => startCellEdit(it, idx, "money")}
                             title={it.price !== undefined
                               ? `Set by hand for this script. The shelf price is `
                                 + `${money(perUnit(it.product))} each.`
-                              : "Double-click to set the price. It needs a code."}>
-                        {authorisingPrice === it.product.id ? (
+                              : "Double-click to change this amount. It needs a code."}>
+                        {editingCell(it, "money") ? (
+                          <input className="cell-input is-num" type="number" min={0} step="0.01"
+                                 autoFocus
+                                 aria-label={`Amount for ${it.product.name}`}
+                                 value={priceDraft}
+                                 onFocus={(e) => e.currentTarget.select()}
+                                 onChange={(e) => setPriceDraft(e.target.value)}
+                                 onKeyDown={(e) => cellKeys(e, it, idx, "money")}
+                                 onBlur={() => finishCellEdit(idx, "money")} />
+                        ) : authorisingPrice === it.product.id ? (
                           <span className="rx-price-waiting">
                             <CircleNotch size={12} className="spin" />
                             {money(each * (it.quantity || 0))}

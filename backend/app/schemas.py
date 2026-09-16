@@ -615,6 +615,12 @@ class TenderOut(ORM):
 class SaleItemIn(BaseModel):
     product_id: int
     quantity: int = 1
+    # A price set by hand at the counter, quoted rather than sent.
+    #
+    # The id of a `PriceOverride` written when somebody's code was accepted; the
+    # figure is read off that row. A till free to name its own price would have
+    # walked round the code rather than through it.
+    price_override_id: Optional[int] = None
 
 
 class CardTender(BaseModel):

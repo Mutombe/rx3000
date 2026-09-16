@@ -38,9 +38,21 @@ const EMPTY_CARD = { auth: "", reference: "", last4: "", scheme: "", terminal: "
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** What a basket line charges for one unit: the hand-set price, or the shelf's.
+ *  In one place, because four sites multiply a price by a quantity here and a
+ *  price somebody got a code for, honoured in three of them, is a discount that
+ *  reappears on the receipt. */
+const lineEach = (l: CartLine) => l.price ?? l.product.unit_price;
+
 interface CartLine {
   product: Product;
   quantity: number;
+  /** A price set by hand at the counter, per unit. Undefined means "whatever
+   *  the shelf says", which is almost every line. */
+  price?: number;
+  /** The authorisation behind it — the record written when a code was
+   *  accepted. The sale quotes this id and never the figure. */
+  priceOverrideId?: number;
 }
 
 export default function POS() {
@@ -95,6 +107,11 @@ export default function POS() {
   const [walletCurrency, setWalletCurrency] = useState("USD");
   const [walletReference, setWalletReference] = useState("");
   const [mobileState, setMobileState] = useState("");
+  /** The basket line whose price is being typed, and what has been typed. */
+  const [priceEdit, setPriceEdit] = useState<number | null>(null);
+  const [priceDraft, setPriceDraft] = useState("");
+  /** The line whose new price is being authorised. */
+  const [tillPricing, setTillPricing] = useState<number | null>(null);
   const scanRef = useRef<HTMLInputElement>(null);
   const { online } = useConnection();
 
@@ -227,7 +244,7 @@ export default function POS() {
     scanRef.current?.focus();
   }
 
-  const total = cart.reduce((s, l) => s + l.product.unit_price * l.quantity, 0);
+  const total = cart.reduce((s, l) => s + lineEach(l) * l.quantity, 0);
   const redeemValue = Math.min(Number(redeem) || 0, patient?.loyalty_points ?? 0);
   const payable = Math.max(0, total - redeemValue);
 
@@ -484,6 +501,52 @@ export default function POS() {
   }
 
   /** The counter, ready for the next customer. */
+  function startPriceEdit(line: CartLine) {
+    setPriceDraft(lineEach(line).toFixed(2));
+    setPriceEdit(line.product.id);
+  }
+
+  /** Change what this line charges, on somebody's code.
+   *
+   *  The same action, record and rules as the dispensary's — one decision with
+   *  one name, so a cashier and a dispenser are held to the same standard and
+   *  both show up in the same report. The price on screen only moves once the
+   *  code is accepted: an optimistic figure here would be money a customer had
+   *  been quoted that nobody approved.
+   */
+  async function commitPrice(line: CartLine) {
+    const typed = Number(priceDraft);
+    const was = lineEach(line);
+    setPriceEdit(null);
+    setPriceDraft("");
+    if (!Number.isFinite(typed) || typed < 0) return;
+    if (Math.abs(typed - was) < 0.005) return;
+
+    setTillPricing(line.product.id);
+    try {
+      const said = await guarded<{ id: number; now: number; below_cost?: boolean;
+                                   note?: string; approved_by?: string }>(
+        "script.price_set",
+        (token) => api.post("/api/price-override", {
+          product_id: line.product.id, now: Number(typed.toFixed(4)),
+          was: line.product.unit_price, quantity: line.quantity,
+          reason: "Changed at the till",
+        }, token),
+        `${line.product.name} · ${money(was)} → ${money(typed)}`,
+      );
+      if (said === CANCELLED) return;
+      setCart((list) => list.map((c) => (c.product.id === line.product.id
+        ? { ...c, price: said.now, priceOverrideId: said.id } : c)));
+      toast.ok(`${line.product.name} now ${money(said.now)}`
+        + (said.approved_by ? `, approved by ${said.approved_by}.` : "."));
+      if (said.below_cost && said.note) toast.warn(said.note);
+    } catch (e) {
+      toast.error(errorText(e, "That price could not be authorised."));
+    } finally {
+      setTillPricing(null);
+    }
+  }
+
   function clearTheCounter() {
     setCart([]);
     setPatient(null);
@@ -536,7 +599,8 @@ export default function POS() {
       : null;
     const sale = await api.post<Sale>("/api/pos/sales", {
       patient_id: was.patient?.id ?? null,
-      items: was.cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+      items: was.cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity,
+                                    price_override_id: l.priceOverrideId ?? null })),
       payment_method: was.payMethod,
       amount_tendered: Number(was.tendered) || 0,
       loyalty_points_redeemed: was.redeemValue,
@@ -956,7 +1020,7 @@ export default function POS() {
                         {l.product.name}
                         {l.quantity > 1 && <b> ×{l.quantity}</b>}
                       </span>
-                      <span className="mono">{money(l.product.unit_price * l.quantity)}</span>
+                      <span className="mono">{money(lineEach(l) * l.quantity)}</span>
                     </div>
                   ))}
                 </>
@@ -1005,8 +1069,36 @@ export default function POS() {
                            onChange={(e) => setCart(cart.map((c) => c.product.id === l.product.id
                              ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} />
                   </span>
-                  <span className="num">{money(l.product.unit_price)}</span>
-                  <span className="num"><b>{money(l.product.unit_price * l.quantity)}</b></span>
+                  {/* The price, edited where it is shown, exactly like the
+                      quantity beside it — and it costs a code, because a price
+                      changed at a counter with nobody named against it is how a
+                      drawer goes short. */}
+                  <span className={`num till-price${tillPricing === l.product.id ? " is-busy" : ""}`
+                          + (l.price !== undefined ? " is-hand-set" : "")}
+                        onDoubleClick={() => startPriceEdit(l)}
+                        title={l.price !== undefined
+                          ? `Set by hand. The shelf price is ${money(l.product.unit_price)}.`
+                          : "Double-click to change this price. It needs a code."}>
+                    {priceEdit === l.product.id ? (
+                      <input className="cell-input is-num" type="number" min={0} step="0.01"
+                             autoFocus
+                             aria-label={`Price of ${l.product.name}`}
+                             value={priceDraft}
+                             onFocus={(e) => e.currentTarget.select()}
+                             onChange={(e) => setPriceDraft(e.target.value)}
+                             onKeyDown={(e) => {
+                               if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+                               if (e.key === "Escape") {
+                                 e.preventDefault(); setPriceEdit(null); setPriceDraft("");
+                               }
+                             }}
+                             onBlur={() => commitPrice(l)} />
+                    ) : (<>
+                      {money(lineEach(l))}
+                      {l.price !== undefined && <span className="rx-hand-set">*</span>}
+                    </>)}
+                  </span>
+                  <span className="num"><b>{money(lineEach(l) * l.quantity)}</b></span>
                   <span className="right">
                     <IconButton action="remove" danger title="Remove from the basket"
                       onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))} />

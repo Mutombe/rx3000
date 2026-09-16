@@ -112,30 +112,16 @@ with sync_playwright() as pw:
     check("the amount starts on the catalogue's figure", "8.97" in before, before)
 
     cell.dblclick()
-    page.wait_for_timeout(900)
-    box = page.locator("#price-each")
-    check("double-clicking opens the price dialog, on the price it is at",
+    page.wait_for_timeout(700)
+    box = page.locator(".rx-item-money .cell-input")
+    check("double-clicking edits the amount in place, like the cells beside it",
           box.count() == 1 and (box.first.input_value() or "").startswith("8.97"),
-          box.first.input_value() if box.count() else "no dialog")
+          box.first.input_value() if box.count() else "no field")
 
-    # Price and margin are one number read two ways. Cost is 4.00 against a
-    # price of 8.97, so the margin starts near 55%.
-    started = page.locator("#price-margin").input_value()
-    check("...and shows the margin that price makes",
-          abs(float(started or 0) - 55.4) < 0.4, started)
-    page.fill("#price-margin", "60")
-    page.wait_for_timeout(500)
-    worked = page.locator("#price-each").input_value()
-    check("typing a margin works out the price",
-          abs(float(worked or 0) - 10.00) < 0.02, worked)
-    if SHOT:
-        page.screenshot(path=str(SHOT / "price-dialog.png"))
-
-    # Rounded off, the way a counter rounds.
-    page.fill("#price-each", "9.00")
-    page.wait_for_timeout(400)
-    page.locator(".price-modal").get_by_role("button", name="Set it for this script").click()
-    page.wait_for_timeout(1600)
+    # Rounded off, the way a counter rounds: the amount, not the price each.
+    box.first.fill("9.00")
+    box.first.press("Enter")
+    page.wait_for_timeout(1500)
 
     prompt = page.locator(".modal h2")
     said = prompt.first.inner_text() if prompt.count() else ""
@@ -151,10 +137,9 @@ with sync_playwright() as pw:
 
     # Again, and authorised this time.
     amount_cell(page).dblclick()
-    page.wait_for_timeout(800)
-    page.fill("#price-each", "9.00")
-    page.wait_for_timeout(300)
-    page.locator(".price-modal").get_by_role("button", name="Set it for this script").click()
+    page.wait_for_timeout(700)
+    page.locator(".rx-item-money .cell-input").first.fill("9.00")
+    page.locator(".rx-item-money .cell-input").first.press("Enter")
     page.wait_for_timeout(1500)
     for digit in PIN:
         page.keyboard.type(digit)
@@ -202,9 +187,20 @@ with sync_playwright() as pw:
     page.locator(".disp-edit").get_by_role("button", name="Done").click()
     page.wait_for_timeout(800)
 
-    # Kept for good: the catalogue itself changes.
-    amount_cell(page).dblclick()
-    page.wait_for_timeout(800)
+    # Kept for good: the catalogue itself changes. Behind the pencil, because a
+    # bare cell has nowhere to hold a margin or a "from now on".
+    page.locator(".rx-item-actions .rx-icon").nth(1).click()
+    page.wait_for_timeout(1100)
+    page.locator(".ed-price-row .btn").first.click()
+    page.wait_for_timeout(900)
+    started = page.locator("#price-margin").input_value()
+    check("the dialog behind the pencil still works in margin",
+          started != "", started)
+    page.fill("#price-margin", "60")
+    page.wait_for_timeout(400)
+    worked = page.locator("#price-each").input_value()
+    check("…and a margin works out the price",
+          abs(float(worked or 0) - 10.00) < 0.02, worked)
     page.fill("#price-each", "9.50")
     page.wait_for_timeout(300)
     page.locator("#price-keep").click()

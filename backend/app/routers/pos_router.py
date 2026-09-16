@@ -9,9 +9,37 @@ from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
 from ..models import (BatchAllocation, Claim, Patient, Product, Sale, SaleItem,
-                      SaleTender, User)
+                      SaleTender, User, PriceOverride,
+)
 from ..services import claims_engine, currency, fiscal, posting, reconciliation, stepup
 from . import shifts_router
+
+def _hand_set_price(db: Session, user, override_id, product_id: int):
+    """Turn "this line was authorised at another price" into the price itself.
+
+    The same rules the dispensary applies, because it is the same decision: the
+    browser quotes a record id and the figure is read off the row that was
+    written when somebody's code was accepted. Refuses somebody else's
+    authorisation, one given for a different medicine, and one already spent —
+    the three ways a single approval becomes a standing discount.
+    """
+    if not override_id:
+        return None, None
+    row = db.get(PriceOverride, int(override_id))
+    if row is None:
+        raise HTTPException(status_code=404,
+                            detail="That price authorisation could not be found.")
+    if row.requested_by_id != user.id:
+        raise HTTPException(status_code=403,
+                            detail="That price authorisation was issued to somebody else.")
+    if row.product_id != product_id:
+        raise HTTPException(status_code=400,
+                            detail="That price authorisation was given for a different medicine.")
+    if row.sale_item_id or row.used_at:
+        raise HTTPException(status_code=409,
+                            detail="That price authorisation has already been used.")
+    return row, float(row.now)
+
 
 router = APIRouter(prefix="/api/pos", tags=["pos"])
 
@@ -301,19 +329,30 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
         product = basket.get(line.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {line.product_id} not found")
-        line_total = round(product.unit_price * line.quantity, 2)
+        # A price set by hand, if one was authorised for this line. Read off the
+        # record the code wrote, never off the request: a till that could name
+        # its own price has gone round the password rather than through it.
+        authorised, hand_set = _hand_set_price(
+            db, user, getattr(line, "price_override_id", None), product.id)
+        unit_price = hand_set if hand_set is not None else product.unit_price
+        line_total = round(unit_price * line.quantity, 2)
         line_ex = round(line_total / (1 + product.vat_rate), 2)
         subtotal += line_ex
         vat_total += line_total - line_ex
         sale_item = SaleItem(
             sale_id=sale.id, product_id=product.id,
             description=f"{product.name} {product.strength}".strip(),
-            quantity=line.quantity, unit_price=product.unit_price,
+            quantity=line.quantity, unit_price=unit_price,
             unit_cost=product.cost_price or 0.0,
             vat_rate=product.vat_rate, line_total=line_total,
         )
         db.add(sale_item)
         db.flush()
+        if authorised is not None:
+            # The authorisation follows the money, so "who discounted this sale"
+            # is one join rather than a search.
+            authorised.sale_item_id = sale_item.id
+            authorised.used_at = datetime.utcnow()
         if product.category != "airtime":
             # FEFO batch consumption — expired stock is never sold
             # A counter sale is a box: `line.quantity` counts packs, which is
