@@ -1042,7 +1042,16 @@ def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
         return 0
     # Only on the upgrade that adds the column: a row that has been decided
     # already is left alone.
-    if conn.execute(text("SELECT COUNT(*) FROM stock_categories WHERE dispensable = 0")).scalar():
+    # Bound, never written as `= 0`. SQLite has no boolean type and compares it
+    # to an integer happily; PostgreSQL refuses — "operator does not exist:
+    # boolean = integer" — and refuses it during startup, so the whole service
+    # fails to boot on a migration that every local check passed. That is the
+    # second time this exact shape has stopped production; the parameter is
+    # adapted by the driver, which is the only spelling both databases read.
+    already = conn.execute(
+        text("SELECT COUNT(*) FROM stock_categories WHERE dispensable = :off"),
+        {"off": False}).scalar()
+    if already:
         return 0
     rows = conn.execute(text("""
         SELECT c.id,
@@ -1061,8 +1070,8 @@ def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
             continue
         if (medicines or 0) / total >= 0.3:
             continue
-        conn.execute(text("UPDATE stock_categories SET dispensable = 0 WHERE id = :i"),
-                     {"i": category_id})
+        conn.execute(text("UPDATE stock_categories SET dispensable = :off WHERE id = :i"),
+                     {"off": False, "i": category_id})
         switched += 1
     if switched:
         log.info("%s department(s) taken out of the dispensary's medicine search", switched)
