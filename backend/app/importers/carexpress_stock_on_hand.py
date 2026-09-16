@@ -222,7 +222,23 @@ def apply(db, found: Summary, branch_id: int, pharmacy_id: int,
     """
     done = {"priced": 0, "counted": 0, "up": 0, "down": 0, "batches": 0, "units": 0}
 
-    for product, changes, units, _packs, cost in found.matched:
+    # Every batch this pharmacy holds, in ONE query.
+    #
+    # This used to ask the database three questions per product — what stands
+    # elsewhere, what is dated here, is there an opening batch — which is fine
+    # against a SQLite file on the same disk and ruinous against a database in
+    # another country: 1,569 products became about 4,700 round trips, and at a
+    # tenth of a second each the run took long enough that the connection
+    # dropped before it reached the single commit at the end. It then had
+    # nothing to show for twenty minutes of work.
+    wanted = {p.id for p, _c, _u, _pk, _co in found.matched}
+    held: dict[int, list] = {}
+    if wanted:
+        for batch in (db.query(StockBatch)
+                      .filter(StockBatch.product_id.in_(wanted)).all()):
+            held.setdefault(batch.product_id, []).append(batch)
+
+    for at, (product, changes, units, _packs, cost) in enumerate(found.matched, start=1):
         for field_name, value in changes.items():
             setattr(product, field_name, value)
         if changes:
@@ -234,22 +250,16 @@ def apply(db, found: Summary, branch_id: int, pharmacy_id: int,
         # reading 100 with 150 on the ledger promises the counter stock it
         # cannot allocate, and one reading 150 with 100 refuses stock it has.
         # CareXpress has three branches and 235 products stood in two of them.
-        elsewhere = sum(b.quantity_remaining or 0 for b in
-                        db.query(StockBatch)
-                        .filter(StockBatch.product_id == product.id,
-                                StockBatch.branch_id != branch_id).all())
+        mine = held.get(product.id, ())
+        elsewhere = sum(b.quantity_remaining or 0 for b in mine
+                        if b.branch_id != branch_id)
         # Stock received since the count, in batches somebody dated, is real and
         # is left where it is. The opening batch is the part this file speaks
         # for, so it is the part that moves.
-        dated = sum(b.quantity_remaining or 0 for b in
-                    db.query(StockBatch)
-                    .filter(StockBatch.product_id == product.id,
-                            StockBatch.branch_id == branch_id,
-                            StockBatch.expiry_date.isnot(None)).all())
-        opening = (db.query(StockBatch)
-                   .filter(StockBatch.product_id == product.id,
-                           StockBatch.branch_id == branch_id,
-                           StockBatch.batch_number == "OPENING").first())
+        dated = sum(b.quantity_remaining or 0 for b in mine
+                    if b.branch_id == branch_id and b.expiry_date is not None)
+        opening = next((b for b in mine if b.branch_id == branch_id
+                        and b.batch_number == "OPENING"), None)
         was = (product.quantity_on_hand or 0)
         keep = max(0, units - dated)
 
@@ -284,6 +294,17 @@ def apply(db, found: Summary, branch_id: int, pharmacy_id: int,
             done["up" if delta > 0 else "down"] += 1
         done["counted"] += 1
         done["units"] += product.quantity_on_hand
+
+        # Committed in chunks, not once at the end. A count is idempotent — it
+        # sets the shelf rather than adding to it — so a run cut off half way
+        # can simply be run again, and what it had already written stands. With
+        # one commit at the end, a dropped connection threw all of it away.
+        if at % 250 == 0:
+            db.commit()
+            # Said out loud. A job that writes for minutes and prints nothing is
+            # indistinguishable from one that has hung, and the honest answer to
+            # "is it working" should not be "wait and see".
+            print(f"    {at:,} of {len(found.matched):,} counted…", flush=True)
     db.commit()
     return done
 

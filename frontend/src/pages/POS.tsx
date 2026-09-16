@@ -14,6 +14,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
 import { ClockCounterClockwise, Printer, Truck } from "@phosphor-icons/react";
+import { KeyBar } from "../components/KeyMap";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
@@ -23,6 +24,7 @@ import Tenders, { TenderLine, currencyWorld, inBase } from "../components/Tender
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import SettleSale from "../components/SettleSale";
+import { useDoing } from "../components/Doing";
 
 type Tab = "till" | "pending" | "history";
 
@@ -71,6 +73,7 @@ export default function POS() {
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
+  const doing = useDoing();
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   /** The sale a cashier is taking part of, if any. */
   const [partOf, setPartOf] = useState<Sale | null>(null);
@@ -333,8 +336,8 @@ export default function POS() {
       group: "Till",
       // Refused rather than silently ignored when there is nothing to sell:
       // a disabled key that does nothing feels like a broken keyboard.
-      disabled: cart.length === 0 || busy,
-      run: () => { void checkout(); },
+      disabled: cart.length === 0,
+      run: () => completeSale(),
     },
     {
       combo: "Escape",
@@ -416,60 +419,158 @@ export default function POS() {
     }
   }
 
-  async function checkout() {
+  /** Take the money, and let the next customer start while it is being taken.
+   *
+   *  A till is a queue. The old flow held the screen — button disabled, basket
+   *  frozen, cashier watching a spinner — for as long as a hosted database in
+   *  another city took to write a sale, its lines, its tenders and its stock
+   *  movements. At a counter with four people in it that is the whole cost of
+   *  the software.
+   *
+   *  So the basket clears on the keystroke and the sale goes into the tray: it
+   *  is named while it runs, it says what happened when it lands, and the
+   *  receipt prints by itself. A refusal hands the basket back exactly as it
+   *  was — every line, the customer, the tender — with the reason and a Try
+   *  again, because the one thing worse than a slow till is a till that loses
+   *  what somebody just scanned.
+   *
+   *  Nothing retries itself. A till that quietly re-sends a sale takes the
+   *  money twice.
+   */
+  function completeSale() {
     if (!online) return checkoutOffline();
-    setBusy(true);
-    try {
-      const cardTender = !splitMode && payMethod === "card"
-        ? await resolveCardTender(payable, "POS")
-        : {};
-      // Mobile money settles as a tender so the provider reference is retained.
-      const mobileTenders = !splitMode && payMethod === "mobile_money"
-        ? [{ method: "mobile_money", wallet, currency_code: walletCurrency || (currencyState?.base ?? ""),
-             amount: payable, reference: await resolveMobileTender(payable, "POS") }]
-        : null;
-      const sale = await api.post<Sale>("/api/pos/sales", {
-        patient_id: patient?.id ?? null,
-        items: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
-        payment_method: payMethod,
-        amount_tendered: Number(tendered) || 0,
-        loyalty_points_redeemed: redeemValue,
-        ...(mobileTenders ? { tenders: mobileTenders } : {}),
-        ...(splitMode ? {
-          tenders: tenderLines
-            .filter((l) => Number(l.amount) > 0)
-            .map((l) => ({
-              method: l.method,
-              currency_code: l.currency_code,
-              amount: Number(l.amount),
-              // Everything needed to match this line against a statement: the
-              // wallet and the number, or the bank and the last four. Dropped
-              // on the floor until now.
-              reference: [l.wallet, l.phone, l.scheme,
-                          l.last4 && `••${l.last4}`, l.auth]
-                .filter(Boolean).join(" "),
-            })),
-          change_currency: changeCurrency,
-        } : {}),
-        ...cardTender,
-      });
-      setReceipt(sale);
-      setCart([]);
-      setTendered("");
-      setRedeem("0");
-      setCard(EMPTY_CARD);
-      setMobilePhone("");
-      setTenderLines([{ method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
-      if (patient) api.get<Patient>(`/api/patients/${patient.id}`).then(setPatient);
-      // Same as settling a waiting sale: the roll where there is one, the
-      // browser's dialog where there is not. Printing only on the agent meant
-      // a till without it took the money and printed nothing.
-      printPaidReceipt(sale);
-    } catch (e: any) {
-      toast.error(errorText(e));
-    } finally {
-      setBusy(false);
+    if (!cart.length) return;
+
+    // Everything needed to put the counter back, taken before it is cleared,
+    // and everything the sale is built from, taken before the screen moves on.
+    const before: Counter = {
+      cart, patient, payMethod, tendered, redeem, card, splitMode,
+      tenderLines, changeCurrency, mobilePhone, wallet, walletCurrency,
+      payable, redeemValue,
+    };
+    const lines = cart.reduce((n, l) => n + l.quantity, 0);
+    const owed = payable;
+
+    clearTheCounter();
+    doing.run({
+      label: `${lines} item${lines === 1 ? "" : "s"} · ${money(owed)}`,
+      said: "Taking the money…",
+      run: () => ringItUp(before),
+      done: (sale: Sale) => {
+        toast.ok(`${sale.sale_number} · ${money(owed)} taken. Receipt printing.`);
+      },
+      // Offered, not taken. The receipt has already printed; this is for the
+      // roll that jammed or the customer who asks at the door.
+      next: (sale: Sale) => (sale ? {
+        label: "Print the receipt again",
+        go: () => printPaidReceipt(sale),
+      } : null),
+      undo: () => {
+        setCart(before.cart);
+        setPatient(before.patient);
+        setPayMethod(before.payMethod);
+        setTendered(before.tendered);
+        setRedeem(before.redeem);
+        setCard(before.card);
+        setSplitMode(before.splitMode);
+        setTenderLines(before.tenderLines);
+        setChangeCurrency(before.changeCurrency);
+        setMobilePhone(before.mobilePhone);
+        setWallet(before.wallet);
+        setWalletCurrency(before.walletCurrency);
+        window.setTimeout(() => scanRef.current?.focus(), 60);
+      },
+    });
+  }
+
+  /** The counter, ready for the next customer. */
+  function clearTheCounter() {
+    setCart([]);
+    setPatient(null);
+    setTendered("");
+    setRedeem("0");
+    setCard(EMPTY_CARD);
+    setMobilePhone("");
+    setResults([]);
+    setScan("");
+    setTenderLines([{ method: "cash", currency_code: currencyState?.base ?? "", amount: "" }]);
+    window.setTimeout(() => scanRef.current?.focus(), 60);
+  }
+
+  /** What the counter looked like when the cashier pressed the button. */
+  interface Counter {
+    cart: CartLine[];
+    patient: Patient | null;
+    payMethod: string;
+    tendered: string;
+    redeem: string;
+    card: typeof EMPTY_CARD;
+    splitMode: boolean;
+    tenderLines: TenderLine[];
+    changeCurrency: string;
+    mobilePhone: string;
+    wallet: string;
+    walletCurrency: string;
+    payable: number;
+    redeemValue: number;
+  }
+
+  /** Write the sale, from the snapshot rather than from the screen.
+   *
+   *  Every figure comes off `was`, never off state. By the time this runs the
+   *  cashier has cleared the counter and may be half way through the next
+   *  customer, so reading `cart` or `payMethod` here would bill this sale for
+   *  whatever is on the screen by then — the single worst bug an optimistic
+   *  till could have.
+   */
+  async function ringItUp(was: Counter): Promise<Sale> {
+    const cardTender = !was.splitMode && was.payMethod === "card"
+      ? await resolveCardTender(was.payable, "POS")
+      : {};
+    // Mobile money settles as a tender so the provider reference is retained.
+    const mobileTenders = !was.splitMode && was.payMethod === "mobile_money"
+      ? [{ method: "mobile_money", wallet: was.wallet,
+           currency_code: was.walletCurrency || (currencyState?.base ?? ""),
+           amount: was.payable,
+           reference: await resolveMobileTender(was.payable, "POS") }]
+      : null;
+    const sale = await api.post<Sale>("/api/pos/sales", {
+      patient_id: was.patient?.id ?? null,
+      items: was.cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+      payment_method: was.payMethod,
+      amount_tendered: Number(was.tendered) || 0,
+      loyalty_points_redeemed: was.redeemValue,
+      ...(mobileTenders ? { tenders: mobileTenders } : {}),
+      ...(was.splitMode ? {
+        tenders: was.tenderLines
+          .filter((l) => Number(l.amount) > 0)
+          .map((l) => ({
+            method: l.method,
+            currency_code: l.currency_code,
+            amount: Number(l.amount),
+            // Everything needed to match this line against a statement: the
+            // wallet and the number, or the bank and the last four.
+            reference: [l.wallet, l.phone, l.scheme,
+                        l.last4 && `••${l.last4}`, l.auth]
+              .filter(Boolean).join(" "),
+          })),
+        change_currency: was.changeCurrency,
+      } : {}),
+      ...cardTender,
+    });
+
+    // The receipt prints itself. A cashier who has to press Print after every
+    // sale prints it late, or not at all, and the customer is already walking.
+    printPaidReceipt(sale);
+    setReceipt(sale);
+    // Points move when a sale lands, so a linked customer is re-read — but only
+    // if they are still the one on the counter.
+    if (was.patient) {
+      api.get<Patient>(`/api/patients/${was.patient.id}`)
+        .then((fresh) => setPatient((now) => (now && now.id === fresh.id ? fresh : now)))
+        .catch(() => {});
     }
+    return sale;
   }
 
   /** What the customer actually has to hand over on a dispensed sale.
@@ -628,10 +729,16 @@ export default function POS() {
 
   return (
     <>
-      <div className="page-head">
+      {/* One line, not a masthead. A till is looked at all day by somebody who
+          knows what screen they are on; the strapline under the title was
+          costing the basket a hundred and thirty pixels to say so again. The
+          subtitle stays on the pages you arrive at, not the one you live in. */}
+      <div className={`page-head${tab === "till" ? " till-head" : ""}`}>
         <div>
           <h1>Front Shop</h1>
-          <div className="sub">Barcode scanning, loyalty, airtime, medical aid claiming &amp; EFTPOS</div>
+          {tab !== "till" && (
+            <div className="sub">Barcode scanning, loyalty, airtime, medical aid claiming &amp; EFTPOS</div>
+          )}
         </div>
         {/* History is where you go to look something up, not a place the till
             sits. Same shape as the dispensary's own history button, so the two
@@ -817,7 +924,7 @@ export default function POS() {
           </Refreshable>
         </div>
       ) : (
-      <div className="pos-layout">
+      <div className="pos-layout till-dense">
         <div>
           <div className="card">
             <h3>Scan or search</h3>
@@ -868,27 +975,71 @@ export default function POS() {
             ))}
           </div>
 
-          <div className="card">
-            <h3>Basket</h3>
-            <table>
-              <thead><tr><th>Item</th><th className="num">Qty</th><th className="num">Price</th><th className="num">Total</th><th className="actions" /></tr></thead>
-              <tbody>
-                {cart.map((l) => (
-                  <tr key={l.product.id}>
-                    <td>{l.product.name} {l.product.strength}</td>
-                    <td className="num" style={{ width: 90 }}>
-                      <input type="number" min={1} value={l.quantity} style={{ width: 70, padding: "4px 8px" }}
-                        onChange={(e) => setCart(cart.map((c) => c.product.id === l.product.id ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} />
-                    </td>
-                    <td className="num">{money(l.product.unit_price)}</td>
-                    <td className="num">{money(l.product.unit_price * l.quantity)}</td>
-                    <td className="right"><IconButton action="remove" danger title="Remove from the basket"
-                      onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))} /></td>
-                  </tr>
+          {/* The basket, ruled to the floor like the dispensary's script.
+              Columns are drawn whether or not anything is in them, so a cashier
+              can see where the next scan lands rather than reading an apology in
+              the middle of an empty box. It scrolls inside itself, so a trolley
+              of forty items never pushes the total off the screen. */}
+          <div className="card sec till-basket">
+            <div className="till-row till-row-head" aria-hidden="true">
+              <span>Item</span>
+              <span className="num">Qty</span>
+              <span className="num">Price</span>
+              <span className="num">Total</span>
+              <span />
+            </div>
+            <div className="till-lines">
+              {cart.map((l) => (
+                <div key={l.product.id} className="till-row">
+                  <span className="till-name">
+                    <span className="cell-text">{l.product.name} {l.product.strength}</span>
+                    {l.product.schedule >= 3 && (
+                      <span className="badge muted">S{l.product.schedule}</span>
+                    )}
+                  </span>
+                  <span className="num">
+                    <input className="cell-input is-num" type="number" min={1}
+                           aria-label={`Quantity of ${l.product.name}`}
+                           value={l.quantity}
+                           onFocus={(e) => e.currentTarget.select()}
+                           onChange={(e) => setCart(cart.map((c) => c.product.id === l.product.id
+                             ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} />
+                  </span>
+                  <span className="num">{money(l.product.unit_price)}</span>
+                  <span className="num"><b>{money(l.product.unit_price * l.quantity)}</b></span>
+                  <span className="right">
+                    <IconButton action="remove" danger title="Remove from the basket"
+                      onClick={() => setCart(cart.filter((c) => c.product.id !== l.product.id))} />
+                  </span>
+                </div>
+              ))}
+              <div className="till-waiting" aria-hidden="true"
+                   onDoubleClick={() => scanRef.current?.focus()}>
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <div key={`w${i}`} className="till-row till-row-empty">
+                    <span>
+                      {i === 0 && cart.length === 0 && (
+                        <em className="till-hint">Scan an item, or press F2 to search</em>
+                      )}
+                    </span>
+                    <span /><span /><span /><span />
+                  </div>
                 ))}
-              </tbody>
-            </table>
-            {cart.length === 0 && <div className="empty">Scan an item to begin</div>}
+                <div className="till-row till-row-empty till-row-fill"><span /><span /><span /><span /><span /></div>
+              </div>
+            </div>
+            {/* The table's own last row: what the columns above add up to. */}
+            {cart.length > 0 && (
+              <div className="till-foot">
+                <span>{cart.reduce((n, l) => n + l.quantity, 0)} item
+                  {cart.reduce((n, l) => n + l.quantity, 0) === 1 ? "" : "s"}</span>
+                <span className="till-foot-cell"><span>Subtotal</span><b>{money(total)}</b></span>
+                {redeemValue > 0 && (
+                  <span className="till-foot-cell"><span>Points</span><b>−{money(redeemValue)}</b></span>
+                )}
+                <span className="till-foot-cell is-lead"><span>Due</span><b>{money(payable)}</b></span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1087,11 +1238,15 @@ export default function POS() {
                 <input type="number" min={0} max={patient.loyalty_points} value={redeem} onChange={(e) => setRedeem(e.target.value)} />
               </div>
             )}
-            <button style={{ width: "100%" }}
-              disabled={busy || cart.length === 0 || (splitMode && shortfall > 0)}
-              onClick={checkout}>
-              {mobileState ? "Waiting for customer…" : terminalState ? "Waiting for card…" : busy ? "Processing…"
+            {/* Released on the keystroke. It is not disabled while a sale is
+                in flight, because the whole point is that the next customer
+                can start: the work is in the tray, not on this button. */}
+            <button className="btn primary till-take"
+              disabled={cart.length === 0 || (splitMode && shortfall > 0)}
+              onClick={completeSale}>
+              {mobileState ? "Waiting for customer…" : terminalState ? "Waiting for card…"
                 : payMethod === "medical_aid" ? "Submit claim & complete" : "Complete sale"}
+              <span className="till-take-key">F12</span>
             </button>
           </div>
 
@@ -1104,7 +1259,13 @@ export default function POS() {
           receipt appeared, and the cashier had no way to tell whether the
           money had been taken. A receipt belongs to the sale, not to the
           screen the sale happened to be settled from. */}
-        {receipt && (
+        {/* Not on the till itself. There the receipt prints by itself and the
+            tray says what was taken, so this card only repeated it — and being
+            an ordinary block it pushed the key strip off the bottom of the
+            screen, which is how F12 disappeared after every sale. It stays for
+            a sale settled from Awaiting payment, where it is the only thing
+            that says the money was taken. */}
+        {receipt && tab !== "till" && (
           <div className="card">
             <h3>Receipt {receipt.sale_number}</h3>
             <table>
@@ -1161,6 +1322,9 @@ export default function POS() {
         />
       )}
       {stepUpPrompt}
+      {/* The keys this screen answers to, said out loud. The till had them all
+          along and showed none of them, so every cashier used the mouse. */}
+      {tab === "till" && <KeyBar keys={hotkeys} />}
     </>
   );
 }

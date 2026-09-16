@@ -9867,3 +9867,124 @@ button.fin-ack { cursor: pointer; }
   background: var(--surface-sunk);
 }
 .attach-picked > span { flex: 1 1 auto; min-width: 0; }
+
+/* ==========================================================================
+   THE TILL, SIZED LIKE THE DISPENSARY
+
+   It was laid out `align-items: start` in a page that scrolls, so the four
+   cards floated at the top of a screen and left a third of it grey. A till is
+   not a document: it is one working surface, and every pixel not spent on the
+   basket is a pixel spent on nothing. This fills the frame, the basket takes
+   whatever is left after the lane and the total, and the payment rail keeps its
+   own width so the figures do not move as lines are added.
+   ========================================================================== */
+.till-dense.pos-layout {
+  grid-template-columns: minmax(0, 1fr) 22.5rem;
+  gap: var(--s3);
+  align-items: stretch;
+  flex: 1 1 auto; min-height: 0;
+  /* Capped, so the basket scrolls inside itself rather than growing the page
+     and pushing the key strip off the bottom of the screen. Measured at
+     1512x950: the layout starts 205px down, the keys want 43 plus a gap, and
+     the main column pads 48 below — 212px of furniture below the top bar. A
+     trolley of forty items now scrolls where it used to shove F12 out of
+     sight, which is the one key a till cannot afford to lose. */
+  /* A definite height, not a max. With `max-height` the grid row is still
+     sized by its content and merely clipped, so the basket kept growing and
+     its total — the one figure the customer is waiting for — was painted
+     below the cut and simply vanished. A definite height gives the flex
+     column inside something to resolve against, so the list of lines is what
+     shrinks and scrolls. */
+  height: calc(100vh - var(--topbar-h, 56px) - 212px);
+  min-height: 22rem;
+  /* A grid row is sized by its content's minimum unless it is told otherwise,
+     so the basket grew past the cap and laid its total across the key strip.
+     Hidden here, `min-height: 0` on both columns, and the scroll happens where
+     it belongs — inside the list of lines. */
+  overflow: hidden;
+}
+.till-dense.pos-layout > div { min-height: 0; }
+.till-dense.pos-layout > div:first-child {
+  display: flex; flex-direction: column; gap: var(--s3); min-height: 0;
+}
+.till-dense.pos-layout > div:last-child {
+  display: flex; flex-direction: column; gap: var(--s3); min-height: 0;
+  overflow-y: auto;
+}
+.till-dense .card { padding: var(--s3); margin: 0; }
+.till-dense .card > h3 {
+  margin: 0 0 var(--s2); font-size: .78rem; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--ink-soft);
+}
+
+/* The basket: a table ruled to the floor, scrolling inside itself. */
+.till-basket { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.till-lines { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; }
+.till-waiting { flex: 1 1 auto; display: flex; flex-direction: column; }
+.till-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 6rem 6.5rem 2rem;
+  align-items: center; gap: var(--s2);
+  padding: 0 var(--s2); min-height: 34px;
+  border-bottom: 1px solid var(--line);
+  font-size: .86rem;
+}
+.till-row > .num { text-align: right; font-variant-numeric: tabular-nums; }
+.till-row > .right { text-align: right; }
+/* The rules run the whole height, so the columns read as columns rather than
+   as rows that happen to line up. */
+.till-row > span { align-self: stretch; display: flex; align-items: center; }
+.till-row > span.num { justify-content: flex-end; }
+.till-row > span.right { justify-content: flex-end; }
+.till-row > span + span { border-left: 1px solid var(--line); padding-left: var(--s2); }
+.till-row-head {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--sec-money-soft, var(--surface-sunk));
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--ink-mid); font-weight: 600; min-height: 30px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.till-row-empty { min-height: 34px; color: transparent; }
+.till-row-fill { flex: 1 1 auto; border-bottom: 0; }
+.till-name { min-width: 0; gap: var(--s2); }
+.till-name .cell-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.till-hint { color: var(--ink-soft); font-style: italic; font-size: .8rem; }
+.till-basket .cell-input.is-num { width: 100%; height: 26px; }
+
+/* What the columns add up to, as the table's own last row. */
+.till-foot {
+  display: flex; align-items: center; gap: var(--s4);
+  padding: var(--s2) var(--s3); margin-top: 0;
+  border-top: 1px solid var(--line-strong);
+  background: var(--surface-sunk);
+  font-size: .82rem; color: var(--ink-mid);
+}
+.till-foot-cell { display: flex; align-items: baseline; gap: 6px; margin-left: auto; }
+.till-foot-cell + .till-foot-cell { margin-left: 0; }
+.till-foot-cell b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.till-foot-cell.is-lead b { font-size: 1.05rem; }
+
+/* The take-the-money button: the one filled control on the screen, and it is
+   never disabled while a sale is in flight — the work is in the tray, and the
+   next customer is already being scanned. */
+.till-take {
+  width: 100%; display: flex; align-items: center; justify-content: center;
+  gap: var(--s2); height: 40px; font-size: .95rem; font-weight: 600;
+}
+.till-take-key {
+  font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, .18);
+}
+.till-take:disabled .till-take-key { background: none; }
+
+@media (max-width: 1100px) {
+  .till-dense.pos-layout { grid-template-columns: 1fr; }
+  .till-dense.pos-layout > div:last-child { overflow: visible; }
+}
+/* The till's own head: one line, and the switch rides on it rather than under
+   it. Two stacked bands above a working surface is a hundred pixels of
+   chrome on the screen a pharmacy spends its day on. */
+.till-head { margin-bottom: var(--s2); align-items: center; }
+.till-head h1 { font-size: 1.12rem; margin: 0; }
+.till-dense ~ .keybar, .pos-layout ~ .keybar { margin-top: var(--s2); }
