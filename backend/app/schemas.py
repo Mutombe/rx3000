@@ -277,6 +277,19 @@ class ProductOut(ORM, ProductBase):
     id: int
     quantity_on_hand: int
     active: bool = True
+    #: What THIS branch can actually hand over, and what it is holding that it
+    #: cannot.
+    #:
+    #: `quantity_on_hand` is the pharmacy's whole shelf across every branch, and
+    #: the dispensary was showing it beside a medicine while the counter drew
+    #: from in-date stock at one branch. So the search said "5 in stock" and the
+    #: server answered "not enough stock at this branch" — two different numbers
+    #: with one label, which reads as the software being broken.
+    #:
+    #: None where nothing has worked it out (the till, stock lists), so a screen
+    #: that has not asked the question does not show a confident zero.
+    here: Optional[int] = None
+    here_undated: Optional[int] = None
 
 
 class StockAdjust(BaseModel):

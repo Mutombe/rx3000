@@ -84,6 +84,14 @@ export interface Product {
   cost_price: number;
   vat_rate: number;
   quantity_on_hand: number;
+  /** What THIS branch can actually hand over, in date. `quantity_on_hand` is
+   *  the whole pharmacy across every branch, and showing that beside a medicine
+   *  the counter cannot draw is how "5 in stock" met "not enough stock at this
+   *  branch". Absent on the screens that have not asked. */
+  here?: number | null;
+  /** Units here with no expiry recorded — real stock the counter cannot draw
+   *  until somebody reads the date off the pack. */
+  here_undated?: number | null;
   reorder_level: number;
   reorder_quantity: number;
   supplier_id: number | null;

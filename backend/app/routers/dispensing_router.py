@@ -16,7 +16,8 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..services import doses, interactions, paging, willcall
 from ..models import (
-    Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale, SaleItem, User,
+    Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
+    SaleItem, StockBatch, User,
 )
 from . import shifts_router
 
@@ -61,7 +62,9 @@ def expiry_needed(lines: list[dict] = Body(..., embed=True), db: Session = Depen
 
 
 @router.get("/products", response_model=list[schemas.ProductOut])
-def products_by_route(route: str = "otc", q: str = "", limit: int = 40, db: Session = Depends(get_db)):
+def products_by_route(route: str = "otc", q: str = "", limit: int = 40,
+                      db: Session = Depends(get_db),
+                      user: User = Depends(get_current_user)):
     """Products available on a given dispensing route (otc | prescription | controlled)."""
     from ..models import StockCategory
 
@@ -107,7 +110,56 @@ def products_by_route(route: str = "otc", q: str = "", limit: int = 40, db: Sess
 
     if q:
         query = query.filter(Product.name.ilike(f"%{q}%"))
-    return query.order_by(Product.name).limit(limit).all()
+    found = query.order_by(Product.name).limit(limit).all()
+
+    # What THIS branch can hand over, beside each medicine.
+    #
+    # `quantity_on_hand` is the whole pharmacy's shelf across every branch, and
+    # this list was showing it while the counter draws from in-date stock at one
+    # branch. A dispenser therefore read "5 in stock", picked it, and was told
+    # "not enough stock at this branch" — two different numbers wearing one
+    # label, which reads as the software contradicting itself.
+    #
+    # Two queries for the whole page, not two per line: this list is rebuilt on
+    # every keystroke.
+    rows = _stock_here(db, [p.id for p in found], _branch_of(db, user))
+    out = []
+    for product in found:
+        here, undated = rows.get(product.id, (0, 0))
+        shown = schemas.ProductOut.model_validate(product, from_attributes=True)
+        shown.here = here
+        shown.here_undated = undated
+        out.append(shown)
+    return out
+
+
+def _branch_of(db: Session, user: User) -> int:
+    """Which shelf this person is standing at."""
+    if getattr(user, "branch_id", None):
+        return int(user.branch_id)
+    from ..services import branches as branch_svc
+    return branch_svc.default_branch(db).id
+
+
+def _stock_here(db: Session, product_ids: list[int], branch_id: int) -> dict:
+    """In-date units, and undated units, at one branch — for a whole page of
+    products in two queries rather than two per row."""
+    if not product_ids:
+        return {}
+    today = date.today()
+    counted: dict[int, list] = {pid: [0, 0] for pid in product_ids}
+    rows = (db.query(StockBatch.product_id, StockBatch.expiry_date,
+                     func.sum(StockBatch.quantity_remaining))
+            .filter(StockBatch.product_id.in_(product_ids),
+                    StockBatch.branch_id == branch_id,
+                    StockBatch.quantity_remaining > 0)
+            .group_by(StockBatch.product_id, StockBatch.expiry_date).all())
+    for product_id, expiry, units in rows:
+        if expiry is None:
+            counted[product_id][1] += int(units or 0)
+        elif expiry >= today:
+            counted[product_id][0] += int(units or 0)
+    return {pid: (v[0], v[1]) for pid, v in counted.items()}
 
 
 # ---------- OTC / pharmacy medicine ----------

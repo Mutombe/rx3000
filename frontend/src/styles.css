@@ -9988,3 +9988,6 @@ button.fin-ack { cursor: pointer; }
 .till-head { margin-bottom: var(--s2); align-items: center; }
 .till-head h1 { font-size: 1.12rem; margin: 0; }
 .till-dense ~ .keybar, .pos-layout ~ .keybar { margin-top: var(--s2); }
+/* Stock that is real but not yet usable: it is here, nobody has read the date
+   off the pack, and dispensing asks for it the first time the line goes out. */
+.stock-undated { color: var(--warn, #b26a00); font-weight: 600; }

@@ -3367,7 +3367,20 @@ export default function Dispense() {
                     {money(p.unit_price)}
                     {(p.units_per_pack ?? 1) > 1
                       && <> / {p.units_per_pack} = <b>{money(perUnit(p))}</b> each</>}
-                    {" · "}{p.quantity_on_hand} in stock
+                    {/* What this branch can hand over, not the group total.
+                        A dispenser reading "5 in stock" and then being told
+                        "not enough stock at this branch" is the software
+                        contradicting itself, and the number it showed was the
+                        wrong one. Undated stock is real and is said separately,
+                        because it is one date away from being usable. */}
+                    {" · "}{p.here ?? p.quantity_on_hand} here
+                    {(p.here_undated ?? 0) > 0 && (
+                      <span className="stock-undated"
+                            title={`${p.here_undated} more here with no expiry recorded. `
+                              + "Dispensing asks for the date off the pack."}>
+                        {" "}+{p.here_undated} undated
+                      </span>
+                    )}
                     {/* The cash margin, before anything is on the script. This
                         is where a substitution is decided — the generic beside
                         the brand, and deciding it needs the two margins side

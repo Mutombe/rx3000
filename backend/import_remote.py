@@ -103,6 +103,7 @@ JOBS = {
     "cimas": "app.importers.cimas_formulary",
     "prescribers": "app.importers.carexpress_prescribers",
     "retire-prescribers": "app.importers.retire_unnumbered_prescribers",
+    "one-opening-batch": "app.importers.one_opening_batch",
     "schedules": "app.classify_schedules",
     "prices-from-history": "app.services.price_from_history",
 }
