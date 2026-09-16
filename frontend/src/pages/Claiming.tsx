@@ -496,7 +496,7 @@ export default function Claiming() {
                         <td>{officeName(b.pay_office_id)}</td>
                         <td className="muted">
                           {b.period_from ? fmtDate(b.period_from) : "—"}
-                          {b.period_to ? ` – ${fmtDate(b.period_to)}` : ""}
+                          {b.period_to ? `. ${fmtDate(b.period_to)}` : ""}
                         </td>
                         <td><span className={`badge ${badgeFor(b.status)}`}>{b.status}</span></td>
                         <td className="num">{b.claim_count}</td>
@@ -622,8 +622,8 @@ export default function Claiming() {
                             formulary; what they actually decide is the fate of
                             every product nobody has listed. */}
                         {f.default_rule === "covered"
-                          ? <>Open — pays for anything not explicitly excluded</>
-                          : <>Closed — pays only for what is listed below</>}
+                          ? <>Open. Pays for anything not explicitly excluded</>
+                          : <>Closed. Pays only for what is listed below</>}
                         {f.notes && <div className="muted small">{f.notes}</div>}
                       </td>
                       <td className="num">
@@ -735,8 +735,8 @@ export default function Claiming() {
                 value={newFormulary.default_rule}
                 onChange={(v) => setNewFormulary({ ...newFormulary, default_rule: v })}
                 options={[
-                  { value: "covered", label: "Open — pay unless told otherwise" },
-                  { value: "excluded", label: "Closed — pay only what is listed" },
+                  { value: "covered", label: "Open. Pay unless told otherwise" },
+                  { value: "excluded", label: "Closed. Pay only what is listed" },
                 ]}
               />
               {/* The model's own warning, put where the choice is made rather

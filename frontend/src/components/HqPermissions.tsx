@@ -97,7 +97,7 @@ export default function HqPermissions() {
   async function revoke(g: Grant) {
     const ok = await confirm({
       title: `Withdraw ${g.capability}?`,
-      body: "The record of it stays — it was true while it stood, and an audit "
+      body: "The record of it stays. It was true while it stood, and an audit "
           + "asks about periods rather than about today.",
       confirmLabel: "Withdraw it",
       destructive: true,
@@ -117,7 +117,7 @@ export default function HqPermissions() {
           <label>Whose authority</label>
           <Select value={String(who ?? "")} onChange={(v) => setWho(Number(v))}
             options={people.map((p) => ({
-              value: String(p.id), label: `${p.full_name} — ${p.role}` }))} />
+              value: String(p.id), label: `${p.full_name}: ${p.role}` }))} />
         </div>
         <div className="field span-6" style={{ alignSelf: "end" }}>
           <button className="btn primary" onClick={() => setAdding(true)}
@@ -150,7 +150,7 @@ export default function HqPermissions() {
                           <b>{g.capability}</b>
                           {!g.allow && (
                             <div><span className="badge bad">
-                              prevented — beats any grant
+                              prevented. Beats any grant
                             </span></div>
                           )}
                           {g.dual_approval && (
@@ -205,7 +205,7 @@ export default function HqPermissions() {
           <p className="muted small">
             <Info size={13} /> A permission check that can only say no is one
             nobody can administer. The question asked at a counter is never
-            "am I allowed" — it is "who do I ask, and why not".
+            "am I allowed". It is "who do I ask, and why not".
           </p>
           <div className="dt-scroll">
             <table className="dt">
@@ -386,14 +386,14 @@ function GrantForm({ userId, caps, branches, onClose, onSubmit }: {
           <div className="field span-12">
             <Checkbox checked={f.dual_approval} onChange={(v) =>
               setF((x) => ({ ...x, dual_approval: v }))}>
-              Never alone — a second named person every time, whatever the
+              Never alone. A second named person every time, whatever the
               amount.
             </Checkbox>
             <Checkbox checked={f.escalates} onChange={(v) =>
               setF((x) => ({ ...x, escalates: v }))}>
               Over the ceiling, somebody senior may approve it.{" "}
               <span className="muted">
-                Off means it cannot be approved up at all — a refusal that
+                Off means it cannot be approved up at all. A refusal that
                 cannot be escalated is one people work around.
               </span>
             </Checkbox>

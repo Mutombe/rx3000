@@ -94,7 +94,7 @@ export default function LineCheckModal({
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true"
-         aria-label={`Check: ${name}`}
+         aria-label={`Check. ${name}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal disp-check">
         <h2>
@@ -227,7 +227,7 @@ export default function LineCheckModal({
               <h4>Second opinion</h4>
               <p className="chk-coverage">
                 Reads the whole script against this patient's history, allergies and
-                chronic conditions. Advisory — it does not hold the dispense.
+                chronic conditions. Advisory. It does not hold the dispense.
               </p>
               {(ai.streaming || ai.text) && (
                 <div className="ai-block">

@@ -121,7 +121,7 @@ export default function Periods() {
     if (!vat) return;
     const head = await letterhead();
     printDocument(head, {
-      kind: `VAT return — ${vat.period_name}`,
+      kind: `VAT return: ${vat.period_name}`,
       meta: [
         { label: "From", value: fmtDate(vat.from) },
         { label: "To", value: fmtDate(vat.to) },
@@ -134,8 +134,8 @@ export default function Periods() {
       ],
       rows: [
         { item: "Turnover excluding VAT", amount: money(vat.turnover_excluding_vat) },
-        { item: "Output tax — charged on sales", amount: money(vat.output_tax) },
-        { item: "Input tax — paid on purchases", amount: money(vat.input_tax) },
+        { item: "Output tax. Charged on sales", amount: money(vat.output_tax) },
+        { item: "Input tax. Paid on purchases", amount: money(vat.input_tax) },
       ],
       totals: { item: vat.direction, amount: money(Math.abs(vat.payable)) },
       note: [
@@ -185,7 +185,7 @@ export default function Periods() {
                   <div className="muted small">{p.name}</div>
                 </td>
                 <td>
-                  {fmtDate(p.start_date)} – {fmtDate(p.end_date)}
+                  {fmtDate(p.start_date)} to {fmtDate(p.end_date)}
                 </td>
                 <td>
                   {/* "closed" used to fall through to an empty tone and
@@ -307,7 +307,7 @@ export default function Periods() {
             </p>
             {/* Which basis, said plainly. This is worked out from the posted
                 income accounts, and the VAT figure in Analytics is worked out
-                from till sales — the two legitimately differ when something has
+                from till sales. The two legitimately differ when something has
                 been sold and not yet posted. This is the one that ties to the
                 accounts a revenue authority will ask to see, so it is the one to
                 file, and a screen that showed two VAT totals without saying which

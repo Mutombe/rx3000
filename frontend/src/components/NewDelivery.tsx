@@ -130,7 +130,7 @@ export default function NewDelivery({ onClose, onRaised }: {
                 </div>
               ))}
               <span className="field-hint">
-                Or leave it and address the delivery by hand below — not every
+                Or leave it and address the delivery by hand below. Not every
                 recipient is a patient on file.
               </span>
             </>

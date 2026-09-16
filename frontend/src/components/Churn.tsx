@@ -247,7 +247,7 @@ export default function Churn() {
               <div>
                 <h4>Treatments that stopped</h4>
                 <span className="muted small">
-                  Medicines somebody was established on — at least{" "}
+                  Medicines somebody was established on. At least{" "}
                   {therapies.minimum_fills} fills, and has not come back for.
                   {therapies.value_at_risk > 0 &&
                     <> {money(therapies.value_at_risk)} of dispensing at risk.</>}

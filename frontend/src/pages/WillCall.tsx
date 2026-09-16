@@ -164,7 +164,7 @@ export default function WillCall() {
         {/* Two different empties, said differently.
             A filtered view with nothing in it is a filter result and should offer
             the way back out. An empty shelf is an achievement and should read
-            like one — "no results" under a heading called Will call tells a
+            like one. "No results" under a heading called Will call tells a
             pharmacist nothing about whether the feature is working, whether they
             have set it up, or whether they are simply on top of their bags. */}
         {shelf && rows.length === 0 && band && (

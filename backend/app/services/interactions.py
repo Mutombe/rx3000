@@ -197,7 +197,7 @@ def check(items: list[dict], existing: list[dict] | None = None) -> dict:
                 duplicates.append({
                     "severity": "major",
                     "between": [first["label"], second["label"]],
-                    "effect": f"Both appear to contain {', '.join(sorted(shared))} — "
+                    "effect": f"Both appear to contain {', '.join(sorted(shared))}. "
                               "the patient would take a double dose.",
                     "action": "Confirm this is intended before supplying both.",
                 })

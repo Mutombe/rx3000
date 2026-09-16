@@ -152,7 +152,7 @@ export default function LabelSheet({
         onClose();
         return;
       } catch (e) {
-        toast.error(errorText(e, "The label printer did not take it — using the print dialog."));
+        toast.error(errorText(e, "The label printer did not take it. Using the print dialog."));
       }
     }
     if (agentRoll) {
@@ -163,7 +163,7 @@ export default function LabelSheet({
         onClose();
         return;
       } catch (e) {
-        toast.error(errorText(e, "The label roll did not answer — using the print dialog."));
+        toast.error(errorText(e, "The label roll did not answer. Using the print dialog."));
       }
     }
     printLabels(ready, copies);
@@ -205,7 +205,7 @@ export default function LabelSheet({
         {before > 0 && (
           <div className="alert warn">
             These labels have been printed {before === 1 ? "once" : `${before} times`}{" "}
-            before. Say why this one is needed — a second label is how one
+            before. Say why this one is needed. A second label is how one
             dispensing comes to look like two.
           </div>
         )}
@@ -217,7 +217,7 @@ export default function LabelSheet({
 
         {/* The printed markup, in an iframe, at the printed size.
 
-            This drew its own stickers until now — a `.lbl-*` layout beside the
+            This drew its own stickers until now. A `.lbl-*` layout beside the
             `.label` one the printer gets. The file's own note at the top warned
             that two designs "would drift apart at the first change", and they
             did: the sticker on screen stopped matching the sticker on the roll,
@@ -230,7 +230,7 @@ export default function LabelSheet({
         {/* Two printers, two documents, and the preview shows whichever is
             about to be used.
 
-            A thermal roll cannot print the HTML sticker — it takes text with
+            A thermal roll cannot print the HTML sticker. It takes text with
             control codes. Showing the designed sticker and then printing lines
             of text is the same lie as before, in the other direction, so when
             the roll is the destination the preview is the text the roll gets,
@@ -289,7 +289,7 @@ export default function LabelSheet({
           <span className="muted small">
             {onRoll
               ? `To the label roll on this till${rollName ? ` (${rollName})` : ""}`
-              : "No label roll on this till — the print dialog will ask"}
+              : "No label roll on this till. The print dialog will ask"}
           </span>
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <IconButton action="print" onClick={send} />

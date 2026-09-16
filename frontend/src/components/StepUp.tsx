@@ -259,7 +259,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           </div>
 
           <p className="muted small">
-            Not 1234, 0000, or four of the same digit — those are the first three
+            Not 1234, 0000, or four of the same digit. Those are the first three
             anybody tries. Five wrong attempts locks it for ten minutes.
           </p>
 

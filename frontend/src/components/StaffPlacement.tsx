@@ -215,8 +215,8 @@ export default function StaffPlacement({ userId, name, onChanged }: {
       {p && (
         <>
           {/* The resolved answer, in words, beside the branch itself. Three
-              fields decide what somebody sees — the home branch, the cover
-              rows and the group flag — and an administrator should not have to
+              fields decide what somebody sees. The home branch, the cover
+              rows and the group flag. And an administrator should not have to
               combine them in their head to know what they have just done. */}
           <Highlights items={[
             {

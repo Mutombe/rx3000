@@ -229,7 +229,7 @@ export default function FiscalDay() {
               <dt>Global counters</dt>
               <dd className="mono">
                 {day.first_counter === null ? "—"
-                  : `${day.first_counter} – ${day.last_counter}`}
+                  : `${day.first_counter}. ${day.last_counter}`}
               </dd>
               <dt>Opening hash</dt>
               <dd className="mono small" title={day.opening_hash}>
@@ -331,7 +331,7 @@ export default function FiscalDay() {
           </Panel>
 
           <p className="muted small">
-            <Link to="/fiscal">Back to fiscalisation</Link> — the trading day,
+            <Link to="/fiscal">Back to fiscalisation</Link>. The trading day,
             the queue, and the chain across the whole register.
           </p>
         </>

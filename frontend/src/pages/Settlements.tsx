@@ -65,7 +65,7 @@ export default function Settlements() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "funders", label: "By funder",
-      hint: "Paying, in full, on time — three separate questions" },
+      hint: "Paying, in full, on time. Three separate questions" },
     { key: "held", label: "Held pending a query", count: held?.count,
       hint: "Not refused. These pay when the query is answered" },
   ];
@@ -123,7 +123,7 @@ export default function Settlements() {
                 <b>{money(report.held)}</b>
                 {/* Its own figure, deliberately not inside the shortfall. A
                     held claim is not the patient's to pay and not the shop's
-                    to write off — it is still in play.   */}
+                    to write off. It is still in play.   */}
                 <span>held pending a query</span>
               </div>
               <div className="wl-stat">
@@ -210,7 +210,7 @@ export default function Settlements() {
                 <b>These are not rejections.</b> The funder is holding them
                 pending a query, a document or a review, and they pay when it is
                 answered. They are kept out of the shortfall for exactly that
-                reason — a held claim billed to a patient is a bill for
+                reason. A held claim billed to a patient is a bill for
                 something their scheme was always going to settle.
               </span>
             </div>

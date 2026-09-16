@@ -67,7 +67,7 @@ def freeze(db: Session, branch: Branch, *, by: User, reason: str) -> dict:
         "message": (
             f"{branch.name} is frozen. Nobody there can take a sale, dispense, "
             f"move stock or cash up until it is released. They can still read "
-            f"everything — a branch that cannot check an allergy will work "
+            f"everything. A branch that cannot check an allergy will work "
             f"around the freeze."),
     }
 
@@ -88,7 +88,7 @@ def unfreeze(db: Session, branch: Branch, *, by: User) -> dict:
             f"{branch.name} is trading again"
             + (f", after {stopped_for.days} day(s) stopped" if stopped_for
                and stopped_for.days else "")
-            + (f" — {was}" if was else "") + "."),
+            + (f". {was}" if was else "") + "."),
     }
 
 

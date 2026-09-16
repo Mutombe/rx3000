@@ -70,10 +70,10 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
         # does not open it.
         "share_text": (
             f"Hello {patient.first_name}, here is your {{pharmacy}} record: "
-            f"{{link}}\n\nYour code is {code}. Please keep it to yourself — "
+            f"{{link}}\n\nYour code is {code}. Please keep it to yourself. "
             f"it opens your prescriptions."),
         "message": ("Link and code created. Send them to the patient's own "
-                    "number, not a shared one — together they open their "
+                    "number, not a shared one. Together they open their "
                     "record."),
     }
 
@@ -221,7 +221,7 @@ def preview_as_patient(patient_id: int, db: Session = Depends(get_db)):
         "impersonated": True,
         "code": patient.portal_code or "",
         "note": ("This is what the patient sees. Nothing here is a live "
-                 "portal session — it is their record, read through your own."),
+                 "portal session. It is their record, read through your own."),
     }
 
 

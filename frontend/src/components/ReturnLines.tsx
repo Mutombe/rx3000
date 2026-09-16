@@ -88,7 +88,7 @@ export default function ReturnLines(
         <h2>Return part of this sale</h2>
         <p className="muted">
           Say how many of each line are coming back. Everything coming back is a
-          reversal of the whole sale and has its own route — void it, or issue a
+          reversal of the whole sale and has its own route. Void it, or issue a
           credit note if the receipt has been filed.
         </p>
 
@@ -155,7 +155,7 @@ export default function ReturnLines(
                 <Warning size={16} weight="fill" />
                 <span>
                   Every line is coming back, so this is a reversal of the whole
-                  sale rather than a return. Close this and use Reverse — it
+                  sale rather than a return. Close this and use Reverse. It
                   keeps the claim and the loyalty points right, which a
                   line-by-line return does not.
                 </span>
@@ -205,7 +205,7 @@ export default function ReturnLines(
             <Checkbox checked={restock} onChange={setRestock}>
               Put it back on the shelf.{" "}
               <span className="muted">
-                Off if it cannot be sold again — it is still recorded as
+                Off if it cannot be sold again. It is still recorded as
                 returned, and written off in the same movement, so the shop can
                 see how much of what it takes back it loses.
               </span>

@@ -269,7 +269,7 @@ export default function TermSelect({
                     </span>
                     {/* A tick means SELECTED, everywhere. Marking "this is a
                         common one" with the same glyph put a column of ticks
-                        beside things nobody had chosen — on a picker whose
+                        beside things nobody had chosen. On a picker whose
                         whole job is to show what has been chosen. Said in a
                         word instead, which cannot be misread as a state. */}
                     {have

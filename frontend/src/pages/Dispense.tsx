@@ -743,7 +743,7 @@ export default function Dispense() {
   const expiryProblem = (): string => {
     const today = localIsoDate();
     const past = expiryNeeded.find((l) => packExpiry[l.product_id] && packExpiry[l.product_id] < today);
-    if (past) return `The pack of ${past.name} has expired — take another from the shelf.`;
+    if (past) return `The pack of ${past.name} has expired. Take another from the shelf.`;
     const missing = expiryNeeded.find((l) => !packExpiry[l.product_id]);
     if (missing) return `Enter the expiry printed on the pack of ${missing.name}.`;
     return "";
@@ -843,7 +843,7 @@ export default function Dispense() {
       const who = kept.patient
         ? ` for ${(kept.patient as Patient).first_name} ${(kept.patient as Patient).last_name}`
         : "";
-      toast.ok(`Picked up where you left off — ${kept.items.length} `
+      toast.ok(`Picked up where you left off: ${kept.items.length} `
                + `line${kept.items.length === 1 ? "" : "s"}${who}. Escape clears it.`);
     }
     setDraftReady(true);
@@ -1038,7 +1038,7 @@ export default function Dispense() {
 
     doing.run({
       label: `Holding ${script.number}`,
-      said: `${script.number} is on hold — ${label.toLowerCase()}.`,
+      said: `${script.number} is on hold: ${label.toLowerCase()}.`,
       run: () => api.post<HoldSummary>(`/api/prescriptions/${script.id}/holds`,
                                        { reason_code: code, note }),
       done: (placed: HoldSummary) => {
@@ -1085,7 +1085,7 @@ export default function Dispense() {
       const line = items.find((i) => i.product.id === res.product.id);
       if (line) {
         setScanChecks((cur) => ({ ...cur, [res.product.id]: code }));
-        toast.ok(`${lineName(line.product)} — the pack matches the script.`);
+        toast.ok(`${lineName(line.product)}. The pack matches the script.`);
         return;
       }
       if (fromRx && !fromRx.draft) {
@@ -1096,7 +1096,7 @@ export default function Dispense() {
       // searched: a scan must not be a way round the tab.
       const fits = route === "controlled" ? res.product.schedule >= 5 : res.product.schedule < 5;
       if (!fits) {
-        toast.warn(`${res.product.name} is Schedule ${res.product.schedule} — use the `
+        toast.warn(`${res.product.name} is Schedule ${res.product.schedule}. Use the `
           + `${res.product.schedule >= 5 ? "Dangerous Drugs" : "Prescription"} tab.`);
         return;
       }
@@ -1716,7 +1716,7 @@ export default function Dispense() {
   const blockedBecause = (): string => {
     // First, because nothing below it matters until it is released.
     if (hold) {
-      return `On hold — ${hold.reason.toLowerCase()}`
+      return `On hold: ${hold.reason.toLowerCase()}`
         + (hold.placed_by ? `, placed by ${hold.placed_by}` : "")
         + ". A pharmacist or a manager releases it.";
     }
@@ -1732,11 +1732,11 @@ export default function Dispense() {
     // signed for. Named after them, the count of unscanned packs stayed hidden
     // behind a request for initials until somebody had already signed.
     if (scanMissing)
-      return `Scan each pack against the script — ${unscannedLines} not yet scanned.`;
+      return `Scan each pack against the script: ${unscannedLines} not yet scanned.`;
     if (needsInitials && !initials.trim())
       return "Enter the checking pharmacist's initials.";
     if (counsellingMissing)
-      return "Record what the patient was told — tick the points covered.";
+      return "Record what the patient was told. Tick the points covered.";
     if (ixMajor > 0 && !ixAcknowledged)
       return "A dose is over the maximum and has to be acknowledged.";
     if (payHow === "aid") {
@@ -1746,7 +1746,7 @@ export default function Dispense() {
       const world = currencyWorld(currencyState);
       const took = tenders.reduce((n, t) => n + inBase(t, world.rates, world.base), 0);
       if (dueNow > 0.005 && took + 0.005 < dueNow)
-        return `Take the patient's ${money(dueNow)} — ${money(took)} entered so far.`;
+        return `Take the patient's ${money(dueNow)}: ${money(took)} entered so far.`;
     }
     return "";
   };
@@ -1823,7 +1823,7 @@ export default function Dispense() {
           // The medicine is already in the bag. A roll that will not take the
           // job must not cost the label, so the dialog is the fallback rather
           // than the error being the end of it.
-          toast.error(errorText(e, "The label printer did not take it — using the print dialog."));
+          toast.error(errorText(e, "The label printer did not take it. Using the print dialog."));
         }
       }
       printLabels(labels);
@@ -1839,7 +1839,7 @@ export default function Dispense() {
    */
   async function printRoll(kind: "price" | "delivery", lines: Line[]) {
     if (!roll.goesStraightToPrinter(kind)) {
-      toast.warn("No printer is set for this on this till — This till > Printers.");
+      toast.warn("No printer is set for this on this till. This till > Printers.");
       return;
     }
     setPrinting(true);
@@ -2119,7 +2119,7 @@ export default function Dispense() {
           auto_refill: false,
           icd10_code: r.icd10_code,
         }]);
-        toast.ok(`${r.product} added — ${money(r.value)} of theirs that was waiting.`);
+        toast.ok(`${r.product} added: ${money(r.value)} of theirs that was waiting.`);
       })
       .catch(() => toast.error("That repeat could not be added to the script."));
   }
@@ -2273,7 +2273,7 @@ export default function Dispense() {
 
     doing.run({
       label: `Dispensing ${said}`,
-      said: `${said} — dispensed.`,
+      said: `${said}. Dispensed.`,
       run: () => dispenseTheScript(before, already, (made) => { already = made; }),
       // Where it goes next is the answer to "how it is paid", which was decided
       // in Finish a moment ago:
@@ -2453,7 +2453,7 @@ export default function Dispense() {
           const short = Math.round((due - took) * 100) / 100;
           toast.ok(
             short > 0.005
-              ? `${money(took)} taken, ${money(short)} still owed — `
+              ? `${money(took)} taken, ${money(short)} still owed. `
                 + `${patient?.medical_aid?.name ?? "the scheme"} allowed less `
                 + `than its terms suggested. It is on the till as `
                 + `${sale.sale_number}.`
@@ -2716,7 +2716,7 @@ export default function Dispense() {
         done: items.length > 0 && complianceDone
           && (!needsInitials || initials.trim() !== ""),
         needs: items.length === 0
-          ? "Add a medicine first — the record is about what is being supplied."
+          ? "Add a medicine first. The record is about what is being supplied."
           : "Tick the script, the prescriber and the patient's identity, and "
             + "initial it.",
       }] as Step[]) : []),
@@ -2844,14 +2844,14 @@ export default function Dispense() {
     <div className="disp-dense">
       <KeyMap keys={hotkeys} open={showKeys} onClose={() => setShowKeys(false)} />
       {/* One line: what this screen is, which route is open, the routes you may
-          switch to, and the four ways in — hard right where they already were.
+          switch to, and the four ways in. Hard right where they already were.
           It was a title, a sentence beneath it, a border and a margin: 98
           vertical pixels to say one word and one hint, on a screen that then
           had to scroll to reach the script. */}
       {/* The bar is what you can DO, and nothing else.
 
           The title said "Dispensary" on the dispensary screen, under a sidebar
-          item called Dispensary that was already highlighted — three statements
+          item called Dispensary that was already highlighted. Three statements
           of the same fact. Beside it the route hint described the tab that was
           already selected and visibly labelled.
 
@@ -2861,7 +2861,7 @@ export default function Dispense() {
           learning. */}
       <div className="disp-head">
         {/* What has already gone out. A dispensary is asked about yesterday's
-            script several times a day — "did she collect it", "was that one
+            script several times a day: "did she collect it", "was that one
             paid for", "print that label again", and the only way to answer
             was to know the patient and open their record. */}
         {/* The three things somebody starts on this screen, where the hand
@@ -2904,8 +2904,8 @@ export default function Dispense() {
           <button className="btn secondary" onClick={() => setAltering(true)}>
             <PencilSimpleLine size={14} /> Alter script
           </button>
-          {/* Beside Alter script, because they answer the same question — this
-              script is wrong — for the two cases: part of it (alter) and all of
+          {/* Beside Alter script, because they answer the same question. This
+              script is wrong. For the two cases: part of it (alter) and all of
               it, before anything has gone out (cancel). Only on a saved script;
               a new capture is cleared with New script. */}
           {fromRx && !fromRx.draft && (
@@ -2927,7 +2927,7 @@ export default function Dispense() {
       </div>
 
       {/* Work on the left, worklist on the right. The queue has to be in view
-          while dispensing happens — a panel you navigate to is a panel checked
+          while dispensing happens. A panel you navigate to is a panel checked
           twice a day. It stacks below laptop width, where a 320px column would
           leave no room for the work itself. */}
       <div className="disp-with-worklist">
@@ -2952,7 +2952,7 @@ export default function Dispense() {
 
 
       {/* Nothing on this screen commits while it is a quote, so it says so
-          once, plainly, at the top — a mode you cannot see is a mode somebody
+          once, plainly, at the top. A mode you cannot see is a mode somebody
           forgets they are in. */}
       {quoting && (
         <div className="alert warn no-print">
@@ -2976,7 +2976,7 @@ export default function Dispense() {
           missing condition beside the button that will not go. */}
       {/* The step trail is hidden where the screen is being fitted to one
           height. It costs 76px to name three sections that name themselves
-          twelve pixels lower — the headings below are numbered for the same
+          twelve pixels lower. The headings below are numbered for the same
           reason it was. It comes back on a tall screen, where the space is
           free and the overview is worth having. */}
       <div className="disp-steps"><StepTrail steps={steps} /></div>
@@ -3098,7 +3098,7 @@ export default function Dispense() {
               {/* Sized so the whole register fits without scrolling sideways.
                   A table you have to drag to read is a table nobody reads the
                   right-hand end of, and the right-hand end here is who sold it
-                  — which is the column an inspector asks about. */}
+. Which is the column an inspector asks about. */}
               <colgroup>
                 <col style={{ width: "8.5rem" }} />
                 <col style={{ width: "22%" }} />
@@ -3171,8 +3171,8 @@ export default function Dispense() {
             )}
 
             <div className="card sec sec-patient" id="step-patient">
-              {/* No heading. The lane is three labelled fields — Patient,
-                  Prescriber, Medicine — and a heading over them said nothing
+              {/* No heading. The lane is three labelled fields. Patient,
+                  Prescriber, Medicine. And a heading over them said nothing
                   the labels do not. The S5–S6 badge stays, because THAT is not
                   obvious from anything else on the row. */}
               {route === "controlled" && (
@@ -3192,7 +3192,7 @@ export default function Dispense() {
                     </span>
                   </span>
                   {/* What the counter reaches for about this person, in one place
-                      and always in the same order — muted when a tool has nothing
+                      and always in the same order. Muted when a tool has nothing
                       to say, so a hand learns where each one is. The chip row that
                       used to sit under the lane is three of these. */}
                   <span className="lane-tools" role="toolbar" aria-label="About this patient">
@@ -3281,8 +3281,8 @@ export default function Dispense() {
                 </>
               )}
               {/* The search moved up beside the patient and the prescriber.
-                  All three are the same act — saying what this script is for
-                  and what is on it — and they were taking a heading and a row
+                  All three are the same act. Saying what this script is for
+                  and what is on it. And they were taking a heading and a row
                   each. The heading went with them: a table under a search box
                   labelled "Medicine" does not need telling it holds script
                   items. */}
@@ -3307,7 +3307,7 @@ export default function Dispense() {
                       scanPack(code);
                     }
                   }} />
-                {/* The camera, for a counter that has no scanner on it — a
+                {/* The camera, for a counter that has no scanner on it. A
                     phone or a laptop is the scanner instead, and the pack is
                     checked against the script exactly as a scanner's would be.
                     Hidden where the browser has no camera to offer. */}
@@ -3325,7 +3325,7 @@ export default function Dispense() {
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
 
-              {/* The two halves of one question — who is this for, and who
+              {/* The two halves of one question. Who is this for, and who
                   wrote it. A script has never had one without the other, and
                   they were taking a row each. */}
               {/* The prescriber, searched and listed like the patient and the
@@ -3441,7 +3441,7 @@ export default function Dispense() {
                       </span>
                     )}
                     {/* The cash margin, before anything is on the script. This
-                        is where a substitution is decided — the generic beside
+                        is where a substitution is decided. The generic beside
                         the brand, and deciding it needs the two margins side
                         by side, not a report afterwards. */}
                     {(() => {
@@ -3455,7 +3455,7 @@ export default function Dispense() {
               {/* The editor, out of the grid and above it.
 
                   It used to sit inside the selected row, so selecting a line
-                  pushed every line below it down the page — on a five-item
+                  pushed every line below it down the page. On a five-item
                   script the line being edited was the only one visible, which
                   defeats the point of a grid.
 
@@ -3469,7 +3469,7 @@ export default function Dispense() {
               {/* The line editor. Everything about one line in one place, laid
                   out in the order it is settled: how much, what the label says,
                   what the claim is raised on, what is written in the book. Beside
-                  it, the facts the decisions rest on — stock, price, margin, the
+                  it, the facts the decisions rest on. Stock, price, margin, the
                   dose finding, what it could be swapped for. */}
               {editing !== null && items[editing] && (() => {
                 const it = items[editing];
@@ -3561,7 +3561,7 @@ export default function Dispense() {
                               {!it.icd10_code
                                 ? <span className="hint warn">Required to claim</span>
                                 : it.icd10_code === DEFAULT_DIAGNOSIS
-                                  ? <span className="hint">Default — change it if the script gives one</span>
+                                  ? <span className="hint">Default. Change it if the script gives one</span>
                                   : null}
                             </div>
                             {/* What the funder calls it. Here because this is
@@ -3734,7 +3734,7 @@ export default function Dispense() {
                   Both were inside one scrolling region, so the strip took
                   the top of it and pushed every row out of sight. The
                   fields have to stay still and the lines have to scroll
-                  under them — that is the whole arrangement. */}
+                  under them. That is the whole arrangement. */}
               <div className="disp-grid">
               {/* Column headings, always. A grid without them is a list of rows
                   that happen to line up, and they also fix the columns: the
@@ -3744,7 +3744,7 @@ export default function Dispense() {
 
                   Rendered whether or not there is anything on the script,
                   because a table shows where the work GOES as well as where it
-                  is — which is what somebody needs on a new script and why the
+                  is. Which is what somebody needs on a new script and why the
                   system we are compared to draws its empty rows. */}
               <div className="rx-item-head rx-item-cols" aria-hidden="true">
                 <span className="rx-col-edit" title="Double-click a cell to edit it">
@@ -3941,7 +3941,7 @@ ${d.action}`}
                         {(() => {
                           const st = lineState(it);
                           const label = {
-                            idle: "Check this line — dose and interactions",
+                            idle: "Check this line. Dose and interactions",
                             loading: "Checking…",
                             clean: "Checked: nothing found. Open the detail",
                             minor: "Checked: something to look at. Open the detail",
@@ -3950,7 +3950,7 @@ ${d.action}`}
                           }[st];
                           return (
                             <button type="button" className={`rx-icon chk-${st}`}
-                                    title={label} aria-label={`${label}: ${it.product.name}`}
+                                    title={label} aria-label={`${label}. ${it.product.name}`}
                                     aria-busy={st === "loading" || undefined}
                                     onClick={(e) => { e.stopPropagation(); onCheckIcon(it); }}>
                               {st === "loading" ? <CircleNotch size={16} className="spin" />
@@ -3984,7 +3984,7 @@ ${d.action}`}
                   details made the lane above taller, and an empty table grew a
                   scrollbar for rows with nothing in them. */}
               {/* The empty rows are where the next line goes, so double-clicking
-                  one starts the work rather than doing nothing — the same gesture
+                  one starts the work rather than doing nothing. The same gesture
                   that edits a line that is already there. Mouse-only and
                   decorative, so it stays hidden from assistive technology: the
                   keyboard has F3, which is the documented way in. */}
@@ -4014,7 +4014,7 @@ ${d.action}`}
               </div>
               </div>
               {/* The table's own last row: what the columns above add up to.
-                  Bound to the lines — delete the last one and it goes with it. */}
+                  Bound to the lines. Delete the last one and it goes with it. */}
               {items.length > 0 && pricing && (
                 <ScriptTotals variant="footer" data={pricing} items={pricedItems}
                               medicalAidId={patient?.medical_aid_id ?? null} />
@@ -4024,14 +4024,14 @@ ${d.action}`}
 
             {/* ONE ROW UNDER THE TABLE.
 
-                On the left, the one thing the dispenser needs to know next — what
-                is missing, or that it is ready, or what just happened — and how
+                On the left, the one thing the dispenser needs to know next. What
+                is missing, or that it is ready, or what just happened. And how
                 many warnings are waiting. On the right, the only three things to
                 do from here: who checked it, put it down, or finish it.
 
-                Everything that is only needed at the END of a script — settling
+                Everything that is only needed at the END of a script. Settling
                 warnings, the compliance record, how it is paid, the dispense
-                itself — is in Finish, and not on the page. Stacked under the
+                itself. Is in Finish, and not on the page. Stacked under the
                 table it pushed itself and the table off the bottom of the
                 screen, and it was on screen for the whole of the script while
                 being needed for the last ten seconds of it. */}
@@ -4127,7 +4127,7 @@ ${d.action}`}
                   </div>
                 )}
                 {/* A saved script can be put down on purpose, with the reason.
-                    Held, the same place offers the release — to a pharmacist or
+                    Held, the same place offers the release. To a pharmacist or
                     a manager, and says so to anybody else. */}
                 {fromRx && !fromRx.draft && !quoting && (hold ? (
                   <BusyButton className="btn secondary disp-hold is-held" busyLabel="Releasing…"
@@ -4175,7 +4175,7 @@ ${d.action}`}
                           // somebody releases it, and choosing how to pay for what
                           // cannot go out is time taken from the next patient.
                           disabled={busy || !patient || items.length === 0 || !!hold}
-                          title={hold ? "On hold — release it before finishing" : undefined}
+                          title={hold ? "On hold. Release it before finishing" : undefined}
                           onClick={() => openFinish()}>
                     Finish <kbd className="disp-kbd">F12</kbd>
                   </button>
@@ -4183,7 +4183,7 @@ ${d.action}`}
               </div>
             </div>
 
-            {/* FINISH — two stages, so neither has to scroll.
+            {/* FINISH. Two stages, so neither has to scroll.
 
                   Before you finish   what must be acknowledged and what is worth
                                       knowing. Proceed is held until the blocking
@@ -4260,14 +4260,14 @@ ${d.action}`}
                         </div>
 
                         {/* Stock with no expiry recorded. Asked here, before
-                            paying, of the person holding the pack — rather than
+                            paying, of the person holding the pack. Rather than
                             refused after, as "expired", which it was not. */}
                         {expiryNeeded.length > 0 && (
                           <section className="fin-group fin-expiry" id="finish-expiry">
                             <h4>Expiry from the pack</h4>
                             <p className="fin-note">
                               This stock came in with no expiry date recorded. Enter the date
-                              printed on the pack you are handing over — it is saved to the
+                              printed on the pack you are handing over. It is saved to the
                               stock, and printed on the label.
                             </p>
                             <ul className="fin-list">
@@ -4287,7 +4287,7 @@ ${d.action}`}
                                       {past && (
                                         <p className="fin-note is-bad">
                                           <Warning size={13} weight="fill" />
-                                          <span>That pack has expired — take another from the shelf.</span>
+                                          <span>That pack has expired. Take another from the shelf.</span>
                                         </p>
                                       )}
                                     </div>
@@ -4318,7 +4318,7 @@ ${d.action}`}
                                       <span className="badge muted">over the maximum</span>
                                     </div>
                                     {doseMajors.map((f) => (
-                                      <p key={f.product}><b>{f.product}</b> — {f.detail}</p>
+                                      <p key={f.product}><b>{f.product}</b>: {f.detail}</p>
                                     ))}
                                   </div>
                                   <div className="fin-item-act">
@@ -4491,7 +4491,7 @@ ${d.action}`}
                                 <div className="field fin-aid-dep">
                                   <label htmlFor="aid-dep">Dep.</label>
                                   <input id="aid-dep" value={aidDep} maxLength={10} placeholder="00"
-                                         title="Dependant code — 00 for the principal member"
+                                         title="Dependant code. 00 for the principal member"
                                          onChange={(e) => setAidDep(e.target.value)} />
                                 </div>
                               </div>
@@ -4509,7 +4509,7 @@ ${d.action}`}
                               {aidHold && (
                                 <input id="aid-hold-reason" className="fin-aid-reason" value={aidHoldReason}
                                        maxLength={200}
-                                       placeholder="Why — scheme offline, authorisation pending, card not here…"
+                                       placeholder="Why. Scheme offline, authorisation pending, card not here…"
                                        aria-label="Why the claim is held"
                                        onChange={(e) => setAidHoldReason(e.target.value)} />
                               )}
@@ -4521,7 +4521,7 @@ ${d.action}`}
                                   remittance. This is the last moment anybody
                                   can do anything about it, so it is said here
                                   rather than discovered there. It does not
-                                  block — a pharmacy may well claim anyway and
+                                  block. A pharmacy may well claim anyway and
                                   chase the code afterwards. */}
                               {aidScheme !== "" && items.length > 0 && (
                                 <div className="fin-panel fin-codes">
@@ -4584,7 +4584,7 @@ ${d.action}`}
                                 />
                               ) : (
                                 <p className="fin-note">
-                                  Fully covered — nothing to collect from the patient.
+                                  Fully covered. Nothing to collect from the patient.
                                 </p>
                               )}
                             </div>
@@ -4603,7 +4603,7 @@ ${d.action}`}
                                       value: String(d.id),
                                       // What they already carry, where they are chosen.
                                       label: d.full_name
-                                        + (d.cash_holding ? ` — holding ${money(d.cash_holding)}` : "")
+                                        + (d.cash_holding ? `. Holding ${money(d.cash_holding)}` : "")
                                         + (d.over_cod_limit ? " · over limit" : "")
                                         + (d.licence_expired ? " · licence expired" : ""),
                                     })),
@@ -4612,7 +4612,7 @@ ${d.action}`}
                                 <button type="button" className="linkish fin-field-link"
                                         onClick={() => setAddingDriver(true)}>
                                   {drivers.filter((d) => d.active).length === 0
-                                    ? "No driver on file yet — add one"
+                                    ? "No driver on file yet. Add one"
                                     : "Add a driver"}
                                 </button>
                               </div>
@@ -4814,7 +4814,7 @@ ${d.action}`}
                                     <button type="button" role="radio" aria-checked={receiptPrivate}
                                             className={receiptPrivate ? "on" : ""}
                                             title={"Totals, tax and the invoice number only. No medicine "
-                                              + "is named on the slip — for a patient who would rather "
+                                              + "is named on the slip. For a patient who would rather "
                                               + "the queue did not read it."}
                                             onClick={() => setReceiptPrivate(true)}>
                                       <EyeSlash size={12} /> Private
@@ -4899,7 +4899,7 @@ ${d.action}`}
                         <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
                           Back to the script
                         </button>
-                        {/* One press: dispense, and print what is lit above — and it
+                        {/* One press: dispense, and print what is lit above. And it
                             says how many, so what comes off the printers is never a
                             surprise. */}
                         <button type="button" className="btn primary fin-dispense"
@@ -5000,8 +5000,8 @@ ${d.action}`}
             )}
 
             {/* The code prompt for a price set by hand. Rendered here, over
-                everything, because it is asked for from two places — the table
-                and the line editor — and neither of them unmounts while it is
+                everything, because it is asked for from two places. The table
+                and the line editor. And neither of them unmounts while it is
                 open, so whatever was being typed is still there afterwards. */}
             {stepUpPrompt}
 
@@ -5061,13 +5061,13 @@ ${d.action}`}
             />
 
             {/* Cancelling a saved script: why, in a word or a sentence, and what
-                happens — said before the button, not discovered after it. */}
+                happens. Said before the button, not discovered after it. */}
             {cancelTarget && (
               <div className="modal-backdrop" role="dialog" aria-modal="true"
                    aria-labelledby="cancel-title" onClick={() => setCancelTarget(null)}>
                 <div className="modal disp-cancel-modal" onClick={(e) => e.stopPropagation()}>
                   <h2 id="cancel-title">Cancel {cancelTarget.number}</h2>
-                  {/* Which script, in words — from the worklist it has not been
+                  {/* Which script, in words. From the worklist it has not been
                       opened, and a row is one line of it. */}
                   {(cancelTarget.patient || cancelTarget.lines) && (
                     <p className="cancel-which">
@@ -5112,7 +5112,7 @@ ${d.action}`}
               </div>
             )}
 
-            {/* Putting a script on hold: why, and a note. Short on purpose — the
+            {/* Putting a script on hold: why, and a note. Short on purpose. The
                 person holding it has just found a problem and is at the counter. */}
             {holding && fromRx && (
               <div className="modal-backdrop" role="dialog" aria-modal="true"
@@ -5239,7 +5239,7 @@ ${d.action}`}
 
               Repeats now live in the worklist, which is where "what needs doing"
               already lived, and clicking one loads it into the form on the left
-              — through the safety check, where the initials are captured. */}
+. Through the safety check, where the initials are captured. */}
         </div>
       )}
       </div>
@@ -5315,7 +5315,7 @@ ${d.action}`}
       {/* The function keys, along the foot of the window.
 
           They were at the bottom of the safety band, inside a region that
-          scrolls — so the strip a dispenser looks down at was wherever the
+          scrolls. So the strip a dispenser looks down at was wherever the
           warnings had pushed it, or off the screen entirely. The system this
           competes with runs F1 to F12 across the bottom of the window and it
           does not move; a key strip that moves is one nobody learns.

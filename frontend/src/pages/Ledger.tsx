@@ -339,7 +339,7 @@ export default function Ledger() {
               {/* Paged in the browser, because the endpoint deliberately returns
                   the whole set: the figure beside this table is the total value
                   waiting to be posted, and that has to be summed over all of it.
-                  What was wrong was rendering all of it — two hundred rows with
+                  What was wrong was rendering all of it. Two hundred rows with
                   no way to move through them. */}
               {unpostedPage.items.map((s) => (
                 <tr key={s.sale_id}>

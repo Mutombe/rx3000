@@ -143,7 +143,7 @@ export default function Scorecard() {
           </div>
 
           {/* Twelve columns of figures across one row is not a comparison,
-              it is a wall — every value truncated mid-word, and the branch
+              it is a wall. Every value truncated mid-word, and the branch
               names clipped to "RX5000 …". One card per branch instead, ordered
               by takings, with the numbers grouped the way somebody actually
               reads them: what came in, what it cost, who did it, and what went

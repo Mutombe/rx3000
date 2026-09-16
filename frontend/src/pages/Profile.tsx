@@ -183,7 +183,7 @@ export default function Profile() {
       rows: [
         { date: "01/06", reference: "INV-1042", description: "Invoice",
           debit: "620.00", credit: "", balance: "1,440.00" },
-        { date: "14/06", reference: "EFT-8891", description: "Payment — thank you",
+        { date: "14/06", reference: "EFT-8891", description: "Payment. Thank you",
           debit: "", credit: "200.00", balance: "1,240.00" },
       ],
       totals: { description: "Closing balance", debit: "620.00",

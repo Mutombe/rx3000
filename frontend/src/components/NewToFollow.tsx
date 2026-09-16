@@ -161,12 +161,12 @@ export default function NewToFollow({ onClose, onPromised }: {
 
         {/* Recording a debt for something that is in fact on the shelf is
             almost always a mistake at the keyboard, so it is queried rather
-            than refused — occasionally the stock figure is the thing that
+            than refused. Occasionally the stock figure is the thing that
             is wrong. */}
         {product && !short && (
           <div className="alert warn">
             There are {product.quantity_on_hand ?? 0} of these on the shelf, so
-            this may not need to be owed at all — unless the figure is wrong.
+            this may not need to be owed at all. Unless the figure is wrong.
           </div>
         )}
 

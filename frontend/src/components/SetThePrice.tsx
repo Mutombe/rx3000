@@ -109,7 +109,7 @@ export default function SetThePrice({
             }}>
         <h2 id="price-title"><Tag size={18} weight="fill" /> Set the price</h2>
         <p className="muted">
-          {name} {strength} — the catalogue says {money(shelf)} each
+          {name} {strength}. The catalogue says {money(shelf)} each
           {cost > 0 && <>, and it costs {money(cost)} to buy</>}.
         </p>
 

@@ -121,7 +121,7 @@ def set_location(branch_id: int, latitude: float = Body(...),
         raise HTTPException(
             400,
             f"{latitude}, {longitude} is not a place on Earth. Latitude runs "
-            f"-90 to 90 and longitude -180 to 180 — the usual cause is the two "
+            f"-90 to 90 and longitude -180 to 180. The usual cause is the two "
             f"the wrong way round.")
     branch = db.get(Branch, branch_id)
     if branch is None:
@@ -293,7 +293,7 @@ def grant(user_id: int, body: dict = Body(...),
 @router.delete("/permissions/{permission_id}")
 def revoke(permission_id: int, db: Session = Depends(get_db),
            actor: User = Depends(get_current_user)):
-    """Withdraw a grant. Kept, never deleted — it was true while it stood."""
+    """Withdraw a grant. Kept, never deleted. It was true while it stood."""
     _guard(db, actor, "staff.manage")
     row = db.get(UserPermission, permission_id)
     if row is None:

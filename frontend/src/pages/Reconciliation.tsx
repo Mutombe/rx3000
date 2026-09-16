@@ -133,7 +133,7 @@ export default function Reconciliation() {
                 <span>
                   <b>{data.not_run.join(" and ")}</b>{" "}
                   {data.not_run.length === 1 ? "has" : "have"} not been run this
-                  period. That is not the same as agreeing — nothing has been
+                  period. That is not the same as agreeing. Nothing has been
                   compared, so nothing is known. Both need a file from outside
                   the pharmacy, which is exactly why they are the two that get
                   skipped.

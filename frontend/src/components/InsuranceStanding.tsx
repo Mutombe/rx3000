@@ -184,7 +184,7 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
           <Warning size={13} weight="fill" />
           <span>
             {compact
-              ? "Benefit balance not known — the scheme is not connected."
+              ? "Benefit balance not known. The scheme is not connected."
               : data.benefit.note}
           </span>
         </p>

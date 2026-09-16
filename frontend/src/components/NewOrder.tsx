@@ -128,7 +128,7 @@ export default function NewOrder({ onClose, onCreated }: {
           <div className="field span-7">
             <label>Note <span className="muted">optional</span></label>
             <input value={notes} onChange={(e) => setNotes(e.target.value)}
-                   placeholder="For Mrs Ncube — collecting Friday" />
+                   placeholder="For Mrs Ncube. Collecting Friday" />
           </div>
         </div>
 

@@ -31,6 +31,8 @@ interface Row {
   rx_number: string;
   draft_ref: string;
   status: string;
+  /** COLLECTED, WAITING or ONHOLD: where the medicine has got to. */
+  state?: string;
   date_prescribed: string | null;
   created_at: string;
   patient_id: number | null;
@@ -49,9 +51,19 @@ const WINDOWS: [string, string][] = [
 ];
 
 /** The states a script can be in, in the words the dispensary uses. */
+/* Where the medicine is, which is what a counter asks.
+ *
+ * "Active", "Draft" and "Cancelled" describe the RECORD, and nobody behind a
+ * counter thinks in those terms. They ask whether the bag is still on the
+ * shelf, whether somebody has taken it home, or whether something is stopping
+ * it. Draft and cancelled stay on the list because they exist, but they are not
+ * what the filter leads with.
+ */
 const STATES: [string, string][] = [
   ["", "Any state"],
-  ["active", "Active"],
+  ["WAITING", "Waiting"],
+  ["COLLECTED", "Collected"],
+  ["ONHOLD", "On hold"],
   ["draft", DRAFT_SCRIPT_PLURAL],
   ["cancelled", "Cancelled"],
 ];
@@ -104,7 +116,7 @@ export default function Scripts() {
         <div>
           <h1>Scripts</h1>
           <div className="page-sub">
-            Every script on file, by its number — what is on it, what has gone
+            Every script on file, by its number. What is on it, what has gone
             out, and what has been altered since capture
           </div>
         </div>
@@ -142,7 +154,7 @@ export default function Scripts() {
           <div className="empty">
             <b>No script matches that.</b>
             <p>
-              Search by the number on the script — an Rx number for one that has
+              Search by the number on the script. An Rx number for one that has
               been finished, or the reference on {"an " + DRAFT_SCRIPT} for one
               still being captured. A patient's name, ID number or the
               prescriber will find it too.
@@ -184,12 +196,18 @@ export default function Scripts() {
                       )}
                     </td>
                     <td>
+                      {/* A cancelled or draft record says so; everything else
+                          says where the medicine is. */}
                       {r.status === "draft" ? (
                         <span className="badge warn">{DRAFT_SCRIPT}</span>
                       ) : r.status === "cancelled" ? (
                         <span className="badge muted">Cancelled</span>
+                      ) : r.state === "ONHOLD" ? (
+                        <span className="badge danger">On hold</span>
+                      ) : r.state === "COLLECTED" ? (
+                        <span className="badge ok">Collected</span>
                       ) : (
-                        <span className="badge ok">Active</span>
+                        <span className="badge warn">Waiting</span>
                       )}
                     </td>
                     <td>

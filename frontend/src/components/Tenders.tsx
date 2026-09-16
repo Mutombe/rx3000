@@ -304,7 +304,7 @@ export default function Tenders({
                 {!scheme && (
                   <div className="alert warn">
                     This patient has no medical aid on file. Choose the scheme
-                    to claim against — it will be saved to their record, so it
+                    to claim against. It will be saved to their record, so it
                     is asked once rather than at every visit.
                   </div>
                 )}
@@ -319,13 +319,13 @@ export default function Tenders({
                       checked={!!line.claimLater}
                       onChange={(e) => set(i, { claimLater: e.target.checked })}
                     />
-                    <span>Hold this claim — do not send it now</span>
+                    <span>Hold this claim. Do not send it now</span>
                   </label>
                   {line.claimLater && (
                     <input
                       value={line.claimLaterReason ?? ""}
                       onChange={(e) => set(i, { claimLaterReason: e.target.value })}
-                      placeholder="Why — the switch is down, no card, …"
+                      placeholder="Why. The switch is down, no card, …"
                       aria-label="Why the claim is held"
                     />
                   )}
@@ -347,7 +347,7 @@ export default function Tenders({
                 {line.currency_code} {Number(line.amount).toFixed(2)}
                 {rates[line.currency_code]
                   ? <> = {money(inBase(line, rates, base))}</>
-                  : <> — no rate on file for {line.currency_code}, so this cannot
+                  : <>. No rate on file for {line.currency_code}, so this cannot
                       be converted. Record the rate before taking it.</>}
               </div>
             )}

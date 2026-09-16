@@ -213,7 +213,7 @@ export default function Dashboard() {
               </div>
 
               {/* Where the repeat book went. Four buckets that sum exactly to
-                  the loss — a breakdown accounting for most of a number and
+                  the loss. A breakdown accounting for most of a number and
                   silent about the rest is one nobody trusts. */}
               <div className="card">
                 <div className="card-head">
@@ -237,7 +237,7 @@ export default function Dashboard() {
                   }))}
                 />
                 <p className="muted small">
-                  A repeat that was not filled leaves no record anywhere — the
+                  A repeat that was not filled leaves no record anywhere. The
                   patient simply goes elsewhere next month. This is the one
                   place it appears.
                 </p>

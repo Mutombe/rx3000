@@ -149,7 +149,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <span className="toast-body">
               {t.message}
               {/* A repeat count sat next to the dismiss button as "×2", beside a
-                  "×" that closes the toast — the same glyph meaning two
+                  "×" that closes the toast. The same glyph meaning two
                   unrelated things an inch apart. It is a plain number now, and
                   it says what it counts. */}
               {t.count > 1 && (

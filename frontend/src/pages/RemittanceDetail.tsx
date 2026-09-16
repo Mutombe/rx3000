@@ -267,14 +267,14 @@ export default function RemittanceDetail() {
                     <>
                       {money(asking.line.variance)} the funder did not pay goes
                       onto <b>{asking.line.member_name || "the patient"}</b>&rsquo;s
-                      account. Right when it is their levy or co-payment — they
+                      account. Right when it is their levy or co-payment. They
                       always owed it.
                     </>
                   ) : (
                     <>
                       The pharmacy absorbs {money(asking.line.variance)}. Right
                       when the money was never claimable, and wrong when it was
-                      the patient&rsquo;s levy — writing those off is how a
+                      the patient&rsquo;s levy. Writing those off is how a
                       pharmacy ends up paying its patients&rsquo; co-payments
                       for them.
                     </>
@@ -282,7 +282,7 @@ export default function RemittanceDetail() {
                 </p>
                 <p className="muted small">
                   {asking.line.claim_reference}
-                  {asking.line.reason ? ` — ${asking.line.reason}` : ""}
+                  {asking.line.reason ? `: ${asking.line.reason}` : ""}
                 </p>
                 <label className="field">
                   Why

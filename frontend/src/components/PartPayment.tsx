@@ -162,7 +162,7 @@ export default function PartPayment({
             {incomplete.method === "medical_aid"
               ? "Say which scheme this is claimed against. A claim with no funder on it cannot be batched, sent or chased."
               : incomplete.method === "mobile_money"
-              ? "Say which wallet the mobile money came from — a drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
+              ? "Say which wallet the mobile money came from. A drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
               : incomplete.method === "card"
                 ? "Say which card or bank. The settlement arrives from one of them, on their own timetable, and “card” matches none of it."
                 : `There is no exchange rate on file for ${incomplete.currency_code}, so this cannot be converted. Record today’s rate first.`}

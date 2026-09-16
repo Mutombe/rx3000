@@ -111,7 +111,7 @@ export default function PaySupplier({
       });
       toast.ok(
         onAccount > 0.005
-          ? `${money(paying)} paid — ${money(onAccount)} of it sits on account.`
+          ? `${money(paying)} paid: ${money(onAccount)} of it sits on account.`
           : `${money(paying)} paid to ${supplier}.`);
       onPaid(r.remittance);
     } catch (e) {
@@ -215,7 +215,7 @@ export default function PaySupplier({
                 <td className="mono">
                   {i.invoice_number}
                   {i.status === "queried" && (
-                    <div className="muted small">queried — left out of oldest-first</div>
+                    <div className="muted small">queried. Left out of oldest-first</div>
                   )}
                 </td>
                 <td>
@@ -238,7 +238,7 @@ export default function PaySupplier({
         {invoices.length === 0 && (
           <div className="empty">
             No invoice is recorded against this supplier. The payment can still
-            be made — it will sit on account until an invoice arrives to put it
+            be made. It will sit on account until an invoice arrives to put it
             against.
           </div>
         )}

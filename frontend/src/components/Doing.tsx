@@ -86,7 +86,7 @@ export function DoingProvider({ children }: { children: React.ReactNode }) {
         const next = job.nextOf?.(result) ?? null;
         setJobs((all) => all.map((j) => (
           j.id === job.id ? { ...j, state: "done" as const, next: next ?? undefined } : j)));
-        toast.ok(job.said ?? `${job.label} — done.`);
+        toast.ok(job.said ?? `${job.label}. Done.`);
         // Somewhere to go stays long enough to be gone to.
         forget(job.id, next ? 9000 : 2600);
         return result;
@@ -176,7 +176,7 @@ export function useDoing(): DoingApi {
     busy: false,
     run: ({ label, said, run, done, undo }) => {
       run()
-        .then((r) => { done?.(r); toast.ok(said ?? `${label} — done.`); })
+        .then((r) => { done?.(r); toast.ok(said ?? `${label}. Done.`); })
         .catch((e) => { const why = errorText(e); toast.error(why); undo?.(why); });
     },
   };

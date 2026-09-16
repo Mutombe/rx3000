@@ -113,7 +113,7 @@ export default function StockCategories() {
           <span>
             <b>{untagged.toLocaleString()} {untagged === 1 ? "line is" : "lines are"} filed
             under no department.</b> They will not appear on any departmental
-            report — not the stocktake sheet, not the margin comparison, not the
+            report. Not the stocktake sheet, not the margin comparison, not the
             valuation. That is how a product stops being counted without anybody
             deciding it should.{" "}
             <EntityLink to="/stock">Open the catalogue</EntityLink> to file them
@@ -166,7 +166,7 @@ export default function StockCategories() {
                 </td>
                 <td className="num"><b>{money(c.at_cost)}</b></td>
                 {/* Edited where it is read. A target margin is a commercial
-                    decision that moves — a department carrying more
+                    decision that moves. A department carrying more
                     consignment stock this quarter than last should not be
                     measured against a figure somebody typed once, and it
                     could be set when the department was created and never
@@ -201,7 +201,7 @@ export default function StockCategories() {
                 {/* What a dispenser is offered while a patient waits.
                     Switched off, the department's lines stay on every stock
                     screen and every report and simply stop appearing in the
-                    medicine search — which is what keeps crisps and phone
+                    medicine search. Which is what keeps crisps and phone
                     credit off a prescription. */}
                 <td>
                   {!list.isPending(c) && (
@@ -238,7 +238,7 @@ export default function StockCategories() {
         </Refreshable>
         {rows.length === 0 && !list.loading && (
           <div className="empty">
-            No departments yet. Every pharmacy groups its stock somehow — adding
+            No departments yet. Every pharmacy groups its stock somehow. Adding
             those groups here is what makes the stocktake and the margin reports
             mean anything.
           </div>

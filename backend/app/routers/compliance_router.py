@@ -111,7 +111,7 @@ async def upload(branch_id: int,
             raise HTTPException(
                 400,
                 f"That file is {len(raw) // (1024 * 1024)}MB. A scan of a "
-                f"certificate should be under {MAX_BYTES // (1024 * 1024)}MB — "
+                f"certificate should be under {MAX_BYTES // (1024 * 1024)}MB. "
                 f"anything larger is an uncompressed photograph, and a hundred "
                 f"of those is a database nobody can back up.")
         doc.file_name = file.filename[:200]
@@ -164,7 +164,7 @@ def download(document_id: int, db: Session = Depends(get_db)):
     if not doc.file_data:
         raise HTTPException(
             404,
-            "Only the details were recorded for this one — no scan was "
+            "Only the details were recorded for this one. No scan was "
             "uploaded with it.")
     header, _, payload = doc.file_data.partition(",")
     return Response(

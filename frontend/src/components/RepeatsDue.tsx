@@ -155,7 +155,7 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
         <p className="rd-short">
           <Warning size={14} weight="fill" />
           {data.cannot_supply} of these cannot be supplied from stock today.
-          That is the one kind of lost repeat the pharmacy causes itself — order
+          That is the one kind of lost repeat the pharmacy causes itself. Order
           it now rather than finding out from a report next month.
         </p>
       )}

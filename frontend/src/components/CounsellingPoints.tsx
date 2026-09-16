@@ -49,9 +49,9 @@ export default function CounsellingPoints(
         <AiStreamBlock
           path={`/api/ai/counseling/${productId}/stream`}
           label="Draft counselling points"
-          title={`Counselling — ${name}`}
+          title={`Counselling: ${name}`}
           context={name}
-          empty="How to take it, common side effects, key warnings, storage — in language that can be read straight to a patient."
+          empty="How to take it, common side effects, key warnings, storage. In language that can be read straight to a patient."
         />
       )}
     </div>

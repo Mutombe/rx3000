@@ -241,7 +241,7 @@ export function priceLabelLines(o: {
   for (const row of wrapTo(`${o.product_name} ${o.strength ?? ""}`.trim(), width)) {
     lines.push({ text: row, bold: true });
   }
-  if (o.pack_size) lines.push({ text: `Pack: ${o.pack_size}`.slice(0, width) });
+  if (o.pack_size) lines.push({ text: `Pack. ${o.pack_size}`.slice(0, width) });
 
   lines.push({ text: "" });
   // The figure the decision is made on, in the largest glyphs the roll has.
@@ -292,7 +292,7 @@ export function deliveryLabelLines(o: {
     // to know it is missing, not to wonder whether the printer cut it off.
     lines.push({ text: "NO ADDRESS ON FILE", bold: true });
   }
-  if (o.phone) lines.push({ text: `Tel: ${o.phone}`.slice(0, width), bold: true });
+  if (o.phone) lines.push({ text: `Tel. ${o.phone}`.slice(0, width), bold: true });
 
   lines.push({ text: "-".repeat(width) });
   lines.push({ text: `Script ${o.rx_number}`.slice(0, width), bold: true });
@@ -357,18 +357,18 @@ export function labelLines(l: Label, width = 32): Line[] {
 
   lines.push({ text: "-".repeat(width) });
   const batch = [
-    l.batch_number ? `Batch: ${l.batch_number}` : "",
-    l.expiry_date ? `Exp: ${new Date(l.expiry_date).toLocaleDateString("en-GB")}` : "",
+    l.batch_number ? `Batch. ${l.batch_number}` : "",
+    l.expiry_date ? `Exp. ${new Date(l.expiry_date).toLocaleDateString("en-GB")}` : "",
   ].filter(Boolean).join("  ");
   if (batch) lines.push({ text: batch.slice(0, width) });
 
   lines.push({ text: l.patient_name.slice(0, width), bold: true });
   lines.push({ text: new Date(l.dispensed_at).toLocaleString("en-GB", { hour12: false }) });
-  if (l.dispensed_by) lines.push({ text: `Disp by: ${l.dispensed_by}`.slice(0, width) });
+  if (l.dispensed_by) lines.push({ text: `Disp by. ${l.dispensed_by}`.slice(0, width) });
   if (l.doctor_name) lines.push({ text: `Doc. ${l.doctor_name}`.slice(0, width) });
 
   const ref = [
-    l.rx_number ? `Rx: ${l.rx_number}` : "",
+    l.rx_number ? `Rx. ${l.rx_number}` : "",
     l.item_count > 1 ? `${l.item_number}/${l.item_count}` : "",
     l.branch_code ? `[${l.branch_code}]` : "",
   ].filter(Boolean).join(" ");

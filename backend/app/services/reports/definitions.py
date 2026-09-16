@@ -2466,7 +2466,7 @@ register(Report(
     module="Till",
     purpose="Where a price was set by hand instead of taken off the shelf, who "
             "typed it and who signed for it. Discounting is only visible if "
-            "somebody looks — including the ones that were authorised and then "
+            "somebody looks. Including the ones that were authorised and then "
             "never reached a sale.",
     params=[DATE_FROM, DATE_TO],
     step_up=True,

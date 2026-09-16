@@ -97,7 +97,7 @@ export default function Remittance({ data, onClose }: {
         {data.lines.length === 0 && (
           <div className="empty">
             Nothing was allocated, so this payment sits on the supplier&rsquo;s
-            account in full. Send it anyway — a payment they can see is a
+            account in full. Send it anyway. A payment they can see is a
             payment they will not chase.
           </div>
         )}

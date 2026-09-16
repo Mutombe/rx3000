@@ -173,7 +173,7 @@ async def upload_logo(file: UploadFile = File(...),
         raise HTTPException(
             400,
             f"That image is {len(raw) // 1024}KB. A logo has to be under "
-            f"{MAX_LOGO_BYTES // 1024}KB — anything larger is a photograph, and "
+            f"{MAX_LOGO_BYTES // 1024}KB. Anything larger is a photograph, and "
             f"it has to print sharply at about two centimetres wide.")
 
     encoded = base64.b64encode(raw).decode("ascii")

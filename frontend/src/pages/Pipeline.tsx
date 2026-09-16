@@ -147,7 +147,7 @@ export default function Pipeline() {
 
       {/* A board of empty columns is what an opportunity pipeline with no deals
           looks like, so while it loads the columns carry ghosts rather than
-          nothing — otherwise the page says "no pipeline" for as long as the
+          nothing. Otherwise the page says "no pipeline" for as long as the
           request takes. */}
       {loading && deals.length === 0 && (
         <div className="kanban">

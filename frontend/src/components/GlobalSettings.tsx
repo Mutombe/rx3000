@@ -82,7 +82,7 @@ export default function GlobalSettings() {
           <label className="gs-label" htmlFor={row.key}>
             {row.label}
             {/* A value somebody chose reads differently from one that merely
-                matches the default — that is the difference between reviewed
+                matches the default. That is the difference between reviewed
                 and never looked at. */}
             {!row.is_set && <span className="gs-flag">not set</span>}
           </label>

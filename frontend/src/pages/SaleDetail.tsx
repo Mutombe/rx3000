@@ -191,7 +191,7 @@ export default function SaleDetail() {
           {/* Part of it, rather than all of it. A customer bringing one of
               four things back had no route through this screen: both buttons
               beside it reverse the whole sale, so the till reversed all four
-              and rang three up again — new receipt number, claim reversed,
+              and rang three up again. New receipt number, claim reversed,
               loyalty earned twice. It was done on paper instead, and the
               stock drifted. */}
           {!reversed && sale.status === "paid" && (sale.items?.length ?? 0) > 0 && (
@@ -299,7 +299,7 @@ export default function SaleDetail() {
           {creditNote && (
             <p className="muted small">
               The original receipt still stands and is still reported. A
-              fiscalised sale is credited, never withdrawn — reports have to be
+              fiscalised sale is credited, never withdrawn. Reports have to be
               able to tell those apart.
             </p>
           )}

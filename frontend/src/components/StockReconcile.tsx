@@ -156,7 +156,7 @@ export default function StockReconcile() {
                 {data.truncated && (
                   <p className="muted small">
                     The largest differences by value are shown. A stock take is
-                    what settles them — this only says where to look.
+                    what settles them. This only says where to look.
                   </p>
                 )}
               </>

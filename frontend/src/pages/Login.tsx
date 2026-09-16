@@ -285,8 +285,8 @@ export default function Login() {
 
         {/* The three seeded logins used to be printed here. They were a
             development convenience that shipped, which on a production install
-            is a published list of working credentials — the administrator's
-            among them — shown to anybody who opens the sign-in page.
+            is a published list of working credentials. The administrator's
+            among them. Shown to anybody who opens the sign-in page.
 
             Nothing replaces them. Somebody evaluating the product takes the
             demo above, which hands out a real account with real data and no

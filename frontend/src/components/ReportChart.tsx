@@ -482,7 +482,7 @@ export default function ReportChart({
         )}
       </div>
 
-      {/* A legend wherever identity is carried by colour, and it toggles — the
+      {/* A legend wherever identity is carried by colour, and it toggles. The
           quickest way to answer "what is that one doing". */}
       {model.series.length >= 2 && (
         <div className="rc-legend">

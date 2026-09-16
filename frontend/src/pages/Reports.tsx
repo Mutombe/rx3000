@@ -128,7 +128,7 @@ export default function Reports() {
         // Two VAT figures exist in this software and only one is filed. Saying
         // so on the face of the paper is the difference between a summary and
         // a return somebody submits by mistake.
-        note: "Worked out from till sales. This is a management summary — the "
+        note: "Worked out from till sales. This is a management summary. The "
             + "return to file is the one under Periods, which is drawn from the "
             + "posted accounts and will differ while anything is unposted.",
       });

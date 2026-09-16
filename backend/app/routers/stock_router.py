@@ -475,7 +475,7 @@ def update_supplier(supplier_id: int, body: dict = Body(...),
         if not name:
             raise HTTPException(
                 status_code=400,
-                detail="A supplier needs a name — it is on every order and "
+                detail="A supplier needs a name. It is on every order and "
                        "every invoice they send.")
         supplier.name = name[:160]
     for field, width in (("contact_person", 120), ("phone", 30), ("email", 120),
@@ -526,7 +526,7 @@ def retire_supplier(supplier_id: int, db: Session = Depends(get_db),
         raise HTTPException(
             status_code=400,
             detail=f"{supplier.name} is still owed {owed:.2f}. Settle or write "
-                   f"it off first — retiring them takes the balance off the "
+                   f"it off first. Retiring them takes the balance off the "
                    f"creditors ageing, and a debt nobody can see is one nobody "
                    f"pays.")
     supplier.active = False

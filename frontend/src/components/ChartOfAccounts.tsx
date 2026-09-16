@@ -357,7 +357,7 @@ function NewAccount({ sections, onClose, onSubmit }: {
                    onChange={(e) => setCode(e.target.value)}
                    placeholder="6900" />
             <span className="hint">
-              Digits, grouped like the accounts around it — 6xxx for running
+              Digits, grouped like the accounts around it. 6xxx for running
               costs, 1xxx for what is owned.
             </span>
           </div>

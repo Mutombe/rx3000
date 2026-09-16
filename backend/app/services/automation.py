@@ -92,7 +92,7 @@ def explain_lead_score(db: Session, lead: Lead) -> dict:
     src = (lead.source or "").lower()
     factors: list[dict] = [
         {
-            "label": f"Source — {src.replace('_', ' ') or 'unknown'}",
+            "label": f"Source. {src.replace('_', ' ') or 'unknown'}",
             "points": BASE_LEAD_SCORE["source"].get(src, 0),
             "max": max(BASE_LEAD_SCORE["source"].values()),
             "group": "Fit",
@@ -126,7 +126,7 @@ def explain_lead_score(db: Session, lead: Lead) -> dict:
             except (TypeError, ValueError):
                 continue
             factors.append({
-                "label": f"Rule — {rule.name}", "points": points,
+                "label": f"Rule. {rule.name}", "points": points,
                 "max": points, "group": "Automation",
             })
 

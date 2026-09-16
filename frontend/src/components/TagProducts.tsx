@@ -134,7 +134,7 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
                 ))}
                 {!sorted.length && (
                   <tr><td colSpan={3} className="muted pad">
-                    Nothing to file — every line already has a department.
+                    Nothing to file. Every line already has a department.
                   </td></tr>
                 )}
               </tbody>
@@ -189,7 +189,7 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
       {left && (
         <>
           <h4 className="cu-section">
-            What the rules would not place — {left.showing.toLocaleString()} of{" "}
+            What the rules would not place: {left.showing.toLocaleString()} of{" "}
             {left.total.toLocaleString()}
           </h4>
           <p className="muted small">

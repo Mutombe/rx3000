@@ -193,7 +193,7 @@ export default function WaybillDetail() {
               <span>
                 <b>This delivery did not arrive.</b>{" "}
                 {w.failure_reason || "No reason was recorded."} The medicine is
-                still the pharmacy's — it has not been handed to anybody, so it
+                still the pharmacy's. It has not been handed to anybody, so it
                 is either back on the shelf or still in the vehicle.
               </span>
             </div>

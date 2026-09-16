@@ -212,7 +212,7 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
                   <Warning size={16} weight="fill" />
                   <span>
                     {result.refuse} row{result.refuse === 1 ? "" : "s"} will not
-                    load. Loading the rest is fine — the file can be corrected
+                    load. Loading the rest is fine. The file can be corrected
                     and uploaded again, and anything already loaded is left
                     alone the second time.
                   </span>

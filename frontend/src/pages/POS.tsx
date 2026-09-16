@@ -419,7 +419,7 @@ export default function POS() {
       });
       const held = await queue.pendingCount();
       toast.ok(
-        `Sale held on this till (${row.ref.slice(0, 12)}…). ${held} waiting to be `
+        `Sale held on this till (${row.ref.slice(0, 12)}…): ${held} waiting to be `
         + "sent when the line is back. Give the customer their change and goods.",
       );
       setCart([]); setPatient(null); setTendered(""); setRedeem("0");
@@ -676,7 +676,7 @@ export default function POS() {
           // belongs to, which is the whole of cash-up.
           tenders: choice.tenders,
         }, token),
-        `${sale.sale_number} — ${money(choice.amount)} of ${money(patientOwes(sale))}`,
+        `${sale.sale_number}. ${money(choice.amount)} of ${money(patientOwes(sale))}`,
       );
       if (res === CANCELLED) return;
       const owed = Math.round((patientOwes(sale) - choice.amount) * 100) / 100;
@@ -890,14 +890,14 @@ export default function POS() {
                         the levy, in whatever the customer is paying with. */}
                     {/* One step, not a form. Each opens already set to that
                         method with the amount filled in, so the common case is
-                        still one press — the question is only asked where the
+                        still one press. The question is only asked where the
                         answer cannot be guessed: which currency, which wallet,
                         which bank. Settling outright recorded one word, and a
                         drawer counted at five o'clock cannot be matched to a
                         day of sales that each said "cash". */}
                     {/* A sale a driver is out with is not settled here. The
                         driver collects at the door and hands it in, and that
-                        hand-in is what settles it — a cashier taking it as
+                        hand-in is what settles it. A cashier taking it as
                         well collects the same money twice. */}
                     {outWith[String(s.id)] ? (
                       <span className="badge warn" title={
@@ -1070,7 +1070,7 @@ export default function POS() {
                              ? { ...c, quantity: Math.max(1, Number(e.target.value)) } : c))} />
                   </span>
                   {/* The price, edited where it is shown, exactly like the
-                      quantity beside it — and it costs a code, because a price
+                      quantity beside it. And it costs a code, because a price
                       changed at a counter with nobody named against it is how a
                       drawer goes short. */}
                   <span className={`num till-price${tillPricing === l.product.id ? " is-busy" : ""}`
@@ -1184,7 +1184,7 @@ export default function POS() {
                 {/* The same rows as the part-payment modal and the dispensary.
                     This panel asked for a method, a currency and an amount and
                     nothing else, so a split sale recorded "mobile money 20.00"
-                    with no wallet on it — unreconcilable at cash-up, and the
+                    with no wallet on it. Unreconcilable at cash-up, and the
                     exact fault that was fixed everywhere except here. */}
                 <Tenders
                   lines={tenderLines}
@@ -1352,7 +1352,7 @@ export default function POS() {
           money had been taken. A receipt belongs to the sale, not to the
           screen the sale happened to be settled from. */}
         {/* Not on the till itself. There the receipt prints by itself and the
-            tray says what was taken, so this card only repeated it — and being
+            tray says what was taken, so this card only repeated it. And being
             an ordinary block it pushed the key strip off the bottom of the
             screen, which is how F12 disappeared after every sale. It stays for
             a sale settled from Awaiting payment, where it is the only thing

@@ -200,7 +200,7 @@ export function renderDocument(head: Letterhead, o: DocOptions): string {
     : "";
 
   return `<!doctype html><html><head><meta charset="utf-8">
-<title>${esc(o.kind)}${o.to?.[0] ? ` — ${esc(o.to[0])}` : ""}</title>
+<title>${esc(o.kind)}${o.to?.[0] ? `: ${esc(o.to[0])}` : ""}</title>
 <style>${CSS}</style></head><body><div class="doc">
   <div class="hd">
     ${headBlock(head)}

@@ -134,7 +134,7 @@ export default function PaymentInstruments() {
               onChange={(e) => setForm((f) => ({ ...f, currencies: e.target.value }))}
               placeholder="USD,ZWG" />
             <span className="hint">
-              Only what it can actually take — offering ZiG on a USD-only wallet
+              Only what it can actually take. Offering ZiG on a USD-only wallet
               produces a payment the customer cannot make.
             </span>
           </div>
@@ -207,7 +207,7 @@ export default function PaymentInstruments() {
       </div>
 
       <p className="muted small">
-        Retiring one keeps it on every payment already taken on it — the code is
+        Retiring one keeps it on every payment already taken on it. The code is
         what says what those payments came in on.
       </p>
     </div>

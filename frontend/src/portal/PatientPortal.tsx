@@ -203,7 +203,7 @@ export default function PatientPortal() {
       </header>
 
       {/* Allergies first and unmissable. It is the one thing on this page that
-          could matter to somebody else reading it over their shoulder — a
+          could matter to somebody else reading it over their shoulder. A
           relative collecting on their behalf, a nurse, a paramedic. */}
       {record.allergies && (
         <div className="pp-alert pp-alert-bad">
@@ -219,7 +219,7 @@ export default function PatientPortal() {
               ? `Your ${overdue[0].product} was due ${Math.abs(overdue[0].days)} days ago`
               : `${overdue.length} of your repeats are overdue`}
           </b>
-          <span>Come in when you can — we will have it ready.</span>
+          <span>Come in when you can. We will have it ready.</span>
         </div>
       )}
 
@@ -380,7 +380,7 @@ export default function PatientPortal() {
 
       <footer className="pp-foot">
         Your record, as your pharmacy holds it. Ring them if anything here looks
-        wrong — it is quicker than it looks.
+        wrong. It is quicker than it looks.
       </footer>
     </div>
   );

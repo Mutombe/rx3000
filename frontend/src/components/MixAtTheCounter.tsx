@@ -134,7 +134,7 @@ export default function MixAtTheCounter(
         <h2 id="mix-title">Mix at the counter</h2>
         <p className="muted">
           Made up now, from stock. It takes a batch number and an expiry of its own, and
-          the schedule of its strongest ingredient — so it is dispensed, labelled and
+          the schedule of its strongest ingredient. So it is dispensed, labelled and
           recalled like anything else on the shelf.
         </p>
 

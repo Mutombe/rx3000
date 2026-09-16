@@ -102,7 +102,7 @@ export default function SettleSale({
         {incomplete && (
           <div className="alert warn">
             {incomplete.method === "mobile_money"
-              ? "Say which wallet it came from — a drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
+              ? "Say which wallet it came from. A drawer that says only “mobile money” cannot be matched to EcoCash, Omari or InnBucks at cash-up."
               : incomplete.method === "card"
                 ? "Say which card or bank. The settlement arrives from one of them, on their own timetable."
                 : `There is no exchange rate on file for ${incomplete.currency_code}, so this cannot be converted.`}

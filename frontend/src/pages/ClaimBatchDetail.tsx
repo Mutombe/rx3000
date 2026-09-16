@@ -75,7 +75,7 @@ export default function ClaimBatchDetail() {
 
   const b = d?.batch;
   const period = b?.period_from
-    ? `${fmtDate(b.period_from)}${b.period_to ? ` – ${fmtDate(b.period_to)}` : ""}`
+    ? `${fmtDate(b.period_from)}${b.period_to ? `. ${fmtDate(b.period_to)}` : ""}`
     : "";
 
   const toast = useToast();
@@ -185,7 +185,7 @@ export default function ClaimBatchDetail() {
                 ? "none can be found attached to it"
                 : `only ${d.found} can be found attached to it`}.</b>{" "}
               The totals above come from the batch's own record, so they describe
-              claims that are not listed below. Something detached them — a
+              claims that are not listed below. Something detached them. A
               reversal, or a migration from another system. The figures the
               scheme was sent are still the batch's, but nothing here can show
               you what they were made of.
@@ -195,7 +195,7 @@ export default function ClaimBatchDetail() {
           {d.rejected > 0 && (
             <div className="alert error">
               {d.rejected} claim{d.rejected === 1 ? " was" : "s were"} refused
-              outright. A refusal is not a shortfall — the money will not arrive
+              outright. A refusal is not a shortfall. The money will not arrive
               later, and the amount falls to the patient or to the pharmacy.
             </div>
           )}

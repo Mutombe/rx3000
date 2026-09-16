@@ -127,7 +127,7 @@ export default function ComplianceDocument() {
       title: `Take ${doc.name} off the register?`,
       body: "It stays on file as proof of the period it covered. A certificate "
           + "that was held is evidence the branch held it, and removing the row "
-          + "does not un-hold it — it removes the ability to prove it.",
+          + "does not un-hold it. It removes the ability to prove it.",
       confirmLabel: "Take it off",
       destructive: true,
     });
@@ -297,11 +297,11 @@ export default function ComplianceDocument() {
             </Panel>
           </div>
 
-          {/* The chain. This is what makes the page worth opening — the
+          {/* The chain. This is what makes the page worth opening. The
               register can say what is current, and only this can say what was
               current in March. */}
           <Panel title="What this replaced" count={doc.replaced.length}
-                 empty="Nothing — this is the first of its kind on file for this branch.">
+                 empty="Nothing. This is the first of its kind on file for this branch.">
             <table className="dt">
               <thead>
                 <tr>

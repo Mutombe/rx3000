@@ -99,7 +99,7 @@ export function ColumnChart({ columns, format, height = 230, markerLabel }: {
             A stacked segment three pixels tall is not a hit target, and the
             reader is pointing at the month rather than at one band of it. The
             readout names every series in that column, which is what makes two
-            months comparable — the native <title> that used to be on each rect
+            months comparable. The native <title> that used to be on each rect
             gave one number, after a one-second delay, in the system font, at the
             pointer. That is the absence of a chart readout, not one. */}
         {columns.map((c, i) => (
@@ -174,7 +174,7 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
             </div>
             <div className="funnel-side">
               <b>{s.conversion}%</b>
-              {/* a stage can exceed the one before it — opportunities may be raised
+              {/* a stage can exceed the one before it. Opportunities may be raised
                   directly rather than via a converted lead, so don't call that "no drop-off" */}
               {prev && (
                 <span className="muted">

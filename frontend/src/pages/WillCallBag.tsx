@@ -149,7 +149,7 @@ export default function WillCallBag() {
             <>
               {/* What to do about it, in the band's own words. */}
               <div className={`alert ${TONE[bag.band] || ""}`}>
-                <b>{bag.band}</b> — {bag.action}
+                <b>{bag.band}</b>: {bag.action}
               </div>
 
               {owed > 0.005 && (
@@ -213,7 +213,7 @@ export default function WillCallBag() {
                 <p className="muted">
                   {bag.needs_id
                     ? "A Schedule 5 or 6 item cannot go to whoever turns up. Record who took it and the identity document you saw."
-                    : "Often it is not the patient — a relative, a driver, a neighbour going that way. Recording who took it is the answer to “who had it” later."}
+                    : "Often it is not the patient. A relative, a driver, a neighbour going that way. Recording who took it is the answer to “who had it” later."}
                 </p>
                 <label className="field">
                   Who is taking it?

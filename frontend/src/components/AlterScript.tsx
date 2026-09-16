@@ -114,7 +114,7 @@ export default function AlterScript({ onClose, onAltered }: {
         <p className="muted">
           Corrects a captured script without voiding it, so it keeps its Rx
           number and its place in the register. Anything already dispensed
-          cannot be changed — that line records something that physically
+          cannot be changed. That line records something that physically
           happened.
         </p>
 

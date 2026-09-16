@@ -416,7 +416,7 @@ def place_hold(rx_id: int, reason_code: str = Body(...), note: str = Body(defaul
     if rx.status == "draft":
         raise HTTPException(status_code=400, detail=(
             f"{rx.draft_ref or 'This script'} is still being captured. Save it for later "
-            "instead — a hold is for a script that could otherwise be dispensed."))
+            "instead. A hold is for a script that could otherwise be dispensed."))
     try:
         hold = holds.place(db, prescription=rx, reason_code=reason_code, note=note, user=user)
     except holds.HoldError as exc:
@@ -479,7 +479,7 @@ def dispense(
     if held:
         summary = holds.summarise(db, held)
         raise HTTPException(status_code=409, detail=(
-            f"{rx.rx_number or 'This script'} is on hold — {summary['reason'].lower()}"
+            f"{rx.rx_number or 'This script'} is on hold. {summary['reason'].lower()}"
             + (f", placed by {summary['placed_by']}" if summary["placed_by"] else "")
             + ". A pharmacist or a manager clears the hold before it can be dispensed."))
 
@@ -608,7 +608,7 @@ def dispense(
     counselled_notes = (body.counselling_notes or "").strip()
     if counselling.required(db, controlled=policy.route == "controlled") and not counselled_points:
         raise HTTPException(status_code=400, detail=(
-            "Record the counselling given before dispensing — tick the points the "
+            "Record the counselling given before dispensing. Tick the points the "
             "patient was told. This pharmacy requires it"
             + (" for controlled medicines." if counselling.rule(db) == "controlled" else ".")))
 
@@ -638,7 +638,7 @@ def dispense(
         unscanned = [i.product.name for i in items if i.id not in scanned]
         if unscanned:
             raise HTTPException(status_code=400, detail=(
-                "Scan each pack against the script before dispensing — not yet scanned: "
+                "Scan each pack against the script before dispensing. Not yet scanned: "
                 + ", ".join(unscanned) + "."))
 
     # Paid by medical aid, chosen at Finish: checked before anything is built, so

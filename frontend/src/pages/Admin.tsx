@@ -167,7 +167,7 @@ export default function Admin() {
     try {
       const r = await api.post<{ rx_number: string; message: string }>(
         `/api/portal-admin/submitted/${id}/accept`);
-      toast.ok(`${r.rx_number}: ${r.message}`);
+      toast.ok(`${r.rx_number}. ${r.message}`);
       // Drop it from the queue immediately; the server has already moved it on.
       setSubmitted((all) => all.filter((s) => s.id !== id));
     } catch (e: any) {
@@ -390,7 +390,7 @@ export default function Admin() {
     setBusy(true);
     try {
       const b = await api.post<Backup>("/api/admin/backup");
-      toast.ok(`Backup created: ${b.filename}`);
+      toast.ok(`Backup created. ${b.filename}`);
       loadBackups();
     } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
   }
@@ -620,7 +620,7 @@ export default function Admin() {
                     ? `${fromHistory.priced} item(s) priced.`
                     : `${fromHistory.would_price} item(s) would be priced.`}
                   {fromHistory.oldest_days > 365
-                    && " Some last sold more than a year ago — worth a look before they go out at that price."}
+                    && " Some last sold more than a year ago. Worth a look before they go out at that price."}
                 </p>
                 {fromHistory.lines.length > 0 && (
                   <table className="dt">
@@ -919,7 +919,7 @@ export default function Admin() {
                 <label>What the dispenser should know</label>
                 <input value={notice.body} maxLength={400}
                        onChange={(e) => setNotice((n) => ({ ...n, body: e.target.value }))}
-                       placeholder="Not to be supplied codeine — agreed with Dr Moyo, 14 Aug" />
+                       placeholder="Not to be supplied codeine. Agreed with Dr Moyo, 14 Aug" />
                 <span className="hint">
                   Written for whoever is standing at the counter at nine on a
                   Saturday, who has not read anything else about this.
@@ -1111,7 +1111,7 @@ export default function Admin() {
             return (
               <p className={`st-note ${good ? "is-ok" : "is-bad"}`}>
                 {good
-                  ? `Last backup proven restorable: ${fmtDateTime(good.created_at)}.`
+                  ? `Last backup proven restorable. ${fmtDateTime(good.created_at)}.`
                   : "No backup here has been proven restorable. Take one now and check the result."}
                 {failing > 0 && ` ${failing} of ${backups.length} could not be verified.`}
               </p>

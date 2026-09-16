@@ -138,7 +138,7 @@ export default function DriverDetail() {
       </header>
 
       {/* Anything that should stop a round leaving, said before the numbers.
-          Both of these are refused at dispatch as well — a warning nothing
+          Both of these are refused at dispatch as well. A warning nothing
           enforces is a warning people learn to scroll past. */}
       {driver.licence_expired && (
         <p className="alert bad">
@@ -352,7 +352,7 @@ export default function DriverDetail() {
             </label>
             <p className="muted small">
               Count it rather than accepting the figure. If the two differ, the
-              difference is recorded — that is the only fact a hand-over
+              difference is recorded. That is the only fact a hand-over
               produces that is worth keeping.
             </p>
             <div className="modal-actions">

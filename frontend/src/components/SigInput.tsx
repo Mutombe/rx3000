@@ -485,7 +485,7 @@ export default function SigInput({
         )}
       </div>
 
-      {/* "Possible Descriptions (Press <Enter> to Select)" — the dialog a
+      {/* "Possible Descriptions (Press <Enter> to Select)". The dialog a
           dispenser coming off Proppharm has typed into for years, in the place
           they expect it: under the field, on the first keystroke.
 
@@ -599,7 +599,7 @@ export default function SigInput({
           {hits === 0 ? (
             <p className="sig-none">
               Nothing matches &ldquo;{filter.trim()}&rdquo;. Type it in plain
-              words instead — anything the book does not know prints exactly as
+              words instead. Anything the book does not know prints exactly as
               written.
             </p>
           ) : shown.map(([category, list]) => (

@@ -185,7 +185,7 @@ export default function NewJournal({ accounts, onClose, onPosted }: {
             ? <>Balanced. {money(debits)} each side.</>
             : debits < 0.005 && credits < 0.005
               ? <>Enter the two sides. It balances or it does not post.</>
-              : <>Out by <b>{money(Math.abs(out))}</b> — {out > 0
+              : <>Out by <b>{money(Math.abs(out))}</b>: {out > 0
                   ? "the credits are short" : "the debits are short"}.</>}
         </div>
 

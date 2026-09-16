@@ -294,7 +294,7 @@ export default function PatientDetail() {
             <p className="muted">
               Both of these are read by the system, not only by people. An
               allergy here stops a dispensing of anything that matches it, and a
-              chronic condition moves this patient's repeats up the queue — so
+              chronic condition moves this patient's repeats up the queue. So
               they are picked from a list rather than typed, and a spelling
               cannot quietly switch the check off.
             </p>
@@ -372,7 +372,7 @@ export default function PatientDetail() {
                 {/* What each line is worth per collection, and what the rest
                     of the script is worth behind it. A patient record that
                     lists four repeats and no money cannot answer the one
-                    question a shop asks about a patient — what they are worth
+                    question a shop asks about a patient. What they are worth
                     if they keep coming back, and what walks out with them if
                     they do not. */}
                 <thead><tr><th>Medication</th><th>Dosage</th><th className="num">Qty</th><th>Repeats</th><th className="num">Worth</th><th>Next repeat</th><th>Auto-refill</th></tr></thead>
@@ -525,7 +525,7 @@ export default function PatientDetail() {
                 <input
                   value={logForm.subject}
                   onChange={(e) => setLogForm({ ...logForm, subject: e.target.value })}
-                  placeholder="e.g. Rang about the metformin repeat — no answer"
+                  placeholder="e.g. Rang about the metformin repeat. No answer"
                 />
               </div>
               <div className="field">
@@ -558,7 +558,7 @@ export default function PatientDetail() {
             {log.length === 0 && (
               <div className="empty">
                 Nobody has recorded a conversation with this patient. Calls about
-                a late repeat, a counselling point, a complaint — none of it is
+                a late repeat, a counselling point, a complaint. None of it is
                 anywhere until somebody writes it down.
               </div>
             )}

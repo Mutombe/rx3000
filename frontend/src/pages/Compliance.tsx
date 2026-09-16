@@ -182,7 +182,7 @@ export default function Compliance() {
       title: `Take ${doc.name} off the register?`,
       body: "It stays on file as proof of the period it covered. A certificate "
           + "that was held is evidence the branch held it, and removing the row "
-          + "does not un-hold it — it removes the ability to prove it.",
+          + "does not un-hold it. It removes the ability to prove it.",
       confirmLabel: "Take it off",
       destructive: true,
     });
@@ -219,7 +219,7 @@ export default function Compliance() {
             {overview.cannot_trade.length > 0 && (
               <div className="alert error">
                 <Warning size={16} weight="fill" />{" "}
-                <b>{overview.cannot_trade.join(", ")}</b> — a licence the shop
+                <b>{overview.cannot_trade.join(", ")}</b>. A licence the shop
                 cannot trade without has expired. This is today's job, not this
                 month's.
               </div>
@@ -562,7 +562,7 @@ function RecordDocument({ branchId, kinds, starting, onClose, onSubmit }: {
               if (k && !issuer) setIssuer(k.issuer);
             }} options={kinds.map((k) => ({
               value: k.kind,
-              label: k.critical ? `${k.name} — the shop closes without it` : k.name,
+              label: k.critical ? `${k.name}. The shop closes without it` : k.name,
             }))} />
           </div>
           <div className="field span-6">

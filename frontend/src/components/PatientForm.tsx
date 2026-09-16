@@ -201,7 +201,7 @@ export default function PatientForm({
             onSubmit={save}>
         <h2>{title ?? (editing ? "Edit patient" : "New patient")}</h2>
 
-        {/* Who may already be this person — at the top, where the eye already
+        {/* Who may already be this person. At the top, where the eye already
             is. It sat above the buttons at first, which on this form is below
             the caregiver section: the panel was on the page and out of sight,
             and all a dispenser saw was the button changing to "They're a
@@ -337,7 +337,7 @@ export default function PatientForm({
             // a stated choice, not the same button pressed a second time.
             <BusyButton type="button" className="btn primary" disabled={!ready}
                         busyLabel="Adding…" onClick={registerAnyway}>
-              They're a different person — add them
+              They're a different person. Add them
             </BusyButton>
           ) : (
             <BusyButton type="submit" className="btn primary" disabled={!ready}

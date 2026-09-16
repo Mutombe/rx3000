@@ -125,7 +125,7 @@ def set_scheme_code(medical_aid_id: int, product_id: int,
     if typed and not typed.isdigit():
         raise HTTPException(
             status_code=400,
-            detail=f"A NAPPI code is digits only. '{typed}' is not one — check "
+            detail=f"A NAPPI code is digits only. '{typed}' is not one. Check "
                    "you have not read across from the stock code column.")
     scheme_codes_svc.remember(db, medical_aid_id=aid.id, product_id=product.id,
                               code=typed, user=user,

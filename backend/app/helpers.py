@@ -332,7 +332,7 @@ def consume_stock_fefo(
         if parts:
             raise HTTPException(
                 status_code=400,
-                detail=(f"{product.name}: only {available} in-date unit(s) at this branch — "
+                detail=(f"{product.name}: only {available} in-date unit(s) at this branch. "
                         + " and ".join(parts) + "." + action + hint),
             )
         raise HTTPException(

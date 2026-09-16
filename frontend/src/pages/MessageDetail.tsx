@@ -62,7 +62,7 @@ export default function MessageDetail() {
       {d && (
         <>
           {d.status === "failed" && d.detail && (
-            <div className="alert error"><b>Not delivered</b> — {d.detail}</div>
+            <div className="alert error"><b>Not delivered</b>: {d.detail}</div>
           )}
 
           <Panel title="What was sent"

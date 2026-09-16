@@ -90,7 +90,7 @@ export default function DriverForm(
       <div className="modal wide" onClick={(e) => e.stopPropagation()}>
         <h2>{driver ? `Edit ${driver.full_name}` : "New driver"}</h2>
         <p className="muted">
-          A driver does not need a login. Most do not have one — the runner on
+          A driver does not need a login. Most do not have one. The runner on
           the motorbike never touches the dispensing system.
         </p>
 

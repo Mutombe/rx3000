@@ -119,7 +119,7 @@ def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> No
             if not sale.patient_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="A balance has to be owed by somebody — link the "
+                    detail="A balance has to be owed by somebody. Link the "
                            "patient before taking a part payment.")
             sale.status = "part_paid"
             return
@@ -261,7 +261,7 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
             if not sale.patient_id:
                 raise HTTPException(
                     status_code=400,
-                    detail="A balance has to be owed by somebody — link the "
+                    detail="A balance has to be owed by somebody. Link the "
                            "patient before taking a part payment.")
             # Recorded as a tender, not merely stamped on the sale.
             #
@@ -654,7 +654,7 @@ def return_lines(sale_id: int,
     if sale.status in ("void", "credited"):
         raise HTTPException(
             status_code=400,
-            detail=f"This sale is already {sale.status} — there is nothing "
+            detail=f"This sale is already {sale.status}. There is nothing "
                    f"left on it to return.")
     if sale.status == "pending":
         raise HTTPException(
@@ -671,7 +671,7 @@ def return_lines(sale_id: int,
             status_code=400,
             detail="Every line is coming back, which is a reversal of the "
                    "whole sale. Void it, or issue a credit note if the receipt "
-                   "has been filed with ZIMRA — either keeps the claim and the "
+                   "has been filed with ZIMRA. Either keeps the claim and the "
                    "loyalty points right, which a line-by-line return does not.")
     try:
         result = returns.apply(db, sale, lines, user_id=user.id,

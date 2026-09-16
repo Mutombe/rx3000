@@ -420,7 +420,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         />
         <div className="brand">
           {/* The logo as drawn, with its own wordmark and tagline. The mark
-              alone takes over when the rail is too narrow for words — both are
+              alone takes over when the rail is too narrow for words. Both are
               here and the sheet decides, because the rail's width is a CSS
               state and not something this component knows. */}
           <span className="brand-lockup" role="img"
@@ -458,7 +458,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                   // number belonged to an icon without saying which number.
                   title={
                     collapsed
-                      ? counts[l.to] ? `${l.label}: ${counts[l.to].toLocaleString()} need attention` : l.label
+                      ? counts[l.to] ? `${l.label}. ${counts[l.to].toLocaleString()} need attention` : l.label
                       : counts[l.to] ? `${counts[l.to].toLocaleString()} need attention` : undefined
                   }
                   onClick={() => {
@@ -495,7 +495,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="content">
-        {/* Who is signed in belongs where people look for it — the top right —
+        {/* Who is signed in belongs where people look for it. The top right —
             rather than at the foot of a rail that collapses to icons. It also
             takes sign-out out of the navigation, where it sat one careless click
             below the last menu item. */}
@@ -521,19 +521,19 @@ export default function Layout({ children }: { children: ReactNode }) {
             {collapsed ? <List size={20} weight="bold" /> : <X size={20} weight="bold" />}
           </button>
           {/* Beside the profile, not inside it. Appearance is changed far more
-              often than a profile is opened — a till by a window is squinted at
+              often than a profile is opened. A till by a window is squinted at
               twice a day, and burying it under a caret makes people live with
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
           {/* A new version of the till application, when there is one.
               Left of the branch chip, so the two facts about this session —
-              what is available and where you are — sit together, and both are
+              what is available and where you are. Sit together, and both are
               read between customers rather than during one. Renders nothing at
               all in a browser tab, which updates by loading the page. */}
           <UpdateChip />
           {/* Which shop you are standing in.
-              Every figure below it — the stock on hand, the takings, the
-              cash-up — is that branch's and not the group's, and there was
+              Every figure below it. The stock on hand, the takings, the
+              cash-up. Is that branch's and not the group's, and there was
               nothing on the screen saying so. In a group, the same screen
               showing a different number on a different day is how somebody
               orders against Borrowdale's shelf while standing in Avondale.

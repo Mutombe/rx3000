@@ -220,7 +220,7 @@ export default function DispensaryWorklist({
             key={key}
             className={panel === key ? "on" : ""}
             onClick={() => setPanel(key)}
-            title={`${label} — ${n}`}
+            title={`${label}: ${n}`}
           >
             <span>{label}</span>
             <span className="wl-tab-n">{n}</span>
@@ -292,7 +292,7 @@ export default function DispensaryWorklist({
               <span className="wl-row-foot">
                 {/* First, so a held patient is not called to the counter. */}
                 {row.hold && (
-                  <span className="wl-tag wl-tag-held" title={`On hold — ${row.hold.reason}`}>
+                  <span className="wl-tag wl-tag-held" title={`On hold: ${row.hold.reason}`}>
                     on hold
                   </span>
                 )}

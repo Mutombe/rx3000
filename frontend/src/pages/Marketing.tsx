@@ -225,7 +225,7 @@ export default function Marketing() {
           <div className="empty">
             <b>No campaigns yet</b>
             <p>
-              A campaign goes to a segment — a group of patients the pharmacy
+              A campaign goes to a segment. A group of patients the pharmacy
               has a reason to write to. Build the segment first.
             </p>
           </div>

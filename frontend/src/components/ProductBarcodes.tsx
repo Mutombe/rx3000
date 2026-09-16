@@ -53,7 +53,7 @@ export default function ProductBarcodes({ productId }: { productId: number }) {
         <h3><Barcode size={16} /> Codes that find this</h3>
         <span className="muted small">
           {list.items.length === 0
-            ? "None yet — the till learns them as they are scanned"
+            ? "None yet. The till learns them as they are scanned"
             : `${list.items.length} scanned or entered`}
         </span>
       </div>

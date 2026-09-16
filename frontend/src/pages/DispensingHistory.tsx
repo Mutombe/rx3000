@@ -152,7 +152,7 @@ export default function DispensingHistory() {
             <b>Nothing matches that.</b>
             <p>
               Try a wider period, or clear the filters. A script captured but
-              not yet dispensed is on the worklist rather than here — this is
+              not yet dispensed is on the worklist rather than here. This is
               what has actually left the shelf.
             </p>
           </div>

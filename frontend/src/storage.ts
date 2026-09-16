@@ -38,5 +38,5 @@ export function writeStored(name: string, value: string | null) {
     } else {
       localStorage.setItem(NEW + name, value);
     }
-  } catch { /* private mode — the preference just does not persist */ }
+  } catch { /* private mode. The preference just does not persist */ }
 }

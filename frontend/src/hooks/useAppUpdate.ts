@@ -78,7 +78,7 @@ export type CheckResult =
   | "never"        // has not run yet
   | "current"      // ran, nothing newer
   | "offered"      // ran, there is something newer
-  | "failed";      // could not run — see `error`
+  | "failed";      // could not run. See `error`
 
 export function inDesktopApp(): boolean {
   return typeof globalThis !== "undefined"

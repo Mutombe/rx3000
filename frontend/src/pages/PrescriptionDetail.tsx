@@ -167,7 +167,7 @@ export default function PrescriptionDetail() {
         // figure competing with four that change a decision.
         ...(trail && trail.alterations.length ? [{
           label: "Altered", value: trail.alterations.length,
-          tone: "warn", hint: "corrected since capture — see below",
+          tone: "warn", hint: "corrected since capture. See below",
         }] : []),
       ] : undefined}
     >

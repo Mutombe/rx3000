@@ -82,7 +82,7 @@ export default function Recall() {
       .filter((r) => r.phone)
       .map((r) => `${r.patient}\t${r.phone}\t${r.quantity}\t${r.sale_number}`);
     navigator.clipboard?.writeText(
-      `Recall ${trace.batch.batch_number} — ${trace.batch.product}\n` + lines.join("\n"));
+      `Recall ${trace.batch.batch_number}: ${trace.batch.product}\n` + lines.join("\n"));
     toast.ok(`${lines.length} number(s) copied.`);
   }
 

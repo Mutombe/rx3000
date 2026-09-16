@@ -190,7 +190,7 @@ export default function Authorisations() {
         // of it, so the record is on screen while they read the decision.
         toast.ok(made.effective_status === "approved"
           ? `${made.reference} approved${made.authorisation_number ? `, number ${made.authorisation_number}` : ""}.`
-          : `${made.reference}: ${made.effective_status}. ${made.decision_reason}`);
+          : `${made.reference}. ${made.effective_status}. ${made.decision_reason}`);
         setPolicy(""); setMotivation(""); setIcd10("");
         setPatient(null); setProduct(null); setPatientQ(""); setProductQ("");
       } else {
@@ -209,7 +209,7 @@ export default function Authorisations() {
       const res = await api.get<Check>(`/api/authorisations/${a.id}/check`);
       setChecked((c) => ({ ...c, [a.id]: res }));
       if (!res.usable) {
-        toast.error(`Not usable: ${res.reasons.join(" ")}`);
+        toast.error(`Not usable. ${res.reasons.join(" ")}`);
       } else {
         toast.ok(`Usable, ${res.quantity_remaining} left`
           + (res.valid_to ? `, until ${fmtDate(res.valid_to)}.` : "."));
@@ -257,7 +257,7 @@ export default function Authorisations() {
           This puts {use.quantity} unit{use.quantity === 1 ? "" : "s"}
           {use.amount > 0 ? <> and {money(use.amount)}</> : null} back on the
           authorisation, for a sale that was reversed. Do it when the medicine
-          came back — not to correct a mistyped quantity, which is a fresh draw
+          came back. Not to correct a mistyped quantity, which is a fresh draw
           of the difference.
         </>
       ),
@@ -365,7 +365,7 @@ export default function Authorisations() {
                       <td>
                         <span className={`badge ${badge(state)}`}>{state}</span>
                         {/* The reason a funder gave for refusing is the whole
-                            value of a refusal — it says what to fix and resubmit.   */}
+                            value of a refusal. It says what to fix and resubmit.   */}
                         {!live && a.decision_reason && (
                           <div className="muted small clip-2" title={a.decision_reason}>
                             {a.decision_reason}
@@ -570,7 +570,7 @@ export default function Authorisations() {
                 <label>Diagnosis (ICD-10)</label>
                 {/* Searched, not remembered. "e.g. E11.9" asked somebody to
                     recall a code, and the ones people recall are the three they
-                    always use — whether or not those fit this patient. There is
+                    always use. Whether or not those fit this patient. There is
                     no "add new" here on purpose: a pharmacy may decide what it
                     calls an allergy, it may not invent a diagnosis code, and an
                     invented one fails weeks later as a rejected claim. */}

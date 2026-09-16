@@ -165,7 +165,7 @@ export default function RepeatDetail() {
               Dispense {money(r.value_per_fill)}
             </BusyButton>
           )}
-          {/* Not every repeat goes out as written — a fortnight instead of a
+          {/* Not every repeat goes out as written. A fortnight instead of a
               month, something added, a dose the prescriber has changed. The
               one-press supply cannot express any of that, so this opens the
               dispensary with the script already loaded rather than making
@@ -250,7 +250,7 @@ export default function RepeatDetail() {
             <div className="alert warn">
               <Warning size={16} weight="fill" />{" "}
               {r.on_hand} in unexpired stock against {r.quantity} needed. This
-              cannot be filled today — order it before the patient arrives
+              cannot be filled today. Order it before the patient arrives
               rather than after.
             </div>
           )}
@@ -335,7 +335,7 @@ export default function RepeatDetail() {
                       that invents a judgement from a single data point teaches
                       people to distrust the judgements that are real. */}
                   Filled {r.used === 1 ? "once" : `${r.used} times`}, which is
-                  not enough to see a pattern — a gap needs two fills to
+                  not enough to see a pattern. A gap needs two fills to
                   measure.
                 </p>
               ) : (
@@ -344,7 +344,7 @@ export default function RepeatDetail() {
                     <>
                       <CheckCircle size={14} weight="fill" /> Collecting every{" "}
                       {r.average_gap_days} days against a {r.interval_days}-day
-                      supply. Roughly on time — nothing to chase.
+                      supply. Roughly on time. Nothing to chase.
                     </>
                   ) : (
                     <>

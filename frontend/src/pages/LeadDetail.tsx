@@ -146,7 +146,7 @@ export default function LeadDetail() {
         <>
           {d.status === "disqualified" && d.disqualified_reason && (
             <div className="alert warn">
-              <b>Disqualified</b> — {d.disqualified_reason}
+              <b>Disqualified</b>: {d.disqualified_reason}
             </div>
           )}
 

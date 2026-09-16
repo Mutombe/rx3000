@@ -152,7 +152,7 @@ export default function HeadOffice() {
   async function pin(b: BranchRow) {
     const answer = await ask({
       title: `Where is ${b.branch}?`,
-      body: "Latitude and longitude, comma separated — the pair you get from "
+      body: "Latitude and longitude, comma separated. The pair you get from "
           + "dropping a pin in any maps application. Harare's centre is about "
           + "-17.83, 31.05.",
       field: "Latitude, longitude",
@@ -293,7 +293,7 @@ export default function HeadOffice() {
         {estate && tab === "people" && <BranchPeople branches={estate.branches} />}
         {/* The floor, then the ceiling, in that reading order. What a role
             gets by default is the thing to settle first; what one named person
-            gets on top of it — with a limit, a set of hours, an end date — only
+            gets on top of it. With a limit, a set of hours, an end date. Only
             makes sense once you can see what they already had. */}
         {tab === "authority" && <RoleMatrix />}
         {tab === "authority" && <HqPermissions />}
@@ -352,7 +352,7 @@ function EstateMap({ branches }: { branches: BranchRow[] }) {
         .bindTooltip(
           `<b>${b.branch}</b><br>${b.taken.toLocaleString(undefined,
             { style: "currency", currency: "USD" })} · ${b.sales} sale(s)`
-          + (b.frozen ? `<br><b>frozen</b> — ${b.frozen_reason}` : ""),
+          + (b.frozen ? `<br><b>frozen</b>. ${b.frozen_reason}` : ""),
           { direction: "top" })
         .addTo(group);
     }
@@ -522,7 +522,7 @@ function WhoSignsIn({ pins, types }: {
             </div>
           )}
           <p className="hint">
-            A PIN is set by the person themselves, in their own profile — head
+            A PIN is set by the person themselves, in their own profile. Head
             office cannot set it for them, because a PIN somebody else chose is
             a PIN two people know, and the whole point is that it identifies
             one.

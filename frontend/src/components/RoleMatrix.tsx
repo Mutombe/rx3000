@@ -116,8 +116,8 @@ export default function RoleMatrix() {
       ) : undefined}
     >
       <p className="hint">
-        The default for everybody in a role. Individual arrangements — a limit,
-        a set of hours, an end date, or a refusal for one person — are set on
+        The default for everybody in a role. Individual arrangements. A limit,
+        a set of hours, an end date, or a refusal for one person. Are set on
         that person's record and still take precedence over this.
       </p>
       <div className="dt-scroll">
@@ -152,7 +152,7 @@ export default function RoleMatrix() {
                         type="button"
                         role="switch"
                         aria-checked={cell.allowed}
-                        aria-label={`${row.name}: ${role}`}
+                        aria-label={`${row.name}. ${role}`}
                         disabled={cell.fixed || saving === key}
                         onClick={() => toggle(row, role)}
                         className={"perm-cell"

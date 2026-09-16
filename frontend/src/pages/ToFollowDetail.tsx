@@ -113,7 +113,7 @@ export default function ToFollowDetail() {
           )}
           {owed.status === "cancelled" && (
             <div className="alert">
-              Cancelled{owed.cancelled_reason ? ` — ${owed.cancelled_reason}` : ""}.
+              Cancelled{owed.cancelled_reason ? `: ${owed.cancelled_reason}` : ""}.
               Nothing further is owed.
             </div>
           )}
@@ -154,7 +154,7 @@ export default function ToFollowDetail() {
             <Panel title="What happens next">
               {owed.status !== "outstanding" ? (
                 <div className="empty">
-                  <p>Nothing — this one is {owed.status}.</p>
+                  <p>Nothing. This one is {owed.status}.</p>
                 </div>
               ) : cancelling ? (
                 <>
@@ -184,7 +184,7 @@ export default function ToFollowDetail() {
                 <>
                   <p className="muted">
                     {owed.can_settle_now
-                      ? `There is enough on the shelf to finish this — ${owed.quantity_outstanding} to hand over.`
+                      ? `There is enough on the shelf to finish this: ${owed.quantity_outstanding} to hand over.`
                       : owed.can_settle_partially
                         ? `${owed.quantity_on_hand} came in, which is not all of it. Giving what arrived leaves ${owed.quantity_outstanding - owed.quantity_on_hand} still owed.`
                         : "Nothing on the shelf yet. This stays here until stock arrives."}
@@ -201,7 +201,7 @@ export default function ToFollowDetail() {
                   )}
                   <p style={{ marginTop: 12 }}>
                     <button className="btn ghost small" onClick={() => setCancelling(true)}>
-                      Cancel — not coming
+                      Cancel. Not coming
                     </button>
                   </p>
                 </>

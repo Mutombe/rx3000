@@ -107,7 +107,7 @@ export default function InvoiceDetail() {
       {d && (
         <>
           {d.status === "queried" && d.query_note && (
-            <div className="alert warn"><b>Queried</b> — {d.query_note}</div>
+            <div className="alert warn"><b>Queried</b>: {d.query_note}</div>
           )}
 
           {d.match && (

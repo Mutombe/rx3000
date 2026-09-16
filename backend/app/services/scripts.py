@@ -90,7 +90,28 @@ def search(db: Session, *, q: str = "", status: str = "", patient_id: int = 0,
                      Patient.id_number.ilike(like),
                      Doctor.name.ilike(like),
                  )))
-    if status:
+    if status in ("ONHOLD", "WAITING", "COLLECTED"):
+        # Filtered the way the list is read. `Prescription.status` answers
+        # whether the record is a draft, live or cancelled; these answer where
+        # the medicine is, which is the question somebody opens this screen with.
+        from ..models import PrescriptionHold
+
+        held = (db.query(PrescriptionHold.prescription_id)
+                .filter(PrescriptionHold.cleared_at.is_(None)))
+        uncollected = (db.query(PrescriptionItem.prescription_id)
+                       .join(Dispensing,
+                             Dispensing.prescription_item_id == PrescriptionItem.id)
+                       .filter(Dispensing.collected_at.is_(None)))
+        if status == "ONHOLD":
+            query = query.filter(Prescription.id.in_(held))
+        elif status == "WAITING":
+            query = query.filter(~Prescription.id.in_(held),
+                                 Prescription.id.in_(uncollected))
+        else:
+            query = query.filter(~Prescription.id.in_(held),
+                                 ~Prescription.id.in_(uncollected),
+                                 Prescription.status != "draft")
+    elif status:
         query = query.filter(Prescription.status == status)
     if patient_id:
         query = query.filter(Prescription.patient_id == patient_id)
@@ -127,6 +148,29 @@ def rows(db: Session, prescriptions: list[Prescription]) -> list[dict]:
         .filter(ScriptChange.prescription_id.in_(ids))
         .group_by(ScriptChange.prescription_id).all())
 
+    # Where each script has got to, in the counter's own words. Two queries for
+    # the page, not two a row.
+    #
+    # `Prescription.status` answers a different question — whether the record is
+    # a draft, live or cancelled — and a pharmacy does not think in those terms.
+    # It asks whether the medicine is still on the shelf behind the counter or
+    # has gone home with somebody, and whether anything is stopping it.
+    from ..models import PrescriptionHold
+
+    on_hold = {
+        row[0] for row in
+        db.query(PrescriptionHold.prescription_id)
+        .filter(PrescriptionHold.prescription_id.in_(ids),
+                PrescriptionHold.cleared_at.is_(None)).distinct().all()}
+
+    # A bag still on the will-call shelf: dispensed, and nobody has come for it.
+    waiting_bags = {
+        row[0] for row in
+        db.query(PrescriptionItem.prescription_id)
+        .join(Dispensing, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .filter(PrescriptionItem.prescription_id.in_(ids),
+                Dispensing.collected_at.is_(None)).distinct().all()}
+
     out = []
     for rx in prescriptions:
         patient = rx.patient
@@ -154,6 +198,15 @@ def rows(db: Session, prescriptions: list[Prescription]) -> list[dict]:
             # The reason this list exists in the form it does: a script that has
             # been corrected is the one somebody comes looking for.
             "alterations": altered.get(rx.id, 0),
+            # COLLECTED, WAITING or ONHOLD: the three things a counter needs to
+            # know about a script, in the order they override one another. A
+            # hold outranks everything, because it is the reason nothing else
+            # can happen.
+            "state": ("ONHOLD" if rx.id in on_hold
+                      else "WAITING" if (rx.id in waiting_bags
+                                         or dispensed.get(rx.id, 0) < len(items))
+                      else "COLLECTED" if dispensed.get(rx.id, 0)
+                      else "WAITING"),
         })
     return out
 

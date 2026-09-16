@@ -91,7 +91,7 @@ export function NoCodeMark({ known, scheme, onFix }: {
       tabIndex={-1}
       title={`${scheme} has no code for this medicine, so this line will be rejected.\n`
         + "Click to say what it is."}
-      aria-label={`No ${scheme} code — this line will be rejected. Fix it`}
+      aria-label={`No ${scheme} code. This line will be rejected. Fix it`}
       onClick={(e) => { e.stopPropagation(); onFix(); }}
     >
       <Warning size={13} weight="fill" />

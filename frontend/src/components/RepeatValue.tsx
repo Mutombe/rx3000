@@ -58,7 +58,7 @@ export default function RepeatValue({
       {position && <span className="rv-pos">{position}</span>}
       <span className="rv-now">{money(now)}</span>
       {/* The second figure is the one that answers "what did losing them
-          cost", so it is present but quieter — a queue is read for the first
+          cost", so it is present but quieter. A queue is read for the first
           number and audited on the second. */}
       {later > 0 && size !== "chip" && (
         <span className="rv-later">+{money(later)}</span>

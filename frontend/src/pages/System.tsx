@@ -102,7 +102,7 @@ export default function System() {
       {/* Whether this till can update itself.
 
           On this page rather than only in the top-bar chip, because the chip
-          only appears when there IS an update — so an updater that could never
+          only appears when there IS an update. So an updater that could never
           find one had nowhere at all to report that, and did not, for five
           releases. "Checked, nothing newer" and "cannot check" are different
           facts and this is where somebody comes to tell them apart. */}
@@ -120,7 +120,7 @@ export default function System() {
             </>
           ) : update.result === "offered" ? (
             <p className="alert ok">
-              Version {update.version} is ready to install — use the update
+              Version {update.version} is ready to install. Use the update
               button in the top bar.
             </p>
           ) : update.result === "current" ? (
@@ -289,8 +289,8 @@ export default function System() {
           {/* Which box this till is talking to.
               It used to be appended to the window title, where a pharmacy read
               our hosting provider across the top of their own software. The
-              question it answers is real — on a counter with four tills, one
-              pointed at the wrong server is a morning of confusion — so it is
+              question it answers is real. On a counter with four tills, one
+              pointed at the wrong server is a morning of confusion. So it is
               answered here, on the screen that exists to say what this machine
               is connected to and that a support call can direct somebody to.
 

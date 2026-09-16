@@ -111,7 +111,7 @@ export default function Deliveries() {
           {cod > 0 && (
             <p>
               They are to collect <b>{money(cod)}</b> between them. That stays
-              with the driver until the round is handed in — it is not counted
+              with the driver until the round is handed in. It is not counted
               against the counter's till.
             </p>
           )}
@@ -142,7 +142,7 @@ export default function Deliveries() {
     if (refused.length) {
       // Said in full rather than as a count. "3 failed" on a delivery round is
       // three parcels nobody can name.
-      toast.warn(`${sent} sent. ${refused.length} refused — ${refused[0]}`);
+      toast.warn(`${sent} sent. ${refused.length} refused. ${refused[0]}`);
     } else {
       toast.ok(`${sent} deliver${sent === 1 ? "y" : "ies"} out with `
                + `${driver?.full_name ?? "the driver"}.`);
@@ -253,8 +253,8 @@ export default function Deliveries() {
                              onChange={() => picked.toggle(w.id)} />
                   <td className="mono">
                     {/* The waybill, not the patient. The row already opens the
-                        patient; the chain of custody — dispatched when, signed
-                        by whom, why it failed — lives only on the waybill, and
+                        patient; the chain of custody. Dispatched when, signed
+                        by whom, why it failed. Lives only on the waybill, and
                         nothing linked to it. */}
                     <EntityLink kind="waybill" id={w.id}>{w.waybill_number}</EntityLink>
                     {/* The driver needs to know this before they leave, not on
@@ -381,7 +381,7 @@ export default function Deliveries() {
                   {money(signing.cod_amount)} to collect
                   {signing.delivery_fee > 0
                     && `, including ${money(signing.delivery_fee)} for the delivery`}.
-                  This stays with the driver until the round is handed in — it
+                  This stays with the driver until the round is handed in. It
                   is not counted against the counter's till, because it is not
                   in the counter's till.
                 </p>

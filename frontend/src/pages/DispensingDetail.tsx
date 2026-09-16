@@ -97,7 +97,7 @@ export default function DispensingDetail() {
       body: controlledItem
         ? `This is a schedule ${d.schedule} item. The name of whoever `
           + "physically receives it is the answer to \"who had it\"."
-        : "Often not the patient — a relative, a driver, a neighbour going "
+        : "Often not the patient. A relative, a driver, a neighbour going "
           + "that way. Recorded as given.",
       field: "Name, as given",
       placeholder: d.patient.name,
@@ -186,7 +186,7 @@ export default function DispensingDetail() {
             <div className={`alert ${(d.days_waiting ?? 0) > 14 ? "error" : "warn"}`}>
               <Warning size={16} weight="fill" />{" "}
               Still on the will-call shelf
-              {d.days_waiting !== null && ` — ${d.days_waiting} day${
+              {d.days_waiting !== null && `: ${d.days_waiting} day${
                 d.days_waiting === 1 ? "" : "s"} now`}
               . The stock is out of circulation and the patient is not taking it.
             </div>
@@ -284,7 +284,7 @@ export default function DispensingDetail() {
               title="The record"
               aside={<span className="muted small">
                 {controlled
-                  ? "A scheduled item — this is the legal record"
+                  ? "A scheduled item. This is the legal record"
                   : "Kept on every dispensing, so a gap reads as a gap"}
               </span>}
             >
@@ -319,13 +319,13 @@ export default function DispensingDetail() {
               <ul className="plain-list">
                 {d.scan_verified !== undefined && (
                   <Checked ok={!!d.scan_verified}>
-                    Pack scanned against the script{d.scan_code && ` — ${d.scan_code}`}
+                    Pack scanned against the script{d.scan_code && `: ${d.scan_code}`}
                   </Checked>
                 )}
                 <Checked ok={d.script_sighted}>Original script sighted</Checked>
                 <Checked ok={d.prescriber_verified}>Prescriber verified</Checked>
                 <Checked ok={d.id_verified}>
-                  Identity checked{d.id_number_seen && ` — ${d.id_number_seen}`}
+                  Identity checked{d.id_number_seen && `: ${d.id_number_seen}`}
                 </Checked>
               </ul>
               {d.compliance_notes && (

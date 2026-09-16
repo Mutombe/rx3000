@@ -324,14 +324,14 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
       // punctuation that costs the directions a line and tells nobody anything;
       // stock received before batches were recorded genuinely has neither.
       const batchLine = [
-        l.batch_number ? `Batch: ${esc(l.batch_number)}` : "",
-        l.expiry_date ? `Exp: ${esc(shortDate(l.expiry_date))}` : "",
+        l.batch_number ? `Batch. ${esc(l.batch_number)}` : "",
+        l.expiry_date ? `Exp. ${esc(shortDate(l.expiry_date))}` : "",
       ].filter(Boolean).join("  ");
 
       // Who made it, on its own line: sharing with the batch cost both of them
       // their ends — "Batch: VX-4471 Exp: 31/03/2028 Mfr: Varichem Pharm…" —
       // and a manufacturer truncated to a syllable answers nobody's question.
-      const madeBy = l.manufacturer ? `Mfr: ${esc(l.manufacturer)}` : "";
+      const madeBy = l.manufacturer ? `Mfr. ${esc(l.manufacturer)}` : "";
 
       // The patient and the moment it was handed over, on one line, which is
       // where a real label puts them, and it saves the heading a whole line.
@@ -341,8 +341,8 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
       // Which item of how many, so a patient carrying four boxes can tell
       // whether one is missing.
       const refLine = [
-        l.rx_number ? `RxNo: ${esc(l.rx_number)}` : "",
-        l.item_count > 1 ? `Item: ${l.item_number} of ${l.item_count}` : "",
+        l.rx_number ? `RxNo. ${esc(l.rx_number)}` : "",
+        l.item_count > 1 ? `Item. ${l.item_number} of ${l.item_count}` : "",
         l.doctor_practice_no ? `Prof# ${esc(l.doctor_practice_no)}` : "",
         l.branch_code ? `[${esc(l.branch_code)}]` : "",
       ].filter(Boolean).join("  ");
@@ -369,7 +369,7 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
           ${batchLine ? `<div>${batchLine}</div>` : ""}
           ${madeBy ? `<div>${madeBy}</div>` : ""}
           <div class="who">${whoLine}</div>
-          ${l.dispensed_by ? `<div>Dispensed by: ${esc(l.dispensed_by)}</div>` : ""}
+          ${l.dispensed_by ? `<div>Dispensed by. ${esc(l.dispensed_by)}</div>` : ""}
           ${l.doctor_name ? `<div>Doc. ${esc(l.doctor_name)}</div>` : ""}
           ${refLine ? `<div>${refLine}</div>` : ""}
         </div>
@@ -450,9 +450,9 @@ export function splitPrintable(labels: Label[]): { printable: Label[]; refused: 
  *  so they know which box is still without a sticker. */
 export function refusedSummary(refused: RefusedLabel[]): string {
   const name = (l: Label) => `${l.product_name}${l.strength ? ` ${l.strength}` : ""}`;
-  if (refused.length === 1) return `${name(refused[0].label)} was not printed: ${refused[0].why}`;
+  if (refused.length === 1) return `${name(refused[0].label)} was not printed. ${refused[0].why}`;
   return `${refused.length} labels were not printed. `
-    + refused.map((r) => `${name(r.label)}: ${r.why}`).join(" ");
+    + refused.map((r) => `${name(r.label)}. ${r.why}`).join(" ");
 }
 
 /** Print through the browser's dialog. Refused labels never reach the sheet,

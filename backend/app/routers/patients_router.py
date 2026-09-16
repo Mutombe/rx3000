@@ -91,7 +91,7 @@ def create_patient(body: schemas.PatientRegistration, db: Session = Depends(get_
             more = f" and {len(matches) - 1} more" if len(matches) > 1 else ""
             raise HTTPException(status_code=409, detail=(
                 f"{m['first_name']} {m['last_name']} ({m['profile_number'] or 'no profile number'}) "
-                f"is already on file — {m['reasons'][0].lower()}{more}. Open that record, or "
+                f"is already on file. {m['reasons'][0].lower()}{more}. Open that record, or "
                 "confirm this is a different person to register them."))
     data = body.model_dump(exclude={"confirmed_distinct"})
     patient = Patient(**data)

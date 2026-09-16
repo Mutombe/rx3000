@@ -244,7 +244,7 @@ export default function Repeats() {
       body: (
         <>
           <p>
-            A message goes to each of them saying their repeat is due — worth{" "}
+            A message goes to each of them saying their repeat is due. Worth{" "}
             <b>{money(rows.reduce((n, r) => n + (r.value ?? 0), 0))}</b> if they
             all come in.
           </p>
@@ -378,7 +378,7 @@ export default function Repeats() {
                     <SelectAll checked={picked.allChosen} onChange={picked.all} />
                     <th>Patient</th><th>Medicine</th><th>Due</th>
                     {/* The row already carried this figure and the table never
-                        showed it — while the comment below said the question
+                        showed it. While the comment below said the question
                         being asked is "what is it worth". A queue without money
                         cannot be worked in the order that pays. */}
                     <th className="num">Worth</th>
@@ -457,7 +457,7 @@ export default function Repeats() {
                         </span>
                         {/* Not every repeat goes out as written. The patient
                             wants a fortnight rather than a month, or something
-                            added, or the prescriber has changed the dose — and
+                            added, or the prescriber has changed the dose. And
                             the one-press supply above cannot express any of
                             that. This opens the dispensary with the script
                             already loaded, so the alteration is made where
@@ -503,7 +503,7 @@ export default function Repeats() {
               <div>
                 <h3>How much of its own repeat book this pharmacy keeps</h3>
                 <span className="muted small">
-                  A repeat that was not filled leaves no record anywhere — the
+                  A repeat that was not filled leaves no record anywhere. The
                   patient simply goes elsewhere next month and the line stops
                   appearing. This is the one figure a takings report cannot show.
                 </span>
@@ -650,7 +650,7 @@ export default function Repeats() {
                     return (
                       <tr key={w.from} className={w.current ? "row-ok" : undefined}>
                         <td>
-                          {fmtDate(w.from)} – {fmtDate(w.to)}
+                          {fmtDate(w.from)} to {fmtDate(w.to)}
                           {w.current && (
                             <div className="muted small">
                               this week · {w.days_so_far} day
@@ -671,7 +671,7 @@ export default function Repeats() {
                 </tbody>
               </table>
               <p className="muted small">
-                This is what was filled, not what fell due — a repeat's due date
+                This is what was filled, not what fell due. A repeat's due date
                 moves forward every time it is handed over, so the book does not
                 remember what was outstanding in July. How much of the book is
                 being kept is the capture rate above, which is worked out line

@@ -247,6 +247,6 @@ def tag(db: Session, *, pharmacy_id: int, apply: bool = False,
             f"{sum(placed.values()):,} of {considered:,} placed into "
             f"{len(placed)} department(s)."
             + (f" {unplaced:,} could not be placed from their name, form or "
-               f"schedule and were left alone — a product nobody can place is "
+               f"schedule and were left alone. A product nobody can place is "
                f"one somebody should look at." if unplaced else "")),
     }

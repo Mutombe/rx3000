@@ -2,7 +2,7 @@
  *
  *  The incumbent has this list. What it cannot do is tell you which of these
  *  can be honoured *now*, because it does not connect a delivery arriving to a
- *  patient waiting. That is what the "Ready to hand over" tab is, and it is the
+ *  patient waiting. That is what the "Ready to dispatch" tab is, and it is the
  *  reason to open this screen in the morning rather than when somebody
  *  complains.
  *
@@ -73,7 +73,7 @@ export default function ToFollows() {
   const TABS: TabDef<Tab>[] = [
     {
       key: "ready",
-      label: "Ready to hand over",
+      label: "Ready to dispatch",
       count: ready.length,
       hint: "Owed, and now in stock, the patients to telephone",
     },
@@ -281,7 +281,7 @@ export default function ToFollows() {
                   )}
                   {o.status === "outstanding" && (
                     <button className="btn ghost sm" onClick={() => setCancelling(o)}>
-                      Cancel — not coming
+                      Cancel. Not coming
                     </button>
                   )}
                   {o.status !== "outstanding" && (

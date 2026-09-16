@@ -63,7 +63,7 @@ def _cash(db: Session, since: datetime) -> dict:
 
     return {
         "key": "cash",
-        "label": "Cash — tills",
+        "label": "Cash. Tills",
         "runs": len(shifts),
         "reconciled": len(counted),
         # Closed without anybody counting the drawer. Not a clean till; an
@@ -101,7 +101,7 @@ def _stock(db: Session) -> dict:
     products = int(report.get("products", 0) or 0)
     return {
         "key": "stock",
-        "label": "Stock — count against batches",
+        "label": "Stock. Count against batches",
         "runs": products,
         "reconciled": products - disagreeing,
         "not_reconciled": 0,
@@ -129,7 +129,7 @@ def _claims(db: Session) -> dict:
         count, total = 0, 0.0
     return {
         "key": "claims",
-        "label": "Claims — remittances",
+        "label": "Claims. Remittances",
         "runs": count, "reconciled": 0, "not_reconciled": 0,
         "differences": int(count or 0),
         "value": round(float(total or 0), 2),
@@ -151,12 +151,12 @@ def _card(db: Session) -> dict:
     """
     return {
         "key": "card",
-        "label": "Card — acquirer settlement",
+        "label": "Card. Acquirer settlement",
         "runs": 0, "reconciled": 0, "not_reconciled": 0,
         "differences": None,
         "value": 0.0, "net": 0.0, "worst": 0.0, "worst_where": "",
         "href": "/reconciliation/card",
-        "says": "needs the acquirer's settlement file — nothing to compare "
+        "says": "needs the acquirer's settlement file. Nothing to compare "
                 "against until one is loaded",
     }
 
@@ -165,12 +165,12 @@ def _bank(db: Session) -> dict:
     """The bank statement against the ledger. Same reason as card."""
     return {
         "key": "bank",
-        "label": "Bank — statement against ledger",
+        "label": "Bank. Statement against ledger",
         "runs": 0, "reconciled": 0, "not_reconciled": 0,
         "differences": None,
         "value": 0.0, "net": 0.0, "worst": 0.0, "worst_where": "",
         "href": "/reconciliation/bank",
-        "says": "needs a bank statement — nothing to compare against until "
+        "says": "needs a bank statement. Nothing to compare against until "
                 "one is loaded",
     }
 
@@ -191,7 +191,7 @@ def _drivers(db: Session) -> dict:
     count, total = (rows or (0, 0.0))
     return {
         "key": "drivers",
-        "label": "Deliveries — cash with drivers",
+        "label": "Deliveries. Cash with drivers",
         "runs": int(count or 0), "reconciled": 0, "not_reconciled": int(count or 0),
         "differences": int(count or 0),
         "value": round(float(total or 0), 2),

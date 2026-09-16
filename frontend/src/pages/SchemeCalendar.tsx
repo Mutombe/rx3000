@@ -199,7 +199,7 @@ export default function SchemeCalendar() {
               <span>
                 {dueSoon.map((s) => `${s.name} (${when(s.days_to_cutoff, s.next_cutoff)})`)
                   .join(", ")}
-                {" — "}anything not submitted by then waits a whole cycle.
+                {". "}Anything not submitted by then waits a whole cycle.
               </span>
             </div>
           )}

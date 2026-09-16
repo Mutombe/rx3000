@@ -391,7 +391,7 @@ export default function Payables() {
             <div className="card-head">
               <h3>Find an invoice</h3>
               <span className="muted small">
-                By number or by note, across every supplier — settled ones too
+                By number or by note, across every supplier. Settled ones too
               </span>
             </div>
             <input
@@ -708,7 +708,7 @@ export default function Payables() {
                 <input
                   value={queryNote} autoFocus maxLength={200}
                   onChange={(e) => setQueryNote(e.target.value)}
-                  placeholder="Billed for 12, only 10 arrived — spoke to Tendai on the 14th"
+                  placeholder="Billed for 12, only 10 arrived. Spoke to Tendai on the 14th"
                 />
                 <span className="hint">
                   Written down because the next person to open this invoice has

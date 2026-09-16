@@ -158,7 +158,7 @@ export default function Pharmacies() {
           <span>
             This screen is for whoever operates RX5000, not for a pharmacy&rsquo;s
             own administrator. Being an administrator of this pharmacy does not
-            include creating others or moving people between them — an account
+            include creating others or moving people between them. An account
             that could do that could read another pharmacy&rsquo;s patients.
           </span>
         </div>
@@ -303,7 +303,7 @@ export default function Pharmacies() {
             <h3>Their first administrator</h3>
             <p className="muted small">
               Sign-in names are shared across every pharmacy on this system, so
-              this one has to be unique here — not only within their pharmacy.
+              this one has to be unique here. Not only within their pharmacy.
             </p>
             <div className="form-row">
               <div className="field">

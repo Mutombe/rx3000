@@ -191,7 +191,7 @@ export default function DispensaryOperations() {
               <div className="card stat">
                 <div className="label">Dispensed sales voided today</div>
                 <div className="value">{day.voidsToday}</div>
-                <div className="hint">Whole sales — a single dispensing can&rsquo;t be reversed yet</div>
+                <div className="hint">Whole sales. A single dispensing can&rsquo;t be reversed yet</div>
               </div>
             </div>
 

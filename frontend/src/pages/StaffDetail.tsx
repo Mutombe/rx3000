@@ -62,7 +62,7 @@ export default function StaffDetail() {
         <>
           <p>
             Their name stays on the {d.dispensed_count} dispensing(s) they
-            checked and the {d.shift_count} till(s) they cashed up — those are
+            checked and the {d.shift_count} till(s) they cashed up. Those are
             the record of who did them.
           </p>
           <p className="muted">

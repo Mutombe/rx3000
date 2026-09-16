@@ -74,7 +74,7 @@ export default function ClaimDetail() {
           {(d.response_message || d.deferred_reason) && (
             <div className={`alert ${d.status === "rejected" ? "error" : "warn"}`}>
               <b>{d.status === "deferred" ? "Held" : d.status}</b>
-              {" — "}{d.deferred_reason || d.response_message}
+              {": "}{d.deferred_reason || d.response_message}
             </div>
           )}
 

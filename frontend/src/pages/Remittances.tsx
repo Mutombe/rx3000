@@ -162,7 +162,7 @@ export default function Remittances() {
         : `Write off ${money(line.variance)}?`,
       body: billing
         ? `${line.member_name || "The patient"} becomes liable for the shortfall on `
-          + `claim ${line.claim_reference}. The scheme's reason was: ${line.reason}`
+          + `claim ${line.claim_reference}. The scheme's reason was. ${line.reason}`
         : `The pharmacy absorbs the shortfall on claim ${line.claim_reference}. `
           + `It goes to the write-off account and shows in the margin, not in debtors.`,
       confirmLabel: billing ? "Bill the patient" : "Write it off",
@@ -272,7 +272,7 @@ export default function Remittances() {
                     <tr>
                       {/* Member folded into the claim cell. It was a column of
                           em-dashes taking 130px from the scheme's reason, which
-                          was being clipped to "Reduced by…" — the one column on
+                          was being clipped to "Reduced by…". The one column on
                           this table somebody actually has to read before
                           deciding who pays. */}
                       <th>Claim</th><th>Service</th>

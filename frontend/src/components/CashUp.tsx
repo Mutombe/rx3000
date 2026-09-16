@@ -188,7 +188,7 @@ export default function CashUp(
                     <td>
                       {l.label}
                       {/* The wallet or the bank is the whole point of the
-                          split — "Mobile money 119.00" is not something
+                          split. "Mobile money 119.00" is not something
                           anybody can tick off against a statement. */}
                       {l.currency && l.currency !== currency && (
                         <span className="muted small"> · {l.currency}</span>

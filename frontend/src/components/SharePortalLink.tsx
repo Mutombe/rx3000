@@ -128,7 +128,7 @@ export default function SharePortalLink(
             <WhatsappLogo size={16} weight="fill" /> WhatsApp
           </a>
           {/* `sms:` with a body works on both phone platforms and is ignored
-              on a desktop, which is the right failure — the button is simply
+              on a desktop, which is the right failure. The button is simply
               inert rather than opening something wrong. */}
           <a className="btn"
              href={`sms:${link.send_to}?&body=${encodeURIComponent(text)}`}>
