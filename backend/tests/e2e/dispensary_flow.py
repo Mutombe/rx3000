@@ -498,7 +498,7 @@ with sync_playwright() as pw:
         check("…and Dispense in its foot", page.query_selector(".finish-foot .fin-dispense") is not None)
         prints = page.evaluate(
             "[...document.querySelectorAll('.disp-finish .fin-print')].map((b) => b.getAttribute('aria-checked'))")
-        check("what prints is shown as four switches", len(prints) == 4, str(prints))
+        check("what prints is shown as the documents as switches", len(prints) == 5, str(prints))
         check("…dispensing labels on by default", page.get_attribute(".fin-print.is-label", "aria-checked") == "true")
         before = page.text_content(".fin-dispense-sub")
         page.click(".fin-print.is-price")

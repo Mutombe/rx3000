@@ -127,6 +127,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # Who actually took the money, as against who rang the sale up. A
         # dispensary sale is created by the dispenser and paid at the till.
         "settled_by_id": "INTEGER",
+        # A receipt that must not name the medicines on it.
+        "receipt_private": "BOOLEAN DEFAULT 0",
         "settled_at": "TIMESTAMP",
         # Which branch sold it. Drives branch takings and the branch VAT return.
         "branch_id": "INTEGER",

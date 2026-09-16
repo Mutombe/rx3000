@@ -975,6 +975,21 @@ class Sale(Base, TenantMixin):
     #: dispenser's figures carried money they never handled. Neither person can
     #: answer for the other's total, and on a short drawer that is exactly what
     #: they are asked to do.
+    #: Print this receipt without naming the medicines.
+    #:
+    #: A dispensing receipt carries somebody's health on it. "FLUOXETINE 20MG"
+    #: on a slip handed across a counter, in a queue, is a disclosure the patient
+    #: never agreed to — and the person who most needs it discreet is exactly the
+    #: person who will not ask for it in front of everybody.
+    #:
+    #: Decided at the dispensary, before anything prints, and kept on the SALE
+    #: rather than on the moment: the billing often goes to the till and the
+    #: receipt is printed there, by somebody who never met the patient and has no
+    #: way to know. The choice has to travel with the money.
+    #:
+    #: Totals, tax and the invoice number always print — it is a tax invoice, and
+    #: the pharmacy can reconstruct the lines from the number.
+    receipt_private = Column(Boolean, default=False)
     settled_by_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     settled_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

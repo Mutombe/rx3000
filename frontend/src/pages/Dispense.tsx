@@ -21,6 +21,7 @@ import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import MixAtTheCounter, { MadeUp } from "../components/MixAtTheCounter";
 import { useDoing } from "../components/Doing";
+import { usePharmacy } from "../hooks/usePharmacy";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
@@ -35,7 +36,7 @@ import CellMedicineSearch from "../components/CellMedicineSearch";
 import PatientHistoryModal from "../components/PatientHistoryModal";
 import PatientCardModal from "../components/PatientCardModal";
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from "react";
-import { printLabels, refusedSummary, splitPrintable } from "../print";
+import { printLabels, printReceipt, refusedSummary, splitPrintable } from "../print";
 import PrintMenu, { type PrintAction } from "../components/PrintMenu";
 import * as roll from "../shellPrinter";
 import { deliveryLabelLines, priceLabelLines } from "../deviceAgent";
@@ -61,7 +62,7 @@ import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
-import { Camera, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
+import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import DriverForm from "../components/DriverForm";
@@ -353,6 +354,15 @@ export default function Dispense() {
    *  code typed for nothing. */
   const [pricingLine, setPricingLine] = useState<number | null>(null);
   const { guarded, prompt: stepUpPrompt } = useStepUp();
+  /** This pharmacy's own name and registration, for the receipt. */
+  const pharmacy = usePharmacy();
+  /** Whether this receipt names the medicines on it.
+   *
+   *  Off by default — a receipt that says what it is for is the ordinary,
+   *  useful thing — and turned on for the patient who asks, or for the
+   *  dispenser who can see they should. Kept on the sale, so a receipt printed
+   *  later at the till honours it. */
+  const [receiptPrivate, setReceiptPrivate] = useState(false);
   const cellEditRef = useRef(cellEdit);
   useEffect(() => { cellEditRef.current = cellEdit; }, [cellEdit]);
   /** The full text of a truncated table cell, floated over it. */
@@ -1298,9 +1308,22 @@ export default function Dispense() {
 
   /** Whether a document prints on dispense: the pharmacist's choice for this
    *  script, else what the script itself calls for. */
+  /** What prints unless somebody says otherwise, decided by what is happening.
+   *
+   *  Each of these follows the money rather than a setting: if the customer is
+   *  paying here they get a receipt, if a funder is being billed there is a
+   *  claim copy, if a driver is taking it there is a delivery label. A tile
+   *  somebody has to remember to press every single time is a tile that is
+   *  forgotten on the one sale it mattered for.
+   */
   function printDefault(kind: roll.DocKind) {
     if (kind === "label") return true;
-    if (kind === "claim") return !!split?.covered;
+    // Money taken at this counter is a sale, and a sale hands over a tax
+    // invoice. "Take payment now" printed nothing at all: the patient paid at
+    // the dispensary and walked away without a receipt, which the till would
+    // never have allowed.
+    if (kind === "receipt") return payHow === "now" || payHow === "aid";
+    if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
     return false;
   }
@@ -2364,6 +2387,7 @@ export default function Dispense() {
       }
       const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: selected,
+        receipt_private: receiptPrivate,
         // The code scanned for each line, keyed by the script's own item ids,
         // which only exist once the script has been written.
         scanned_codes: Object.fromEntries(
@@ -2502,12 +2526,19 @@ export default function Dispense() {
       // on the box being handed over. The price label reads the lines from this
       // pass, before the cleared script reaches the screen.
       const prints = { label: !!before.printPick.label || printDefault("label"),
+                       receipt: before.printPick.receipt ?? printDefault("receipt"),
                        claim: before.printPick.claim ?? printDefault("claim"),
                        delivery: before.printPick.delivery ?? printDefault("delivery"),
                        price: before.printPick.price ?? printDefault("price") };
       const rxNumber = (rx as any).rx_number as string | undefined;
       void (async () => {
         if (prints.label) await printRxLabels(rx.id);
+        // The receipt for money taken here, off the sale the dispensing raised.
+        if (prints.receipt && sale) {
+          try {
+            printReceipt(sale, pharmacy.name, pharmacy.regNo);
+          } catch { /* a receipt that will not print must not undo a dispensing */ }
+        }
         if (prints.delivery) await printDeliveryLabel(rxNumber);
         if (prints.price) await printPriceQuote();
         if (prints.claim) await printClaimCopy(rx.id);
@@ -4720,20 +4751,29 @@ ${d.action}`}
                               {roll.DOC_KINDS.map((d) => {
                                 const on = willPrint(d.kind);
                                 const Icon = d.kind === "label" ? Sticker : d.kind === "claim" ? FileText
-                                  : d.kind === "delivery" ? Truck : Tag;
+                                  : d.kind === "delivery" ? Truck
+                                  : d.kind === "receipt" ? Receipt : Tag;
                                 const where = roll.goesStraightToPrinter(d.kind)
                                   ? (roll.printerFor(d.kind) || "Label printer")
                                   : d.paper === "page" ? "Opens as a PDF" : "Print dialog";
-                                const short = d.kind === "label" ? "Labels" : d.kind === "claim" ? "Claim copy"
-                                  : d.kind === "delivery" ? "Delivery" : "Price label";
+                                // One word each. Five tiles across a dialog that
+                                // may not grow, and the icon and tooltip say the
+                                // rest.
+                                const short = d.kind === "label" ? "Labels" : d.kind === "claim" ? "Claim"
+                                  : d.kind === "delivery" ? "Delivery"
+                                  : d.kind === "receipt" ? "Receipt" : "Price";
                                 return (
                                   <button key={d.kind} type="button" role="switch" aria-checked={on}
                                           className={`fin-print is-${d.kind}${on ? " is-on" : ""}`}
                                           title={`${d.hint} ${on ? "Prints" : "Does not print"} · ${where}`}
                                           onClick={() => setPrintPick((p) => ({ ...p, [d.kind]: !on }))}>
                                     <span className="fin-print-icon"><Icon size={16} weight={on ? "fill" : "regular"} /></span>
+                                    {/* The name only. Where it comes out is on
+                                        the control: five documents each carrying
+                                        a second line of small print is two rows
+                                        of dialog height spent saying "Print
+                                        dialog" five times. */}
                                     <span className="fin-print-name">{short}</span>
-                                    <span className="fin-print-where">{where}</span>
                                     <span className="fin-print-tick" aria-hidden="true">
                                       {on && <Check size={10} weight="bold" />}
                                     </span>
@@ -4749,7 +4789,39 @@ ${d.action}`}
                                   ? `claim copy because ${split?.scheme || "the scheme"} pays` : "",
                                 printPick.delivery === undefined && printDefault("delivery")
                                   ? "delivery label because it goes with a driver" : "",
+                                printPick.receipt === undefined && printDefault("receipt")
+                                  ? "a receipt because the money is taken here" : "",
                               ].filter(Boolean).join(" · ")}.
+                              {/* Whether the receipt names the medicines on it.
+                                  Asked here because here is before it prints, and
+                                  because the patient who needs it discreet is the
+                                  one who will not ask in front of a queue. Kept on
+                                  the sale, so a receipt printed later at the till
+                                  honours it too. It rides this line rather than
+                                  taking a row: on a controlled script being
+                                  claimed, a row of its own is what pushes this
+                                  dialog past the height of a short screen. */}
+                              {willPrint("receipt") && (
+                                <span className="fin-privacy">
+                                  <span className="seg" role="radiogroup"
+                                        aria-label="What the receipt shows">
+                                    <button type="button" role="radio" aria-checked={!receiptPrivate}
+                                            className={!receiptPrivate ? "on" : ""}
+                                            title="Each medicine by name, quantity and price."
+                                            onClick={() => setReceiptPrivate(false)}>
+                                      Itemised
+                                    </button>
+                                    <button type="button" role="radio" aria-checked={receiptPrivate}
+                                            className={receiptPrivate ? "on" : ""}
+                                            title={"Totals, tax and the invoice number only. No medicine "
+                                              + "is named on the slip — for a patient who would rather "
+                                              + "the queue did not read it."}
+                                            onClick={() => setReceiptPrivate(true)}>
+                                      <EyeSlash size={12} /> Private
+                                    </button>
+                                  </span>
+                                </span>
+                              )}
                             </p>
                           </section>
                         </aside>

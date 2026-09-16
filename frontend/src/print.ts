@@ -69,7 +69,23 @@ export function printReceipt(
   branchName = "",
 ) {
   const when = new Date(sale.created_at).toLocaleString("en-ZA");
-  const lines = sale.items
+  // A receipt that must not say what the medicines were.
+  //
+  // A dispensing slip carries somebody's health on it, and one handed across a
+  // counter in a queue discloses it to whoever is standing there. The choice is
+  // made at the dispensary before anything prints and travels on the sale, so a
+  // cashier who never met the patient still honours it.
+  //
+  // What is withheld is the NAMES. The count, the totals, the tax and the
+  // invoice number all print, because it is a tax invoice and because the
+  // pharmacy can reconstruct the lines from the number when it has to.
+  const discreet = !!(sale as { receipt_private?: boolean }).receipt_private;
+  const itemCount = sale.items.reduce((n, i) => n + (i.quantity || 0), 0);
+  const lines = discreet
+    ? [`<tr><td>${itemCount} item${itemCount === 1 ? "" : "s"} dispensed</td>`
+       + `<td class="r">${money(sale.items.reduce((n, i) => n + (i.line_total || 0), 0))}</td></tr>`
+       + `<tr><td colspan="2" class="sub">Itemised copy on request</td></tr>`]
+    : sale.items
     .map(
       (i) =>
         `<tr><td>${i.quantity} x ${i.description}</td><td class="r">${money(i.line_total)}</td></tr>`,

@@ -445,6 +445,10 @@ class DispenseRequest(BaseModel):
     # Only ids actually blocking this dispensing are taken.
     acknowledged_message_ids: list[int] = []
     payment_method: str = "cash"  # settled at POS; sale created as pending
+    #: Print the receipt without naming the medicines. Decided at the
+    #: dispensary, before anything prints, and carried on the sale so the
+    #: till honours it too.
+    receipt_private: bool = False
     # Hand over less than the script asks and owe the balance, keyed by
     # prescription item id. The patient pays for the whole quantity; what was
     # not handed over becomes a "to follow". Omit an item to supply it in full.
@@ -694,6 +698,9 @@ class SaleOut(ORM):
     cashier_id: Optional[int] = None
     cashier_name: str = ""
     settled_by_id: Optional[int] = None
+    #: Print it without naming the medicines. Travels with the sale so the
+    #: till honours a choice the dispensary made.
+    receipt_private: bool = False
     settled_by_name: str = ""
     settled_at: Optional[datetime] = None
     patient_id: Optional[int] = None

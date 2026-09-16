@@ -9112,7 +9112,17 @@ button.fin-ack { cursor: pointer; }
   margin-left: auto; text-transform: none; letter-spacing: 0;
   font-weight: 600; color: var(--ink-soft);
 }
-.fin-print-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+/* Three across, not two. A fifth document (the receipt) turned two columns
+   into three rows and pushed the Finish dialog past its own height — the one
+   thing that dialog is not allowed to do. */
+/* As many across as fit, rather than a fixed three. Five documents in three
+   columns is two rows; on the wide dialog they go in one, which is the row the
+   controlled route needs back — there the compliance record already takes a
+   column of its own and the dialog may not grow. */
+.fin-print-grid {
+  display: grid; gap: 5px;
+  grid-template-columns: repeat(auto-fit, minmax(5.4rem, 1fr));
+}
 .fin-print {
   position: relative; display: grid;
   grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: auto auto;
@@ -9997,3 +10007,53 @@ button.fin-ack { cursor: pointer; }
 .till-price.is-hand-set { font-weight: 600; }
 .till-price.is-busy { opacity: .55; }
 .till-price .rx-hand-set { margin-left: 2px; font-weight: 700; }
+/* Whether the receipt names the medicines on it. Asked on the Finish dialog,
+   before anything prints, because that is the only moment somebody can still
+   decide — and because the person who needs it discreet is the one who will not
+   ask for it in front of a queue. */
+/* The privacy choice rides the line that already explains the defaults, rather
+   than taking a row of its own. On a controlled script being claimed — the
+   tightest thing this dialog ever holds, where the compliance record takes a
+   whole column — a row of its own was the forty pixels that pushed the dialog
+   past the height of a short screen. */
+.fin-privacy {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 0 0 0 6px; padding: 0; border: 0; vertical-align: middle;
+}
+.fin-privacy .seg { flex: 0 0 auto; }
+.fin-privacy .seg button { height: 21px; padding: 0 7px; font-size: .71rem; }
+.fin-privacy-q { font-size: .78rem; font-weight: 600; color: var(--ink-mid); }
+.fin-privacy .seg { flex: 0 0 auto; }
+.fin-privacy .seg button { display: inline-flex; align-items: center; gap: 4px; }
+.fin-privacy-why {
+  flex: 0 1 auto; min-width: 0; font-size: .72rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--ink-faint, var(--ink-soft));
+}
+
+/* One line a tile: an icon, the name, and a tick — no second line saying
+   "Print dialog" five times. A fifth document (the receipt) made the old
+   two-line tile push the Finish dialog past its own fixed height, and squeezing
+   it into three columns then truncated every name. Where it comes out is on the
+   control for anyone who hovers. Placed at the end of the file deliberately:
+   the original two-row rule is later in the cascade than the print grid and
+   would otherwise win. */
+.disp-finish .fin-print {
+  grid-template-columns: 22px minmax(0, 1fr);
+  grid-template-rows: auto;
+  min-height: 30px; padding: 4px 20px 4px 6px;
+  align-items: center;
+}
+/* The controlled route gives the prints a narrower column, because the
+   compliance record takes one of its own. The names are already one word each;
+   below that they shrink rather than truncate — a tile that says "Deliver…" is
+   a tile nobody can act on. */
+.disp-finish .fin-print-name {
+  font-size: .77rem; white-space: nowrap;
+  min-width: 0; overflow: visible;
+}
+@media (max-width: 1600px) {
+  .disp-finish .fin-print-name { font-size: .72rem; letter-spacing: -.01em; }
+  .disp-finish .fin-print { padding-right: 17px; }
+}
+.disp-finish .fin-print-icon { width: 24px; }

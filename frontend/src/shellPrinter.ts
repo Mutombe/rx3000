@@ -21,11 +21,13 @@ const WIDTH = "label_printer_width";
  *  carries on using it with nothing to set up. The rest fall back to it, which
  *  means one printer still works for everything until somebody says otherwise.
  */
-export type DocKind = "label" | "price" | "delivery" | "claim";
+export type DocKind = "label" | "receipt" | "price" | "delivery" | "claim";
 
 export const DOC_KINDS: { kind: DocKind; name: string; hint: string; paper: "roll" | "page" }[] = [
   { kind: "label", name: "Dispensing label", paper: "roll",
     hint: "The sticker that goes on the box." },
+  { kind: "receipt", name: "Receipt", paper: "roll",
+    hint: "The tax invoice the customer takes away, when the money is taken here." },
   { kind: "price", name: "Price label", paper: "roll",
     hint: "What something costs, for somebody deciding whether to buy it." },
   { kind: "delivery", name: "Delivery label", paper: "roll",

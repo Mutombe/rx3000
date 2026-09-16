@@ -678,6 +678,9 @@ def dispense(
         cashier_id=user.id,
         payment_method=body.payment_method,
         status="pending",
+        # Carried on the sale, not on the moment: the billing often goes to the
+        # till and is printed by somebody who never met the patient.
+        receipt_private=bool(getattr(body, "receipt_private", False)),
     )
     db.add(sale)
     db.flush()
