@@ -115,7 +115,7 @@ function looksLikeCode(text: string): boolean {
   if (t.startsWith("(01)") || t.startsWith("]C1") || t.includes("")) return true;
   return /^\d{8,14}$/.test(t);
 }
-const CONTROLLED_HINT = "S5–S6, by name";
+const CONTROLLED_HINT = "S5 and S6, by name";
 /* The initials box, which said the least of any field on the screen: a label
    reading "Checked by" next to a box whose placeholder read "Initials" — two
    words for one thing, and between them they never said whose initials, or
@@ -226,7 +226,7 @@ const ROUTE_TABS: {
   /** A capability from the server's matrix. Absent means everybody. */
   needs?: string;
 }[] = [
-  { key: "prescription", label: "Prescription (S3–S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
+  { key: "prescription", label: "Prescription (S3, S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
   // Shown to whoever may actually do it.
   //
   // The endpoint has always refused a controlled dispensing without this
@@ -240,7 +240,7 @@ const ROUTE_TABS: {
   // A cashier's whole reason to be on this screen, and the only route they have
   // by default. It carried no capability at all, which made it the one tab
   // nobody could be refused — including the people who should be.
-  { key: "otc", label: "OTC / Pharmacy Medicine (S0–S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
+  { key: "otc", label: "OTC / Pharmacy Medicine (S0 to S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
 ];
 
 /** What happens to the money at the moment of dispensing.
@@ -2825,8 +2825,8 @@ export default function Dispense() {
         </div>
         <div className="card empty-state">
           <p>
-            Your account does not carry any of the three dispensing routes —
-            prescription, over-the-counter, or dangerous drugs. That is a
+            Your account does not carry any of the three dispensing routes.
+            Prescription, over-the-counter, or dangerous drugs. That is a
             setting, not a fault: whoever administers this pharmacy can add one
             on the role matrix, or grant it to you by name.
           </p>
@@ -2989,7 +2989,7 @@ export default function Dispense() {
           <div>
             <div className="card sec sec-items" id="step-otc-medicine">
               <h3>1 · Choose a pharmacy medicine</h3>
-              <input data-hk="product" type="search" placeholder="Search S0–S2 medicines…" value={productQ}
+              <input data-hk="product" type="search" placeholder="Search S0 to S2 medicines…" value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
               {productResults.map((p) => (
                 <div key={p.id} onClick={() => setOtcProduct(p)}
@@ -3177,7 +3177,7 @@ export default function Dispense() {
                   obvious from anything else on the row. */}
               {route === "controlled" && (
                 <div className="disp-lane-badge">
-                  <span className="badge sched">S5–S6 only</span>
+                  <span className="badge sched">S5 and S6 only</span>
                 </div>
               )}
               {patient ? (
@@ -3837,8 +3837,8 @@ ${d.action}`}
                         {/* Only on a scheme script, and only when there is no
                             code at all: this line will be rejected, and it is
                             the one thing on the row worth a mark. A line
-                            standing on the pharmacy's own NAPPI is not marked —
-                            it has a code and the claim carries it. */}
+                            standing on the pharmacy's own NAPPI is not marked.
+                            It has a code and the claim carries it. */}
                         <NoCodeMark
                           known={schemeCodes[it.product.id]}
                           scheme={schemeName}
@@ -3931,8 +3931,8 @@ ${d.action}`}
                         })()}
                       </span>
                       {/* Action. Icons, because a table that does this much on
-                          every line cannot spell each thing out on every line —
-                          and each names itself on hover and to a screen reader.
+                          every line cannot spell each thing out on every line.
+                          And each names itself on hover and to a screen reader.
 
                           The shield checks the line: pressed once it runs, and
                           its colour is the answer; pressed on an answer it
@@ -5230,8 +5230,8 @@ ${d.action}`}
               second repeats list that asked the same question as the worklist
               and answered it differently (53 against 0, from a 14-day horizon
               against a 7-day one), a recent-scripts list whose "See all" linked
-              to a route that does not exist, and a page of schedule rules —
-              reference material occupying a third of a console.
+              to a route that does not exist, and a page of schedule rules.
+              Reference material occupying a third of a console.
 
               None of it was actionable. Its one button posted a dispensing
               without the checking pharmacist's initials, which the server

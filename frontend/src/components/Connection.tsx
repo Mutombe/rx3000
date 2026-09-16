@@ -282,8 +282,8 @@ export function RequiresConnection({
       </p>
       <ul className="conn-reasons">
         <li>
-          <b>Repeats.</b> Whether this repeat has already been collected —
-          possibly at another branch. And dispensing it twice is a clinical
+          <b>Repeats.</b> Whether this repeat has already been collected.
+          Possibly at another branch. And dispensing it twice is a clinical
           event, not a record to tidy up later.
         </li>
         <li>

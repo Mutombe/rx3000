@@ -338,7 +338,7 @@ export default function ReportChart({
             <button type="button" className="ghost small" disabled={!zoomed}
                     onClick={() => { setSize(totalCats); setStart(0); }}>Fit all</button>
             <span className="rc-zoom-state muted">
-              {winStart + 1}–{winStart + view.length} of {totalCats.toLocaleString()}
+              {winStart + 1} to {winStart + view.length} of {totalCats.toLocaleString()}
             </span>
           </div>
         </div>

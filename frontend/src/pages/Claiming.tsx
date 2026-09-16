@@ -917,7 +917,7 @@ export default function Claiming() {
                 <label htmlFor={`mmap-${m.id}`}>
                   Cap at the reference price (MMAP)
                   <span className="muted">
-                    {" "}— charges no more than the molecule's published reference
+                    {": "}charges no more than the molecule's published reference
                     price, where one has been loaded.
                   </span>
                 </label>

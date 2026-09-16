@@ -330,11 +330,11 @@ export default function Periods() {
                   <td className="num mono">{money(vat.turnover_excluding_vat)}</td>
                 </tr>
                 <tr>
-                  <td>Output tax <span className="muted">— charged on sales</span></td>
+                  <td>Output tax <span className="muted">charged on sales</span></td>
                   <td className="num mono">{money(vat.output_tax)}</td>
                 </tr>
                 <tr>
-                  <td>Input tax <span className="muted">— paid on purchases</span></td>
+                  <td>Input tax <span className="muted">paid on purchases</span></td>
                   <td className="num mono">{money(vat.input_tax)}</td>
                 </tr>
                 <tr>

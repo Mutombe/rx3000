@@ -47,7 +47,7 @@ export default function Pagination({
           `No ${noun}`
         ) : (
           <>
-            Showing <b>{meta.showing_from}–{meta.showing_to}</b> of{" "}
+            Showing <b>{meta.showing_from} to {meta.showing_to}</b> of{" "}
             <b>{meta.total.toLocaleString()}</b> {noun}
           </>
         )}

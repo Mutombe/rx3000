@@ -434,8 +434,8 @@ export default function Repeats() {
                       <RowActions>
                         {/* A queue you can only read is a list, not a work
                             screen. A repeat is re-supplying a line on a script
-                            that already exists, so dispensing it is one call —
-                            there is nothing to capture again. */}
+                            that already exists, so dispensing it is one call.
+                            There is nothing to capture again. */}
                         {/* One slot, whether it holds the action or the
                             reason there is no action. Without it the rows
                             with stock and the rows without put Alter and
@@ -618,8 +618,8 @@ export default function Repeats() {
           </div>
 
           {/* Day by day, either side of today. A fortnight of this is what
-              tells a pharmacy whether Monday is quietly worse than Thursday —
-              and the week ahead is what somebody staffs and orders against. */}
+              tells a pharmacy whether Monday is quietly worse than Thursday.
+              And the week ahead is what somebody staffs and orders against. */}
           {weekly.length > 0 && (
             <div className="card">
               <div className="card-head">
@@ -899,8 +899,8 @@ export default function Repeats() {
                     busyLabel="Sending…">
           Remind them all
         </BusyButton>
-        {/* What the selection is worth, beside the action that chases it —
-            so the decision to spend a morning on it is made on the money. */}
+        {/* What the selection is worth, beside the action that chases it.
+            So the decision to spend a morning on it is made on the money. */}
         <span className="bulk-count">
           worth <b>{money(picked.rows.reduce((n, r) => n + (r.value ?? 0), 0))}</b>
         </span>

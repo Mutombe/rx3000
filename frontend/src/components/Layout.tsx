@@ -495,8 +495,8 @@ export default function Layout({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="content">
-        {/* Who is signed in belongs where people look for it. The top right —
-            rather than at the foot of a rail that collapses to icons. It also
+        {/* Who is signed in belongs where people look for it. The top right.
+            Rather than at the foot of a rail that collapses to icons. It also
             takes sign-out out of the navigation, where it sat one careless click
             below the last menu item. */}
         {/* Above the top bar, so the clock cannot be scrolled out of sight.
@@ -526,8 +526,8 @@ export default function Layout({ children }: { children: ReactNode }) {
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
           {/* A new version of the till application, when there is one.
-              Left of the branch chip, so the two facts about this session —
-              what is available and where you are. Sit together, and both are
+              Left of the branch chip, so the two facts about this session.
+              What is available and where you are. Sit together, and both are
               read between customers rather than during one. Renders nothing at
               all in a browser tab, which updates by loading the page. */}
           <UpdateChip />

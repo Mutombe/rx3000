@@ -159,7 +159,7 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
                 >
                   <span className="mono dx-code">{query.trim().toUpperCase()}</span>
                   <span className="dx-desc">
-                    Use it anyway &mdash; well formed and in a real chapter
+                    Use it anyway. Well formed and in a real chapter
                     <div className="muted small">{verdict.note}</div>
                   </span>
                 </div>

@@ -347,10 +347,12 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
         l.branch_code ? `[${esc(l.branch_code)}]` : "",
       ].filter(Boolean).join("  ");
 
-      const qty = [
-        l.quantity ? `${l.quantity}${l.dosage_form ? " " + esc(l.dosage_form) : ""}` : "",
-        l.line_total ? `x${l.line_total.toFixed(2)}` : "",
-      ].filter(Boolean).join("  ");
+      // How much is in the box, and not what it cost. A price on a sticker that
+      // goes into somebody's bag tells the patient nothing they need and tells
+      // anybody who sees it what they paid. Money belongs on the receipt.
+      const qty = l.quantity
+        ? `${l.quantity}${l.dosage_form ? " " + esc(l.dosage_form) : ""}`
+        : "";
 
       return `
       <div class="label">
@@ -374,22 +376,18 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
           ${refLine ? `<div>${refLine}</div>` : ""}
         </div>
         <div class="foot">
-          <b>${esc(l.branch_name || l.pharmacy_name)}</b>
-          ${l.branch_address || l.pharmacy_address
-            ? `<div>${esc(l.branch_address || l.pharmacy_address)}</div>` : ""}
-          ${/* The telephone number and the premises registration on one line:
-                the first is how a patient reaches the shop at nine at night,
-                the second is how an inspector ties this sticker to a licence.
-                Printed only when the pharmacy has actually recorded them —
-                a plausible wrong registration number is worse than none. */ ""}
-          ${[l.branch_phone || l.pharmacy_phone,
-             (l.branch_reg_no || l.pharmacy_reg_no)
-               ? `Reg. ${l.branch_reg_no || l.pharmacy_reg_no}` : ""]
-            .filter(Boolean).map(esc).join("  ")
-            ? `<div>${[l.branch_phone || l.pharmacy_phone,
-                       (l.branch_reg_no || l.pharmacy_reg_no)
-                         ? `Reg. ${l.branch_reg_no || l.pharmacy_reg_no}` : ""]
-                 .filter(Boolean).map(esc).join("  ")}</div>` : ""}
+          ${/* The branch's telephone number, and nothing else.
+
+                The name and the street took three lines of a small sticker to
+                repeat what the bag it goes into already says. What a patient
+                needs off a label at ten at night is the number to ring, so that
+                is what the foot carries. The premises registration stays beside
+                it where the pharmacy has recorded one: it is how an inspector
+                ties this sticker to a licence, and it is never invented. */ ""}
+          ${(l.branch_phone || l.pharmacy_phone)
+            ? `<b>Tel: ${esc(l.branch_phone || l.pharmacy_phone)}</b>` : ""}
+          ${(l.branch_reg_no || l.pharmacy_reg_no)
+            ? `<div>Reg. ${esc(l.branch_reg_no || l.pharmacy_reg_no)}</div>` : ""}
         </div>
       </div>`;
     })

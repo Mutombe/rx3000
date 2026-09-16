@@ -105,8 +105,8 @@ export default function CardReconciliation() {
           Upload or paste the acquirer's CSV. Column names are matched loosely, so
           <span className="mono"> auth_code / authcode / approval</span> and
           <span className="mono"> amount / value / total</span> are all understood.
-          Lines are matched on auth code first, then reference, then a same-day amount —
-          amount-only matches are flagged <span className="badge warn">weak</span> for review.
+          Lines are matched on auth code first, then reference, then a same-day amount.
+          Amount-only matches are flagged <span className="badge warn">weak</span> for review.
         </p>
         {/* The drop zone gets its own row. Sharing one with two narrow date
             fields wrapped the second date onto a line of its own and left the

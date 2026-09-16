@@ -142,8 +142,8 @@ export default function PettyCash() {
               <input type="number" min="0.01" step="0.01" value={amount}
                 onChange={(e) => setAmount(e.target.value)} required />
             </div>
-            {/* Which drawer. Only worth asking where there is more than one —
-                a single-currency pharmacy should not be made to answer it. */}
+            {/* Which drawer. Only worth asking where there is more than one.
+                A single-currency pharmacy should not be made to answer it. */}
             {currencies.length > 1 && (
               <div className="field">
                 <label>Out of which drawer</label>
@@ -182,7 +182,7 @@ export default function PettyCash() {
               <Checkbox checked={receiptSeen} onChange={setReceiptSeen}>
               A receipt was seen for this
               <span className="muted">
-                {" "}— payouts without one are listed separately below.
+                {". "}Payouts without one are listed separately below.
               </span>
               </Checkbox>
             </div>

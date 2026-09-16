@@ -92,8 +92,8 @@ export default function WillCallBag() {
       body: <>
         It will show as waiting again, from the date it was dispensed rather
         than today, so the queue does not lose track of how long it has been
-        there. Use this when a collection was recorded against the wrong bag —
-        not when medicine has been returned, which is a reversal.
+        there. Use this when a collection was recorded against the wrong bag.
+        Not when medicine has been returned, which is a reversal.
       </>,
       confirmLabel: "Put it back",
     });

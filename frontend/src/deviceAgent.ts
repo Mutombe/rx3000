@@ -336,10 +336,11 @@ export function labelLines(l: Label, width = 32): Line[] {
   for (const row of (nameRows.length ? nameRows : [wholeName])) {
     lines.push({ text: row, bold: true });
   }
-  const qty = [
-    l.quantity ? `${l.quantity} ${l.dosage_form || ""}`.trim() : "",
-    l.line_total ? `x${l.line_total.toFixed(2)}` : "",
-  ].filter(Boolean).join("  ");
+  // No money on a dispensing label. "1 Capsule x0.19" is a price on a sticker
+  // that goes on a box and then into somebody's bag, where it tells the patient
+  // nothing they need and tells anybody who sees it what they paid. The receipt
+  // is where money belongs; this label says what to take.
+  const qty = l.quantity ? `${l.quantity} ${l.dosage_form || ""}`.trim() : "";
   if (qty) lines.push({ text: qty });
 
   // Half width, because double-height glyphs are also double-wide.
@@ -374,12 +375,14 @@ export function labelLines(l: Label, width = 32): Line[] {
   ].filter(Boolean).join(" ");
   if (ref) lines.push({ text: ref.slice(0, width) });
 
+  // The branch's telephone number, and nothing else.
+  //
+  // The name and the street took three lines of a small sticker to say what the
+  // bag it is going into already says. What a patient actually needs off a label
+  // at ten at night is the number to ring, so that is what the foot carries.
   lines.push({ text: "-".repeat(width) });
-  lines.push({ text: (l.branch_name || l.pharmacy_name).slice(0, width), bold: true });
-  const where = l.branch_address || l.pharmacy_address;
-  if (where) for (const row of wrap(where, width)) lines.push({ text: row });
   const phone = l.branch_phone || l.pharmacy_phone;
-  if (phone) lines.push({ text: phone });
+  if (phone) lines.push({ text: `Tel: ${phone}`.slice(0, width), bold: true });
 
   return lines;
 }

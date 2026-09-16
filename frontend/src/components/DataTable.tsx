@@ -399,8 +399,8 @@ export default function DataTable<T>({
         <div className="dt-pager">
           <span className="muted">
             {server
-              ? `${server.showing_from}–${server.showing_to} of ${server.total.toLocaleString()}`
-              : `${(current - 1) * pageSize + 1}–${Math.min(current * pageSize, sorted.length)} of ${sorted.length}`}
+              ? `${server.showing_from} to ${server.showing_to} of ${server.total.toLocaleString()}`
+              : `${(current - 1) * pageSize + 1} to ${Math.min(current * pageSize, sorted.length)} of ${sorted.length}`}
           </span>
           <div className="dt-pager-controls">
             <span className="dt-pagesize">

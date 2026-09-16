@@ -49,7 +49,7 @@ export default function PrinterRoutes() {
       <section className="card">
         <h3>Printers</h3>
         <p className="muted">
-          A browser cannot choose a printer &mdash; it always opens the print
+          A browser cannot choose a printer. It always opens the print
           dialogue. Install the desktop application on this till and the labels
           come off the roll the moment a script is dispensed, with nothing to
           click.
@@ -63,7 +63,7 @@ export default function PrinterRoutes() {
       <h3>Printers</h3>
       <p className="muted">
         Set once. Everything printed from the dispensary then goes straight to
-        the right printer with no dialogue &mdash; which is the point, because a
+        the right printer with no dialogue. Which is the point, because a
         dialogue at the counter is a question asked in front of a patient.
       </p>
 
@@ -86,12 +86,12 @@ export default function PrinterRoutes() {
                 value={routes[d.kind] ?? ""}
                 onChange={(e) => set(d.kind, e.target.value)}
               >
-                {/* The empty option is not "none", it is "follow the roll" —
-                    said in words, because a blank select reads as unfinished
+                {/* The empty option is not "none", it is "follow the roll".
+                    Said in words, because a blank select reads as unfinished
                     and invites somebody to fill in all four. */}
                 <option value="">
                   {d.kind === "label"
-                    ? "— not chosen —"
+                    ? "not chosen."
                     : "Same as the dispensing label"}
                 </option>
                 {printers.map((p) => <option key={p} value={p}>{p}</option>)}
@@ -99,7 +99,7 @@ export default function PrinterRoutes() {
               <span className="pr-going">
                 {roll.printerFor(d.kind)
                   ? <>goes to <b>{roll.printerFor(d.kind)}</b></>
-                  : <em>no printer &mdash; the dialogue will open</em>}
+                  : <em>no printer. The dialogue will open</em>}
               </span>
             </label>
           ))}
@@ -109,7 +109,7 @@ export default function PrinterRoutes() {
       <p className="muted small">
         The claim copy is A4 and goes through its printer&rsquo;s own driver;
         the three labels are sent as raw bytes to a thermal roll. That is why
-        they are set separately &mdash; a roll cannot render a page, and a laser
+        they are set separately. A roll cannot render a page, and a laser
         cannot interpret the bytes a roll speaks.
       </p>
     </section>

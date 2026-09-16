@@ -246,8 +246,8 @@ export default function Fiscal() {
               </div>
             </div>
             <p className="muted small">
-              Queued receipts are sales made while the authority was unreachable —
-              trading continues and they file when it returns. Rejected ones were
+              Queued receipts are sales made while the authority was unreachable.
+              Trading continues and they file when it returns. Rejected ones were
               refused and need looking at; they do not clear themselves.
             </p>
             <div className="cu-actions">

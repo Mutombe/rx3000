@@ -63,7 +63,7 @@ export default function BankReconcile() {
         </div>
         <p className="muted">
           Paste the statement your bank exported, or open the file. Money in
-          and out may be two columns or one signed one &mdash; both are read,
+          and out may be two columns or one signed one. Both are read,
           because asking a pharmacy to reformat a file their own bank
           generated is not a reconciliation procedure.
         </p>

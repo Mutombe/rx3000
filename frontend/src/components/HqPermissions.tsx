@@ -322,8 +322,8 @@ function GrantForm({ userId, caps, branches, onClose, onSubmit }: {
                 { value: "deny", label: "Prevent them from" },
               ]} />
             <span className="hint">
-              A denial beats every grant, including the one their role gives —
-              or nobody could rely on a denial meaning anything.
+              A denial beats every grant, including the one their role gives.
+              Or nobody could rely on a denial meaning anything.
             </span>
           </div>
 
