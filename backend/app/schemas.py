@@ -141,6 +141,10 @@ class MedicalAidTerms(BaseModel):
 class DoctorBase(BaseModel):
     name: str
     practice_number: str = ""
+    #: The funder's number for this prescriber. Claims are adjudicated on it.
+    ahfoz_number: str = ""
+    hpa_number: str = ""
+    speciality: str = ""
     phone: str = ""
     email: str = ""
 

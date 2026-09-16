@@ -264,7 +264,8 @@ def update_doctor(doctor_id: int, body: dict = Body(...),
             raise HTTPException(status_code=400,
                                 detail="A prescriber needs a name.")
         doctor.name = name[:120]
-    for field, width in (("practice_number", 40), ("phone", 30),
+    for field, width in (("practice_number", 40), ("ahfoz_number", 40),
+                         ("phone", 30),
                          ("email", 120), ("speciality", 80), ("address", 300),
                          ("hpa_number", 40), ("notes", 400)):
         if field in body and hasattr(doctor, field):

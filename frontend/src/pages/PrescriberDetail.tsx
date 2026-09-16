@@ -20,7 +20,8 @@ interface Script {
   patient: { id: number | null; name: string };
 }
 interface Data {
-  id: number; name: string; practice_number: string; phone: string;
+  id: number; name: string; practice_number: string; ahfoz_number: string;
+  hpa_number: string; phone: string;
   email: string; speciality: string; script_count: number;
   prescriptions: Script[];
   most_prescribed: { product_id: number; product: string; times: number }[];
@@ -47,7 +48,7 @@ export default function PrescriberDetail() {
    *  was rejected for as long as the record stood — the only escape being a
    *  second prescriber with the same name.
    */
-  async function editField(field: "practice_number" | "phone" | "speciality",
+  async function editField(field: "practice_number" | "ahfoz_number" | "phone" | "speciality",
                            label: string, current: string) {
     if (!d) return;
     const answer = await ask({
@@ -55,7 +56,10 @@ export default function PrescriberDetail() {
       body: field === "practice_number"
         ? "This is what a funder adjudicates on. A claim carrying the wrong "
           + "one is rejected every time."
-        : undefined,
+        : field === "ahfoz_number"
+          ? "The prescriber's AHFoZ provider number. A funder that cannot "
+            + "identify who wrote the script will not pay the claim."
+          : undefined,
       field: label,
       placeholder: current || undefined,
       required: field === "practice_number",
@@ -109,6 +113,10 @@ export default function PrescriberDetail() {
             {d.practice_number ? "Practice number" : "Add a practice number"}
           </BusyButton>
           <BusyButton className="btn" busyLabel="Saving…"
+            onClick={() => editField("ahfoz_number", "AHFoZ number", d.ahfoz_number)}>
+            {d.ahfoz_number ? "AHFoZ number" : "Add an AHFoZ number"}
+          </BusyButton>
+          <BusyButton className="btn" busyLabel="Saving…"
             onClick={() => editField("phone", "Phone", d.phone)}>
             Phone
           </BusyButton>
@@ -121,6 +129,8 @@ export default function PrescriberDetail() {
         { label: "Scripts sent in", value: d.script_count },
         { label: "Practice number",
           value: <span className="mono">{d.practice_number || "—"}</span> },
+        { label: "AHFoZ number",
+          value: <span className="mono">{d.ahfoz_number || "—"}</span> },
         { label: "Telephone", value: d.phone || "—" },
         { label: "Email", value: d.email || "—" },
       ] : undefined}

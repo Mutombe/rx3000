@@ -67,7 +67,8 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
           rx_number: str, dispensed_at: datetime | None,
           patient_name: str, patient_id: str = "", medical_aid: str = "",
           membership_no: str = "", doctor_name: str = "",
-          doctor_practice: str = "", branch: str = "", dispensed_by: str = "",
+          doctor_practice: str = "", doctor_ahfoz: str = "",
+          branch: str = "", dispensed_by: str = "",
           lines: list[dict], total: float = 0.0) -> bytes:
     """One A4 page. `lines` carry the figures the sale recorded, not today's."""
     st = _styles()
@@ -111,6 +112,9 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
         _pair(st, "Patient", patient_name) + _pair(st, "ID number", patient_id),
         _pair(st, "Medical aid", medical_aid) + _pair(st, "Membership", membership_no),
         _pair(st, "Prescriber", doctor_name) + _pair(st, "Practice number", doctor_practice),
+        # The number the funder pays on. A claim copy that names the prescriber
+        # but not their AHFoZ number is a page the funder cannot match.
+        _pair(st, "AHFoZ number", doctor_ahfoz) + _pair(st, "Branch", branch),
     ], colWidths=[28 * mm, 62 * mm, 28 * mm, 60 * mm])
     who.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),

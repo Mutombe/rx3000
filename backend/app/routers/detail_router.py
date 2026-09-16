@@ -281,6 +281,8 @@ def prescriber(doctor_id: int, db: Session = Depends(get_db)):
     return {
         "id": row.id, "name": row.name,
         "practice_number": getattr(row, "practice_number", "") or "",
+        "ahfoz_number": getattr(row, "ahfoz_number", "") or "",
+        "hpa_number": getattr(row, "hpa_number", "") or "",
         "phone": getattr(row, "phone", "") or "",
         "email": getattr(row, "email", "") or "",
         "speciality": getattr(row, "speciality", "") or "",

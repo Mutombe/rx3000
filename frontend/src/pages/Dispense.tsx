@@ -737,6 +737,15 @@ export default function Dispense() {
   const [showKeys, setShowKeys] = useState(false);
   /** Somebody at the counter who is not on file yet. */
   const [newPatient, setNewPatient] = useState(false);
+  /** A prescriber nobody has written down yet.
+   *
+   *  A script arrives from a doctor who is not on file and the search said
+   *  "no prescriber on file matches" and stopped there — with no way to add one
+   *  from any screen in the system. The dispensing could not go on at all, so
+   *  the pharmacy either picked the wrong prescriber or turned the patient
+   *  away. Captured here, beside the search that failed. */
+  const [newDoctor, setNewDoctor] = useState<null | {
+    name: string; practice_number: string; ahfoz_number: string; phone: string }>(null);
   const [altering, setAltering] = useState(false);
   /** Pricing a basket for somebody deciding, rather than dispensing it.
    *
@@ -1268,6 +1277,26 @@ export default function Dispense() {
 
   /** Go to whatever `blockedBecause` names — the field if it is on the page,
    *  the section of Finish if it lives there. Same order of conditions. */
+  /** Save the prescriber and put them on this script. */
+  async function saveDoctor() {
+    if (!newDoctor || !newDoctor.name.trim()) return;
+    try {
+      const saved = await api.post<Doctor>("/api/doctors", {
+        name: newDoctor.name.trim(),
+        practice_number: newDoctor.practice_number.trim(),
+        ahfoz_number: newDoctor.ahfoz_number.trim(),
+        phone: newDoctor.phone.trim(),
+      });
+      setDoctors((current) => [saved, ...current]);
+      setDoctorId(saved.id);
+      setDoctorQ("");
+      setNewDoctor(null);
+      toast.ok(`${saved.name} is on file and on this script.`);
+    } catch (e) {
+      toast.error(errorText(e));
+    }
+  }
+
   function takeMeThere() {
     const focus = (sel: string) => window.setTimeout(
       () => document.querySelector<HTMLElement>(sel)?.focus(), 30);
@@ -2893,7 +2922,11 @@ export default function Dispense() {
                             onMouseLeave={() => setTip(null)}>
                         <span className="cell-text">
                           <b>{doctor.name}</b>
-                          <span className="muted"> · {doctor.practice_number || "no practice no."}</span>
+                          <span className="muted">
+                            {" · "}
+                            {doctor.practice_number || "no practice no."}
+                            {doctor.ahfoz_number ? ` · AHFoZ ${doctor.ahfoz_number}` : ""}
+                          </span>
                         </span>
                       </span>
                       <button type="button" className="lane-icon-btn" onClick={() => setDoctorId("")}
@@ -2919,19 +2952,32 @@ export default function Dispense() {
               {doctorId === "" && doctorQ.trim().length >= 2 && (() => {
                 const q = doctorQ.trim().toLowerCase();
                 const hits = doctors
-                  .filter((d) => `${d.name} ${d.practice_number ?? ""}`.toLowerCase().includes(q))
+                  .filter((d) => `${d.name} ${d.practice_number ?? ""} ${d.ahfoz_number ?? ""}`
+                    .toLowerCase().includes(q))
                   .slice(0, 8);
                 if (hits.length === 0) {
                   return (
                     <div className="pick-none">
                       <span>No prescriber on file matches &ldquo;{doctorQ.trim()}&rdquo;.</span>
+                      <button type="button" className="linkish"
+                              onClick={() => setNewDoctor({
+                                name: doctorQ.trim(), practice_number: "",
+                                ahfoz_number: "", phone: "" })}>
+                        Add them
+                      </button>
                     </div>
                   );
                 }
                 return hits.map((d) => (
                   <div key={d.id} className="product-pick doc-pick"
                        onClick={() => { setDoctorId(d.id); setDoctorQ(""); }}>
-                    <span><b>{d.name}</b> <span className="muted">{d.practice_number}</span></span>
+                    <span>
+                      <b>{d.name}</b>{" "}
+                      <span className="muted">
+                        {[d.practice_number, d.ahfoz_number && `AHFoZ ${d.ahfoz_number}`]
+                          .filter(Boolean).join(" · ")}
+                      </span>
+                    </span>
                     <span className="muted">{d.phone}</span>
                   </div>
                 ));
@@ -4251,6 +4297,68 @@ ${d.action}`}
                 </div>
               );
             })()}
+
+            {/* A prescriber who is not on file yet, written down at the counter
+                where the script is being captured. Both numbers are asked for
+                because a funder pays on them; neither is demanded, because a
+                pharmacy holding a paper script cannot invent one it was not
+                given, and a script with no prescriber at all is worse. */}
+            {newDoctor && (
+              <div className="modal-backdrop" role="dialog" aria-modal="true"
+                   aria-labelledby="new-doc-title" onClick={() => setNewDoctor(null)}>
+                <div className="modal disp-doctor-modal" onClick={(e) => e.stopPropagation()}>
+                  <h2 id="new-doc-title">Add a prescriber</h2>
+                  <p className="muted">
+                    They go on file for this script and every one after it. The numbers can
+                    be filled in later from the prescriber&rsquo;s own page.
+                  </p>
+                  <div className="field">
+                    <label htmlFor="new-doc-name">Name</label>
+                    <input id="new-doc-name" value={newDoctor.name} maxLength={120} autoFocus
+                           placeholder="As it appears on the script"
+                           onChange={(e) => setNewDoctor({ ...newDoctor, name: e.target.value })} />
+                  </div>
+                  <div className="disp-doctor-nums">
+                    <div className="field">
+                      <label htmlFor="new-doc-practice">Practice number</label>
+                      <input id="new-doc-practice" value={newDoctor.practice_number} maxLength={30}
+                             placeholder="From their stationery"
+                             onChange={(e) => setNewDoctor({ ...newDoctor, practice_number: e.target.value })} />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="new-doc-ahfoz">AHFoZ number</label>
+                      <input id="new-doc-ahfoz" value={newDoctor.ahfoz_number} maxLength={40}
+                             placeholder="What the funder pays on"
+                             onChange={(e) => setNewDoctor({ ...newDoctor, ahfoz_number: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="new-doc-phone">Phone</label>
+                    <input id="new-doc-phone" value={newDoctor.phone} maxLength={30}
+                           placeholder="For queries about their scripts"
+                           onChange={(e) => setNewDoctor({ ...newDoctor, phone: e.target.value })} />
+                  </div>
+                  {!newDoctor.ahfoz_number.trim() && (
+                    <p className="fin-note is-warn">
+                      <Warning size={13} weight="fill" />
+                      <span>
+                        Without an AHFoZ number a claim for this script may come back
+                        unpaid. Add it when you have it.
+                      </span>
+                    </p>
+                  )}
+                  <div className="modal-actions">
+                    <button type="button" className="btn ghost" onClick={() => setNewDoctor(null)}>
+                      Never mind
+                    </button>
+                    <BusyButton className="btn primary" busyLabel="Saving…"
+                                disabled={newDoctor.name.trim().length < 2} onClick={saveDoctor}>
+                      Add prescriber
+                    </BusyButton>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Cancelling a saved script: why, in a word or a sentence, and what
                 happens — said before the button, not discovered after it. */}

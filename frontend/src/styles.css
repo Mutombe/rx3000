@@ -9423,3 +9423,13 @@ button.fin-ack { cursor: pointer; }
 /* Four ways to pay do not fit one row in the controlled route's narrower pay
    column; two by two there, every label in full. */
 .fin-grid.is-three .fin-seg { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 2px; }
+
+/* A prescriber written down at the counter: the two numbers side by side, as
+   they sit on the script in front of whoever is typing. */
+.disp-doctor-modal { max-width: 32rem; }
+.disp-doctor-modal .field { display: flex; flex-direction: column; gap: 3px; }
+.disp-doctor-modal .field > * { grid-column: 1 / -1; width: 100%; }
+.disp-doctor-modal .field > label { text-align: left; justify-self: start; margin: 0; }
+.disp-doctor-nums { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.disp-doctor-nums .field { margin: 0; }
+.pick-none { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }

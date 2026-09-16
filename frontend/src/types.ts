@@ -20,6 +20,10 @@ export interface Doctor {
   id: number;
   name: string;
   practice_number: string;
+  /** What a Zimbabwean funder adjudicates the claim on. */
+  ahfoz_number?: string;
+  hpa_number?: string;
+  speciality?: string;
   phone: string;
   email: string;
 }

@@ -112,6 +112,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # upgrade never silently grants a prescriber the ability to write in.
         "portal_password_hash": "VARCHAR(255)",
         "portal_active": "BOOLEAN DEFAULT 0",
+        # What a Zimbabwean funder adjudicates on, beside the practice number
+        # the prescriber prints on their own stationery.
+        "ahfoz_number": "VARCHAR(40) DEFAULT ''",
+        "hpa_number": "VARCHAR(40) DEFAULT ''",
+        "speciality": "VARCHAR(80) DEFAULT ''",
     },
     "sales": {
         # Which branch sold it. Drives branch takings and the branch VAT return.

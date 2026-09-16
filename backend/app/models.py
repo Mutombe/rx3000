@@ -491,7 +491,19 @@ class Doctor(Base, TenantMixin):
     __tablename__ = "doctors"
     id = Column(Integer, primary_key=True)
     name = Column(String(120), nullable=False)
+    #: The practice number on the prescriber's own stationery.
     practice_number = Column(String(30), default="")
+    #: What a Zimbabwean funder adjudicates a claim on.
+    #:
+    #: AHFoZ issues a provider number to each practice, and a claim for a script
+    #: written by a prescriber the funder cannot identify is rejected — so this
+    #: is asked for beside the practice number rather than folded into it: they
+    #: are two numbers, from two registers, and a pharmacy that has one has not
+    #: got the other.
+    ahfoz_number = Column(String(40), default="")
+    #: Health Professions Authority registration, where the pharmacy records it.
+    hpa_number = Column(String(40), default="")
+    speciality = Column(String(80), default="")
     phone = Column(String(30), default="")
     email = Column(String(120), default="")
     # Prescriber portal. Null until the pharmacy enables it — a prescriber who
