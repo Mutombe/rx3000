@@ -9437,3 +9437,9 @@ button.fin-ack { cursor: pointer; }
 /* Departments: whether the dispensary searches what is filed here. */
 .dept-dispensable { display: inline-flex; align-items: center; white-space: nowrap; }
 .dept-dispensable .cbx { font-size: .82rem; }
+
+/* What the bag's label says, on the shelf list. */
+.wc-directions {
+  font-size: .78rem; color: var(--ink-2, var(--muted));
+  max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

@@ -222,6 +222,13 @@ def load(path: str, *, limit: int = 0) -> dict:
                     pharmacist_initial=line["dispenser"][:8].upper(),
                     is_repeat=False,
                     script_sighted=True,
+                    # Handed over on the day, not waiting on a shelf.
+                    #
+                    # Left unset, every imported dispensing became a will-call
+                    # bag: fifty-three thousand of them, so the shelf a
+                    # dispenser works from listed a year and a half of history
+                    # and none of today's actual bags could be found in it.
+                    collected_at=script["at"],
                     compliance_notes="Imported from CareXpress",
                     pharmacy_id=pharmacy.id,
                 )

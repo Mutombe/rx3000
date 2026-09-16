@@ -33,6 +33,8 @@ interface Bag {
   patient: string;
   phone: string;
   product: string;
+  /** What the label on the bag says. */
+  directions: string;
   quantity: number;
   schedule: number | null;
   dispensed_at: string;
@@ -225,6 +227,12 @@ export default function WillCall() {
                       <td>
                         <b>{b.product}</b>
                         {b.needs_id && <span className="badge sched">S{b.schedule}</span>}
+                        {/* What is on the label, where the bag is handed over:
+                            the question asked at the counter is how to take it,
+                            and the shelf could not answer it. */}
+                        {b.directions && (
+                          <div className="wc-directions">{b.directions}</div>
+                        )}
                         <div className="muted small">{b.rx_number} · {b.dispensed_by}</div>
                         {b.outstanding > 0.005 && (
                           <div className="muted small"><b>{money(b.outstanding)} to pay</b></div>

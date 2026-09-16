@@ -134,6 +134,9 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
             "patient": f"{patient.first_name} {patient.last_name}" if patient else "Walk-in",
             "phone": patient.phone if patient else "",
             "product": f"{product.name} {product.strength or ''}".strip() if product else "",
+            # What the label on the bag says. Read out at the counter when the
+            # patient asks how to take it, and the shelf could not answer.
+            "directions": (item.dosage_instructions or "") if item else "",
             "quantity": d.quantity,
             "schedule": d.schedule,
             "dispensed_at": d.dispensed_at,

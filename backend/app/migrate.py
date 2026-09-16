@@ -1065,6 +1065,37 @@ def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
     return 1 if switched else 0
 
 
+def _imported_dispensings_are_not_on_the_shelf(conn, existing_tables: set[str]) -> int:
+    """Take imported history off the will-call shelf.
+
+    A will-call bag is medicine dispensed and not yet handed over. The script
+    importer left `collected_at` empty on every row it wrote, so a year and a
+    half of CareXpress's history — 53,205 dispensings — became bags apparently
+    waiting on a shelf, and the screen a dispenser uses to find today's three
+    could not show them.
+
+    Matched on the import's own mark rather than on age: a real bag can be
+    months old, and guessing by date would hand over somebody's medicine on
+    paper. They are collected as at the moment they were dispensed, which is
+    what happened.
+    """
+    if not {"dispensings", "prescription_items", "prescriptions"} <= existing_tables:
+        return 0
+    result = conn.execute(text("""
+        UPDATE dispensings SET collected_at = dispensed_at
+        WHERE collected_at IS NULL
+          AND sale_id IS NULL
+          AND prescription_item_id IN (
+              SELECT pi.id FROM prescription_items pi
+              JOIN prescriptions p ON p.id = pi.prescription_id
+              WHERE p.notes LIKE 'Imported from %')
+    """))
+    cleared = result.rowcount or 0
+    if cleared:
+        log.info("Took %s imported dispensing(s) off the will-call shelf", cleared)
+    return 1 if cleared else 0
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -1097,6 +1128,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
         applied += _departments_that_dispense(conn, existing_tables)
+        applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 

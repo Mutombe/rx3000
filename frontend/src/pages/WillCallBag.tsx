@@ -177,7 +177,15 @@ export default function WillCallBag() {
                   {bag.schedule >= 3 && <span className="badge sched">S{bag.schedule}</span>}
                 </dd>
                 <dt>Quantity</dt><dd>{bag.quantity}</dd>
-                <dt>Directions</dt><dd>{bag.directions || "—"}</dd>
+                <dt>Directions</dt>
+                <dd>
+                  {bag.directions || (
+                    // Nothing to print, and worth saying which kind of nothing:
+                    // every bag that came across from the old system has this,
+                    // because an invoice line never carried the directions.
+                    <span className="muted">None recorded on this script line</span>
+                  )}
+                </dd>
                 <dt>Script</dt>
                 <dd className="mono">
                   <EntityLink kind="prescription" id={bag.prescription_id}>
