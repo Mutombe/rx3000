@@ -171,7 +171,7 @@ export default function ProductDetail() {
           { label: "Sold", value: String(data.units_sold), hint: "units over the counter" },
         ]} />
         <dl className="detail-fields" style={{ marginTop: 14 }}>
-          <div><dt>NAPPI</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
+          <div><dt>AHFoZ code</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
           <div><dt>Barcode</dt><dd className="mono">{p.barcode || "—"}</dd></div>
           <div><dt>Pack size</dt><dd>{p.pack_size || "—"}</dd></div>
           <div><dt>Bin</dt><dd>{p.bin_location || "—"}</dd></div>

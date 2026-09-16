@@ -361,7 +361,7 @@ export default function Stock() {
               <FilterBar
                 value={filters}
                 onChange={setFilters}
-                placeholder="Search name / NAPPI / barcode…"
+                placeholder="Search name / AHFoZ code / barcode…"
                 dimensions={[
                   // Titled, not the raw column value. `front_shop` became
                   // "front shop" in the filter while the form beside it offered
@@ -469,7 +469,7 @@ export default function Stock() {
                 </div>
               </div>
               <div className="form-row">
-                <div className="field"><label>NAPPI code</label><input value={form.nappi_code} onChange={set("nappi_code")} /></div>
+                <div className="field"><label>AHFoZ code</label><input value={form.nappi_code} onChange={set("nappi_code")} /></div>
                 <div className="field"><label>Barcode</label><input value={form.barcode} onChange={set("barcode")} /></div>
               </div>
               <div className="form-row">

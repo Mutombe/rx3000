@@ -982,6 +982,36 @@ def _number_the_patients(conn, existing_tables: set) -> int:
     return len(updates)
 
 
+def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
+    """Put every sale line in the same pharmacy as its sale.
+
+    The invoice importer set the pharmacy on each sale and left it off the
+    lines, so the lines took whichever pharmacy the importing session happened
+    to be in. On the CareXpress import that was the wrong one for 70,305 of
+    80,116 lines: the pharmacy could not see the detail of its own invoices —
+    every report that reads sale lines returned nothing or the wrong figures —
+    while another tenant in the same database could.
+
+    One statement, on the join both tables already index.
+    """
+    if not {"sale_items", "sales"} <= existing_tables:
+        return 0
+    cols = {c["name"] for c in inspect(conn).get_columns("sale_items")}
+    if "pharmacy_id" not in cols:
+        return 0
+    result = conn.execute(text("""
+        UPDATE sale_items SET pharmacy_id = (
+            SELECT s.pharmacy_id FROM sales s WHERE s.id = sale_items.sale_id)
+        WHERE sale_id IN (
+            SELECT si.sale_id FROM sale_items si JOIN sales s2 ON s2.id = si.sale_id
+            WHERE COALESCE(si.pharmacy_id, -1) <> COALESCE(s2.pharmacy_id, -1))
+    """))
+    moved = result.rowcount or 0
+    if moved:
+        log.info("Moved %s sale line(s) to the pharmacy of their sale", moved)
+    return 1 if moved else 0
+
+
 def run_migrations(engine: Engine) -> int:
     inspector = inspect(engine)
     applied = 0
@@ -1012,6 +1042,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
+        applied += _sale_lines_follow_their_sale(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 

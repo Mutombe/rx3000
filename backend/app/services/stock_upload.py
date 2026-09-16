@@ -53,6 +53,8 @@ ALIASES = {
     "stock_code": "code", "code": "code", "item_code": "code", "sku": "code",
     "product_code": "code", "itemcode": "code",
     "nappi": "nappi", "nappi_code": "nappi", "nappicode": "nappi",
+    # The same column under the name Zimbabwean funders use for it.
+    "ahfoz": "nappi", "ahfoz_code": "nappi", "ahfozcode": "nappi", "funder_code": "nappi",
     "barcode": "barcode", "ean": "barcode", "gtin": "barcode",
     "name": "name", "description": "name", "product": "name",
     "product_name": "name", "item_description": "name", "item": "name",

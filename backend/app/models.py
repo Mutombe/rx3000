@@ -1003,6 +1003,9 @@ class Sale(Base, TenantMixin):
 
 class SaleItem(Base, TenantMixin):
     __tablename__ = "sale_items"
+    #: A line belongs to whichever pharmacy the sale does — never to whichever
+    #: pharmacy happened to be writing it. See tenancy.stamp.
+    TENANT_PARENT = "sale"
     id = Column(Integer, primary_key=True)
     sale_id = Column(Integer, ForeignKey("sales.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)

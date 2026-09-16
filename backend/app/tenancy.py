@@ -155,5 +155,17 @@ def stamp(session: Session) -> None:
         if pharmacy_id is None:
             return
         for obj in sess.new:
-            if isinstance(obj, TenantMixin) and getattr(obj, "pharmacy_id", None) is None:
+            if not isinstance(obj, TenantMixin):
+                continue
+            # A line takes the pharmacy of the thing it hangs off, whatever
+            # pharmacy the session is in. An importer, a job or a support tool
+            # working on another tenant's data would otherwise file the lines
+            # under itself — which is how 70,305 CareXpress invoice lines ended
+            # up in another pharmacy, invisible to the shop that sold them.
+            parent_attr = getattr(type(obj), "TENANT_PARENT", None)
+            parent = getattr(obj, parent_attr, None) if parent_attr else None
+            inherited = getattr(parent, "pharmacy_id", None) if parent is not None else None
+            if inherited is not None:
+                obj.pharmacy_id = inherited
+            elif getattr(obj, "pharmacy_id", None) is None:
                 obj.pharmacy_id = pharmacy_id

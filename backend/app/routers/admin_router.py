@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -30,6 +30,7 @@ BACKUP_KEEP = 20
 # Accepted CSV header aliases -> canonical field
 HEADER_ALIASES = {
     "nappi": "nappi", "nappi_code": "nappi", "nappicode": "nappi",
+    "ahfoz": "nappi", "ahfoz_code": "nappi", "ahfozcode": "nappi", "funder_code": "nappi",
     "barcode": "barcode", "ean": "barcode", "gtin": "barcode",
     "name": "name", "description": "name", "product": "name", "product_name": "name",
     "cost": "cost", "cost_price": "cost", "trade_price": "cost", "nett": "cost", "net_price": "cost",
@@ -65,6 +66,39 @@ def _to_float(raw: str) -> float | None:
         return None
 
 
+# ---------- what an unpriced item last sold for ----------
+@router.post("/price-from-history")
+def price_from_history(
+    apply: bool = Body(default=False, embed=True),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role("admin", "pharmacist")),
+):
+    """Price items that came across with none, from what they last sold for.
+
+    `apply=False` (the default) writes nothing and returns exactly what would
+    change. A price is money: it is shown before it is written.
+    """
+    from ..services import price_from_history as pricing
+
+    rows = pricing.plan(db)
+    written = 0
+    if apply:
+        written = pricing.apply(db, rows)
+        db.commit()
+    return {
+        "applied": bool(apply),
+        "priced": written,
+        "would_price": len(rows),
+        # The oldest sale among them, so a pharmacy can see at a glance whether
+        # it is being offered last week's prices or the year before's.
+        "oldest_days": max((r["stale_days"] or 0) for r in rows) if rows else 0,
+        "lines": [
+            {**r, "last_sold": r["last_sold"].isoformat() if r["last_sold"] else None}
+            for r in rows[:200]
+        ],
+    }
+
+
 # ---------- supplier price files ----------
 @router.post("/price-import", response_model=schemas.PriceImportResult)
 def price_import(
@@ -96,7 +130,7 @@ def price_import(
     if not ({"nappi", "barcode", "name"} & field_map.keys()):
         raise HTTPException(
             status_code=400,
-            detail="CSV needs an identifying column: nappi, barcode or name",
+            detail="CSV needs an identifying column: AHFoZ code, barcode or name",
         )
     # A regulated price list carries SEP and MMAP and no trading prices at all,
     # and that is a legitimate file to import. It used to be accepted only

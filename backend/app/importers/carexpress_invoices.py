@@ -156,7 +156,10 @@ def run(path: str, limit: int = 0) -> dict:
             """
             nonlocal sale, pending_items
             if sale is not None and pending_items:
-                sale.items = [SaleItem(**it) for it in pending_items]
+                # With the sale's own pharmacy, not the importing session's.
+                # Left off, the lines took whichever tenant the import ran as
+                # and the pharmacy could not see inside its own invoices.
+                sale.items = [SaleItem(**it, pharmacy_id=pharmacy.id) for it in pending_items]
                 counts["items"] += len(pending_items)
             sale, pending_items = None, []
 

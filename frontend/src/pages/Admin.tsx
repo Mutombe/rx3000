@@ -88,6 +88,13 @@ export default function Admin() {
   const setTab = (t: Tab) => setParams(t === "prices" ? {} : { tab: t }, { replace: true });
   const [csv, setCsv] = useState("");
   const [result, setResult] = useState<PriceImportResult | null>(null);
+  /** Items that arrived with no price, and what they last sold for. */
+  const [fromHistory, setFromHistory] = useState<null | {
+    applied: boolean; priced: number; would_price: number; oldest_days: number;
+    lines: { product_id: number; name: string; times_sold: number; last_sold: string | null;
+             last_price: number; new_price: number; sold_by: string; stale_days: number | null }[];
+  }>(null);
+  const [historyBusy, setHistoryBusy] = useState(false);
   // Whether the imported file actually carried published prices. Derived from the
   // result rather than from parsing the CSV here, so the columns shown always
   // match what the server understood — the UI guessing at the header aliases is
@@ -572,11 +579,89 @@ export default function Admin() {
 
       {tab === "prices" && (
         <>
+          {/* Items that came across from another system with a name and no
+              price. They sit in the search and ring up as free, and the
+              invoices already know what each one sold for. */}
+          <div className="card">
+            <h3>Price items from sales history</h3>
+            <p className="muted">
+              For items that arrived with no price. Each is offered the price it last sold
+              for, so nothing is guessed. Nothing is written until you apply it, and an item
+              somebody has priced by hand is left alone.
+            </p>
+            <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <button className="secondary" disabled={historyBusy}
+                      onClick={async () => {
+                        setHistoryBusy(true);
+                        try {
+                          setFromHistory(await api.post("/api/admin/price-from-history", { apply: false }));
+                        } catch (e) { toast.error(errorText(e)); } finally { setHistoryBusy(false); }
+                      }}>
+                {historyBusy ? "Working…" : "Preview prices"}
+              </button>
+              <button disabled={historyBusy || !fromHistory || !fromHistory.would_price
+                                || fromHistory.applied}
+                      onClick={async () => {
+                        setHistoryBusy(true);
+                        try {
+                          const done = await api.post<typeof fromHistory>(
+                            "/api/admin/price-from-history", { apply: true });
+                          setFromHistory(done);
+                          toast.ok(`${done?.priced ?? 0} item(s) priced.`);
+                        } catch (e) { toast.error(errorText(e)); } finally { setHistoryBusy(false); }
+                      }}>
+                Price {fromHistory && !fromHistory.applied ? `${fromHistory.would_price} item(s)` : ""}
+              </button>
+            </div>
+            {fromHistory && (
+              <>
+                <p className="muted small" style={{ marginTop: 12 }}>
+                  {fromHistory.applied
+                    ? `${fromHistory.priced} item(s) priced.`
+                    : `${fromHistory.would_price} item(s) would be priced.`}
+                  {fromHistory.oldest_days > 365
+                    && " Some last sold more than a year ago — worth a look before they go out at that price."}
+                </p>
+                {fromHistory.lines.length > 0 && (
+                  <table className="dt">
+                    <thead>
+                      <tr>
+                        <th>Item</th><th className="num">Times sold</th>
+                        <th>Last sold</th><th className="num">Price</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {fromHistory.lines.slice(0, 25).map((l) => (
+                        <tr key={l.product_id}>
+                          <td>{l.name}</td>
+                          <td className="num">{l.times_sold}</td>
+                          <td>
+                            {l.last_sold ? l.last_sold.slice(0, 10) : "—"}
+                            {(l.stale_days ?? 0) > 365 && (
+                              <span className="badge warn" style={{ marginLeft: 6 }}>old</span>
+                            )}
+                          </td>
+                          <td className="num">{money(l.new_price)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {fromHistory.lines.length > 25 && (
+                  <p className="muted small">
+                    The 25 most-sold are shown; {fromHistory.would_price} would be priced in all.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
           <div className="card">
             <h3>Import supplier price file</h3>
             <p className="muted">
-              Upload or paste a CSV. Products are matched on NAPPI code, then barcode, then name.
-              Recognised columns: <span className="mono">nappi</span>, <span className="mono">barcode</span>,{" "}
+              Upload or paste a CSV. Products are matched on AHFoZ code, then barcode, then name.
+              Recognised columns: <span className="mono">ahfoz</span> (or <span className="mono">nappi</span>),{" "}
+              <span className="mono">barcode</span>,{" "}
               <span className="mono">name/description</span>, <span className="mono">cost/trade_price</span>,{" "}
               <span className="mono">price/selling_price/sep</span>.
             </p>
@@ -593,7 +678,7 @@ export default function Admin() {
             <div className="field">
               <label>CSV content</label>
               <textarea rows={6} value={csv} onChange={(e) => { setCsv(e.target.value); setResult(null); }}
-                placeholder="nappi,description,cost,selling_price&#10;701985,Paracetamol 500mg,15.20,26.95" />
+                placeholder="ahfoz,description,cost,selling_price&#10;701985,Paracetamol 500mg,15.20,26.95" />
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button className="secondary" onClick={() => runImport(false)} disabled={busy || !csv.trim()}>
