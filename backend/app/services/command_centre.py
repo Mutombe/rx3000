@@ -32,6 +32,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from .. import portable_sql
 from ..models import Product, Sale, StockBatch
 from . import branch_scorecard, repeat_performance
 
@@ -142,7 +143,7 @@ def overview(db: Session, *, days: int = 14) -> dict:
                      # be divided to match.
                      func.sum(
                          Product.cost_price
-                         / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                         / portable_sql.at_least(Product.units_per_pack)
                          * Product.reorder_quantity), 0.0))
         .filter(Product.active,
                 Product.quantity_on_hand <= Product.reorder_level).first())

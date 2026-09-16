@@ -34,6 +34,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from .. import portable_sql
 from ..models import (Dispensing, Patient, Prescription, PrescriptionItem,
                       Product)
 
@@ -287,7 +288,7 @@ def daily(db: Session, *, days: int = 14) -> list[dict]:
                  # a bad import would otherwise turn into a division error.
                  func.coalesce(func.sum(
                      Product.unit_price
-                     / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                     / portable_sql.at_least(Product.units_per_pack)
                      * PrescriptionItem.quantity), 0.0))
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
         .outerjoin(Product, PrescriptionItem.product_id == Product.id)
@@ -344,7 +345,7 @@ def weekly(db: Session, *, weeks: int = 8) -> list[dict]:
                  func.count(Dispensing.id),
                  func.coalesce(func.sum(
                      Product.unit_price
-                     / func.greatest(func.coalesce(Product.units_per_pack, 1), 1)
+                     / portable_sql.at_least(Product.units_per_pack)
                      * Dispensing.quantity), 0.0))
         .join(PrescriptionItem,
               Dispensing.prescription_item_id == PrescriptionItem.id)
