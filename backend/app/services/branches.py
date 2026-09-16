@@ -50,6 +50,25 @@ def default_branch(db: Session) -> Branch:
     return branch
 
 
+def branch_of(db: Session, user_id: int | None) -> int | None:
+    """Which shelf this person is standing at.
+
+    Every path that consumes stock fell back to the DEFAULT branch when nobody
+    said otherwise, and no caller ever said otherwise — so a dispenser at
+    CareXpress Chinamano, with 1,936 products on the shelf beside them, was
+    drawing against Central's and being told "not enough stock at this branch".
+    The message was true; the branch was the wrong one.
+
+    Returns None for a user with no branch on record, so the default still
+    applies for the single-shop pharmacy that never thinks about any of this.
+    """
+    if not user_id:
+        return None
+    from ..models import User
+    user = db.get(User, user_id)
+    return int(user.branch_id) if user is not None and user.branch_id else None
+
+
 def ensure_backfilled(db: Session) -> int:
     """Give every pre-branch row a home.
 

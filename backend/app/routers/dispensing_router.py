@@ -31,7 +31,9 @@ def dispensing_policy():
 
 
 @router.post("/expiry-needed")
-def expiry_needed(lines: list[dict] = Body(..., embed=True), db: Session = Depends(get_db)):
+def expiry_needed(lines: list[dict] = Body(..., embed=True),
+                  db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
     """Which lines can only go out from stock with no expiry recorded.
 
     Asked before Finish, so the dispenser can be asked for the date on the pack
@@ -41,9 +43,8 @@ def expiry_needed(lines: list[dict] = Body(..., embed=True), db: Session = Depen
     `lines` is [{product_id, quantity}], quantity in units, as dispensed.
     """
     from ..models import Product
-    from ..services import branches as branch_svc
 
-    branch_id = branch_svc.default_branch(db).id
+    branch_id = _branch_of(db, user)
     out = []
     for line in lines:
         product = db.get(Product, int(line.get("product_id") or 0))

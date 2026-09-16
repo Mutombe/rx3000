@@ -148,7 +148,7 @@ def receive_stock_batch(
     quantity = in_units(product, quantity, in_packs)
     if branch_id is None:
         from .services import branches as _branches
-        branch_id = _branches.default_branch(db).id
+        branch_id = _branches.branch_of(db, user_id) or _branches.default_branch(db).id
     from . import concurrency
     concurrency.lock_product(db, product)
     batch = StockBatch(
@@ -219,7 +219,7 @@ def date_undated_stock(db: Session, product: Product, expiry: date, user_id: int
     """
     if branch_id is None:
         from .services import branches as _branches
-        branch_id = _branches.default_branch(db).id
+        branch_id = _branches.branch_of(db, user_id) or _branches.default_branch(db).id
     undated = (db.query(StockBatch)
                .filter(StockBatch.product_id == product.id,
                        StockBatch.quantity_remaining > 0,
@@ -267,7 +267,7 @@ def consume_stock_fefo(
     """
     if branch_id is None:
         from .services import branches as _branches
-        branch_id = _branches.default_branch(db).id
+        branch_id = _branches.branch_of(db, user_id) or _branches.default_branch(db).id
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
     # A till sells boxes and a dispensary sells tablets; the batches are in
