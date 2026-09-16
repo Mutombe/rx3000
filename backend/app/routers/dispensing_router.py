@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, joinedload
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import doses, interactions, paging, willcall
+from ..services import doses, interactions, pack_dates, paging, willcall
 from ..models import (
     Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
     SaleItem, StockBatch, User,
@@ -44,22 +44,12 @@ def expiry_needed(lines: list[dict] = Body(..., embed=True),
     """
     from ..models import Product
 
-    branch_id = _branch_of(db, user)
-    out = []
+    wanted = []
     for line in lines:
         product = db.get(Product, int(line.get("product_id") or 0))
-        needed = int(line.get("quantity") or 0)
-        if not product or needed <= 0:
-            continue
-        dated = helpers.dated_stock(db, product, branch_id)
-        if dated >= needed:
-            continue
-        undated, _expired = helpers.stock_without_a_good_date(db, product, branch_id)
-        if undated:
-            out.append({"product_id": product.id,
-                        "name": f"{product.name} {product.strength or ''}".strip(),
-                        "needed_units": needed, "dated_units": dated, "undated_units": undated})
-    return out
+        if product is not None:
+            wanted.append((product, int(line.get("quantity") or 0)))
+    return pack_dates.needed(db, _branch_of(db, user), wanted)
 
 
 @router.get("/products", response_model=list[schemas.ProductOut])
@@ -217,6 +207,11 @@ def otc_sale(
     db.add(sale_item)
     db.flush()
 
+    # The date the assistant read off the pack, onto the shelf before the sale
+    # draws from it. Without this an opening count with no expiry dates leaves
+    # the front shop unable to sell anything at all.
+    pack_dates.apply(db, _branch_of(db, user), user.id, {product.id: product},
+                     {product.id: body.pack_expiry} if body.pack_expiry else None)
     helpers.consume_stock_fefo(
         db, product, body.quantity, "sale", user.id,
         reference=sale.sale_number, sale_item_id=sale_item.id,

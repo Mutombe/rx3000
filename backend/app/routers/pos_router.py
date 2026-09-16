@@ -11,8 +11,19 @@ from .periods_router import require_step_up
 from ..models import (BatchAllocation, Claim, Patient, Product, Sale, SaleItem,
                       SaleTender, User, PriceOverride,
 )
-from ..services import claims_engine, currency, fiscal, posting, reconciliation, stepup
+from ..services import (claims_engine, currency, fiscal, pack_dates, posting,
+                        reconciliation, stepup)
 from . import shifts_router
+
+
+def _till_branch(db: Session, user: User) -> int:
+    """Which shelf this till sells off."""
+    if getattr(user, "branch_id", None):
+        return int(user.branch_id)
+    from ..services import branches as branch_svc
+    return branch_svc.default_branch(db).id
+
+
 
 def _hand_set_price(db: Session, user, override_id, product_id: int):
     """Turn "this line was authorised at another price" into the price itself.
@@ -73,6 +84,31 @@ def _already_claimed(db: Session, sale: Sale) -> bool:
         Claim.sale_id == sale.id,
         Claim.status.notin_(("reversed", "rejected")),
     ).first() is not None
+
+
+@router.post("/expiry-needed")
+def expiry_needed(lines: list[dict] = Body(..., embed=True),
+                  db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
+    """Which lines in this basket need the date read off the pack.
+
+    Asked as the basket is built rather than when Complete Sale is pressed, so
+    the cashier answers while the box is still in their hand instead of being
+    refused with a queue behind them.
+
+    `lines` is [{product_id, quantity}] with the quantity in PACKS, which is what
+    a till counts in. The shelf is in dispensable units, so it is converted here.
+    The dispensary asks the same question in units and gets the same answer.
+    """
+    branch_id = _till_branch(db, user)
+    wanted: list[tuple[Product, int]] = []
+    for line in lines:
+        product = db.get(Product, int(line.get("product_id") or 0))
+        if product is None:
+            continue
+        wanted.append((product, helpers.in_units(
+            product, int(line.get("quantity") or 0), True)))
+    return pack_dates.needed(db, branch_id, wanted)
 
 
 def _settle_split_tender(db: Session, sale: Sale, body, amount_due: float) -> None:
@@ -325,6 +361,11 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
     # round trips before the till could total it.
     basket = {p.id: p for p in db.query(Product)
               .filter(Product.id.in_([l.product_id for l in body.items])).all()}
+    # The dates the cashier read off the packs, written onto this branch's stock
+    # before anything is drawn from it. A shop whose opening count arrived with
+    # no expiry dates cannot sell anything at all until this happens, and the
+    # person holding the box is the only one who can answer.
+    pack_dates.apply(db, _till_branch(db, user), user.id, basket, body.pack_expiries)
     for line in body.items:
         product = basket.get(line.product_id)
         if not product:

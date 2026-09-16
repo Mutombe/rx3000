@@ -512,6 +512,9 @@ class SchedulePolicyOut(BaseModel):
 class OTCSaleCreate(BaseModel):
     product_id: int
     quantity: int = 1
+    # The expiry printed on the pack, when this can only go out from stock with
+    # no expiry recorded. Same question the dispensary and the till both ask.
+    pack_expiry: Optional[date] = None
     patient_id: Optional[int] = None
     customer_name: str = ""
     indication: str = ""
@@ -659,6 +662,10 @@ class SaleCreate(CardTender):
     # retry, which is what lets the server recognise a repeat.
     client_ref: str = ""
     taken_offline_at: Optional[datetime] = None
+    # The expiry printed on the pack, by product id, for a line that can only be
+    # met from stock with no expiry recorded. Written onto that stock before it
+    # is drawn, exactly as the dispensary does it — see services/pack_dates.
+    pack_expiries: dict[int, date] = {}
 
 
 class SaleItemOut(ORM):

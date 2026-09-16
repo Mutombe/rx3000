@@ -9988,6 +9988,39 @@ button.fin-ack { cursor: pointer; }
 }
 .till-take:disabled .till-take-key { background: none; }
 
+/* The dates the cashier reads off the boxes.
+   Sits directly above the take-the-money button because it is the last thing
+   between the basket and the drawer, and it is amber rather than red: nothing
+   is wrong, the shop simply has not written this date down yet. */
+.till-packs {
+  border: 1px solid var(--warn-line, var(--line-strong));
+  background: var(--warn-sunk, var(--surface-sunk));
+  border-radius: var(--r-md); padding: var(--s3); margin-bottom: var(--s3);
+}
+.till-packs h4 { margin: 0 0 2px; font-size: .84rem; }
+.till-packs > p { margin: 0 0 var(--s2); }
+.till-packs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.till-packs li {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 6px 8px; border-radius: var(--r-sm);
+  background: var(--surface); border: 1px solid var(--line);
+}
+.till-packs li.is-done { border-color: var(--ok-line, var(--line)); }
+.till-packs li.is-bad { border-color: var(--bad-line, var(--line-strong)); }
+.till-pack-what { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.till-pack-what b { font-size: .82rem; overflow-wrap: anywhere; }
+.till-pack-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .72rem; color: var(--bad, var(--ink-mid));
+}
+.till-packs input[type="date"] {
+  width: 148px; flex: none; height: 30px; font-size: .8rem;
+}
+@media (max-width: 520px) {
+  .till-packs li { flex-wrap: wrap; }
+  .till-packs input[type="date"] { width: 100%; }
+}
+
 @media (max-width: 1100px) {
   .till-dense.pos-layout { grid-template-columns: 1fr; }
   .till-dense.pos-layout > div:last-child { overflow: visible; }

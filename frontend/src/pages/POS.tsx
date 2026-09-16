@@ -13,7 +13,7 @@ import { CurrencyState, Patient, Product, Sale } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
-import { ClockCounterClockwise, Printer, Truck } from "@phosphor-icons/react";
+import { ClockCounterClockwise, Printer, Truck, Warning } from "@phosphor-icons/react";
 import { KeyBar } from "../components/KeyMap";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
@@ -332,6 +332,47 @@ export default function POS() {
     return result.reference ?? "";
   }
 
+  /** Lines the till can only sell from stock with no expiry recorded, and the
+   *  date the cashier read off each pack.
+   *
+   *  A shop's opening count says how many boxes are on the shelf, never what is
+   *  printed on them, so every batch it creates is undated — and undated stock
+   *  cannot be sold, because First-Expiry-First-Out has no way to place it. The
+   *  dispensary learned to ask the person holding the box; the till did not, and
+   *  a pharmacy whose whole shelf had arrived that way could dispense a script
+   *  and not sell a tube of cream.
+   *
+   *  Asked while the basket is being built rather than at Complete Sale, because
+   *  the cashier is holding the box then and there is nobody waiting yet. The
+   *  server writes the date onto the stock as the sale draws it, so the shelf
+   *  dates itself one customer at a time and nobody is asked twice. */
+  const [packNeeded, setPackNeeded] = useState<
+    { product_id: number; name: string; needed_units: number;
+      dated_units: number; undated_units: number }[]>([]);
+  const [packExpiry, setPackExpiry] = useState<Record<number, string>>({});
+  const basketKey = cart.map((l) => `${l.product.id}:${l.quantity}`).join(",");
+  useEffect(() => {
+    if (!cart.length) { setPackNeeded([]); return; }
+    const t = window.setTimeout(() => {
+      api.post<typeof packNeeded>("/api/pos/expiry-needed", {
+        lines: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity })),
+      }).then(setPackNeeded).catch(() => setPackNeeded([]));
+    }, 200);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [basketKey]);
+
+  /** The first pack still needing a date, or one whose date has already gone. */
+  function packProblem(): string {
+    const today = new Date().toLocaleDateString("en-CA");
+    const past = packNeeded.find((l) => packExpiry[l.product_id]
+      && packExpiry[l.product_id] < today);
+    if (past) return `That pack of ${past.name} has expired. Take another off the shelf.`;
+    const missing = packNeeded.find((l) => !packExpiry[l.product_id]);
+    if (missing) return `Enter the expiry printed on the pack of ${missing.name}.`;
+    return "";
+  }
+
   /* Keys at the till.
    *
    * A cashier's hands are on the scanner and the keypad, not the mouse, and a
@@ -416,6 +457,12 @@ export default function POS() {
         payment_method: "cash",
         amount_tendered: Number(tendered) || payable,
         loyalty_points_redeemed: 0,
+        // Held with the sale. The dates were read off the boxes that went over
+        // the counter tonight; when the line comes back the server still has to
+        // be told them, or the replay is refused for stock with no expiry.
+        pack_expiries: Object.fromEntries(
+          packNeeded.filter((l) => packExpiry[l.product_id])
+            .map((l) => [l.product_id, packExpiry[l.product_id]])),
       });
       const held = await queue.pendingCount();
       toast.ok(
@@ -457,6 +504,18 @@ export default function POS() {
   function completeSale() {
     if (!online) return checkoutOffline();
     if (!cart.length) return;
+    // Held back rather than sent to be refused: the server would decline this
+    // sale anyway, and the cashier would read "not enough stock" about a shelf
+    // they can see is full. Asked here, it is a date away from being sold.
+    const pack = packProblem();
+    if (pack) {
+      toast.warn(pack);
+      window.setTimeout(() => {
+        const first = packNeeded.find((l) => !packExpiry[l.product_id]) ?? packNeeded[0];
+        document.getElementById(`till-pack-${first?.product_id}`)?.focus();
+      }, 40);
+      return;
+    }
 
     // Everything needed to put the counter back, taken before it is cleared,
     // and everything the sale is built from, taken before the screen moves on.
@@ -464,6 +523,12 @@ export default function POS() {
       cart, patient, payMethod, tendered, redeem, card, splitMode,
       tenderLines, changeCurrency, mobilePhone, wallet, walletCurrency,
       payable, redeemValue,
+      // Snapshotted with everything else. The basket clears on the keystroke,
+      // so reading these off state when the request runs would send the next
+      // customer's dates, or none.
+      packExpiries: Object.fromEntries(
+        packNeeded.filter((l) => packExpiry[l.product_id])
+          .map((l) => [l.product_id, packExpiry[l.product_id]])),
     };
     const lines = cart.reduce((n, l) => n + l.quantity, 0);
     const owed = payable;
@@ -484,6 +549,10 @@ export default function POS() {
       } : null),
       undo: () => {
         setCart(before.cart);
+        // Including the dates read off the packs: a cashier who has already
+        // typed four of them should not type them again because the line was
+        // down. `packNeeded` refills itself from the restored basket.
+        setPackExpiry(before.packExpiries);
         setPatient(before.patient);
         setPayMethod(before.payMethod);
         setTendered(before.tendered);
@@ -549,6 +618,8 @@ export default function POS() {
 
   function clearTheCounter() {
     setCart([]);
+    setPackNeeded([]);
+    setPackExpiry({});
     setPatient(null);
     setTendered("");
     setRedeem("0");
@@ -576,6 +647,8 @@ export default function POS() {
     walletCurrency: string;
     payable: number;
     redeemValue: number;
+    /** The expiry read off each pack, by product id, for stock that carries none. */
+    packExpiries: Record<number, string>;
   }
 
   /** Write the sale, from the snapshot rather than from the screen.
@@ -604,6 +677,7 @@ export default function POS() {
       payment_method: was.payMethod,
       amount_tendered: Number(was.tendered) || 0,
       loyalty_points_redeemed: was.redeemValue,
+      pack_expiries: was.packExpiries,
       ...(mobileTenders ? { tenders: mobileTenders } : {}),
       ...(was.splitMode ? {
         tenders: was.tenderLines
@@ -1329,6 +1403,48 @@ export default function POS() {
                 <label>Redeem loyalty points (1 pt = {money(1)}), available: {patient.loyalty_points}</label>
                 <input type="number" min={0} max={patient.loyalty_points} value={redeem} onChange={(e) => setRedeem(e.target.value)} />
               </div>
+            )}
+            {/* Stock the shelf holds and the till cannot sell until somebody
+                reads the date off the box. Shown in the payment column, beside
+                the money, because that is where the cashier already is, and
+                answered in one keystroke per line. */}
+            {packNeeded.length > 0 && (
+              <section className="till-packs">
+                <h4>Expiry from the pack</h4>
+                <p className="muted small">
+                  This stock was counted in without an expiry date. Type the date printed
+                  on the box you are selling. It is kept against the stock, so nobody is
+                  asked for it again.
+                </p>
+                <ul>
+                  {packNeeded.map((l) => {
+                    const value = packExpiry[l.product_id] ?? "";
+                    const past = !!value && value < new Date().toLocaleDateString("en-CA");
+                    return (
+                      <li key={l.product_id} className={past ? "is-bad" : value ? "is-done" : ""}>
+                        <div className="till-pack-what">
+                          <b>{l.name}</b>
+                          <span className="muted small">
+                            {l.undated_units} with no date recorded
+                            {l.dated_units ? `, ${l.dated_units} dated` : ""}
+                          </span>
+                          {past && (
+                            <span className="till-pack-warn">
+                              <Warning size={12} weight="fill" /> That box has expired.
+                              Take another off the shelf.
+                            </span>
+                          )}
+                        </div>
+                        <input type="date" id={`till-pack-${l.product_id}`}
+                          aria-label={`Expiry printed on the pack of ${l.name}`}
+                          value={value}
+                          onChange={(e) => setPackExpiry((cur) => ({
+                            ...cur, [l.product_id]: e.target.value }))} />
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
             )}
             {/* Released on the keystroke. It is not disabled while a sale is
                 in flight, because the whole point is that the next customer
