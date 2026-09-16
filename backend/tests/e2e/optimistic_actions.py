@@ -30,7 +30,9 @@ tag = random.randint(1000, 9999)
 
 
 def check(label, ok, detail=""):
-    print(f"  {'ok  ' if ok else 'FAIL'}  {label}" + (f"  ({detail})" if detail and not ok else ""))
+    line = f"  {'ok  ' if ok else 'FAIL'}  {label}" + (f"  ({detail})" if detail and not ok else "")
+    # The console here is cp1252 and the chips carry an arrow.
+    print(line.encode("ascii", "replace").decode("ascii"))
     if not ok:
         fails.append(label)
 
@@ -102,9 +104,12 @@ with sync_playwright() as pw:
     lines_left = page.locator(".rx-item-sig").count()
     check("…and the script's lines are off the screen at once", lines_left == 0, str(lines_left))
     tray = page.query_selector(".doing-chip")
-    check("…with the work named in the tray while it runs",
-          tray is not None and "Dispensing" in tray.inner_text(),
-          tray.inner_text()[:80] if tray else "no chip")
+    # Named while it runs, and named afterwards: against a server on the same
+    # machine it can already have landed by the time this looks, and the chip
+    # then says so in the past tense.
+    chip = tray.inner_text() if tray else ""
+    check("…with the work named in the tray",
+          tray is not None and to_dispense["rx_number"] in chip, chip[:90] or "no chip")
     if SHOT and tray:
         page.screenshot(path=str(SHOT / "optimistic-dispensing.png"))
 

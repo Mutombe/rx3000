@@ -4,8 +4,9 @@
   - the dialog will not cancel without a reason, and a common reason fills it
   - cancelling clears the screen, takes the script off the worklist, and the
     server has it cancelled
-  - a script already dispensed in part is refused, saying to use Alter script,
-    and the dialog stays open with the reason still in it
+  - a script already dispensed in part is refused, saying to use Alter script:
+    the dialog closed on the keystroke, so the refusal is handed back on the
+    chip, and re-opening the dialog finds the reason still typed
   - Escape closes the dialog
 
 Run against a local dev server on :4177 and API on :8099:
@@ -114,11 +115,28 @@ with sync_playwright() as pw:
     page.fill("#cancel-reason", "Second line not wanted")
     page.locator(".disp-cancel-modal").get_by_role("button", name="Cancel script").click()
     page.wait_for_timeout(1800)
-    said = " | ".join(t.inner_text() for t in page.query_selector_all(".toast"))
-    check("a part-dispensed script is refused, pointing to Alter script", "Alter script" in said, said[:200])
-    check("…and the dialog stays open with the reason still in it",
-          page.query_selector(".disp-cancel-modal") is not None
-          and page.input_value("#cancel-reason") == "Second line not wanted")
+    check("the dialog closes on the keystroke, without waiting",
+          page.query_selector(".disp-cancel-modal") is None)
+    said = ""
+    chip = None
+    for _ in range(40):
+        page.wait_for_timeout(300)
+        said += " | ".join(t.inner_text() for t in page.query_selector_all(".toast"))
+        chip = page.query_selector(".doing-chip.is-failed")
+        if chip or "Alter script" in said:
+            break
+    check("a part-dispensed script is refused, pointing to Alter script",
+          "Alter script" in said or (chip is not None and "Alter script" in chip.inner_text()),
+          said[:200])
+    check("…and the refusal is handed back, with Try again on it",
+          chip is not None and "Try again" in chip.inner_text(),
+          chip.inner_text()[:120] if chip else "no chip")
+    # Re-opened, the reason is still there: nobody retypes what was refused.
+    page.locator(".page-actions").get_by_role("button", name="Cancel script").click()
+    page.wait_for_timeout(700)
+    check("…and re-opening finds the reason still typed",
+          page.input_value("#cancel-reason") == "Second line not wanted",
+          page.input_value("#cancel-reason"))
     page.keyboard.press("Escape")
     page.wait_for_timeout(500)
     check("Escape closes the dialog", page.query_selector(".disp-cancel-modal") is None)

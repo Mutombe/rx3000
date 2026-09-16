@@ -878,9 +878,14 @@ export default function Dispense() {
   const [cancelTarget, setCancelTarget] = useState<
     { id: number; number: string; patient?: string; product?: string; lines?: number } | null>(null);
   function openCancel(target: NonNullable<typeof cancelTarget>) {
-    setCancelReason("");
+    // A reason the server refused comes back with the script it was typed for:
+    // "already dispensed in part" is an answer about the script, not about the
+    // wording, and nobody should retype a sentence to read the same refusal.
+    setCancelReason(refused.current?.id === target.id ? refused.current.reason : "");
     setCancelTarget(target);
   }
+  /** The last cancellation the server would not take. */
+  const refused = useRef<{ id: number; reason: string } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
 
@@ -897,6 +902,9 @@ export default function Dispense() {
     const { id, number } = cancelTarget;
     const reason = cancelReason.trim();
     const wasOnScreen = fromRx?.id === id;
+    // Kept so a refusal can put it back the way it was opened.
+    const patientId = patient?.id ?? null;
+    const schedule = Math.max(0, ...items.map((i) => i.product.schedule || 0));
 
     setCancelTarget(null);
     setCancelReason("");
@@ -912,10 +920,16 @@ export default function Dispense() {
         setWorklistNonce((n) => n + 1);
       },
       undo: () => {
-        // Back on the rail, with what was typed, ready to be looked at again.
+        // Back on the rail, with what was typed, ready to be looked at again —
+        // and back on the screen if that is where it was, because a refusal
+        // ("already dispensed in part; use Alter script") is answered on the
+        // script itself and cannot be answered from an empty screen.
         setCancelling((live) => live.filter((x) => x !== id));
         setWorklistNonce((n) => n + 1);
-        setCancelReason(reason);
+        refused.current = { id, reason };
+        if (wasOnScreen && !itemsRef.current.length && !patientRef.current) {
+          void openQueued({ patient_id: patientId, prescription_id: id, schedule });
+        }
       },
     });
   }
