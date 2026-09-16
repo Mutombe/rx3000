@@ -13,6 +13,12 @@
  *  change here reaches the patient, and nothing here changes anything.
  */
 import { X } from "@phosphor-icons/react";
+// The portal's own stylesheet, so the preview is the patient's page rather
+// than its markup with none of its rules. Without this the phone frame held
+// raw browser defaults — bold runs, no cards, no spacing — which is not what
+// the patient sees and is worse than showing nothing. Every rule in it is
+// scoped under `.pp`, so loading it here changes nothing else on the screen.
+import "../portal/portal.css";
 
 const money = (n: number) =>
   n.toLocaleString(undefined, { style: "currency", currency: "USD" });

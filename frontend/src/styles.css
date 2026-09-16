@@ -6868,6 +6868,16 @@ table.dt.sub th { font-size: var(--t-xs); }
   background: var(--surface); box-shadow: 0 12px 40px rgba(16, 16, 22, 0.28);
 }
 .preview-phone > iframe { width: 100%; height: 100%; border: 0; }
+/* The portal's own page, rendered inside the frame: it scrolls within the
+   phone rather than stretching it, exactly as it does in a patient's hand. */
+.preview-phone {
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
+  /* No desktop scrollbar down the side of a phone: it is not what the patient
+     sees, and it takes its width out of the page being previewed. */
+  scrollbar-width: none;
+}
+.preview-phone::-webkit-scrollbar { width: 0; height: 0; }
+.preview-phone > .pp { min-height: 100%; padding: 16px 12px 28px; }
 
 /* A button that is a link. Its ONLY class, and that class had no rule, so it
    took `button, .btn` whole and rendered as a solid accent-filled button in the
