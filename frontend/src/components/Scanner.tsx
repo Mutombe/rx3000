@@ -17,9 +17,18 @@
  *  quietly corrupt it.
  *
  *  **A person typing fast is not a scan.** The test is a burst of at least six
- *  characters whose gaps are under 35ms, terminated by Enter. 35ms per key is
- *  around 340 words a minute sustained; scanners run at 5–15ms. The margin
- *  between the two is wide enough that neither side of the mistake happens.
+ *  characters, terminated by Enter, whose TYPICAL gap is under 35ms. 35ms per
+ *  key is around 340 words a minute sustained; scanners run at 5–15ms. The
+ *  margin between the two is wide enough that neither side of the mistake
+ *  happens.
+ *
+ *  Typical, not every gap, because every gap was too strict. One slow frame —
+ *  a React re-render, a garbage collection, a busy till — stretches a single
+ *  gap past the threshold, and the burst was then read as two: the code was cut
+ *  in half, and half of it was left behind in whatever field the caret was in.
+ *  A machine with one hiccup is still a machine, so the median decides and a
+ *  single long gap is forgiven; a run where the gaps are genuinely human is
+ *  still not a scan.
  */
 import React, {
   useCallback, useEffect, useRef, useState,
@@ -68,6 +77,8 @@ export type ScanContext = "pos" | "stock" | "receive";
 const MAX_GAP_MS = 35;
 /** Shorter bursts are too easy to produce by hand to be worth acting on. */
 const MIN_LENGTH = 6;
+/** Silence longer than this ends whatever was being typed, machine or person. */
+const IDLE_MS = 600;
 
 interface WedgeOptions {
   onScan: (code: string) => void;
@@ -75,10 +86,34 @@ interface WedgeOptions {
   enabled?: boolean;
 }
 
+/** Put a value back into a field React is controlling.
+ *
+ *  Assigning `el.value` is not enough. React keeps a tracker on the node and
+ *  updates it when the value is set from outside, so the `input` event that
+ *  follows looks like a no-op, `onChange` never fires, the component's state
+ *  still holds what the scanner typed, and the very next render puts it back on
+ *  screen. The field then keeps half a barcode and nothing says why.
+ *
+ *  Going through the prototype's own setter leaves the tracker stale, which is
+ *  what makes React believe the value really changed.
+ */
+function putBack(el: HTMLInputElement | HTMLTextAreaElement, value: string) {
+  const proto = el instanceof HTMLTextAreaElement
+    ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+  if (setter) {
+    setter.call(el, value);
+  } else {
+    el.value = value;
+  }
+  el.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
   // Refs throughout: a keystroke handler that re-subscribes on every character
   // would drop the burst it is in the middle of reading.
   const buffer = useRef("");
+  const gaps = useRef<number[]>([]);
   const lastKey = useRef(0);
   const restore = useRef<{ el: HTMLInputElement | HTMLTextAreaElement; value: string } | null>(null);
   const handler = useRef(onScan);
@@ -89,7 +124,28 @@ export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
 
     function reset() {
       buffer.current = "";
+      gaps.current = [];
       restore.current = null;
+    }
+
+    /** Whether the gaps between these keystrokes read as a machine's.
+     *
+     *  Judged on the END of the burst, not the whole of it. Scanning into a
+     *  field costs a re-render per character while React catches up, so the
+     *  first half-dozen keystrokes of a real scan arrive 60–85ms apart and the
+     *  rest at 15. Measured across the whole burst that reads as a fast human;
+     *  measured where it has settled it is unmistakable, and a person typing
+     *  does not speed up to 15ms a key half way through a barcode.
+     */
+    function machineTyped(): boolean {
+      const seen = gaps.current;
+      if (seen.length < MIN_LENGTH - 1) return false;
+      const tail = seen.slice(-6);
+      const sorted = [...tail].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      // The cap keeps a genuine pause — somebody walking away mid-word — from
+      // being swept up with it.
+      return median <= MAX_GAP_MS && Math.max(...seen) <= IDLE_MS;
     }
 
     function onKeyDown(e: KeyboardEvent) {
@@ -101,14 +157,13 @@ export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
         const code = buffer.current;
         // A trailing Enter only means something if a burst preceded it. Left
         // alone otherwise, so Enter still submits forms normally.
-        if (code.length >= MIN_LENGTH) {
+        if (code.length >= MIN_LENGTH && machineTyped()) {
           e.preventDefault();
           e.stopPropagation();
           // Put back whatever the scanner typed into an unrelated field.
           const r = restore.current;
           if (r && document.contains(r.el)) {
-            r.el.value = r.value;
-            r.el.dispatchEvent(new Event("input", { bubbles: true }));
+            putBack(r.el, r.value);
           }
           reset();
           handler.current(code);
@@ -122,9 +177,14 @@ export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
       // one-character key and is part of the payload, not a control press.
       if (e.key.length !== 1) return;
 
-      if (gap > MAX_GAP_MS) {
-        // Too slow to be a machine: this is a new burst, possibly a person.
+      if (gap > IDLE_MS || !buffer.current) {
+        // Nothing has been typed for long enough that this is a fresh start —
+        // a new pack, or a person beginning a word. What the field held before
+        // it is snapshotted now, and kept until Enter: snapshotting again
+        // part-way through would save the half-typed code as the thing to
+        // restore, which is precisely what used to be left behind.
         buffer.current = e.key;
+        gaps.current = [];
         const el = document.activeElement as HTMLInputElement | null;
         restore.current =
           el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")
@@ -133,6 +193,7 @@ export function useWedgeScanner({ onScan, enabled = true }: WedgeOptions) {
         return;
       }
       buffer.current += e.key;
+      gaps.current.push(gap);
     }
 
     // Capture phase: a scan must be recognised before a page-level Enter

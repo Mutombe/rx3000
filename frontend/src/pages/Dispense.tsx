@@ -21,6 +21,7 @@ import LabelSheet from "../components/LabelSheet";
 import SigInput from "../components/SigInput";
 import MixAtTheCounter, { MadeUp } from "../components/MixAtTheCounter";
 import { useDoing } from "../components/Doing";
+import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import Variants from "../components/Variants";
 import CounsellingPoints from "../components/CounsellingPoints";
 import RepeatValue from "../components/RepeatValue";
@@ -56,7 +57,7 @@ import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AlterScript from "../components/AlterScript";
-import { Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
+import { Camera, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import DriverForm from "../components/DriverForm";
@@ -847,6 +848,8 @@ export default function Dispense() {
   /** The script on screen, readable from inside work that outlives this render. */
   const fromRxRef = useRef<{ id: number; number: string } | null>(null);
   useEffect(() => { fromRxRef.current = fromRx; }, [fromRx]);
+  /** The camera, for a counter with no scanner on it. */
+  const [cameraOpen, setCameraOpen] = useState(false);
   /** Whether the dispenser has moved on to somebody else while work is in
    *  flight. Work that lands afterwards must not take their screen. */
   const itemsRef = useRef<DraftItem[]>([]);
@@ -887,6 +890,18 @@ export default function Dispense() {
   /** The last cancellation the server would not take. */
   const refused = useRef<{ id: number; reason: string } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  /** A scanner is a keyboard that types very fast and presses Enter, and the
+   *  dispenser is holding a pack in one hand. Reading it anywhere on the screen
+   *  means they do not have to click into the medicine box first — and the
+   *  detector puts back whatever the burst typed into whichever field the caret
+   *  happened to be in. Off while a dialog owns the keyboard: a code typed into
+   *  a cancellation reason is not a pack being checked. */
+  useWedgeScanner({
+    onScan: (code) => { setProductQ(""); void scanPack(code); },
+    enabled: finishing === null && !cameraOpen && !cancelTarget && !holding
+      && !mixing && !newPatient && !altering,
+  });
+
   const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
 
   /** Cancel a script, without standing there while it happens.
@@ -3052,6 +3067,18 @@ export default function Dispense() {
                       scanPack(code);
                     }
                   }} />
+                {/* The camera, for a counter that has no scanner on it — a
+                    phone or a laptop is the scanner instead, and the pack is
+                    checked against the script exactly as a scanner's would be.
+                    Hidden where the browser has no camera to offer. */}
+                {cameraSupported() && (
+                  <button type="button" className="lane-icon-btn lane-scan"
+                          title="Scan the pack with the camera"
+                          aria-label="Scan the pack with the camera"
+                          onClick={() => setCameraOpen(true)}>
+                    <Camera size={16} />
+                  </button>
+                )}
                 <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
               </div>
               {/* Read before the first medicine goes on the script, not after
@@ -4522,6 +4549,14 @@ ${d.action}`}
                   </div>
                 </div>
               </div>
+            )}
+
+            {cameraOpen && (
+              <ScanCamera
+                title="Scan the pack"
+                onClose={() => setCameraOpen(false)}
+                onScan={(code) => { setCameraOpen(false); void scanPack(code); }}
+              />
             )}
 
             {/* Made up at the counter: the ingredients come off stock, and what

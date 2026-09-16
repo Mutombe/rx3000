@@ -9557,3 +9557,9 @@ button.fin-ack { cursor: pointer; }
 .doc-num > span { font-size: .68rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
 .doc-num > b { font-family: var(--mono, ui-monospace, monospace); font-size: .86rem; }
 .doc-num.is-missing > b { color: var(--warn-ink, #8a6100); font-weight: 600; }
+
+/* The camera, at the end of the medicine field: a counter with no scanner on it
+   uses the phone or the laptop in front of it instead. */
+.lane-scan { margin-right: 2px; }
+.lane-field .lane-scan { color: var(--muted); }
+.lane-field .lane-scan:hover { color: var(--brand, #12306b); }
