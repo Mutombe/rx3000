@@ -10363,3 +10363,54 @@ button.fin-ack { cursor: pointer; }
 @media (max-width: 720px) {
   .printer-paper > label { grid-template-columns: 1fr; }
 }
+
+/* CORRECTING THE SHELF, from wherever it was noticed.
+   The count itself is the control: a dispenser finds out the shelf is wrong at
+   the moment they reach for the box, and the figure they are reading is the
+   obvious place to say so. Underlined rather than buttoned, so a row of search
+   results does not turn into a row of buttons. */
+.stock-fix, .ed-stock {
+  height: auto; padding: 0; border: 0; background: none; font: inherit;
+  color: inherit; cursor: pointer; white-space: nowrap;
+  text-decoration: underline dotted; text-underline-offset: 2px;
+}
+.stock-fix:hover, .ed-stock:hover { color: var(--accent, var(--ink)); background: none; }
+.ed-stock { font: inherit; }
+
+.adj-modal { max-width: 34rem; }
+/* Set it to, add, remove — and the number beside them, because which of the
+   three is chosen changes what the number means. */
+.adj-how {
+  display: flex; align-items: center; gap: var(--s2);
+  margin: var(--s3) 0 var(--s2); flex-wrap: wrap;
+}
+.adj-mode {
+  height: 32px; padding: 0 var(--s3); font-size: .84rem; font-weight: 500;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink-mid);
+}
+.adj-mode.is-on {
+  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+}
+.adj-count {
+  width: 7rem; height: 32px; text-align: right;
+  font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 600;
+}
+/* What the shelf becomes. Typing 12 into "add" when you meant "set" has added
+   twelve, and before the button is pressed is the only cheap moment to see it. */
+.adj-after {
+  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
+  border-radius: var(--r-md); background: var(--surface-sunk);
+  font-size: .86rem; color: var(--ink-mid);
+}
+.adj-after.is-ok { color: var(--ink); }
+.adj-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.adj-reason {
+  height: 28px; padding: 0 var(--s2); font-size: .78rem; font-weight: 500;
+  border: 1px solid var(--line); border-radius: 999px;
+  background: var(--surface); color: var(--ink-mid);
+}
+.adj-reason.is-on {
+  border-color: var(--accent, var(--ink)); color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--accent, var(--ink));
+}

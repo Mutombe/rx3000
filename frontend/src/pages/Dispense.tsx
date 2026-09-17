@@ -61,6 +61,7 @@ import PatientForm, { draftFrom } from "../components/PatientForm";
 import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
+import AdjustStock from "../components/AdjustStock";
 import AlterScript from "../components/AlterScript";
 import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
@@ -363,6 +364,9 @@ export default function Dispense() {
    *  the same figure in the table behind it takes a double-click. The dialog
    *  still exists, behind "change", because margin and "keep this price for
    *  good" are answers a bare cell cannot hold. */
+  /** The medicine whose shelf count is being corrected, from wherever the
+   *  dispenser noticed it was wrong. Null when nothing is. */
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
   const [railEdit, setRailEdit] = useState<"each" | "line" | null>(null);
   const [railDraft, setRailDraft] = useState("");
   // Closing the editor, or moving to another line, abandons whatever was half
@@ -3709,7 +3713,17 @@ export default function Dispense() {
                         contradicting itself, and the number it showed was the
                         wrong one. Undated stock is real and is said separately,
                         because it is one date away from being usable. */}
-                    {" · "}{p.here ?? p.quantity_on_hand} here
+                    {/* The count, and the way to correct it. A dispenser finds
+                        out the shelf is wrong at the moment they reach for the
+                        box, and the figure they are looking at is the obvious
+                        place to say so. */}
+                    {" · "}
+                    <button type="button" className="stock-fix"
+                            title={`This branch holds ${p.here ?? p.quantity_on_hand}. `
+                              + "Click to correct the count."}
+                            onClick={(e) => { e.stopPropagation(); setAdjusting(p); }}>
+                      {p.here ?? p.quantity_on_hand} here
+                    </button>
                     {(p.here_undated ?? 0) > 0 && (
                       <span className="stock-undated"
                             title={`${p.here_undated} more here with no expiry recorded. `
@@ -3938,7 +3952,13 @@ export default function Dispense() {
                             <h4>This line</h4>
                             <dl className="ed-facts">
                               <dt>In stock</dt>
-                              <dd className={onHand < (it.quantity || 0) ? "is-bad" : ""}>{onHand}</dd>
+                              <dd className={onHand < (it.quantity || 0) ? "is-bad" : ""}>
+                                <button type="button" className="ed-stock"
+                                        title="Correct what this branch holds"
+                                        onClick={() => { setEditing(null); setAdjusting(it.product); }}>
+                                  {onHand}
+                                </button>
+                              </dd>
                               {/* Both typed where they are shown. A price is
                                   changed far more often than it is explained,
                                   and the explanation — margin, and whether it
@@ -5683,6 +5703,26 @@ ${d.action}`}
       {altering && (
         <AlterScript onClose={() => setAltering(false)}
                      onAltered={() => setWorklistNonce((n) => n + 1)} />
+      )}
+
+      {/* Correcting the shelf, from the search row or from the line editor.
+          The new figure is written back into whatever is on screen — the search
+          results and the basket both hold their own copy of the product — so
+          nothing has to be looked up again and the dispenser carries on from
+          where they were. */}
+      {adjusting && (
+        <AdjustStock
+          product={adjusting}
+          onClose={() => setAdjusting(null)}
+          onAdjusted={(onHand) => {
+            const id = adjusting.id;
+            const put = (p: Product): Product =>
+              p.id === id ? { ...p, quantity_on_hand: onHand, here: onHand } : p;
+            setProductResults((all) => all.map(put));
+            setItems((all) => all.map((i) =>
+              (i.product.id === id ? { ...i, product: put(i.product) } : i)));
+          }}
+        />
       )}
 
       <DispensaryWorklist
