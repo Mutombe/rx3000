@@ -7,7 +7,7 @@ from .. import schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import paging
-from ..models import RegisterEntry
+from ..models import Patient, RegisterEntry
 
 router = APIRouter(prefix="/api/register", tags=["schedule-register"], dependencies=[Depends(get_current_user)])
 
@@ -29,7 +29,11 @@ def _entries(db: Session):
     """
     return (db.query(RegisterEntry)
             .options(selectinload(RegisterEntry.product),
-                     selectinload(RegisterEntry.patient),
+                     # The patient's scheme comes with the patient. It is on
+                     # PatientOut, so leaving it behind only moved the problem
+                     # one level down: the register still ran a query for every
+                     # distinct patient who carries a medical aid.
+                     selectinload(RegisterEntry.patient).selectinload(Patient.medical_aid),
                      selectinload(RegisterEntry.doctor)))
 
 

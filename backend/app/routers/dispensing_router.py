@@ -273,7 +273,10 @@ def _otc_query(db: Session, days: int, schedule: int | None):
     # seconds to open at CareXpress for a query that returns in one.
     query = (db.query(OTCSale)
              .options(selectinload(OTCSale.product),
-                      selectinload(OTCSale.patient),
+                      # …and the scheme with the customer, which is on the
+                      # response too and would otherwise be a query for every
+                      # distinct customer who carries one.
+                      selectinload(OTCSale.patient).selectinload(Patient.medical_aid),
                       selectinload(OTCSale.pharmacist))
              .filter(OTCSale.created_at >= datetime.utcnow() - timedelta(days=days)))
     if schedule is not None:
