@@ -429,7 +429,10 @@ def list_movements_paged(
     per cent of the stock history was unreachable from the screen that exists to
     show it, and nothing said so.
     """
-    query = db.query(StockMovement)
+    # Each row names its medicine, and naming them one at a time is a round trip
+    # a row: fifty-five queries for a page of fifty, and sixteen seconds against
+    # the hosted database. One more query loads the lot.
+    query = db.query(StockMovement).options(selectinload(StockMovement.product))
     if product_id:
         query = query.filter(StockMovement.product_id == product_id)
     result = paging.page(query.order_by(StockMovement.created_at.desc()),

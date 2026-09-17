@@ -44,6 +44,9 @@ parser.add_argument("--pharmacy", type=int, default=5)
 parser.add_argument("--branch", type=int, default=None)
 parser.add_argument("--slow", type=float, default=2.5,
                     help="seconds after which a screen is called slow")
+parser.add_argument("--roles", default="",
+                    help="only these roles, comma separated (default: every "
+                         "role that works at the branch)")
 args = parser.parse_args()
 
 os.environ["DATABASE_URL"] = _target()
@@ -143,7 +146,10 @@ try:
             # cashier may not, and a screen that only breaks for one of them is
             # the kind that reaches a client.
             by_role: dict[str, m.User] = {}
+            wanted = {r.strip() for r in args.roles.split(",") if r.strip()}
             for person in staff:
+                if wanted and person.role not in wanted:
+                    continue
                 by_role.setdefault(person.role, person)
             print(f"\n=== {branch.name} (branch {branch.id}) — "
                   f"{', '.join(sorted(by_role)) or 'nobody'} ===")
@@ -152,7 +158,7 @@ try:
 
             for role, person in sorted(by_role.items()):
                 http.headers["Authorization"] = "Bearer " + create_token(person, book)
-                bad = allowed = denied = 0
+                bad = allowed = denied = asked = 0
                 print(f"  {role}:", flush=True)
                 for path in paths:
                     import time
@@ -167,19 +173,27 @@ try:
                     # Printed as it happens, not at the end. A sweep that says
                     # nothing for half an hour cannot be told apart from a sweep
                     # that has hung, and the screen it hung on is the answer.
-                    if took > args.slow or (code >= 400 and code not in (401, 403, 404)):
+                    if took > args.slow or code >= 500:
                         print(f"    {took:5.1f}s  {code}  {path}", flush=True)
                     if took > args.slow:
                         slow.append((branch.name, path, took))
                     if code in (401, 403):
                         denied += 1
                         refused[path].append(f"{branch.name}/{role}")
-                    elif code >= 400 and code != 404:
+                    elif code in (400, 404, 422):
+                        # The endpoint wants arguments this sweep does not know
+                        # how to supply — a date range, a code to look up. It
+                        # answering "you have not told me what to convert" is
+                        # the screen working, not failing, and counting it as a
+                        # fault buries the ones that are.
+                        asked += 1
+                    elif code >= 400:
                         bad += 1
                         broken.append((branch.name, role, path, code, body))
                     else:
                         allowed += 1
-                print(f"    {allowed:>3} open, {denied:>3} not theirs to see"
+                print(f"    {allowed:>3} open, {denied:>3} not theirs to see, "
+                      f"{asked:>2} want arguments"
                       + (f", {bad} BROKEN" if bad else ""), flush=True)
 finally:
     http.headers.pop("Authorization", None)

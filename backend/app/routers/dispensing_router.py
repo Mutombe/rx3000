@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import and_, func, or_, true
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
@@ -267,7 +267,15 @@ def otc_sale(
 
 
 def _otc_query(db: Session, days: int, schedule: int | None):
-    query = db.query(OTCSale).filter(OTCSale.created_at >= datetime.utcnow() - timedelta(days=days))
+    # The medicine, the customer and the pharmacist come with the rows. Each is
+    # on the response and each was being fetched a row at a time, which is a
+    # round trip a row against a hosted database: this register took twelve
+    # seconds to open at CareXpress for a query that returns in one.
+    query = (db.query(OTCSale)
+             .options(selectinload(OTCSale.product),
+                      selectinload(OTCSale.patient),
+                      selectinload(OTCSale.pharmacist))
+             .filter(OTCSale.created_at >= datetime.utcnow() - timedelta(days=days)))
     if schedule is not None:
         query = query.filter(OTCSale.schedule == schedule)
     return query.order_by(OTCSale.created_at.desc())
