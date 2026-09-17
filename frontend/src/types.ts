@@ -424,23 +424,36 @@ export interface OTCSale {
   pharmacist?: User | null;
 }
 
+/** One line of the dangerous-drugs register, as an inspector reads it.
+ *
+ *  A register is read across: what controlled medicine went out, to whom, on
+ *  whose authority, checked by whom. The endpoint used to return the compliance
+ *  ticks alone — no medicine, no patient, no prescriber — which is enough for a
+ *  dispensing record and not enough for a register. Nothing rendered these rows,
+ *  so nothing missed the columns.
+ */
 export interface ControlledDispensing {
   id: number;
-  quantity: number;
   dispensed_at: string;
-  is_repeat: boolean;
-  dispense_type: string;
+  quantity: number;
   schedule: number;
+  is_repeat: boolean;
+  medicine: string;
+  dosage_form: string;
+  rx_number: string;
+  patient: string;
+  /** What was seen at the counter, falling back to what is on file. The whole
+   *  point of the S5 and S6 identity check. */
+  patient_id_number: string;
+  prescriber: string;
+  prescriber_number: string;
+  dispensed_by: string;
+  /** Initials of the pharmacist who checked it. Replaced the witness. */
+  pharmacist_initial: string;
   id_verified: boolean;
-  id_number_seen: string;
   script_sighted: boolean;
   prescriber_verified: boolean;
   compliance_notes: string;
-  /** Initials of the pharmacist who checked it. Replaced the witness; `witness`
-   *  remains only so rows recorded before the change still display one. */
-  pharmacist_initial: string;
-  dispensed_by?: User | null;
-  witness?: User | null;
 }
 
 // ===== CRM =====

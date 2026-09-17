@@ -10034,6 +10034,58 @@ button.fin-ack { cursor: pointer; }
 /* Stock that is real but not yet usable: it is here, nobody has read the date
    off the pack, and dispensing asks for it the first time the line goes out. */
 .stock-undated { color: var(--warn, #b26a00); font-weight: 600; }
+
+/* The date read off the pack in the front shop.
+   Same question the dispensary and the till ask, so it wears the same amber:
+   nothing is wrong, the shop has simply not written this date down yet. */
+.otc-pack {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3); margin: var(--s3) 0;
+  border: 1px solid var(--warn-line, var(--line-strong));
+  background: var(--warn-sunk, var(--surface-sunk));
+  border-radius: var(--r-md);
+}
+.otc-pack-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.otc-pack-warn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .74rem; color: var(--bad, var(--ink-mid));
+}
+.otc-pack input[type="date"] { width: 150px; flex: none; height: 32px; }
+@media (max-width: 560px) {
+  .otc-pack { flex-wrap: wrap; }
+  .otc-pack input[type="date"] { width: 100%; }
+}
+
+/* THE DANGEROUS-DRUGS REGISTER.
+   A statutory list, so it is built to be read across rather than to look
+   compact: six columns, none of them clipped away, and the table scrolls
+   inside its own box so the page never does. */
+.dd-register { margin-top: var(--s4); }
+.dd-register h3 { margin-bottom: 2px; }
+.dd-register > p { margin: 0 0 var(--s3); }
+.dd-register .table-scroll { overflow-x: auto; }
+.dd-register table { min-width: 52rem; }
+.dd-register td { vertical-align: top; }
+
+/* Three checks as three marks. They are the same three on every row, so the
+   column reads as a shape and a gap is what the eye is looking for: a missing
+   identity check is the first thing an inspection asks about. */
+.dd-checks { display: inline-flex; gap: 3px; }
+.dd-check {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 1.6rem; padding: 1px 4px; border-radius: var(--r-sm);
+  font-size: .68rem; font-weight: 700; letter-spacing: .02em;
+  border: 1px solid var(--line-strong);
+  color: var(--ink-mid); background: var(--surface-sunk);
+  /* Not colour alone: an unchecked mark is also struck through, so the column
+     still reads on a monochrome print-out and to a colour-blind reader. */
+  text-decoration: line-through;
+}
+.dd-check.is-done {
+  color: var(--ok, var(--ink)); border-color: var(--ok-line, var(--line-strong));
+  background: var(--ok-sunk, var(--surface));
+  text-decoration: none;
+}
 /* A price changed at the till: editable where it is shown, marked once it has
    been, and quiet while the code is being asked for. */
 .till-price { cursor: default; }

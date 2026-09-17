@@ -558,6 +558,11 @@ export default function Dispense() {
   // OTC
   const [otcProduct, setOtcProduct] = useState<Product | null>(null);
   const [otcQty, setOtcQty] = useState(1);
+  /** The expiry read off the pack, when this branch's stock carries none.
+   *
+   *  Cleared when the medicine changes: a date read off one box says nothing
+   *  about the next. */
+  const [otcPackExpiry, setOtcPackExpiry] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [indication, setIndication] = useState("");
   const [counselled, setCounselled] = useState(false);
@@ -2560,29 +2565,103 @@ export default function Dispense() {
     }
   }
 
-  async function sellOtc() {
+  /** Sell it, and give the counter back before the server has answered.
+   *
+   *  This held the screen on `busy` while a hosted database wrote a sale, its
+   *  line, its stock movement and its register entry — the same wait the till
+   *  was rebuilt to stop paying. A front shop is a queue like any other: the
+   *  counter clears on the click, the work is named while it runs, and a
+   *  refusal hands everything back exactly as it was, because the one thing
+   *  worse than a slow sale is a sale that loses what somebody just typed.
+   */
+  function sellOtc() {
     if (!otcProduct) return;
-    setBusy(true);
-    try {
-      const record = await api.post<OTCSale>("/api/dispensing/otc", {
-        product_id: otcProduct.id, quantity: otcQty, patient_id: patient?.id ?? null,
-        customer_name: customerName, indication, counselling_given: counselled,
-        referred_to_doctor: referred, notes: otcNotes,
-        payment_method: "cash", amount_tendered: Number(tendered) || 0,
-      });
-      setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
-      setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
-      loadLists();
-      // A toast, not `alert`. The native box blocks the whole application
-      // until it is dismissed — on a counter that means the next customer
-      // waits for somebody to click OK on a message about the last one.
-      toast.ok(`Sold ${record.quantity} × ${record.product?.name}. `
-               + "Recorded in the pharmacy-medicine register.");
-    } catch (e: any) { toast.error(errorText(e)); } finally { setBusy(false); }
+    const pack = otcPackProblem();
+    if (pack) { toast.warn(pack); return; }
+
+    // Taken before the counter is cleared, and everything the sale is built
+    // from comes off this rather than off state: by the time the request runs
+    // the assistant may be serving the next customer.
+    const was = {
+      product: otcProduct, quantity: otcQty, patient, customerName, indication,
+      counselled, referred, notes: otcNotes, tendered, expiry: otcPackExpiry,
+    };
+    const what = `${was.quantity} × ${was.product.name}`;
+
+    setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
+    setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
+    setOtcPackExpiry("");
+
+    doing.run({
+      label: `${what} · ${money(was.product.unit_price * was.quantity)}`,
+      said: "Recording the sale…",
+      run: () => api.post<OTCSale>("/api/dispensing/otc", {
+        product_id: was.product.id, quantity: was.quantity,
+        patient_id: was.patient?.id ?? null,
+        customer_name: was.customerName, indication: was.indication,
+        counselling_given: was.counselled, referred_to_doctor: was.referred,
+        notes: was.notes, payment_method: "cash",
+        amount_tendered: Number(was.tendered) || 0,
+        // The date read off the pack, when this can only go out from stock that
+        // carries none. Without it an opening count leaves the front shop
+        // unable to sell anything at all.
+        ...(was.expiry ? { pack_expiry: was.expiry } : {}),
+      }),
+      done: (record: OTCSale) => {
+        loadLists();
+        toast.ok(`Sold ${record.quantity} × ${record.product?.name ?? was.product.name}. `
+                 + "Recorded in the pharmacy-medicine register.");
+        // The receipt prints itself, as it does at the till. Money changed
+        // hands over this counter and the customer is already walking; an
+        // assistant who has to press Print afterwards prints it late or not at
+        // all. Off the sale the hand-over raised, and never able to undo it:
+        // the medicine has gone out whatever the printer does.
+        if (record.sale_id) {
+          void (async () => {
+            try {
+              const sale = await api.get<Sale>(`/api/pos/sales/${record.sale_id}`);
+              printReceipt(sale, pharmacy.name, pharmacy.regNo);
+            } catch { /* a receipt that will not print must not undo a sale */ }
+          })();
+        }
+      },
+      undo: () => {
+        setOtcProduct(was.product); setOtcQty(was.quantity);
+        setPatient(was.patient); setCustomerName(was.customerName);
+        setIndication(was.indication); setCounselled(was.counselled);
+        setReferred(was.referred); setOtcNotes(was.notes);
+        setTendered(was.tendered); setOtcPackExpiry(was.expiry);
+      },
+    });
   }
 
   const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
+
+  /** Whether this sale can only come from stock with no expiry recorded.
+   *
+   *  Read off the figures the search already returned rather than asked of the
+   *  server: the dispensary asks `/expiry-needed` because a script has many
+   *  lines and they change as it is built, but a counter sale is one medicine
+   *  and one quantity, and a round trip on every keystroke of the quantity box
+   *  would buy nothing. Both quantities are in units here, which is what the
+   *  over-the-counter endpoint draws in.
+   */
+  const otcNeedsDate = !!otcProduct
+    && (otcProduct.here ?? 0) < otcQty
+    && (otcProduct.here_undated ?? 0) > 0;
+
+  /** The reason this sale is not ready, or "". */
+  function otcPackProblem(): string {
+    if (!otcNeedsDate) return "";
+    if (!otcPackExpiry) {
+      return `Enter the expiry printed on the pack of ${otcProduct?.name}.`;
+    }
+    if (otcPackExpiry < localIsoDate()) {
+      return `That pack of ${otcProduct?.name} has expired. Take another off the shelf.`;
+    }
+    return "";
+  }
 
   /** What each line on the script makes, priced as the totals bar prices it.
    *
@@ -2992,7 +3071,7 @@ export default function Dispense() {
               <input data-hk="product" type="search" placeholder="Search S0 to S2 medicines…" value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
               {productResults.map((p) => (
-                <div key={p.id} onClick={() => setOtcProduct(p)}
+                <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); }}
                   // Selected. A class, not an inline `background: "#fff"`.
                   // That literal did not invert with the theme, so on the dark
                   // counter the chosen medicine became near-white text on a
@@ -3011,7 +3090,24 @@ export default function Dispense() {
                     {money(p.unit_price)}
                     {(p.units_per_pack ?? 1) > 1
                       && <> / {p.units_per_pack} = <b>{money(perUnit(p))}</b> each</>}
-                    {" · "}{p.quantity_on_hand} on hand
+                    {/* This branch's shelf, not the group's. It said
+                        `quantity_on_hand`, which is every branch added up, so
+                        the front shop read "40 on hand" and was refused with
+                        "not enough stock at this branch" — the same
+                        contradiction the prescription search had, on the same
+                        data, one tab across. */}
+                    {" · "}{p.here ?? p.quantity_on_hand} here
+                    {(p.here_undated ?? 0) > 0 && (
+                      <span className="stock-undated"
+                            title={`${p.here_undated} more here with no expiry recorded. `
+                              + "The sale asks for the date off the pack."}>
+                        {" "}+{p.here_undated} undated
+                      </span>
+                    )}
+                    {(() => {
+                      const m = shelfMargin(p.unit_price, p.cost_price);
+                      return m === null ? null : <MarginTag percent={m} compact />;
+                    })()}
                   </span>
                 </div>
               ))}
@@ -3074,19 +3170,53 @@ export default function Dispense() {
               <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
               <div className="field"><label>Notes</label>
                 <textarea rows={2} value={otcNotes} onChange={(e) => setOtcNotes(e.target.value)} /></div>
+              {/* Stock the shelf holds and the front shop cannot sell until
+                  somebody reads the date off the box. Asked here, with the pack
+                  in hand, rather than refused on the click as a shortage on a
+                  shelf the assistant can see is full. */}
+              {otcNeedsDate && (
+                <div className="otc-pack">
+                  <div className="otc-pack-what">
+                    <b>Expiry from the pack</b>
+                    <span className="muted small">
+                      {otcProduct?.here_undated} on the shelf here with no expiry
+                      recorded. Type the date printed on the box you are selling;
+                      it is kept against the stock, so nobody is asked again.
+                    </span>
+                    {otcPackExpiry && otcPackExpiry < localIsoDate() && (
+                      <span className="otc-pack-warn">
+                        <Warning size={12} weight="fill" /> That box has expired.
+                        Take another off the shelf.
+                      </span>
+                    )}
+                  </div>
+                  <input type="date" id="otc-pack-expiry" value={otcPackExpiry}
+                    aria-label={`Expiry printed on the pack of ${otcProduct?.name}`}
+                    onChange={(e) => setOtcPackExpiry(e.target.value)} />
+                </div>
+              )}
               <div className="form-row">
                 <div className="field">
                   <label>Cash tendered, total {money(otcTotal)}</label>
                   <input type="number" step="0.01" value={tendered} onChange={(e) => setTendered(e.target.value)} />
                 </div>
               </div>
+              {/* Not disabled while a sale is in flight. The work is in the
+                  tray and the next customer can start, which is the whole
+                  point of clearing the counter on the click. */}
               <button onClick={sellOtc}
-                disabled={busy || !otcProduct || (otcPolicy?.counselling_required && !counselled)}>
-                {busy ? "Selling…" : `Sell & record${otcProduct ? ` for ${money(otcTotal)}` : ""}`}
+                disabled={!otcProduct || (otcPolicy?.counselling_required && !counselled)
+                          || !!otcPackProblem()}>
+                Sell &amp; record{otcProduct ? ` for ${money(otcTotal)}` : ""}
               </button>
               {otcPolicy?.counselling_required && !counselled && (
                 <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
                   Counselling must be confirmed before a pharmacy medicine can be handed over.
+                </div>
+              )}
+              {!!otcPackProblem() && (
+                <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
+                  {otcPackProblem()}
                 </div>
               )}
             </div>
@@ -5240,6 +5370,111 @@ ${d.action}`}
               Repeats now live in the worklist, which is where "what needs doing"
               already lived, and clicking one loads it into the form on the left
 . Through the safety check, where the initials are captured. */}
+        </div>
+      )}
+
+      {/* THE DANGEROUS-DRUGS REGISTER.
+          The statutory record, and until now the one screen in the dispensary
+          that did not exist. These rows were being fetched on every load of
+          this tab and dropped on the floor: nothing rendered them, so nobody
+          noticed that the endpoint returned the compliance ticks without the
+          medicine, the patient or the prescriber either.
+
+          A register is read across — what went out, to whom, on whose
+          authority, checked by whom — so every column an inspector asks for is
+          on the row rather than behind it. */}
+      {route === "controlled" && (
+        <div className="card dd-register">
+          <h3>Dangerous drugs register, last 90 days</h3>
+          <p className="muted small">
+            Every schedule 5 and 6 hand-over, whether it was captured on this tab
+            or on the prescription tab. This is the list an inspector asks to see.
+          </p>
+          <div className="table-scroll">
+            <table>
+              <colgroup>
+                <col style={{ width: "8.5rem" }} />
+                <col style={{ width: "24%" }} />
+                <col style={{ width: "20%" }} />
+                <col style={{ width: "18%" }} />
+                <col style={{ width: "7.5rem" }} />
+                <col style={{ width: "9rem" }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>When</th><th>Medicine</th><th>Patient</th>
+                  <th>Prescriber</th><th>Checks</th><th>Dispensed by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {controlledLog.map((r) => (
+                  <tr key={r.id}>
+                    <td className="nowrap">{fmtWhen(r.dispensed_at)}</td>
+                    <td>
+                      <b>{r.medicine || "not recorded"}</b> ×{r.quantity}
+                      <span className="badge danger" style={{ marginLeft: 6 }}>S{r.schedule}</span>
+                      {r.is_repeat && <span className="badge muted" style={{ marginLeft: 4 }}>repeat</span>}
+                      {r.rx_number && <div className="muted small">{r.rx_number}</div>}
+                    </td>
+                    <td>
+                      {r.patient || "not recorded"}
+                      {/* The identity document, on the row. It is the whole
+                          reason a schedule 5 hand-over is checked at all, and
+                          it is the first thing asked about in an inspection. */}
+                      <div className="muted small">
+                        ID {r.patient_id_number || "not recorded"}
+                      </div>
+                    </td>
+                    <td>
+                      {r.prescriber || "not recorded"}
+                      {r.prescriber_number && (
+                        <div className="muted small">{r.prescriber_number}</div>
+                      )}
+                    </td>
+                    {/* Three checks as three marks rather than three words.
+                        They are the same three on every row, so the column is
+                        read as a shape: a gap is what the eye is looking for. */}
+                    <td>
+                      <span className="dd-checks">
+                        {([["ID", r.id_verified, "Patient identity verified"],
+                           ["Rx", r.script_sighted, "Original prescription sighted"],
+                           ["Dr", r.prescriber_verified, "Prescriber verified"]] as const)
+                          .map(([mark, done, why]) => (
+                            <span key={mark}
+                                  className={`dd-check${done ? " is-done" : ""}`}
+                                  title={done ? why : `${why} — not recorded`}>
+                              {mark}
+                            </span>
+                          ))}
+                      </span>
+                    </td>
+                    <td className="muted">
+                      <span className="clip" title={r.dispensed_by}>
+                        {(r.dispensed_by || "").replace(/\s*\([^)]*\)\s*$/, "") || "not recorded"}
+                      </span>
+                      {r.pharmacist_initial && (
+                        <div className="muted small">checked {r.pharmacist_initial}</div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {controlledMeta && (
+            <Pagination meta={controlledMeta} onPage={setControlledPage} noun="hand-overs" />
+          )}
+          {logsLoading && controlledLog.length === 0 && <TableSkeleton cols={6} rows={4} />}
+          {!logsLoading && controlledLog.length === 0 && (
+            <div className="empty">
+              <b>No schedule 5 or 6 medicines dispensed in the last 90 days</b>
+              <p>
+                Every controlled hand-over is entered here as it is dispensed,
+                with the identity checked, the script sighted and the prescriber
+                confirmed.
+              </p>
+            </div>
+          )}
         </div>
       )}
       </div>

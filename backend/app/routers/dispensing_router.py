@@ -322,10 +322,65 @@ def _controlled_query(db: Session, days: int):
     so a row typed correctly and a row typed by an older code path both appear.
     """
     return (db.query(Dispensing)
+            # The medicine, the patient and the prescriber come with the row.
+            # A register is read across: what went out, to whom, on whose
+            # authority. Walked one row at a time this would be five queries a
+            # line, which is what the round-trip sweep found everywhere else.
+            .options(selectinload(Dispensing.prescription_item)
+                     .selectinload(PrescriptionItem.product),
+                     selectinload(Dispensing.prescription_item)
+                     .selectinload(PrescriptionItem.prescription)
+                     .selectinload(Prescription.patient),
+                     selectinload(Dispensing.prescription_item)
+                     .selectinload(PrescriptionItem.prescription)
+                     .selectinload(Prescription.doctor),
+                     selectinload(Dispensing.dispensed_by))
             .filter(or_(Dispensing.dispense_type == "controlled",
                         Dispensing.schedule >= CONTROLLED_FROM),
                     Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
             .order_by(Dispensing.dispensed_at.desc()))
+
+
+def _register_row(d: Dispensing) -> dict:
+    """One line of the dangerous-drugs register, as an inspector reads it.
+
+    `DispensingOut` carries the compliance ticks and nothing else — no medicine,
+    no patient, no prescriber. That is enough for the dispensing record it was
+    written for and not enough for a register, which exists precisely to say
+    what controlled medicine went to which person on whose authority. The screen
+    was fetching those rows and dropping them on the floor, which is how this
+    went unnoticed: nothing rendered them, so nothing missed the columns.
+    """
+    item = d.prescription_item
+    script = item.prescription if item else None
+    patient = script.patient if script else None
+    doctor = script.doctor if script else None
+    product = item.product if item else None
+    return {
+        "id": d.id,
+        "dispensed_at": d.dispensed_at,
+        "quantity": d.quantity,
+        "schedule": d.schedule,
+        "is_repeat": d.is_repeat,
+        "medicine": (f"{product.name} {product.strength or ''}".strip()
+                     if product else ""),
+        "dosage_form": (product.dosage_form or "") if product else "",
+        "rx_number": (script.rx_number or "") if script else "",
+        "patient": (f"{patient.first_name} {patient.last_name}".strip()
+                    if patient else ""),
+        # The identity document, which is the whole point of the S5/S6 check:
+        # what was seen at the counter, falling back to what is on file.
+        "patient_id_number": (d.id_number_seen
+                              or (patient.id_number if patient else "") or ""),
+        "prescriber": (doctor.name if doctor else ""),
+        "prescriber_number": ((doctor.practice_number or "") if doctor else ""),
+        "dispensed_by": (d.dispensed_by.full_name if d.dispensed_by else ""),
+        "pharmacist_initial": d.pharmacist_initial or "",
+        "id_verified": bool(d.id_verified),
+        "script_sighted": bool(d.script_sighted),
+        "prescriber_verified": bool(d.prescriber_verified),
+        "compliance_notes": d.compliance_notes or "",
+    }
 
 
 # GET /controlled/log was here, capped at 200. /controlled/log/paged
@@ -344,7 +399,7 @@ def controlled_log_paged(days: int = 90, page: int = 1,
     presentation choice.
     """
     result = paging.page(_controlled_query(db, days), page=page, per_page=per_page)
-    return result.envelope(lambda d: schemas.DispensingOut.model_validate(d, from_attributes=True).model_dump())
+    return result.envelope(_register_row)
 
 
 # Four counts over a window — controlled, prescriptions, over the counter, and
