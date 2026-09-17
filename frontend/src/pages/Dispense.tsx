@@ -4063,7 +4063,21 @@ export default function Dispense() {
                                          }} />
                                 ) : money(each)}
                               </dd>
-                              <dt>Line</dt>
+                              {/* WHAT THIS LINE COMES TO: the price each,
+                                  times the quantity. Not an average of
+                                  anything — the incumbent's "Avg Retail" is a
+                                  property of the stock item and lives on the
+                                  product, where a buyer reads it; this is one
+                                  line of one script.
+
+                                  Shown only when there is more than one unit,
+                                  because at a quantity of one it repeats Each
+                                  exactly, and two identical figures under two
+                                  different labels read as one of them being
+                                  wrong. That is what it was taken for. */}
+                              {(it.quantity || 0) > 1 && (
+                              <>
+                              <dt>Line total</dt>
                               <dd className="ed-money"
                                   onDoubleClick={() => startRailEdit("line", each, it.quantity || 1)}
                                   title="Double-click to change what this line comes to">
@@ -4080,6 +4094,8 @@ export default function Dispense() {
                                          }} />
                                 ) : money(each * (it.quantity || 0))}
                               </dd>
+                              </>
+                              )}
                               {priced && (
                                 <>
                                   <dt>Cost</dt><dd>{money(priced.cost)}</dd>
