@@ -481,7 +481,20 @@ export function printLabels(labels: Label[], copies = 1): { printed: number; ref
   const { printable, refused } = splitPrintable(labels);
   if (printable.length === 0) return { printed: 0, refused };
   const sheet = Array.from({ length: Math.max(1, copies) }, () => printable).flat();
-  printHtml("Dispensing labels", LABEL_CSS,
+  // A SPACE, NOT A NAME.
+  //
+  // Chrome prints the document's title into the page header, and on a 42mm
+  // sticker that header is a third of the label: a real one came off the roll
+  // reading "3 PM" in one corner and "Dispensing labels" in the other, with the
+  // medicine pushed into the bottom two thirds. The title is the half of that
+  // we control, so it says nothing. A blank title is not enough — Chrome falls
+  // back to printing the URL — so it is a space.
+  //
+  // The other half, the date and time, is the browser's and no stylesheet can
+  // remove it. It is off when "Headers and footers" is unticked in the print
+  // dialog, which Chrome then remembers for that printer; printing through the
+  // label agent instead skips the browser dialog altogether.
+  printHtml(" ", LABEL_CSS,
             labelSheetHtml(sheet).replace(/^<style>[\s\S]*?<\/style>/, ""));
   return { printed: sheet.length, refused };
 }
