@@ -159,9 +159,9 @@ const LABEL_CSS = `
      The room came from the layout, not from the paper:
 
        * the patient's name was a bold heading of its own, costing a full line
-         at 8.4pt. On a real label the patient sits inside the audit block on
-         the same line as the timestamp, which is also where a dispenser looks
-         for it.
+         at 8.4pt. It sits inside the audit block now, which is where a
+         dispenser looks for it, with the time it was handed over on the line
+         under it rather than butted against it.
        * the directions were 9.6pt bold with 1.2mm padding and two rules. Real
          labels set them in condensed monospace, which fits about a third more
          characters per line and is what a patient reads at arm's length.
@@ -182,11 +182,21 @@ const LABEL_CSS = `
 
      qa/label-fits.mjs measures the real markup at the real size and fails on a
      single pixel of overflow, so this cannot quietly drift back. */
-  @page { size: 58mm 42mm; margin: 0; }
+  /* THE STICKER DECIDES THE PAGE, NOT THIS FILE.
+
+     It said a fixed 58mm by 42mm, which is one roll. Print that onto a sticker of
+     any other size and Chrome centres the small page inside the big one, so the
+     label came out with a band of white above the medicine and another below
+     the telephone — a third of the sticker spent on nothing, and the text
+     shrunk to fit the part that was left.
+
+     Size auto takes whatever paper the printer says it has, and the label fills
+     it. A pharmacy that changes its roll changes nothing here. */
+  @page { size: auto; margin: 0; }
   body { margin: 0; color: #111; font-family: Arial, Helvetica, sans-serif; }
 
   .label {
-    width: 58mm; height: 42mm; padding: 1.8mm 2.2mm; box-sizing: border-box;
+    width: 100%; height: 100vh; padding: 1.3mm 2mm; box-sizing: border-box;
     display: flex; flex-direction: column;
     font-size: 6pt; line-height: 1.16;
     page-break-after: always; overflow: hidden;
@@ -198,7 +208,7 @@ const LABEL_CSS = `
      medicine is recognised from its first half. */
   .med {
     display: flex; align-items: baseline; gap: 1.5mm;
-    font-weight: bold; font-size: 7.6pt; line-height: 1.1;
+    font-weight: bold; font-size: 6.9pt; line-height: 1.08;
   }
   /* The medicine's name, in full, wrapping onto as many lines as it needs.
      It was clipped with an ellipsis on one line, which printed
@@ -220,11 +230,10 @@ const LABEL_CSS = `
      more per line than Arial at the same legibility. */
   .dose {
     flex: 1 1 auto; min-height: 0; overflow: hidden;
-    margin-top: 0.5mm; padding-bottom: 1mm;
+    margin-top: 0.5mm; padding-bottom: 0.4mm;
     font-family: "Courier New", monospace;
-    font-size: 7.4pt; font-weight: bold; line-height: 1.2;
+    font-size: 6.8pt; font-weight: bold; line-height: 1.16;
     text-transform: uppercase;
-    border-bottom: 0.3mm solid #111;
   }
 
   /* Printed on a monochrome thermal head the tint renders as a light stipple,
@@ -241,17 +250,18 @@ const LABEL_CSS = `
   /* The audit block. Five short lines, each one thing somebody has to be able
      to read off the box without opening the system. */
   .audit {
-    flex: 0 0 auto; margin-top: 0.8mm;
-    font-size: 5.9pt; line-height: 1.24; color: #111;
+    flex: 0 0 auto; margin-top: 0.5mm;
+    font-size: 5.9pt; line-height: 1.22; color: #111;
   }
   .audit div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .audit .who { font-weight: bold; }
+  .audit .when { color: #333; }
 
   /* The shop that handed it over. Bold name, then address and telephone: a
      patient holding a box and a question needs these on the sticker, not in a
      system somebody else can log into. */
   .foot {
-    flex: 0 0 auto; margin-top: 0.8mm;
+    flex: 0 0 auto; margin-top: 0.5mm;
     font-size: 5.9pt; line-height: 1.2; color: #111;
   }
   .sched {
@@ -342,10 +352,14 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
       // and a manufacturer truncated to a syllable answers nobody's question.
       const madeBy = l.manufacturer ? `Mfr. ${esc(l.manufacturer)}` : "";
 
-      // The patient and the moment it was handed over, on one line, which is
-      // where a real label puts them, and it saves the heading a whole line.
-      const whoLine = [esc(l.patient_name), esc(stamp(l.dispensed_at))]
-        .filter(Boolean).join("  ");
+      // The patient on their own line, and when it was handed over under it.
+      //
+      // They shared a line to save one. What that actually produced was
+      // "Samuel Matoveru 17 Sept 26 14:22:09", where the name runs straight
+      // into a date with nothing between them but a gap — and the name is the
+      // one thing on the sticker somebody checks before handing the bag over.
+      const whoLine = esc(l.patient_name);
+      const whenLine = esc(stamp(l.dispensed_at));
 
       // Which item of how many, so a patient carrying four boxes can tell
       // whether one is missing.
@@ -385,7 +399,8 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
         <div class="audit">
           ${batchLine ? `<div>${batchLine}</div>` : ""}
           ${madeBy ? `<div>${madeBy}</div>` : ""}
-          <div class="who">${whoLine}</div>
+          ${whoLine ? `<div class="who">${whoLine}</div>` : ""}
+          ${whenLine ? `<div class="when">${whenLine}</div>` : ""}
           ${l.dispensed_by ? `<div>Dispensed by. ${esc(l.dispensed_by)}</div>` : ""}
           ${l.doctor_name ? `<div>Doc. ${esc(l.doctor_name)}</div>` : ""}
           ${refLine ? `<div>${refLine}</div>` : ""}
