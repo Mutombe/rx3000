@@ -144,10 +144,29 @@ def _rx_loaded(query):
 @router.get("/prescriptions", response_model=list[schemas.PrescriptionOut])
 def list_prescriptions(
     patient_id: int | None = None,
+    q: str = "",
     limit: int = 100,
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
+    """Scripts, newest first, optionally searched by number, patient or prescriber.
+
+    `q` was not a parameter here, and FastAPI drops a query string it does not
+    declare. So a caller asking for `?q=RX260900123&limit=1` was not told the
+    search was ignored: it got the single most recent script in the pharmacy,
+    which looks exactly like a successful lookup.
+
+    The Alter-a-script screen was that caller. Typing any number at all opened
+    whatever had been captured last, and a correction typed there was applied to
+    the wrong prescription — with a reason, a name and an audit entry attached
+    to it, so it read afterwards as a deliberate edit of a script nobody had
+    meant to touch.
+    """
+    if q.strip():
+        from ..services import scripts
+
+        return (scripts.search(db, q=q)
+                .order_by(Prescription.created_at.desc()).limit(limit).all())
     query = _rx_loaded(db.query(Prescription))
     if patient_id:
         query = query.filter(Prescription.patient_id == patient_id)

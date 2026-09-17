@@ -10155,3 +10155,78 @@ button.fin-ack { cursor: pointer; }
   width: 100%; height: 22px; padding: 0 4px;
   font: inherit; font-variant-numeric: tabular-nums; text-align: right;
 }
+
+/* ALTER A SCRIPT.
+   Two panes: find it on the left, correct it on the right. The list is live
+   and shows the most recently captured scripts before anything is typed,
+   because the script being corrected is nearly always one somebody has just
+   keyed in and spotted a mistake on. */
+.alt-modal { max-width: 62rem; }
+.alt-split {
+  display: grid; grid-template-columns: 20rem 1fr; gap: var(--s4);
+  margin-top: var(--s3); align-items: start;
+}
+.alt-find { display: flex; flex-direction: column; min-width: 0; }
+.alt-search {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s2); height: 36px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink-mid);
+}
+.alt-search:focus-within { border-color: var(--accent, var(--ink)); }
+.alt-search input {
+  flex: 1; min-width: 0; border: 0; background: none; height: 100%;
+  padding: 0; font: inherit; color: var(--ink); outline: none;
+}
+.alt-list-head {
+  font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--ink-mid); margin: var(--s3) 0 var(--s2);
+}
+.alt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+
+/* One script a row, readable without opening it: what it is, who it is for,
+   when it was taken and whether anything has already gone out. */
+.alt-hit {
+  display: grid; gap: 2px; width: 100%; text-align: left;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line); background: var(--surface);
+  cursor: pointer; font: inherit; color: var(--ink);
+}
+.alt-hit:hover, .alt-hit.is-cursor { border-color: var(--line-strong); background: var(--surface-sunk); }
+.alt-hit.is-open { border-color: var(--accent, var(--ink-mid)); box-shadow: inset 0 0 0 1px var(--accent, var(--ink-mid)); }
+.alt-hit-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.alt-hit-top b { font-variant-numeric: tabular-nums; }
+.alt-hit-who { font-size: .82rem; overflow-wrap: anywhere; }
+.alt-hit-meta {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  font-size: .72rem; color: var(--ink-mid);
+}
+.alt-hit-altered { color: var(--warn, var(--ink-mid)); font-weight: 600; }
+.alt-empty { margin: var(--s3) 0; }
+
+.alt-work { min-width: 0; }
+.alt-chosen { font-size: .95rem; margin-bottom: var(--s3); overflow-wrap: anywhere; }
+
+/* The lines as rows, not a dropdown: which of them can still be corrected is
+   the one thing worth seeing before choosing, and a dropdown hides it. */
+.alt-lines { display: grid; gap: 4px; margin-bottom: var(--s3); }
+.alt-line {
+  display: flex; align-items: center; gap: var(--s2); width: 100%;
+  text-align: left; padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); cursor: pointer; font: inherit; color: var(--ink);
+}
+.alt-line:hover:not(:disabled) { border-color: var(--line-strong); }
+.alt-line.is-picked { border-color: var(--accent, var(--ink)); box-shadow: inset 0 0 0 1px var(--accent, var(--ink)); }
+.alt-line.is-gone { opacity: .55; cursor: not-allowed; }
+.alt-line-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.alt-line-qty { font-variant-numeric: tabular-nums; color: var(--ink-mid); }
+.alt-all-gone {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .78rem; color: var(--warn, var(--ink-mid)); margin: var(--s2) 0 0;
+}
+
+@media (max-width: 760px) {
+  .alt-split { grid-template-columns: 1fr; }
+  .alt-list { max-height: 15rem; overflow-y: auto; }
+}
