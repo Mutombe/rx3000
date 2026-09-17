@@ -9,11 +9,16 @@
  *  roll is plugged into this till and called whatever Windows calls it here.
  *  It is kept in local storage for that reason, and nowhere near the database.
  */
+import { labelLines } from "./deviceAgent";
 import { render, type Line } from "./escpos";
+import { labelPdf } from "./labelPdf";
 import { readStored, writeStored } from "./storage";
+import type { Label } from "./types";
 
 const CHOSEN = "label_printer";
 const WIDTH = "label_printer_width";
+const STICKER = "label_sticker_mm";
+const MODE = "label_printer_mode";
 
 /** The kinds of thing this pharmacy prints, and what each one is called.
  *
@@ -110,6 +115,47 @@ export function printerWidth(): number {
   return Number.isFinite(stored) && stored > 0 ? stored : 32;
 }
 
+/** HOW THIS TILL'S LABEL PRINTER IS DRIVEN.
+ *
+ *  Two ways, and which is right depends entirely on the machine:
+ *
+ *  "page"  the label is a small PDF handed to the printer's own Windows driver.
+ *          Works on anything Windows can see, whatever language the printer
+ *          speaks, because the driver does the talking. A Zebra on its
+ *          ZDesigner driver, a TSC, a Brother, an A4 laser in a pinch.
+ *
+ *  "raw"   the label is ESC/POS bytes written straight to the spooler. Faster
+ *          and what a receipt-style thermal head wants, and complete nonsense
+ *          to a printer that speaks ZPL — it prints blank or prints rubbish,
+ *          and never says which.
+ *
+ *  The default is "page", because it is the one that is right about a printer
+ *  nobody has told us anything about. A pharmacy with an ESC/POS roll can say
+ *  so once and get the faster path.
+ */
+export type LabelMode = "page" | "raw";
+
+export function labelMode(): LabelMode {
+  return readStored(MODE) === "raw" ? "raw" : "page";
+}
+
+export function setLabelMode(mode: LabelMode) {
+  writeStored(MODE, mode);
+}
+
+/** The sticker on the roll, in millimetres. The label is drawn to this, so it
+ *  is the one measurement that has to match the physical paper. */
+export function sticker(): { wide: number; tall: number } {
+  const [w, h] = String(readStored(STICKER) ?? "").split("x").map(Number);
+  return Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0
+    ? { wide: w, tall: h }
+    : { wide: 58, tall: 42 };
+}
+
+export function setSticker(wide: number, tall: number) {
+  writeStored(STICKER, `${wide}x${tall}`);
+}
+
 /** Send a rendered page document to a printer by name, with no dialog.
  *
  *  Separate from `printLines` because it is a different thing entirely. That
@@ -153,6 +199,32 @@ export async function printLines(lines: Line[], copies = 1,
   for (let i = 0; i < Math.max(1, copies); i += 1) {
     await invoke<number>("print_raw", { printer, data: payload });
     done += 1;
+  }
+  return done;
+}
+
+/** Print labels the way this till is set up to print them, with no dialog.
+ *
+ *  One place that decides, so the dispensary, the till and the reprint screen
+ *  cannot disagree about how a label reaches the paper. Returns how many were
+ *  printed; throws with the printer's own complaint if it refuses, which is
+ *  what the callers fall back to the print dialog on.
+ */
+export async function printLabelsDirect(labels: Label[], copies = 1): Promise<number> {
+  const printer = printerFor("label");
+  if (!printer) throw new Error("No label printer has been chosen on this till.");
+  if (labelMode() === "raw") {
+    let done = 0;
+    for (const label of labels) done += await printLines(labelLines(label, printerWidth()));
+    return done * Math.max(1, copies);
+  }
+  const paper = sticker();
+  let done = 0;
+  for (let i = 0; i < Math.max(1, copies); i += 1) {
+    for (const label of labels) {
+      await printPage(labelPdf(label, paper), "label");
+      done += 1;
+    }
   }
   return done;
 }

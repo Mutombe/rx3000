@@ -22,12 +22,65 @@
  *  empty and looking unfinished.
  */
 import { useEffect, useState } from "react";
+
+import { errorText } from "../api";
+import { usePharmacy } from "../hooks/usePharmacy";
 import * as roll from "../shellPrinter";
+import { useToast } from "./Toast";
+
+/** One sticker with every field filled in, so a till can prove its printer and
+ *  its paper size without dispensing a real medicine to do it. Deliberately
+ *  long in the fields that overflow — a test label that fits where a real one
+ *  would not has proved the wrong thing. */
+const TEST_LABEL = {
+  patient_name: "Test Patient, Not A Real One",
+  patient_id_number: "", rx_number: "RX-TEST-0000",
+  product_name: "TEST LABEL, NOT A MEDICINE",
+  strength: "500MG", dosage_form: "Tablet", quantity: 30,
+  dosage_instructions: "THIS IS A TEST LABEL. NOTHING HAS BEEN DISPENSED "
+    + "AND NOTHING SHOULD BE TAKEN.",
+  warnings: "", schedule: 0, schedule_code: "",
+  batch_number: "TEST", manufacturer: "",
+  expiry_date: null, repeats_remaining: 0, next_repeat_date: null,
+  doctor_name: "Test Prescriber", doctor_practice_no: "000000",
+  dispensed_by: "Test", dispensed_at: new Date().toISOString(),
+  pharmacy_name: "", pharmacy_reg_no: "", pharmacy_address: "",
+  pharmacy_phone: "", branch_code: "", branch_name: "", branch_address: "",
+  branch_phone: "", branch_reg_no: "", item_number: 1, item_count: 1,
+} as unknown as Parameters<typeof roll.printLabelsDirect>[0][number];
 
 export default function PrinterRoutes() {
   const [printers, setPrinters] = useState<string[]>([]);
   const [routes, setRoutes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<roll.LabelMode>(roll.labelMode());
+  const [paper, setPaper] = useState(roll.sticker());
+  const [testing, setTesting] = useState(false);
+  const toast = useToast();
+  const pharmacy = usePharmacy();
+
+  function save(wide: number, tall: number) {
+    const next = { wide: wide > 0 ? wide : paper.wide, tall: tall > 0 ? tall : paper.tall };
+    roll.setSticker(next.wide, next.tall);
+    setPaper(next);
+  }
+
+  async function testLabel() {
+    setTesting(true);
+    try {
+      await roll.printLabelsDirect([{
+        ...TEST_LABEL,
+        // The pharmacy's own name, so the test proves the foot of a real
+        // label rather than an empty one.
+        pharmacy_name: pharmacy.name, branch_name: pharmacy.name,
+      }]);
+      toast.ok("A test label has been sent. Check what came off the roll.");
+    } catch (e) {
+      toast.error(errorText(e, "The printer would not take the test label."));
+    } finally {
+      setTesting(false);
+    }
+  }
 
   useEffect(() => {
     roll.listPrinters()
@@ -106,11 +159,72 @@ export default function PrinterRoutes() {
         </div>
       )}
 
+      {/* HOW THE LABEL REACHES THE PAPER, and how big the paper is.
+          Two settings that belong to the machine rather than to the pharmacy:
+          the roll is plugged into this till and is whatever size somebody
+          loaded. Getting either wrong is the difference between a label and a
+          blank sticker, so both say plainly what they are for. */}
+      {printers.length > 0 && (
+        <div className="printer-paper">
+          <label>
+            <span className="pr-name">
+              The label printer speaks
+              <small>
+                Almost every label printer has a Windows driver, and the driver
+                is what knows its language. Choose bytes only for a receipt
+                style roll that expects them.
+              </small>
+            </span>
+            <select value={mode} onChange={(e) => {
+              const next = e.target.value as roll.LabelMode;
+              roll.setLabelMode(next); setMode(next);
+            }}>
+              <option value="page">Its own Windows driver (works with any printer)</option>
+              <option value="raw">Raw ESC/POS bytes (thermal receipt rolls)</option>
+            </select>
+          </label>
+
+          {mode === "page" && (
+            <label>
+              <span className="pr-name">
+                Sticker size
+                <small>
+                  Millimetres, as loaded. The label is drawn to this, so it is
+                  the one measurement that has to match the paper.
+                </small>
+              </span>
+              <span className="pr-size">
+                <input type="number" min={20} max={210} value={paper.wide}
+                       aria-label="Sticker width in millimetres"
+                       onChange={(e) => save(Number(e.target.value), paper.tall)} />
+                <span aria-hidden="true">&times;</span>
+                <input type="number" min={15} max={300} value={paper.tall}
+                       aria-label="Sticker height in millimetres"
+                       onChange={(e) => save(paper.wide, Number(e.target.value))} />
+                <span className="muted">mm</span>
+              </span>
+            </label>
+          )}
+
+          <div className="pr-test">
+            <button type="button" className="btn secondary" disabled={testing}
+                    onClick={testLabel}>
+              {testing ? "Printing…" : "Print a test label"}
+            </button>
+            <span className="muted small">
+              Prints one sticker with every field filled in, so the size and the
+              printer can be proved without dispensing anything.
+            </span>
+          </div>
+        </div>
+      )}
+
       <p className="muted small">
-        The claim copy is A4 and goes through its printer&rsquo;s own driver;
-        the three labels are sent as raw bytes to a thermal roll. That is why
-        they are set separately. A roll cannot render a page, and a laser
-        cannot interpret the bytes a roll speaks.
+        The claim copy is A4 and goes through its printer&rsquo;s own driver.
+        The labels go the way the setting above says, which for all but a
+        receipt roll is also the driver. That is why they are set separately: a
+        roll cannot render a page, and a laser cannot interpret the bytes a
+        roll speaks.
       </p>
     </section>
   );

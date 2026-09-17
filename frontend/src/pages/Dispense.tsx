@@ -1906,7 +1906,11 @@ export default function Dispense() {
       if (labels.length === 0) return;
       if (roll.labelsGoStraightToRoll()) {
         try {
-          for (const l of labels) await roll.printLines(labelLines(l, roll.printerWidth()));
+          // However this till is set up: a PDF through the printer's own
+          // driver, which works on anything Windows can see, or ESC/POS bytes
+          // where the pharmacy has said it has a receipt-style roll. The
+          // choice is `shellPrinter`'s, so no screen has its own opinion.
+          await roll.printLabelsDirect(labels);
           toast.ok(`${labels.length} label(s) printed.`);
           return;
         } catch (e) {
