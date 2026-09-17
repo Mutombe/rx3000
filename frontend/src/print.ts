@@ -403,17 +403,13 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
 
                 The branch's own details where it has them, the pharmacy's where
                 it does not, so a single-shop pharmacy that never filled in a
-                branch record still prints something true. The premises
-                registration stays last: it is how an inspector ties this
-                sticker to a licence, and it is never invented. */ ""}
+                branch record still prints something true. */ ""}
           ${(l.branch_name || l.pharmacy_name)
             ? `<div class="foot-who">${esc(l.branch_name || l.pharmacy_name)}</div>` : ""}
           ${(l.branch_address || l.pharmacy_address)
             ? `<div class="foot-where">${esc(l.branch_address || l.pharmacy_address)}</div>` : ""}
           ${(l.branch_phone || l.pharmacy_phone)
             ? `<b>Tel: ${esc(l.branch_phone || l.pharmacy_phone)}</b>` : ""}
-          ${(l.branch_reg_no || l.pharmacy_reg_no)
-            ? `<div>Reg. ${esc(l.branch_reg_no || l.pharmacy_reg_no)}</div>` : ""}
         </div>
       </div>`;
     })
