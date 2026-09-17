@@ -25,6 +25,7 @@ import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
+import { useScheduleCodes } from "../schedules";
 
 interface Ingredient {
   product_id: number; quantity: number; unit: string; note: string;
@@ -50,6 +51,7 @@ interface Cost {
 }
 
 export default function Compounding() {
+  const schedCode = useScheduleCodes();
   const toast = useToast();
   const confirm = useConfirm();
   const [openId, setOpenId] = useState<number | null>(null);
@@ -379,7 +381,7 @@ export default function Compounding() {
                       setProductQ(""); setProducts([]);
                     }}>
                       {p.name}
-                      {p.schedule > 0 && <span className="badge sched">S{p.schedule}</span>}
+                      {p.schedule > 0 && <span className="badge sched">{schedCode(p.schedule)}</span>}
                     </button>
                   </li>
                 ))}
@@ -395,7 +397,7 @@ export default function Compounding() {
                         {/* Shown while the formula is being written, because the
                             preparation inherits the highest schedule in it. */}
                         {l.product.schedule > 0 && (
-                          <span className="badge sched">S{l.product.schedule}</span>
+                          <span className="badge sched">{schedCode(l.product.schedule)}</span>
                         )}
                       </td>
                       <td className="num">

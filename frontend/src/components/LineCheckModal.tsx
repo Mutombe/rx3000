@@ -25,6 +25,7 @@ import type { useAiStream } from "../hooks/useAiStream";
 import AiOutput from "./AiOutput";
 import AiPhase from "./AiPhase";
 import ClaudeIcon from "./ClaudeIcon";
+import { useScheduleCodes } from "../schedules";
 
 /** What a screen says about one line, matched on the exact label the server
  *  builds — `"{name} {strength}"` — because two products whose names share a
@@ -69,6 +70,7 @@ export default function LineCheckModal({
   onEdit: () => void;
   onClose: () => void;
 }) {
+  const schedCode = useScheduleCodes();
   const f = findingsFor(screen, name);
   // Three answers at a glance, on an even grid; the detail follows below.
   const doseCard = f.dose
@@ -99,7 +101,7 @@ export default function LineCheckModal({
       <div className="modal disp-check">
         <h2>
           {name}
-          <span className={`badge ${schedule >= 5 ? "danger" : "muted"}`}>S{schedule}</span>
+          <span className={`badge ${schedule >= 5 ? "danger" : "muted"}`}>{schedCode(schedule)}</span>
           <span className="disp-entry-of">{summary}</span>
         </h2>
 

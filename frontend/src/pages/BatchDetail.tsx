@@ -14,6 +14,7 @@ import { useToast } from "../components/Toast";
 import { useAsk, useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
 import { Link, useParams } from "react-router-dom";
+import { useScheduleCodes } from "../schedules";
 
 interface Recipient {
   patient_id: number | null; patient: string; phone: string; quantity: number;
@@ -35,6 +36,7 @@ interface Data {
 }
 
 export default function BatchDetail() {
+  const schedCode = useScheduleCodes();
   const { id } = useParams();
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -136,7 +138,7 @@ export default function BatchDetail() {
                 <dt>Medicine</dt>
                 <dd>
                   <EntityLink kind="product" id={d.product_id}>{d.product}</EntityLink>
-                  {d.schedule >= 3 && <span className="badge sched">S{d.schedule}</span>}
+                  {d.schedule >= 3 && <span className="badge sched">{schedCode(d.schedule)}</span>}
                 </dd>
                 <dt>Supplier</dt>
                 <dd>

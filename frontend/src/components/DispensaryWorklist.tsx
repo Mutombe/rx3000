@@ -16,6 +16,7 @@ import { ArrowsClockwise, Phone, XCircle } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
 import RepeatValue from "./RepeatValue";
 import { DRAFT_SCRIPT_PLURAL } from "../terms";
+import { useScheduleCodes } from "../schedules";
 
 interface QueueRow {
   item_id: number; prescription_id: number; rx_number: string;
@@ -98,6 +99,7 @@ export default function DispensaryWorklist({
   /** Called when a dispenser clicks a repeat that is due. */
   onPickRepeat?: (row: ReminderRow) => void;
 }) {
+  const schedCode = useScheduleCodes();
   const toast = useToast();
   const [data, setData] = useState<Worklist | null>(null);
   /** Scripts somebody started and did not finish.
@@ -307,7 +309,7 @@ export default function DispensaryWorklist({
                     repeat {row.repeats_used}/{row.repeats_allowed}
                   </span>
                 )}
-                {row.schedule >= 5 && <span className="wl-tag wl-tag-sched">S{row.schedule}</span>}
+                {row.schedule >= 5 && <span className="wl-tag wl-tag-sched">{schedCode(row.schedule)}</span>}
                 {/* Days waiting, not the date. "8 days" is actionable; a date
                     means arithmetic. */}
                 <span className={`wl-wait${row.waiting_days > 14 ? " is-stale" : ""}`}

@@ -391,6 +391,10 @@ export interface Label {
 
 export interface SchedulePolicy {
   schedule: number;
+  /** What a human sees, and what goes on a label: "S5" in South Africa, "PP10"
+   *  in Zimbabwe. Display this, never `schedule` — the number is an internal
+   *  ordinal, not a legal classification. */
+  code: string;
   label: string;
   route: string;
   requires_prescription: boolean;

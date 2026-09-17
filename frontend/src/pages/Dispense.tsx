@@ -65,6 +65,7 @@ import AlterScript from "../components/AlterScript";
 import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
+import { useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
 
 type Route = "prescription" | "controlled" | "otc";
@@ -115,7 +116,7 @@ function looksLikeCode(text: string): boolean {
   if (t.startsWith("(01)") || t.startsWith("]C1") || t.includes("")) return true;
   return /^\d{8,14}$/.test(t);
 }
-const CONTROLLED_HINT = "S5 and S6, by name";
+
 /* The initials box, which said the least of any field on the screen: a label
    reading "Checked by" next to a box whose placeholder read "Initials" — two
    words for one thing, and between them they never said whose initials, or
@@ -240,7 +241,7 @@ const ROUTE_TABS: {
   // A cashier's whole reason to be on this screen, and the only route they have
   // by default. It carried no capability at all, which made it the one tab
   // nobody could be refused — including the people who should be.
-  { key: "otc", label: "OTC / Pharmacy Medicine (S0 to S2)", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
+  { key: "otc", label: "OTC / Pharmacy Medicine", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
 ];
 
 /** What happens to the money at the moment of dispensing.
@@ -657,6 +658,18 @@ export default function Dispense() {
     if (route !== "otc" || productQ.length >= 2) return;
     api.get<Product[]>("/api/dispensing/products?route=otc&limit=12").then(setProductResults);
   }, [route, productQ]);
+
+  /** What this country calls its schedules. "S5" in South Africa, "PP10" in
+   *  Zimbabwe — and this screen said "S5" to both until now. */
+  const schedCode = useScheduleCodes();
+  /** The controlled schedules and the counter ones, named the way the law here
+   *  names them.
+   *
+   *  Listed rather than given as a range. "S0 to S2" reads as a span because
+   *  the South African codes are numbered; the Zimbabwean ones are not, and
+   *  "HR to PIM" reads as a span between two things that have no order. */
+  const controlledCodes = `${schedCode(5)} and ${schedCode(6)}`;
+  const counterCodes = `${schedCode(0)}, ${schedCode(1)} and ${schedCode(2)}`;
 
   const policyFor = (schedule: number) => policies.find((p) => p.schedule === schedule);
   const highestSchedule = items.reduce((m, i) => Math.max(m, i.product.schedule || 0), 0);
@@ -3068,7 +3081,7 @@ export default function Dispense() {
           <div>
             <div className="card sec sec-items" id="step-otc-medicine">
               <h3>1 · Choose a pharmacy medicine</h3>
-              <input data-hk="product" type="search" placeholder="Search S0 to S2 medicines…" value={productQ}
+              <input data-hk="product" type="search" placeholder={`Search ${counterCodes} medicines…`} value={productQ}
                 onChange={(e) => setProductQ(e.target.value)} />
               {productResults.map((p) => (
                 <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); }}
@@ -3083,7 +3096,7 @@ export default function Dispense() {
                   <span>
                     <b>{p.name}</b> {p.strength}
                     <span className={`badge ${p.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>
-                      S{p.schedule}
+                      {schedCode(p.schedule)}
                     </span>
                   </span>
                   <span className="muted">
@@ -3243,7 +3256,7 @@ export default function Dispense() {
                     <td className="nowrap">{fmtWhen(r.created_at)}</td>
                     <td>
                       <EntityLink kind="product" id={r.product_id}><b>{r.product?.name}</b></EntityLink> ×{r.quantity}
-                      <span className={`badge ${r.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>S{r.schedule}</span>
+                      <span className={`badge ${r.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>{schedCode(r.schedule)}</span>
                     </td>
                     <td>
                       <EntityLink kind="patient" id={r.patient_id}>
@@ -3293,7 +3306,7 @@ export default function Dispense() {
               <div className="card sec sec-check">
                 <h3><Warning size={17} weight="fill" /> Controlled substance, dangerous drugs protocol</h3>
                 <p className="muted" style={{ fontSize: 13 }}>
-                  Schedule 5 and 6 medicines must be dispensed by a pharmacist, entered in the
+                  {controlledCodes} medicines must be dispensed by a pharmacist, entered in the
                   electronic schedule register, and supported by a full compliance record.
                   Schedule 6 permits <b>no repeats</b> and requires the checking pharmacist’s initials.
                 </p>
@@ -3307,7 +3320,7 @@ export default function Dispense() {
                   obvious from anything else on the row. */}
               {route === "controlled" && (
                 <div className="disp-lane-badge">
-                  <span className="badge sched">S5 and S6 only</span>
+                  <span className="badge sched">{controlledCodes} only</span>
                 </div>
               )}
               {patient ? (
@@ -3419,10 +3432,10 @@ export default function Dispense() {
               <div className="lane-field disp-medicine">
                 <input data-hk="product" id="disp-product" type="search"
                   aria-label={route === "controlled"
-                    ? "Medicine: search S5 and S6 medicines by name"
+                    ? `Medicine: search ${controlledCodes} medicines by name`
                     : "Medicine: search prescription medicines by name"}
                   placeholder={laneFocus === "product"
-                    ? (route === "controlled" ? CONTROLLED_HINT : MEDICINE_HINT)
+                    ? (route === "controlled" ? `${controlledCodes}, by name` : MEDICINE_HINT)
                     : "Medicine"}
                   value={productQ}
                   onFocus={() => setLaneFocus("product")}
@@ -3550,7 +3563,7 @@ export default function Dispense() {
                 <div key={p.id} className="product-pick" onClick={() => addItem(p)}>
                   <span>
                     <b>{p.name}</b> {p.strength} <span className="muted">{p.dosage_form}</span>
-                    <span className={`badge ${p.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>S{p.schedule}</span>
+                    <span className={`badge ${p.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>{schedCode(p.schedule)}</span>
                   </span>
                   <span className="muted">
                     {money(p.unit_price)}
@@ -3621,7 +3634,7 @@ export default function Dispense() {
                       <h2>
                         {it.product.name} {it.product.strength}
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
-                          S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
+                          {schedCode(it.product.schedule)}{pol?.register_entry ? " · register" : ""}
                         </span>
                         <span className="disp-entry-of">line {idx + 1} of {items.length}</span>
                       </h2>
@@ -3975,7 +3988,7 @@ ${d.action}`}
                           onFix={() => { setOpenItem(idx); setEditing(idx); }}
                         />
                         <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
-                          S{it.product.schedule}{pol?.register_entry ? " · register" : ""}
+                          {schedCode(it.product.schedule)}{pol?.register_entry ? " · register" : ""}
                         </span>
                         </>)}
                       </span>
@@ -5412,7 +5425,7 @@ ${d.action}`}
                     <td className="nowrap">{fmtWhen(r.dispensed_at)}</td>
                     <td>
                       <b>{r.medicine || "not recorded"}</b> ×{r.quantity}
-                      <span className="badge danger" style={{ marginLeft: 6 }}>S{r.schedule}</span>
+                      <span className="badge danger" style={{ marginLeft: 6 }}>{schedCode(r.schedule)}</span>
                       {r.is_repeat && <span className="badge muted" style={{ marginLeft: 4 }}>repeat</span>}
                       {r.rx_number && <div className="muted small">{r.rx_number}</div>}
                     </td>

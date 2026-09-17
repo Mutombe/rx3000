@@ -23,6 +23,7 @@ import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import { useScheduleCodes } from "../schedules";
 
 interface Detail {
   id: number; quantity: number; dispensed_at: string; is_repeat: boolean;
@@ -67,6 +68,7 @@ function Checked({ ok, children }: { ok: boolean; children: React.ReactNode }) {
 }
 
 export default function DispensingDetail() {
+  const schedCode = useScheduleCodes();
   const { id } = useParams();
   const [d, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
@@ -217,7 +219,7 @@ export default function DispensingDetail() {
                     <span className="muted"> · {d.product.form}</span>
                   )}
                   {(d.product?.schedule ?? 0) > 0 && (
-                    <span className="badge warn"> S{d.product!.schedule}</span>
+                    <span className="badge warn"> {schedCode(d.product!.schedule)}</span>
                   )}
                 </dd>
                 <dt>Quantity</dt><dd>{d.quantity}</dd>
