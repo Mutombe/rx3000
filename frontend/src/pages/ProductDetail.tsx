@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
@@ -9,10 +9,11 @@ import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
-import { ProductDetail as Detail, StockBatch, StockMovement } from "../types";
+import { Product, ProductDetail as Detail, StockBatch, StockMovement } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
 import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
+import AdjustStock from "../components/AdjustStock";
 
 type Tab = "batches" | "movements";
 
@@ -30,7 +31,14 @@ export default function ProductDetail() {
   const [error, setError] = useState("");
   const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
   const [filing, setFiling] = useState(false);
+  /** The product whose count is being corrected, which is always this one. */
+  const [adjusting, setAdjusting] = useState<Product | null>(null);
   const toast = useToast();
+
+  const load = useCallback(() => {
+    api.get<Detail>(`/api/products/${id}`).then(setData)
+      .catch((e) => setError(errorText(e, "That product could not be opened.")));
+  }, [id]);
 
   const TABS: TabDef<Tab>[] = [
     { key: "batches", label: "Batches on hand", count: data?.batches.length },
@@ -38,9 +46,7 @@ export default function ProductDetail() {
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "batches");
 
-  useEffect(() => {
-    api.get<Detail>(`/api/products/${id}`).then(setData).catch((e) => setError(e.message));
-  }, [id]);
+  useEffect(() => { load(); }, [load]);
 
   // The departments, for the control below. Fetched once rather than per
   // product: they change about as often as the shop is re-laid-out.
@@ -102,6 +108,9 @@ export default function ProductDetail() {
         cards={1}
       />;
   const p = data.product;
+  // Absent from an older server, and the page still renders: the figures
+  // below fall back to what the record itself holds.
+  const shelf = data.shelf;
 
   const batchCols: Column<StockBatch>[] = [
     { key: "batch_number", header: "Batch", sortable: true, render: (b) => <b className="mono">{b.batch_number}</b> },
@@ -162,14 +171,61 @@ export default function ProductDetail() {
       </div>
 
       <div className="card record-hero">
-        <Highlights items={[
+        {/* THE FIGURES A BUYER DECIDES ON.
+            The record holds a quantity, a cost and a price. None of those
+            answers the question this page is opened with, which is one of "have
+            I got any", "what did it really cost me" and "when do I run out".
+            The incumbent's stock screen is full of these for the same reason. */}
+        <Highlights items={shelf ? [
+          { label: "On this shelf", value: String(shelf.here),
+            hint: shelf.here_undated > 0
+              ? `${shelf.here_undated} more with no expiry recorded`
+              : `${shelf.units} across every branch` },
+          { label: "Packs", value: String(shelf.packs),
+            hint: shelf.per_pack > 1 ? `${shelf.per_pack} units to a pack` : "one unit a pack" },
+          { label: "Days of cover", value: shelf.days_cover === null ? "—" : String(shelf.days_cover),
+            hint: shelf.a_day > 0 ? `${shelf.a_day} a day over 90 days` : "nothing has gone out" },
+          { label: "Average cost", value: money(shelf.avg_cost),
+            hint: "weighted over the stock on the shelf" },
+          { label: "Markup", value: shelf.markup_percent === null ? "—" : `${shelf.markup_percent}%`,
+            hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "—"}% margin` },
+          { label: "On order", value: String(shelf.on_order),
+            hint: shelf.on_order > 0 ? "not yet received" : "nothing outstanding" },
+        ] : [
           { label: "On hand", value: String(p.quantity_on_hand),
             hint: p.quantity_on_hand <= p.reorder_level ? "at or below reorder level" : `reorder at ${p.reorder_level}` },
           { label: "Stock value", value: money(data.stock_value), hint: `${money(p.cost_price)} cost` },
           { label: "Selling price", value: money(p.unit_price), hint: `VAT ${Math.round(p.vat_rate * 100)}%` },
-          { label: "Dispensed", value: String(data.units_dispensed), hint: "units on prescription" },
-          { label: "Sold", value: String(data.units_sold), hint: "units over the counter" },
         ]} />
+
+        {/* Correcting the count, from the screen it is read on. The same dialog
+            the dispensary uses, so a correction made here and one made at the
+            counter are the same act with the same record behind it. */}
+        <div className="pd-shelf-act">
+          <button type="button" className="btn secondary" onClick={() => setAdjusting(p)}>
+            Adjust the count
+          </button>
+          {shelf && (shelf.here + shelf.here_undated) <= shelf.reorder_level && (
+            <span className="pd-flag is-low">
+              At or below the reorder level of {shelf.reorder_level}
+              {shelf.reorder_quantity > 0 && <>, usually ordered {shelf.reorder_quantity} at a time</>}.
+            </span>
+          )}
+          {/* An empty shelf and an uncounted one are different problems, and
+              only one of them is fixed by ordering more. */}
+          {shelf?.disagrees && (
+            <span className="pd-flag is-off">
+              The record says {shelf.units} and the batches behind it hold
+              {" "}{shelf.here + shelf.here_undated} at this branch. Count it.
+            </span>
+          )}
+          {shelf && (
+            <span className="muted small">
+              {money(shelf.at_cost)} at cost · {money(shelf.at_retail)} at retail
+              {" · "}{data.units_dispensed} dispensed, {data.units_sold} sold
+            </span>
+          )}
+        </div>
         <dl className="detail-fields" style={{ marginTop: 14 }}>
           <div><dt>AHFoZ code</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
           <div><dt>Barcode</dt><dd className="mono">{p.barcode || "—"}</dd></div>
@@ -211,6 +267,14 @@ export default function ProductDetail() {
           totals
           initialSort={{ key: "expiry_date", dir: "asc" }}
           empty="No stock on hand, nothing has been received for this product"
+        />
+      )}
+
+      {adjusting && (
+        <AdjustStock
+          product={adjusting}
+          onClose={() => setAdjusting(null)}
+          onAdjusted={() => load()}
         />
       )}
 

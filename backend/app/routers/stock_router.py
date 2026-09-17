@@ -176,8 +176,17 @@ def product_variants(product_id: int, db: Session = Depends(get_db)):
     }
 
 
+def _branch_of(db: Session, user: User) -> int:
+    """Which shelf this person is standing at."""
+    if getattr(user, "branch_id", None):
+        return int(user.branch_id)
+    from ..services import branches as branch_svc
+    return branch_svc.default_branch(db).id
+
+
 @router.get("/products/{product_id}", response_model=schemas.ProductDetail)
-def get_product(product_id: int, db: Session = Depends(get_db)):
+def get_product(product_id: int, db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)):
     """Everything the product record page needs in one call."""
     product = db.get(Product, product_id)
     if not product:
@@ -218,6 +227,103 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
         "units_dispensed": int(dispensed or 0),
         "units_sold": int(sold or 0),
         "stock_value": round(product.quantity_on_hand * product.cost_price, 2),
+        "shelf": _shelf_figures(db, product, batches, user),
+    }
+
+
+def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> dict:
+    """The figures a buyer decides on, rather than the ones a record happens to hold.
+
+    The product page showed what the catalogue stores: a quantity, a cost and a
+    price. None of those answers the question somebody opens this page with,
+    which is always one of "have I got any", "what did it really cost me" and
+    "when do I run out".
+
+      packs and units      the shelf holds units and a buyer orders packs. The
+                           incumbent shows both side by side for that reason,
+                           and a pharmacy that reads one as the other orders
+                           thirty times too many.
+      here                 what THIS branch holds, as against the group. The
+                           difference between those two has caused more trouble
+                           in this system than any other single thing.
+      average cost         weighted over the stock actually on the shelf, not
+                           the catalogue's idea of cost. Two deliveries at
+                           different prices and the catalogue is wrong about
+                           both.
+      days of cover        on hand divided by what actually goes out. The only
+                           figure here that answers "when do I reorder", and
+                           the one the record never held.
+    """
+    per_pack = max(1, product.units_per_pack or 1)
+    units = int(product.quantity_on_hand or 0)
+
+    branch_id = _branch_of(db, user)
+    here = int(db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+               .filter(StockBatch.product_id == product.id,
+                       StockBatch.branch_id == branch_id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.expiry_date >= date.today()).scalar() or 0)
+    here_undated = int(db.query(func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+                       .filter(StockBatch.product_id == product.id,
+                               StockBatch.branch_id == branch_id,
+                               StockBatch.quantity_remaining > 0,
+                               StockBatch.expiry_date.is_(None)).scalar() or 0)
+
+    # Weighted over what is left, so a large old batch does not go on setting
+    # the average after it has been sold.
+    on_shelf = [b for b in batches if (b.quantity_remaining or 0) > 0]
+    held = sum(b.quantity_remaining for b in on_shelf)
+    avg_cost = (round(sum((b.unit_cost or 0.0) * b.quantity_remaining for b in on_shelf)
+                      / held, 4) if held else round(product.unit_cost(), 4))
+
+    on_order = int(db.query(func.coalesce(
+        func.sum(PurchaseOrderItem.quantity_ordered - PurchaseOrderItem.quantity_received), 0))
+        .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.order_id)
+        .filter(PurchaseOrderItem.product_id == product.id,
+                PurchaseOrder.status.notin_(("received", "cancelled"))).scalar() or 0)
+
+    # What actually leaves the shelf, over a window long enough to mean
+    # something and short enough to still be true.
+    since = datetime.utcnow() - timedelta(days=90)
+    out_90 = int(db.query(func.coalesce(func.sum(-StockMovement.quantity_delta), 0))
+                 .filter(StockMovement.product_id == product.id,
+                         StockMovement.movement_type == "sale",
+                         StockMovement.created_at >= since).scalar() or 0)
+    a_day = round(out_90 / 90.0, 3) if out_90 > 0 else 0.0
+
+    each = product.per_unit()
+    return {
+        "units": units,
+        "packs": round(units / per_pack, 2),
+        "per_pack": per_pack,
+        "here": here,
+        "here_undated": here_undated,
+        "on_order": on_order,
+        "avg_cost": avg_cost,
+        "unit_cost": round(product.unit_cost(), 4),
+        "each": round(each, 4),
+        # What the pharmacy makes on it, from the cost the shelf actually
+        # carries rather than the one the catalogue remembers.
+        "markup_percent": (round(100.0 * (each - avg_cost) / avg_cost, 1)
+                           if avg_cost > 0 else None),
+        "margin_percent": (round(100.0 * (each - avg_cost) / each, 1)
+                           if each > 0 else None),
+        "at_cost": round(units * avg_cost, 2),
+        "at_retail": round(units * each, 2),
+        "a_day": a_day,
+        "out_90": out_90,
+        # Blank rather than infinity where nothing moves: "never runs out" is
+        # not a fact about the medicine, it is the absence of one. Blank too
+        # where the record has gone negative, because "minus thirty days of
+        # cover" is not a shortage measured, it is a count that needs fixing —
+        # and the page says that separately.
+        "days_cover": (round(units / a_day) if a_day > 0 and units > 0 else None),
+        # The record and the batches behind it disagreeing is worth saying out
+        # loud. It is the difference between a shelf that is empty and a shelf
+        # nobody has counted, and only one of those is fixed by ordering.
+        "disagrees": units != (here + here_undated),
+        "reorder_level": int(product.reorder_level or 0),
+        "reorder_quantity": int(product.reorder_quantity or 0),
     }
 
 

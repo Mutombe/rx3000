@@ -749,6 +749,42 @@ export interface CardReconciliationReport {
   weak_matches: number; warnings: string[];
 }
 
+/** What a buyer decides on, as against what the catalogue happens to store.
+ *
+ *  A product record holds a quantity, a cost and a price. None of those answers
+ *  the question somebody opens this page with, which is always one of "have I
+ *  got any", "what did it really cost me" and "when do I run out". */
+export interface ShelfFigures {
+  /** The shelf counts in units; a buyer orders packs. Both, because reading one
+   *  as the other orders thirty times too many. */
+  units: number;
+  packs: number;
+  per_pack: number;
+  /** What THIS branch holds, as against the group. */
+  here: number;
+  here_undated: number;
+  on_order: number;
+  /** Weighted over the stock actually on the shelf, not the catalogue's idea of
+   *  cost: two deliveries at different prices and the catalogue is wrong about
+   *  both. */
+  avg_cost: number;
+  unit_cost: number;
+  each: number;
+  markup_percent: number | null;
+  margin_percent: number | null;
+  at_cost: number;
+  at_retail: number;
+  a_day: number;
+  out_90: number;
+  /** Null where nothing moves, or where the count has gone negative. */
+  days_cover: number | null;
+  reorder_level: number;
+  reorder_quantity: number;
+  /** The record and the batches behind it disagree. An empty shelf and an
+   *  uncounted one are different problems and only one is fixed by ordering. */
+  disagrees: boolean;
+}
+
 export interface ProductDetail {
   product: Product;
   batches: StockBatch[];
@@ -756,6 +792,7 @@ export interface ProductDetail {
   units_dispensed: number;
   units_sold: number;
   stock_value: number;
+  shelf?: ShelfFigures;
 }
 
 export interface LeadScoreFactor {

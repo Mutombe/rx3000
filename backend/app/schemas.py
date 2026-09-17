@@ -345,6 +345,12 @@ class ProductDetail(BaseModel):
     units_dispensed: int
     units_sold: int
     stock_value: float
+    #: The figures a buyer decides on: packs and units, what this branch holds,
+    #: average cost off the shelf rather than out of the catalogue, what is on
+    #: order, and how many days of cover that is. Free-form because it is a
+    #: computed view rather than a record, and naming each one here would mean
+    #: two places to change every time the page learns another.
+    shelf: dict = {}
 
 
 # ---------- prescriptions ----------

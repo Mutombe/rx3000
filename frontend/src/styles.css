@@ -10419,3 +10419,30 @@ button.fin-ack { cursor: pointer; }
    worked out. Marked rather than announced: the row still reads as a number,
    and the tooltip says who moved it and what the patient is covering. */
 .ed-money.is-hand-set { font-weight: 600; text-decoration: underline dotted; }
+
+/* THE STOCK ITEM'S OWN ACTIONS AND FLAGS.
+   Under the figures rather than beside them: what to do about a count comes
+   after reading it, and a button level with the numbers competes with them. */
+.pd-shelf-act {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  margin-top: var(--s4); padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.pd-flag {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px var(--s3); border-radius: var(--r-md);
+  font-size: .78rem; font-weight: 500;
+}
+/* Low stock is a buying decision. A record that disagrees with its own batches
+   is a counting one, and they are coloured apart because ordering more will not
+   fix the second. */
+.pd-flag.is-low {
+  background: var(--warn-soft, var(--surface-sunk));
+  border: 1px solid var(--warn-line, var(--line));
+  color: var(--warn, var(--ink-mid));
+}
+.pd-flag.is-off {
+  background: var(--danger-soft, var(--surface-sunk));
+  border: 1px solid var(--danger, var(--line-strong));
+  color: var(--danger, var(--ink-mid));
+}
