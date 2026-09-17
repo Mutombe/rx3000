@@ -1075,6 +1075,7 @@ def prescription_labels(
             dosage_instructions=sig.expand(db, item.dosage_instructions) or "As directed by your doctor",
             warnings=_warnings(product),
             schedule=product.schedule or 0,
+            schedule_code=schedule_policy.policy_for(product.schedule).code,
             batch_number=batch_number or "",
             expiry_date=expiry,
             repeats_remaining=max(0, item.repeats_allowed - item.repeats_used),

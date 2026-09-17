@@ -264,6 +264,15 @@ const LABEL_CSS = `
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .foot div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* The shop, then the street, then the number. The name carries the weight of
+     a heading without being bigger than the telephone line, which is the one
+     thing read in a hurry. The street is allowed to wrap onto a second line
+     rather than lose its town to an ellipsis. */
+  .foot-who { font-weight: bold; font-size: 6.1pt; }
+  .foot-where {
+    font-size: 5.6pt; color: #333;
+    white-space: normal; overflow: visible; text-overflow: clip;
+  }
 `;
 
 /** Escape anything that came from the database before it becomes markup.
@@ -362,7 +371,13 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
               be. */ ""}
         <div class="med">
           <span class="name">${esc(l.product_name)} ${esc(l.strength)}</span>
-          ${l.schedule ? `<span class="sched">S${l.schedule}</span>` : ""}
+          ${/* The classification the law here uses, not the internal ordinal.
+                This printed "S4" on a box handed over in Harare, where a
+                schedule 4 medicine is a PP — a South African classification on
+                a Zimbabwean pharmacy's own sticker. Falls back to the old form
+                only for a label built before the code existed. */ ""}
+          ${l.schedule
+            ? `<span class="sched">${esc(l.schedule_code || `S${l.schedule}`)}</span>` : ""}
           <span class="price">${qty}</span>
         </div>
         <div class="dose">${esc(l.dosage_instructions)}</div>
@@ -376,14 +391,25 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
           ${refLine ? `<div>${refLine}</div>` : ""}
         </div>
         <div class="foot">
-          ${/* The branch's telephone number, and nothing else.
+          ${/* WHOSE PHARMACY DISPENSED THIS, then how to reach them.
 
-                The name and the street took three lines of a small sticker to
-                repeat what the bag it goes into already says. What a patient
-                needs off a label at ten at night is the number to ring, so that
-                is what the foot carries. The premises registration stays beside
-                it where the pharmacy has recorded one: it is how an inspector
-                ties this sticker to a licence, and it is never invented. */ ""}
+                The name and the street were taken off to save three lines on a
+                small sticker, on the reasoning that the bag already says it.
+                A bag is not what a patient still has at ten at night, and a box
+                that cannot say where it came from is a box nobody can query or
+                return. The shop that handed it over goes first, its street
+                under it, and the number to ring in bold beneath both — read in
+                that order because that is the order the questions come in.
+
+                The branch's own details where it has them, the pharmacy's where
+                it does not, so a single-shop pharmacy that never filled in a
+                branch record still prints something true. The premises
+                registration stays last: it is how an inspector ties this
+                sticker to a licence, and it is never invented. */ ""}
+          ${(l.branch_name || l.pharmacy_name)
+            ? `<div class="foot-who">${esc(l.branch_name || l.pharmacy_name)}</div>` : ""}
+          ${(l.branch_address || l.pharmacy_address)
+            ? `<div class="foot-where">${esc(l.branch_address || l.pharmacy_address)}</div>` : ""}
           ${(l.branch_phone || l.pharmacy_phone)
             ? `<b>Tel: ${esc(l.branch_phone || l.pharmacy_phone)}</b>` : ""}
           ${(l.branch_reg_no || l.pharmacy_reg_no)

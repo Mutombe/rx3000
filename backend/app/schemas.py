@@ -1006,6 +1006,12 @@ class LabelOut(BaseModel):
     dosage_instructions: str
     warnings: str = ""
     schedule: int = 0
+    #: What the law here calls that schedule, and what belongs on the sticker:
+    #: "S4" in South Africa, "PP" in Zimbabwe. The label printed `S{schedule}`,
+    #: so a Harare pharmacy was putting a South African classification on a box
+    #: it hands to a patient. The number is an internal ordinal; this is the
+    #: classification.
+    schedule_code: str = ""
     batch_number: str = ""
     #: Who made it. A patient reacting to a medicine, and a recall, both start
     #: with the manufacturer and the batch; the box has both and the sticker

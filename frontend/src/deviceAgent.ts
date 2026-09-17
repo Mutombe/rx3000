@@ -375,12 +375,20 @@ export function labelLines(l: Label, width = 32): Line[] {
   ].filter(Boolean).join(" ");
   if (ref) lines.push({ text: ref.slice(0, width) });
 
-  // The branch's telephone number, and nothing else.
+  // Whose pharmacy dispensed it, then how to reach them.
   //
-  // The name and the street took three lines of a small sticker to say what the
-  // bag it is going into already says. What a patient actually needs off a label
-  // at ten at night is the number to ring, so that is what the foot carries.
+  // The name and the street were taken off to save lines on a small sticker, on
+  // the reasoning that the bag already says it. A bag is not what a patient
+  // still has at ten at night, and a box that cannot say where it came from is a
+  // box nobody can query or return. Shop, street, then the number in bold,
+  // because that is the order the questions come in.
   lines.push({ text: "-".repeat(width) });
+  const who = l.branch_name || l.pharmacy_name;
+  const where = l.branch_address || l.pharmacy_address;
+  if (who) lines.push({ text: who.slice(0, width), bold: true });
+  // The street wraps rather than losing its town to a slice: "114 Samora Machel
+  // Avenue, Harare" cut at 32 characters loses the one word that places it.
+  if (where) for (const row of wrap(where, width)) lines.push({ text: row });
   const phone = l.branch_phone || l.pharmacy_phone;
   if (phone) lines.push({ text: `Tel: ${phone}`.slice(0, width), bold: true });
 

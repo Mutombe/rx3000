@@ -354,6 +354,9 @@ export interface Label {
   dosage_instructions: string;
   warnings: string;
   schedule: number;
+  /** What the law here calls that schedule, and what goes on the sticker:
+   *  "S4" in South Africa, "PP" in Zimbabwe. */
+  schedule_code?: string;
   batch_number: string;
   /** Who made it — a recall and a reaction both start here. */
   manufacturer?: string;
