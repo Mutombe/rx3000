@@ -5561,7 +5561,10 @@ ${d.action}`}
               </tbody>
             </table>
           </div>
-          {controlledMeta && (
+          {/* Only once there is something to page through. Pagination says
+              "No hand-overs" on an empty list, which put a second, quieter
+              empty state directly above the real one. */}
+          {controlledMeta && controlledLog.length > 0 && (
             <Pagination meta={controlledMeta} onPage={setControlledPage} noun="hand-overs" />
           )}
           {logsLoading && controlledLog.length === 0 && <TableSkeleton cols={6} rows={4} />}

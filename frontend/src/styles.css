@@ -10060,9 +10060,23 @@ button.fin-ack { cursor: pointer; }
    A statutory list, so it is built to be read across rather than to look
    compact: six columns, none of them clipped away, and the table scrolls
    inside its own box so the page never does. */
-.dd-register { margin-top: var(--s4); }
-.dd-register h3 { margin-bottom: 2px; }
-.dd-register > p { margin: 0 0 var(--s3); }
+/* The register is not one of the capture bands, so it does not wear their
+   stripped-back styling. Inside `.disp-dense` every `.card` loses its surface
+   and becomes a rule-separated band, which left this reading as loose text
+   dropped under the script form rather than as the separate record it is. */
+.dd-register,
+.disp-dense .dd-register {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--e1);
+  padding: var(--s4); margin: var(--s5) 0 var(--s4);
+  flex: 0 0 auto;
+}
+.dd-register > h3,
+.disp-dense .dd-register > h3 {
+  font-size: .95rem; text-transform: none; letter-spacing: 0;
+  color: var(--ink); font-weight: 600; margin: 0 0 2px;
+}
+.dd-register > p { margin: 0 0 var(--s3); max-width: 58ch; }
 .dd-register .table-scroll { overflow-x: auto; }
 .dd-register table { min-width: 52rem; }
 .dd-register td { vertical-align: top; }
@@ -10161,12 +10175,17 @@ button.fin-ack { cursor: pointer; }
    and shows the most recently captured scripts before anything is typed,
    because the script being corrected is nearly always one somebody has just
    keyed in and spotted a mistake on. */
-.alt-modal { max-width: 62rem; }
+.alt-modal { max-width: 58rem; }
+/* Two panes of the same height, each scrolling its own content. The list used
+   to run to whatever length it liked and the right-hand pane stretched to match
+   it, so choosing a script meant looking at a column of rows beside half a
+   screen of nothing. */
 .alt-split {
-  display: grid; grid-template-columns: 20rem 1fr; gap: var(--s4);
-  margin-top: var(--s3); align-items: start;
+  display: grid; grid-template-columns: 19rem 1fr; gap: var(--s4);
+  margin-top: var(--s3); align-items: stretch;
+  height: min(26rem, 55vh);
 }
-.alt-find { display: flex; flex-direction: column; min-width: 0; }
+.alt-find { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .alt-search {
   display: flex; align-items: center; gap: var(--s2);
   padding: 0 var(--s2); height: 36px;
@@ -10182,7 +10201,10 @@ button.fin-ack { cursor: pointer; }
   font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
   color: var(--ink-mid); margin: var(--s3) 0 var(--s2);
 }
-.alt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.alt-list {
+  list-style: none; margin: 0; padding: 0 2px 2px 0; display: grid; gap: 3px;
+  overflow-y: auto; min-height: 0; overscroll-behavior: contain;
+}
 
 /* One script a row, readable without opening it: what it is, who it is for,
    when it was taken and whether anything has already gone out. */
@@ -10196,7 +10218,7 @@ button.fin-ack { cursor: pointer; }
 .alt-hit.is-open { border-color: var(--accent, var(--ink-mid)); box-shadow: inset 0 0 0 1px var(--accent, var(--ink-mid)); }
 .alt-hit-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
 .alt-hit-top b { font-variant-numeric: tabular-nums; }
-.alt-hit-who { font-size: .82rem; overflow-wrap: anywhere; }
+.alt-hit-who { font-size: .8rem; color: var(--ink-mid); overflow-wrap: anywhere; }
 .alt-hit-meta {
   display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
   font-size: .72rem; color: var(--ink-mid);
@@ -10204,7 +10226,14 @@ button.fin-ack { cursor: pointer; }
 .alt-hit-altered { color: var(--warn, var(--ink-mid)); font-weight: 600; }
 .alt-empty { margin: var(--s3) 0; }
 
-.alt-work { min-width: 0; }
+.alt-work { min-width: 0; min-height: 0; overflow-y: auto; padding-right: 2px; }
+/* The placeholder is a note, not a splash screen. Centred in half a modal it
+   read as the dialog having failed to load something. */
+.alt-work > .alt-empty {
+  display: flex; flex-direction: column; justify-content: center;
+  height: 100%; text-align: left; margin: 0; padding: 0 var(--s3);
+  border: 1px dashed var(--line); border-radius: var(--r-md);
+}
 .alt-chosen { font-size: .95rem; margin-bottom: var(--s3); overflow-wrap: anywhere; }
 
 /* The lines as rows, not a dropdown: which of them can still be corrected is
@@ -10229,4 +10258,54 @@ button.fin-ack { cursor: pointer; }
 @media (max-width: 760px) {
   .alt-split { grid-template-columns: 1fr; }
   .alt-list { max-height: 15rem; overflow-y: auto; }
+}
+
+/* ============================================================================
+   LAYOUT REPAIRS — the three places the dispensary was crashing into itself.
+   ========================================================================= */
+
+/* 1. A ROW BUILT OUT OF A BUTTON IS STILL A ROW.
+
+   `button` sets `height: var(--control)` and `white-space: nowrap` for the
+   ordinary case, which is a label on one line. A picker row is three lines —
+   number, patient, when — so both of those cut it off: the patient's name was
+   sliced through the middle and the date line was not drawn at all. Anything
+   that is a row rather than a control opts out of both. */
+.alt-hit, .alt-line {
+  height: auto; min-height: 0; white-space: normal;
+  justify-content: flex-start; padding: var(--s2) var(--s3);
+  line-height: 1.35;
+}
+
+/* 2. THE COMMIT BAR AND THE KEY STRIP WERE SITTING ON EACH OTHER.
+
+   The medicine results grow with the search, the commit bar follows them, and
+   the key strip is stuck to the bottom of the window — so on a search with more
+   than a few hits the two met in the middle and overlapped, with the last
+   result running underneath both. The results now scroll in their own box and
+   the bar keeps its distance. */
+.disp-dense .card.sec-items {
+  display: flex; flex-direction: column; min-height: 0;
+  max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
+}
+.disp-dense .disp-commit {
+  margin: var(--s3) 0 0; padding-top: var(--s3);
+  background: var(--surface);
+}
+.disp-dense .disp-commit-row { row-gap: var(--s2); }
+
+/* 3. THE SEARCH RESULTS WERE A STACK OF PILLS.
+
+   Ten identical rounded blocks, each padded like a card, is a list you scroll
+   rather than scan: the medicine, the price and the shelf all arrive at the
+   same weight and the eye has nothing to run down. Squared off, tightened, and
+   the figures pulled into a column that lines up from row to row. */
+.disp-dense .product-pick {
+  border-radius: var(--r-md); margin-top: 4px;
+  padding: 7px var(--s3); gap: var(--s3);
+}
+.disp-dense .product-pick:first-of-type { margin-top: 0; }
+.disp-dense .product-pick > span:last-child {
+  display: flex; align-items: center; gap: var(--s2);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
 }
