@@ -632,9 +632,25 @@ export default function Dispense() {
       .finally(() => setLogsLoading(false));
   }
 
+  /* A LATE ANSWER MUST NOT REFILL A FIELD SOMEBODY HAS EMPTIED.
+   *
+   *  Every one of these searches did `api.get(...).then(setResults)` with
+   *  nothing watching whether the question still stood. Clearing the box runs
+   *  the effect, which empties the list — and then the request for the text that
+   *  was there a moment ago comes back and puts it all on screen again. The list
+   *  outlives the search that asked for it, and the only way out is to type
+   *  something and clear it again quickly enough to win the race.
+   *
+   *  `stale` closes over this run of the effect. The cleanup sets it before the
+   *  next run starts, so an answer to a question nobody is asking any more is
+   *  dropped instead of rendered. Same guard on all three lanes. */
   useEffect(() => {
     if (patientQ.length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=8`).then(setPatients);
+    let stale = false;
+    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=8`)
+      .then((found) => { if (!stale) setPatients(found); })
+      .catch(() => { if (!stale) setPatients([]); });
+    return () => { stale = true; };
   }, [patientQ]);
 
   /** The dispenser choosing a different route starts a different script.
@@ -666,14 +682,20 @@ export default function Dispense() {
 
   useEffect(() => {
     if (productQ.length < 2) { setProductResults([]); return; }
+    let stale = false;
     api.get<Product[]>(`/api/dispensing/products?route=${route}&q=${encodeURIComponent(productQ)}`)
-      .then(setProductResults);
+      .then((found) => { if (!stale) setProductResults(found); })
+      .catch(() => { if (!stale) setProductResults([]); });
+    return () => { stale = true; };
   }, [productQ, route]);
 
-  useEffect(() => {
-    if (route !== "otc" || productQ.length >= 2) return;
-    api.get<Product[]>("/api/dispensing/products?route=otc&limit=12").then(setProductResults);
-  }, [route, productQ]);
+  /* The over-the-counter tab used to open on twelve medicines nobody had asked
+   * for: the first twelve in the catalogue, alphabetically, which at CareXpress
+   * is cable ties, a Barbie toy and a storage box. That wall of merchandise was
+   * the first thing on the screen and it pushed the consultation record — the
+   * part that is actually being filled in — off the bottom of the window.
+   *
+   * A search shows results. Nothing else does, here as on the prescription tab. */
 
   /** What this country calls its schedules. "S5" in South Africa, "PP10" in
    *  Zimbabwe — and this screen said "S5" to both until now. */
@@ -3131,9 +3153,43 @@ export default function Dispense() {
           <div>
             <div className="card sec sec-items" id="step-otc-medicine">
               <h3>1 · Choose a pharmacy medicine</h3>
-              <input data-hk="product" type="search" placeholder={`Search ${counterCodes} medicines…`} value={productQ}
-                onChange={(e) => setProductQ(e.target.value)} />
-              {productResults.map((p) => (
+              {/* WHAT IS BEING SOLD, once it is chosen.
+                  It used to be a highlighted row somewhere in a list of
+                  results, so the answer to "what am I selling" was a shade of
+                  grey a few rows down. Lifted out: the medicine, what it costs,
+                  what the shelf holds, and the way back to the search. */}
+              {otcProduct ? (
+                <div className="otc-chosen">
+                  <div className="otc-chosen-what">
+                    <b>{otcProduct.name} {otcProduct.strength}</b>
+                    <span className={`badge ${otcProduct.schedule > 0 ? "warn" : "muted"}`}>
+                      {schedCode(otcProduct.schedule)}
+                    </span>
+                  </div>
+                  <div className="otc-chosen-figs">
+                    <span>{money(otcProduct.unit_price)} each</span>
+                    <span>
+                      {otcProduct.here ?? otcProduct.quantity_on_hand} here
+                      {(otcProduct.here_undated ?? 0) > 0 && (
+                        <span className="stock-undated"> +{otcProduct.here_undated} undated</span>
+                      )}
+                    </span>
+                    {(() => {
+                      const m = shelfMargin(otcProduct.unit_price, otcProduct.cost_price);
+                      return m === null ? null : <MarginTag percent={m} compact />;
+                    })()}
+                  </div>
+                  <button type="button" className="linkish otc-chosen-change"
+                          onClick={() => { setOtcProduct(null); setOtcPackExpiry(""); setProductQ(""); }}>
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <input data-hk="product" type="search"
+                  placeholder={`Search ${counterCodes} medicines…`} value={productQ}
+                  onChange={(e) => setProductQ(e.target.value)} />
+              )}
+              {!otcProduct && productResults.map((p) => (
                 <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); }}
                   // Selected. A class, not an inline `background: "#fff"`.
                   // That literal did not invert with the theme, so on the dark
@@ -3142,7 +3198,7 @@ export default function Dispense() {
                   // was the one row nobody could read. Neither colour check
                   // could see it either, because both read stylesheets and
                   // this was written into the element.
-                  className={`product-pick${otcProduct?.id === p.id ? " is-picked" : ""}`}>
+                  className="product-pick">
                   <span>
                     <b>{p.name}</b> {p.strength}
                     <span className={`badge ${p.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>
@@ -3189,12 +3245,13 @@ export default function Dispense() {
                   <input type="number" min={1} value={otcQty} onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
                 </div>
                 <div className="field">
-                  <label>Customer name (if not a registered patient)</label>
-                  <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                  <label>Customer</label>
+                  <input value={customerName} placeholder="if not a registered patient"
+                         onChange={(e) => setCustomerName(e.target.value)} />
                 </div>
               </div>
               <div className="field">
-                <label>Link a registered patient (optional)</label>
+                <label>Patient</label>
                 {patient ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <b>{patient.first_name} {patient.last_name}</b>
@@ -3203,7 +3260,8 @@ export default function Dispense() {
                   </div>
                 ) : (
                   <>
-                    <input data-hk="patient" type="search" placeholder="Search patient…" value={patientQ}
+                    <input data-hk="patient" type="search" value={patientQ}
+                      placeholder="search by name, optional"
                       onChange={(e) => setPatientQ(e.target.value)} />
                     {patients.map((p) => (
                       <div key={p.id} className="product-pick"
@@ -3216,7 +3274,7 @@ export default function Dispense() {
                 )}
               </div>
               <div className="field">
-                <label>Presenting complaint / indication</label>
+                <label>Complaint</label>
                 <input value={indication} onChange={(e) => setIndication(e.target.value)}
                   placeholder="e.g. Headache for 2 days, no red flags" />
               </div>
@@ -3260,7 +3318,7 @@ export default function Dispense() {
               )}
               <div className="form-row">
                 <div className="field">
-                  <label>Cash tendered, total {money(otcTotal)}</label>
+                  <label>Tendered</label>
                   <input type="number" step="0.01" value={tendered} onChange={(e) => setTendered(e.target.value)} />
                 </div>
               </div>
@@ -5490,6 +5548,7 @@ ${d.action}`}
             Every schedule 5 and 6 hand-over, whether it was captured on this tab
             or on the prescription tab. This is the list an inspector asks to see.
           </p>
+          {controlledLog.length > 0 && (
           <div className="table-scroll">
             <table>
               <colgroup>
@@ -5561,6 +5620,7 @@ ${d.action}`}
               </tbody>
             </table>
           </div>
+          )}
           {/* Only once there is something to page through. Pagination says
               "No hand-overs" on an empty list, which put a second, quieter
               empty state directly above the real one. */}

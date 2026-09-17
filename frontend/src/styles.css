@@ -10188,14 +10188,17 @@ button.fin-ack { cursor: pointer; }
 .alt-find { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .alt-search {
   display: flex; align-items: center; gap: var(--s2);
-  padding: 0 var(--s2); height: 36px;
+  /* A search box people type a script number into, not a filter chip. It was
+     36px, which reads as a control squeezed in above the list rather than the
+     way into it. */
+  padding: 0 var(--s3); height: 44px;
   border: 1px solid var(--line-strong); border-radius: var(--r-md);
   background: var(--surface); color: var(--ink-mid);
 }
 .alt-search:focus-within { border-color: var(--accent, var(--ink)); }
 .alt-search input {
   flex: 1; min-width: 0; border: 0; background: none; height: 100%;
-  padding: 0; font: inherit; color: var(--ink); outline: none;
+  padding: 0; font: inherit; font-size: .92rem; color: var(--ink); outline: none;
 }
 .alt-list-head {
   font-size: .72rem; letter-spacing: .04em; text-transform: uppercase;
@@ -10284,10 +10287,22 @@ button.fin-ack { cursor: pointer; }
    than a few hits the two met in the middle and overlapped, with the last
    result running underneath both. The results now scroll in their own box and
    the bar keeps its distance. */
+/* The list TAKES the spare height rather than being capped under it.
+   Capping it stopped the overlap and bought a worse fault: the strip at the
+   bottom is pushed down by `margin-top: auto`, so whatever the cap did not use
+   opened as a band of dead grey between the buttons and the key strip. It grows
+   to the space available and scrolls inside it, which is what `flex: 1 1 auto`
+   on the card already meant — it simply had nothing stopping it growing past
+   the window. */
 .disp-dense .card.sec-items {
-  display: flex; flex-direction: column; min-height: 0;
-  max-height: 46vh; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column;
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
+/* And the strip no longer pushes itself away from what is above it. The list
+   above fills the column, so the strip is already at the bottom; the auto
+   margin only had an effect when something left space over, which is exactly
+   the case that produced the gap. */
+.disp-dense > .keybar { margin-top: 0; }
 .disp-dense .disp-commit {
   margin: var(--s3) 0 0; padding-top: var(--s3);
   background: var(--surface);
@@ -10309,3 +10324,22 @@ button.fin-ack { cursor: pointer; }
   display: flex; align-items: center; gap: var(--s2);
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
+
+/* THE MEDICINE BEING SOLD, at the top of the over-the-counter step.
+   It used to be one highlighted row somewhere in a list of results, so "what
+   am I selling" was answered by a shade of grey a few rows down. Lifted out of
+   the list entirely: once it is chosen the search is done and the medicine,
+   its price and what the shelf holds are the heading of the step. */
+.otc-chosen {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s3); border-radius: var(--r-md);
+  border: 1px solid var(--line-strong); background: var(--surface);
+}
+.otc-chosen-what { display: flex; align-items: center; gap: var(--s2); min-width: 0; flex: 1 1 14rem; }
+.otc-chosen-what b { overflow-wrap: anywhere; }
+.otc-chosen-figs {
+  display: flex; align-items: center; gap: var(--s3);
+  font-size: .82rem; color: var(--ink-mid);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.otc-chosen-change { flex: 0 0 auto; font-size: .8rem; }
