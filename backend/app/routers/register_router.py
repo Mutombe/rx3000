@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import schemas
 from ..auth import get_current_user
@@ -10,6 +10,27 @@ from ..services import paging
 from ..models import RegisterEntry
 
 router = APIRouter(prefix="/api/register", tags=["schedule-register"], dependencies=[Depends(get_current_user)])
+
+
+def _entries(db: Session):
+    """The register, with the three names each line is read by.
+
+    Every row names a medicine, a patient and a prescriber, and each was being
+    fetched one at a time as the response was built: three hundred rows became
+    nine hundred separate queries. On a database in the same building that is
+    slow; on a hosted one it is fatal, because each of those queries costs a
+    round trip. Opening the register took seventy-four seconds against the live
+    database, for a query that runs in under a millisecond.
+
+    Loaded up front instead, which is three queries for the whole page however
+    many rows it holds. `selectinload` rather than a join: these are many-to-one
+    and a join would repeat the whole medicine row against every entry that
+    names it.
+    """
+    return (db.query(RegisterEntry)
+            .options(selectinload(RegisterEntry.product),
+                     selectinload(RegisterEntry.patient),
+                     selectinload(RegisterEntry.doctor)))
 
 
 @router.get("", response_model=list[schemas.RegisterEntryOut])
@@ -21,7 +42,7 @@ def list_entries(
     limit: int = 300,
     db: Session = Depends(get_db),
 ):
-    query = db.query(RegisterEntry)
+    query = _entries(db)
     if product_id:
         query = query.filter(RegisterEntry.product_id == product_id)
     if schedule:
@@ -49,7 +70,7 @@ def list_entries_paged(
     inspector may ask to see, and a screen that showed 300 of 612 entries with
     no total was not an incomplete view. It was a misleading one.
     """
-    query = db.query(RegisterEntry)
+    query = _entries(db)
     if product_id:
         query = query.filter(RegisterEntry.product_id == product_id)
     if schedule:

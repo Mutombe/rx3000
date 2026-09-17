@@ -51,8 +51,13 @@ def by_funder(db: Session, *, days: int = 180) -> dict:
     """
     since = datetime.utcnow() - timedelta(days=max(1, days))
 
+    # The claim behind each line comes with it. Every line asks how long its
+    # money took, which reads `line.claim`, and fetching those one at a time
+    # made this screen a hundred and twenty queries: fine on a database in the
+    # same building, thirty-five seconds against a hosted one, where the cost is
+    # the round trip rather than the query.
     advices = (db.query(Remittance)
-               .options(joinedload(Remittance.lines))
+               .options(joinedload(Remittance.lines).selectinload(RemittanceLine.claim))
                .filter(Remittance.created_at >= since).all())
 
     funders: dict[str, dict] = {}

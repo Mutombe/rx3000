@@ -3,7 +3,7 @@ from datetime import date
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
@@ -127,10 +127,23 @@ def _entry(entry: JournalEntry) -> dict:
     }
 
 
+def _journal(db: Session):
+    """The journal, with each entry's lines and its author.
+
+    `_entry` above reads both for every row, and fetching them one entry at a
+    time made a page of a hundred into a hundred and five queries. That is
+    unnoticeable against a local database and thirty seconds against a hosted
+    one, where what costs is the round trip and not the query.
+    """
+    return (db.query(JournalEntry)
+            .options(selectinload(JournalEntry.lines),
+                     selectinload(JournalEntry.created_by)))
+
+
 @router.get("/entries")
 def entries(period_code: str = "", source: str = "", limit: int = 100,
             db: Session = Depends(get_db)):
-    query = db.query(JournalEntry)
+    query = _journal(db)
     if period_code:
         query = query.filter(JournalEntry.period_code == period_code)
     if source:
@@ -150,7 +163,7 @@ def entries_paged(period_code: str = "", source: str = "",
     and "the most recent hundred" is the wrong hundred whenever the question is
     about last quarter.
     """
-    query = db.query(JournalEntry)
+    query = _journal(db)
     if period_code:
         query = query.filter(JournalEntry.period_code == period_code)
     if source:

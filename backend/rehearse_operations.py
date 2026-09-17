@@ -153,6 +153,7 @@ try:
             for role, person in sorted(by_role.items()):
                 http.headers["Authorization"] = "Bearer " + create_token(person, book)
                 bad = allowed = denied = 0
+                print(f"  {role}:", flush=True)
                 for path in paths:
                     import time
                     began = time.monotonic()
@@ -163,6 +164,11 @@ try:
                     except Exception as exc:                     # noqa: BLE001
                         code, body = 599, f"{type(exc).__name__}: {exc}"[:150]
                     took = time.monotonic() - began
+                    # Printed as it happens, not at the end. A sweep that says
+                    # nothing for half an hour cannot be told apart from a sweep
+                    # that has hung, and the screen it hung on is the answer.
+                    if took > args.slow or (code >= 400 and code not in (401, 403, 404)):
+                        print(f"    {took:5.1f}s  {code}  {path}", flush=True)
                     if took > args.slow:
                         slow.append((branch.name, path, took))
                     if code in (401, 403):
@@ -173,8 +179,8 @@ try:
                         broken.append((branch.name, role, path, code, body))
                     else:
                         allowed += 1
-                print(f"  {role:<11} {allowed:>3} open   {denied:>3} not theirs to see"
-                      + (f"   {bad} BROKEN" if bad else ""))
+                print(f"    {allowed:>3} open, {denied:>3} not theirs to see"
+                      + (f", {bad} BROKEN" if bad else ""), flush=True)
 finally:
     http.headers.pop("Authorization", None)
     book.close()
