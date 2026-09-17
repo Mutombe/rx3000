@@ -1381,6 +1381,10 @@ export default function Dispense() {
     if (kind === "receipt") return payHow === "now" || payHow === "aid";
     if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
+    // The script's barcode, whenever a printer has been given one. MCAZ expects
+    // a dispensed script to carry it, so the default is on where the pharmacy
+    // is equipped to print it and off where it would only open a dialog.
+    if (kind === "barcode") return roll.goesStraightToPrinter("barcode");
     return false;
   }
   function willPrint(kind: roll.DocKind) {
@@ -2623,15 +2627,33 @@ export default function Dispense() {
                        receipt: before.printPick.receipt ?? printDefault("receipt"),
                        claim: before.printPick.claim ?? printDefault("claim"),
                        delivery: before.printPick.delivery ?? printDefault("delivery"),
-                       price: before.printPick.price ?? printDefault("price") };
+                       price: before.printPick.price ?? printDefault("price"),
+                       barcode: before.printPick.barcode ?? printDefault("barcode") };
       const rxNumber = (rx as any).rx_number as string | undefined;
       void (async () => {
         if (prints.label) await printRxLabels(rx.id);
         // The receipt for money taken here, off the sale the dispensing raised.
         if (prints.receipt && sale) {
           try {
-            printReceipt(sale, pharmacy.name, pharmacy.regNo);
+            // The till's own receipt printer where one is set, exactly as the
+            // POS does it, so a receipt raised at the dispensary and one taken
+            // at the counter come off the same roll.
+            if (roll.goesStraightToPrinter("receipt")) {
+              await roll.printReceiptDirect(sale, pharmacy.name, pharmacy.regNo);
+            } else {
+              printReceipt(sale, pharmacy.name, pharmacy.regNo);
+            }
           } catch { /* a receipt that will not print must not undo a dispensing */ }
+        }
+        // The script's barcode, on its own sticker. Never fatal: the medicine
+        // has gone out, and a barcode that would not print is reprinted from
+        // the script rather than being a reason the dispensing failed.
+        if (prints.barcode && rxNumber) {
+          try {
+            await roll.printBarcodeDirect(rxNumber, rxNumber);
+          } catch (e) {
+            toast.warn(errorText(e, "The script barcode did not print."));
+          }
         }
         if (prints.delivery) await printDeliveryLabel(rxNumber);
         if (prints.price) await printPriceQuote();
@@ -5044,6 +5066,7 @@ ${d.action}`}
                                 const on = willPrint(d.kind);
                                 const Icon = d.kind === "label" ? Sticker : d.kind === "claim" ? FileText
                                   : d.kind === "delivery" ? Truck
+                                  : d.kind === "barcode" ? Barcode
                                   : d.kind === "receipt" ? Receipt : Tag;
                                 const where = roll.goesStraightToPrinter(d.kind)
                                   ? (roll.printerFor(d.kind) || "Label printer")
@@ -5053,6 +5076,7 @@ ${d.action}`}
                                 // rest.
                                 const short = d.kind === "label" ? "Labels" : d.kind === "claim" ? "Claim"
                                   : d.kind === "delivery" ? "Delivery"
+                                  : d.kind === "barcode" ? "Barcode"
                                   : d.kind === "receipt" ? "Receipt" : "Price";
                                 return (
                                   <button key={d.kind} type="button" role="switch" aria-checked={on}

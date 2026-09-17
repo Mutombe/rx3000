@@ -31,6 +31,7 @@
  *  free, so the same file is crisp on both, and a 58mm sticker is small enough
  *  that a bitmap at the wrong density is visibly soft.
  */
+import { code128Rects, code128Width } from "./code128";
 import type { Label } from "./types";
 
 /** A PDF point is 1/72 inch; a millimetre is 72/25.4 of one. */
@@ -298,4 +299,80 @@ export function labelPdf(l: Label, sticker: Sticker = DEFAULT_STICKER): Uint8Arr
  */
 export function labelHeightMm(l: Label, sticker: Sticker = DEFAULT_STICKER): number {
   return layout(l, sticker).usedMm;
+}
+
+/** A script's barcode, as its own small label.
+ *
+ *  MCAZ expects a dispensed script to carry a barcode, and what it encodes is
+ *  the Rx number — the identity this system already issues and already treats
+ *  as the script's name. Printed as its own sticker rather than squeezed onto
+ *  the dispensing label, because a barcode that is too short or too dense does
+ *  not read, and the dispensing label has no room to spare: it fits at 40.5mm
+ *  of 42, measured.
+ *
+ *  Drawn as filled rectangles at whatever the paper is, so the same call is
+ *  correct on a 203dpi roll and a 300dpi one.
+ */
+export function barcodePdf(text: string, below: string,
+                           sticker: Sticker = DEFAULT_STICKER): Uint8Array {
+  const W = sticker.wide * PT;
+  const H = sticker.tall * PT;
+  const modules = code128Width(text);
+  if (!modules) throw new Error("There is nothing to encode in that barcode.");
+
+  // The module width is what decides whether it scans. A hand scanner wants
+  // about 0.25mm and will not read much under 0.19; a symbol wider than the
+  // sticker is worse than a small one, so the paper caps it and the caller is
+  // told when the number simply will not fit.
+  const usable = (sticker.wide - PAD_X * 2) * PT;
+  const module = usable / modules;
+  if (module * (25.4 / 72) < 0.19) {
+    throw new Error(
+      `"${text}" needs a wider sticker to scan: at ${sticker.wide}mm its bars `
+      + "come out under 0.19mm and most scanners will not read them.");
+  }
+
+  // Text under the bars, because a barcode that will not scan is still a script
+  // number somebody can type, and the label is the only copy the patient has.
+  const caption = below || text;
+  const capSize = 6.5;
+  const barsTop = PAD_Y * PT;
+  const barsHigh = Math.max(H * 0.42, H - PAD_Y * 2 * PT - capSize * 2.4);
+  const left = PAD_X * PT;
+
+  const ops = code128Rects(text).map(({ x, width }) =>
+    `${(left + x * module).toFixed(2)} ${(H - barsTop - barsHigh).toFixed(2)} `
+    + `${(width * module).toFixed(2)} ${barsHigh.toFixed(2)} re f`);
+
+  const capW = widthOf(caption, "plain", capSize);
+  ops.push("BT /F1 " + capSize + " Tf "
+    + `${((W - capW) / 2).toFixed(2)} `
+    + `${(H - barsTop - barsHigh - capSize * 1.25).toFixed(2)} Td `
+    + `(${pdfText(caption)}) Tj ET`);
+
+  const content = ops.join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W.toFixed(2)} ${H.toFixed(2)}] `
+      + "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+    `<< /Length ${content.length} >>\nstream\n${content}\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+  ];
+
+  let pdf = "%PDF-1.4\n";
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(pdf.length);
+    pdf += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const at of offsets) pdf += `${String(at).padStart(10, "0")} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\n`
+    + `startxref\n${xref}\n%%EOF\n`;
+
+  const bytes = new Uint8Array(pdf.length);
+  for (let i = 0; i < pdf.length; i += 1) bytes[i] = pdf.charCodeAt(i) & 0xff;
+  return bytes;
 }

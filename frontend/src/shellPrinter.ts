@@ -9,11 +9,11 @@
  *  roll is plugged into this till and called whatever Windows calls it here.
  *  It is kept in local storage for that reason, and nowhere near the database.
  */
-import { labelLines } from "./deviceAgent";
+import { labelLines, receiptLines } from "./deviceAgent";
 import { render, type Line } from "./escpos";
-import { labelPdf } from "./labelPdf";
+import { barcodePdf, labelPdf } from "./labelPdf";
 import { readStored, writeStored } from "./storage";
-import type { Label } from "./types";
+import type { Label, Sale } from "./types";
 
 const CHOSEN = "label_printer";
 const WIDTH = "label_printer_width";
@@ -26,7 +26,7 @@ const MODE = "label_printer_mode";
  *  carries on using it with nothing to set up. The rest fall back to it, which
  *  means one printer still works for everything until somebody says otherwise.
  */
-export type DocKind = "label" | "receipt" | "price" | "delivery" | "claim";
+export type DocKind = "label" | "receipt" | "price" | "delivery" | "claim" | "barcode";
 
 export const DOC_KINDS: { kind: DocKind; name: string; hint: string; paper: "roll" | "page" }[] = [
   { kind: "label", name: "Dispensing label", paper: "roll",
@@ -39,6 +39,8 @@ export const DOC_KINDS: { kind: DocKind; name: string; hint: string; paper: "rol
     hint: "Name, address and script number, for the driver." },
   { kind: "claim", name: "Claim copy", paper: "page",
     hint: "A4. The copy that goes in the file or to the funder." },
+  { kind: "barcode", name: "Script barcode", paper: "roll",
+    hint: "The Rx number as a barcode. MCAZ expects a dispensed script to carry one." },
 ];
 
 function keyFor(kind: DocKind): string {
@@ -227,4 +229,35 @@ export async function printLabelsDirect(labels: Label[], copies = 1): Promise<nu
     }
   }
   return done;
+}
+
+/** Print a receipt on the receipt printer, with no dialog.
+ *
+ *  A receipt is ESC/POS on a roll, always — that is what a receipt printer is,
+ *  and unlike a label printer there is no ambiguity about the language. The
+ *  routing has allowed a separate receipt printer since `DOC_KINDS` was
+ *  written; nothing used it, so a till with a receipt roll chosen in its
+ *  settings still opened the browser's dialog to print one.
+ */
+/** Print a script's barcode on whichever printer that kind goes to.
+ *
+ *  Its own kind rather than the dispensing label's, because a pharmacy that
+ *  buys a dedicated barcode roll wants it there, and one that has not simply
+ *  falls back to the label roll like everything else does. Always a page
+ *  through the driver: a barcode is bars at exact widths, and that is the one
+ *  thing a text-mode ESC/POS stream cannot express.
+ */
+export async function printBarcodeDirect(text: string, below = ""): Promise<void> {
+  if (!printerFor("barcode")) {
+    throw new Error("No printer has been chosen for script barcodes.");
+  }
+  await printPage(barcodePdf(text, below, sticker()), "barcode");
+}
+
+export async function printReceiptDirect(sale: Sale, pharmacyName: string,
+                                         regNo = ""): Promise<void> {
+  if (!printerFor("receipt")) {
+    throw new Error("No receipt printer has been chosen on this till.");
+  }
+  await printLines(receiptLines(sale, pharmacyName, regNo, printerWidth()), 1, "receipt");
 }

@@ -15,6 +15,7 @@ import IconButton from "../components/IconButton";
 import MobileMoney from "../components/MobileMoney";
 import { ClockCounterClockwise, Printer, Truck, Warning } from "@phosphor-icons/react";
 import { KeyBar } from "../components/KeyMap";
+import * as roll from "../shellPrinter";
 import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { Link, useSearchParams } from "react-router-dom";
@@ -857,6 +858,15 @@ export default function POS() {
    *  browser's dialog is the fallback rather than the absence of one.
    */
   function printPaidReceipt(paid: Sale) {
+    // The till's own receipt printer first. The routing has allowed a separate
+    // one since the printer settings were written, and nothing used it: a till
+    // with a receipt roll chosen still opened the browser's dialog, which is
+    // the one thing this function exists to avoid.
+    if (roll.goesStraightToPrinter("receipt")) {
+      roll.printReceiptDirect(paid, pharmacy.name, pharmacy.regNo)
+        .catch(() => printReceipt(paid, pharmacy.name, pharmacy.regNo));
+      return;
+    }
     if (agent?.printer.ready) {
       deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo)
         .catch(() => printReceipt(paid, pharmacy.name, pharmacy.regNo));
