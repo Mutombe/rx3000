@@ -93,6 +93,8 @@ export interface Product {
    *  until somebody reads the date off the pack. */
   here_undated?: number | null;
   reorder_level: number;
+  /** The ceiling to the reorder level's floor. Zero means nobody has set one. */
+  max_level?: number;
   reorder_quantity: number;
   supplier_id: number | null;
   /** Shelf position and maker. Optional — a pharmacy that does not use bin
@@ -779,7 +781,11 @@ export interface ShelfFigures {
   /** Null where nothing moves, or where the count has gone negative. */
   days_cover: number | null;
   reorder_level: number;
+  /** The ceiling. Zero means nobody has set one. */
+  max_level: number;
   reorder_quantity: number;
+  /** How many units would take it to the ceiling. Null where none is set. */
+  to_max: number | null;
   /** The record and the batches behind it disagree. An empty shelf and an
    *  uncounted one are different problems and only one is fixed by ordering. */
   disagrees: boolean;

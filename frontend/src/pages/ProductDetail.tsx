@@ -14,8 +14,9 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
 import AdjustStock from "../components/AdjustStock";
+import Usage from "../components/Usage";
 
-type Tab = "batches" | "movements";
+type Tab = "batches" | "movements" | "usage";
 
 function expiryBadge(expiry: string | null) {
   if (!expiry) return <span className="badge muted">no expiry</span>;
@@ -43,6 +44,10 @@ export default function ProductDetail() {
   const TABS: TabDef<Tab>[] = [
     { key: "batches", label: "Batches on hand", count: data?.batches.length },
     { key: "movements", label: "Movement history", count: data?.movements.length },
+    // What has gone out month by month. The page can say how much is on the
+    // shelf; only this says whether that is a lot.
+    { key: "usage", label: "Usage",
+      hint: "What has left the shelf each month, and what came in" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "batches");
 
@@ -211,6 +216,19 @@ export default function ProductDetail() {
               {shelf.reorder_quantity > 0 && <>, usually ordered {shelf.reorder_quantity} at a time</>}.
             </span>
           )}
+          {shelf && shelf.max_level > 0 && shelf.units > shelf.max_level && (
+            <span className="pd-flag is-over">
+              {shelf.units} on hand against a maximum of {shelf.max_level}.
+              That is {shelf.units - shelf.max_level} more than this line should carry
+              {shelf.days_cover !== null && <>, about {shelf.days_cover} days of it</>}.
+            </span>
+          )}
+          {shelf?.to_max !== null && shelf?.to_max !== undefined && shelf.to_max > 0
+            && (shelf.here + shelf.here_undated) <= shelf.reorder_level && (
+            <span className="muted small">
+              {shelf.to_max} would take it to the maximum of {shelf.max_level}.
+            </span>
+          )}
           {/* An empty shelf and an uncounted one are different problems, and
               only one of them is fixed by ordering more. */}
           {shelf?.disagrees && (
@@ -277,6 +295,8 @@ export default function ProductDetail() {
           onAdjusted={() => load()}
         />
       )}
+
+      {tab === "usage" && <Usage productId={p.id} />}
 
       {tab === "movements" && (
         <DataTable

@@ -106,6 +106,37 @@ def run():
     print(f"ok    and says so when they do: record {off['units']}, "
           f"batches {off['here'] + off['here_undated']}")
 
+    # ---- the ceiling, which this system never had ---------------------------
+    execute("update products set quantity_on_hand = 40, max_level = 100 where id = ?",
+            (product_id,))
+    capped = c.get(f"/api/products/{product_id}").json()["shelf"]
+    assert capped["max_level"] == 100, capped["max_level"]
+    assert capped["to_max"] == 60, capped["to_max"]
+    print(f"ok    a maximum says how much to order: {capped['to_max']} would "
+          f"reach {capped['max_level']}")
+
+    execute("update products set max_level = 0 where id = ?", (product_id,))
+    none = c.get(f"/api/products/{product_id}").json()["shelf"]
+    assert none["to_max"] is None, (
+        "no maximum is set and it still said how much would reach it; zero is "
+        "'nobody has decided', not 'the ceiling is nothing'")
+    print("ok    and no maximum means no ceiling, rather than a ceiling of zero")
+
+    # ---- what has actually left the shelf -----------------------------------
+    usage = c.get(f"/api/products/{product_id}/usage?months=6").json()
+    assert len(usage["months"]) >= 6, len(usage["months"])
+    assert all("-" in m["month"] for m in usage["months"]), usage["months"][:2]
+    # Every month in the window is present, including the empty ones: a gap in
+    # a series reads as no data rather than as no demand.
+    assert usage["months"] == sorted(usage["months"], key=lambda m: m["month"])
+    print(f"ok    usage is a month at a time, oldest first, "
+          f"{len(usage['months'])} of them with none skipped")
+
+    assert usage["out_total"] >= 0 and usage["a_month"] >= 0
+    for key in ("out", "in", "adjusted", "written_off", "moved"):
+        assert all(key in m for m in usage["months"]), key
+    print("ok    and separates what went out, came in, was written off and moved")
+
 
 if __name__ == "__main__":
     try:

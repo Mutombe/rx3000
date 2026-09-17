@@ -260,6 +260,9 @@ class ProductBase(BaseModel):
     cost_price: float = 0.0
     vat_rate: float = 0.15
     reorder_level: int = 10
+    #: The ceiling. Zero means nobody has set one, and a line is never
+    #: flagged over a maximum that does not exist.
+    max_level: int = 0
     reorder_quantity: int = 20
     supplier_id: Optional[int] = None
     #: The pharmacy's own department. It decides which stocktake sheet the line

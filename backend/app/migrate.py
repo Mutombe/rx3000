@@ -245,6 +245,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "purchase_orders": {"branch_id": "INTEGER"},
     "products": {
         "category_id": "INTEGER",
+        # The ceiling to go with the reorder level's floor. A floor alone
+        # answers "order now" and never catches the opposite mistake: a line
+        # nobody is selling, reordered to the same level every month.
+        "max_level": "INTEGER DEFAULT 0",
         # The pharmacy's own code for the line, and what the shelf actually cost
         # on average — both come straight off their stock export.
         "stock_code": "VARCHAR(40) DEFAULT ''",

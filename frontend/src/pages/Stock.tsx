@@ -31,7 +31,8 @@ function expiryBadge(expiry: string | null) {
 const EMPTY = {
   name: "", nappi_code: "", barcode: "", category: "medicine", schedule: 0,
   dosage_form: "", strength: "", pack_size: "", unit_price: 0, cost_price: 0,
-  vat_rate: 0.15, quantity_on_hand: 0, reorder_level: 10, reorder_quantity: 20,
+  vat_rate: 0.15, quantity_on_hand: 0, reorder_level: 10, max_level: 0,
+  reorder_quantity: 20,
   supplier_id: "" as string | number,
   // The pharmacy's own department. It decides which stocktake sheet the line
   // is on, which margin it is judged against, and whether the dispensary
@@ -518,7 +519,20 @@ export default function Stock() {
               </div>
               <div className="form-row">
                 {!editing && <div className="field"><label>Opening stock</label><input type="number" value={form.quantity_on_hand} onChange={set("quantity_on_hand")} /></div>}
-                <div className="field"><label>Reorder level</label><input type="number" value={form.reorder_level} onChange={set("reorder_level")} /></div>
+                {/* The floor and the ceiling. A floor alone answers "order
+                    now" and never catches the opposite mistake: a line nobody
+                    is selling, reordered to the same level every month until
+                    there is a year of it on the shelf. */}
+                <div className="field"><label>Min level</label>
+                  <input type="number" min={0} value={form.reorder_level}
+                         onChange={set("reorder_level")} />
+                  <span className="hint">At or below this it is on the reorder list.</span>
+                </div>
+                <div className="field"><label>Max level</label>
+                  <input type="number" min={0} value={form.max_level ?? 0}
+                         onChange={set("max_level")} />
+                  <span className="hint">Leave at zero for no ceiling.</span>
+                </div>
                 <div className="field"><label>Reorder qty</label><input type="number" value={form.reorder_quantity} onChange={set("reorder_quantity")} /></div>
               </div>
               <div className="modal-actions">

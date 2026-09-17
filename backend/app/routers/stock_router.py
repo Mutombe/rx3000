@@ -176,6 +176,84 @@ def product_variants(product_id: int, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/products/{product_id}/usage")
+def product_usage(product_id: int, months: int = 12,
+                  db: Session = Depends(get_db)):
+    """What has gone out, month by month, and what came in to replace it.
+
+    A stock item's page can say how much is on the shelf today. It cannot say
+    whether that is a lot, and the difference between "forty is plenty" and
+    "forty is a fortnight" is the whole of buying. The incumbent gives this its
+    own tab for the same reason.
+
+    Read off the stock movements rather than off sales and dispensings
+    separately: every way a unit leaves the shelf writes one, including the
+    ones a sales report never sees — a write-off, a transfer to another branch,
+    a correction after a count. A buyer looking at a month that dropped wants
+    to know it was breakages and not demand.
+
+    Grouped in Python, not in SQL. `strftime` is SQLite's and `to_char` is
+    PostgreSQL's, and this application runs on both; one product over a year is
+    a few hundred rows and the portability is worth more than the grouping.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    months = max(1, min(int(months or 12), 36))
+    # From the first of the month, so the earliest bar is a whole month rather
+    # than whatever part of one the window happened to start in.
+    first = (date.today().replace(day=1)
+             - timedelta(days=31 * (months - 1))).replace(day=1)
+    rows = (db.query(StockMovement)
+            .filter(StockMovement.product_id == product_id,
+                    StockMovement.created_at >= datetime(first.year, first.month, 1))
+            .order_by(StockMovement.created_at).all())
+
+    buckets: dict[str, dict] = {}
+    cursor = first
+    while cursor <= date.today():
+        buckets[f"{cursor.year:04d}-{cursor.month:02d}"] = {
+            "month": f"{cursor.year:04d}-{cursor.month:02d}",
+            "out": 0, "in": 0, "adjusted": 0, "written_off": 0, "moved": 0,
+        }
+        cursor = (cursor.replace(day=28) + timedelta(days=7)).replace(day=1)
+
+    for m in rows:
+        when = m.created_at or datetime.utcnow()
+        key = f"{when.year:04d}-{when.month:02d}"
+        bucket = buckets.get(key)
+        if bucket is None:
+            continue
+        delta = int(m.quantity_delta or 0)
+        kind = (m.movement_type or "").lower()
+        if kind == "sale":
+            bucket["out"] += -delta
+        elif kind in ("receive", "purchase"):
+            bucket["in"] += delta
+        elif kind in ("write_off", "writeoff", "waste"):
+            bucket["written_off"] += -delta
+        elif kind.startswith("transfer"):
+            bucket["moved"] += delta
+        else:
+            bucket["adjusted"] += delta
+
+    series = list(buckets.values())
+    went_out = sum(b["out"] for b in series)
+    # The months that have actually happened, so a window longer than the
+    # product's history does not divide the average down to nothing.
+    counted = max(1, len([b for b in series if any(
+        b[k] for k in ("out", "in", "adjusted", "written_off", "moved"))]))
+    return {
+        "months": series,
+        "out_total": went_out,
+        "in_total": sum(b["in"] for b in series),
+        "written_off_total": sum(b["written_off"] for b in series),
+        "a_month": round(went_out / counted, 1),
+        "busiest": max(series, key=lambda b: b["out"])["month"] if series else "",
+    }
+
+
 def _branch_of(db: Session, user: User) -> int:
     """Which shelf this person is standing at."""
     if getattr(user, "branch_id", None):
@@ -323,7 +401,12 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
         # nobody has counted, and only one of those is fixed by ordering.
         "disagrees": units != (here + here_undated),
         "reorder_level": int(product.reorder_level or 0),
+        "max_level": int(product.max_level or 0),
         "reorder_quantity": int(product.reorder_quantity or 0),
+        # How much to order to reach the ceiling. The question that follows
+        # "order now", and the one a floor on its own cannot answer.
+        "to_max": (max(0, int(product.max_level or 0) - units)
+                   if (product.max_level or 0) > 0 else None),
     }
 
 

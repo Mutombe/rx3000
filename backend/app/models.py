@@ -727,7 +727,20 @@ class Product(Base, TenantMixin):
     #: packs while dispensing subtracted units, so a single script took a
     #: thousand capsules off the shelf figure.
     quantity_on_hand = Column(Integer, default=0)
+    #: The floor. At or below it the line is on the reorder list.
     reorder_level = Column(Integer, default=10)
+    #: The ceiling, and the half of the pair this system never had.
+    #:
+    #: A floor alone answers "order now" and says nothing about "how much",
+    #: which is the question that follows it. Worse, it cannot catch the other
+    #: mistake: a line nobody is selling, quietly reordered to the same level
+    #: every month until there is a year of it on the shelf and a write-off
+    #: at the end. A maximum is what makes overstock visible while it is still
+    #: only money rather than expiry.
+    #:
+    #: Zero means nobody has set one, which is different from a maximum of
+    #: zero, and no line is ever flagged over a ceiling that does not exist.
+    max_level = Column(Integer, default=0)
     reorder_quantity = Column(Integer, default=20)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
     active = Column(Boolean, default=True)

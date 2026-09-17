@@ -10446,3 +10446,60 @@ button.fin-ack { cursor: pointer; }
   border: 1px solid var(--danger, var(--line-strong));
   color: var(--danger, var(--ink-mid));
 }
+
+/* WHAT LEFT THIS SHELF, MONTH BY MONTH.
+   A bar a month rather than a chart library: two quantities over twelve points,
+   and the only comparison that matters is one month against the next, which a
+   row of bars makes and a two-series line chart does not. */
+.usage-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; margin-bottom: var(--s3);
+}
+.usage-sum { font-size: .88rem; color: var(--ink-mid); }
+.usage-sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.usage-sum b.is-bad { color: var(--danger, var(--ink)); }
+.usage-window { display: flex; gap: 2px; }
+.usage-win {
+  height: 28px; padding: 0 var(--s3); font-size: .78rem; font-weight: 500;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-mid);
+  border-radius: var(--r-md);
+}
+.usage-win.is-on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.usage-bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.usage-bars li {
+  display: grid; grid-template-columns: 4.5rem 1fr 3rem;
+  align-items: center; gap: var(--s3);
+}
+.usage-when { font-size: .78rem; color: var(--ink-mid); }
+.usage-n {
+  font-size: .8rem; text-align: right; font-variant-numeric: tabular-nums;
+  color: var(--ink-mid);
+}
+.usage-track {
+  position: relative; height: 18px; border-radius: var(--r-sm);
+  background: var(--surface-sunk); overflow: hidden;
+}
+/* What went out is the figure being read, so it carries the weight. What came
+   in sits under it as a thinner band: it is context for the shape, not the
+   subject of it. */
+.usage-out {
+  position: absolute; inset: 0 auto 0 0; background: var(--accent, var(--ink-mid));
+  border-radius: var(--r-sm);
+}
+.usage-in {
+  position: absolute; left: 0; bottom: 0; height: 4px;
+  background: var(--ok, var(--ink-faint)); border-radius: var(--r-sm);
+}
+.usage-bars li.is-peak .usage-when { font-weight: 600; color: var(--ink); }
+.usage-key { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: var(--s3); }
+.usage-swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin-left: var(--s2);
+}
+.usage-swatch.is-out { background: var(--accent, var(--ink-mid)); }
+.usage-swatch.is-in { background: var(--ok, var(--ink-faint)); }
+.pd-flag.is-over {
+  background: var(--surface-sunk); border: 1px solid var(--line-strong);
+  color: var(--ink-mid);
+}
