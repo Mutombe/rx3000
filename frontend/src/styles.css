@@ -10142,3 +10142,16 @@ button.fin-ack { cursor: pointer; }
   .disp-finish .fin-print { padding-right: 17px; }
 }
 .disp-finish .fin-print-icon { width: 24px; }
+
+/* The two money figures on the line editor's rail, typed where they are shown.
+   The rail used to be plain text, so changing a price from inside the editor
+   meant a button that opened another dialog on top of it: two clicks and a
+   second window to round a line off, when the same figure in the table behind
+   takes a double-click. Marked as editable the way the table cells are, so a
+   hand that has learned one has learned the other. */
+.ed-money { cursor: text; border-radius: var(--r-sm); }
+.ed-money:hover { background: var(--surface-sunk); box-shadow: inset 0 0 0 1px var(--line); }
+.ed-money-input {
+  width: 100%; height: 22px; padding: 0 4px;
+  font: inherit; font-variant-numeric: tabular-nums; text-align: right;
+}

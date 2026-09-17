@@ -354,6 +354,22 @@ export default function Dispense() {
    *  after, because a code typed before anybody has said what they want is a
    *  code typed for nothing. */
   const [pricingLine, setPricingLine] = useState<number | null>(null);
+  /** Which figure on the line editor's rail is being typed into, and what has
+   *  been typed.
+   *
+   *  The rail showed Each and Line as plain text, so the only way to change a
+   *  price inside the editor was a button that opened another dialog on top of
+   *  it. Two clicks and a second window to round a line to twelve dollars, when
+   *  the same figure in the table behind it takes a double-click. The dialog
+   *  still exists, behind "change", because margin and "keep this price for
+   *  good" are answers a bare cell cannot hold. */
+  const [railEdit, setRailEdit] = useState<"each" | "line" | null>(null);
+  const [railDraft, setRailDraft] = useState("");
+  // Closing the editor, or moving to another line, abandons whatever was half
+  // typed. Without this the box reopens on the next medicine still holding the
+  // last one's figure, which is the one way an inline editor can put a price on
+  // a line nobody typed it for.
+  useEffect(() => { setRailEdit(null); setRailDraft(""); }, [editing]);
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   /** This pharmacy's own name and registration, for the receipt. */
   const pharmacy = usePharmacy();
@@ -1499,6 +1515,40 @@ export default function Dispense() {
                                reason: "Rounded at the counter" });
     }
     setPriceDraft("");
+  }
+
+  /** Double-clicking a money figure on the line editor's rail.
+   *
+   *  `which` decides what the number means, because the rail shows both and a
+   *  box that silently took one or the other would be a box you have to guess
+   *  at: Each is a price a unit, Line is what the whole line comes to. They are
+   *  the two figures a dispenser actually says out loud, and either can now be
+   *  typed where it is shown.
+   */
+  function startRailEdit(which: "each" | "line", each: number, quantity: number) {
+    setRailEdit(which);
+    setRailDraft((which === "each" ? each : each * Math.max(1, quantity)).toFixed(2));
+  }
+
+  /** Keep what was typed on the rail, as a price each, and ask for the code.
+   *
+   *  Closed before the authorisation is asked for, so the prompt comes up over
+   *  a legible editor rather than behind a field held open in a way that reads
+   *  as the edit having failed — the same order the table's cells use.
+   */
+  function commitRailEdit(idx: number, quantity: number) {
+    const which = railEdit;
+    const typed = Number(railDraft);
+    setRailEdit(null);
+    setRailDraft("");
+    if (which === null || railDraft.trim() === "" || !Number.isFinite(typed)) return;
+    if (typed < 0) return;
+    const qty = Math.max(1, quantity || 1);
+    void setLinePrice(idx, {
+      each: which === "each" ? typed : typed / qty,
+      keep: false,
+      reason: "Changed at the counter",
+    });
   }
 
   /** Escape: put back what was there before the double-click. */
@@ -3805,8 +3855,45 @@ export default function Dispense() {
                             <dl className="ed-facts">
                               <dt>In stock</dt>
                               <dd className={onHand < (it.quantity || 0) ? "is-bad" : ""}>{onHand}</dd>
-                              <dt>Each</dt><dd>{money(each)}</dd>
-                              <dt>Line</dt><dd>{money(each * (it.quantity || 0))}</dd>
+                              {/* Both typed where they are shown. A price is
+                                  changed far more often than it is explained,
+                                  and the explanation — margin, and whether it
+                                  outlives this script — is still behind
+                                  "change" below. */}
+                              <dt>Each</dt>
+                              <dd className="ed-money"
+                                  onDoubleClick={() => startRailEdit("each", each, it.quantity || 1)}
+                                  title="Double-click to change the price">
+                                {railEdit === "each" ? (
+                                  <input className="ed-money-input" autoFocus
+                                         inputMode="decimal"
+                                         aria-label={`Price each for ${it.product.name}`}
+                                         value={railDraft}
+                                         onChange={(e) => setRailDraft(e.target.value)}
+                                         onBlur={() => commitRailEdit(idx, it.quantity || 1)}
+                                         onKeyDown={(e) => {
+                                           if (e.key === "Enter") { e.preventDefault(); commitRailEdit(idx, it.quantity || 1); }
+                                           if (e.key === "Escape") { e.preventDefault(); setRailEdit(null); setRailDraft(""); }
+                                         }} />
+                                ) : money(each)}
+                              </dd>
+                              <dt>Line</dt>
+                              <dd className="ed-money"
+                                  onDoubleClick={() => startRailEdit("line", each, it.quantity || 1)}
+                                  title="Double-click to change what this line comes to">
+                                {railEdit === "line" ? (
+                                  <input className="ed-money-input" autoFocus
+                                         inputMode="decimal"
+                                         aria-label={`Total for this line of ${it.product.name}`}
+                                         value={railDraft}
+                                         onChange={(e) => setRailDraft(e.target.value)}
+                                         onBlur={() => commitRailEdit(idx, it.quantity || 1)}
+                                         onKeyDown={(e) => {
+                                           if (e.key === "Enter") { e.preventDefault(); commitRailEdit(idx, it.quantity || 1); }
+                                           if (e.key === "Escape") { e.preventDefault(); setRailEdit(null); setRailDraft(""); }
+                                         }} />
+                                ) : money(each * (it.quantity || 0))}
+                              </dd>
                               {priced && (
                                 <>
                                   <dt>Cost</dt><dd>{money(priced.cost)}</dd>
