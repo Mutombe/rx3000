@@ -853,6 +853,23 @@ class PrescriptionItem(Base, TenantMixin):
     #: somebody decided this line's price and a `PriceOverride` row says who
     #: authorised it.
     unit_price_override = Column(Float, nullable=True)
+    #: What the scheme is asked to pay for this line, set by hand.
+    #:
+    #: The dispenser knows things the rule does not: that this funder covers
+    #: this medicine to a fixed amount, that an authorisation came back for
+    #: less, that half of it is being claimed and half is cash. The rule works
+    #: off the product's category and a cover percentage, and where it is wrong
+    #: the line was being sent to the funder wrong.
+    #:
+    #: It does NOT change what the line costs. The patient pays the difference,
+    #: so the script totals the same and the shortfall moves — which is what a
+    #: shortfall is. A field that quietly reduced the price would be a discount
+    #: nobody approved wearing a claim's name.
+    #:
+    #: Null on almost every line, and null means "whatever the rule decides",
+    #: so a repeat re-adjudicates rather than carrying a decision made once in
+    #: March.
+    claim_override = Column(Float, nullable=True)
 
     prescription = relationship("Prescription", back_populates="items")
     product = relationship("Product")
@@ -2080,6 +2097,17 @@ class PriceOverride(Base, TenantMixin):
     now = Column(Float, default=0.0)
     quantity = Column(Integer, default=1)
     reason = Column(String(160), default="")
+    #: WHICH FIGURE WAS SET BY HAND: "price" or "claim".
+    #:
+    #: They are the same act — somebody overrode a computed number and somebody
+    #: signed for it — so they share this table, the step-up that guards it and
+    #: the report that lists it. What differs is which number moves. A price
+    #: changes what the line costs; a claim changes what the scheme is asked
+    #: for, and the patient covers the difference, so the line costs the same.
+    #:
+    #: Kept apart rather than inferred, because reading one as the other would
+    #: either bill a funder a unit price or charge a patient a claim amount.
+    kind = Column(String(10), default="price", index=True)
     # Who typed it and who signed for it — the same pair the grant carries, kept
     # here so the trail reads without a join to a table that expires.
     requested_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)

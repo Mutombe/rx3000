@@ -79,6 +79,17 @@ register(Action(
     approvers=("admin", "pharmacist"), self_approval=False))
 
 register(Action(
+    key="script.claim_set",
+    name="Set what a scheme is asked to pay",
+    why=("The cover rule works off the medicine's category and a percentage, "
+         "and a dispenser often knows better: this funder pays a fixed amount "
+         "for this medicine, or an authorisation came back for less. Changing "
+         "it changes what a funder is billed and how much the patient is asked "
+         "for at the counter, so it is somebody's decision rather than a "
+         "figure typed into a box."),
+    approvers=("admin", "pharmacist", "manager"), self_approval=True))
+
+register(Action(
     key="script.price_set", name="Set a price on a script",
     why="Catalogue prices come off a supplier file and are wrong often enough "
         "that a dispenser has to be able to round one off or correct a margin. "

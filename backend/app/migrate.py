@@ -123,6 +123,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "hpa_number": "VARCHAR(40) DEFAULT ''",
         "speciality": "VARCHAR(80) DEFAULT ''",
     },
+    "price_overrides": {
+        # Which figure was set by hand: the line's price, or what the scheme is
+        # asked to pay for it. Older rows are all prices.
+        "kind": "VARCHAR(10) DEFAULT 'price'",
+    },
     "branch_transfers": {
         # Which batches physically left, so the receiving branch can put the
         # same boxes on its shelf. Without it a transfer created one undated
@@ -196,6 +201,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # Null means "price it off the shelf", which is what almost every line
         # wants. A figure means somebody set this line's price by hand.
         "unit_price_override": "FLOAT",
+        # What the scheme is asked for on this line, set by hand. The
+        # patient covers the difference, so the line total is unchanged.
+        "claim_override": "FLOAT",
     },
     "remittance_lines": {"resolution_note": "VARCHAR(300) DEFAULT ''"},
     "medical_aids": {

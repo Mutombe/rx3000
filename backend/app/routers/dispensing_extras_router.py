@@ -143,6 +143,70 @@ def set_scheme_code(medical_aid_id: int, product_id: int,
 # Setting a price by hand
 # ---------------------------------------------------------------------------
 
+@router.post("/claim-override")
+def set_a_claim(product_id: int = Body(...),
+                now: float = Body(...),
+                was: float | None = Body(default=None),
+                quantity: int = Body(default=1),
+                reason: str = Body(default=""),
+                db: Session = Depends(get_db),
+                user: User = Depends(get_current_user),
+                grant=Depends(require_step_up("script.claim_set"))):
+    """Authorise what a scheme is asked to pay for one line, and keep the record.
+
+    The cover rule works off the medicine's category and a percentage. A
+    dispenser often knows better — this funder pays a fixed amount for this
+    medicine, an authorisation came back for less, half of it is being claimed
+    and half is cash — and where the rule is wrong the line was going to the
+    funder wrong.
+
+    It does not change what the line costs. The patient covers the difference,
+    so the script totals the same and the shortfall moves, which is what a
+    shortfall is. A field that quietly reduced the price would be a discount
+    nobody approved wearing a claim's name.
+
+    Same shape as the price beside it: written when the code is accepted, and
+    what comes back is an id the line carries. The figure is never taken from
+    the browser again — a screen free to name what a funder is billed has gone
+    round the code rather than through it.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    amount = round(float(now or 0.0), 2)
+    if amount < 0:
+        raise HTTPException(status_code=400,
+                            detail="A scheme cannot be asked for less than nothing.")
+    # What the line is worth, so a claim cannot exceed it. Asking a funder for
+    # more than the medicine cost is overclaiming, which is fraud however
+    # accidental, and it is a decimal point away at every keystroke.
+    worth = round(product.per_unit() * max(1, int(quantity or 1)), 2)
+    if worth > 0 and amount > worth + 0.005:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This line is worth {worth:.2f}. A scheme cannot be asked "
+                   f"for {amount:.2f} of it.")
+
+    row = PriceOverride(
+        kind="claim",
+        product_id=product.id,
+        was=round(float(was), 2) if was is not None else 0.0,
+        now=amount,
+        quantity=max(1, int(quantity or 1)),
+        reason=(reason or "").strip()[:160],
+        requested_by_id=user.id,
+        approved_by_id=getattr(grant, "approved_by_id", None),
+        grant_id=getattr(grant, "id", None),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": row.id, "now": row.now, "was": row.was,
+            "approved_by": row.approved_by.full_name if row.approved_by else "",
+            "message": f"{product.name}: the scheme will be asked for "
+                       f"{amount:.2f} on this line."}
+
+
 @router.post("/price-override")
 def set_a_price(product_id: int = Body(...),
                 now: float = Body(...),
@@ -756,6 +820,19 @@ def script_totals(items: list[dict] = Body(...),
         priced = pricing.price_line(db, product, quantity, None if no_claim else aid,
                                     unit_price=(None if hand_set in (None, "")
                                                 else float(hand_set)))
+        # What the scheme is asked for, where a dispenser has set it by hand and
+        # signed for it. The line still costs what it costs: the patient covers
+        # the difference, so the levy moves and the gross does not. Shown here
+        # from the same figure the adjudication will use, because a footer that
+        # disagrees with the claim is how somebody gets asked for the wrong
+        # amount at the till.
+        set_claim = row.get("claim")
+        if not no_claim and set_claim not in (None, ""):
+            asked = max(0.0, min(float(set_claim), priced.gross))
+            priced.levy = round(priced.levy + (priced.claimable - asked), 2)
+            priced.patient_portion = round(priced.patient_portion
+                                           + (priced.claimable - asked), 2)
+            priced.claimable = round(asked, 2)
         # Per unit, matching `price_line` above. A per-unit price against a
         # per-pack cost reports a margin of minus several thousand percent.
         cost = round(product.unit_cost() * quantity, 2)
@@ -779,6 +856,13 @@ def script_totals(items: list[dict] = Body(...),
             "gross": round(priced.gross, 2),
             "cost": cost,
             "claim": 0.0 if no_claim else round(priced.claimable, 2),
+            # What the patient is left with on this line. On screen beside the
+            # claim, because the two move together the moment somebody sets one
+            # by hand, and a claim shown without its shortfall invites the
+            # question "so what do they pay" on every single line.
+            "levy": round(priced.gross if no_claim else priced.patient_portion, 2),
+            "claim_set": (None if no_claim or set_claim in (None, "")
+                          else round(float(set_claim), 2)),
             "no_claim": no_claim,
             # Per-line margin, because one bad line inside a profitable script
             # is invisible in the total and is exactly what a buyer needs told.

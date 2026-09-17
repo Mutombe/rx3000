@@ -177,6 +177,12 @@ interface DraftItem {
    *  a screen free to name its own price has gone round the code rather than
    *  through it. */
   priceOverrideId?: number;
+  /** What the scheme is asked for on this line, set by hand and signed for.
+   *  Undefined on almost every line, which means "whatever the cover rule
+   *  decides" — so a repeat re-adjudicates rather than carrying a decision
+   *  somebody made once. */
+  claim?: number;
+  claimOverrideId?: number;
 }
 
 /** The diagnosis a line starts on.
@@ -347,6 +353,7 @@ export default function Dispense() {
    *  old figure with a spinner beside it rather than flickering to the new one
    *  and back if the code is refused. */
   const [authorisingPrice, setAuthorisingPrice] = useState<number | null>(null);
+  const [authorisingClaim, setAuthorisingClaim] = useState<number | null>(null);
   /** An amount typed into the money cell, before it has been authorised. Text,
    *  so a half-typed "12." is not read as 12. */
   const [priceDraft, setPriceDraft] = useState("");
@@ -367,7 +374,7 @@ export default function Dispense() {
   /** The medicine whose shelf count is being corrected, from wherever the
    *  dispenser noticed it was wrong. Null when nothing is. */
   const [adjusting, setAdjusting] = useState<Product | null>(null);
-  const [railEdit, setRailEdit] = useState<"each" | "line" | null>(null);
+  const [railEdit, setRailEdit] = useState<"each" | "line" | "claim" | null>(null);
   const [railDraft, setRailDraft] = useState("");
   // Closing the editor, or moving to another line, abandons whatever was half
   // typed. Without this the box reopens on the next medicine still holding the
@@ -1486,6 +1493,71 @@ export default function Dispense() {
     }
   }
 
+  /** Set what the scheme is asked for on this line, on somebody's code.
+   *
+   *  It moves one number. The line still costs what it costs; the scheme is
+   *  asked for less and the patient covers the difference, so the script totals
+   *  the same and the shortfall moves. A field that quietly reduced the price
+   *  would be a discount nobody approved wearing a claim's name.
+   *
+   *  Like the price beside it, the figure is never sent with the script: what
+   *  is quoted is the id of a row written when the code was accepted.
+   */
+  async function setLineClaim(idx: number, amount: number): Promise<boolean> {
+    const it = items[idx];
+    if (!it) return false;
+    const line = marginFor(it.product.id);
+    const before = Number(line?.claim ?? 0);
+    if (!Number.isFinite(amount) || amount < 0) {
+      toast.warn("What a scheme is asked for has to be a number, and not a negative one.");
+      return false;
+    }
+    if (Math.abs(amount - before) < 0.005) return false;
+
+    setAuthorisingClaim(it.product.id);
+    try {
+      const said = await guarded<{ id: number; now: number; approved_by?: string }>(
+        "script.claim_set",
+        (token) => api.post("/api/claim-override", {
+          product_id: it.product.id, now: Number(amount.toFixed(2)), was: before,
+          quantity: it.quantity, reason: "Set at the counter",
+        }, token),
+        `${lineName(it.product)} · the scheme asked for ${money(before)} → ${money(amount)}`,
+      );
+      if (said === CANCELLED) return false;
+      // A script off the worklist is dispensed as itself, so the figure has to
+      // reach the line that already exists — the same gap the price had, and
+      // the same consequence: quoted on screen, billed differently.
+      if (it.item_id && fromRxRef.current?.id) {
+        await api.post(
+          `/api/prescriptions/${fromRxRef.current.id}/items/${it.item_id}/claim`,
+          { claim_override_id: said.id });
+      }
+      setItems((list) => list.map((x, j) => (
+        j === idx ? { ...x, claim: said.now, claimOverrideId: said.id } : x)));
+      toast.ok(`${schemeName} will be asked for ${money(said.now)} on this line`
+        + (said.approved_by ? `, approved by ${said.approved_by}.` : ".")
+        + " The patient covers the difference.");
+      return true;
+    } catch (e) {
+      toast.error(errorText(e, "That claim amount could not be authorised."));
+      return false;
+    } finally {
+      setAuthorisingClaim(null);
+    }
+  }
+
+  /** Back to what the cover rule says. Free, for the same reason clearing a
+   *  price is: nobody needs approval to bill a scheme what the rule already
+   *  says, and an override you cannot undo is one people avoid starting. */
+  function clearLineClaim(idx: number) {
+    const it = items[idx];
+    if (!it || it.claim === undefined) return;
+    setItems((list) => list.map((x, j) => (
+      j === idx ? { ...x, claim: undefined, claimOverrideId: undefined } : x)));
+    toast.ok(`${it.product.name} is back on what ${schemeName} normally covers.`);
+  }
+
   /** Put the line back on the catalogue's price. Free — nobody needs approval
    *  to charge what the shelf says, and an override you cannot undo without a
    *  manager is one people avoid starting. */
@@ -1555,9 +1627,10 @@ export default function Dispense() {
    *  the two figures a dispenser actually says out loud, and either can now be
    *  typed where it is shown.
    */
-  function startRailEdit(which: "each" | "line", each: number, quantity: number) {
+  function startRailEdit(which: "each" | "line" | "claim", value: number,
+                         quantity: number) {
     setRailEdit(which);
-    setRailDraft((which === "each" ? each : each * Math.max(1, quantity)).toFixed(2));
+    setRailDraft((which === "line" ? value * Math.max(1, quantity) : value).toFixed(2));
   }
 
   /** Keep what was typed on the rail, as a price each, and ask for the code.
@@ -1574,6 +1647,10 @@ export default function Dispense() {
     if (which === null || railDraft.trim() === "" || !Number.isFinite(typed)) return;
     if (typed < 0) return;
     const qty = Math.max(1, quantity || 1);
+    // Which figure was double-clicked decides what the number means, and the
+    // claim is a different act entirely: it moves what the funder is asked for
+    // and leaves the price alone.
+    if (which === "claim") { void setLineClaim(idx, typed); return; }
     void setLinePrice(idx, {
       each: which === "each" ? typed : typed / qty,
       keep: false,
@@ -2253,6 +2330,7 @@ export default function Dispense() {
         repeat_interval_days: i.repeat_interval_days,
         auto_refill: i.auto_refill, icd10_code: i.icd10_code,
         price_override_id: i.priceOverrideId ?? null,
+        claim_override_id: i.claimOverrideId ?? null,
       })),
     };
   }
@@ -2448,6 +2526,7 @@ export default function Dispense() {
             repeat_interval_days: i.repeat_interval_days, auto_refill: i.auto_refill,
             icd10_code: i.icd10_code,
             price_override_id: i.priceOverrideId ?? null,
+            claim_override_id: i.claimOverrideId ?? null,
           })),
         });
       // Which of the script's lines to dispense, resolved against the server's
@@ -2796,6 +2875,9 @@ export default function Dispense() {
     // adds up the figures the rows are showing. It is sent for arithmetic only
     // — what the patient is actually charged comes off the authorised record.
     ...(i.price !== undefined ? { unit_price: i.price } : {}),
+    // Sent for arithmetic only. What the funder is actually asked for comes off
+    // the authorised record, never off this.
+    ...(i.claim !== undefined ? { claim: i.claim } : {}),
   }));
   const pricing = useScriptPricing(pricedItems, patient?.medical_aid_id ?? null);
 
@@ -4001,8 +4083,58 @@ export default function Dispense() {
                               {priced && (
                                 <>
                                   <dt>Cost</dt><dd>{money(priced.cost)}</dd>
-                                  {priced.claim > 0.005 && (
-                                    <><dt>Claimed</dt><dd>{money(priced.claim)}</dd></>
+                                  {/* WHAT THE SCHEME IS ASKED FOR, typed where
+                                      it is shown. The cover rule works off a
+                                      category and a percentage and a dispenser
+                                      often knows better. Setting it costs a
+                                      code, and the patient covers the
+                                      difference, so the line total does not
+                                      move and the shortfall does. */}
+                                  {(priced.claim > 0.005 || it.claim !== undefined) && (
+                                    <>
+                                      <dt>Claimed</dt>
+                                      <dd className={`ed-money${it.claim !== undefined ? " is-hand-set" : ""}`}
+                                          onDoubleClick={() => startRailEdit("claim", priced.claim, 1)}
+                                          title={it.claim !== undefined
+                                            ? `Set by hand. ${schemeName} normally covers more; `
+                                              + "the patient is paying the difference."
+                                            : "Double-click to change what the scheme is asked for"}>
+                                        {railEdit === "claim" ? (
+                                          <input className="ed-money-input" autoFocus
+                                                 inputMode="decimal"
+                                                 aria-label={`What ${schemeName} is asked for on ${it.product.name}`}
+                                                 value={railDraft}
+                                                 onChange={(e) => setRailDraft(e.target.value)}
+                                                 onBlur={() => commitRailEdit(idx, it.quantity || 1)}
+                                                 onKeyDown={(e) => {
+                                                   if (e.key === "Enter") { e.preventDefault(); commitRailEdit(idx, it.quantity || 1); }
+                                                   if (e.key === "Escape") { e.preventDefault(); setRailEdit(null); setRailDraft(""); }
+                                                 }} />
+                                        ) : money(priced.claim)}
+                                      </dd>
+                                      {/* What the patient is left with. The two
+                                          move together the moment one is set by
+                                          hand, and a claim shown without its
+                                          shortfall invites "so what do they
+                                          pay" on every line. */}
+                                      {(priced.levy ?? 0) > 0.005 && (
+                                        <>
+                                          <dt>Patient</dt>
+                                          <dd>{money(priced.levy)}</dd>
+                                        </>
+                                      )}
+                                      {it.claim !== undefined && (
+                                        <>
+                                          <dt />
+                                          <dd>
+                                            <button type="button" className="linkish"
+                                                    onClick={() => clearLineClaim(idx)}>
+                                              Back to what {schemeName} covers
+                                            </button>
+                                          </dd>
+                                        </>
+                                      )}
+                                    </>
                                   )}
                                   <dt>Margin</dt>
                                   <dd><MarginTag percent={priced.margin_percent} compact /></dd>

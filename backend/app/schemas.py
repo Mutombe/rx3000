@@ -369,6 +369,10 @@ class PrescriptionItemCreate(BaseModel):
     # off that row. A client that simply named a price would have found the way
     # round the password.
     price_override_id: Optional[int] = None
+    # And the same for what the scheme is asked to pay for this line. Quoted,
+    # not named, for exactly the same reason: a browser free to say what a
+    # funder is billed has gone round the code rather than through it.
+    claim_override_id: Optional[int] = None
 
 
 class PrescriptionCreate(BaseModel):

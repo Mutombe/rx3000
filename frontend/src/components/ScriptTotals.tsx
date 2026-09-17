@@ -23,6 +23,12 @@ import { TERMS, patientOwes } from "../terms";
 interface Line {
   product_id: number; description: string; quantity: number;
   gross: number; cost: number; claim: number; no_claim: boolean;
+  /** What the patient is left with on this line. Beside the claim, because the
+   *  two move together the moment somebody sets one by hand. */
+  levy?: number;
+  /** The figure somebody set for this line, where they did. Null means the
+   *  cover rule decided it. */
+  claim_set?: number | null;
   margin_percent: number;
 }
 interface Totals {

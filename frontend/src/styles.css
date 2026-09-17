@@ -10414,3 +10414,8 @@ button.fin-ack { cursor: pointer; }
   border-color: var(--accent, var(--ink)); color: var(--ink);
   box-shadow: inset 0 0 0 1px var(--accent, var(--ink));
 }
+
+/* A figure on the rail that somebody set by hand, as against one the rule
+   worked out. Marked rather than announced: the row still reads as a number,
+   and the tooltip says who moved it and what the patient is covering. */
+.ed-money.is-hand-set { font-weight: 600; text-decoration: underline dotted; }

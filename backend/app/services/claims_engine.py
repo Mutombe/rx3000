@@ -43,7 +43,8 @@ def _line_flags(item) -> dict:
     if link is None:
         return {}
     return {"no_claim": bool(getattr(link, "no_claim", False)),
-            "not_dispensed": bool(getattr(link, "not_dispensed", False))}
+            "not_dispensed": bool(getattr(link, "not_dispensed", False)),
+            "claim_override": getattr(link, "claim_override", None)}
 
 
 def defer_claim(db: Session, sale: Sale, patient: Patient, reason: str) -> Claim:
@@ -111,6 +112,26 @@ MEDICINE_COVER = 1.0      # schemes pay medicine lines in full
 FRONT_SHOP_COVER = 0.8    # and four fifths of everything else
 
 
+def asked_for(item) -> float:
+    """What the scheme is being asked for on one sale line.
+
+    The line total, unless somebody set the claim by hand and signed for it.
+    The override does not change what the line COSTS — the patient covers the
+    difference — so this is the only place it belongs: it moves what the funder
+    is asked for and leaves the sale alone.
+
+    Read off the script line rather than passed in, because every path that
+    adjudicates a claim comes through here and one that took the line total
+    directly would bill the funder a figure the screen never showed.
+    """
+    override = _line_flags(item).get("claim_override")
+    if override is None:
+        return float(item.line_total or 0.0)
+    # Never more than the line is worth. The endpoint refuses it and the column
+    # is a float somebody could have written directly.
+    return round(min(float(override), float(item.line_total or 0.0)), 2)
+
+
 def _apply_rule(lines: list[tuple]) -> tuple[float, float]:
     """(what was claimed, what a scheme would approve) for (product, amount) rows."""
     claimable_total = round(sum(amount for _, amount in lines), 2)
@@ -172,7 +193,7 @@ def _adjudicate(claim: Claim, sale: Sale, patient: Patient) -> None:
         # One rule, applied here and by the estimate the dispensary shows.
         lines = claimable_lines(sale)
         claimable_total, approved = _apply_rule(
-            [(i.product, i.line_total) for i in lines])
+            [(i.product, asked_for(i)) for i in lines])
         # Never more than the scheme was asked for: lines flagged cash or
         # not dispensed are the patient's, not the funder's.
         claim.amount_approved = min(approved, claimable_total, sale.total)

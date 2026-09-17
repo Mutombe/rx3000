@@ -68,6 +68,13 @@ def _hand_set_price(db: Session, user: User, override_id, product_id: int,
     if row is None:
         raise HTTPException(status_code=404,
                             detail="That price authorisation could not be found.")
+    # Prices and claim amounts share this table because they are the same act,
+    # signed for the same way. They are not the same number: reading a claim
+    # authorisation as a price would charge the patient what the scheme was
+    # going to be asked for.
+    if (row.kind or "price") != "price":
+        raise HTTPException(status_code=400,
+                            detail="That authorisation was for a claim amount, not a price.")
     if row.requested_by_id != user.id:
         raise HTTPException(status_code=403,
                             detail="That price authorisation was issued to somebody else.")
@@ -83,6 +90,69 @@ def _hand_set_price(db: Session, user: User, override_id, product_id: int,
             raise HTTPException(status_code=409,
                                 detail="That price authorisation has already been used.")
     return row, float(row.now)
+
+
+def _hand_set_claim(db: Session, user, override_id, product_id: int,
+                    rx_id: int | None = None):
+    """Turn "this line's claim was authorised" into the figure itself.
+
+    The same rules the price beside it applies, for the same reasons: somebody
+    else's authorisation, one given for a different medicine, and one already
+    spent are the three ways a single approval becomes a standing one.
+    """
+    if not override_id:
+        return None, None
+    row = db.get(PriceOverride, int(override_id))
+    if row is None:
+        raise HTTPException(status_code=404,
+                            detail="That claim authorisation could not be found.")
+    if (row.kind or "price") != "claim":
+        raise HTTPException(status_code=400,
+                            detail="That authorisation was for a price, not a claim amount.")
+    if row.requested_by_id != user.id:
+        raise HTTPException(status_code=403,
+                            detail="That claim authorisation was issued to somebody else.")
+    if row.product_id != product_id:
+        raise HTTPException(
+            status_code=400,
+            detail="That claim authorisation was given for a different medicine.")
+    if row.prescription_item_id:
+        held = db.get(PrescriptionItem, row.prescription_item_id)
+        if held is not None and (rx_id is None or held.prescription_id != rx_id):
+            raise HTTPException(status_code=409,
+                                detail="That claim authorisation has already been used.")
+    return row, float(row.now)
+
+
+@router.post("/prescriptions/{rx_id}/items/{item_id}/claim")
+def set_a_line_claim(rx_id: int, item_id: int,
+                     claim_override_id: int = Body(..., embed=True),
+                     db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Put an authorised claim amount onto a line already on the server.
+
+    The same gap the price had: a script fetched off the worklist is dispensed
+    as itself, so a claim set on one of its lines had nowhere to go.
+    """
+    rx = db.get(Prescription, rx_id)
+    if not rx:
+        raise HTTPException(status_code=404, detail="Prescription not found")
+    line = db.get(PrescriptionItem, item_id)
+    if not line or line.prescription_id != rx.id:
+        raise HTTPException(status_code=404, detail="That line is not on this script.")
+    if rx.status in ("cancelled", "dispensed"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"This script is {rx.status}. Its claim is what it was dispensed at.")
+
+    authorised, amount = _hand_set_claim(db, user, claim_override_id,
+                                         line.product_id, rx_id=rx.id)
+    line.claim_override = amount
+    if authorised:
+        authorised.prescription_item_id = line.id
+        authorised.used_at = datetime.utcnow()
+    db.commit()
+    return {"ok": True, "item_id": line.id, "claim": amount}
 
 
 @router.post("/prescriptions/{rx_id}/items/{item_id}/price")
@@ -369,6 +439,8 @@ def create_prescription(
             )
         # repeats are capped by what the schedule legally allows
         repeats = schedule_policy.effective_max_repeats(product.schedule, item.repeats_allowed)
+        claim_ok, claim_set = _hand_set_claim(db, user, item.claim_override_id,
+                                              item.product_id)
         authorised, hand_set = _hand_set_price(db, user, item.price_override_id,
                                                item.product_id)
         line = PrescriptionItem(
@@ -389,15 +461,18 @@ def create_prescription(
             no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
             unit_price_override=hand_set,
+            claim_override=claim_set,
         )
         db.add(line)
-        if authorised:
+        if authorised or claim_ok:
             # Flushed so the override can point at the line it paid for. Without
             # the id the trail says a price was approved and not which line it
             # reached, which is the question that gets asked.
             db.flush()
-            authorised.prescription_item_id = line.id
-            authorised.used_at = datetime.utcnow()
+            for stamped in (authorised, claim_ok):
+                if stamped is not None:
+                    stamped.prescription_item_id = line.id
+                    stamped.used_at = datetime.utcnow()
     db.commit()
     db.refresh(rx)
     return rx
@@ -1193,6 +1268,8 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
                                 detail=f"Product {item.product_id} not found")
         repeats = schedule_policy.effective_max_repeats(product.schedule,
                                                         item.repeats_allowed)
+        claim_ok, claim_set = _hand_set_claim(db, user, item.claim_override_id,
+                                              item.product_id)
         authorised, hand_set = _hand_set_price(db, user, item.price_override_id,
                                                item.product_id, rx_id=rx.id)
         line = PrescriptionItem(
@@ -1209,12 +1286,15 @@ def save_draft(rx_id: int, body: schemas.PrescriptionCreate,
             supply_days=item.supply_days, no_claim=item.no_claim,
             not_dispensed=item.not_dispensed,
             unit_price_override=hand_set,
+            claim_override=claim_set,
         )
         db.add(line)
-        if authorised:
+        if authorised or claim_ok:
             db.flush()
-            authorised.prescription_item_id = line.id
-            authorised.used_at = datetime.utcnow()
+            for stamped in (authorised, claim_ok):
+                if stamped is not None:
+                    stamped.prescription_item_id = line.id
+                    stamped.used_at = datetime.utcnow()
     db.commit()
     db.refresh(rx)
     return rx
