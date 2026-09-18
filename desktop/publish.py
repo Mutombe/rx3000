@@ -189,8 +189,17 @@ def _manifest(version: str, installer: str) -> None:
     not a broken update — it is no update, which is the safe way for this to
     fail.
 
-    Windows only for now, because Windows is what is built here. A Linux or a
-    macOS build from the workflow adds its own platform to this file.
+    Windows only, and deliberately. Windows is what a till in a Zimbabwean
+    pharmacy runs, and it is what is built here.
+
+    This used to say a Linux or macOS build from the workflow would add its own
+    platform to this file. Nothing does: .github/workflows/desktop.yml attaches
+    its installers to a GitHub release and never opens latest.json, and this
+    function rewrites the file whole. So the entries for the other two platforms
+    were not lost, they were never maintained, and the version they carried went
+    stale the moment a Windows release moved past it. Offering a till an
+    installer built against a different version of the app is worse than
+    offering it nothing, so this writes only what it has just built and signed.
     """
     setup = BUNDLE / "nsis" / installer
     signature = setup.with_suffix(setup.suffix + ".sig")
