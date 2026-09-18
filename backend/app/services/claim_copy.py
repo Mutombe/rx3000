@@ -51,16 +51,39 @@ def _styles():
     code sheet and a sign-in sheet look like three documents from one product
     rather than three products.
     """
+    from reportlab.lib.styles import ParagraphStyle
+
     st = brand.styles()
+    # A figure column is right aligned or it is not a column: 9.50 under 108.20
+    # with both flush left is two numbers the eye has to line up itself. The
+    # table's own ALIGN does not do it, because a Paragraph fills the cell and
+    # sets its own text, so the alignment has to be in the style.
+    figure = ParagraphStyle("fig", parent=st["small"], alignment=2)
+    # The one figure the funder settles on, set like the strong number in the
+    # meta strip of every other RX5000 document.
+    total = ParagraphStyle("tot", parent=st["strong"], alignment=2,
+                           fontName="Manrope-Bold", fontSize=12.5, leading=15,
+                           textColor=brand.INK)
     return {
         "title": st["title"], "sub": st["sub"], "h": st["head"],
         "b": st["strong"], "cell": st["small"], "foot": st["foot"],
+        "figure": figure, "missing": st["small"], "total": total,
     }
 
 
 def _pair(st, label, value):
+    """A labelled fact, or the plain statement that it was not recorded.
+
+    Not a placeholder mark: this page is read by a funder deciding whether to
+    pay, and a dash beside "AHFoZ number" is something they have to interpret.
+    Set in the quiet style rather than the strong one, so a page of real
+    figures does not have absences printed as loudly as facts.
+    """
+    if not value:
+        return [Paragraph(label.upper(), st["h"]),
+                Paragraph("not recorded", st["missing"])]
     return [Paragraph(label.upper(), st["h"]),
-            Paragraph(str(value or "—"), st["b"])]
+            Paragraph(str(value), st["b"])]
 
 
 def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
@@ -100,7 +123,7 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
         _pair(st, "Script number", rx_number)
         + _pair(st, "Dispensed", when.strftime("%d %b %Y %H:%M"))
         + _pair(st, "Dispensed by", dispensed_by),
-    ], colWidths=[28 * mm, 34 * mm, 28 * mm, 30 * mm, 28 * mm, 30 * mm])
+    ], colWidths=[26 * mm, 36 * mm, 22 * mm, 26 * mm, 26 * mm, 42 * mm])
     head.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
@@ -115,7 +138,7 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
         # The number the funder pays on. A claim copy that names the prescriber
         # but not their AHFoZ number is a page the funder cannot match.
         _pair(st, "AHFoZ number", doctor_ahfoz) + _pair(st, "Branch", branch),
-    ], colWidths=[28 * mm, 62 * mm, 28 * mm, 60 * mm])
+    ], colWidths=[26 * mm, 58 * mm, 32 * mm, 62 * mm])
     who.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
@@ -133,9 +156,12 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
     for ln in lines:
         body.append([
             Paragraph(str(ln.get("description", "")), st["cell"]),
-            Paragraph(f"{ln.get('quantity', 0)}", st["cell"]),
-            Paragraph(f"{ln.get('unit_price', 0):.4f}".rstrip("0").rstrip("."), st["cell"]),
-            Paragraph(f"{ln.get('line_total', 0):.2f}", st["cell"]),
+            Paragraph(f"{ln.get('quantity', 0)}", st["figure"]),
+            Paragraph(f"{ln.get('unit_price', 0):.4f}".rstrip("0").rstrip("."), st["figure"]),
+            # Grouped like the total under it. A column where 1088.20 is
+            # written one way and the sum of it another is a column somebody
+            # checks with a calculator.
+            Paragraph(f"{ln.get('line_total', 0):,.2f}", st["figure"]),
             Paragraph(str(ln.get("directions", "")), st["cell"]),
         ])
     table = Table(body, colWidths=[52 * mm, 12 * mm, 18 * mm, 20 * mm, 76 * mm],
@@ -153,12 +179,17 @@ def build(*, pharmacy: str, pharmacy_reg: str = "", pharmacy_address: str = "",
     flow.append(table)
 
     flow.append(Spacer(1, 3 * mm))
+    # Wide enough for a real total. A column sized to 111.50 clips 12,345.67,
+    # and the figure this page exists to settle is the one that must not wrap.
     tot = Table([[Paragraph("TOTAL", st["h"]),
-                  Paragraph(f"<b>{total:.2f}</b>", st["b"])]],
-                colWidths=[160 * mm, 18 * mm])
+                  Paragraph(f"{total:,.2f}", st["total"])]],
+                colWidths=[146 * mm, 32 * mm])
     tot.setStyle(TableStyle([
-        ("ALIGN", (0, 0), (-1, -1), "RIGHT"),
-        ("LINEABOVE", (1, 0), (1, 0), 0.6, RULE),
+        ("ALIGN", (0, 0), (0, 0), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("RIGHTPADDING", (1, 0), (1, 0), 4),
+        ("LINEABOVE", (1, 0), (1, 0), 0.9, INK),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
     ]))
     flow.append(tot)
 
