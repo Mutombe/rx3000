@@ -2,8 +2,9 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .. import auth, schemas
+from .. import audit, auth, schemas
 from ..auth import get_current_user, verify_password
+from .periods_router import require_step_up
 from ..database import get_db
 from datetime import date
 
@@ -221,13 +222,15 @@ def deactivate_user(user_id: int, db: Session = Depends(get_db),
 @router.post("/pin")
 def set_own_pin(pin: str = Body(...), password: str = Body(...),
                 username: str = Body(default=""),
+                current_pin: str = Body(default=""),
                 db: Session = Depends(get_db),
                 user: User = Depends(get_current_user)):
-    """Set or change your own till PIN. Proved with your password.
+    """Set your own till PIN, or change it by proving the one you have.
 
     Deliberately not something an administrator can do for somebody: a PIN that
     another person chose, or knows, attributes an action to the wrong human, and
-    the whole point of the code is the attribution.
+    the whole point of the code is the attribution. An administrator can only
+    CLEAR a code (see below), never choose one.
 
     `username` does not weaken that. It exists because of where this is actually
     needed: a pharmacist has walked to a cashier's till to approve an override,
@@ -236,9 +239,24 @@ def set_own_pin(pin: str = Body(...), password: str = Body(...),
     log the cashier out, sign in, find settings, set a code, sign out, sign the
     cashier back in — and abandon the transaction and the patient at the counter.
 
-    It is still only ever the owner setting their own: their username, their own
-    password, a code they choose. Nobody can set anybody else's without already
-    knowing the password that would have let them sign in as them.
+    CHANGING A CODE COSTS THE CODE, NOT JUST THE PASSWORD.
+
+    A first code is proved with the password, because there is nothing else to
+    prove it with. Replacing one that already exists asks for the current code
+    as well, and that is the whole point of this endpoint.
+
+    The PIN answers a different question from the password: the password says
+    the session belongs to a person, the PIN says that person is standing here
+    now. While the password alone could replace the code, those two questions
+    had one answer. Anyone who learned a password — over a shoulder, off a
+    note by the till, because it was shared once — could quietly mint that
+    person's code and from then on pass every authorisation prompt as them, and
+    every controlled-drug entry in the register would carry their name.
+
+    Somebody who has genuinely forgotten their code is not stuck: an
+    administrator clears it, which is recorded, and they set a fresh one with
+    their password. That path takes another person and leaves a trail, which is
+    what makes it different from the one that was here before.
     """
     who = user
     wanted = (username or "").strip()
@@ -252,11 +270,73 @@ def set_own_pin(pin: str = Body(...), password: str = Body(...),
                                 detail=f"No active user is called '{wanted}'.")
     if not verify_password(password, who.password_hash):
         raise HTTPException(status_code=403, detail="That password was not accepted.")
+
+    replacing = bool(who.pin_hash)
+    if replacing:
+        if not (current_pin or "").strip():
+            raise HTTPException(status_code=409, detail={
+                "error_code": "PIN_ALREADY_SET",
+                "message": f"{who.full_name or who.username} already has a code. "
+                           "Enter the current one to change it, or ask an "
+                           "administrator to clear it if it has been forgotten.",
+            })
+        try:
+            # Through `check`, so a stranger guessing at the current code meets
+            # the same five-attempt lockout as one guessing at the till.
+            pins.check(db, who, current_pin)
+        except pins.PinError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        if (current_pin or "").strip() == (pin or "").strip():
+            raise HTTPException(
+                status_code=400,
+                detail="That is the code you already have. Choose a different one.")
+
     try:
         pins.set_pin(db, who, pin)
     except pins.PinError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Named in the trail. The middleware records that this session called this
+    # route; on a till signed in as somebody else that is not the same fact as
+    # whose code moved.
+    audit.note(db, user, f"{'Changed' if replacing else 'Set'} the till code for "
+                         f"{who.full_name or who.username}")
     return {"ok": True, "pin_set": True, "username": who.username,
+            "full_name": who.full_name or who.username, "replaced": replacing}
+
+
+@router.delete("/pin/{user_id}")
+def clear_pin(user_id: int, db: Session = Depends(get_db),
+              actor: User = Depends(auth.requires("staff.manage")),
+              _grant=Depends(require_step_up("user.manage"))):
+    """Clear somebody's till code so they can set a new one. Never set it.
+
+    The recovery path for a forgotten code, and the reason requiring the
+    current code to change one does not strand anybody.
+
+    An administrator can take a code away and cannot choose one, which keeps
+    the property the whole feature rests on: nobody but the owner has ever
+    known the code, so an action carrying somebody's name was authorised by
+    that person. An administrator who could set a code could act as anybody.
+
+    Until the owner sets a new one their till will not lock and the
+    authorisation prompts fall back to asking for their password, so clearing a
+    code is a nuisance rather than a lockout.
+    """
+    who = db.get(User, user_id)
+    if not who:
+        raise HTTPException(status_code=404, detail="No such user.")
+    if not who.pin_hash:
+        raise HTTPException(status_code=400, detail=(
+            f"{who.full_name or who.username} has no code set, so there is "
+            "nothing to clear."))
+    who.pin_hash = None
+    who.pin_set_at = None
+    who.pin_failures = 0
+    who.pin_locked_until = None
+    db.commit()
+    audit.note(db, actor,
+               f"Cleared the till code for {who.full_name or who.username}")
+    return {"ok": True, "pin_set": False, "username": who.username,
             "full_name": who.full_name or who.username}
 
 

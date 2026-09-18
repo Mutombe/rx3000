@@ -45,6 +45,10 @@ export default function Profile() {
   const [logoBusy, setLogoBusy] = useState(false);
   const [pw, setPw] = useState({ current_password: "", new_password: "", confirm: "" });
   const [newPin, setNewPin] = useState("");
+  /** The code being replaced. A change costs the code, not just the password:
+   *  while the password alone was enough, anybody who learned one could take
+   *  over the attribution the PIN exists to provide. */
+  const [currentPin, setCurrentPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [pinPassword, setPinPassword] = useState("");
   const [pinBusy, setPinBusy] = useState(false);
@@ -58,14 +62,26 @@ export default function Profile() {
     e.preventDefault();
     if (newPin.length !== 4) { toast.error("A PIN is four digits."); return; }
     if (newPin !== confirmPin) { toast.error("The two PINs do not match."); return; }
+    // Said here rather than after a round trip: the server refuses it either
+    // way, and a form that could have known is a form that wasted the wait.
+    if (pinState?.pin_set && currentPin.length !== 4) {
+      toast.error("Enter the PIN you have now, to change it."); return;
+    }
+    if (pinState?.pin_set && currentPin === newPin) {
+      toast.error("That is the PIN you already have."); return;
+    }
     setPinBusy(true);
     try {
-      await api.post("/api/auth/pin", { pin: newPin, password: pinPassword });
-      toast.ok("Your till PIN is set.");
-      setNewPin(""); setConfirmPin(""); setPinPassword("");
+      await api.post("/api/auth/pin", {
+        pin: newPin, password: pinPassword,
+        ...(pinState?.pin_set ? { current_pin: currentPin } : {}),
+      });
+      toast.ok(pinState?.pin_set ? "Your till PIN is changed." : "Your till PIN is set.");
+      setNewPin(""); setConfirmPin(""); setPinPassword(""); setCurrentPin("");
       setPinState({ pin_set: true });
     } catch (err) {
       toast.error(errorText(err, "That PIN could not be set."));
+      setCurrentPin("");
     } finally {
       setPinBusy(false);
     }
@@ -292,8 +308,18 @@ export default function Profile() {
             who did what.
           </p>
           <div className="pin-setup">
+            {/* Replacing a code costs the code. The password on its own used to
+                be enough, which meant anybody who learned a password could take
+                over the attribution that the whole feature exists to provide. */}
+            {pinState?.pin_set && (
+              <label className="lock-field">
+                Current PIN
+                <PinInput value={currentPin} onChange={setCurrentPin}
+                          autoFocus={false} />
+              </label>
+            )}
             <label className="lock-field">
-              New PIN
+              {pinState?.pin_set ? "New PIN" : "Choose a PIN"}
               <PinInput value={newPin} onChange={setNewPin} autoFocus={false} />
             </label>
             <label className="lock-field">
@@ -311,7 +337,9 @@ export default function Profile() {
           </div>
           <p className="muted small">
             {pinState?.pin_set
-              ? "A PIN is already set. Entering a new one replaces it."
+              ? "Changing it asks for the one you have now, as well as your password. "
+                + "If you have forgotten it, an administrator can clear it and you "
+                + "then set a new one yourself."
               : "No PIN is set yet, so the till will not lock and the authorisation prompts ask for your password."}
             {" "}Nobody else can set your PIN, not even an administrator: a code
             somebody else chose records the wrong person against an action.

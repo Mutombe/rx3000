@@ -102,3 +102,32 @@ def _write(row: AuditLog) -> None:
         db.rollback()
     finally:
         db.close()
+
+
+def note(db, actor, summary: str, path: str = "") -> None:
+    """Record something the middleware cannot see from the outside.
+
+    The middleware knows the route, the session and the status, which for most
+    actions is the whole story. It is not the whole story when the interesting
+    fact is not in the URL: "POST /api/auth/pin, 200, signed in as the cashier"
+    does not say whose code was changed, and on a shared till that is the only
+    part anybody will want later.
+
+    Written on the request's own session and transaction rather than a separate
+    one, so a note about a change cannot survive that change being rolled back.
+    Failure is swallowed, as everywhere else in here: a trail that can refuse a
+    dispensing is a trail that gets switched off.
+    """
+    try:
+        db.add(AuditLog(
+            user_id=getattr(actor, "id", None),
+            username=(getattr(actor, "username", "") or "")[:50],
+            action="NOTE",
+            path=path or "(recorded by the action itself)",
+            summary=summary[:200],
+            status_code=200,
+        ))
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("Audit note failed: %s", exc)
+        db.rollback()

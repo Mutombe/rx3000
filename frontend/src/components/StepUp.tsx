@@ -101,6 +101,20 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   /* The server's own words for "this person has no code", so the offer to make
      one appears exactly when it is the answer rather than on every refusal. */
   const noCodeYet = /no pin is set/i.test(error);
+  /** Whether the person signed in here has a code of their own yet.
+   *
+   *  Asked about the CURRENT user only, never about a username somebody types:
+   *  an endpoint that says whether an arbitrary account has a code is an
+   *  endpoint that says which accounts exist. For an approver walking up to
+   *  somebody else's till, the offer still waits for the server to say there is
+   *  no code, which it only does once a real attempt has been made. */
+  const [iHaveCode, setIHaveCode] = useState<boolean | null>(null);
+  useEffect(() => {
+    api.get<{ pin_set: boolean }>("/api/auth/pin")
+      .then((s) => setIHaveCode(!!s.pin_set))
+      .catch(() => setIHaveCode(null));
+  }, []);
+  const offerToMake = noCodeYet || (!needsSecondPerson && iHaveCode === false);
 
   function startMaking() {
     setMakeAs(owner);
@@ -404,18 +418,24 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           >
             {usePassword ? "Use a PIN instead" : "Use a password instead"}
           </button>
-          {/* Made here rather than sent to a settings page. The prompt is
-              where somebody finds out they have not got a code, and it is
-              also where the work they would lose by going to look for one is
-              sitting. Loud once the server has said there is none. */}
-          <button
-            type="button"
-            className={`ghost small su-make-offer${noCodeYet ? " is-needed" : ""}`}
-            onClick={startMaking}
-          >
-            <Key size={13} weight={noCodeYet ? "fill" : "regular"} />
-            {noCodeYet ? "Set a code now" : "No code yet?"}
-          </button>
+          {/* ONLY WHEN THERE IS NO CODE.
+              Made here rather than sent to a settings page, because the prompt
+              is where somebody finds out they have not got one and it is also
+              where the work they would lose by going to look is sitting.
+              It used to be offered on every prompt, which put "set a code" in
+              front of whoever was standing at the till whether or not the
+              account already had one. Changing an existing code belongs on the
+              owner's own profile, where it asks for the code being replaced. */}
+          {offerToMake && (
+            <button
+              type="button"
+              className="ghost small su-make-offer is-needed"
+              onClick={startMaking}
+            >
+              <Key size={13} weight="fill" />
+              Set a code now
+            </button>
+          )}
         </div>
 
         {/* Kept, because it is the sentence that makes typing a code
