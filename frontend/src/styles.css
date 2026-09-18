@@ -10621,19 +10621,41 @@ button.fin-ack { cursor: pointer; }
 
 /* ========================================================================
    RX-ASSISTANT
-   ======================================================================== */
 
-/* The way in, in the top bar. Quieter than a primary button and louder than
-   the chips beside it: it is the one thing up there somebody reaches for on
-   purpose rather than reads in passing. */
+   A NEUTRAL SURFACE, ON PURPOSE.
+
+   Every section of this product tints itself: the dispensary is one colour,
+   money another, stock another, and those tints cascade. The assistant floats
+   over all of them, so it declares its own neutral ground rather than
+   inheriting whichever screen it happens to be covering. A panel that is
+   faintly green over the till and faintly blue over the dispensary reads as a
+   rendering fault, not as a design.
+   ======================================================================== */
+.ax, .ax-dock {
+  /* Its own ground, independent of the section underneath. */
+  --ax-bg: var(--surface);
+  --ax-sunk: var(--surface-sunk, var(--hover));
+  --ax-line: var(--line);
+  --ax-edge: var(--line-strong, var(--line));
+  --ax-ink: var(--ink);
+  --ax-dim: var(--ink-mid);
+  /* The tone variables the sections set, reset to nothing so no part of this
+     panel picks up the colour of the screen behind it. */
+  --sec-ink: var(--ink);
+  --sec-soft: transparent;
+  --sec-line: var(--line);
+}
+
+/* ---- the way in, in the top bar ---------------------------------------- */
 .ax-chip {
   display: inline-flex; align-items: center; gap: 6px;
   height: 30px; padding: 0 11px; border-radius: var(--r-pill);
   border: 1px solid var(--line-strong, var(--line));
   background: var(--surface); color: var(--ink);
   font-size: .82rem; font-weight: 600; white-space: nowrap;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
-.ax-chip:hover { background: var(--hover); }
+.ax-chip:hover { background: var(--hover); border-color: var(--accent); }
 .ax-chip.is-on {
   border-color: var(--accent); color: var(--accent);
   background: var(--accent-soft, var(--hover));
@@ -10642,210 +10664,334 @@ button.fin-ack { cursor: pointer; }
 @media (max-width: 1100px) { .ax-chip-name { display: none; } }
 
 /* ---- the dock -----------------------------------------------------------
-   No scrim, on purpose. The routes it draws point at the page behind it, and
-   a layer that blocks what it is pointing at is pointing at nothing. */
+   No scrim. The routes it draws point at the page behind it, and a layer that
+   blocks what it is pointing at is pointing at nothing. */
 .ax-dock {
   position: fixed; right: var(--s5); bottom: var(--s5); z-index: 120;
   width: min(30rem, calc(100vw - 2 * var(--s5)));
   max-height: min(38rem, calc(100vh - 6rem));
   display: flex; flex-direction: column;
-  background: var(--surface); border: 1px solid var(--line-strong, var(--line));
-  border-radius: var(--r-lg); overflow: hidden;
-  box-shadow: 0 18px 50px rgba(22, 22, 29, .26);
+  background: var(--ax-bg);
+  border: 1px solid var(--ax-edge);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 1px 2px rgba(16, 18, 27, .06),
+              0 12px 28px -6px rgba(16, 18, 27, .16),
+              0 32px 64px -12px rgba(16, 18, 27, .22);
+  animation: ax-rise 220ms cubic-bezier(.16, 1, .3, 1);
 }
+.ax-dock.is-big {
+  width: min(46rem, calc(100vw - 2 * var(--s5)));
+  max-height: min(52rem, calc(100vh - 5rem));
+}
+@keyframes ax-rise {
+  from { opacity: 0; transform: translateY(12px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .ax-dock { animation: none; } }
+
 .ax-dock-head {
   display: flex; align-items: center; justify-content: space-between;
-  gap: var(--s3); padding: var(--s3) var(--s3) var(--s3) var(--s4);
-  border-bottom: 1px solid var(--line);
-  background: var(--surface-sunk, var(--hover));
+  gap: var(--s3); padding: 9px 9px 9px var(--s4);
+  border-bottom: 1px solid var(--ax-line);
+  background: var(--ax-sunk);
 }
 .ax-dock-name {
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: .84rem; font-weight: 700; color: var(--ink);
+  font-size: .82rem; font-weight: 700; color: var(--ax-ink);
+  letter-spacing: -.01em;
 }
-.ax-dock-acts { display: inline-flex; align-items: center; gap: 2px; }
+.ax-dock-name svg { color: var(--accent); }
+.ax-dock-acts { display: inline-flex; align-items: center; gap: 1px; }
 .ax-dock-btn {
   display: inline-grid; place-items: center; width: 28px; height: 28px;
-  border: 0; background: none; border-radius: var(--r-sm);
-  color: var(--ink-mid); cursor: pointer;
+  border: 0; background: none; border-radius: 7px;
+  color: var(--ax-dim); cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
 }
-.ax-dock-btn:hover { background: var(--hover); color: var(--ink); }
+.ax-dock-btn:hover { background: var(--hover); color: var(--ax-ink); }
 @media (max-width: 620px) {
-  .ax-dock {
+  .ax-dock, .ax-dock.is-big {
     right: 0; bottom: 0; left: 0; width: auto;
-    max-height: 76vh; border-radius: var(--r-lg) var(--r-lg) 0 0;
+    max-height: 80vh; border-radius: 14px 14px 0 0;
   }
 }
 
 /* ---- the conversation ---------------------------------------------------- */
-.ax { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.ax { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto;
+      position: relative; background: var(--ax-bg); }
 .ax-thread {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
-  padding: var(--s4); display: flex; flex-direction: column; gap: var(--s5);
+  padding: var(--s5); display: flex; flex-direction: column; gap: var(--s6);
+  scroll-behavior: smooth;
 }
-.ax-page { display: flex; flex-direction: column; min-height: 26rem; height: 62vh; padding: 0; }
-.ax.is-compact .ax-thread { padding: var(--s3); gap: var(--s4); }
+.ax-thread::-webkit-scrollbar { width: 10px; }
+.ax-thread::-webkit-scrollbar-thumb {
+  background: var(--ax-line); border-radius: 99px;
+  border: 3px solid var(--ax-bg);
+}
+.ax-thread::-webkit-scrollbar-thumb:hover { background: var(--ax-edge); }
+.ax-page { display: flex; flex-direction: column; min-height: 26rem; height: 64vh; padding: 0; }
+.ax.is-compact .ax-thread { padding: var(--s4); gap: var(--s5); }
 
-.ax-open { display: grid; gap: var(--s3); padding: var(--s3) 0; }
-.ax-open-say { margin: 0; color: var(--ink-mid); font-size: var(--t-sm); max-width: 52ch; }
-.ax-openers { display: flex; flex-wrap: wrap; gap: var(--s2); }
+/* Dropping a file anywhere over the panel. */
+.ax.is-dropping::after {
+  content: "Drop it here"; position: absolute; inset: 6px; z-index: 5;
+  display: grid; place-items: center; pointer-events: none;
+  border: 2px dashed var(--accent); border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--ax-bg));
+  font-size: var(--t-sm); font-weight: 700; color: var(--accent);
+}
+
+.ax-open { display: grid; gap: var(--s4); padding: var(--s3) 0; }
+.ax-open-say {
+  margin: 0; color: var(--ax-dim); font-size: var(--t-sm); max-width: 52ch;
+  line-height: 1.55;
+}
+.ax-openers, .ax-next { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ax-next { margin-top: var(--s2); }
 .ax-opener {
   height: auto; white-space: normal; text-align: left;
-  padding: 7px 11px; border-radius: var(--r-pill);
-  border: 1px solid var(--line); background: var(--surface);
-  color: var(--ink-mid); font-size: .82rem;
+  padding: 7px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--ax-line); background: var(--ax-bg);
+  color: var(--ax-dim); font-size: .81rem; line-height: 1.35;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
-.ax-opener:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
+.ax-opener:hover {
+  border-color: var(--accent); color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--ax-bg));
+}
 
-.ax-turn { display: grid; gap: var(--s3); }
-/* What was asked, set apart from what was answered. Right aligned rather than
-   bubbled: a chat bubble in a dispensary reads as a toy. */
+.ax-turn { display: grid; gap: var(--s3); animation: ax-in 200ms ease; }
+@keyframes ax-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ax-turn { animation: none; } }
+
+/* What was asked, set apart from what was answered. */
 .ax-asked {
-  margin: 0; justify-self: end; max-width: 85%;
-  padding: 7px 12px; border-radius: var(--r-lg);
-  background: var(--surface-sunk, var(--hover));
-  border: 1px solid var(--line);
-  font-size: var(--t-sm); font-weight: 600; color: var(--ink);
+  margin: 0; justify-self: end; max-width: 86%;
+  padding: 8px 13px; border-radius: 14px 14px 4px 14px;
+  background: var(--ax-sunk); border: 1px solid var(--ax-line);
+  font-size: var(--t-sm); font-weight: 600; color: var(--ax-ink);
+  line-height: 1.45; white-space: pre-wrap;
+}
+/* What was sent with it. */
+.ax-sent { justify-self: end; display: flex; flex-wrap: wrap; gap: 6px; max-width: 86%; }
+.ax-shot {
+  max-width: 11rem; max-height: 8rem; border-radius: 10px; display: block;
+  border: 1px solid var(--ax-line); object-fit: cover;
+}
+.ax-file {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 11px; border-radius: 10px;
+  border: 1px solid var(--ax-line); background: var(--ax-sunk);
+  font-size: .78rem; color: var(--ax-dim);
 }
 
-/* The work, shown rather than hidden behind a spinner. A spinner says wait and
-   nothing else; these say what is being done, and somebody who can see it
-   working will wait. */
-.ax-steps-live { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
-.ax-steps-live li {
-  display: flex; align-items: center; gap: 7px;
-  font-size: .79rem; color: var(--ink-mid);
+/* The work, as a timeline rather than a spinner. */
+.ax-steps-live {
+  list-style: none; margin: 0; padding: 0 0 0 var(--s4);
+  display: grid; gap: 5px; position: relative;
 }
-.ax-steps-live li.is-done { opacity: .75; }
-.ax-steps-live svg { flex: 0 0 auto; color: var(--accent); }
-.ax-step-done { opacity: .8; }
+.ax-steps-live::before {
+  content: ""; position: absolute; left: 6px; top: 8px; bottom: 8px;
+  width: 1px; background: var(--ax-line);
+}
+.ax-steps-live li {
+  display: flex; align-items: center; gap: 7px; position: relative;
+  font-size: .78rem; color: var(--ax-dim);
+}
+.ax-steps-live li > svg {
+  flex: 0 0 auto; color: var(--accent);
+  position: absolute; left: calc(-1 * var(--s4)); top: 1px;
+  background: var(--ax-bg); padding: 1px 0;
+}
+.ax-steps-live li.is-done { opacity: .68; }
 .ax-step-done::before { content: "\00b7\00a0"; }
+.ax-step-ms {
+  font-family: var(--font-mono); font-size: .68rem; opacity: .6;
+  margin-left: auto; padding-left: var(--s3);
+}
 .ax-model {
-  margin: 0; font-size: .79rem; font-weight: 600; color: var(--accent);
+  margin: 0; font-size: .78rem; font-weight: 600; color: var(--accent);
   display: flex; align-items: center; gap: 6px;
 }
 
-.ax-said { font-size: var(--t-base); line-height: 1.6; }
+.ax-said { font-size: var(--t-base); line-height: 1.62; color: var(--ax-ink); }
 .ax-said > :first-child { margin-top: 0; }
 .ax-said > :last-child { margin-bottom: 0; }
+.ax-said p { margin: 0 0 .7em; }
+.ax-said ul, .ax-said ol { margin: 0 0 .7em; padding-left: 1.2em; }
+.ax-said li { margin-bottom: .2em; }
+
+/* What can be done with an answer. Quiet until the turn is hovered. */
+.ax-acts {
+  display: flex; align-items: center; gap: var(--s2);
+  opacity: 0; transition: opacity 140ms ease;
+}
+.ax-turn:hover .ax-acts, .ax-acts:focus-within { opacity: 1; }
+.ax-act {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: auto; padding: 4px 9px; border-radius: var(--r-pill);
+  border: 1px solid var(--ax-line); background: var(--ax-bg);
+  color: var(--ax-dim); font-size: .73rem; font-weight: 600;
+}
+.ax-act:hover:not(:disabled) { color: var(--ax-ink); border-color: var(--ax-edge); }
+.ax-took {
+  font-family: var(--font-mono); font-size: .68rem;
+  color: var(--ax-dim); opacity: .6; margin-left: auto;
+}
+
+/* Back to the newest answer, when the reader has scrolled away from it. */
+.ax-jump {
+  position: absolute; left: 50%; bottom: 5.2rem; transform: translateX(-50%);
+  z-index: 4; display: inline-flex; align-items: center; gap: 5px;
+  height: auto; padding: 5px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--ax-edge); background: var(--ax-bg);
+  color: var(--ax-ink); font-size: .76rem; font-weight: 600;
+  box-shadow: 0 6px 18px rgba(16, 18, 27, .16);
+}
 
 /* ---- the route ----------------------------------------------------------
    The reason this exists rather than a help page. Chips that go there. */
 .ax-route, .ax-diagram {
-  margin: 0; padding: var(--s3);
-  border: 1px solid var(--line); border-radius: var(--r-md);
-  background: var(--surface-sunk, var(--hover));
+  margin: 0; padding: var(--s4);
+  border: 1px solid var(--ax-line); border-radius: 12px;
+  background: var(--ax-sunk);
 }
 .ax-route-title {
-  font-size: .72rem; font-weight: 600; letter-spacing: .07em;
-  text-transform: uppercase; color: var(--ink-mid);
-  margin-bottom: var(--s2);
+  font-size: .69rem; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--ax-dim);
+  margin-bottom: var(--s3);
 }
 .ax-steps {
   list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
 }
-.ax-steps > li { display: inline-flex; align-items: center; gap: 4px; }
-.ax-arrow { color: var(--ink-mid); flex: 0 0 auto; }
+.ax-steps > li { display: inline-flex; align-items: center; gap: 5px; }
+.ax-arrow { color: var(--ax-dim); flex: 0 0 auto; opacity: .7; }
 .ax-step {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 7px;
   height: auto; white-space: normal; text-align: left;
-  padding: 6px 10px; border-radius: var(--r-md);
-  border: 1px solid var(--line-strong, var(--line));
-  background: var(--surface); color: var(--ink);
-  font-size: .82rem; font-weight: 600;
+  padding: 7px 11px; border-radius: 9px;
+  border: 1px solid var(--ax-edge);
+  background: var(--ax-bg); color: var(--ax-ink);
+  font-size: .81rem; font-weight: 600; line-height: 1.3;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 .ax-step:not(:disabled):hover {
   border-color: var(--accent); color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-ring);
+  transform: translateY(-1px);
 }
-.ax-step:disabled { opacity: 1; cursor: default; color: var(--ink-mid); }
+.ax-step:disabled { opacity: 1; cursor: default; color: var(--ax-dim); }
 /* A step that CHANGES something is not the same instruction as one that moves
    you, and on a system where finishing fiscalises a receipt the difference is
    worth a stripe. */
 .ax-step.does { box-shadow: inset 3px 0 0 var(--accent); }
+.ax-step.does:not(:disabled):hover {
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 3px var(--accent-ring);
+}
 .ax-step-n {
   display: inline-grid; place-items: center; flex: 0 0 auto;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: var(--surface-sunk, var(--hover));
-  font-size: .64rem; font-weight: 700; color: var(--ink-mid);
+  width: 17px; height: 17px; border-radius: 50%;
+  background: var(--ax-sunk);
+  font-size: .63rem; font-weight: 700; color: var(--ax-dim);
   font-family: var(--font-mono);
 }
 .ax-step-mark { color: var(--accent); flex: 0 0 auto; }
 .ax-key {
-  font-family: var(--font-mono); font-size: .66rem; font-weight: 500;
-  padding: 1px 4px; border-radius: 3px;
-  border: 1px solid var(--line); background: var(--surface-sunk, var(--hover));
-  color: var(--ink-mid);
+  font-family: var(--font-mono); font-size: .65rem; font-weight: 600;
+  padding: 2px 5px; border-radius: 4px;
+  border: 1px solid var(--ax-line); background: var(--ax-sunk);
+  color: var(--ax-dim);
 }
 
-/* What a route points at, when it arrives. Deliberately brief: it says this
-   one, and then gets out of the way. */
-.is-pointed-at {
-  animation: ax-point 2.4s ease;
-  border-radius: var(--r-sm);
-}
+/* What a route points at, when it arrives. Brief: it says this one, and then
+   gets out of the way. */
+.is-pointed-at { animation: ax-point 2.4s ease; border-radius: var(--r-sm); }
 @keyframes ax-point {
   0%, 70% { box-shadow: 0 0 0 3px var(--accent-ring), 0 0 0 1px var(--accent); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .is-pointed-at { animation: none; } }
 
-/* A diagram is bounded or it is not a diagram.
-   Left to itself Mermaid lays a state machine out top to bottom and hands back
-   a thousand pixels of column, which on a till screen is a thing you scroll
-   past rather than read. The box keeps a sensible frame and scrolls inside it;
-   the model is asked separately to lay out sideways. */
+/* A diagram is bounded or it is not a diagram. Left to itself Mermaid lays a
+   state machine out top to bottom and hands back a thousand pixels of column,
+   which on a till screen is a thing you scroll past rather than read. */
 .ax-diagram-box {
   overflow: auto; max-height: min(52vh, 30rem);
   display: flex; justify-content: center;
 }
 .ax-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .ax.is-compact .ax-diagram-box { max-height: 17rem; }
-.ax-diagram-fell { margin-top: var(--s2); font-size: .8rem; color: var(--ink-mid); }
+.ax-diagram-fell { margin-top: var(--s2); font-size: .8rem; color: var(--ax-dim); }
 .ax-diagram-fell pre { overflow-x: auto; font-size: .74rem; }
 
-/* ---- the question ------------------------------------------------------- */
+/* ---- the composer -------------------------------------------------------
+   One field containing the clip, the text and the send, with the focus ring
+   around all three. A row of separate controls reads as a form; this reads as
+   somewhere to write. */
 .ax-ask {
-  flex: 0 0 auto; display: flex; align-items: center; gap: var(--s2);
-  padding: var(--s3); border-top: 1px solid var(--line);
-  background: var(--surface);
+  flex: 0 0 auto; padding: var(--s4); padding-top: var(--s3);
+  background: var(--ax-bg); border-top: 1px solid var(--ax-line);
+  display: grid; gap: var(--s2);
 }
-.ax-ask input { flex: 1 1 auto; min-width: 0; }
-.ax-send, .ax-stop { flex: 0 0 auto; width: 38px; padding: 0; }
+.ax.is-compact .ax-ask { padding: var(--s3); }
+.ax-ask-row {
+  display: flex; align-items: flex-end; gap: 6px;
+  padding: 5px 5px 5px 6px; border-radius: 12px;
+  border: 1px solid var(--ax-edge); background: var(--ax-bg);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.ax-ask-row:focus-within {
+  border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.ax-ask textarea {
+  flex: 1 1 auto; min-width: 0; resize: none; overflow-y: auto;
+  border: 0; background: none; box-shadow: none; outline: none;
+  padding: 7px 2px; margin: 0; height: auto; min-height: 34px;
+  font: inherit; font-size: var(--t-sm); line-height: 1.45; color: var(--ax-ink);
+}
+.ax-ask textarea::placeholder { color: var(--ax-dim); opacity: .75; }
+.ax-clip {
+  flex: 0 0 auto; display: inline-grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 0; background: none; color: var(--ax-dim); cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+.ax-clip:hover { background: var(--hover); color: var(--ax-ink); }
+.ax-send, .ax-stop {
+  flex: 0 0 auto; width: 32px; height: 32px; padding: 0;
+  border-radius: 8px; display: inline-grid; place-items: center;
+}
+
+/* What is attached, above the field it will be sent with. */
+.ax-tray { display: flex; flex-wrap: wrap; gap: 6px; }
+.ax-chip-file {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 6px 4px 5px; border-radius: 9px;
+  border: 1px solid var(--ax-line); background: var(--ax-sunk);
+  font-size: .74rem; color: var(--ax-dim); max-width: 14rem;
+}
+.ax-chip-file img {
+  width: 26px; height: 26px; border-radius: 5px; object-fit: cover;
+  display: block; flex: 0 0 auto;
+}
+.ax-chip-file > svg { flex: 0 0 auto; color: var(--danger, #9e3226); }
+.ax-chip-name {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+}
+.ax-chip-file button {
+  flex: 0 0 auto; display: inline-grid; place-items: center;
+  width: 18px; height: 18px; border-radius: 50%; padding: 0;
+  border: 0; background: none; color: var(--ax-dim); cursor: pointer;
+}
+.ax-chip-file button:hover { background: var(--hover); color: var(--ax-ink); }
+
 .ax-knows {
   display: flex; align-items: flex-start; gap: 6px;
   margin: var(--s3) 0 0; max-width: 78ch;
 }
 .ax-knows svg { flex: 0 0 auto; margin-top: 3px; color: var(--accent); }
-
-/* The password, given the weight the code boxes have.
-   Exactly as wide as the four boxes beside it (4 x 66px plus 3 gaps), so
-   switching between a code and a password does not resize the dialog under
-   the hand that is typing into it. */
-.su-pass { width: 100%; }
-.su-pin input.su-pass-box {
-  /* Selected as `.su-pin input.su-pass-box` rather than `.su-pass-box`, and
-     that matters. The dispensary sets `.disp-dense input { height: 30px }` for
-     its dense controls, which outranks a single class, and this dialog opens
-     inside it: the field measured a full 80px on every other screen and 30px
-     on the one where it is actually used. `flex: 0 0 auto` because `.su-pin`
-     is a column, and a flex item shrinks along the column. */
-  flex: 0 0 auto;
-  width: 300px; max-width: 100%; height: 80px;
-  text-align: center; letter-spacing: .34em;
-  font-size: 1.7rem; font-family: var(--font-mono);
-  border: 2px solid var(--line-strong); border-radius: var(--r-lg);
-  background: var(--surface); color: var(--ink);
-  caret-color: var(--accent);
-}
-.su-pin input.su-pass-box:focus-visible {
-  outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
-}
-@media (max-width: 420px) {
-  .su-pin input.su-pass-box { width: 268px; height: 70px; font-size: 1.45rem; }
-}
 
 /* ========================================================================
    STOCK ACROSS THE ESTATE

@@ -449,8 +449,44 @@ def _tool_result(name: str, payload: Any) -> dict:
     return {"type": "tool_result", "tool_use_id": name, "content": json.dumps(payload)}
 
 
+#: What can be attached to a question. Images because the commonest one is a
+#: screenshot of the very screen somebody is asking about, and a PDF because
+#: the other one is a claim response or a supplier's price list.
+OK_MEDIA = {"image/png", "image/jpeg", "image/gif", "image/webp", "application/pdf"}
+#: Four, and five megabytes each. A question with a dozen photographs attached
+#: is not a question, and the bill for it lands on the pharmacy.
+MAX_FILES = 4
+MAX_BYTES = 5 * 1024 * 1024
+
+
+def _attached(files: list[dict] | None) -> list[dict]:
+    """Attachments as content blocks, refusing anything that is not one.
+
+    Checked here rather than trusted from the browser: this is the one place a
+    request carries arbitrary bytes, and what reaches the model should be
+    exactly the kinds that were meant to.
+    """
+    blocks: list[dict] = []
+    for item in (files or [])[:MAX_FILES]:
+        kind = str(item.get("media_type") or "").lower()
+        data = str(item.get("data") or "")
+        if kind not in OK_MEDIA or not data:
+            continue
+        # base64 expands by about a third, so this is the encoded ceiling.
+        if len(data) > MAX_BYTES * 4 // 3:
+            continue
+        if kind == "application/pdf":
+            blocks.append({"type": "document",
+                           "source": {"type": "base64", "media_type": kind, "data": data}})
+        else:
+            blocks.append({"type": "image",
+                           "source": {"type": "base64", "media_type": kind, "data": data}})
+    return blocks
+
+
 def run(question: str, history: list[dict] | None = None, *,
-        web: bool = True, db=None, user=None) -> Iterator[dict]:
+        web: bool = True, db=None, user=None,
+        files: list[dict] | None = None) -> Iterator[dict]:
     """Answer one question, yielding frames as it goes.
 
     Frames are dictionaries the router serialises: `phase`, `tool` (one is
@@ -486,7 +522,15 @@ def run(question: str, history: list[dict] | None = None, *,
         return tools
 
     messages: list[dict] = list(history or [])
-    messages.append({"role": "user", "content": question})
+    shown = _attached(files)
+    if shown:
+        # The picture first and the question under it, which is the order the
+        # model reads best and the order somebody asking actually means: here
+        # is the screen, now here is what I want to know about it.
+        messages.append({"role": "user",
+                         "content": [*shown, {"type": "text", "text": question}]})
+    else:
+        messages.append({"role": "user", "content": question})
     model = WAYFINDING_MODEL
     answered = False
 

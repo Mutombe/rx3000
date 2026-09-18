@@ -63,7 +63,7 @@ check(await page.locator(".ax-dock").count() === 1,
 await page.screenshot({ path: join(OUT, "assistant-dock.png") });
 
 // ---- it looks things up, visibly -------------------------------------------
-await page.locator(".ax-dock .ax-ask input").fill("How do I set a price on a script?");
+await page.locator(".ax-dock .ax-ask textarea").fill("How do I set a price on a script?");
 await page.keyboard.press("Enter");
 
 // The steps must appear while it is still working, not all at the end.

@@ -275,6 +275,9 @@ class AssistantAsk(schemas.BaseModel):
     #: second tab are all the same conversation only if the client says so.
     history: list[dict] = []
     web: bool = True
+    #: Screenshots and documents, base64 encoded by the browser. Checked in
+    #: `services/assistant.py` rather than trusted from here.
+    files: list[dict] = []
 
 
 @router.post("/assistant/stream")
@@ -294,7 +297,8 @@ def assistant_stream(body: AssistantAsk, db: Session = Depends(get_db),
             # lookup the assistant makes is made as them: same permissions,
             # same branch, same tenancy. This is the whole security model.
             for frame in assistant.run(body.question, body.history,
-                                       web=body.web, db=db, user=user):
+                                       web=body.web, db=db, user=user,
+                                       files=body.files):
                 if frame.get("type") == "delta":
                     written.append(frame.get("text", ""))
                 if frame.get("type") == "done":

@@ -14,7 +14,8 @@
  *  pop-up.
  */
 import { useEffect, useRef, useState } from "react";
-import { X, Sparkle, ArrowSquareOut } from "@phosphor-icons/react";
+import { X, Sparkle, ArrowSquareOut, CornersOut, CornersIn }
+  from "@phosphor-icons/react";
 import { Link, useLocation } from "react-router-dom";
 
 import { readStored, writeStored } from "../storage";
@@ -22,6 +23,7 @@ import AssistantChat from "./AssistantChat";
 
 const OPEN = "assistant_dock_open";
 const SEEN = "assistant_dock_seen";
+const BIG = "assistant_dock_big";
 
 /** Whether the dock should be showing. Read once at mount and kept here, so
  *  the top bar button and the dock cannot disagree about it. */
@@ -39,6 +41,25 @@ export function useDock() {
     setOpen(next);
     try { writeStored(OPEN, next ? "1" : "0"); writeStored(SEEN, "1"); } catch { /* private window */ }
   };
+  // Read inside the handler rather than captured, so the binding below does not
+  // have to be torn down and rebuilt every time the dock opens or closes.
+  const openRef = useRef(open);
+  openRef.current = open;
+
+  // Ctrl with K, which is what every other assistant in the world opens on,
+  // so nobody has to be told. Bound once here rather than in the panel,
+  // because the point of it is opening the panel when it is not there.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        set(!openRef.current);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return { open, setOpen: set };
 }
 
@@ -47,6 +68,16 @@ export default function AssistantDock({ open, onClose }: {
   onClose: () => void;
 }) {
   const panel = useRef<HTMLDivElement | null>(null);
+  // Wide, for an answer with a diagram in it, and remembered. A dock that is
+  // the right size for "where is the register" is the wrong size for a claim
+  // lifecycle drawn across it.
+  const [big, setBig] = useState(() => {
+    try { return readStored(BIG) === "1"; } catch { return false; }
+  });
+  const grow = (next: boolean) => {
+    setBig(next);
+    try { writeStored(BIG, next ? "1" : "0"); } catch { /* private window */ }
+  };
   // Not on top of the page it is a smaller copy of. Two identical
   // conversations side by side, each with its own history, is a choice nobody
   // should have to make about which one to type into.
@@ -69,12 +100,18 @@ export default function AssistantDock({ open, onClose }: {
     // No scrim. The page behind stays usable on purpose: the routes it draws
     // point at that page, and a layer that blocks the thing it is pointing at
     // would be pointing at nothing.
-    <aside className="ax-dock" ref={panel} aria-label="RX-Assistant">
+    <aside className={`ax-dock${big ? " is-big" : ""}`} ref={panel}
+           aria-label="RX-Assistant">
       <header className="ax-dock-head">
         <span className="ax-dock-name">
           <Sparkle size={14} weight="fill" /> RX-Assistant
         </span>
         <span className="ax-dock-acts">
+          <button type="button" className="ax-dock-btn" onClick={() => grow(!big)}
+                  title={big ? "Make it smaller" : "Make it bigger"}
+                  aria-label={big ? "Make it smaller" : "Make it bigger"}>
+            {big ? <CornersIn size={15} /> : <CornersOut size={15} />}
+          </button>
           <Link to="/assistant" className="ax-dock-btn" title="Open the full page"
                 aria-label="Open the full page">
             <ArrowSquareOut size={15} />
