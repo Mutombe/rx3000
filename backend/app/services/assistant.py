@@ -38,6 +38,7 @@ import pathlib
 import re
 from typing import Any, Callable, Iterator
 
+from . import assistant_data as data
 from .ai_service import _get_client, ai_enabled, HOUSE_STYLE
 
 #: Fast, for finding things. The great majority of what gets asked.
@@ -277,6 +278,60 @@ TOOLS: list[dict] = [
         },
     },
     {
+        "name": "look_up_medicine",
+        "description": (
+            "Look up a medicine in THIS pharmacy: its schedule, pack size, what "
+            "is on this branch's shelf, its reorder level and its price. Use it "
+            "whenever somebody names a medicine. Read only."),
+        "input_schema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "description": "Part of the name is enough."}},
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "usage_history",
+        "description": (
+            "How much of a medicine has actually left the shelf, month by "
+            "month. Use it for 'how fast does this move', 'should I order' and "
+            "anything about demand. Read only."),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "months": {"type": "integer", "description": "1 to 24. Six if unsure."},
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "how_is_trade",
+        "description": (
+            "What this pharmacy has taken over a period, how many sales and "
+            "scripts, and its best sellers. Needs permission to see money and "
+            "will say so if the person has none. Read only."),
+        "input_schema": {
+            "type": "object",
+            "properties": {"days": {"type": "integer", "description": "1 to 365. Seven if unsure."}},
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "what_is_low",
+        "description": (
+            "Which lines are at or below their reorder level on this branch's "
+            "shelf. Read only."),
+        "input_schema": {
+            "type": "object",
+            "properties": {"limit": {"type": "integer", "description": "Up to 40."}},
+            "required": [],
+            "additionalProperties": False,
+        },
+    },
+    {
         "name": "think_harder",
         "description": (
             "Hand this question to the larger model. Call it when the question "
@@ -300,6 +355,10 @@ SAYING = {
     "find_in_app": "Looking that up in the system",
     "show_route": "Drawing the steps",
     "show_diagram": "Drawing it out",
+    "look_up_medicine": "Checking that medicine",
+    "usage_history": "Reading what has moved",
+    "how_is_trade": "Reading the takings",
+    "what_is_low": "Checking what is low",
     "think_harder": "Asking the bigger model",
     "web_search": "Checking the regulator",
 }
@@ -311,16 +370,35 @@ dispenser, a pharmacist, a manager or a cashier. Often there is a patient \
 waiting in front of them.
 
 WHAT YOU ARE FOR
-Telling people where things are in this software, how to do them, and what \
-things mean. You know the software through find_in_app, and you know nothing \
-about it otherwise. Look things up before you answer, every time. A route you \
+Telling people where things are in this software, how to do them, what things \
+mean, and what this pharmacy's own figures say. You know the software through \
+find_in_app and the shop through the lookup tools, and you know nothing about \
+either otherwise. Look things up before you answer, every time. A route you \
 invented is worse than saying you could not find it, because they will go \
-looking for a screen that does not exist.
+looking for a screen that does not exist, and a figure you invented is worse \
+still because they will act on it.
+
+THE FIGURES ARE THEIRS, AND SO ARE THE LIMITS
+The lookup tools run as the person you are talking to, under their own \
+permissions and on their own branch. When one comes back refused, say plainly \
+that their account cannot see that and what it would take. Do not work around \
+it, do not estimate the answer out of something else, and never suggest they \
+use somebody else's login.
 
 HOW TO ANSWER
-Lead with the answer. Draw a route with show_route whenever somebody is asking \
-how to do something; the chips take them there, which is the whole point. Keep \
-the prose around it short. They are reading this standing up.
+Call a tool first, silently. Never announce one, before or after: not "let me \
+look that up", not "now I have the screens", not "let me draw you a diagram". \
+Every one of those describes something the reader is already watching happen.
+
+Two kinds of question, two kinds of answer. "Where is it" and "how do I" want \
+a route: draw it with show_route, because the chips take them there, which is \
+the whole point. "How much", "how fast", "what is low", "what have we taken" \
+want the FIGURE: call the lookup tool and answer with the number. Somebody \
+asking how fast a medicine moves has been sent to a screen to work it out for \
+themselves once too often already; you can see it, so tell them, and mention \
+the screen afterwards only if it is worth opening.
+
+Keep the prose short either way. They are reading this standing up.
 
 Say when a screen needs a permission they may not have, because "it is not on \
 my sidebar" is the commonest reason somebody cannot find something.
@@ -335,12 +413,44 @@ If you do not know, say so in one sentence and say what would answer it.
 """
 
 
+#: The data tools, each taking the request's own session and user. Kept
+#: together so it is obvious at a glance that every one of them does.
+_DATA: dict[str, Any] = {
+    "look_up_medicine": lambda db, u, a: data.look_up_medicine(db, u, str(a.get("name", ""))),
+    "usage_history": lambda db, u, a: data.usage_history(
+        db, u, str(a.get("name", "")), int(a.get("months") or 6)),
+    "how_is_trade": lambda db, u, a: data.how_is_trade(db, u, int(a.get("days") or 7)),
+    "what_is_low": lambda db, u, a: data.what_is_low(db, u, int(a.get("limit") or 15)),
+}
+
+
+def _said_about(name: str, payload: dict) -> str:
+    """One line for the reader about what a lookup came back with.
+
+    A refusal says so out loud rather than disappearing into the answer: "you
+    are not allowed to see that" is a thing somebody needs to know about their
+    own account, not a gap in a sentence.
+    """
+    if payload.get("refused"):
+        return "not allowed"
+    if name == "look_up_medicine":
+        n = payload.get("found", 0)
+        return f"{n} found" if n else "nothing matched"
+    if name == "usage_history":
+        return f"{payload.get('total_out', 0)} units over {len(payload.get('months', []))} months"
+    if name == "how_is_trade":
+        return f"{payload.get('sales', 0)} sales"
+    if name == "what_is_low":
+        return f"{payload.get('count', 0)} lines low"
+    return "done"
+
+
 def _tool_result(name: str, payload: Any) -> dict:
     return {"type": "tool_result", "tool_use_id": name, "content": json.dumps(payload)}
 
 
 def run(question: str, history: list[dict] | None = None, *,
-        web: bool = True) -> Iterator[dict]:
+        web: bool = True, db=None, user=None) -> Iterator[dict]:
     """Answer one question, yielding frames as it goes.
 
     Frames are dictionaries the router serialises: `phase`, `tool` (one is
@@ -446,6 +556,19 @@ def run(question: str, history: list[dict] | None = None, *,
                 yield {"type": "diagram", "title": args.get("title", ""),
                        "mermaid": args.get("mermaid", "")}
                 yield {"type": "tool_done", "name": name, "say": "drawn"}
+            elif name in ("look_up_medicine", "usage_history",
+                          "how_is_trade", "what_is_low"):
+                # Every one of these runs as the person asking, through the
+                # same permission checks the screens go through. Without a
+                # session there is nobody to run as, and the honest answer is
+                # that it cannot look.
+                if db is None or user is None:
+                    payload = {"refused": "No session, so nothing can be looked up."}
+                    yield {"type": "tool_done", "name": name, "say": "not available"}
+                else:
+                    payload = _DATA[name](db, user, args)
+                    yield {"type": "tool_done", "name": name,
+                           "say": _said_about(name, payload)}
             elif name == "think_harder":
                 escalate = True
                 payload = {"handed_over": True}

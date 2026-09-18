@@ -290,7 +290,11 @@ def assistant_stream(body: AssistantAsk, db: Session = Depends(get_db),
     def frames():
         written: list[str] = []
         try:
-            for frame in assistant.run(body.question, body.history, web=body.web):
+            # The request's own session and the signed-in user, so every
+            # lookup the assistant makes is made as them: same permissions,
+            # same branch, same tenancy. This is the whole security model.
+            for frame in assistant.run(body.question, body.history,
+                                       web=body.web, db=db, user=user):
                 if frame.get("type") == "delta":
                     written.append(frame.get("text", ""))
                 if frame.get("type") == "done":
