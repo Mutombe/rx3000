@@ -8,7 +8,7 @@ from ..auth import get_current_user
 from ..models import AiConversation, User
 from ..database import get_db
 from ..models import Company, Deal, Patient, Product, Ticket
-from ..services import ai_service
+from ..services import ai_service, assistant
 
 router = APIRouter(prefix="/api/ai", tags=["ai"], dependencies=[Depends(get_current_user)])
 
@@ -257,3 +257,82 @@ def clear_ai_history(db: Session = Depends(get_db),
                  .delete(synchronize_session=False))
     db.commit()
     return {"ok": True, "removed": removed}
+
+
+# ---------------------------------------------------------- RX-Assistant ----
+#
+# Its own endpoint rather than another `_sse` caller, because it is a different
+# shape of thing: `_sse` streams one answer built from one prompt, and this
+# streams a turn that may call tools, draw a route, change model and come back.
+# The frame protocol is a superset, so the existing reader handles it unchanged
+# and simply ignores what it does not yet draw.
+
+
+class AssistantAsk(schemas.BaseModel):
+    question: str
+    #: The turn before this one, so a second question can build on the first.
+    #: Sent by the client rather than held on the server: a dock, a page and a
+    #: second tab are all the same conversation only if the client says so.
+    history: list[dict] = []
+    web: bool = True
+
+
+@router.post("/assistant/stream")
+def assistant_stream(body: AssistantAsk, db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Ask RX-Assistant something, and watch it work it out.
+
+    Every frame this can send is listed in `services/assistant.py`. The two
+    worth knowing here: `route` and `diagram` are drawn by the interface rather
+    than written into the prose, because structure parsed back out of a
+    sentence is a feature that works until somebody phrases it differently.
+    """
+    def frames():
+        written: list[str] = []
+        try:
+            for frame in assistant.run(body.question, body.history, web=body.web):
+                if frame.get("type") == "delta":
+                    written.append(frame.get("text", ""))
+                if frame.get("type") == "done":
+                    continue                 # sent below, with the saved id
+                yield "data: " + json.dumps(frame) + "\n\n"
+        except Exception as exc:             # noqa: BLE001
+            yield "data: " + json.dumps({"type": "error", "message": str(exc)}) + "\n\n"
+
+        entry_id = None
+        answer = "".join(written).strip()
+        if answer:
+            try:
+                entry = AiConversation(
+                    user_id=user.id, question=body.question or "(no question)",
+                    answer=answer, model=assistant.WAYFINDING_MODEL,
+                )
+                db.add(entry)
+                db.commit()
+                entry_id = entry.id
+            except Exception:                # noqa: BLE001
+                db.rollback()
+        yield "data: " + json.dumps({"type": "done", "id": entry_id}) + "\n\n"
+
+    return StreamingResponse(
+        frames(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.get("/assistant/atlas")
+def assistant_atlas():
+    """What the assistant knows about this software, for the screen that says so.
+
+    Readable by anybody signed in: it describes the product, not the pharmacy.
+    There is nothing in it that is not already on somebody's sidebar.
+    """
+    a = assistant.atlas()
+    return {
+        "generated": a.get("generated", ""),
+        "screens": len(a.get("screens", [])),
+        "keys": len(a.get("keys", [])),
+        "models": {"wayfinding": assistant.WAYFINDING_MODEL,
+                   "thinking": assistant.THINKING_MODEL},
+    }

@@ -4252,7 +4252,7 @@ export default function Dispense() {
                 <span className="rx-col-edit" title="Double-click a cell to edit it">
                   Directions <PencilSimpleLine size={11} />
                 </span>
-                <span className="rx-item-money rx-col-edit"
+                <span className="rx-item-money rx-col-edit" data-hk="amount"
                       title="Double-click an amount to set it. It needs a code.">
                   Amount <PencilSimpleLine size={11} />
                 </span>
