@@ -52,6 +52,11 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
      ("admin", "manager")),
     ("stock.deactivate", "Take a product code out of use across the group",
      ("admin",)),
+    # Moving stock between shops had no capability at all, so any signed-in
+    # account could send any branch's stock to any other and book it in again.
+    # Nothing about the screen would have looked wrong.
+    ("stock.transfer", "Move stock from one branch to another",
+     ("admin", "manager", "pharmacist")),
     ("cash.reconcile", "Commit a cash-up and sign off a variance",
      ("admin", "manager", "accountant")),
     ("cash.petty", "Pay money out of the till", ("admin", "manager")),
@@ -107,6 +112,7 @@ ACCOUNTANT_WITHHELD = (
     "sale.void", "sale.return", "sale.discount", "cash.petty",
     "dispense.prescription", "dispense.otc", "dispense.controlled",
     "stock.write_off", "stock.adjust", "stock.price", "stock.deactivate",
+    "stock.transfer",
     "staff.manage", "branch.freeze", "hq.impersonate",
 )
 

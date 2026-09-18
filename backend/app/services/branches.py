@@ -22,6 +22,7 @@ from datetime import date, datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from .. import concurrency
 from ..models import Branch, BranchTransfer, Product, StockBatch, StockMovement
 
 
@@ -226,7 +227,17 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
 
 
 def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTransfer:
-    """Book in stock that has arrived at the destination branch."""
+    """Book in stock that has arrived at the destination branch.
+
+    Serialised on the transfer itself. The status check below and the commit at
+    the end were not, so two people clicking "Confirm arrival" at the same
+    moment both passed the check and both booked the stock in: the shop ended
+    up with twice what arrived, and the only trace was two transfer_in rows.
+    """
+    # Held for the rest of this transaction, so the status check below and the
+    # commit at the end cannot be interleaved with another receive of the same
+    # transfer.
+    concurrency.serialise(db, f"branch-transfer-{transfer_id}")
     transfer = db.get(BranchTransfer, transfer_id)
     if not transfer:
         raise BranchError("That transfer does not exist.")
@@ -248,6 +259,12 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTran
     # fall back to the old single undated batch: there is nothing else to know
     # about them, and refusing to receive stock that is physically standing in
     # the shop would be worse than booking it in for somebody to date.
+    # Read before the new batches are added. Taken afterwards, the `on_hand`
+    # query autoflushes them into the sum and the movement's balance_after
+    # double-counts the whole transfer: the stock figure was right and the
+    # ledger beside it said something that never happened.
+    before = on_hand(db, transfer.product_id, transfer.to_branch_id)
+
     moved = transfer.drawn_lines() or [{"batch_number": transfer.reference,
                                         "expiry_date": None,
                                         "quantity": transfer.quantity,
@@ -269,8 +286,7 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTran
     db.add(StockMovement(
         product_id=transfer.product_id, movement_type="transfer_in",
         quantity_delta=transfer.quantity,
-        balance_after=on_hand(db, transfer.product_id, transfer.to_branch_id)
-        + transfer.quantity,
+        balance_after=before + transfer.quantity,
         reference=transfer.reference,
         branch_id=transfer.to_branch_id, user_id=user_id))
     transfer.status = "received"

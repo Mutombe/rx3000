@@ -6,7 +6,15 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..models import Branch, BranchTransfer, User
-from ..services import branches
+from ..branch_scope import every_branch
+from ..services import branches, permissions
+
+def _guard(db: Session, user: User, capability: str) -> None:
+    """Refuse in the server's own words, so the screen can relay them."""
+    decision = permissions.check(db, user, capability)
+    if not decision["allowed"]:
+        raise HTTPException(403, decision["why"])
+
 
 router = APIRouter(prefix="/api/branches", tags=["branches"],
                    dependencies=[Depends(get_current_user)])
@@ -149,17 +157,29 @@ def branch_stock(branch_id: int, low_only: bool = False,
 
 @router.get("/transfers/in-transit")
 def transfers_in_transit(db: Session = Depends(get_db)):
-    return branches.in_transit(db)
+    # Across every branch on purpose: stock in transit belongs to neither shop
+    # at the moment it is asked about, and the whole point of the list is to
+    # see the gap between the two.
+    with every_branch():
+        return branches.in_transit(db)
 
 
 @router.post("/transfers")
 def create_transfer(body: TransferIn, db: Session = Depends(get_db),
                     user: User = Depends(get_current_user)):
+    _guard(db, user, "stock.transfer")
     try:
-        transfer = branches.despatch(
-            db, from_branch_id=body.from_branch_id, to_branch_id=body.to_branch_id,
-            product_id=body.product_id, quantity=body.quantity,
-            user_id=user.id, notes=body.notes)
+        # Unscoped, because a transfer is by definition work that crosses two
+        # shops. Without this the batch query ran under the caller's own branch
+        # filter, so despatching from anywhere but the branch you are standing
+        # in reported "that branch holds 0" no matter how full its shelf was.
+        # branch_scope's own docstring names a stock transfer as the example of
+        # work that must cross branches; nothing had ever said so in code.
+        with every_branch():
+            transfer = branches.despatch(
+                db, from_branch_id=body.from_branch_id, to_branch_id=body.to_branch_id,
+                product_id=body.product_id, quantity=body.quantity,
+                user_id=user.id, notes=body.notes)
     except branches.BranchError as e:
         raise HTTPException(400, str(e))
     return {"id": transfer.id, "reference": transfer.reference,
@@ -171,8 +191,10 @@ def create_transfer(body: TransferIn, db: Session = Depends(get_db),
 @router.post("/transfers/{transfer_id}/receive")
 def receive_transfer(transfer_id: int, db: Session = Depends(get_db),
                      user: User = Depends(get_current_user)):
+    _guard(db, user, "stock.transfer")
     try:
-        transfer = branches.receive(db, transfer_id=transfer_id, user_id=user.id)
+        with every_branch():
+            transfer = branches.receive(db, transfer_id=transfer_id, user_id=user.id)
     except branches.BranchError as e:
         raise HTTPException(400, str(e))
     return {"reference": transfer.reference, "status": transfer.status,
