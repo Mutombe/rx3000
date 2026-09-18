@@ -28,7 +28,7 @@ import {
   Paperclip, X, FilePdf,
 } from "@phosphor-icons/react";
 
-import { getToken } from "../api";
+import { apiBase, getToken } from "../api";
 import Markdown from "./Markdown";
 import AssistantRoute, { RouteStep } from "./AssistantRoute";
 import AssistantDiagram from "./AssistantDiagram";
@@ -182,7 +182,12 @@ export default function AssistantChat({ compact = false }: { compact?: boolean }
     const control = new AbortController();
     abort.current = control;
     try {
-      const res = await fetch("/api/ai/assistant/stream", {
+      // Through the resolved base, not a relative path. A relative path works
+      // in development, where Vite proxies /api to the backend on the same
+      // origin, and nowhere else: in the desktop shell it resolves against the
+      // app's own origin and 404s, which this screen then reported as "the
+      // server does not have RX-Assistant yet" on a server that had it.
+      const res = await fetch(`${apiBase}/api/ai/assistant/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

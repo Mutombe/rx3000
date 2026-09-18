@@ -5,7 +5,7 @@ import FileDrop from "../components/FileDrop";
 import CurrencyRates from "../components/CurrencyRates";
 import GlobalSettings from "../components/GlobalSettings";
 import { Link, useSearchParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, getToken, money, errorText  } from "../api";
+import { api, apiBase, fmtDate, fmtDateTime, getToken, money, errorText  } from "../api";
 import { AuditEntry, AutomationRule, Backup, EmailTemplate, PriceImportResult, User } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Checkbox from "../components/Checkbox";
@@ -416,7 +416,7 @@ export default function Admin() {
   }
 
   async function download(filename: string) {
-    const res = await fetch(`/api/admin/backups/${filename}/download`, {
+    const res = await fetch(`${apiBase}/api/admin/backups/${filename}/download`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) { toast.error("Download failed"); return; }
