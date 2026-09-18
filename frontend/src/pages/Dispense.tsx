@@ -1400,10 +1400,11 @@ export default function Dispense() {
     if (kind === "receipt") return payHow === "now" || payHow === "aid";
     if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
-    // The script's barcode, whenever a printer has been given one. MCAZ expects
-    // a dispensed script to carry it, so the default is on where the pharmacy
-    // is equipped to print it and off where it would only open a dialog.
-    if (kind === "barcode") return roll.goesStraightToPrinter("barcode");
+    // Off, now that the dispensing label carries the barcode itself. MCAZ
+    // expects a dispensed script to have one and it does; this kind is the
+    // second, separate sticker, and defaulting it on meant sticking two labels
+    // on every pack to satisfy a requirement one of them already met.
+    if (kind === "barcode") return false;
     return false;
   }
   function willPrint(kind: roll.DocKind) {
@@ -5317,7 +5318,7 @@ ${d.action}`}
                             {/* Why the defaults are what they are, in a line. */}
                             <p className="fin-note">
                               {[
-                                "Labels always",
+                                "Labels always, each carrying the script barcode",
                                 printPick.claim === undefined && printDefault("claim")
                                   ? `claim copy because ${split?.scheme || "the scheme"} pays` : "",
                                 printPick.delivery === undefined && printDefault("delivery")

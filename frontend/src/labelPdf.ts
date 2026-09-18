@@ -155,19 +155,35 @@ interface Block {
   align: "left" | "right";
 }
 
+/** How tall the barcode's bars are, in millimetres, before any shrinking.
+ *
+ *  Small for a barcode and deliberately so: this is a 42mm sticker that was
+ *  already full. Four millimetres of bar reads reliably on a handheld at the
+ *  distance somebody actually scans a dispensed pack, and every tenth of a
+ *  millimetre beyond that is taken from the directions. */
+const BAR_MM = 4.0;
+/** Between the last line of text and the bars. */
+const BAR_GAP_MM = 0.9;
+
 /** Everything on the sticker, in the order it is read, measured before it is
- *  drawn so the whole thing can be checked against the paper. */
-function layout(l: Label, sticker: Sticker): { blocks: Block[]; usedMm: number } {
+ *  drawn so the whole thing can be checked against the paper.
+ *
+ *  `scale` shrinks every size and every gap together. See `fitScale` below for
+ *  why that exists: a label with warnings on it did not fit this sticker and
+ *  never had. */
+function layout(l: Label, sticker: Sticker, scale = 1):
+    { blocks: Block[]; usedMm: number; bars: boolean } {
   const inner = (sticker.wide - PAD_X * 2) * PT;
   const blocks: Block[] = [];
+  const s = (n: number) => n * scale;
   let y = 0;
 
   const put = (text: string, font: FontName, size: number, gap = 1.5,
                firstLimit = inner) => {
-    const lines = wrap(text, font, size, inner, firstLimit);
+    const lines = wrap(text, font, s(size), inner, firstLimit);
     if (!lines.length) return;
-    blocks.push({ at: y, lines, font, size, align: "left" });
-    y += lines.length * size * LEAD + gap;
+    blocks.push({ at: y, lines, font, size: s(size), align: "left" });
+    y += lines.length * s(size) * LEAD + s(gap);
   };
 
   // The medicine, with the quantity and the classification beside it. The name
@@ -176,11 +192,11 @@ function layout(l: Label, sticker: Sticker): { blocks: Block[]; usedMm: number }
     l.quantity ? `${l.quantity}${l.dosage_form ? ` ${l.dosage_form}` : ""}` : "",
     l.schedule_code || (l.schedule ? `S${l.schedule}` : ""),
   ].filter(Boolean).join("   ");
-  const badgeW = badge ? widthOf(badge, "bold", 6.5) + 6 : 0;
+  const badgeW = badge ? widthOf(badge, "bold", s(6.5)) + 6 : 0;
   put(`${l.product_name ?? ""} ${l.strength ?? ""}`.trim(), "bold", 6.6, 0.9,
       inner - badgeW);
   if (badge) {
-    blocks.push({ at: 0, lines: [badge], font: "bold", size: 6.5, align: "right" });
+    blocks.push({ at: 0, lines: [badge], font: "bold", size: s(6.5), align: "right" });
   }
 
   put(String(l.dosage_instructions ?? "").toUpperCase(), "mono", 5.9, 1.2);
@@ -218,7 +234,55 @@ function layout(l: Label, sticker: Sticker): { blocks: Block[]; usedMm: number }
   if (where) put(where, "plain", 5.4, 0.2);
   if (phone) put(`Tel: ${phone}`, "bold", 6.4, 0);
 
-  return { blocks, usedMm: y / PT + PAD_Y * 2 };
+  // The script's own number, as bars, along the bottom. MCAZ expects a
+  // dispensed script to carry one, and until now it went out as a second
+  // sticker that had to be stuck on beside the first.
+  //
+  // The bars do not shrink with the rest. A barcode below a certain module
+  // width simply does not read, and a scaled-down one that cannot be scanned
+  // is worse than none: it looks like it works.
+  const bars = !!(l.rx_number && code128Width(l.rx_number) > 0);
+  if (bars) y += (BAR_GAP_MM + BAR_MM) * PT;
+
+  return { blocks, usedMm: y / PT + PAD_Y * 2, bars };
+}
+
+/** The largest scale at which this label fits the paper it is going on.
+ *
+ *  THE LABEL DID NOT FIT, AND NEVER HAD.
+ *
+ *  A plain label measured 40.5mm of a 42mm sticker, which is where everybody
+ *  stopped looking. Put warnings on it, a long generic name and directions for
+ *  a course of antibiotics, and the same layout wants 54mm. Twelve millimetres
+ *  fall off the bottom of the sticker, and what falls off is the pharmacy's
+ *  own name, address and telephone number. Nothing anywhere said so, because a
+ *  printer driver clips in silence.
+ *
+ *  So the label is measured and shrunk until it fits, rather than laid out at
+ *  fixed sizes and hoped over. Text loses a little size on a busy script; on a
+ *  quiet one nothing changes at all.
+ *
+ *  THE FLOOR IS A LEGIBILITY FLOOR, NOT A SAFETY VALVE.
+ *
+ *  Directions are set at 5.9pt, so 0.78 puts them at 4.6pt, which is about as
+ *  small as a 203dpi thermal head renders something a patient has to read
+ *  standing in their own kitchen. Shrinking further would make every label
+ *  "fit" and some of them unreadable, which is worse than overflowing: an
+ *  overflowing label is at least visibly wrong. At the floor the label is laid
+ *  out at the floor and `labelHeightMm` reports the overflow honestly, so the
+ *  checks can still fail.
+ */
+const FLOOR = 0.78;
+
+function fitScale(l: Label, sticker: Sticker): number {
+  if (layout(l, sticker, 1).usedMm <= sticker.tall) return 1;
+  let low = FLOOR, high = 1;
+  for (let i = 0; i < 12; i++) {
+    const mid = (low + high) / 2;
+    if (layout(l, sticker, mid).usedMm <= sticker.tall) low = mid;
+    else high = mid;
+  }
+  return low;
 }
 
 /** One line of the label, placed. Points, measured from the TOP left, which is
@@ -233,10 +297,49 @@ export interface Placed {
   text: string; x: number; y: number; font: FontName; size: number;
 }
 
+/** Where the bars go, in points from the top left, or null for no barcode.
+ *
+ *  Exported for the same reason `labelPlacement` is: whatever draws a preview
+ *  draws these exact rectangles, so nothing can show a barcode the printer
+ *  does not produce.
+ */
+export interface Bars {
+  rects: { x: number; y: number; w: number; h: number }[];
+  /** The module width in millimetres, which is what decides whether a scanner
+   *  can read it at all. */
+  moduleMm: number;
+  text: string;
+}
+
+export function labelBarcode(l: Label, sticker: Sticker = DEFAULT_STICKER): Bars | null {
+  const text = String(l.rx_number ?? "").trim();
+  if (!text) return null;
+  const modules = code128Width(text);
+  if (!modules) return null;
+
+  const scale = fitScale(l, sticker);
+  const { usedMm } = layout(l, sticker, scale);
+  const inner = (sticker.wide - PAD_X * 2) * PT;
+  const unit = inner / modules;
+  // Sitting on the bottom padding rather than directly under the text: on a
+  // label that shrank, the spare millimetre belongs between the words and the
+  // bars, where it keeps both readable.
+  const top = Math.max(
+    (usedMm - PAD_Y - BAR_MM) * PT,
+    (sticker.tall - PAD_Y - BAR_MM) * PT);
+  return {
+    rects: code128Rects(text).map((r) => ({
+      x: PAD_X * PT + r.x * unit, y: top, w: r.width * unit, h: BAR_MM * PT,
+    })),
+    moduleMm: unit / PT,
+    text,
+  };
+}
+
 export function labelPlacement(l: Label, sticker: Sticker = DEFAULT_STICKER): Placed[] {
   const W = sticker.wide * PT;
   const out: Placed[] = [];
-  for (const block of layout(l, sticker).blocks) {
+  for (const block of layout(l, sticker, fitScale(l, sticker)).blocks) {
     block.lines.forEach((text, i) => {
       const x = block.align === "right"
         ? W - PAD_X * PT - widthOf(text, block.font, block.size)
@@ -253,13 +356,24 @@ export function labelPdf(l: Label, sticker: Sticker = DEFAULT_STICKER): Uint8Arr
   const W = sticker.wide * PT;
   const H = sticker.tall * PT;
 
-  const content = labelPlacement(l, sticker)
+  const text = labelPlacement(l, sticker)
     // PDF's origin is the bottom left and the placement is from the top, which
     // is how a label is read. The nudge is the descender.
     .map((line) => `BT /${FONTS[line.font]} ${line.size} Tf `
       + `${line.x.toFixed(2)} ${(H - line.y + line.size * 0.24).toFixed(2)} Td `
       + `(${pdfText(line.text)}) Tj ET`)
     .join("\n");
+
+  // The bars, as filled rectangles, in the same content stream. Flipped the
+  // same way the text is.
+  const bars = labelBarcode(l, sticker);
+  const drawn = bars
+    ? "0 g\n" + bars.rects
+        .map((r) => `${r.x.toFixed(2)} ${(H - r.y - r.h).toFixed(2)} `
+                  + `${r.w.toFixed(3)} ${r.h.toFixed(2)} re f`)
+        .join("\n")
+    : "";
+  const content = drawn ? `${text}\n${drawn}` : text;
 
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -298,7 +412,18 @@ export function labelPdf(l: Label, sticker: Sticker = DEFAULT_STICKER): Uint8Arr
  *  printed.
  */
 export function labelHeightMm(l: Label, sticker: Sticker = DEFAULT_STICKER): number {
-  return layout(l, sticker).usedMm;
+  // At the scale it will actually be printed at, which is the only figure
+  // worth reporting. Measuring the unshrunk layout answered a question nobody
+  // was asking and said a label overflowed when it was about to fit.
+  return layout(l, sticker, fitScale(l, sticker)).usedMm;
+}
+
+/** How much the label had to give up to fit this sticker. 1 is untouched.
+ *
+ *  Reported so the check scripts can say when a label is being squeezed hard,
+ *  which is a sign the content is too long rather than the paper too small. */
+export function labelFitScale(l: Label, sticker: Sticker = DEFAULT_STICKER): number {
+  return fitScale(l, sticker);
 }
 
 /** A script's barcode, as its own small label.

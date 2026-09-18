@@ -1,6 +1,7 @@
 import { Label, Sale } from "./types";
 import { money } from "./api";
 import { toast } from "./components/Toast";
+import { code128Rects, code128Width } from "./code128";
 
 /** Open a print window with standalone HTML — keeps thermal/label output
  *  independent of the app's screen styling. */
@@ -208,7 +209,7 @@ const LABEL_CSS = `
      medicine is recognised from its first half. */
   .med {
     display: flex; align-items: baseline; gap: 1.5mm;
-    font-weight: bold; font-size: 6.9pt; line-height: 1.08;
+    font-weight: bold; font-size: 6.6pt; line-height: 1.06;
   }
   /* The medicine's name, in full, wrapping onto as many lines as it needs.
      It was clipped with an ellipsis on one line, which printed
@@ -232,7 +233,7 @@ const LABEL_CSS = `
     flex: 1 1 auto; min-height: 0; overflow: hidden;
     margin-top: 0.5mm; padding-bottom: 0.4mm;
     font-family: "Courier New", monospace;
-    font-size: 6.8pt; font-weight: bold; line-height: 1.16;
+    font-size: 6.6pt; font-weight: bold; line-height: 1.13;
     text-transform: uppercase;
   }
 
@@ -251,7 +252,7 @@ const LABEL_CSS = `
      to read off the box without opening the system. */
   .audit {
     flex: 0 0 auto; margin-top: 0.5mm;
-    font-size: 5.9pt; line-height: 1.22; color: #111;
+    font-size: 5.5pt; line-height: 1.16; color: #111;
   }
   .audit div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .audit .who { font-weight: bold; }
@@ -262,7 +263,7 @@ const LABEL_CSS = `
      system somebody else can log into. */
   .foot {
     flex: 0 0 auto; margin-top: 0.5mm;
-    font-size: 5.9pt; line-height: 1.2; color: #111;
+    font-size: 5.5pt; line-height: 1.14; color: #111;
   }
   .sched {
     flex: 0 0 auto; align-self: center; margin-left: 1mm; padding: 0 0.7mm;
@@ -278,9 +279,17 @@ const LABEL_CSS = `
      a heading without being bigger than the telephone line, which is the one
      thing read in a hurry. The street is allowed to wrap onto a second line
      rather than lose its town to an ellipsis. */
-  .foot-who { font-weight: bold; font-size: 6.1pt; }
+  /* The bars sit on the floor of the sticker, below everything, and never
+     shrink with the rest: a barcode narrower than about 0.19mm a module stops
+     being readable, and one that cannot be scanned is worse than none because
+     it looks like it works. */
+  .barcode {
+    flex: 0 0 auto; margin-top: 0.4mm; display: flex; justify-content: center;
+  }
+  .barcode .bars { display: block; }
+  .foot-who { font-weight: bold; font-size: 5.8pt; }
   .foot-where {
-    font-size: 5.6pt; color: #333;
+    font-size: 5.3pt; color: #333;
     white-space: normal; overflow: visible; text-overflow: clip;
   }
 `;
@@ -426,10 +435,35 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
           ${(l.branch_phone || l.pharmacy_phone)
             ? `<b>Tel: ${esc(l.branch_phone || l.pharmacy_phone)}</b>` : ""}
         </div>
+        ${/* The script's own number, as bars, along the bottom. MCAZ expects a
+              dispensed script to carry one. Not escaped because it is not text:
+              it is markup this file built from the number itself. */ ""}
+        ${l.rx_number ? `<div class="barcode">${barcodeSvg(l.rx_number)}</div>` : ""}
       </div>`;
     })
     .join("");
   return `<style>${LABEL_CSS}</style>${body}`;
+}
+
+/** The script number as bars, as an SVG sized in millimetres.
+ *
+ *  The same encoder the PDF label uses, so the two paths cannot print different
+ *  symbols. SVG rather than a canvas because this is built as a string on the
+ *  way into a print window, where there is nothing to draw on yet, and because
+ *  a vector scales to whatever density the driver rasterises at.
+ */
+function barcodeSvg(text: string, wideMm = 54, tallMm = 3.4): string {
+  const clean = String(text ?? "").trim();
+  const modules = clean ? code128Width(clean) : 0;
+  if (!modules) return "";
+  const unit = wideMm / modules;
+  const bars = code128Rects(clean)
+    .map((r) => `<rect x="${(r.x * unit).toFixed(3)}" y="0" `
+              + `width="${(r.width * unit).toFixed(3)}" height="${tallMm}"/>`)
+    .join("");
+  return `<svg class="bars" viewBox="0 0 ${wideMm} ${tallMm}" `
+       + `width="${wideMm}mm" height="${tallMm}mm" preserveAspectRatio="none" `
+       + `shape-rendering="crispEdges" fill="#000" aria-hidden="true">${bars}</svg>`;
 }
 
 /** The labels as a standalone document, for showing what will be printed.

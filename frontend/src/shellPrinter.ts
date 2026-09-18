@@ -40,7 +40,9 @@ export const DOC_KINDS: { kind: DocKind; name: string; hint: string; paper: "rol
   { kind: "claim", name: "Claim copy", paper: "page",
     hint: "A4. The copy that goes in the file or to the funder." },
   { kind: "barcode", name: "Script barcode", paper: "roll",
-    hint: "The Rx number as a barcode. MCAZ expects a dispensed script to carry one." },
+    hint: "A second sticker carrying only the barcode. The dispensing label "
+        + "already has one along its bottom, so this is for a pack that needs "
+        + "the number somewhere else." },
 ];
 
 function keyFor(kind: DocKind): string {
