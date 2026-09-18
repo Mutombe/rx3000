@@ -31,6 +31,7 @@ import BusyButton from "../components/BusyButton";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAsk, useConfirm } from "../components/Confirm";
+import { CANCELLED, useStepUp } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
@@ -382,14 +383,44 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
     branches[0]?.branch_id ?? null);
   const [people, setPeople] = useState<any | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
+  const { guarded, prompt: stepUpPrompt } = useStepUp();
 
-  useEffect(() => {
+  const load = useCallback(() => {
     if (!open) return;
-    setPeople(null);
     api.get<any>(`/api/hq/branches/${open}/people`)
       .then(setPeople)
       .catch((e) => toast.error(errorText(e)));
   }, [open]);
+
+  useEffect(() => { setPeople(null); load(); }, [open, load]);
+
+  /** Take somebody's till code away so they can set a new one.
+   *
+   *  The recovery path for a forgotten code, and the reason asking for the
+   *  current code before changing one does not strand anybody. Clearing is all
+   *  a manager can do: choosing somebody's code would mean an action carrying
+   *  their name proved nothing, which is the whole point of having one.
+   */
+  async function clearCode(person: any) {
+    const ok = await confirm({
+      title: `Clear ${person.full_name}'s till code?`,
+      body: "They set a new one themselves, with their password. Until they do, "
+          + "their till will not lock and the authorisation prompts ask for "
+          + "their password instead. You cannot choose a code for them.",
+      confirmLabel: "Clear the code",
+      destructive: true,
+    });
+    if (!ok) return;
+    const done = await guarded(
+      "user.manage",
+      (token) => api.delete(`/api/auth/pin/${person.id}`, token),
+      `Clear the till code for ${person.full_name}`,
+    );
+    if (done === CANCELLED) return;
+    toast.ok(`${person.full_name} can set a new code now.`);
+    load();
+  }
 
   return (
     <>
@@ -402,12 +433,24 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
           </button>
         ))}
       </div>
-      {!people ? <TableSkeleton cols={4} rows={4} /> : (
+      {!people ? <TableSkeleton cols={5} rows={6} rowHeight={62} />
+       : !people.people.length ? (
+        /* A branch with nobody in it drew a header and then nothing, which
+           reads as a table that failed to load rather than a branch with no
+           staff on it. */
+        <div className="empty">
+          <b>Nobody is assigned to {people.branch} yet.</b>
+          <p>
+            Staff are placed on a branch from their own record. Until somebody
+            is, this branch has no one who can sign in at its till.
+          </p>
+        </div>
+      ) : (
         <div className="dt-scroll">
           <table className="dt">
             <thead>
-              <tr><th>Person</th><th>Role</th><th>Also allowed</th>
-                <th>Prevented from</th></tr>
+              <tr><th>Person</th><th>Role</th><th>Till code</th>
+                <th>Also allowed</th><th>Prevented from</th></tr>
             </thead>
             <tbody>
               {people.people.map((p: any) => (
@@ -420,6 +463,28 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
                     )}
                   </td>
                   <td>{p.role}</td>
+                  {/* Set or not, locked or not, and the one thing a manager
+                      can do about it. Never the code itself: the whole feature
+                      rests on nobody but the owner having known it. */}
+                  <td className="hq-code">
+                    {p.has_pin ? (
+                      <>
+                        <span className={`badge ${p.pin_locked_for ? "warn" : "ok"}`}>
+                          {p.pin_locked_for
+                            ? `locked ${Math.max(1, Math.round(p.pin_locked_for / 60))}m`
+                            : "set"}
+                        </span>
+                        <button type="button" className="ghost small"
+                                onClick={() => clearCode(p)}>
+                          Clear
+                        </button>
+                      </>
+                    ) : (
+                      <span className="muted small">
+                        none yet, they set their own
+                      </span>
+                    )}
+                  </td>
                   <td className="muted small wrap">
                     {p.extra.length ? p.extra.join(", ") : "—"}
                   </td>
@@ -434,6 +499,7 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
           </table>
         </div>
       )}
+      {stepUpPrompt}
     </>
   );
 }

@@ -10569,3 +10569,24 @@ button.fin-ack { cursor: pointer; }
   background: var(--surface-sunk); border: 1px solid var(--line-strong);
   color: var(--ink-mid);
 }
+
+/* The till-code cell on the people list: the state, and the one action a
+   manager has.
+
+   Deliberately NOT `display: flex`. A `td` given a flex display stops being a
+   table cell, and the column detached itself from its own rows: the badges sat
+   between two rows rather than inside one. The two things line up on the
+   baseline instead, which is what a table cell already does well. */
+.hq-code { white-space: nowrap; vertical-align: middle; }
+.hq-code > * { vertical-align: middle; }
+/* The badge is `display: block` inside a table cell elsewhere in the sheet, so
+   it took the whole line and pushed the action beneath it, standing this one
+   row 12px taller than its neighbours. */
+.hq-code .badge { display: inline-flex; }
+.hq-code .badge + button { margin-left: var(--s3); }
+/* The global button height is built for a toolbar and is taller than a table
+   row's line: left alone, the badge and the action wrapped onto two lines and
+   that one row stood taller than every other. */
+.hq-code button {
+  display: inline-flex; height: auto; padding: 2px 9px; line-height: 1.5;
+}

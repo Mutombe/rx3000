@@ -17,6 +17,9 @@ from ..config import settings
 from ..database import get_db
 from ..models import AuditLog, Branch, Sale, User, UserPermission
 from ..services import hq, permissions, user_types
+# Aliased: a route in this module is itself called `pins` (the map pins), and
+# the import was quietly shadowed by it at definition time.
+from ..services import pins as pin_codes
 from ..tenancy import unscoped
 
 router = APIRouter(prefix="/api/hq", tags=["head office"],
@@ -64,6 +67,13 @@ def branch_people(branch_id: int, db: Session = Depends(get_db)):
         "people": [{
             "id": u.id, "full_name": u.full_name, "username": u.username,
             "role": u.role, "active": bool(u.active),
+            # Whether they have a till code, and whether it is locked. Never
+            # the code: this is a list a manager reads, and the one property
+            # the whole feature rests on is that nobody but the owner has ever
+            # known it. It is here so a forgotten code can be cleared from the
+            # screen where the person is, rather than being a dead end.
+            "has_pin": bool(u.pin_hash),
+            "pin_locked_for": pin_codes.locked_for(u),
             "extra": [g.capability for g in permissions.grants_for(db, u.id)
                       if g.allow],
             "denied": [g.capability for g in permissions.grants_for(db, u.id)
