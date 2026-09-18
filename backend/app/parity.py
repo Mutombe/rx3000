@@ -225,11 +225,16 @@ register(Feature(
               "F8 Repts, F9 Hist, F11 Claim Later, Ctrl+R RT Resp, F12 Finish",
     why_it_matters="Experienced staff never touch the mouse. Matching the keys they "
                    "already know removes most of the retraining cost of switching.",
-    rx5000="frontend/src/keymap.ts now carries the incumbent's bindings verbatim "
-           "as one source of truth, checked for conflicts. Wiring each screen to "
-           "them is what remains. One deliberate divergence: F12 finishes a "
-           "script there and here, but here it confirms first, the same key, a "
-           "safer behaviour, because finishing is irreversible once fiscalised."))
+    rx5000="The dispensary binds F1 Mix, F2 Find patient, F3 Add medicine, "
+           "F4 Diagnosis, F5 WayBill, F6 Auth, F8 Repts, F9 Hist, F12 Finish "
+           "and Escape. frontend/src/keymap.ts lists exactly those and nothing "
+           "else, because RX-Assistant answers key questions out of it and a "
+           "key it names has to work; qa/keymap-is-real.mjs fails the build if "
+           "the two drift. Four divergences, each with its reason in the map: "
+           "F2, F3 and F4 carry line properties in the incumbent that we set on "
+           "the line itself, and F12 finishes a script there and here but here "
+           "confirms first, because finishing is irreversible once fiscalised. "
+           "F11 Claim Later and Ctrl+R RT Resp are not bound yet."))
 
 register(Feature(
     key="disp.waybill", name="Waybill / delivery note", area="dispensing",
