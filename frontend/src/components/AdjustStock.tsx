@@ -22,7 +22,7 @@
  *  order rather than by whoever is correcting the count.
  */
 import { useEffect, useState } from "react";
-import { Warning } from "@phosphor-icons/react";
+import { ArrowRight, Warning } from "@phosphor-icons/react";
 
 import { api, errorText } from "../api";
 import type { Product } from "../types";
@@ -104,18 +104,24 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
     }
   }
 
+  const howMany = mode === "set" ? "The count on the shelf"
+    : mode === "add" ? "How many to add" : "How many to remove";
+
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true"
          aria-label={`Adjust the stock of ${product.name}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal adj-modal">
         <h2>{product.name} {product.strength}</h2>
-        <p className="muted">
+        <p className="muted adj-sub">
           This branch holds <b>{here}</b>
           {undated > 0 && <> in date, and {undated} with no expiry recorded</>}.
           Correcting it here writes a stock movement with your name on it.
         </p>
 
+        {/* One question at a time, in the order it is answered: which way, how
+            many, what the shelf becomes. It used to be three of those crammed
+            onto a single row with the number hanging off the end of it. */}
         <div className="adj-how" role="radiogroup" aria-label="How to correct it">
           {([["set", "Set it to"], ["add", "Add"], ["remove", "Remove"]] as const)
             .map(([key, label]) => (
@@ -123,45 +129,64 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
                       className={`adj-mode${mode === key ? " is-on" : ""}`}
                       onClick={() => setMode(key)}>{label}</button>
             ))}
-          <input className="adj-count" type="number" min={0} autoFocus
-                 aria-label={mode === "set" ? "The count on the shelf" : "How many"}
-                 value={count} onChange={(e) => setCount(e.target.value)} />
         </div>
 
-        {/* What the shelf becomes. The whole reason this is here rather than in
-            the number: a dispenser typing 12 into "add" when they meant "set"
-            has added twelve, and the only moment that is cheap to notice is
-            before they press the button. */}
-        <p className={`adj-after${valid && !problem ? " is-ok" : ""}`}>
-          {valid && delta !== 0
-            ? <>The shelf goes from <b>{here}</b> to <b>{after}</b>
-                {" "}({delta > 0 ? `+${delta}` : delta}).</>
-            : <>The shelf stays at <b>{here}</b>.</>}
-        </p>
+        <div className="adj-figure">
+          <label className="adj-count-field">
+            <span>{howMany}</span>
+            <input className="adj-count" type="number" min={0} autoFocus
+                   inputMode="numeric"
+                   aria-label={howMany}
+                   value={count} onChange={(e) => setCount(e.target.value)} />
+          </label>
+
+          {/* What the shelf becomes. The whole reason this is here rather than
+              left in somebody's head: "set to 12" and "add 12" are the same act
+              from different directions, and the mistake is always the
+              direction. Cheap to notice here, expensive afterwards. */}
+          <div className={`adj-becomes${valid && delta !== 0 ? " is-live" : ""}`}>
+            <span className="adj-was">{here}</span>
+            <ArrowRight size={15} className="adj-arrow" aria-hidden="true" />
+            <span className={`adj-now${delta > 0 ? " is-up" : delta < 0 ? " is-down" : ""}`}>
+              {valid ? after : here}
+            </span>
+            {valid && delta !== 0 && (
+              <span className={`adj-delta${delta > 0 ? " is-up" : " is-down"}`}>
+                {delta > 0 ? `+${delta}` : delta}
+              </span>
+            )}
+          </div>
+        </div>
 
         {needsBatch && (
-          <div className="form-row">
-            <div className="field">
-              <label>Batch</label>
-              <input value={batch} placeholder="off the box, optional"
-                     onChange={(e) => setBatch(e.target.value)} />
+          <div className="adj-block">
+            <span className="adj-legend">The pack going on</span>
+            <div className="form-row adj-pack">
+              <div className="field">
+                <label>Batch</label>
+                <input value={batch} placeholder="off the box, optional"
+                       onChange={(e) => setBatch(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>Expiry</label>
+                <input type="date" value={expiry}
+                       onChange={(e) => setExpiry(e.target.value)} />
+              </div>
             </div>
-            <div className="field">
-              <label>Expiry</label>
-              <input type="date" value={expiry}
-                     onChange={(e) => setExpiry(e.target.value)} />
-              <span className="hint">
-                {past
-                  ? <><Warning size={12} weight="fill" /> That pack has expired.</>
-                  : <>Stock with no expiry cannot be dispensed, so this is asked
-                      for while the box is in your hand.</>}
-              </span>
-            </div>
+            <span className={`hint${past ? " is-bad" : ""}`}>
+              {past
+                ? <><Warning size={12} weight="fill" /> That pack has expired.</>
+                : <>Stock with no expiry cannot be dispensed, so this is asked
+                    for while the box is in your hand.</>}
+            </span>
           </div>
         )}
 
-        <div className="field">
-          <label>Why</label>
+        {/* The label above the chips rather than beside them. Beside, it sat
+            vertically centred against three ragged rows of buttons and belonged
+            to none of them. */}
+        <div className="adj-block">
+          <span className="adj-legend">Why</span>
           <div className="adj-reasons">
             {REASONS.map((r) => (
               <button key={r.key} type="button"
@@ -172,17 +197,21 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
           </div>
         </div>
 
-        <div className="field">
-          <label>Note</label>
+        <div className="adj-block">
+          <span className="adj-legend">Note</span>
           <input value={note} placeholder="anything the reason does not cover"
                  onChange={(e) => setNote(e.target.value)} />
         </div>
 
-        <div className="modal-actions">
+        <div className="modal-actions adj-actions">
+          {/* Why the button is off, said beside it. On the button itself it
+              read as a control that had been renamed to an apology. */}
+          {problem && <span className="adj-problem">{problem}</span>}
           <button className="btn ghost" onClick={onClose}>Cancel</button>
           <BusyButton className="btn primary" disabled={!!problem} onClick={save}
                       busyLabel="Correcting…">
-            {problem || `Set the shelf to ${after}`}
+            {delta > 0 ? `Add ${delta}` : delta < 0 ? `Remove ${-delta}`
+              : "Correct the shelf"}
           </BusyButton>
         </div>
       </div>

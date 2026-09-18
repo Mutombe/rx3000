@@ -8249,8 +8249,18 @@ table.dt.sub th { font-size: var(--t-xs); }
    ======================================================================== */
 .disp-dense .card.sec-go.disp-bar {
   display: flex; flex-direction: row; align-items: center; gap: var(--s3);
-  flex-wrap: nowrap; max-height: none; min-height: 0; overflow: visible;
+  flex-wrap: nowrap; max-height: none; overflow: visible;
   padding: 6px var(--s3); margin-top: var(--s2);
+  /* THE STRIP DOES NOT SHRINK.
+
+     It was `flex: 0 1 auto` with `min-height: 0`, which is a licence to be
+     squeezed, and a long list of search results took the licence: the bar
+     carrying "Find the patient first", the dispenser's initials and Finish
+     was crushed to half its height with the words clipped through the
+     middle. The list is the thing with room to give, and it already scrolls;
+     this is the one row on the screen that must always be exactly itself. */
+  flex: 0 0 auto;
+  min-height: fit-content;
 }
 .disp-status {
   flex: 1 1 auto; min-width: 0;
@@ -10444,41 +10454,158 @@ button.fin-ack { cursor: pointer; }
 .ed-stock { font: inherit; }
 
 .adj-modal { max-width: 34rem; }
-/* Set it to, add, remove — and the number beside them, because which of the
-   three is chosen changes what the number means. */
+/* ========================================================================
+   CORRECTING A SHELF
+
+   Answered in the order it is asked: which way, how many, and what the shelf
+   becomes. It used to be all three crammed onto one row with the number
+   hanging off the end, the reason chips wrapping into three ragged lines
+   beside a label that belonged to none of them, and the confirm button
+   renamed into an apology.
+   ======================================================================== */
+.adj-modal { display: grid; gap: var(--s4); }
+.adj-modal > h2 { margin-bottom: 0; }
+.adj-sub { margin: 0; max-width: 56ch; line-height: 1.5; }
+
+/* Which way. A real segmented control: three equal parts, one border, so it
+   reads as one choice rather than three buttons that happen to be adjacent. */
 .adj-how {
-  display: flex; align-items: center; gap: var(--s2);
-  margin: var(--s3) 0 var(--s2); flex-wrap: wrap;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  padding: 3px; gap: 3px;
+  background: var(--surface-sunk, var(--hover));
+  border: 1px solid var(--line); border-radius: var(--r-md);
 }
 .adj-mode {
-  height: 32px; padding: 0 var(--s3); font-size: .84rem; font-weight: 500;
-  border: 1px solid var(--line-strong); border-radius: var(--r-md);
-  background: var(--surface); color: var(--ink-mid);
+  height: 34px; border: 0; background: none; border-radius: 7px;
+  font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid);
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
 }
+.adj-mode:hover:not(.is-on) { color: var(--ink); background: var(--surface); }
 .adj-mode.is-on {
-  background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
+  background: var(--surface); color: var(--ink);
+  box-shadow: 0 1px 2px rgba(22, 22, 29, .1), inset 0 0 0 1px var(--line-strong, var(--line));
 }
-.adj-count {
-  width: 7rem; height: 32px; text-align: right;
-  font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 600;
+
+/* How many, and what it becomes, side by side. The figure is the biggest
+   thing on the dialog because it is the only thing being decided. */
+.adj-figure {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s4);
 }
-/* What the shelf becomes. Typing 12 into "add" when you meant "set" has added
-   twelve, and before the button is pressed is the only cheap moment to see it. */
-.adj-after {
-  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
-  border-radius: var(--r-md); background: var(--surface-sunk);
-  font-size: .86rem; color: var(--ink-mid);
+.adj-count-field { display: grid; gap: 5px; margin: 0; flex: 0 0 auto; }
+.adj-count-field > span {
+  font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-mid);
 }
-.adj-after.is-ok { color: var(--ink); }
-.adj-reasons { display: flex; flex-wrap: wrap; gap: 4px; }
+.adj-modal input.adj-count {
+  width: 7.5rem; height: 56px; padding: 0 var(--s3);
+  font-size: 1.7rem; font-weight: 700; text-align: center;
+  font-variant-numeric: tabular-nums;
+  border: 2px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink);
+}
+.adj-modal input.adj-count:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* Before, after, and the difference. The same shape the estate transfer uses,
+   because it answers the same question. */
+.adj-becomes {
+  flex: 1 1 12rem; min-width: 0;
+  display: flex; align-items: center; justify-content: center; gap: var(--s3);
+  height: 56px; padding: 0 var(--s4);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk, var(--hover));
+  font-variant-numeric: tabular-nums;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.adj-becomes.is-live { border-color: var(--line-strong, var(--line)); }
+.adj-was { font-size: 1.25rem; font-weight: 600; color: var(--ink-mid); }
+.adj-arrow { color: var(--ink-mid); flex: 0 0 auto; opacity: .7; }
+.adj-now { font-size: 1.7rem; font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+.adj-now.is-up { color: var(--ok, #1f6b4f); }
+.adj-now.is-down { color: var(--danger, #9e3226); }
+.adj-delta {
+  font-size: .8rem; font-weight: 700; padding: 2px 8px;
+  border-radius: var(--r-pill); background: var(--surface);
+  border: 1px solid var(--line);
+}
+.adj-delta.is-up { color: var(--ok, #1f6b4f); }
+.adj-delta.is-down { color: var(--danger, #9e3226); }
+
+/* A labelled group. The label sits above what it labels, not vertically
+   centred beside three rows of wrapped chips. */
+.adj-block { display: grid; gap: 7px; }
+.adj-legend {
+  font-size: .72rem; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-mid);
+}
+.adj-block > .hint { margin: 0; }
+.adj-block > .hint.is-bad { color: var(--danger, #9e3226); }
+/* Two fields, stacked label over input like every other group on this dialog.
+   Left to the shared form row they laid their labels BESIDE the inputs, which
+   put two differently aligned label styles on one dialog and squeezed the
+   batch box until its own placeholder was clipped. */
+.adj-modal .adj-pack {
+  margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+}
+.adj-modal .adj-pack .field {
+  margin-bottom: 0; display: grid; grid-template-columns: minmax(0, 1fr);
+  align-items: start; gap: 5px;
+  /* Two columns here, not the shared twelve: a field still carrying span 6
+     eats the whole row and drops the other under it. */
+  grid-column: auto;
+}
+/* The dispensary puts every label in column one and every control in column
+   two, and this dialog is opened from inside it. Placement beats the column
+   template: without putting the children back into the one column, the label
+   stays pinned left of an input sitting in a column that no longer exists. */
+.adj-modal .adj-pack .field > * { grid-column: 1; }
+/* Sentence case, not a second row of small capitals. The legend above already
+   names the group; repeating its typography 20px lower made two labels of
+   equal weight argue over which one was the heading. */
+.adj-modal .adj-pack .field > label {
+  grid-column: 1; grid-row: auto;
+  width: auto; text-align: left; padding: 0; line-height: 1.2;
+  font-size: .78rem; font-weight: 500; letter-spacing: 0;
+  text-transform: none; color: var(--ink-soft); white-space: normal;
+}
+/* And the same height whether it was opened from a product page or from the
+   counter, where every control is squeezed to 30px. */
+.adj-modal .adj-pack .field > input { width: 100%; min-width: 0; height: 38px; }
+.adj-block > .hint {
+  font-size: .78rem; line-height: 1.45; color: var(--ink-mid);
+  display: flex; align-items: flex-start; gap: 5px;
+}
+@media (max-width: 460px) { .adj-modal .adj-pack { grid-template-columns: 1fr; } }
+
+.adj-reasons { display: flex; flex-wrap: wrap; gap: 6px; }
 .adj-reason {
-  height: 28px; padding: 0 var(--s2); font-size: .78rem; font-weight: 500;
-  border: 1px solid var(--line); border-radius: 999px;
-  background: var(--surface); color: var(--ink-mid);
+  height: auto; white-space: normal; text-align: left;
+  padding: 7px 12px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-mid); font-size: .82rem; font-weight: 500;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
 }
+.adj-reason:hover:not(.is-on) { border-color: var(--line-strong); color: var(--ink); }
 .adj-reason.is-on {
-  border-color: var(--accent, var(--ink)); color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--accent, var(--ink));
+  border-color: var(--accent); color: var(--accent); font-weight: 600;
+  background: var(--accent-soft, var(--hover));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Why the button is off, beside the button rather than written onto it. */
+.adj-actions { align-items: center; }
+.adj-problem {
+  margin-right: auto; font-size: var(--t-sm); color: var(--ink-mid);
+  max-width: 30ch; line-height: 1.35;
+}
+
+@media (max-width: 560px) {
+  .adj-figure { gap: var(--s3); }
+  .adj-count-field, .adj-becomes { flex: 1 1 100%; }
+  .adj-modal input.adj-count { width: 100%; }
+  .adj-problem { margin: 0 0 var(--s2); max-width: none; }
 }
 
 /* A figure on the rail that somebody set by hand, as against one the rule
@@ -10679,6 +10806,11 @@ button.fin-ack { cursor: pointer; }
               0 32px 64px -12px rgba(16, 18, 27, .22);
   animation: ax-rise 220ms cubic-bezier(.16, 1, .3, 1);
 }
+/* A dialog is a question the till is waiting on an answer to. The assistant
+   steps out of the way while one is open rather than floating over its
+   controls, and comes back the moment the dialog closes. */
+body:has(.modal-backdrop) .ax-dock { display: none; }
+
 .ax-dock.is-big {
   width: min(46rem, calc(100vw - 2 * var(--s5)));
   max-height: min(52rem, calc(100vh - 5rem));
