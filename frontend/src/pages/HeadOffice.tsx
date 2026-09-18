@@ -35,6 +35,7 @@ import { CANCELLED, useStepUp } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
+import EstateStock from "../components/EstateStock";
 
 interface BranchRow {
   branch_id: number; branch: string; code: string; city: string;
@@ -64,7 +65,7 @@ interface Estate {
   unpinned: string[]; frozen: string[]; quiet: string[]; headline: string;
 }
 
-type Tab = "map" | "people" | "authority" | "logins";
+type Tab = "map" | "stock" | "people" | "authority" | "logins";
 
 export default function HeadOffice() {
   const [estate, setEstate] = useState<Estate | null>(null);
@@ -75,10 +76,23 @@ export default function HeadOffice() {
   const toast = useToast();
   const confirm = useConfirm();
   const ask = useAsk();
+  // Only so the tab can carry a count. The tab's own screen loads its own.
+  const [transit, setTransit] = useState<unknown[] | null>(null);
+  useEffect(() => {
+    api.get<unknown[]>("/api/branches/transfers/in-transit")
+      .then(setTransit).catch(() => setTransit([]));
+  }, []);
 
   const TABS: TabDef<Tab>[] = [
     { key: "map", label: "The estate", count: estate?.branches.length,
       hint: "Where the shops are and what they have taken" },
+    // Beside the estate rather than under administration: moving stock
+    // between shops is a daily operational decision for a group, and the
+    // question it answers, who has this and who needs it, can only be asked
+    // from a screen that can see every branch at once.
+    { key: "stock", label: "Stock across the estate",
+      count: transit?.length || undefined,
+      hint: "Move stock between branches, and what is on the road" },
     { key: "people", label: "Branches & people",
       hint: "Who works where, and what each may do" },
     { key: "authority", label: "Authority",
@@ -291,6 +305,7 @@ export default function HeadOffice() {
           </>
         )}
 
+        {tab === "stock" && <EstateStock />}
         {estate && tab === "people" && <BranchPeople branches={estate.branches} />}
         {/* The floor, then the ceiling, in that reading order. What a role
             gets by default is the thing to settle first; what one named person

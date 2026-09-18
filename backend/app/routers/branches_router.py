@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..models import Branch, BranchTransfer, User
+from ..models import Branch, BranchTransfer, Product, User
 from ..branch_scope import every_branch
 from ..services import branches, permissions
 
@@ -162,6 +162,39 @@ def transfers_in_transit(db: Session = Depends(get_db)):
     # see the gap between the two.
     with every_branch():
         return branches.in_transit(db)
+
+
+@router.get("/transfers/holdings")
+def transfer_holdings(product_id: int, db: Session = Depends(get_db)):
+    """What every branch holds of one product, for deciding where to move it.
+
+    The screen that sends stock has to show both shelves before it moves
+    anything, or "transfer 20" is a number typed into the dark. Unscoped for
+    the same reason the transfer itself is: the question is about the estate,
+    and somebody at head office stands at no branch at all.
+    """
+    with every_branch():
+        product = db.get(Product, product_id)
+        if not product:
+            raise HTTPException(404, "No such product.")
+        rows = (db.query(Branch)
+                .filter(Branch.active.is_(True))
+                .order_by(Branch.name).all())
+        held = []
+        for b in rows:
+            held.append({
+                "branch_id": b.id, "branch": b.name,
+                "code": getattr(b, "code", "") or "",
+                "on_hand": branches.on_hand(db, product_id, b.id),
+            })
+    return {
+        "product_id": product.id,
+        "product": product.name,
+        "strength": product.strength or "",
+        "units_per_pack": product.units_per_pack or 1,
+        "branches": held,
+        "group_total": sum(h["on_hand"] for h in held),
+    }
 
 
 @router.post("/transfers")
