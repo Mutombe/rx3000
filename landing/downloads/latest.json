@@ -1,31 +1,11 @@
 {
-  "version": "1.6.23",
-  "notes": "The till application.\n\nEach build points at `http://localhost:8177` out of the box, which is\nthe single-machine pharmacy. On a counter with its own server, put the\naddress in `server.txt` beside the executable or set `RX5000_SERVER`;\nnothing needs rebuilding.",
-  "pub_date": "2026-09-18T05:26:04.113Z",
+  "version": "1.6.24",
+  "notes": "More of the screen for the script.\n\n**A slimmer bar under the table**\n\nThe strip holding Checked by, Save for later and Finish is now about\nhalf its old height, so the script table shows more lines. Nothing\nmoved: the reason a script cannot go yet still reads on the left, with\nthe warnings beside it, and Finish stays on the right with F12.",
+  "pub_date": "2026-09-18T13:46:16+00:00",
   "platforms": {
-    "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakdUb2RodFMvZ1VjQ1ZEK1lIZnBocWxxUW5UaSsyaDRieHE5RXArUVh1b21jc3JudVZ0Tlc0M1ljUmRWT0xlejlLRVN6aFVIM2tKbnFPYTA1S0pIbEF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MDk5CWZpbGU6Ulg1MDAwXzEuNi4yM19hbWQ2NC5BcHBJbWFnZQpLTkU5eHFqMVhEU0JleERoVWNPOGJEbi83NGh2VjlLa283VGJSMTRPKzliY3E3ZmN3cWVvdnJWSUlGcGlNdHpjeVN5RFFJcUZ5SlhPaGpwRGh1NzJBUT09Cg==",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_amd64.AppImage"
-    },
-    "linux-x86_64-appimage": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakdUb2RodFMvZ1VjQ1ZEK1lIZnBocWxxUW5UaSsyaDRieHE5RXArUVh1b21jc3JudVZ0Tlc0M1ljUmRWT0xlejlLRVN6aFVIM2tKbnFPYTA1S0pIbEF3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MDk5CWZpbGU6Ulg1MDAwXzEuNi4yM19hbWQ2NC5BcHBJbWFnZQpLTkU5eHFqMVhEU0JleERoVWNPOGJEbi83NGh2VjlLa283VGJSMTRPKzliY3E3ZmN3cWVvdnJWSUlGcGlNdHpjeVN5RFFJcUZ5SlhPaGpwRGh1NzJBUT09Cg==",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_amd64.AppImage"
-    },
-    "linux-x86_64-deb": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakhQSTJZNGNUN0lSWGlRc2lOeWJoVjJFYUkvVDhuSjJRaDhUcC9LS0s1VC9PdlVzUUJ2enRnRmhZazBVYmZ4SlUyb1haMVlTS2w2Wk5TQlE1OGRxMVE4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MDk5CWZpbGU6Ulg1MDAwXzEuNi4yM19hbWQ2NC5kZWIKZnZSL0FxQ1J6NjQzZU5KN2tCa0ZJREZab3pTZENXQ1RiTGdWeWdFZURTditRNFpKUjRJd1o1b1BXMnZZNWNLNmtJVllqN0RNUnFaR2VYY0p1ajQrREE9PQo=",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_amd64.deb"
-    },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaklHVG16NzEzNzk2UmZvTEw3aHRGc2NmQlRIM3dHWDJEaHBaRGVkeHVudkJWYzZOVVpYV1hqYnhORFlhd0J5MS9mMVJOQkxNa3p3SDFacWZRNmZwbXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MTYxCWZpbGU6Ulg1MDAwXzEuNi4yM194NjRfZW4tVVMubXNpCjZCRVVHeENxMlAxRzJ2c0JJYVZnSTZkWkxQWGZtV1ZBTU1OM2FxbjlpV3BxNTdYOUVZWTRXdnBqSFVSUFFpZU4xQzhtbGVZL0x0Q1RCa1c1azZxaEFBPT0K",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_x64_en-US.msi"
-    },
-    "windows-x86_64-msi": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUaklHVG16NzEzNzk2UmZvTEw3aHRGc2NmQlRIM3dHWDJEaHBaRGVkeHVudkJWYzZOVVpYV1hqYnhORFlhd0J5MS9mMVJOQkxNa3p3SDFacWZRNmZwbXd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MTYxCWZpbGU6Ulg1MDAwXzEuNi4yM194NjRfZW4tVVMubXNpCjZCRVVHeENxMlAxRzJ2c0JJYVZnSTZkWkxQWGZtV1ZBTU1OM2FxbjlpV3BxNTdYOUVZWTRXdnBqSFVSUFFpZU4xQzhtbGVZL0x0Q1RCa1c1azZxaEFBPT0K",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_x64_en-US.msi"
-    },
-    "windows-x86_64-nsis": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakVlN2JqTExiZWZOQmU1L0Zrb0VaVlJmaU8xY1pndmZWUzkvejRKSXcvMWxDS1U4OGYvODd3M3BOSi9FY2RTdDhmUXRpbGhaWGhad002aXJnNEs3ZHdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzA5MTYxCWZpbGU6Ulg1MDAwXzEuNi4yM194NjQtc2V0dXAuZXhlClZqeVhPVHNObnFpVXZMQ1dmcWJBSlMzN0FMMjRlcTJCTFJmTTV0QkszV1FXK00rU3V1ZXcvS05pVlRjZ3JWMmdQVTJSaDNydHdQcnk3T2gySVFqU0NnPT0K",
-      "url": "https://github.com/Mutombe/rx3000/releases/download/v1.6.23/RX5000_1.6.23_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakd1K0xaMk5ocEZsdWlxNU5JQ09Idk1lT3N0SEV6M1d4L0pUTEdGYlVvdDdWVFFXRWFQQU9XUXc0b1FMTGVxeFJRUEFTWTZUYStmNWtjNzh3dTE1UkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzM5MTczCWZpbGU6Ulg1MDAwXzEuNi4yNF94NjQtc2V0dXAuZXhlCktTRktEQ1djZE5jd1J2a2cySFYrZGNzVmJQR1dETTA0U0d1Y0VRaGNMYlMwMFFIQncxVjJTdkJxUnZjSjRPOTdLTlZXdDJYSHFENmRxUVRyWDZKTER3PT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.24_x64-setup.exe"
     }
   }
 }
