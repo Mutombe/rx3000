@@ -264,9 +264,12 @@ TOOLS: list[dict] = [
                 "title": {"type": "string"},
                 "mermaid": {
                     "type": "string",
-                    "description": "Mermaid source, usually 'flowchart LR' or "
-                                   "'stateDiagram-v2'. Keep it to a dozen nodes: "
-                                   "this is read on a till screen.",
+                    "description": "Mermaid source. Lay it out SIDEWAYS: "
+                                   "'flowchart LR', or 'stateDiagram-v2' with "
+                                   "'direction LR' on its first line. Top to "
+                                   "bottom produces a thousand pixels of column "
+                                   "that nobody reads on a till. At most eight "
+                                   "nodes, short labels, no styling.",
                 },
             },
             "required": ["title", "mermaid"],

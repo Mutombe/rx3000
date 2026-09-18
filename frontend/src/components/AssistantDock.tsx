@@ -15,7 +15,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { X, Sparkle, ArrowSquareOut } from "@phosphor-icons/react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { readStored, writeStored } from "../storage";
 import AssistantChat from "./AssistantChat";
@@ -47,6 +47,10 @@ export default function AssistantDock({ open, onClose }: {
   onClose: () => void;
 }) {
   const panel = useRef<HTMLDivElement | null>(null);
+  // Not on top of the page it is a smaller copy of. Two identical
+  // conversations side by side, each with its own history, is a choice nobody
+  // should have to make about which one to type into.
+  const onItsOwnPage = useLocation().pathname.startsWith("/assistant");
 
   // Escape closes it, like every other layer in this product. Bound only while
   // it is open, so it cannot swallow Escape from the script underneath.
@@ -59,7 +63,7 @@ export default function AssistantDock({ open, onClose }: {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || onItsOwnPage) return null;
 
   return (
     // No scrim. The page behind stays usable on purpose: the routes it draws

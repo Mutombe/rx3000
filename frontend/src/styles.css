@@ -10791,8 +10791,17 @@ button.fin-ack { cursor: pointer; }
 }
 @media (prefers-reduced-motion: reduce) { .is-pointed-at { animation: none; } }
 
-.ax-diagram-box { overflow-x: auto; }
+/* A diagram is bounded or it is not a diagram.
+   Left to itself Mermaid lays a state machine out top to bottom and hands back
+   a thousand pixels of column, which on a till screen is a thing you scroll
+   past rather than read. The box keeps a sensible frame and scrolls inside it;
+   the model is asked separately to lay out sideways. */
+.ax-diagram-box {
+  overflow: auto; max-height: min(52vh, 30rem);
+  display: flex; justify-content: center;
+}
 .ax-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.ax.is-compact .ax-diagram-box { max-height: 17rem; }
 .ax-diagram-fell { margin-top: var(--s2); font-size: .8rem; color: var(--ink-mid); }
 .ax-diagram-fell pre { overflow-x: auto; font-size: .74rem; }
 
