@@ -10590,3 +10590,31 @@ button.fin-ack { cursor: pointer; }
 .hq-code button {
   display: inline-flex; height: auto; padding: 2px 9px; line-height: 1.5;
 }
+
+/* ---- the search results end somewhere ------------------------------------
+   The list of matches scrolls inside the space between the patient band and
+   the commit strip. It had `border: 0`, so a row that happened to be half
+   scrolled was guillotined against the strip below it with nothing to say
+   where the list stopped: the row, the strip and the key bar read as one
+   broken band rather than as three things.
+
+   Two parts to it. A rule, which is the edge that was missing, and snapping,
+   so the list comes to rest on a whole row and there is nothing to cut.
+
+   A fade over the bottom edge was the first attempt and is not here: a mask
+   applies to the element's own box, so it faded out the very border it was
+   meant to sit above, and then dimmed the last row once the list was scrolled
+   to its end. Snapping fixes the cause rather than blurring it. */
+/* The rule belongs to the STRIP, not to the list.
+   Put on the list it sat inside the masked box and was faded away with the row
+   it was meant to separate, which is a border nobody can see. On the strip it
+   is outside the mask: the list dissolves into a line that is actually there,
+   and the strip and the key bar read as their own band again. */
+.disp-dense .card.sec-go.disp-bar {
+  border-top: 1px solid var(--line-strong, var(--line));
+}
+/* And the list settles on whole rows rather than stopping wherever the wheel
+   happened to leave it. `proximity`, not `mandatory`: it tidies the resting
+   position without fighting a fast scroll through two hundred matches. */
+.disp-dense .card.sec-items { scroll-snap-type: y proximity; }
+.disp-dense .card.sec-items > .product-pick { scroll-snap-align: end; }
