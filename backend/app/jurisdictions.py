@@ -230,7 +230,7 @@ ZW_SCHEDULES = {
                     "patient personally before supplying and record the assessment."),
     3: _pp(3),
     4: _pp(4),
-    5: _sched(5, "Prescription preparation - Tenth Schedule", "controlled", code="PP10",
+    5: _sched(5, "Prescription preparation, Tenth Schedule", "controlled", code="PP10",
               script=True, pharmacist=True, register=True, max_repeats=0, months=0,
               verify_id=True, sight_script=True, verify_prescriber=True, counsel=True,
               notes="Tight statutory record-keeping. Register entry, identity "

@@ -10,6 +10,11 @@ It is also the sheet a new dispenser is handed on their first morning, which is
 why the caution column is written in plain sentences rather than symbols. A
 legend that needs its own legend gets left in a drawer.
 
+Set through `brand`, like everything else RX5000 puts on paper. This sheet used
+to carry its own greys and its own Helvetica, so an inspector handed it and a
+claim copy on the same morning was handed two documents that did not look like
+they came from the same company.
+
 Pure reportlab, no system libraries: a pharmacy server should not need GTK
 installed to produce one page of A4.
 """
@@ -18,21 +23,20 @@ from __future__ import annotations
 import io
 from datetime import date
 
-from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import (BaseDocTemplate, Frame, PageTemplate, Paragraph,
                                 Spacer, Table, TableStyle)
 
-INK = colors.HexColor("#16161d")
-MID = colors.HexColor("#4a4956")
-FAINT = colors.HexColor("#7c7b87")
-LINE = colors.HexColor("#d9d9e0")
-WASH = colors.HexColor("#f2f2f6")
-WARN = colors.HexColor("#8a5a12")
-WARN_BG = colors.HexColor("#fdf4e6")
+from . import brand
+
+INK = brand.INK
+MID = brand.SOFT
+FAINT = brand.FAINT
+LINE = brand.RULE
+WASH = brand.TINT
+WARN = brand.STOP
+WARN_BG = brand.TINT
 
 TITLES = {
     "quantity": "How much",
@@ -54,7 +58,7 @@ PRINCIPLE = (
 
 WHY_IT_MATTERS = (
     "Abbreviations cause dispensing errors when they are read by somebody other "
-    "than the person who wrote them &mdash; a patient at home, a nurse on a "
+    "than the person who wrote them: a patient at home, a nurse on a "
     "ward, a locum the following morning. Expanding at the point of entry means "
     "the only person who ever reads a code is the dispenser who typed it, "
     "seconds after typing it. Where a code can still be read two ways by that "
@@ -63,28 +67,17 @@ WHY_IT_MATTERS = (
 
 
 def _styles():
-    base = getSampleStyleSheet()
+    """The brand's styles, under the names this sheet already calls them.
+
+    Mapped rather than renamed throughout: the table below is the part an
+    inspector reads and it has been proof-read against real code books. A
+    rename would have touched every row of it to change nothing anybody sees.
+    """
+    st = brand.styles()
     return {
-        "h1": ParagraphStyle("h1", parent=base["Title"], fontName="Helvetica-Bold",
-                             fontSize=17, leading=21, textColor=INK,
-                             alignment=TA_LEFT, spaceAfter=2),
-        "sub": ParagraphStyle("sub", parent=base["Normal"], fontName="Helvetica",
-                              fontSize=9, leading=13, textColor=FAINT),
-        "body": ParagraphStyle("body", parent=base["Normal"], fontName="Helvetica",
-                               fontSize=9.2, leading=13.4, textColor=MID),
-        "h2": ParagraphStyle("h2", parent=base["Normal"],
-                             fontName="Helvetica-Bold", fontSize=10, leading=13,
-                             textColor=INK, spaceBefore=9, spaceAfter=4),
-        "cell": ParagraphStyle("cell", parent=base["Normal"], fontName="Helvetica",
-                               fontSize=8.6, leading=11.4, textColor=INK),
-        "cellmid": ParagraphStyle("cellmid", parent=base["Normal"],
-                                  fontName="Helvetica", fontSize=8.6,
-                                  leading=11.4, textColor=MID),
-        "code": ParagraphStyle("code", parent=base["Normal"],
-                               fontName="Courier-Bold", fontSize=9,
-                               leading=11.4, textColor=INK),
-        "warn": ParagraphStyle("warn", parent=base["Normal"], fontName="Helvetica",
-                               fontSize=8.2, leading=10.8, textColor=WARN),
+        "h1": st["title"], "sub": st["sub"], "body": st["body"],
+        "h2": st["section"], "cell": st["strong"], "cellmid": st["small"],
+        "code": st["mono"], "warn": st["warn"],
     }
 
 
@@ -105,24 +98,17 @@ def build(book: dict, *, pharmacy: str, branch: str = "",
     if branch.strip().lower() == pharmacy.strip().lower():
         branch = ""
 
-    def furniture(canvas, doc):
-        canvas.saveState()
-        canvas.setStrokeColor(LINE)
-        canvas.setLineWidth(0.5)
-        canvas.line(18 * mm, 16 * mm, A4[0] - 18 * mm, 16 * mm)
-        canvas.setFont("Helvetica", 7.6)
-        canvas.setFillColor(FAINT)
-        canvas.drawString(18 * mm, 11 * mm,
-                          f"{pharmacy}{' · ' + branch if branch else ''}"
-                          f" · dispensing shorthand"
-                          f" · {date.today():%d %B %Y}")
-        canvas.drawRightString(A4[0] - 18 * mm, 11 * mm, f"Page {doc.page}")
-        canvas.restoreState()
+    def furniture(canvas, d):
+        brand.letterhead(
+            canvas, d, kind="Dispensing shorthand",
+            stamp=f"{book.get('count', 0)} codes · {date.today():%d %b %Y}",
+            footer_left=f"{pharmacy}{' · ' + branch if branch else ''}",
+            footer_right="Expanded in full on every label printed.")
 
     doc = BaseDocTemplate(buf, pagesize=A4,
-                          leftMargin=18 * mm, rightMargin=18 * mm,
-                          topMargin=16 * mm, bottomMargin=20 * mm,
-                          title=f"{pharmacy} — dispensing shorthand",
+                          leftMargin=16 * mm, rightMargin=16 * mm,
+                          topMargin=32 * mm, bottomMargin=20 * mm,
+                          title=f"{pharmacy}, dispensing shorthand",
                           author=pharmacy)
     frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                   id="body", showBoundary=0)
@@ -167,7 +153,7 @@ def build(book: dict, *, pharmacy: str, branch: str = "",
             rows.append([
                 Paragraph(c["code"], st["code"]),
                 Paragraph(c["expansion"], st["cell"]),
-                Paragraph(c.get("meaning") or "&mdash;", st["cellmid"]),
+                Paragraph(c.get("meaning") or "", st["cellmid"]),
                 Paragraph(c.get("caution") or "", st["warn"]),
             ])
         table = Table(rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
