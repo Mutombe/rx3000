@@ -118,6 +118,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
   {
     section: "Dispensary",
     links: [
+      // Where a script is captured, priced, checked and handed over. The
+      // patient, the prescriber and the medicines go in at the top; the lines
+      // build in the table below; F12 finishes it. Everything else in this
+      // section is something that happens before or after this screen.
       { to: "/dispense", label: "Dispensary", icon: Prescription, tier: 1 },
       { to: "/patients", label: "Patients", icon: Users, tier: 1 },
       { to: "/to-follows", label: "To follows", icon: ClockCountdown },
