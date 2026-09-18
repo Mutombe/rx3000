@@ -1,11 +1,11 @@
 {
-  "version": "1.6.24",
-  "notes": "More of the screen for the script.\n\n**A slimmer bar under the table**\n\nThe strip holding Checked by, Save for later and Finish is now about\nhalf its old height, so the script table shows more lines. Nothing\nmoved: the reason a script cannot go yet still reads on the left, with\nthe warnings beside it, and Finish stays on the right with F12.",
-  "pub_date": "2026-09-18T13:46:16+00:00",
+  "version": "1.6.25",
+  "notes": "RX-Assistant answers on this machine.\n\n**The assistant works in the installed app**\n\nIt was asking the wrong address. The app talks to your pharmacy server for\neverything else, but the assistant was looking for its answer on the app\nitself, found nothing there, and reported that the server did not have the\nfeature yet. The server had it all along. It now asks the same address as the\nrest of the app.\n\n**Correcting a count, arranged in the order it is asked**\n\nWhich way, how many, and what the shelf becomes, with the new figure shown\nbeside the old one before you commit it. The batch and the expiry now sit\nunder their own labels instead of squeezed beside them, and the reason a\ncorrection cannot go yet is written next to the button rather than onto it.\n\n**A steady bar under the script**\n\nThe strip holding Checked by, Save for later and Finish no longer shrinks\nwhen a search fills the table. It stays the same height whether the list is\nempty or full.\n\n**The function keys the assistant teaches are the ones that work**\n\nAsk it which key does what and it now answers from the dispensary itself. It\nhad been reading an older list that offered keys no screen binds.\n\n**Also**\n\nDownloading a backup from the admin screen works in the installed app.",
+  "pub_date": "2026-09-18T14:52:16+00:00",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakd1K0xaMk5ocEZsdWlxNU5JQ09Idk1lT3N0SEV6M1d4L0pUTEdGYlVvdDdWVFFXRWFQQU9XUXc0b1FMTGVxeFJRUEFTWTZUYStmNWtjNzh3dTE1UkFzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzM5MTczCWZpbGU6Ulg1MDAwXzEuNi4yNF94NjQtc2V0dXAuZXhlCktTRktEQ1djZE5jd1J2a2cySFYrZGNzVmJQR1dETTA0U0d1Y0VRaGNMYlMwMFFIQncxVjJTdkJxUnZjSjRPOTdLTlZXdDJYSHFENmRxUVRyWDZKTER3PT0K",
-      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.24_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVST2Nhejg5SmNUakwyS2FPQ3kwNVpvb0xCUHpRK2JOZzhrTG1JeUpZdzhEZ2hZNmpYUTdvaFhEcm5OSFg5eTlreTRhRGgrdVAyOEJqR3ZrbWJWM1JzQUZUbHZnRmJ0SVFZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg5NzQyOTkyCWZpbGU6Ulg1MDAwXzEuNi4yNV94NjQtc2V0dXAuZXhlCjJHSHMwazN4c1hMRjVvY0ZGdzFSM1hUczdSNmplWTR2c3hsaDJUYXltbEYrdjViYkpmUFFIWmlPRmxKaitwRnBYdFhmRkdtOVB5VUxieHVhTW5CT0FnPT0K",
+      "url": "https://rx3000-site.onrender.com/downloads/RX5000_1.6.25_x64-setup.exe"
     }
   }
 }
