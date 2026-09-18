@@ -377,16 +377,25 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
         )}
 
         {usePassword ? (
-          <label>
-            Password
+          /* Given the same weight as the code boxes, and the same width, so
+             swapping between them does not resize the dialog under the hand
+             that is typing. It was a default height field under a small label:
+             the same dialog asking for the same thing, and one of the two
+             looked like an afterthought. */
+          <div className="su-pin su-pass">
+            <span className="su-pin-label">
+              {needsSecondPerson ? "Approver's password" : "Your password"}
+            </span>
             <input
               type="password"
+              className="su-pass-box"
               value={password}
               autoFocus={!needsSecondPerson}
               autoComplete="off"
+              aria-label={needsSecondPerson ? "Approver's password" : "Your password"}
               onChange={(e) => setPassword(e.target.value)}
             />
-          </label>
+          </div>
         ) : (
           <div className="su-pin" ref={pinBoxes}>
             <span className="su-pin-label">

@@ -10818,3 +10818,31 @@ button.fin-ack { cursor: pointer; }
   margin: var(--s3) 0 0; max-width: 78ch;
 }
 .ax-knows svg { flex: 0 0 auto; margin-top: 3px; color: var(--accent); }
+
+/* The password, given the weight the code boxes have.
+   Exactly as wide as the four boxes beside it (4 x 66px plus 3 gaps), so
+   switching between a code and a password does not resize the dialog under
+   the hand that is typing into it. */
+.su-pass { width: 100%; }
+.su-pin input.su-pass-box {
+  /* Selected as `.su-pin input.su-pass-box` rather than `.su-pass-box`, and
+     that matters. The dispensary sets `.disp-dense input { height: 30px }` for
+     its dense controls, which outranks a single class, and this dialog opens
+     inside it: the field measured a full 80px on every other screen and 30px
+     on the one where it is actually used. `flex: 0 0 auto` because `.su-pin`
+     is a column, and a flex item shrinks along the column. */
+  flex: 0 0 auto;
+  width: 300px; max-width: 100%; height: 80px;
+  text-align: center; letter-spacing: .34em;
+  font-size: 1.7rem; font-family: var(--font-mono);
+  border: 2px solid var(--line-strong); border-radius: var(--r-lg);
+  background: var(--surface); color: var(--ink);
+  caret-color: var(--accent);
+}
+.su-pin input.su-pass-box:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+@media (max-width: 420px) {
+  .su-pin input.su-pass-box { width: 268px; height: 70px; font-size: 1.45rem; }
+}
