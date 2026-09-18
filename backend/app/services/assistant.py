@@ -180,13 +180,20 @@ def find_keys(query: str) -> list[dict]:
 
 
 # --------------------------------------------------------------------- tools
-#: `strict` so the model's calls match these shapes exactly. Without it a route
-#: step can arrive with a key the interface does not draw, and the failure is
-#: silent: a step that simply is not there.
+#: NO `strict` HERE, AND IT IS NOT AN OVERSIGHT.
+#:
+#: Strict tools would guarantee these shapes exactly, which is what the
+#: documentation recommends and what I reached for first. They switch the
+#: request into programmatic tool calling, which the fast wayfinding model does
+#: not support, and wayfinding is the great majority of what gets asked. A
+#: guarantee that costs the model it is meant to run on is not a guarantee.
+#:
+#: So the interface tolerates instead: a route step needs only a label, every
+#: other field is optional, and a step with nothing to click renders as a chip
+#: that does not pretend to be a button.
 TOOLS: list[dict] = [
     {
         "name": "find_in_app",
-        "strict": True,
         "description": (
             "Search RX5000 for a screen, a tab, a field or a keyboard shortcut. "
             "Use this before answering ANY question about where something is or "
@@ -210,7 +217,6 @@ TOOLS: list[dict] = [
     },
     {
         "name": "show_route",
-        "strict": True,
         "description": (
             "Draw the steps to get somewhere, as chips the person can click. "
             "Use this whenever you are explaining how to do something: it is far "
@@ -246,7 +252,6 @@ TOOLS: list[dict] = [
     },
     {
         "name": "show_diagram",
-        "strict": True,
         "description": (
             "Draw a diagram when the shape of something is the answer: how a "
             "claim moves between states, what happens to stock when a script is "
@@ -270,7 +275,6 @@ TOOLS: list[dict] = [
     },
     {
         "name": "think_harder",
-        "strict": True,
         "description": (
             "Hand this question to the larger model. Call it when the question "
             "is not about where something is but about judgement, analysis, "
@@ -347,14 +351,26 @@ def run(question: str, history: list[dict] | None = None, *,
         return
 
     client = _get_client()
-    tools: list[dict] = list(TOOLS)
-    if web:
-        tools.append({
-            "type": "web_search_20260209",
-            "name": "web_search",
-            "max_uses": 3,
-            "allowed_domains": REGULATOR_DOMAINS,
-        })
+
+    def toolset(for_model: str) -> list[dict]:
+        """The tools, which are not the same on both models.
+
+        The web search tool is a server tool and requires programmatic tool
+        calling, which the fast wayfinding model does not support: attaching it
+        there fails the whole request with a 400 rather than degrading. That is
+        the right split anyway. Checking a circular is precisely the kind of
+        question that should have gone to the bigger model, so it arrives with
+        the search available and the fast model hands over to reach it.
+        """
+        tools = list(TOOLS)
+        if web and for_model == THINKING_MODEL:
+            tools.append({
+                "type": "web_search_20260209",
+                "name": "web_search",
+                "max_uses": 3,
+                "allowed_domains": REGULATOR_DOMAINS,
+            })
+        return tools
 
     messages: list[dict] = list(history or [])
     messages.append({"role": "user", "content": question})
@@ -373,15 +389,16 @@ def run(question: str, history: list[dict] | None = None, *,
         # opening pass makes the preamble impossible rather than discouraged,
         # and it enforces the rule that matters anyway: look it up before you
         # answer. Afterwards it chooses for itself.
-        choice: dict = ({"type": "any", "disable_parallel_tool_use": True}
-                        if _pass == 0 else
-                        {"type": "auto", "disable_parallel_tool_use": True})
+        # No `disable_parallel_tool_use` here: the API refuses it alongside
+        # strict tools, and schema conformance is worth more than one call per
+        # turn. The loop below already handles a pass that calls several.
+        choice: dict = {"type": "any"} if _pass == 0 else {"type": "auto"}
         try:
             with client.messages.stream(
                 model=model,
                 max_tokens=4000,
                 system=SYSTEM + HOUSE_STYLE,
-                tools=tools,
+                tools=toolset(model),
                 tool_choice=choice,
                 messages=messages,
             ) as stream:

@@ -32,6 +32,7 @@ import {
   SignOut,
   Siren,
   SlidersHorizontal,
+  Sparkle,
   SquaresFour,
   Storefront,
   Truck,
@@ -63,6 +64,7 @@ import ThemeToggle from "./ThemeToggle";
 import Tooltips from "./Tooltips";
 import TillLock from "./TillLock";
 import UpdateChip from "./UpdateChip";
+import AssistantDock, { useDock } from "./AssistantDock";
 import ClaudeIcon from "./ClaudeIcon";
 
 /** The navigation, ordered by how often a pharmacy actually touches each screen.
@@ -216,7 +218,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // What a repeat patient is worth beyond the line, and what to have
       // on the shelf before the month that sells it.
       { to: "/seasons", label: "Basket & seasons", icon: Basket },
-      { to: "/assistant", label: "Pulse AI", icon: ClaudeIcon },
+      // Was "Pulse AI", which asked one question at a time against a fixed
+      // snapshot and could not be asked where anything was. Same route, so
+      // anybody's bookmark still works.
+      { to: "/assistant", label: "RX-Assistant", icon: ClaudeIcon },
     ],
   },
   {
@@ -367,6 +372,9 @@ export default function Layout({ children }: { children: ReactNode }) {
   const rail = useRailWidth(collapsed);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  // Held here rather than in the dock, so the chip in the bar and the panel
+  // in the corner cannot disagree about whether it is open.
+  const dock = useDock();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // A menu that only closes on its own button is a menu people leave open. Any
@@ -405,6 +413,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       {/* Re-reading the session on a hand-over is not a refinement. Without it
           the next person at the keyboard inherits the last one's capabilities,
           which is the exact failure the till lock exists to prevent. */}
+      <AssistantDock open={dock.open} onClose={() => dock.setOpen(false)} />
       <TillLock user={user} onActorChange={(u) => { setUser(u); session.refresh(); }} />
       <aside className="sidebar">
         {/* The rail's own edge is the control. `separator` with an orientation
@@ -529,6 +538,22 @@ export default function Layout({ children }: { children: ReactNode }) {
               twice a day, and burying it under a caret makes people live with
               the wrong one. Outside the menu's ref on purpose, so using it also
               closes an open profile menu. */}
+          {/* The way in to RX-Assistant, left of both the update chip and the
+              branch, because it is the one thing up here somebody reaches for
+              on purpose rather than reads in passing. It opens the dock over
+              whatever they are doing: the question always arrives mid-script,
+              and sending somebody to another page to ask it is the reason they
+              would not. */}
+          <button
+            type="button"
+            className={`ax-chip${dock.open ? " is-on" : ""}`}
+            onClick={() => dock.setOpen(!dock.open)}
+            aria-pressed={dock.open}
+            title="Ask RX-Assistant where something is"
+          >
+            <Sparkle size={14} weight="fill" />
+            <span className="ax-chip-name">RX-Assistant</span>
+          </button>
           {/* A new version of the till application, when there is one.
               Left of the branch chip, so the two facts about this session.
               What is available and where you are. Sit together, and both are

@@ -1,141 +1,74 @@
-import { FormEvent, useEffect, useState } from "react";
-import { api } from "../api";
-import AiOutput from "../components/AiOutput";
-import { ClockCounterClockwise } from "@phosphor-icons/react";
-import AiHistory from "../components/AiHistory";
-import ClaudeIcon from "../components/ClaudeIcon";
-import AiPhase from "../components/AiPhase";
-import { useAiStream } from "../hooks/useAiStream";
-import { useTypewriter } from "../hooks/useTypewriter";
+/** RX-Assistant, with room to work.
+ *
+ *  The same conversation as the dock in the corner, at full width, for the
+ *  questions that want a diagram or a long answer rather than a route and a
+ *  sentence. Somebody training on a quiet afternoon opens this; somebody
+ *  mid-script uses the dock.
+ *
+ *  This replaced Pulse AI, which asked one question at a time against a fixed
+ *  snapshot of six figures and could not be asked where anything was. The
+ *  history of those conversations is kept and still readable.
+ */
+import { useEffect, useState } from "react";
+import { Sparkle } from "@phosphor-icons/react";
 
-interface Exchange {
-  question: string;
-  answer: string;
+import { api } from "../api";
+import AssistantChat from "../components/AssistantChat";
+import AiHistory from "../components/AiHistory";
+
+interface Atlas {
+  generated: string;
+  screens: number;
+  keys: number;
+  models: { wayfinding: string; thinking: string };
 }
 
-const SUGGESTIONS = [
-  "How are sales this month compared to what you can see?",
-  "What are our top sellers this week?",
-  "Which products should we reorder urgently?",
-  "How many scripts did we dispense in the last 7 days?",
-];
-
 export default function Assistant() {
-  const [question, setQuestion] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
-  /* Bumped when an answer has been saved, so the drawer refetches rather than
-     showing a list that is one question out of date the moment you open it. */
-  const [logVersion, setLogVersion] = useState(0);
-  const [history, setHistory] = useState<Exchange[]>([]);
-  /* The answer arrives as it is written rather than all at once.
-     Twelve seconds of blank screen reads as a system that has hung, and the
-     pharmacist reaches for the back button at about second five. The same
-     twelve seconds spent watching a sentence form reads as thinking. */
-  const { ask: stream, stop, text: live, phase, error: streamError, streaming } = useAiStream();
-  const shown = useTypewriter(live, streaming);
-  const busy = streaming;
-  const [status, setStatus] = useState<{ enabled: boolean; model: string } | null>(null);
+  const [atlas, setAtlas] = useState<Atlas | null>(null);
+  const [history, setHistory] = useState(false);
 
   useEffect(() => {
-    api.get<{ enabled: boolean; model: string }>("/api/ai/status").then(setStatus);
+    api.get<Atlas>("/api/ai/assistant/atlas").then(setAtlas).catch(() => setAtlas(null));
   }, []);
-
-  const [asking, setAsking] = useState("");
-
-  async function ask(e?: FormEvent, preset?: string) {
-    e?.preventDefault();
-    const q = preset ?? question;
-    if (!q.trim()) return;
-    setQuestion("");
-    setAsking(q);
-    await stream(q);
-  }
-
-  // The finished answer moves into the history, so the live pane only ever
-  // holds the one being written.
-  useEffect(() => {
-    if (!streaming && asking && live) {
-      setHistory((h) => [{ question: asking, answer: live }, ...h]);
-      setAsking("");
-      // The server has just written this one to the log.
-      setLogVersion((n) => n + 1);
-    }
-  }, [streaming, asking, live]);
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>Pulse AI</h1>
+          <h1>RX-Assistant</h1>
           <div className="sub">
-            Ask questions about your pharmacy's live data, powered by Claude
-            {status && !status.enabled && " (currently disabled: add ANTHROPIC_API_KEY to backend/.env)"}
+            Where things are in RX5000, how they are done, and what the codes
+            mean. It can draw you the steps and take you there.
           </div>
         </div>
-        {/* Top right, where a history control is looked for. Every answer is
-            kept, so a question worth twelve seconds of a model's time is not
-            thrown away by a page refresh. */}
-        <button className="btn secondary small" onClick={() => setHistoryOpen(true)}>
-          <ClockCounterClockwise size={14} weight="bold" /> History
+        <button className="btn secondary" onClick={() => setHistory(true)}>
+          Past questions
         </button>
       </div>
 
-      <AiHistory
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        reloadKey={logVersion}
-        onOpenEntry={(e) => setHistory((h) => (
-          // Shown at the top, and never twice: reopening the same entry moves it
-          // up rather than stacking a second copy of the same answer.
-          [{ question: e.question, answer: e.answer },
-           ...h.filter((x) => !(x.question === e.question && x.answer === e.answer))]
-        ))}
-      />
-
-      <div className="card">
-        <form onSubmit={ask} style={{ display: "flex", gap: 10 }}>
-          <input
-            placeholder="e.g. Which lines are running low that sold well this week?"
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-          />
-          {busy ? (
-            <button type="button" className="secondary" onClick={stop} style={{ whiteSpace: "nowrap" }}>
-              Stop
-            </button>
-          ) : (
-            <button style={{ whiteSpace: "nowrap" }}>
-              <ClaudeIcon size={14} /> Ask
-            </button>
-          )}
-        </form>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
-          {SUGGESTIONS.map((s) => (
-            <button key={s} className="secondary small" onClick={() => ask(undefined, s)} disabled={busy}>{s}</button>
-          ))}
-        </div>
+      <div className="card ax-page">
+        <AssistantChat />
       </div>
 
-      {/* The answer being written, with what is happening above it. */}
-      {(asking || busy) && (
-        <div className="card">
-          <h3>“{asking}”</h3>
-          <AiPhase phase={phase} />
-          {streamError && <div className="alert error">{streamError}</div>}
-          {shown && (
-            <p className={`ai-live${streaming ? " ai-caret" : ""}`}>{shown}</p>
-          )}
-        </div>
+      {/* What it actually knows, said plainly. An assistant that will not say
+          where its answers come from is one nobody should believe, and the
+          honest answer here is short: it has read the software, not the shop. */}
+      {atlas && (
+        <p className="muted small ax-knows">
+          <Sparkle size={12} weight="fill" /> Reads a map of{" "}
+          <b>{atlas.screens}</b> screens and <b>{atlas.keys}</b> keyboard
+          shortcuts, rebuilt with the software. It knows what RX5000 does, not
+          what your pharmacy has done: nothing here reads a patient or a sale.
+        </p>
       )}
 
-      {history.map((h, i) => (
-        <div className="card" key={i}>
-          <h3>“{h.question}”</h3>
-          <AiOutput text={h.answer} title="Assistant answer" context={h.question} />
-        </div>
-      ))}
-      {history.length === 0 && (
-        <div className="card"><div className="empty">Ask anything about sales, stock, scripts or patients. Answers are grounded in your live database.</div></div>
+      {history && (
+        <AiHistory
+          open={history}
+          onClose={() => setHistory(false)}
+          onOpenEntry={() => setHistory(false)}
+          reloadKey={0}
+        />
       )}
     </>
   );

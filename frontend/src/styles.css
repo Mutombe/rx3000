@@ -10618,3 +10618,194 @@ button.fin-ack { cursor: pointer; }
    position without fighting a fast scroll through two hundred matches. */
 .disp-dense .card.sec-items { scroll-snap-type: y proximity; }
 .disp-dense .card.sec-items > .product-pick { scroll-snap-align: end; }
+
+/* ========================================================================
+   RX-ASSISTANT
+   ======================================================================== */
+
+/* The way in, in the top bar. Quieter than a primary button and louder than
+   the chips beside it: it is the one thing up there somebody reaches for on
+   purpose rather than reads in passing. */
+.ax-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 11px; border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong, var(--line));
+  background: var(--surface); color: var(--ink);
+  font-size: .82rem; font-weight: 600; white-space: nowrap;
+}
+.ax-chip:hover { background: var(--hover); }
+.ax-chip.is-on {
+  border-color: var(--accent); color: var(--accent);
+  background: var(--accent-soft, var(--hover));
+}
+.ax-chip svg { flex: 0 0 auto; }
+@media (max-width: 1100px) { .ax-chip-name { display: none; } }
+
+/* ---- the dock -----------------------------------------------------------
+   No scrim, on purpose. The routes it draws point at the page behind it, and
+   a layer that blocks what it is pointing at is pointing at nothing. */
+.ax-dock {
+  position: fixed; right: var(--s5); bottom: var(--s5); z-index: 120;
+  width: min(30rem, calc(100vw - 2 * var(--s5)));
+  max-height: min(38rem, calc(100vh - 6rem));
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: 0 18px 50px rgba(22, 22, 29, .26);
+}
+.ax-dock-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); padding: var(--s3) var(--s3) var(--s3) var(--s4);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-sunk, var(--hover));
+}
+.ax-dock-name {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: .84rem; font-weight: 700; color: var(--ink);
+}
+.ax-dock-acts { display: inline-flex; align-items: center; gap: 2px; }
+.ax-dock-btn {
+  display: inline-grid; place-items: center; width: 28px; height: 28px;
+  border: 0; background: none; border-radius: var(--r-sm);
+  color: var(--ink-mid); cursor: pointer;
+}
+.ax-dock-btn:hover { background: var(--hover); color: var(--ink); }
+@media (max-width: 620px) {
+  .ax-dock {
+    right: 0; bottom: 0; left: 0; width: auto;
+    max-height: 76vh; border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
+}
+
+/* ---- the conversation ---------------------------------------------------- */
+.ax { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.ax-thread {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--s4); display: flex; flex-direction: column; gap: var(--s5);
+}
+.ax-page { display: flex; flex-direction: column; min-height: 26rem; height: 62vh; padding: 0; }
+.ax.is-compact .ax-thread { padding: var(--s3); gap: var(--s4); }
+
+.ax-open { display: grid; gap: var(--s3); padding: var(--s3) 0; }
+.ax-open-say { margin: 0; color: var(--ink-mid); font-size: var(--t-sm); max-width: 52ch; }
+.ax-openers { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.ax-opener {
+  height: auto; white-space: normal; text-align: left;
+  padding: 7px 11px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-mid); font-size: .82rem;
+}
+.ax-opener:hover { border-color: var(--accent); color: var(--accent); background: var(--hover); }
+
+.ax-turn { display: grid; gap: var(--s3); }
+/* What was asked, set apart from what was answered. Right aligned rather than
+   bubbled: a chat bubble in a dispensary reads as a toy. */
+.ax-asked {
+  margin: 0; justify-self: end; max-width: 85%;
+  padding: 7px 12px; border-radius: var(--r-lg);
+  background: var(--surface-sunk, var(--hover));
+  border: 1px solid var(--line);
+  font-size: var(--t-sm); font-weight: 600; color: var(--ink);
+}
+
+/* The work, shown rather than hidden behind a spinner. A spinner says wait and
+   nothing else; these say what is being done, and somebody who can see it
+   working will wait. */
+.ax-steps-live { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.ax-steps-live li {
+  display: flex; align-items: center; gap: 7px;
+  font-size: .79rem; color: var(--ink-mid);
+}
+.ax-steps-live li.is-done { opacity: .75; }
+.ax-steps-live svg { flex: 0 0 auto; color: var(--accent); }
+.ax-step-done { opacity: .8; }
+.ax-step-done::before { content: "\00b7\00a0"; }
+.ax-model {
+  margin: 0; font-size: .79rem; font-weight: 600; color: var(--accent);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.ax-said { font-size: var(--t-base); line-height: 1.6; }
+.ax-said > :first-child { margin-top: 0; }
+.ax-said > :last-child { margin-bottom: 0; }
+
+/* ---- the route ----------------------------------------------------------
+   The reason this exists rather than a help page. Chips that go there. */
+.ax-route, .ax-diagram {
+  margin: 0; padding: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk, var(--hover));
+}
+.ax-route-title {
+  font-size: .72rem; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-mid);
+  margin-bottom: var(--s2);
+}
+.ax-steps {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+}
+.ax-steps > li { display: inline-flex; align-items: center; gap: 4px; }
+.ax-arrow { color: var(--ink-mid); flex: 0 0 auto; }
+.ax-step {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: auto; white-space: normal; text-align: left;
+  padding: 6px 10px; border-radius: var(--r-md);
+  border: 1px solid var(--line-strong, var(--line));
+  background: var(--surface); color: var(--ink);
+  font-size: .82rem; font-weight: 600;
+}
+.ax-step:not(:disabled):hover {
+  border-color: var(--accent); color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+.ax-step:disabled { opacity: 1; cursor: default; color: var(--ink-mid); }
+/* A step that CHANGES something is not the same instruction as one that moves
+   you, and on a system where finishing fiscalises a receipt the difference is
+   worth a stripe. */
+.ax-step.does { box-shadow: inset 3px 0 0 var(--accent); }
+.ax-step-n {
+  display: inline-grid; place-items: center; flex: 0 0 auto;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface-sunk, var(--hover));
+  font-size: .64rem; font-weight: 700; color: var(--ink-mid);
+  font-family: var(--font-mono);
+}
+.ax-step-mark { color: var(--accent); flex: 0 0 auto; }
+.ax-key {
+  font-family: var(--font-mono); font-size: .66rem; font-weight: 500;
+  padding: 1px 4px; border-radius: 3px;
+  border: 1px solid var(--line); background: var(--surface-sunk, var(--hover));
+  color: var(--ink-mid);
+}
+
+/* What a route points at, when it arrives. Deliberately brief: it says this
+   one, and then gets out of the way. */
+.is-pointed-at {
+  animation: ax-point 2.4s ease;
+  border-radius: var(--r-sm);
+}
+@keyframes ax-point {
+  0%, 70% { box-shadow: 0 0 0 3px var(--accent-ring), 0 0 0 1px var(--accent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .is-pointed-at { animation: none; } }
+
+.ax-diagram-box { overflow-x: auto; }
+.ax-diagram-box svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.ax-diagram-fell { margin-top: var(--s2); font-size: .8rem; color: var(--ink-mid); }
+.ax-diagram-fell pre { overflow-x: auto; font-size: .74rem; }
+
+/* ---- the question ------------------------------------------------------- */
+.ax-ask {
+  flex: 0 0 auto; display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s3); border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.ax-ask input { flex: 1 1 auto; min-width: 0; }
+.ax-send, .ax-stop { flex: 0 0 auto; width: 38px; padding: 0; }
+.ax-knows {
+  display: flex; align-items: flex-start; gap: 6px;
+  margin: var(--s3) 0 0; max-width: 78ch;
+}
+.ax-knows svg { flex: 0 0 auto; margin-top: 3px; color: var(--accent); }
