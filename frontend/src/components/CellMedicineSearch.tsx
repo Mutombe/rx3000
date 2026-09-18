@@ -18,7 +18,7 @@ import { api } from "../api";
 import type { Product } from "../types";
 
 export default function CellMedicineSearch({
-  route, current, takenIds, onPick, onCancel, onTab,
+  route, current, takenIds, onPick, onCancel, onTab, adding = false,
 }: {
   route: string;
   /** The medicine on the line now, shown as the placeholder. */
@@ -28,6 +28,10 @@ export default function CellMedicineSearch({
   onPick: (product: Product) => void;
   onCancel: () => void;
   onTab: (direction: 1 | -1) => void;
+  /** Opened on an empty row to add a line rather than on a line to swap it.
+   *  Only the words change: a screen reader saying "swap" on a row with
+   *  nothing on it describes the wrong action. */
+  adding?: boolean;
 }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Product[]>([]);
@@ -58,7 +62,8 @@ export default function CellMedicineSearch({
         autoFocus
         value={q}
         placeholder={current}
-        aria-label={`Swap ${current}: search by name`}
+        aria-label={adding ? "Add a medicine: search by name"
+                           : `Swap ${current}: search by name`}
         aria-expanded={hits.length > 0}
         onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => {
@@ -82,7 +87,8 @@ export default function CellMedicineSearch({
         onBlur={onCancel}
       />
       {hits.length > 0 && rect && (
-        <ul className="cell-menu" role="listbox" aria-label="Medicines to swap in"
+        <ul className="cell-menu" role="listbox"
+            aria-label={adding ? "Medicines to add" : "Medicines to swap in"}
             style={{ left: rect.left, top: rect.bottom + 4, width: Math.max(rect.width, 380) }}>
           {hits.map((p, i) => {
             const taken = !pickable(p);

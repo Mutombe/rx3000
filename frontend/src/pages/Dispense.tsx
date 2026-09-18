@@ -349,6 +349,14 @@ export default function Dispense() {
    *  number, so deleting a line above cannot move the editor onto another. */
   const [cellEdit, setCellEdit] = useState<{
     id: number; col: "medicine" | "qty" | "sig" | "money"; orig: string | number } | null>(null);
+  /** Whether the first empty row is currently a medicine search.
+   *
+   *  The rows below the script are where the next line goes, so that is where
+   *  asking for one should happen. Sending the hand back up to the Medicine
+   *  field to add a fourth line, when the eye is already on the row the fourth
+   *  line will occupy, is the trip this saves. The field above still works and
+   *  is still the keyboard's way in; this is the mouse's. */
+  const [newLine, setNewLine] = useState(false);
   /** Lines whose price is being authorised, by product id. The row keeps its
    *  old figure with a spinner beside it rather than flickering to the new one
    *  and back if the code is refused. */
@@ -4228,8 +4236,14 @@ export default function Dispense() {
                   because a table shows where the work GOES as well as where it
                   is. Which is what somebody needs on a new script and why the
                   system we are compared to draws its empty rows. */}
-              <div className="rx-item-head rx-item-cols" aria-hidden="true">
-                <span className="rx-col-edit" title="Double-click a cell to edit it">
+              {/* The header answers the same double-click as the empty rows.
+                  It is the top of the Medicine column, and somebody who wants
+                  another medicine aims at the word rather than hunting for the
+                  first free row, particularly on a script that already has a
+                  dozen lines and the free rows are off the bottom. */}
+              <div className="rx-item-head rx-item-cols" aria-hidden="true"
+                   onDoubleClick={() => setNewLine(true)}>
+                <span className="rx-col-edit" title="Double-click to add a medicine">
                   Medicine <PencilSimpleLine size={11} />
                 </span>
                 <span className="rx-item-qty rx-col-edit" title="Double-click a cell to edit it">
@@ -4465,20 +4479,55 @@ ${d.action}`}
                   at its floor. A fixed eight overflowed as soon as the patient's
                   details made the lane above taller, and an empty table grew a
                   scrollbar for rows with nothing in them. */}
+              {/* THE FIRST EMPTY ROW IS WHERE THE NEXT MEDICINE IS ASKED FOR.
+
+                  Double-clicking an empty row used to throw focus back up to
+                  the Medicine field above the table, which is the one place the
+                  eye is not: it is on the row it just aimed at. So the row
+                  becomes the search, in the place the line is about to appear,
+                  and the same double-click that edits a line already on the
+                  script starts the one that is not there yet.
+
+                  It sits between the script's lines and the ruled rows below,
+                  so on an empty script it IS the first row and on a script with
+                  three lines it is the fourth. One of the ruled rows below
+                  stands down while it is open, so the table does not grow a row
+                  and shunt everything under it. */}
+              {newLine && (
+                <div className="rx-item rx-item-new">
+                  <div className="rx-item-head">
+                    <span className="rx-item-name is-editing">
+                      <CellMedicineSearch
+                        adding
+                        route={route}
+                        current="Search for a medicine"
+                        takenIds={items.map((x) => x.product.id)}
+                        onPick={(p) => { setNewLine(false); addItem(p); }}
+                        onCancel={() => setNewLine(false)}
+                        // Tab out of a line that does not exist yet has nowhere
+                        // to go, so it closes rather than moving to a column of
+                        // a row nothing has been chosen for.
+                        onTab={() => setNewLine(false)}
+                      />
+                    </span>
+                    <span className="rx-item-qty" /><span /><span className="rx-item-money" />
+                    <span className="rx-item-margin" /><span className="rx-item-actions" />
+                  </div>
+                </div>
+              )}
               {/* The empty rows are where the next line goes, so double-clicking
                   one starts the work rather than doing nothing. The same gesture
                   that edits a line that is already there. Mouse-only and
                   decorative, so it stays hidden from assistive technology: the
                   keyboard has F3, which is the documented way in. */}
               <div className="rx-waiting" aria-hidden="true"
-                   onDoubleClick={() => document
-                     .querySelector<HTMLInputElement>("[data-hk='product']")?.focus()}>
-              {Array.from({ length: 24 }).map((_, i) => (
+                   onDoubleClick={() => setNewLine(true)}>
+              {Array.from({ length: newLine ? 23 : 24 }).map((_, i) => (
                 <div key={`waiting-${i}`} className="rx-item rx-item-waiting"
                      aria-hidden="true">
                   <div className="rx-item-head">
                     <span className="rx-item-name">
-                      {i === 0 && items.length === 0 && (
+                      {i === 0 && items.length === 0 && !newLine && (
                         <em className="rx-item-hint">Double-click here to start, or press F3</em>
                       )}
                     </span>
