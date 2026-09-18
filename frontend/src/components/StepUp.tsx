@@ -36,6 +36,7 @@ import { api } from "../api";
 import { useSession } from "../session";
 import BusyButton from "./BusyButton";
 import PinInput from "./PinInput";
+import { toast } from "./Toast";
 
 /** Kept beside the dialog that reads it, so "is the PIN finished" is one fact
  *  rather than a 4 typed in two files that can drift apart. */
@@ -76,6 +77,10 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
   const [pinRefused, setPinRefused] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Sent for checking, so the dialog is off the screen. It stays mounted, and
+   *  keeps everything typed into it, because a refusal has to be able to put it
+   *  back exactly as it was rather than as a fresh prompt. */
+  const [sent, setSent] = useState(false);
   const needsSecondPerson = spec && !spec.self_approval;
   const { me } = useSession();
 
@@ -181,6 +186,24 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     if (!enough || (needsSecondPerson && !approver.trim()) || busy) return;
     setBusy(true);
     setError("");
+
+    // THE DIALOG GOES NOW, NOT WHEN THE SERVER ANSWERS.
+    //
+    // Checking a code is a password hash: about a third of a second of
+    // deliberate work on the server, before the network. Holding a modal over
+    // the screen for that is holding the counter still for it, and the whole
+    // point of a four-digit code is that authorising costs four keystrokes.
+    //
+    // So the last keystroke closes it. The action behind it carries its own
+    // waiting mark — the line being priced sits with a spinner and its old
+    // figure until the server settles it — which is where somebody is already
+    // looking, and it is the honest place to say the work is not finished.
+    //
+    // Refusal brings the dialog back with what the server said, the boxes
+    // empty and shaking. That is the cost of this, and it is the right way
+    // round: the common case is a correct code, and it is the common case that
+    // should be instant.
+    setSent(true);
     try {
       const res = await api.post<{ token: string }>("/api/step-up", {
         action,
@@ -190,6 +213,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
       });
       onGranted(res.token);
     } catch (err: any) {
+      setSent(false);
       // The server's refusal is the useful message — "not permitted to approve",
       setPinRefused(!usePassword);
       // "needs a second person", "that password was not accepted", so it is
@@ -199,6 +223,9 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
       // The boxes shake, then empty themselves. Retyping over a wrong PIN one
       // digit at a time is how the second attempt becomes a third.
       setPin("");
+      // Said as well as shown. The dialog was gone, the eye had moved on, and
+      // a prompt that silently reappears is one somebody types into twice.
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -279,12 +306,15 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
     );
   }
 
+  // Away while the code is being checked. Not unmounted: everything typed is
+  // still here, ready to be put back if the server refuses it.
+  if (sent) return null;
+
   return (
     <div className="modal-backdrop" onClick={onCancel}>
-      <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+      <form className="modal modal-narrow su" onClick={(e) => e.stopPropagation()}
+            onSubmit={submit}>
         <h2>{spec ? spec.name : "Authorisation required"}</h2>
-
-        {spec && <p className="muted">{spec.why}</p>}
 
         {madeFor && (
           <div className="alert ok su-made" role="status">
@@ -302,13 +332,12 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
             {spec!.approvers.join(" or ")} to enter
             their own username and password, not yours.
           </p>
-        ) : (
-          <p className="muted">
-            {usePassword
-              ? "Re-enter your password to confirm."
-              : "Enter your till PIN to confirm."}
-          </p>
-        )}
+        ) : null
+        /* Nothing here. The action is named in the title, the boxes carry
+           their own label and are the largest thing on the dialog, and a
+           paragraph explaining why the software wants a code is a paragraph
+           read once and skipped forever after, with a patient at the counter. */
+        }
 
         {/* A refusal is the most important thing on the dialog the moment it
             happens: it says whether to try again, fetch a manager, or stop.
@@ -389,12 +418,11 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
           </button>
         </div>
 
+        {/* Kept, because it is the sentence that makes typing a code
+            reasonable rather than a nuisance, and cut to the two facts it
+            actually carries: once, and on the record. */}
         {spec && (
-          <p className="muted small">
-            Valid for {Math.round(spec.valid_seconds / 60)} minute
-            {spec.valid_seconds >= 120 ? "s" : ""}, for this one action. Every attempt
-            is recorded, including refusals.
-          </p>
+          <p className="muted small">This one action, and it is recorded.</p>
         )}
 
         <div className="modal-actions">

@@ -4479,17 +4479,63 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   80% { transform: translateX(4px); }
 }
 @media (prefers-reduced-motion: reduce) { .pin.is-wrong { animation: none; } }
+/* Gone to the server. The boxes are disabled while this is true, and a disabled
+   input drawn in the browser's grey reads as broken rather than busy — which is
+   what makes somebody type the code a second time. They keep their own colours
+   and breathe instead. */
+.pin.is-checking .pin-box {
+  opacity: 1; background: var(--surface); color: var(--ink);
+  border-color: var(--accent); -webkit-text-fill-color: var(--ink);
+}
+.pin.is-checking { animation: pin-checking 1s ease-in-out infinite; }
+@keyframes pin-checking {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .62; }
+}
+@media (prefers-reduced-motion: reduce) { .pin.is-checking { animation: none; } }
+
+/* ---------- the code, where the dialog exists to take one ----------
+   On a prompt whose whole job is four digits, the four digits are the biggest
+   thing on it. Anywhere else a PIN field is one control among several and
+   stays the size above; here it leads, centred, so the hand goes to it without
+   reading anything first. */
+.lock-card .pin,
+.su-pin .pin {
+  display: flex; justify-content: center; gap: var(--s3);
+}
+.lock-card .pin-box,
+.su-pin .pin-box {
+  width: 66px; height: 80px;
+  font-size: 2.15rem; border-radius: var(--r-lg);
+  border-width: 2px;
+}
+@media (max-width: 420px) {
+  .lock-card .pin-box,
+  .su-pin .pin-box { width: 58px; height: 70px; font-size: 1.9rem; }
+  .lock-card .pin,
+  .su-pin .pin { gap: var(--s2); }
+}
 
 /* The PIN inside an authorisation prompt, and the way back to a password. */
-.su-pin { display: flex; flex-direction: column; gap: var(--s2); margin: var(--s3) 0; }
-.su-pin-label { font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid); }
+.su-pin {
+  display: flex; flex-direction: column; align-items: center;
+  gap: var(--s2); margin: var(--s4) 0 var(--s5);
+}
+.su-pin-label {
+  font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid);
+  letter-spacing: .04em; text-transform: uppercase;
+}
 .su-swap { text-decoration: underline; }
 /* The two ways out of the prompt, on one line: a different credential, or the
    code they have not got yet. Both are ways forward, so neither is buried. */
+/* Centred under the boxes, because the boxes are the axis of this dialog and a
+   row of links hanging off its left edge reads as belonging to something else. */
 .su-ways {
-  display: flex; flex-wrap: wrap; align-items: center;
-  gap: var(--s3); margin-bottom: var(--s2);
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: var(--s4); margin-bottom: var(--s2);
 }
+.su .modal-actions > .btn { min-width: 7rem; }
+.su > p.muted.small { text-align: center; }
 .su-make-offer {
   display: inline-flex; align-items: center; gap: 5px;
   text-decoration: underline;
@@ -4532,8 +4578,14 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 .lock-who { display: flex; align-items: baseline; gap: var(--s3); margin: 0; }
 .lock-who .muted { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; }
 .lock-field { display: flex; flex-direction: column; gap: 4px; margin: 0; }
-.lock-actions { display: flex; justify-content: flex-start; }
-.lock-note { margin: 0; }
+/* Under the boxes and centred on them. Enlarging the boxes left these two
+   sitting tight beneath the row, close enough to read as captions for it. */
+.lock-actions {
+  display: flex; justify-content: center; gap: var(--s5);
+  margin-top: var(--s2);
+}
+.lock-card .pin { margin-top: var(--s2); }
+.lock-note { margin: 0; text-align: center; }
 
 /* Setting a PIN: two codes and a password, side by side where there is room. */
 .pin-setup { display: flex; gap: var(--s5); flex-wrap: wrap; align-items: flex-end; }
@@ -8760,6 +8812,16 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .rx-item-sig.is-editing .sig-row { gap: 0; }
 .rx-col-edit { gap: 4px; }
 .rx-col-edit svg { flex: 0 0 auto; opacity: .55; }
+
+/* The row that is not a line yet: the first empty row, being asked what goes
+   on it. Ruled like its neighbours so the table does not jump when it opens,
+   and marked on the left edge so it is obvious which row the answer lands on
+   when there are twenty of them below it. */
+.disp-dense .rx-item-new > .rx-item-head {
+  min-height: 30px;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.disp-dense .rx-item-new > .rx-item-head:hover { background: none; }
 
 /* A price somebody set by hand.
    Marked on the row rather than only in a report, because the next person to

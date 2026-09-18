@@ -215,6 +215,7 @@ export default function TillLock({
           onComplete={unlock}
           invalid={!!error}
           disabled={busy}
+          checking={busy}
         />
 
         <div className="lock-actions">

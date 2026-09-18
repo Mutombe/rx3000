@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 
 export default function PinInput({
   length = 4, value, onChange, onComplete, disabled, autoFocus = true, invalid,
+  checking = false,
 }: {
   length?: number;
   value: string;
@@ -26,6 +27,13 @@ export default function PinInput({
   disabled?: boolean;
   autoFocus?: boolean;
   invalid?: boolean;
+  /** The code has gone to the server and is being checked.
+   *
+   *  Distinct from `disabled`, which greys the boxes out. Checking a code takes
+   *  a third of a second of hashing before the network is counted, and boxes
+   *  that go grey and inert for that long read as broken rather than busy —
+   *  which is when somebody types it again. */
+  checking?: boolean;
 }) {
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
   const [shake, setShake] = useState(false);
@@ -50,7 +58,9 @@ export default function PinInput({
   };
 
   return (
-    <div className={`pin${shake ? " is-wrong" : ""}${invalid ? " is-invalid" : ""}`}>
+    <div className={`pin${shake ? " is-wrong" : ""}${invalid ? " is-invalid" : ""}`
+                    + (checking ? " is-checking" : "")}
+         aria-busy={checking || undefined}>
       {Array.from({ length }, (_, i) => (
         <input
           key={i}
