@@ -273,8 +273,8 @@ export default function Payables() {
       {/* "Working out what is owed…" is a sentence where a table is about to
           be, so the page jumps when it arrives. The skeleton holds the shape. */}
       {!ageing ? (
-        <TableSkeleton cols={5} rows={5}
-          widths={["24ch", "12ch", "12ch", "12ch", "12ch"]} />
+        <TableSkeleton cols={8} rows={8} rowHeight={58}
+          widths={["24ch", "12ch", "12ch", "10ch", "10ch", "10ch", "10ch", "8ch"]} />
       ) : (
         <>
           <div className="wc-bands">

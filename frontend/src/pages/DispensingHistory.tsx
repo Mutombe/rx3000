@@ -147,7 +147,11 @@ export default function DispensingHistory() {
 
         {failed && <div className="alert error">{failed}</div>}
 
-        {!failed && rows.length === 0 && (
+        {/* "Nothing matches that" is a finding, and it can only be reported
+            once the server has answered. It used to be rendered on the first
+            paint, before anything had been asked, so the screen told the
+            counter there were no dispensings and then produced them. */}
+        {!failed && !loading && rows.length === 0 && (
           <div className="empty">
             <b>Nothing matches that.</b>
             <p>
@@ -158,7 +162,11 @@ export default function DispensingHistory() {
           </div>
         )}
 
-        {rows.length > 0 && (
+        {/* The skeleton used to sit inside `rows.length > 0`, where it could
+            never run: by the time there were rows there was nothing to stand
+            in for. It wraps the table itself now, which is the only place it
+            was ever any use. */}
+        {(loading || rows.length > 0) && (
           <>
             {owing > 0.005 && (
               <p className="muted">
@@ -168,8 +176,14 @@ export default function DispensingHistory() {
             <Refreshable
               loading={loading}
               hasData={!!data?.items?.length}
-              skeleton={<TableSkeleton cols={7} rows={6}
-                widths={["14ch", "12ch", "18ch", "20ch", "6ch", "12ch", "10ch"]} />}
+              // Nine columns, because the table has nine. It claimed seven, so
+              // even where it did render the page moved when the data landed.
+              skeleton={<TableSkeleton cols={9} rows={9} rowHeight={72}
+                widths={["13ch", "11ch", "16ch", "18ch", "4ch", "12ch", "9ch",
+                         "11ch", "3ch"]}
+                // Script, Patient, Money and Collected each carry a second
+                // line on a real row.
+                secondLine={[1, 2, 6, 7]} />}
             >
             <table className="dt">
               <thead>

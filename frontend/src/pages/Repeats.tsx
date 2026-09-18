@@ -368,8 +368,8 @@ export default function Repeats() {
           <Refreshable
             loading={loading}
             hasData={!!due?.items.length}
-            skeleton={<TableSkeleton cols={6} rows={6}
-              widths={["18ch", "22ch", "10ch", "10ch", "10ch", "12ch"]} />}
+            skeleton={<TableSkeleton cols={8} rows={8} rowHeight={69}
+              widths={["18ch", "22ch", "10ch", "9ch", "9ch", "11ch", "9ch", "6ch"]} />}
           >
             <div className="dt-scroll">
               <table className="dt">

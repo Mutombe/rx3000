@@ -1963,6 +1963,10 @@ td.actions > * + * { margin-left: var(--s2); }
 /* The skeleton table must occupy the same footprint as the real one, so it
  * reuses .dt and only the cell contents differ. */
 .sk-table td, .sk-table th { vertical-align: middle; }
+/* The quieter line under a cell's first, matching the real `.muted.small`
+   second lines. Blocked out so the ghost row is exactly as tall as the row it
+   stands in for, which is the whole job. */
+.sk-table td .sk-under { display: block; margin-top: 4px; }
 
 .sk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s3); }
 .sk-stat { display: grid; gap: var(--s2); }

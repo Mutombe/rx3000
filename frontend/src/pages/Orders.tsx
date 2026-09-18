@@ -140,7 +140,7 @@ export default function Orders() {
           <Refreshable
             loading={loading}
             hasData={orders.length > 0}
-            skeleton={<TableSkeleton cols={8} rows={5} widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
+            skeleton={<TableSkeleton cols={8} rows={8} rowHeight={55} widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
           >
             <table>
               <thead>
@@ -200,7 +200,7 @@ export default function Orders() {
             />
           )}
         </Refreshable>
-          {orders.length === 0 && (
+          {!loading && orders.length === 0 && (
             <div className="empty">No purchase orders yet, generate them from reorder levels.</div>
           )}
         </div>

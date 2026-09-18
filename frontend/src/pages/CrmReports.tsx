@@ -312,7 +312,7 @@ export default function CrmReports() {
                 ))}
               </tbody>
             </table>
-            {loading && forecast.length === 0 && <TableSkeleton cols={4} rows={4} />}
+            {loading && forecast.length === 0 && <TableSkeleton cols={6} rows={6} rowHeight={45} />}
             {!loading && forecast.length === 0 && (
               <div className="empty">
                 <b>No dated opportunities to forecast</b>

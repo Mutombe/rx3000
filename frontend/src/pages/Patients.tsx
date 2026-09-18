@@ -93,7 +93,7 @@ export default function Patients() {
           loading={loading}
           hasData={patients.length > 0}
           skeleton={
-            <TableSkeleton cols={7} rows={6}
+            <TableSkeleton cols={7} rows={9} rowHeight={70}
               widths={["22ch", "14ch", "16ch", "16ch", "14ch", "8ch", "10ch"]} />
           }
         >
@@ -162,7 +162,12 @@ export default function Patients() {
             />
           )}
         </Refreshable>
-        {patients.length === 0 && <div className="empty">No patients found</div>}
+        {/* Only once the search has actually answered. "No patients found" on
+            the first paint tells somebody their patient is not on file, a
+            moment before the file appears. */}
+        {!loading && patients.length === 0 && (
+          <div className="empty">No patients found</div>
+        )}
       </div>
 
       {showForm && (

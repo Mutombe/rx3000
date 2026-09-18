@@ -204,7 +204,7 @@ export default function ToFollows() {
         skeleton={
           /* Seven columns, six rows — the same footprint the real table takes,
              so nothing moves when the data lands. */
-          <TableSkeleton cols={7} rows={6}
+          <TableSkeleton cols={7} rows={8} rowHeight={69}
             widths={["10ch", "14ch", "18ch", "5ch", "5ch", "10ch", "16ch"]} />
         }
       >

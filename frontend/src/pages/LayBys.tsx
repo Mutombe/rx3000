@@ -226,7 +226,7 @@ export default function LayBys() {
       </div>
 
       <div className="card">
-        {!list ? <TableSkeleton cols={5} rows={5} /> : list.laybys.length === 0 ? (
+        {!list ? <TableSkeleton cols={8} rows={8} rowHeight={56} /> : list.laybys.length === 0 ? (
           <div className="empty">No {status} lay-bys.</div>
         ) : (
           <>

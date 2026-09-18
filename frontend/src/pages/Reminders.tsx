@@ -110,7 +110,7 @@ export default function Reminders() {
         <Refreshable
           loading={loading}
           hasData={messages.length > 0}
-          skeleton={<TableSkeleton cols={6} rows={6}
+          skeleton={<TableSkeleton cols={6} rows={9} rowHeight={49}
             widths={["18ch", "10ch", "8ch", "26ch", "10ch", "12ch"]} />}
         >
         <table>
@@ -134,7 +134,9 @@ export default function Reminders() {
         </table>
         {meta && <Pagination meta={meta} onPage={setPage} noun="reminders" />}
         </Refreshable>
-        {messages.length === 0 && <div className="empty">No messages yet, run the reminder jobs or compose one.</div>}
+        {!loading && messages.length === 0 && (
+          <div className="empty">No messages yet, run the reminder jobs or compose one.</div>
+        )}
       </div>
 
       {showCompose && (

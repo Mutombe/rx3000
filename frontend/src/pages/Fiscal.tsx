@@ -143,7 +143,8 @@ export default function Fiscal() {
     act("close", "/api/fiscal/day/close", "Fiscal day closed and the Z-report filed.");
   }
 
-  if (!status) return <div className="card"><TableSkeleton cols={4} rows={6} /></div>;
+  if (!status) return <div className="card"><TableSkeleton cols={7} rows={8} rowHeight={55}
+    widths={["10ch","9ch","13ch","9ch","8ch","9ch","5ch"]} /></div>;
 
   const day = status.open_day;
   const problems = status.queued_receipts + status.rejected_receipts;

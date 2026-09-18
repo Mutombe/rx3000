@@ -162,12 +162,19 @@ export default function Scripts() {
           </div>
         )}
 
-        {rows.length > 0 && (
+        {/* The skeleton was inside `rows.length > 0`, where it could never run:
+            by the time there were rows there was nothing to stand in for. So
+            the first paint of this screen was an empty card with a filter bar
+            above it, and then a table. */}
+        {(loading || rows.length > 0) && (
           <Refreshable
             loading={loading}
             hasData={!!data?.items?.length}
-            skeleton={<TableSkeleton cols={7} rows={8}
-              widths={["14ch", "10ch", "20ch", "18ch", "8ch", "10ch", "10ch"]} />}
+            skeleton={<TableSkeleton cols={7} rows={10} rowHeight={49}
+              widths={["14ch", "10ch", "20ch", "18ch", "5ch", "8ch", "10ch"]}
+              // The script number carries a badge under it, and Dispensed a
+              // second line.
+              secondLine={[0, 5]} />}
           >
             <table className="dt">
               <thead>

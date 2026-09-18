@@ -295,7 +295,13 @@ export default function DataTable<T>({
       {/* The first paint, with the real column widths so nothing jumps when the
           rows arrive. A refetch falls through to the dim below instead. */}
       {loading && sorted.length === 0 ? (
-        <TableSkeleton cols={columns.length} rows={6}
+        // The row height follows the density the reader has chosen, because
+        // that is what sets it on the real table. A fixed ghost row was 39px
+        // against real rows of 49 to 84, so every one of these tables lifted
+        // when its data arrived.
+        <TableSkeleton cols={columns.length} rows={10}
+                       rowHeight={density === "compact" ? 44
+                                  : density === "comfortable" ? 59 : 72}
                        widths={columns.map((c) => c.width ?? "70%")} />
       ) : (
       <div className={`dt-scroll${loading ? " is-refreshing" : ""}`}>

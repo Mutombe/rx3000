@@ -419,7 +419,8 @@ export default function Claiming() {
         <>
           <div className="card">
             <h3>Waiting to be batched</h3>
-            {!unbatched ? <TableSkeleton cols={3} rows={3} />
+            {!unbatched ? <TableSkeleton cols={4} rows={5} rowHeight={64}
+                                         widths={["22ch", "6ch", "10ch", "8ch"]} />
               : unbatched.length === 0 ? (
                 <p className="st-note is-ok">
                   Every claim is in a batch. Nothing is sitting unsent.
@@ -589,7 +590,10 @@ export default function Claiming() {
                 New formulary
               </button>
             </div>
-            {formularies.length === 0 ? (
+            {formularyList.loading && formularies.length === 0 ? (
+              <TableSkeleton cols={4} rows={7}
+                             widths={["22ch", "30ch", "6ch", "5ch"]} />
+            ) : formularies.length === 0 ? (
               <div className="empty">
                 <b>No scheme has a formulary on file.</b>
                 <p>
@@ -657,7 +661,10 @@ export default function Claiming() {
                   ? "This formulary is open, so anything not listed here is paid for. List the exceptions."
                   : "This formulary is closed, so anything not listed here is refused. List what the scheme pays for."}
               </p>
-              {entries.length === 0 ? (
+              {entryList.loading && entries.length === 0 ? (
+                <TableSkeleton cols={5} rows={8}
+                               widths={["24ch", "12ch", "10ch", "10ch", "18ch"]} />
+              ) : entries.length === 0 ? (
                 <div className="empty">
                   Nothing is listed.{" "}
                   {openFormulary.default_rule === "covered"

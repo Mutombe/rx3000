@@ -26,6 +26,10 @@ export default function Register() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
   const [reprints, setReprints] = useState<Reprint[]>([]);
+  /** The reprint log has its own request, so it needs its own answer. Sharing
+   *  the register's flag would have said "nothing reprinted" while the register
+   *  had loaded and this had not. */
+  const [reprintsLoading, setReprintsLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
@@ -56,7 +60,8 @@ export default function Register() {
   // add up", and the count that does not add up is the one on this page.
   useEffect(() => {
     api.get<Reprint[]>("/api/reprints?kind=label&limit=50")
-      .then(setReprints).catch(() => setReprints([]));
+      .then(setReprints).catch(() => setReprints([]))
+      .finally(() => setReprintsLoading(false));
   }, []);
 
   /** The register as a document, because an inspector may ask for it on paper.
@@ -144,7 +149,7 @@ export default function Register() {
         <Refreshable
           loading={loading}
           hasData={entries.length > 0}
-          skeleton={<TableSkeleton cols={9} rows={6}
+          skeleton={<TableSkeleton cols={9} rows={10} rowHeight={49}
             widths={["16ch", "18ch", "6ch", "8ch", "6ch", "8ch", "16ch", "14ch", "10ch"]} />}
         >
         <table>
@@ -201,7 +206,10 @@ export default function Register() {
             Read this when a balance above does not agree with the shelf
           </span>
         </div>
-        {reprints.length === 0 ? (
+        {reprintsLoading ? (
+          <TableSkeleton cols={4} rows={5} rowHeight={49}
+                         widths={["14ch", "12ch", "12ch", "24ch"]} />
+        ) : reprints.length === 0 ? (
           <div className="empty">
             No label has been reprinted. Every dispensing on the register was
             labelled once.

@@ -250,7 +250,8 @@ export default function Remittances() {
       {tab === "outstanding" && (
         <div className="card">
           <h3>Shortfalls not yet settled</h3>
-          {!open ? <TableSkeleton cols={5} rows={5} /> : open.outstanding_count === 0 ? (
+          {!open ? <TableSkeleton cols={7} rows={8} rowHeight={64}
+            widths={["12ch","16ch","11ch","14ch","5ch","9ch","9ch"]} /> : open.outstanding_count === 0 ? (
             <p className="st-note is-ok">
               Every shortfall has been billed or written off. Nothing is in the air.
             </p>

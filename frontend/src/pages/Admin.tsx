@@ -137,20 +137,28 @@ export default function Admin() {
   const toast = useToast();
   const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
+  /** Whether the open tab's own request is still in the air. `busy` above is a
+   *  mutation flag and answers a different question. */
+  const [tabLoading, setTabLoading] = useState(true);
 
   useEffect(() => {
-    if (tab === "audit") loadAudit();
+    // Every tab here owns one request and none of them had an answer to "has
+    // it come back yet", so each list rendered its own "nothing here" on the
+    // way in. One flag, tied to the tab's own request, is the whole fix: it
+    // goes up when the tab is opened and down when that tab's data lands.
+    let job: Promise<unknown> | null = null;
+    if (tab === "audit") job = loadAudit();
     if (tab === "approvals") {
       const q = grantFilter === "refused" ? "?granted=false"
         : grantFilter === "granted" ? "?granted=true" : "";
-      api.get<Grant[]>(`/api/step-up/log${q}`)
+      job = api.get<Grant[]>(`/api/step-up/log${q}`)
         .then(setGrants).catch((e) => toast.error(errorText(e)));
     }
     if (tab === "scripts")
-      api.get<Submitted[]>("/api/portal-admin/submitted")
+      job = api.get<Submitted[]>("/api/portal-admin/submitted")
         .then(setSubmitted).catch((e) => toast.error(errorText(e)));
     if (tab === "switch")
-      api
+      job = api
         .get<Paged<Txn>>(
           `/api/gateway/transactions/paged?kind=${encodeURIComponent(txnKind)}&page=${txnPage}&per_page=50`,
         )
@@ -158,9 +166,21 @@ export default function Admin() {
         .catch((e) => toast.error(errorText(e)));
     // The notices load through their own hook, on the same three
     // dependencies. Calling it here as well fetched the list twice.
-    if (tab === "backups") loadBackups();
-    if (tab === "automation") { loadRules(); api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }
-    if (tab === "templates") loadTemplates();
+    if (tab === "backups") job = loadBackups();
+    if (tab === "automation") {
+      job = Promise.all([
+        loadRules(),
+        api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}),
+      ]);
+    }
+    if (tab === "templates") job = loadTemplates();
+
+    // A tab with nothing to fetch is not loading; saying otherwise would leave
+    // a skeleton pulsing over a settings form forever.
+    setTabLoading(!!job);
+    let live = true;
+    job?.finally(() => { if (live) setTabLoading(false); });
+    return () => { live = false; };
   }, [tab, auditUser, auditPage, auditSize, txnPage, txnKind, noticePage, noticeActive,
       grantFilter]);
   async function acceptScript(id: number) {
@@ -302,10 +322,10 @@ export default function Admin() {
   }, [tab, noticeActive, noticePage]);
 
   function loadRules() {
-    api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(errorText(e)));
+    return api.get<AutomationRule[]>("/api/crm/automation").then(setRules).catch((e) => toast.error(errorText(e)));
   }
   function loadTemplates() {
-    api.get<EmailTemplate[]>("/api/crm/templates").then(setTemplates).catch((e) => toast.error(errorText(e)));
+    return api.get<EmailTemplate[]>("/api/crm/templates").then(setTemplates).catch((e) => toast.error(errorText(e)));
   }
 
   async function saveRule() {
@@ -336,7 +356,7 @@ export default function Admin() {
   }
 
   function loadAudit() {
-    api
+    return api
       .get<Paged<AuditEntry>>(
         `/api/admin/audit/paged?username=${encodeURIComponent(auditUser)}` +
         `&page=${auditPage}&per_page=${auditSize}`,
@@ -349,7 +369,7 @@ export default function Admin() {
       .catch((e) => toast.error(errorText(e)));
   }
   function loadBackups() {
-    api.get<Backup[]>("/api/admin/backups").then(setBackups).catch((e) => toast.error(errorText(e)));
+    return api.get<Backup[]>("/api/admin/backups").then(setBackups).catch((e) => toast.error(errorText(e)));
   }
 
   function onFile(e: ChangeEvent<HTMLInputElement>) {
@@ -460,7 +480,10 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
-            {rules.length === 0 && <div className="empty">No automation rules yet</div>}
+            {tabLoading && rules.length === 0
+              ? <TableSkeleton cols={7} rows={6}
+                  widths={["18ch", "12ch", "16ch", "16ch", "5ch", "6ch", "6ch"]} />
+              : rules.length === 0 && <div className="empty">No automation rules yet</div>}
           </div>
 
           <div className="card">
@@ -530,7 +553,10 @@ export default function Admin() {
                 ))}
               </tbody>
             </table>
-            {templates.length === 0 && <div className="empty">No templates yet</div>}
+            {tabLoading && templates.length === 0
+              ? <TableSkeleton cols={5} rows={6}
+                  widths={["20ch", "12ch", "9ch", "30ch", "6ch"]} />
+              : templates.length === 0 && <div className="empty">No templates yet</div>}
           </div>
 
           <div className="card">
@@ -805,7 +831,10 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
-          {submitted.length === 0 && (
+          {tabLoading && submitted.length === 0 ? (
+            <TableSkeleton cols={5} rows={6}
+                           widths={["14ch", "18ch", "18ch", "26ch", "7ch"]} />
+          ) : submitted.length === 0 && (
             <div className="empty">No prescriber has sent a script in</div>
           )}
         </div>
@@ -856,7 +885,10 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
-          {txns.length === 0 && <div className="empty">Nothing has been sent to a switch yet</div>}
+          {tabLoading && txns.length === 0
+            ? <TableSkeleton cols={7} rows={9} rowHeight={63}
+                widths={["14ch", "16ch", "10ch", "9ch", "8ch", "8ch", "6ch"]} />
+            : txns.length === 0 && <div className="empty">Nothing has been sent to a switch yet</div>}
           {txnMeta && (
             <Pagination meta={txnMeta} noun="transactions" onPage={setTxnPage} />
           )}
@@ -975,7 +1007,10 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
-          {notices.length === 0 && <div className="empty">No counter notices</div>}
+          {noticeList.loading && notices.length === 0
+            ? <TableSkeleton cols={7} rows={6}
+                widths={["13ch", "10ch", "9ch", "28ch", "11ch", "12ch", "5ch"]} />
+            : notices.length === 0 && <div className="empty">No counter notices</div>}
           {noticeMeta && (
             <Pagination meta={noticeMeta} noun="notices" onPage={setNoticePage} />
           )}
@@ -1085,7 +1120,10 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
-          {audit.length === 0 && <div className="empty">No activity recorded</div>}
+          {tabLoading && audit.length === 0
+            ? <TableSkeleton cols={6} rows={12} rowHeight={49}
+                widths={["14ch", "12ch", "8ch", "26ch", "5ch", "11ch"]} />
+            : audit.length === 0 && <div className="empty">No activity recorded</div>}
           {auditMeta && (
             <Pagination
               meta={auditMeta}
@@ -1159,7 +1197,10 @@ export default function Admin() {
               ))}
             </tbody>
           </table>
-          {backups.length === 0 && <div className="empty">No backups yet. Create one now or wait for tonight's run.</div>}
+          {tabLoading && backups.length === 0
+            ? <TableSkeleton cols={5} rows={6}
+                widths={["26ch", "14ch", "8ch", "9ch", "6ch"]} />
+            : backups.length === 0 && <div className="empty">No backups yet. Create one now or wait for tonight's run.</div>}
         </div>
       )}
     </>

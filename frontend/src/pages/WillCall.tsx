@@ -160,7 +160,7 @@ export default function WillCall() {
       </div>
 
       <div className="card">
-        {!shelf && !failed && <TableSkeleton cols={6} rows={6} />}
+        {!shelf && !failed && <TableSkeleton cols={6} rows={7} rowHeight={84} />}
         {/* Two different empties, said differently.
             A filtered view with nothing in it is a filter result and should offer
             the way back out. An empty shelf is an achievement and should read

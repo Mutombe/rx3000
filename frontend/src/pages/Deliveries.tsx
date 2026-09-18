@@ -228,7 +228,7 @@ export default function Deliveries() {
       <Refreshable
         loading={loading}
         hasData={list.length > 0}
-        skeleton={<TableSkeleton cols={6} rows={6}
+        skeleton={<TableSkeleton cols={8} rows={8} rowHeight={65}
           widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
       >
         <div className="dt-scroll">

@@ -205,7 +205,7 @@ export default function Pharmacies() {
         <Refreshable
           loading={list.loading}
           hasData={rows.length > 0}
-          skeleton={<TableSkeleton cols={5} rows={4}
+          skeleton={<TableSkeleton cols={7} rows={7} rowHeight={66}
                                    widths={["22ch", "14ch", "8ch", "10ch", "10ch"]} />}
         >
         <table className="dt">

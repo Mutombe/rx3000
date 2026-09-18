@@ -47,26 +47,55 @@ export function Block({ w = "100%", h = 14, round = "sm", className = "" }: Bloc
 
 /** A table that will have `cols` columns and `rows` rows. Match both to the real
  *  table or the swap will shift the page. */
-export function TableSkeleton({ cols, rows = 6, widths }: {
+export function TableSkeleton({ cols, rows = 6, widths, secondLine, head = true,
+                               rowHeight }: {
   cols: number;
   rows?: number;
   /** Per-column widths, so a narrow numeric column does not ghost as a wide one. */
   widths?: (string | number)[];
+  /** What one real row of this table measures, in pixels.
+   *
+   *  A bare ghost row is 39px and almost no real row is: badges, a second line,
+   *  a row of buttons and an avatar all make the real thing taller, and by
+   *  wildly different amounts from one table to the next. Guessed at, every
+   *  table lifts when its data lands.
+   *
+   *  So it is passed in rather than assumed, taken from what the table actually
+   *  measures, and qa/no-empty-flash.mjs holds each page's answers back and
+   *  compares the two. A hard number that a test checks is worth more than a
+   *  clever one that drifts unnoticed. */
+  rowHeight?: number;
+  /** Zero-based columns whose real cells carry a second, quieter line beneath
+   *  the first — a script number with "repeat" under it, a patient with their
+   *  prescriber. Without these the ghost rows are shorter than the real ones
+   *  and the whole table lifts when the data lands, which is the one thing a
+   *  skeleton exists to prevent. */
+  secondLine?: number[];
+  /** Some tables are headerless: a log of icons and text, for instance. */
+  head?: boolean;
 }) {
+  const under = new Set(secondLine ?? []);
   return (
     <table className="dt sk-table" aria-busy="true">
-      <thead>
-        <tr>
-          {Array.from({ length: cols }).map((_, i) => (
-            <th key={i}><Block w={widths?.[i] ?? "60%"} h={12} /></th>
-          ))}
-        </tr>
-      </thead>
+      {head && (
+        <thead>
+          <tr>
+            {Array.from({ length: cols }).map((_, i) => (
+              <th key={i}><Block w={widths?.[i] ?? "60%"} h={12} /></th>
+            ))}
+          </tr>
+        </thead>
+      )}
       <tbody>
         {Array.from({ length: rows }).map((_, r) => (
-          <tr key={r}>
+          <tr key={r} style={rowHeight ? { height: `${rowHeight}px` } : undefined}>
             {Array.from({ length: cols }).map((_, c) => (
-              <td key={c}><Block w={widths?.[c] ?? "80%"} /></td>
+              <td key={c}>
+                <Block w={widths?.[c] ?? "80%"} />
+                {under.has(c) && (
+                  <Block w="55%" h={10} className="sk-under" />
+                )}
+              </td>
             ))}
           </tr>
         ))}
