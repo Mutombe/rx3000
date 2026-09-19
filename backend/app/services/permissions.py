@@ -46,8 +46,15 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
      ("admin", "manager")),
     ("stock.write_off", "Write off stock — expired, damaged, recalled",
      ("admin", "manager")),
+    # The pharmacist is the person standing at the shelf with the box in their
+    # hand. Withholding this meant the one member of staff who can SEE that the
+    # count is wrong had to find a manager to say so, and a correction nobody
+    # can make at the moment they notice it is a correction that does not get
+    # made. Every adjustment is written as a stock movement with the name of
+    # whoever made it, so this widens who may correct a figure, not who may do
+    # it unrecorded.
     ("stock.adjust", "Adjust a stock figure outside a stock take",
-     ("admin", "manager")),
+     ("admin", "manager", "pharmacist")),
     ("stock.price", "Change what the shop charges for something",
      ("admin", "manager")),
     ("stock.deactivate", "Take a product code out of use across the group",

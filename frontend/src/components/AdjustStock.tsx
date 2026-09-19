@@ -28,14 +28,19 @@ import { api, errorText } from "../api";
 import type { Product } from "../types";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
+import { useCan } from "../session";
 
 /** Why a count is being corrected. The reason is what makes an adjustment an
  *  adjustment rather than an unexplained change, and a list beats free text:
  *  these five cover what actually happens, and they can be counted later. */
 const REASONS = [
   { key: "count", label: "Counted the shelf", note: "The count was wrong." },
-  { key: "damaged", label: "Damaged or broken", note: "" },
-  { key: "expired", label: "Expired, taken off the shelf", note: "" },
+  // Stock LEAVING the building, which is a write-off and a different
+  // capability from correcting a figure. Offered only to somebody who holds
+  // it: the server refuses either way, and a chip that always returns
+  // "you may not" is a worse answer than a chip that is not there.
+  { key: "damaged", label: "Damaged or broken", note: "", writesOff: true },
+  { key: "expired", label: "Expired, taken off the shelf", note: "", writesOff: true },
   { key: "received", label: "Delivery not booked in", note: "" },
   { key: "returned", label: "Returned by a patient", note: "" },
 ] as const;
@@ -44,8 +49,16 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
   product: Product;
   onClose: () => void;
   /** The new figure for this branch, so the screen behind can move on without
-   *  asking the server again. */
-  onAdjusted: (onHand: number) => void;
+   *  asking the server again.
+   *
+   *  Called TWICE: once the moment the dialog closes, with what the shelf is
+   *  expected to become, and once when the server has said what it actually
+   *  is. `settled` is false on the first and true on the second, so a screen
+   *  that wants to re-read something heavier can wait for the second without
+   *  every screen having to wait for the first. On a refusal the second call
+   *  carries the figure back to what it was.
+   */
+  onAdjusted: (onHand: number, settled: boolean) => void;
 }) {
   const here = Number(product.here ?? product.quantity_on_hand ?? 0);
   const undated = Number(product.here_undated ?? 0);
@@ -54,6 +67,8 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
   const [count, setCount] = useState(String(here));
   const [batch, setBatch] = useState("");
   const [expiry, setExpiry] = useState("");
+  const mayWriteOff = useCan("stock.write_off");
+  const reasons = REASONS.filter((r) => mayWriteOff || !("writesOff" in r));
   const [reason, setReason] = useState<string>(REASONS[0].key);
   const [note, setNote] = useState("");
   const toast = useToast();
@@ -80,28 +95,51 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
     : past ? "That pack has expired."
     : "";
 
-  async function save() {
+  /** Close first, then do it.
+   *
+   *  A correction is one number and one reason, and the person making it is
+   *  standing at the shelf holding the box. Keeping the dialog open across a
+   *  round trip makes them wait on a server to be told what they already know.
+   *  So it closes on the click, the shelf behind it moves at once, and the
+   *  request runs where it was started. The toast is the receipt.
+   *
+   *  If the server refuses, the toast says so and the figure goes back: an
+   *  optimistic screen that cannot put the number back is not optimistic, it
+   *  is wrong.
+   */
+  function save() {
     if (problem) return;
     const why = REASONS.find((r) => r.key === reason);
-    try {
-      const said = await api.post<{ quantity_on_hand: number }>("/api/stock/adjust", {
-        product_id: product.id,
-        quantity_delta: delta,
-        // The movement type the ledger files it under. A correction after a
-        // count is not the same event as a write-off, and a report that cannot
-        // tell them apart cannot tell shrinkage from bad counting.
-        movement_type: delta > 0 ? "receive" : reason === "count" ? "adjustment" : "write_off",
-        batch_number: batch.trim(),
-        expiry_date: needsBatch ? expiry : null,
-        reference: `ADJ ${why?.label ?? ""}`.trim().slice(0, 60),
-        notes: [why?.label, note.trim()].filter(Boolean).join(". "),
-      });
-      toast.ok(`${product.name}: ${here} to ${after} on this shelf.`);
-      onAdjusted(Number(said?.quantity_on_hand ?? after));
-      onClose();
-    } catch (e) {
-      toast.error(errorText(e, "That adjustment could not be made."));
-    }
+    const body = {
+      product_id: product.id,
+      quantity_delta: delta,
+      // The movement type the ledger files it under. A correction after a
+      // count is not the same event as a write-off, and a report that cannot
+      // tell them apart cannot tell shrinkage from bad counting.
+      movement_type: delta > 0 ? "receive" : reason === "count" ? "adjustment" : "write_off",
+      batch_number: batch.trim(),
+      expiry_date: needsBatch ? expiry : null,
+      reference: `ADJ ${why?.label ?? ""}`.trim().slice(0, 60),
+      notes: [why?.label, note.trim()].filter(Boolean).join(". "),
+    };
+    const was = here;
+    const expected = after;
+    const name = product.name;
+
+    onAdjusted(expected, false);
+    onClose();
+
+    void (async () => {
+      try {
+        const said = await api.post<{ quantity_on_hand: number }>("/api/stock/adjust", body);
+        const real = Number(said?.quantity_on_hand ?? expected);
+        toast.ok(`${name}: ${was} to ${real} on this shelf.`);
+        onAdjusted(real, true);
+      } catch (e) {
+        toast.error(errorText(e, "That adjustment could not be made."));
+        onAdjusted(was, true);
+      }
+    })();
   }
 
   const howMany = mode === "set" ? "The count on the shelf"
@@ -188,7 +226,7 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
         <div className="adj-block">
           <span className="adj-legend">Why</span>
           <div className="adj-reasons">
-            {REASONS.map((r) => (
+            {reasons.map((r) => (
               <button key={r.key} type="button"
                       className={`adj-reason${reason === r.key ? " is-on" : ""}`}
                       aria-pressed={reason === r.key}

@@ -292,7 +292,16 @@ export default function ProductDetail() {
         <AdjustStock
           product={adjusting}
           onClose={() => setAdjusting(null)}
-          onAdjusted={() => load()}
+          onAdjusted={(onHand, settled) => {
+            // The figure on the page moves the moment the dialog closes, so
+            // this screen is not the one place the correction looks like it
+            // did not happen. The batch list and the movement history behind
+            // it are a heavier read, so they wait for the server to settle.
+            setData((d) => (d && d.shelf
+              ? { ...d, shelf: { ...d.shelf, here: onHand } }
+              : d));
+            if (settled) load();
+          }}
         />
       )}
 

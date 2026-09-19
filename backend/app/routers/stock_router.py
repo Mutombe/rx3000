@@ -8,6 +8,7 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import paging
+from ..services import permissions
 from ..services import posting
 from ..models import (
     Dispensing, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
@@ -501,6 +502,18 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="Product not found")
     if product.quantity_on_hand + body.quantity_delta < 0:
         raise HTTPException(status_code=400, detail="Adjustment would make stock negative")
+
+    # A correction and a write-off arrive on the same endpoint, and they are not
+    # the same act: one says the count was wrong, the other says goods left the
+    # building. They are separate capabilities for that reason, and this is the
+    # one place the caller chooses which of the two it is writing. Without this
+    # check, widening stock.adjust to the pharmacist — who should be able to
+    # correct the shelf they are standing at — would have handed them write-offs
+    # as well, through a dropdown, with no screen anywhere looking wrong.
+    if body.movement_type == "write_off":
+        decision = permissions.check(db, user, "stock.write_off")
+        if not decision["allowed"]:
+            raise HTTPException(403, decision["why"])
 
     if product.category == "airtime":
         helpers.move_stock(db, product, body.quantity_delta, body.movement_type, user.id,
