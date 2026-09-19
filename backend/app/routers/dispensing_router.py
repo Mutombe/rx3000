@@ -219,13 +219,27 @@ def otc_sale(
     db.add(sale)
     db.flush()
 
-    line_total = round(product.unit_price * body.quantity, 2)
+    # PRICED PER UNIT, BECAUSE THE QUANTITY IS IN UNITS.
+    #
+    # `unit_price` is what a PACK sells for and `cost_price` is what a PACK
+    # cost, while `body.quantity` counts dispensable units: the FEFO call
+    # below omits `in_packs`, so selling "2" takes two tablets off the shelf.
+    # Charging the pack price for each of them billed a customer 12.50 for two
+    # tablets out of a box of a hundred, and filed a cost of 12.50 against
+    # them, which then flowed into every margin the line appears in.
+    #
+    # The quantity is left meaning units rather than being switched to packs.
+    # Everything else on this screen already treats it that way, including the
+    # expiry check and the stock check, and the shelf is already reduced
+    # correctly. Only the money was wrong, and this is the half that was wrong.
+    each = product.per_unit()
+    line_total = round(each * body.quantity, 2)
     line_ex = round(line_total / (1 + product.vat_rate), 2)
     sale_item = SaleItem(
         sale_id=sale.id, product_id=product.id,
         description=f"{product.name} {product.strength}".strip(),
-        quantity=body.quantity, unit_price=product.unit_price,
-        unit_cost=product.cost_price or 0.0,
+        quantity=body.quantity, unit_price=each,
+        unit_cost=product.unit_cost(),
         vat_rate=product.vat_rate, line_total=line_total,
     )
     db.add(sale_item)

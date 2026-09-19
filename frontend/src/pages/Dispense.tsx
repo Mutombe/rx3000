@@ -2804,7 +2804,7 @@ export default function Dispense() {
     setOtcPackExpiry("");
 
     doing.run({
-      label: `${what} · ${money(was.product.unit_price * was.quantity)}`,
+      label: `${what} · ${money(otcEach(was.product) * was.quantity)}`,
       said: "Recording the sale…",
       run: () => api.post<OTCSale>("/api/dispensing/otc", {
         product_id: was.product.id, quantity: was.quantity,
@@ -2846,7 +2846,16 @@ export default function Dispense() {
     });
   }
 
-  const otcTotal = otcProduct ? otcProduct.unit_price * otcQty : 0;
+  /** What one dispensable unit sells for.
+   *
+   *  `unit_price` is the PACK price, which is a long standing lie in the
+   *  column name. The quantity on this screen is in units, as the expiry and
+   *  stock checks below already assume, so the pack price cannot be the one
+   *  multiplied by it: two tablets out of a box of a hundred were priced at a
+   *  whole box. */
+  const otcEach = (p: { unit_price: number; units_per_pack?: number }) =>
+    p.unit_price / Math.max(1, p.units_per_pack || 1);
+  const otcTotal = otcProduct ? otcEach(otcProduct) * otcQty : 0;
   const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
 
   /** Whether this sale can only come from stock with no expiry recorded.
