@@ -229,8 +229,16 @@ const LABEL_CSS = `
   /* The line the sticker exists for, and the only one allowed to grow.
      Monospace because that is what a dispensing label uses and because it fits
      more per line than Arial at the same legibility. */
+  /* Allowed to GROW, which is not the same as allowed to claim the slack.
+     With flex-grow it took every spare millimetre on the sticker, so a short
+     direction line left a hole between itself and the batch number, and the
+     same rule printed onto a sheet of A4 by somebody who picked the wrong
+     printer spread one label over 216mm with the pharmacy name stranded at the
+     foot of the page. It still shrinks and clips when the directions are long,
+     which is the case this guards. The slack now collects below the barcode,
+     where it reads as the edge of the sticker rather than as a mistake. */
   .dose {
-    flex: 1 1 auto; min-height: 0; overflow: hidden;
+    flex: 0 1 auto; min-height: 0; overflow: hidden;
     margin-top: 0.5mm; padding-bottom: 0.4mm;
     font-family: "Courier New", monospace;
     font-size: 6.6pt; font-weight: bold; line-height: 1.13;

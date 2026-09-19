@@ -40,3 +40,23 @@ export function writeStored(name: string, value: string | null) {
     }
   } catch { /* private mode. The preference just does not persist */ }
 }
+
+/* The same two, against session storage, for the things that belong to one
+   shift at one counter rather than to the machine: a conversation in progress,
+   a branch being looked at. Closing the tab is meant to forget them, so there
+   is no old name to carry forward here. */
+
+export function readSession(name: string): string | null {
+  try {
+    return sessionStorage.getItem(NEW + name);
+  } catch {
+    return null; // private mode, or storage disabled
+  }
+}
+
+export function writeSession(name: string, value: string | null) {
+  try {
+    if (value === null) sessionStorage.removeItem(NEW + name);
+    else sessionStorage.setItem(NEW + name, value);
+  } catch { /* see above */ }
+}

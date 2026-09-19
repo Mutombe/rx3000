@@ -21,7 +21,8 @@
  *  again. A question at a counter is often two sentences, and a chat that
  *  cannot hold two sentences gets one.
  */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore }
+  from "react";
 import {
   ArrowUp, Stop, MagnifyingGlass, Path, TreeStructure, Brain, Globe,
   Copy, Check, ArrowsClockwise, CaretDown, Package, ChartLineUp, TrendUp,
@@ -29,6 +30,8 @@ import {
 } from "@phosphor-icons/react";
 
 import { apiBase, getToken } from "../api";
+import { getThread, setThread, subscribeThread, type AssistantTurn }
+  from "../assistantThread";
 import Markdown from "./Markdown";
 import AssistantRoute, { RouteStep } from "./AssistantRoute";
 import AssistantDiagram from "./AssistantDiagram";
@@ -36,25 +39,9 @@ import { Attachment, MAX_FILES, TAKES, filesFrom, readForAssistant }
   from "../assistantFiles";
 import { useToast } from "./Toast";
 
-/** One thing that happened while the answer was being worked out. */
-interface Step { name: string; say: string; done?: string; ms?: number }
-
-interface Turn {
-  question: string;
-  /** Thumbnails of what was sent with it, so the thread shows the screenshot
-   *  the question was about rather than just the words. */
-  shown?: { preview: string; name: string; media_type: string }[];
-  text: string;
-  steps: Step[];
-  routes: { title: string; steps: RouteStep[] }[];
-  diagrams: { title: string; mermaid: string }[];
-  model?: string;
-  error?: string;
-  /** Still being answered. */
-  live?: boolean;
-  /** How long the whole turn took, once it is finished. */
-  ms?: number;
-}
+/** The shape of a turn lives in `assistantThread.ts`, with the thread itself,
+ *  so the store and the screen that draws it cannot disagree about it. */
+type Turn = AssistantTurn;
 
 const MARKS: Record<string, any> = {
   find_in_app: MagnifyingGlass,
@@ -98,7 +85,13 @@ function followUps(turn: Turn): string[] {
 }
 
 export default function AssistantChat({ compact = false }: { compact?: boolean }) {
-  const [turns, setTurns] = useState<Turn[]>([]);
+  // The thread lives above this component, so the dock in the corner and the
+  // page at /assistant show the SAME conversation, and neither loses it by
+  // being unmounted. It used to be local state here, which meant opening the
+  // full page after asking in the corner showed an empty panel and the answer
+  // was only reachable through the history list.
+  const turns = useSyncExternalStore(subscribeThread, getThread, getThread);
+  const setTurns = setThread;
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<number | null>(null);

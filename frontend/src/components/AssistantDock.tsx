@@ -13,12 +13,13 @@
  *  it. A thing that reappears after being dismissed is not a feature, it is a
  *  pop-up.
  */
-import { useEffect, useRef, useState } from "react";
-import { X, Sparkle, ArrowSquareOut, CornersOut, CornersIn }
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { X, Sparkle, ArrowSquareOut, CornersOut, CornersIn, NotePencil }
   from "@phosphor-icons/react";
 import { Link, useLocation } from "react-router-dom";
 
 import { readStored, writeStored } from "../storage";
+import { clearThread, getThread, subscribeThread } from "../assistantThread";
 import AssistantChat from "./AssistantChat";
 
 const OPEN = "assistant_dock_open";
@@ -78,10 +79,14 @@ export default function AssistantDock({ open, onClose }: {
     setBig(next);
     try { writeStored(BIG, next ? "1" : "0"); } catch { /* private window */ }
   };
-  // Not on top of the page it is a smaller copy of. Two identical
-  // conversations side by side, each with its own history, is a choice nobody
-  // should have to make about which one to type into.
+  // Not on top of the page it is a smaller copy of. Two views of one
+  // conversation side by side is a choice nobody should have to make about
+  // which one to type into.
   const onItsOwnPage = useLocation().pathname.startsWith("/assistant");
+
+  // Only to know whether there is anything to put down; the conversation
+  // itself is drawn by the chat.
+  const thread = useSyncExternalStore(subscribeThread, getThread, getThread);
 
   // Escape closes it, like every other layer in this product. Bound only while
   // it is open, so it cannot swallow Escape from the script underneath.
@@ -107,6 +112,18 @@ export default function AssistantDock({ open, onClose }: {
           <Sparkle size={14} weight="fill" /> RX-Assistant
         </span>
         <span className="ax-dock-acts">
+          {/* The thread now survives being closed, reopened, made bigger and
+              navigated away from, which is the point of it. That makes a way
+              to put it down deliberately necessary: without one the only way
+              to start a fresh question was to lose the last one by accident,
+              which is what this was doing before. */}
+          {thread.length > 0 && (
+            <button type="button" className="ax-dock-btn" onClick={clearThread}
+                    title="Start a new conversation"
+                    aria-label="Start a new conversation">
+              <NotePencil size={15} />
+            </button>
+          )}
           <button type="button" className="ax-dock-btn" onClick={() => grow(!big)}
                   title={big ? "Make it smaller" : "Make it bigger"}
                   aria-label={big ? "Make it smaller" : "Make it bigger"}>

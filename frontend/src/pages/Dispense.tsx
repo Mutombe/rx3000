@@ -482,7 +482,10 @@ export default function Dispense() {
   const [ixAcknowledged, setIxAcknowledged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [doneSale, setDoneSale] = useState<Sale | null>(null);
-  const [payHow, setPayHow] = useState("till");
+  // Taking the money at the counter is what happens to most scripts, so it is
+  // what the dialog opens on. Sending it to the front till is the exception and
+  // is one click away.
+  const [payHow, setPayHow] = useState("now");
   /** Who is taking it, and where. Only asked for on the delivery route. */
   const [drivers, setDrivers] = useState<{ id: number; full_name: string;
     active: boolean; cash_holding?: number; cod_limit?: number;

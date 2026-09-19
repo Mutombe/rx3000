@@ -9,12 +9,13 @@
  *  snapshot of six figures and could not be asked where anything was. The
  *  history of those conversations is kept and still readable.
  */
-import { useEffect, useState } from "react";
-import { Sparkle } from "@phosphor-icons/react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { Sparkle, NotePencil } from "@phosphor-icons/react";
 
 import { api } from "../api";
 import AssistantChat from "../components/AssistantChat";
 import AiHistory from "../components/AiHistory";
+import { clearThread, getThread, subscribeThread } from "../assistantThread";
 
 interface Atlas {
   generated: string;
@@ -26,6 +27,8 @@ interface Atlas {
 export default function Assistant() {
   const [atlas, setAtlas] = useState<Atlas | null>(null);
   const [history, setHistory] = useState(false);
+
+  const thread = useSyncExternalStore(subscribeThread, getThread, getThread);
 
   useEffect(() => {
     api.get<Atlas>("/api/ai/assistant/atlas").then(setAtlas).catch(() => setAtlas(null));
@@ -41,9 +44,19 @@ export default function Assistant() {
             mean. It can draw you the steps and take you there.
           </div>
         </div>
-        <button className="btn secondary" onClick={() => setHistory(true)}>
-          Past questions
-        </button>
+        <div className="ax-page-acts">
+          {/* The thread is kept now: across the dock, this page, a reload and
+              a shift. So putting one down has to be something somebody does on
+              purpose, not something that happens to them. */}
+          {thread.length > 0 && (
+            <button className="btn secondary" onClick={clearThread}>
+              <NotePencil size={15} /> New conversation
+            </button>
+          )}
+          <button className="btn secondary" onClick={() => setHistory(true)}>
+            Past questions
+          </button>
+        </div>
       </div>
 
       <div className="card ax-page">
