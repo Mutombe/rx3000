@@ -2103,6 +2103,72 @@ class StepUpGrant(Base, TenantMixin):
     approved_by = relationship("User", foreign_keys=[approved_by_id])
 
 
+class PriceChange(Base, TenantMixin):
+    """What a line used to cost, what it costs now, and who moved it.
+
+    A pharmacy's selling prices are not set once. They are loaded from a
+    supplier file, rounded to something a person can hand over cash for,
+    held at last month's figure for a regular, and quietly corrected when
+    somebody notices a margin that cannot be right. Every one of those is a
+    decision, and until now not one of them was written down.
+
+    What existed was three things that each answer a different question:
+    `supplier_price_variance` compares the last two receipts, so it is about
+    COST and is derived rather than recorded; `price_overrides` is one sale
+    at the counter, authorised with a code; and the audit log records that
+    somebody opened PUT /api/products without saying which field moved or
+    what it moved from. Between them nobody could answer "what has this line
+    been priced at this year, and who decided".
+
+    WHY COST AND SELLING SHARE ONE TABLE
+
+    They are the same event asked about from two sides. A buyer asks "what
+    are we paying"; an owner asks "what are we charging"; the margin between
+    them is the question both are really asking, and it can only be read if
+    the two are on one timeline. `field` says which moved.
+
+    WHY THE REASON IS FREE TEXT AND OFTEN EMPTY
+
+    A price loaded from a supplier file has no reason beyond the file, and
+    demanding one would put "import" in ten thousand rows. Where a person
+    typed a reason it is kept; where the software knows the cause it says so
+    in `source` instead, which is the honest division.
+    """
+    __tablename__ = "price_changes"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    #: "selling" or "cost". Both per PACK, the same as the columns they track.
+    field = Column(String(10), nullable=False, default="selling", index=True)
+    was = Column(Float, default=0.0)
+    now = Column(Float, default=0.0)
+    #: Where the change came from: form | import | counter | margin.
+    #: A cause the software knows, as opposed to a reason a person gave.
+    source = Column(String(16), default="form", index=True)
+    reason = Column(String(200), default="")
+    changed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    product = relationship("Product")
+    changed_by = relationship("User")
+
+    @property
+    def difference(self) -> float:
+        return round((self.now or 0.0) - (self.was or 0.0), 4)
+
+    @property
+    def percent(self) -> float:
+        """How far it moved, against what it was.
+
+        Zero when it came from nothing: a line priced for the first time has
+        not risen by infinity, it has simply been priced.
+        """
+        base = self.was or 0.0
+        if not base:
+            return 0.0
+        return round(((self.now or 0.0) - base) / base * 100, 2)
+
+
 class PriceOverride(Base, TenantMixin):
     """A price changed by hand at the counter, and who stood behind it.
 

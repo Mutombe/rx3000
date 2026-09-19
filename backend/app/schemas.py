@@ -358,6 +358,17 @@ class ProductDetail(BaseModel):
     #: computed view rather than a record, and naming each one here would mean
     #: two places to change every time the page learns another.
     shelf: dict = {}
+    #: What this line has been priced at, and who moved it. A list of plain
+    #: dictionaries for the same reason `shelf` is free form: it is a view
+    #: built for the screen, and declaring every key here would mean two
+    #: places to change.
+    #:
+    #: Declared at all because a response_model silently DROPS anything it
+    #: does not name. Both of these were being computed on every request and
+    #: thrown away on the way out, which reads as the feature not working.
+    price_history: list[dict] = []
+    #: Who this line was last bought from, and what was paid.
+    buying: list[dict] = []
 
 
 # ---------- prescriptions ----------

@@ -15,7 +15,7 @@ from .. import schemas
 from ..auth import require_platform_admin, get_current_user, require_role
 from ..config import settings
 from ..database import get_db
-from ..services import paging
+from ..services import paging, price_history
 from ..services import backup_verify
 from ..services import currency
 from ..models import AuditLog, Product, User
@@ -222,8 +222,16 @@ def price_import(
             line.message = "No change"
         elif body.apply:
             if line.new_cost is not None:
+                price_history.record(db, product, field="cost",
+                                     was=product.cost_price, now=line.new_cost,
+                                     user=user, source="import",
+                                     reason=body.reference or "")
                 product.cost_price = line.new_cost
             if line.new_price is not None:
+                price_history.record(db, product, field="selling",
+                                     was=product.unit_price, now=line.new_price,
+                                     user=user, source="import",
+                                     reason=body.reference or "")
                 product.unit_price = line.new_price
             if line.new_sep is not None:
                 product.sep_price = line.new_sep

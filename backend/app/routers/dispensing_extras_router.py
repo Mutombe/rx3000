@@ -20,7 +20,8 @@ from ..models import (
     Sale, Shift, StockMovement, User, Waybill,
 )
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
-                        repeat_performance, scheme_codes as scheme_codes_svc)
+                        price_history, repeat_performance,
+                        scheme_codes as scheme_codes_svc)
 
 router = APIRouter(prefix="/api", tags=["dispensing-extras"],
                    dependencies=[Depends(get_current_user)])
@@ -271,6 +272,10 @@ def set_a_price(product_id: int = Body(...),
     kept = False
     if keep:
         pack = max(1, product.units_per_pack or 1)
+        price_history.record(
+            db, product, field="selling",
+            was=product.unit_price, now=round(price * pack, 4),
+            user=user, source="counter", reason=reason or "")
         product.unit_price = round(price * pack, 4)
         db.add(StockMovement(
             product_id=product.id, movement_type="reprice", quantity_delta=0,

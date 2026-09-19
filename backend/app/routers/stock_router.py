@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import paging
+from ..services import paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -307,7 +307,60 @@ def get_product(product_id: int, db: Session = Depends(get_db),
         "units_sold": int(sold or 0),
         "stock_value": round(product.quantity_on_hand * product.cost_price, 2),
         "shelf": _shelf_figures(db, product, batches, user),
+        # What this line has been priced at, and who moved it. Carried with
+        # the product rather than behind another click: "why is this the
+        # price" is asked while looking at the price.
+        "price_history": price_history.for_product(db, product.id),
+        # Where it comes from and what was last paid, which is the other half
+        # of the same question and was only answerable from the supplier's
+        # side until now.
+        "buying": _recent_purchases(db, product.id),
     }
+
+
+def _recent_purchases(db: Session, product_id: int, limit: int = 8) -> list[dict]:
+    """Who this line was last bought from, and what was paid.
+
+    The data was always there and could only be read from the supplier's side:
+    open a supplier and see every line they supply. That answers a buyer's
+    question and not a pharmacist's, which is asked while looking at one
+    medicine and is "who do we get this from, when did it last come in, and
+    has the price moved".
+
+    Ordered by when the order was raised rather than when it arrived, because
+    an order that has not arrived is the interesting one when a shelf is
+    empty. Whether it arrived is said on the row.
+    """
+    rows = (
+        db.query(PurchaseOrderItem, PurchaseOrder, Supplier)
+        .join(PurchaseOrder, PurchaseOrderItem.order_id == PurchaseOrder.id)
+        .outerjoin(Supplier, PurchaseOrder.supplier_id == Supplier.id)
+        .filter(PurchaseOrderItem.product_id == product_id)
+        .order_by(PurchaseOrder.created_at.desc())
+        .limit(max(1, min(limit, 50)))
+        .all()
+    )
+    out = []
+    for item, order, supplier in rows:
+        ordered = item.quantity_ordered or 0
+        got = item.quantity_received or 0
+        out.append({
+            "order_id": order.id,
+            "order_number": order.order_number or "",
+            "at": order.created_at,
+            "received_at": order.received_at,
+            "supplier_id": order.supplier_id,
+            "supplier": supplier.name if supplier else "",
+            "ordered": ordered,
+            "received": got,
+            "unit_cost": round(item.unit_cost or 0.0, 2),
+            "status": order.status or "",
+            # Said in words, because "sent" beside "3 of 10" is the finding.
+            "standing": ("Received in full" if got and got >= ordered
+                         else f"{got} of {ordered} received" if got
+                         else "Nothing received yet"),
+        })
+    return out
 
 
 def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> dict:
@@ -428,12 +481,27 @@ def create_product(body: schemas.ProductCreate, db: Session = Depends(get_db), u
 
 
 @router.put("/products/{product_id}", response_model=schemas.ProductOut)
-def update_product(product_id: int, body: schemas.ProductBase, db: Session = Depends(get_db)):
+def update_product(product_id: int, body: schemas.ProductBase,
+                   db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+
+    # Read before the loop overwrites them. This endpoint rewrites every field
+    # whether or not it moved, so the only way to know a price changed is to
+    # have held the old one.
+    before = {"selling": product.unit_price, "cost": product.cost_price}
+
     for key, value in body.model_dump().items():
         setattr(product, key, value)
+
+    for field, was in before.items():
+        price_history.record(
+            db, product, field=field, was=was,
+            now=product.unit_price if field == "selling" else product.cost_price,
+            user=user, source="form")
+
     db.commit()
     db.refresh(product)
     return product

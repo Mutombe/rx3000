@@ -23,6 +23,7 @@
  */
 import { useState } from "react";
 import { ArrowClockwise, Check, Warning } from "@phosphor-icons/react";
+import Markdown from "./Markdown";
 import { inDesktopApp, useAppUpdate } from "../hooks/useAppUpdate";
 
 export default function UpdateChip() {
@@ -61,7 +62,13 @@ export default function UpdateChip() {
             <h2>RX5000 {update.version}</h2>
 
             {update.notes ? (
-              <div className="update-notes">{update.notes}</div>
+              // Read as Markdown, because that is what is written. The notes
+              // are authored in desktop/RELEASE_NOTES.md and were rendered as
+              // plain text, so every heading arrived at the till as
+              // **The assistant works in the installed app** with the asterisks
+              // showing. The one component that already knows how to draw this
+              // is the one the assistant uses.
+              <div className="update-notes"><Markdown text={update.notes} /></div>
             ) : (
               <p className="muted">
                 No notes were published with this release.
