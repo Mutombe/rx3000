@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RX5000 Pharmacy Management Software</title>
-<meta name="description" content="One system for the whole pharmacy: dispensing, inventory, medical aid and medical scheme claiming, point of sale, double entry accounting, head office and reporting. Regulation is a jurisdiction pack, so the same software runs in Zimbabwe and South Africa.">
+<meta name="description" content="One system for the whole pharmacy: dispensing, inventory, medical aid claiming, point of sale, double entry accounting, head office and reporting. Regulation is a jurisdiction pack, so the software follows the rules your pharmacy trades under.">
 <meta name="keywords" content="pharmacy management software, dispensing software, pharmacy point of sale, medical aid claiming, medical scheme claiming, pharmacy inventory management, pharmacy accounting software, multi branch pharmacy, head office pharmacy software, pharmacy reporting and analytics, retail pharmacy software, community pharmacy software, SAHPRA, MCAZ, NAPPI, AHFoZ, South Africa, Zimbabwe, Southern Africa">
 <link rel="canonical" href="https://rx5000.com/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="RX5000 Pharmacy Management Software">
-<meta property="og:description" content="Dispensing, inventory, claiming, sales, accounts, head office and reporting on one system. Regulation is a jurisdiction pack, so the same software runs in more than one country.">
+<meta property="og:description" content="Dispensing, inventory, claiming, sales, accounts, head office and reporting on one system, from the counter to the trial balance.">
 <meta property="og:url" content="https://rx5000.com/">
 <meta property="og:image" content="https://rx5000.com/assets/logo.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -144,9 +144,20 @@
   body::before {
     content: ""; display: block; height: 3px; background: var(--brand-grad);
   }
-  nav a { margin-left: var(--s4); color: var(--ink-mid); text-decoration: none;
-    font-size: 0.925rem; }
+  /* A row, with a gap that closes before anything wraps, and Sign in pushed
+     to the far right by the margin rather than by hoping the row is wide
+     enough. At 1280px the old inline list filled its line and wrapped the one
+     item that is an action onto a second row. */
+  .top nav {
+    display: flex; align-items: center; flex: 1 1 auto;
+    justify-content: flex-end; gap: clamp(0.6rem, 1.6vw, var(--s4));
+    min-width: 0;
+  }
+  nav a { color: var(--ink-mid); text-decoration: none; font-size: 0.925rem;
+    white-space: nowrap; }
   nav a:hover { color: var(--ink); }
+  /* Everything before it is a destination; this is the way in. */
+  nav .nav-signin { margin-left: auto; }
 
   section { padding: var(--s16) 0; border-bottom: 1px solid var(--line); }
   section:last-of-type { border-bottom: 0; }
@@ -263,9 +274,48 @@
   }
   .nav-signin:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
 
+  /* WHATSAPP, WITHIN REACH OF A THUMB
+   *
+   * The contact section already carries the number, at the very bottom of a
+   * long page. Somebody who decides halfway down that they want to ask a
+   * question should not have to scroll to the end to find out how. This is the
+   * same number, always reachable.
+   *
+   * WhatsApp green rather than the brand navy, on purpose: it is recognised
+   * before it is read, which is the entire value of putting it here. The brand
+   * owns the page; this one control is allowed to belong to the thing it
+   * opens.
+   */
+  .wa-float {
+    position: fixed; right: clamp(14px, 3vw, 26px);
+    bottom: calc(clamp(14px, 3vw, 26px) + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    display: inline-flex; align-items: center; gap: 0.6rem;
+    padding: 0.7rem 1.05rem 0.7rem 0.85rem;
+    border-radius: 999px; text-decoration: none;
+    background: #25d366; color: #05331a;
+    font-family: "Grift", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-weight: 700; font-size: 0.95rem; line-height: 1;
+    box-shadow: 0 2px 6px rgba(5, 51, 26, .22), 0 12px 28px -8px rgba(5, 51, 26, .45);
+    transition: transform 160ms cubic-bezier(.16,1,.3,1), box-shadow 160ms ease;
+  }
+  .wa-float:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(5, 51, 26, .26), 0 18px 36px -10px rgba(5, 51, 26, .5);
+  }
+  .wa-float:focus-visible { outline: 3px solid #05331a; outline-offset: 3px; }
+  .wa-float svg { flex: 0 0 auto; }
+  /* Below the fold on a phone the words cost more than they earn, and the
+     glyph is already the most recognised icon on the device. */
+  @media (max-width: 560px) {
+    .wa-float { padding: 0.75rem; gap: 0; }
+    .wa-float .wa-text { display: none; }
+  }
+
   /* Motion is a preference, not a decoration. */
   @media (prefers-reduced-motion: reduce) {
-    .cbtn, .cbtn-glow { transition: none; }
+    .cbtn, .cbtn-glow, .wa-float { transition: none; }
+    .wa-float:hover { transform: none; }
     .cbtn:hover { transform: none; }
   }
 
@@ -306,7 +356,8 @@
     .top .wrap {
       flex-direction: column; align-items: flex-start; gap: var(--s3);
     }
-    .top nav { display: flex; flex-wrap: wrap; gap: var(--s4); }
+    .top nav { flex-wrap: wrap; justify-content: flex-start; gap: var(--s3); }
+    .top nav .nav-signin { margin-left: 0; }
 
     /* One card per row, and the minmax floor is dropped so a 320px screen is
        never forced into a horizontal scroll by a 260px minimum. */
@@ -347,13 +398,13 @@
            alt="RX5000, pharmacy operating system" width="232" height="73" />
     </a>
     <nav>
-      <a href="#what">What it does</a>
-      <a href="#layers">The whole shop</a>
-      <a href="#markets">Your market</a>
+      <a href="#what">Features</a>
+      <a href="#layers">Platform</a>
+      <a href="#markets">Compliance</a>
       <a href="#how">Getting started</a>
       <a href="#new">What's new</a>
       <a href="#desktop">Download</a>
-      <a href="#faq">Questions</a>
+      <a href="#faq">FAQ</a>
       <a href="#contact">Contact</a>
       <a class="nav-signin" href="https://rx3000-app.onrender.com/login">Sign in</a>
     </nav>
@@ -362,7 +413,7 @@
 
 <section class="hero">
   <div class="wrap">
-    <span class="badge">Zimbabwe and South Africa</span>
+    <span class="badge">One system, counter to trial balance</span>
     <h1>The dispensary runs the shop.<br>The software should keep up.</h1>
     <p class="lede">
       One system from the counter to the trial balance: dispensing, inventory,
@@ -370,8 +421,8 @@
       tells an owner which of them is working. It is built around what a
       pharmacist actually does at eleven on a Saturday morning, not around what
       is easy to write. Everything that differs between countries is a
-      jurisdiction pack, so the same software runs in Harare and in Johannesburg
-      without either shop using the other's rules.
+      jurisdiction pack, so the same software follows whichever rules your
+      pharmacy actually trades under.
     </p>
     <div class="cta">
       <!-- The demo goes first, and it is self-service.
@@ -534,79 +585,56 @@
       and had the local rules bolted on afterwards, which is why it always feels
       like it is arguing with you. RX5000 is built the other way round.
       Dispensing, stock, the till, the accounts and the reporting are the same
-      everywhere. Everything genuinely different between countries is a
-      jurisdiction pack, chosen once when the pharmacy is set up.
+      wherever the shop is. Everything genuinely local is a jurisdiction pack,
+      chosen once when the pharmacy is set up. Here is what that pack carries
+      for a pharmacy trading in Zimbabwe.
     </p>
     <div class="table-scroll">
     <table>
       <thead>
-        <tr>
-          <th>What differs</th>
-          <th>Zimbabwe</th>
-          <th>South Africa</th>
-        </tr>
+        <tr><th>What is different</th><th>How RX5000 handles it</th></tr>
       </thead>
       <tbody>
         <tr>
-          <td><strong>How a medicine is classified</strong></td>
-          <td>MCAZ distribution categories, the letters printed on the label:
-          HR, P, PIM, PP, PP10, N and SR. PIM has no equivalent anywhere else.</td>
-          <td>SAHPRA schedules 0 to 8, numbered, with schedule 5 and above
-          carrying the register entry and counselling rules that go with them.</td>
+          <td><strong>MCAZ distribution categories</strong></td>
+          <td>Medicines are classified HR, P, PIM, PP, PP10, N and SR, the
+          letters on the label, not schedule numbers borrowed from another
+          country. PIM in particular has no equivalent elsewhere.</td>
         </tr>
         <tr>
-          <td><strong>What a product code is called</strong></td>
-          <td>Stock code and barcode, with NAPPI where a funder wants it.</td>
-          <td>NAPPI, which is what a scheme adjudicates the claim on.</td>
-        </tr>
-        <tr>
-          <td><strong>Who pays, and how they are claimed from</strong></td>
-          <td>AHFoZ claiming, one format routed to whichever switch the funder
-          uses. Tariff and diagnosis errors are caught before submission, not a
-          fortnight later when the money has not arrived.</td>
-          <td>Medical schemes including Discovery Health, Bonitas, Momentum
-          Health, Medihelp and GEMS.</td>
-        </tr>
-        <tr>
-          <td><strong>Money</strong></td>
+          <td><strong>Two currencies, one till</strong></td>
           <td>USD and ZiG side by side, each tender recorded at the rate in
           force, change given in either, both drawers reconciled separately.</td>
-          <td>Rand, VAT at 15 percent, tax year opening in March.</td>
         </tr>
         <tr>
-          <td><strong>The tax authority</strong></td>
-          <td>ZIMRA fiscalisation by all three routes: an Approved Supplier
-          device, a hosted service, or a direct interface. A filed receipt is
-          credit noted, never voided.</td>
-          <td>No fiscalisation requirement, so the till does not carry the
-          machinery for one.</td>
+          <td><strong>ZIMRA fiscalisation</strong></td>
+          <td>All three routes are supported: an Approved Supplier device, a
+          hosted service, or a direct interface. A filed receipt is credit
+          noted, never voided.</td>
         </tr>
         <tr>
-          <td><strong>Privacy law</strong></td>
-          <td>Consent recorded per patient and per channel.</td>
-          <td>The same record, held to POPIA.</td>
+          <td><strong>AHFoZ claiming</strong></td>
+          <td>One claim format, routed to whichever switch the funder uses.
+          Tariff and diagnosis errors are caught before submission, not a
+          fortnight later when the money has not arrived.</td>
         </tr>
         <tr>
-          <td><strong>A line that will not hold</strong></td>
-          <td colspan="2">Connectivity. The till does not stop when the line
-          does, in either country. Claims queue, fiscal receipts queue, and
-          everything is refiled when the connection comes back.</td>
+          <td><strong>Poor connectivity</strong></td>
+          <td>The till does not stop when the line does. Claims queue, fiscal
+          receipts queue, and everything is refiled when the connection comes
+          back.</td>
         </tr>
       </tbody>
     </table>
     </div>
 
     <div class="note">
-      <strong>What we will not pretend.</strong> Zimbabwe is where RX5000 is
-      live today, in daily use in a multi branch group. The South African pack
-      is built and its schedules are verified, and the first South African
-      pharmacy on it will be exactly that: the first. Some integrations also
-      need documents or accounts from third parties before they can be
-      finished, such as a switch's specification, a merchant account or a
-      licensed drug interaction database. RX5000 says which of those are live,
-      which are simulated and which are waiting, on a screen inside the
-      product. You will never find out from a customer that something was not
-      connected.
+      <strong>What we will not pretend.</strong> Some integrations need
+      documents or accounts from third parties before they can be finished. A
+      switch's specification, a merchant account, a licensed drug interaction
+      database. RX5000 says exactly which of those are live, which are
+      simulated and which are waiting, on a screen inside the product. You will
+      never find out from a customer that something was not connected.
     </div>
   </div>
 </section>
@@ -875,18 +903,29 @@
 
 <footer>
   <div class="wrap">
-    <p><strong>RX5000</strong>. Pharmacy management software for Southern Africa.</p>
+    <p><strong>RX5000</strong>. Pharmacy management software.</p>
     <p class="small">
       Regulatory behaviour follows the jurisdiction the pharmacy is set up
-      under. In Zimbabwe, medicine classifications follow MCAZ distribution
-      categories, fiscalisation follows ZIMRA requirements for VAT registered
-      operators, and claiming follows AHFoZ standards. In South Africa,
-      classifications follow SAHPRA schedules and patient data is held to
-      POPIA. Confirm the requirements applicable to your practice with the
+      under. For a pharmacy trading in Zimbabwe, medicine classifications
+      follow MCAZ distribution categories, fiscalisation follows ZIMRA
+      requirements for VAT registered operators, and claiming follows AHFoZ
+      standards. Confirm the requirements applicable to your practice with the
       relevant authority.
     </p>
   </div>
 </footer>
+
+<!-- The same number the contact section carries, reachable from anywhere on
+     the page rather than only from the bottom of it. -->
+<a class="wa-float" href="https://wa.me/263785948128"
+   target="_blank" rel="noopener"
+   aria-label="Ask a question on WhatsApp">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"
+       aria-hidden="true" focusable="false">
+    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.97L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.13h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.22 8.22 0 0 1-1.26-4.36c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.41a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.21-8.24 8.21Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.25-.64.81-.79.98-.14.16-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.67-1.18.21-.58.21-1.08.15-1.18-.06-.11-.22-.17-.47-.29Z"/>
+  </svg>
+  <span class="wa-text">WhatsApp us</span>
+</a>
 
 </body>
 </html>
