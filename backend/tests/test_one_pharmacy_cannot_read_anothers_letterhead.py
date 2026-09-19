@@ -55,15 +55,26 @@ check(any([r[2] for r in sql(f"pragma index_info('{n}')")] == ["pharmacy_id", "k
 orphans = sql("select count(*) from settings where pharmacy_id is null")[0][0]
 check(orphans == 0, "every settings row has an owner", f"{orphans} without one")
 
-# ---- an identity is not shared --------------------------------------------
-# A company.* row is a name, a tax number, an account to be paid into. Two
-# pharmacies holding the same one is the bug itself, so it must not happen by
-# the backfill having copied them about.
-shared = sql("""select key, count(distinct pharmacy_id) n from settings
-                 where key like 'company.%' group by key having n > 1""")
-check(not shared,
-      "no company identity is held by more than one pharmacy",
-      ", ".join(f"{k} x{n}" for k, n in shared) or "none shared")
+# ---- an identity is not COPIED between pharmacies --------------------------
+# Two pharmacies each holding their own company.trading_name is the point of
+# this change, not a fault, so the count of rows per key proves nothing. What
+# must not happen is two of them holding the same VALUE for something that
+# identifies one business: that is the backfill having spread an identity, or
+# the old shared row surviving under two owners.
+#
+# Only the keys that name or bank a specific business. Two pharmacies are
+# perfectly entitled to share a city, a country or a phone number on a
+# switchboard, and asserting otherwise would fail on the truth.
+IDENTIFYING = ("company.trading_name", "company.legal_name", "company.vat_no",
+               "company.tax_no", "company.registration_no",
+               "company.bank_account")
+copied = sql("""select key, value, count(distinct pharmacy_id) n from settings
+                 where key in ({}) and coalesce(value, '') <> ''
+                 group by key, value having n > 1""".format(
+                     ", ".join(f"'{k}'" for k in IDENTIFYING)))
+check(not copied,
+      "no two pharmacies share a trading name, tax number or bank account",
+      ", ".join(f"{k}={v!r} x{n}" for k, v, n in copied) or "none shared")
 
 # ---- what the signed-in pharmacy actually reads back ----------------------
 r = c.get("/api/profile/company")
