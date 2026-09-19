@@ -903,6 +903,12 @@ def _settings_belong_to_a_pharmacy(conn, inspector, existing_tables: set) -> int
     orphans = conn.execute(text(
         "SELECT id, key FROM settings WHERE pharmacy_id IS NULL")).fetchall()
     if not orphans:
+        # Nothing to give an owner to, which is the ordinary case on a fresh
+        # install AND on production, where settings was empty. It is not a
+        # reason to skip the new uniqueness: returning here dropped the old
+        # index and created nothing in its place, leaving the table with no
+        # rule at all. Found on production, where exactly that had happened.
+        _one_value_per_key_per_pharmacy(conn, live)
         return done
 
     pharmacies = [r[0] for r in conn.execute(text(

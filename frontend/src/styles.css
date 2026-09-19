@@ -1015,14 +1015,19 @@ label {
 }
 .drawer-head b { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
 .drawer-head .muted { display: block; margin-top: 2px; font-size: var(--t-xs); }
-.drawer-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s4) var(--s5); }
+.drawer-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  overscroll-behavior: contain; padding: var(--s4) var(--s5); }
 .drawer-foot { padding: var(--s3) var(--s5); border-top: 1px solid var(--line); }
 
 .ai-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .ai-log li { display: flex; align-items: center; gap: var(--s2); }
 .ai-log-item {
   flex: 1; min-width: 0;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  /* Stretch, not flex-start. Sized to content, a long question grew wider
+     than the drawer and put a horizontal scrollbar under the whole panel,
+     which is also why the two line clamp appeared to do nothing: there was
+     always room for one more word. */
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
   height: auto; padding: var(--s2) var(--s3); text-align: left;
   background: transparent; color: var(--ink);
   border: 1px solid transparent; border-radius: var(--r-sm); box-shadow: none;
@@ -1035,9 +1040,15 @@ label {
 .ai-log-item b {
   font-size: var(--t-sm); font-weight: 600; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow: hidden; max-width: 100%;
+  /* An interaction check is titled with the medicines in it, and a name like
+     BLOCPAIN(ACECLOFENAC 100/PARACET 500MG) has no space to break at. */
+  overflow-wrap: anywhere;
 }
-.ai-log-item .muted { font-size: var(--t-xs); font-weight: 400; }
+.ai-log-item .muted {
+  font-size: var(--t-xs); font-weight: 400;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 /* --- a control that is working ------------------------------------------- */
 
