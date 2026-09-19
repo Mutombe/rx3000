@@ -5785,3 +5785,223 @@ def _write_off_reasons(db: Session, p: dict):
             share = top["value"] / row["value"] * 100
             row["worst"] = f"{top['name']} ({share:.0f}%)"
     return sorted(groups.values(), key=lambda r: -r["value"])
+
+
+register(Report(
+    key="sep_compliance",
+    title="Against the published maximum",
+    module="Stock",
+    purpose="Lines bought or sold above the published Single Exit Price. The "
+            "blueprint asks for this at goods receipt; it is also worth asking "
+            "of the shelf, because a price loaded once from a supplier file "
+            "stays wrong until somebody looks.",
+    params=[Param("what", "Compare", "text", default="cost",
+                  help="cost, retail or both")],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("sep", "Regulated maximum", "money"),
+        Column("cost", "What we pay", "money"),
+        Column("retail", "What we charge", "money"),
+        Column("over", "Over by", "money", total=True),
+        Column("says", "What it says", "text"),
+    ],
+    rows=lambda db, p: _sep_compliance(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _sep_compliance(db: Session, p: dict):
+    """Where a line breaches the published maximum, on cost or on price.
+
+    TWO COMPARISONS, AND ONLY ONE OF THEM IS UNAMBIGUOUS
+
+    COST is the default, and it is the one to act on. A wholesaler invoicing
+    above a published maximum has overcharged, the amount is arithmetic, and
+    it is recoverable. On this catalogue that is 131 lines and a thousand
+    dollars, which is a morning's work and a real thousand dollars.
+
+    RETAIL is offered and is NOT the default, because what it means depends on
+    a jurisdiction. In South Africa the single exit price is what a
+    manufacturer may charge, and a pharmacy adds a regulated dispensing fee on
+    top, so selling above SEP is ordinary and lawful. Zimbabwe does not
+    operate SEP that way at all, which is why the model documents `sep_price`
+    as left blank rather than invented. On this pharmacy's data the column
+    tracks cost closely, which suggests it holds a list price rather than a
+    retail ceiling.
+
+    Defaulting to retail would have put 1,113 lines on a compliance report,
+    most of them an ordinary markup, and a compliance report that cries wolf
+    a thousand times is one nobody opens the day it is right. So the wording
+    says what is measured and not what it proves.
+
+    Only lines that HAVE a maximum are considered: 9,606 of this catalogue's
+    16,457 carry one, and the rest are silent rather than passing.
+    """
+    what = str(p.get("what") or "both").strip().lower()
+    rows = (
+        db.query(Product)
+        .filter(Product.active, Product.sep_price > 0)
+        .all()
+    )
+    out = []
+    for product in rows:
+        sep = round(product.sep_price or 0.0, 2)
+        cost = round(product.cost_price or 0.0, 2)
+        retail = round(product.unit_price or 0.0, 2)
+        faults = []
+        over = 0.0
+        if what in ("both", "cost") and cost > sep:
+            faults.append(f"the supplier is charging {cost - sep:,.2f} above the "
+                          "published maximum, which is recoverable")
+            over = max(over, cost - sep)
+        if what in ("both", "retail") and retail > sep:
+            # Stated as a fact rather than as a breach. See the note above.
+            faults.append(f"priced {retail - sep:,.2f} above the published "
+                          "maximum, before any dispensing fee")
+            over = max(over, retail - sep)
+        if not faults:
+            continue
+        out.append({
+            "product_id": product.id,
+            "product": product.name,
+            "sep": sep, "cost": cost, "retail": retail,
+            "over": round(over, 2),
+            "says": " and ".join(faults).capitalize() + ".",
+        })
+    out.sort(key=lambda r: -r["over"])
+    return out
+
+
+register(Report(
+    key="controlled_stock_sheet",
+    title="Controlled medicines stock sheet",
+    module="Dispensary",
+    purpose="Opening and closing balances for Schedule 5 and 6 lines, with "
+            "what went out between them. What an inspector asks for, and the "
+            "arithmetic they check first.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("product", "Medicine", "text"),
+        Column("schedule", "Sch", "text"),
+        Column("opening", "Opening", "number", total=True),
+        Column("received", "Received", "number", total=True),
+        Column("dispensed", "Dispensed", "number", total=True),
+        Column("adjusted", "Adjusted", "number", total=True),
+        Column("closing", "Closing", "number", total=True),
+        Column("on_hand", "On the shelf", "number", total=True),
+        Column("agrees", "Reconciles", "text"),
+    ],
+    rows=lambda db, p: _controlled_stock_sheet(db, p),
+    drill=lambda row: "/products/" + str(row.get("product_id")),
+))
+
+
+def _controlled_stock_sheet(db: Session, p: dict):
+    """Opening, received, dispensed, closing, per controlled line.
+
+    WHY IT IS NOT BUILT ON THE REGISTER
+
+    There is a controlled-substances register in this system, it is the right
+    place for this, and on the pharmacy this was written for it holds NOTHING:
+    zero entries against 115 Schedule 5 lines and 3,354 controlled dispensings
+    on file. The register is written as medicines are dispensed live, and a
+    pharmacy that brought two years of history in has none of it. A stock
+    sheet built on that source would print zeroes for a shop that has been
+    dispensing pethidine all year, which is worse than printing nothing.
+
+    So it is built on what is actually recorded: the dispensings themselves,
+    the receipts on the stock ledger, and the shelf figure now.
+
+    RECEIPTS ARE OFTEN ZERO HERE, AND THAT IS THE DATA SPEAKING
+
+    An invoice import writes no stock movements, so a pharmacy that brought
+    its history in has no receipts on the ledger for the period, and the
+    opening balance absorbs them: it is derived by winding today's shelf back
+    through what is recorded. The figures still reconcile and the shape is
+    still right, but a period with no receipts against heavy dispensing means
+    the receiving was done in the old system, not that nothing arrived.
+
+    WHY CLOSING AND ON THE SHELF ARE BOTH SHOWN
+
+    Closing is derived — the shelf now, wound back through what moved in the
+    period. On the shelf is what the record says today. They should be the
+    same number by definition, and where they are not it means something moved
+    without being written down, which is the single thing an inspector is
+    looking for. Showing one without the other would hide exactly that, so
+    both are printed and the last column says whether they agree.
+    """
+    products = (
+        db.query(Product)
+        .filter(Product.active, Product.schedule >= 5)
+        .all()
+    )
+    if not products:
+        return []
+    ids = [p.id for p in products]
+
+    dispensed = dict(
+        db.query(PrescriptionItem.product_id, func.coalesce(func.sum(Dispensing.quantity), 0))
+        .join(Dispensing, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .filter(PrescriptionItem.product_id.in_(ids))
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .group_by(PrescriptionItem.product_id).all()
+    )
+    received = dict(
+        db.query(StockMovement.product_id,
+                 func.coalesce(func.sum(StockMovement.quantity_delta), 0))
+        .filter(StockMovement.product_id.in_(ids),
+                StockMovement.movement_type == "receive")
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .group_by(StockMovement.product_id).all()
+    )
+    # Anything else that moved: adjustments, write-offs, transfers. Kept out of
+    # the three named columns and used only to test whether they add up,
+    # because a stock sheet that quietly folds a write-off into "dispensed" is
+    # a stock sheet that hides a loss inside a lawful figure.
+    other = dict(
+        db.query(StockMovement.product_id,
+                 func.coalesce(func.sum(StockMovement.quantity_delta), 0))
+        .filter(StockMovement.product_id.in_(ids),
+                StockMovement.movement_type.notin_(("receive", "sale")))
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .group_by(StockMovement.product_id).all()
+    )
+
+    rows = []
+    for product in products:
+        out = int(dispensed.get(product.id, 0) or 0)
+        took_in = int(received.get(product.id, 0) or 0)
+        moved = int(other.get(product.id, 0) or 0)
+        on_hand = int(product.quantity_on_hand or 0)
+        # Wind the shelf back over the period to get where it started.
+        opening = on_hand - took_in - moved + out
+        closing = opening + took_in + moved - out
+        agrees = closing == on_hand
+        if not (out or took_in or moved or on_hand):
+            continue          # a controlled line nobody has touched or holds
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "schedule": f"S{product.schedule}",
+            "opening": opening,
+            "received": took_in,
+            "dispensed": out,
+            # SHOWN, because otherwise the row does not add up on the page.
+            #
+            # The first version computed adjustments and kept them out of the
+            # printed columns, so a line read "opening 8,137, received 0,
+            # dispensed 8,137, closing 21" — which is arithmetic an inspector
+            # does in their head and finds wrong. The 21 was a write-off
+            # nobody could see. A stock sheet whose own figures do not
+            # reconcile in public is worse than no stock sheet.
+            "adjusted": moved,
+            "closing": closing,
+            "on_hand": on_hand,
+            "agrees": "Yes" if agrees else f"No, out by {abs(closing - on_hand)}",
+        })
+    rows.sort(key=lambda r: (r["agrees"] == "Yes", -r["dispensed"]))
+    return rows
