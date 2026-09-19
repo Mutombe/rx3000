@@ -258,6 +258,8 @@ def complete(layby_id: int, db: Session = Depends(get_db),
     for item in layby.items:
         db.add(SaleItem(sale_id=sale.id, product_id=item.product_id,
                         quantity=item.quantity, unit_price=item.unit_price,
+                        # units ok: the lay-by line's own agreed price and
+                        # its own quantity, both fixed when it was taken out.
                         line_total=round(item.unit_price * item.quantity, 2)))
 
     layby.status = "completed"

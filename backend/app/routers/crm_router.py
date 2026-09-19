@@ -227,6 +227,8 @@ def add_deal_item(deal_id: int, body: schemas.DealItemIn, db: Session = Depends(
     if not description:
         raise HTTPException(status_code=400, detail="A line needs a product or a description")
 
+    # units ok: a deal line carries its own quoted price against its own
+    # quantity. Neither comes from the catalogue columns.
     gross = unit_price * body.quantity
     line_total = round(gross * (1 - body.discount_percent / 100), 2)
     db.add(DealItem(

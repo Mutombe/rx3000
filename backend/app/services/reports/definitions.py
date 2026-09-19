@@ -165,6 +165,10 @@ def _department_sales(db: Session, p: dict):
         db.query(
             Product.category,
             func.sum(SaleItem.quantity),
+            # units ok: SaleItem.unit_price is the price CAPTURED on the
+            # line, in whatever unit that line was sold in, not the
+            # catalogue's pack price. The two agree by construction:
+            # quantity times unit_price is line_total.
             func.sum(SaleItem.unit_price * SaleItem.quantity),
             func.sum(line_cost() * SaleItem.quantity),
         )
@@ -1204,6 +1208,10 @@ def _gross_profit(db: Session, p: dict):
         db.query(
             Product.id, Product.name, Product.category,
             func.sum(SaleItem.quantity),
+            # units ok: SaleItem.unit_price is the price CAPTURED on the
+            # line, in whatever unit that line was sold in, not the
+            # catalogue's pack price. The two agree by construction:
+            # quantity times unit_price is line_total.
             func.sum(SaleItem.unit_price * SaleItem.quantity),
             func.sum(line_cost() * SaleItem.quantity),
         )

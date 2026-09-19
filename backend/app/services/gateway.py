@@ -149,6 +149,7 @@ def validate_tariff(db: Session, line, financial_year: int, currency: str) -> Ta
             line.line_number,
         )
 
+    # units ok: an order line's own price against its own quantity.
     expected = round(line.unit_price * line.quantity, 2)
     if abs(expected - line.total_price) > 0.01:
         raise GatewayError(

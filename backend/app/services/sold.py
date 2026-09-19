@@ -80,6 +80,8 @@ def units_sold_since(db: Session, since, until=None) -> dict[int, float]:
                  # units by TODAY'S price, so a line repriced last month
                  # restated last quarter's takings every time somebody opened
                  # the report.
+                 # units ok: the line's own captured price against its own
+                 # quantity, never the catalogue column.
                  func.sum(net * SaleItem.unit_price))
         .join(Sale, Sale.id == SaleItem.sale_id)
         .filter(Sale.status.notin_(("void", "credited")))
@@ -120,6 +122,7 @@ def for_product(db: Session, product_id: int, since, until=None) -> dict:
     costed = func.sum(case((SaleItem.unit_cost > 0, net), else_=0))
     query = (
         db.query(func.sum(net),
+                 # units ok: the line's own captured price.
                  func.sum(net * SaleItem.unit_price),
                  func.sum(net * cost),
                  costed)

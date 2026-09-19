@@ -376,6 +376,8 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
         authorised, hand_set = _hand_set_price(
             db, user, getattr(line, "price_override_id", None), product.id)
         unit_price = hand_set if hand_set is not None else product.unit_price
+        # units ok: the till sells PACKS at the pack price, and consumes
+        # stock with in_packs=True below, so both sides are packs.
         line_total = round(unit_price * line.quantity, 2)
         line_ex = round(line_total / (1 + product.vat_rate), 2)
         subtotal += line_ex
