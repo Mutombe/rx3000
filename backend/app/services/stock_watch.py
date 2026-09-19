@@ -92,6 +92,15 @@ def _raise(db: Session, kind: str, product: Product, *, branch_id=None,
         detail=detail[:300], worth=round(worth or 0.0, 2),
         urgency=URGENCY.get(kind, 1),
         first_seen_at=now, last_seen_at=now,
+        # WHOSE FINDING THIS IS, taken from the medicine it is about.
+        #
+        # The automatic stamp fills this from the pharmacy in force, and the
+        # sweep runs unscoped because a scheduled job has no request behind
+        # it. So there is no pharmacy in force and the stamp leaves it null,
+        # which is the one value that is invisible to every tenant: the first
+        # run wrote 1,081 findings nobody could see. An alert belongs to
+        # whoever owns the stock it is about, and that is on the product.
+        pharmacy_id=product.pharmacy_id,
     ))
     return True
 

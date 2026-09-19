@@ -4,6 +4,7 @@ import { useConfirm } from "../components/Confirm";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import StockUpload from "../components/StockUpload";
 import StockReconcile from "../components/StockReconcile";
+import StockWatch from "../components/StockWatch";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -16,7 +17,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "batches" | "movements" | "reconcile" | "upload";
+type Tab = "products" | "watch" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -50,6 +51,11 @@ export default function Stock() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [departments, setDepartments] = useState<{ id: number; name: string; dispensable: boolean }[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
+  // How many findings are standing, for the tab. Asked once when the page
+  // opens rather than kept live: the sweep runs each morning, so a number
+  // changing while somebody reads the catalogue would be a surprise rather
+  // than news.
+  const [watching, setWatching] = useState(0);
   const [mvMeta, setMvMeta] = useState<Paged<StockMovement> | null>(null);
   const [mvPage, setMvPage] = useState(1);
   const [mvSize, setMvSize] = useState(25);
@@ -62,6 +68,12 @@ export default function Stock() {
   const [expiringOnly, setExpiringOnly] = useState(false);
   const TABS: TabDef<Tab>[] = [
     { key: "products", label: "Products", count: products.length },
+    // First after the catalogue, because it is the only tab that says
+    // something nobody asked for. The rest answer a question somebody came
+    // with; this one tells them what they did not know to ask.
+    { key: "watch", label: "Needs attention", count: watching || undefined,
+      hint: "Expired and short dated stock, empty shelves and reorder levels, "
+            + "swept each morning" },
     { key: "batches", label: "Batches & expiry", count: batches.length },
     { key: "movements", label: "Movement history", count: movements.length },
     // Beside the movements, because that is what explains a difference: the
@@ -210,6 +222,12 @@ export default function Stock() {
 
   useEffect(load, [q, lowOnly]);
   useEffect(() => { api.get<Supplier[]>("/api/suppliers").then(setSuppliers); }, []);
+  // Only the count. The list itself is the Needs attention tab's own business.
+  useEffect(() => {
+    api.get<{ items: unknown[] }>("/api/stock/alerts")
+      .then((r) => setWatching(r.items.length))
+      .catch(() => setWatching(0));
+  }, []);
   useEffect(() => {
     api.get<{ items: { id: number; name: string; dispensable: boolean }[] }>("/api/stock-categories")
       .then((d) => setDepartments(d.items ?? []))
@@ -394,6 +412,7 @@ export default function Stock() {
         />
       )}
 
+      {tab === "watch" && <StockWatch />}
       {tab === "reconcile" && <StockReconcile />}
 
       {tab === "upload" && <StockUpload onDone={load} />}

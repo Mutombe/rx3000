@@ -11293,6 +11293,23 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: flex; align-items: center; gap: 7px;
 }
 
+/* WHAT THE SHELVES ARE TRYING TO SAY
+   A list of findings rather than a report: ranked by money, dimmed once read,
+   and each row carrying somewhere to go and do something about it. */
+.sw-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+}
+.sw-say { margin: 0; max-width: 72ch; line-height: 1.5; }
+.sw-acts { display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap; }
+.sw-only {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--t-sm); color: var(--ink-mid); white-space: nowrap;
+}
+.sw-what { min-width: 20rem; white-space: normal; }
+.sw-detail { line-height: 1.4; max-width: 56ch; margin-top: 3px; }
+.sw-what .badge { display: inline-flex; align-items: center; gap: 4px; }
+
 /* THE QUESTIONS ASKED OF THE PATIENT LIST
    One row of pills above the table. Each carries its own count, because a
    filter that might show nothing is one nobody presses twice. */
