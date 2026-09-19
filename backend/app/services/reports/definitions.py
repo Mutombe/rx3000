@@ -839,14 +839,92 @@ register(Report(
 ))
 
 
+def units_sold_since(db: Session, since, until=None) -> dict[int, float]:
+    """How many units of each line actually sold in a period.
+
+    READ OFF SALE LINES, NOT OFF THE STOCK LEDGER, AND THAT IS THE FIX
+
+    Both movers reports used to count StockMovement rows of type "sale". It
+    reads as the more careful choice, because a movement is written whether
+    goods go over the counter or out on a script. It is also empty for every
+    pharmacy that brought its history with it.
+
+    An invoice import deliberately writes no stock movements: the closing
+    figures come from the same system's stock export and already reflect those
+    sales, so replaying two years of deductions would take the shelf count down
+    twice. Correct, and the consequence was that CareXpress had 45,728 sales
+    and 70,305 sale lines on file, and Fast movers, Slow movers and Stock usage
+    per item all returned nothing at all. The one thing a pharmacy asks an
+    inventory to tell them, answered with an empty table, on their own data.
+
+    A sale line is the record of goods leaving, it exists for a script line as
+    well as a counter sale (`prescription_item_id` says which), and it is
+    written by the importer and by the till alike. So it is what these count.
+
+    Revenue comes back with the units for the same reason: it is what the
+    pharmacy was actually paid, rather than this month's shelf price applied
+    to last quarter's sales.
+
+    Returns are taken off rather than ignored: four sold and one brought back
+    is three sold, and a line with a high return rate is one somebody should be
+    looking at, not one that should read as a fast mover.
+
+    Voided and credited sales are left out entirely. Both mean the sale did not
+    happen; a void reverses it on the day and a credit note gives the money
+    back later, and counting either as demand puts phantom lines at the top of
+    a reorder list.
+
+    WHAT THIS COUNTS, AND THE ONE PLACE IT IS KNOWN TO UNDERSTATE
+
+    `SaleItem.quantity` does not mean the same thing on every line, and that is
+    a fault in the column rather than in this function. A script line records
+    UNITS and prices per unit: thirty tablets, priced per tablet. A till line
+    records PACKS and prices per pack: one box. Both are correct for what the
+    customer was charged, and the pack size is the factor between them.
+
+    The quantity is therefore counted exactly as recorded, with no conversion.
+    On 13,923 of this catalogue's 15,541 lines the pack IS the unit and the
+    question does not arise. On the rest it can only be resolved by knowing
+    which door the sale came through, and on imported history that cannot be
+    known: the invoice importer links no line to a script item, so all 70,305
+    of CareXpress's lines look identical to a till sale whether they were one
+    or not.
+
+    Multiplying by the pack size on a guess would turn a dispensed line of
+    thirty capsules from a tub of a thousand into thirty thousand and put it at
+    the top of the fast movers list. Not converting understates a till sale of
+    a multi pack. The second error is the small one and it is in the safe
+    direction, so it is the one taken, and it is written down here rather than
+    discovered later in a figure nobody can explain.
+    """
+    net = SaleItem.quantity - func.coalesce(SaleItem.quantity_returned, 0)
+    query = (
+        db.query(SaleItem.product_id,
+                 func.sum(net),
+                 # What it was actually charged at, which is the other thing a
+                 # stock movement could not say. Fast movers used to multiply
+                 # units by TODAY'S price, so a line repriced last month
+                 # restated last quarter's takings every time somebody opened
+                 # the report.
+                 func.sum(net * SaleItem.unit_price))
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .filter(Sale.status.notin_(("void", "credited")))
+        .filter(func.date(Sale.created_at) >= since)
+    )
+    if until is not None:
+        query = query.filter(func.date(Sale.created_at) <= until)
+    return {pid: {"units": float(units or 0), "revenue": round(float(paid or 0), 2)}
+            for pid, units, paid in query.group_by(SaleItem.product_id).all()
+            if (units or 0) > 0}
+
+
 def _fast_movers(db: Session, p: dict):
     """What turns over, ranked, with the ones about to run out marked.
 
-    Counted off stock movements rather than sale lines, for the same reason
-    Slow movers does: a movement exists for a dispensing as well as a till
-    sale, and a pharmacy's fastest lines are usually dispensed rather than
-    sold over the counter. Counting sale lines alone would rank the front
-    shop above the dispensary and be quietly wrong.
+    Counted off sale lines: see `units_sold_since` for why, and for what was
+    wrong with counting stock movements. A sale line carries the script line
+    it came from, so the dispensary is counted alongside the front shop
+    without needing the stock ledger to be present.
 
     Weeks of cover is the column that makes this actionable rather than
     merely interesting. A line selling two hundred a month with three weeks
@@ -860,14 +938,7 @@ def _fast_movers(db: Session, p: dict):
         days, min_turns = 90, 6.0
     since = date.today() - timedelta(days=days)
 
-    sold = dict(
-        db.query(StockMovement.product_id,
-                 func.sum(func.abs(StockMovement.quantity_delta)))
-        .filter(StockMovement.movement_type == "sale")
-        .filter(func.date(StockMovement.created_at) >= since)
-        .group_by(StockMovement.product_id)
-        .all()
-    )
+    sold = units_sold_since(db, since)
     if not sold:
         return []
 
@@ -875,7 +946,8 @@ def _fast_movers(db: Session, p: dict):
     for product in (db.query(Product)
                     .filter(Product.id.in_(list(sold)))
                     .filter(Product.active).all()):
-        units = float(sold.get(product.id) or 0)
+        line = sold.get(product.id) or {}
+        units = float(line.get("units") or 0)
         if units <= 0:
             continue
         on_hand = product.quantity_on_hand or 0
@@ -901,7 +973,7 @@ def _fast_movers(db: Session, p: dict):
             "on_hand": on_hand,
             "turns": turns,
             "weeks_cover": weeks,
-            "revenue": round(units * (product.per_unit() or 0.0), 2),
+            "revenue": line.get("revenue", 0.0),
             "standing": ("Out of stock" if on_hand <= 0
                          else "Under two weeks left" if weeks < 2
                          else "Under a month left" if weeks < 4.5
@@ -944,18 +1016,11 @@ def _slow_movers(db: Session, p: dict):
         days, max_turns = 90, 2.0
     since = date.today() - timedelta(days=days)
 
-    sold = dict(
-        db.query(StockMovement.product_id,
-                 func.sum(func.abs(StockMovement.quantity_delta)))
-        .filter(StockMovement.movement_type == "sale")
-        .filter(func.date(StockMovement.created_at) >= since)
-        .group_by(StockMovement.product_id)
-        .all()
-    )
+    sold = units_sold_since(db, since)
     rows = []
     for product in db.query(Product).filter(
             Product.active, Product.quantity_on_hand > 0).all():
-        units = float(sold.get(product.id) or 0)
+        units = float((sold.get(product.id) or {}).get("units") or 0)
         # No sales at all is dead stock, which has its own report. Mixing the
         # two makes both harder to act on.
         if units <= 0:
@@ -2053,28 +2118,51 @@ def _usage_per_item(db: Session, p: dict):
         .group_by(StockMovement.product_id, StockMovement.movement_type)
         .all()
     )
-    if not moved:
+    # Sold is counted off sale lines, received and adjusted off the ledger.
+    #
+    # They are different records and only one of them survives an import. An
+    # invoice import writes sales and deliberately writes no stock movements,
+    # because the closing figures it is loaded beside already reflect them. So
+    # a pharmacy that brought its history with it had a "Sold" column of
+    # zeroes on every line, in the one report whose stated purpose is what a
+    # reorder level should be set from.
+    sold = units_sold_since(db, p["date_from"], p["date_to"])
+
+    ids = {m[0] for m in moved} | set(sold)
+    if not ids:
         return []
-    ids = {m[0] for m in moved}
     products = {pr.id: pr for pr in db.query(Product).filter(Product.id.in_(ids)).all()}
 
-    rows = {}
-    for product_id, kind, delta in moved:
+    def row_for(product_id):
         product = products.get(product_id)
         if not product:
-            continue
-        row = rows.setdefault(product_id, {
+            return None
+        return rows.setdefault(product_id, {
             "product_id": product_id, "product": product.name,
             "received": 0, "sold": 0, "adjusted": 0,
             "on_hand": product.quantity_on_hand or 0,
         })
+
+    rows = {}
+    for product_id, kind, delta in moved:
+        row = row_for(product_id)
+        if row is None:
+            continue
         amount = int(delta or 0)
         if kind == "receive":
             row["received"] += amount
         elif kind == "sale":
-            row["sold"] += abs(amount)
+            # Live trading writes one of these per sale. Counting it here as
+            # well as off the sale line would double every unit sold since go
+            # live, so the ledger's own sale rows are left to the sale lines.
+            continue
         else:
             row["adjusted"] += amount
+
+    for product_id, line in sold.items():
+        row = row_for(product_id)
+        if row is not None:
+            row["sold"] = int(line["units"])
 
     for row in rows.values():
         weekly = row["sold"] / (days / 7) if row["sold"] else 0
