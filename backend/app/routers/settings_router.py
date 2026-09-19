@@ -90,6 +90,29 @@ DECLARED: tuple[Declared, ...] = (
              "Sales above this must be attached to a named customer. Zero means "
              "never. This is what stops large sales becoming untraceable."),
 
+    # ---- stock
+    #
+    # Every one of these was a constant in a module before it was a setting,
+    # and the client's blueprint asks for each to be configurable. The default
+    # in each line below is the constant it replaces, so a pharmacy that never
+    # opens this screen behaves exactly as it did.
+    Declared("stock.expiry_alert_days", "Warn about stock expiring within",
+             "number", "90", "Stock",
+             "How far ahead the nightly sweep looks. Shorter and short-dated "
+             "stock is found too late to return or discount; longer and the "
+             "list is too big to act on.", "days"),
+    Declared("stock.variance_threshold", "Stock-take variance needing approval",
+             "money", "0", "Stock",
+             "A count whose variance is worth more than this needs a second "
+             "person before it posts. Zero means every count does, which is "
+             "the safest and the slowest."),
+    Declared("stock.adjust_threshold", "Adjustment needing a password",
+             "money", "0", "Stock",
+             "An adjustment worth more than this asks for a second person's "
+             "password. Zero means none do: small shelf corrections stay "
+             "instant, and it is the large unexplained ones that cost "
+             "somebody a moment."),
+
     # ---- dispensing
     Declared("dispensing.default_icd10", "Default diagnosis code", "text", "", "Dispensing",
              "Pre-filled on a new script line so a dispenser corrects one field "

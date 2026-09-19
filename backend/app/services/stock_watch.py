@@ -42,14 +42,20 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import valuation
+from . import config, valuation
 from ..models import (Branch, Dispensing, PrescriptionItem, Product,
                       StockAlert, StockBatch)
 
 log = logging.getLogger("rx5000.stock_watch")
 
-#: How short dated is worth mentioning. Ninety days is what the command centre
-#: and the expiry report already use, so the three agree.
+#: How short dated is worth mentioning, where nobody has said otherwise.
+#:
+#: Ninety days is what the command centre and the expiry report already use,
+#: so the three agree out of the box. It is now a floor rather than a rule:
+#: `stock.expiry_alert_days` on the settings screen overrides it, because a
+#: pharmacy that returns short dated stock to its wholesaler on sixty days
+#: needs to hear about it before day sixty, and one that cannot return
+#: anything wants longer.
 EXPIRING_DAYS = 90
 
 #: How recently a line must have moved before an empty shelf is a problem
@@ -117,13 +123,18 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
     seen: set = set()
     new = {"expired": 0, "expiring": 0, "out_of_stock": 0, "below_reorder": 0}
 
+    # What this pharmacy calls short dated, rather than what this module used
+    # to assume. Read once per sweep: the job runs over every branch and the
+    # answer cannot change while it does.
+    warn_within = config.whole(db, "stock.expiry_alert_days", EXPIRING_DAYS)
+
     # ---- what is on the shelf past its date, and what is nearly there -----
     batches = (
         db.query(StockBatch, Product)
         .join(Product, StockBatch.product_id == Product.id)
         .filter(StockBatch.quantity_remaining > 0,
                 StockBatch.expiry_date.isnot(None),
-                StockBatch.expiry_date <= today + timedelta(days=EXPIRING_DAYS))
+                StockBatch.expiry_date <= today + timedelta(days=warn_within))
         .all()
     )
     for batch, product in batches:

@@ -292,3 +292,33 @@ def describe(action_key: str) -> dict:
 
 def catalogue() -> list[dict]:
     return [describe(k) for k in sorted(ACTIONS)]
+
+
+def demand(db: Session, *, action_key: str, token: str, actor: User) -> None:
+    """The same gate as the dependency, but asked for from inside a handler.
+
+    `require_step_up` is a FastAPI dependency, so it runs before the endpoint
+    body and cannot know anything the body works out. That is fine for "voiding
+    a sale always needs a password" and useless for "an adjustment needs one
+    when it is worth more than a hundred", because the worth is computed from
+    the request and the product.
+
+    Raises the identical 428 with the identical payload, so a screen that
+    already knows how to answer one of these needs no second implementation.
+    """
+    from fastapi import HTTPException
+
+    if not token:
+        detail = {"error_code": "STEP_UP_REQUIRED", **describe(action_key)}
+        detail["message"] = (
+            f"'{detail.get('name', action_key)}' needs a password before it can "
+            "be done. " + ("Ask " + approvers_phrase(detail.get("approvers", []))
+                           + " to approve it."
+                           if not detail.get("self_approval") else
+                           "Re-enter your password to confirm."))
+        raise HTTPException(status_code=428, detail=detail)
+    try:
+        redeem(db, action_key=action_key, token=token, actor=actor)
+    except StepUpError as exc:
+        raise HTTPException(status_code=403, detail={
+            "error_code": "STEP_UP_INVALID", "message": str(exc)}) from exc

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
+from fastapi import (APIRouter, Body, Depends, File, Form, Header,
+                     HTTPException, UploadFile)
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -8,7 +9,7 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
-from ..services import valuation
+from ..services import config, stepup, valuation
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -479,6 +480,12 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
         # loud. It is the difference between a shelf that is empty and a shelf
         # nobody has counted, and only one of those is fixed by ordering.
         "disagrees": units != (here + here_undated),
+        # What an adjustment of this line may be worth before a second person
+        # is asked. Sent so the modal knows whether it may close on the click:
+        # an optimistic dialog that unmounts before the answer has nowhere to
+        # show a password prompt, so it has to know beforehand which kind of
+        # adjustment this is. Zero means nobody is ever asked.
+        "adjust_threshold": config.number(db, "stock.adjust_threshold", 0.0),
         "reorder_level": int(product.reorder_level or 0),
         "max_level": int(product.max_level or 0),
         "reorder_quantity": int(product.reorder_quantity or 0),
@@ -617,12 +624,35 @@ def stock_upload(csv_text: str = Body(..., embed=True),
 @router.post("/stock/adjust")
 def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
                  user: User = Depends(get_current_user),
+                 x_step_up: str = Header(default=""),
                  _may=Depends(auth.requires("stock.adjust"))):
     product = db.get(Product, body.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     if product.quantity_on_hand + body.quantity_delta < 0:
         raise HTTPException(status_code=400, detail="Adjustment would make stock negative")
+
+    # A PASSWORD ON THE LARGE ONES, AND ONLY THE LARGE ONES.
+    #
+    # `stock.adjust` has been a registered step-up action all along, with the
+    # reason written out — "an adjustment with no invoice or script behind it
+    # is how shrinkage is hidden, it should cost somebody a password" — and no
+    # endpoint has ever asked for it. The control existed on paper only.
+    #
+    # Asking on every adjustment would undo something deliberate: the
+    # pharmacist is the person standing at the shelf who can SEE the count is
+    # wrong, and a correction that cannot be made at the moment it is noticed
+    # is a correction that does not get made. That is why they hold the
+    # capability at all, and why the dialog closes on the click.
+    #
+    # So it is worth, not act. `stock.adjust_threshold` is the money above
+    # which a second person is asked, and it ships at zero, which asks for
+    # nobody: a pharmacy turns it on by naming a figure that means something
+    # to them. Priced per unit, because the delta is in units.
+    threshold = config.number(db, "stock.adjust_threshold", 0.0)
+    worth = abs(valuation.at_cost(product, body.quantity_delta))
+    if threshold > 0 and worth > threshold:
+        stepup.demand(db, action_key="stock.adjust", token=x_step_up, actor=user)
 
     # A correction and a write-off arrive on the same endpoint, and they are not
     # the same act: one says the count was wrong, the other says goods left the

@@ -22,7 +22,7 @@ which is exactly the shape of an action that should not rest on one login.
 """
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -30,8 +30,8 @@ from .. import helpers
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Product, StockTake, StockTakeLine, User
-from .periods_router import require_step_up
 from ..services import branches as branch_svc
+from ..services import config, stepup
 
 router = APIRouter(prefix="/api/stock-takes", tags=["stock take"],
                    dependencies=[Depends(get_current_user)])
@@ -182,13 +182,28 @@ def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
 @router.post("/{take_id}/close")
 def close_take(take_id: int, db: Session = Depends(get_db),
                user: User = Depends(get_current_user),
-               _grant=Depends(require_step_up("stocktake.close"))):
+               x_step_up: str = Header(default="")):
     """Post the variances and bring the system into line with the shelves.
 
     This is where stock actually moves, and it is deliberately the only step
     that does. Every counted line with a difference becomes a movement, so the
     adjustment is traceable to the count that caused it rather than appearing as
     an unexplained correction.
+
+    THE SECOND PERSON, AND WHY THE DEFAULT DID NOT MOVE
+
+    The blueprint asks that variances above a threshold need supervisor
+    approval. This asked on EVERY close, unconditionally, which is stricter
+    than that, and a threshold introduced carelessly would have quietly
+    relaxed a control that was already there.
+
+    So `stock.variance_threshold` ships at zero and zero means every count,
+    which is exactly what happened before. A pharmacy that counts one bin a
+    day and is tired of fetching a manager for a two dollar difference can
+    name a figure; until they do, nothing changes.
+
+    The check moved into the body because the threshold is compared against
+    the variance, and nothing outside the body knows what that is.
     """
     take = db.query(StockTake).get(take_id)
     if not take:
@@ -200,6 +215,14 @@ def close_take(take_id: int, db: Session = Depends(get_db),
             status_code=400,
             detail="Nothing has been counted, so there is nothing to post. Abandon it instead.",
         )
+
+    # Priced off the line's own captured cost, which is what the variance
+    # report shows, so the figure that decides the gate is the figure the
+    # person is looking at.
+    at_stake = sum(abs(l.variance) * (l.unit_cost or 0.0) for l in take.lines)
+    threshold = config.number(db, "stock.variance_threshold", 0.0)
+    if threshold <= 0 or at_stake > threshold:
+        stepup.demand(db, action_key="stocktake.close", token=x_step_up, actor=user)
 
     posted = 0
     for line in take.lines:

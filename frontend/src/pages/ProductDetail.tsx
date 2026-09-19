@@ -389,6 +389,10 @@ export default function ProductDetail() {
       {adjusting && (
         <AdjustStock
           product={adjusting}
+          // Both known here, so the dialog can tell before it opens whether
+          // this correction is the size that needs a second person.
+          adjustThreshold={shelf?.adjust_threshold ?? 0}
+          unitCost={shelf?.avg_cost ?? shelf?.unit_cost ?? 0}
           onClose={() => setAdjusting(null)}
           onAdjusted={(onHand, settled) => {
             // The figure on the page moves the moment the dialog closes, so

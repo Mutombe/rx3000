@@ -24,10 +24,11 @@
 import { useEffect, useState } from "react";
 import { ArrowRight, Warning } from "@phosphor-icons/react";
 
-import { api, errorText } from "../api";
+import { api, errorText, money } from "../api";
 import type { Product } from "../types";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
+import { useStepUp, CANCELLED } from "./StepUp";
 import { useCan } from "../session";
 
 /** Why a count is being corrected. The reason is what makes an adjustment an
@@ -45,7 +46,8 @@ const REASONS = [
   { key: "returned", label: "Returned by a patient", note: "" },
 ] as const;
 
-export default function AdjustStock({ product, onClose, onAdjusted, prescriptionId }: {
+export default function AdjustStock({ product, onClose, onAdjusted, prescriptionId,
+                                      adjustThreshold, unitCost }: {
   product: Product;
   onClose: () => void;
   /** The script on screen when this was opened, where there was one.
@@ -67,6 +69,16 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
    *  carries the figure back to what it was.
    */
   onAdjusted: (onHand: number, settled: boolean) => void;
+  /** What an adjustment may be worth before a second person is asked, and
+   *  what one unit of this line costs, so the dialog can tell beforehand.
+   *
+   *  It has to be beforehand. This dialog closes on the click and finishes in
+   *  the background, which is deliberate, and a dialog that has unmounted has
+   *  nowhere to put a password prompt. So a large adjustment is the one case
+   *  that waits, and both numbers are needed to know which it is. Zero, the
+   *  default, means nobody is ever asked and nothing here changes. */
+  adjustThreshold?: number;
+  unitCost?: number;
 }) {
   const here = Number(product.here ?? product.quantity_on_hand ?? 0);
   const undated = Number(product.here_undated ?? 0);
@@ -80,6 +92,7 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
   const [reason, setReason] = useState<string>(REASONS[0].key);
   const [note, setNote] = useState("");
   const toast = useToast();
+  const { guarded, prompt } = useStepUp();
 
   useEffect(() => { setCount(mode === "set" ? String(here) : ""); }, [mode]);
 
@@ -115,7 +128,7 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
    *  optimistic screen that cannot put the number back is not optimistic, it
    *  is wrong.
    */
-  function save() {
+  async function save() {
     if (problem) return;
     const why = REASONS.find((r) => r.key === reason);
     const body = {
@@ -135,12 +148,35 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
     const expected = after;
     const name = product.name;
 
+    const send = (token?: string) =>
+      api.post<{ quantity_on_hand: number }>("/api/stock/adjust", body, token);
+
+    // Worth, not act. Under the threshold this closes on the click as it
+    // always has; over it, the dialog stays up long enough to ask.
+    const worth = Math.abs(delta) * (unitCost ?? 0);
+    const willAsk = (adjustThreshold ?? 0) > 0 && worth > (adjustThreshold ?? 0);
+
+    if (willAsk) {
+      try {
+        const said = await guarded("stock.adjust", send,
+                                   `${name}, ${money(worth)} of stock`);
+        if (said === CANCELLED) return;          // they thought better of it
+        const real = Number((said as any)?.quantity_on_hand ?? expected);
+        toast.ok(`${name}: ${was} to ${real} on this shelf.`);
+        onAdjusted(real, true);
+        onClose();
+      } catch (e) {
+        toast.error(errorText(e, "That adjustment could not be made."));
+      }
+      return;
+    }
+
     onAdjusted(expected, false);
     onClose();
 
     void (async () => {
       try {
-        const said = await api.post<{ quantity_on_hand: number }>("/api/stock/adjust", body);
+        const said = await send();
         const real = Number(said?.quantity_on_hand ?? expected);
         toast.ok(`${name}: ${was} to ${real} on this shelf.`);
         onAdjusted(real, true);
@@ -158,6 +194,7 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
     <div className="modal-backdrop" role="dialog" aria-modal="true"
          aria-label={`Adjust the stock of ${product.name}`}
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      {prompt}
       <div className="modal adj-modal">
         <h2>{product.name} {product.strength}</h2>
         <p className="muted adj-sub">

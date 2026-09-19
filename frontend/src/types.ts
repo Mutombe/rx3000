@@ -778,6 +778,9 @@ export interface ShelfFigures {
   at_retail: number;
   a_day: number;
   out_90: number;
+  /** What an adjustment may be worth before a second person is asked. Zero
+   *  means nobody is, which is how it ships. */
+  adjust_threshold?: number;
   sold_90_revenue: number;
   /** A year of trade in this one line. `profit` is null where the sales that
    *  made it carry no recorded cost, which is every imported line. */
