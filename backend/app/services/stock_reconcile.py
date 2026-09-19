@@ -37,6 +37,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import Product, StockBatch
+from . import valuation
 
 
 def _rows(db: Session) -> list[dict]:
@@ -81,7 +82,9 @@ def _rows(db: Session) -> list[dict]:
             # Priced at cost: a difference of four hundred units of something
             # cheap is a different conversation from four of something dear,
             # and a list sorted by unit count puts the wrong one first.
-            "value_at_risk": round(abs(on_hand - in_batches) * (p.cost_price or 0.0), 2),
+            # Both sides of the difference are UNITS, so the price has to be
+            # per unit too.
+            "value_at_risk": valuation.at_cost(p, abs(on_hand - in_batches)),
         })
     return out
 

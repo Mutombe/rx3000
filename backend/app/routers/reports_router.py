@@ -214,8 +214,11 @@ def stock_valuation(db: Session = Depends(get_db)):
             "product": p.name,
             "on_hand": p.quantity_on_hand,
             "cost_price": p.cost_price,
-            "value_at_cost": round(p.quantity_on_hand * p.cost_price, 2),
-            "value_at_retail": round(p.quantity_on_hand * p.unit_price, 2),
+            # cost_price and unit_price are per PACK; quantity_on_hand counts
+            # UNITS. Multiplying them reported this pharmacy's shelf at
+            # 629,121,282,766.43 retail. See services/valuation.
+            "value_at_cost": valuation.at_cost(p),
+            "value_at_retail": valuation.at_retail(p),
         }
         for p in products if p.quantity_on_hand > 0
     ]
@@ -233,6 +236,7 @@ def stock_valuation(db: Session = Depends(get_db)):
 # between a catalogue that can reach a hundred reports and one that cannot.
 from fastapi import Query, Request, Response  # noqa: E402
 from ..services import reports as report_engine  # noqa: E402
+from ..services import valuation  # noqa: E402
 
 
 @router.get("/catalogue")

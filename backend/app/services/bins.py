@@ -46,6 +46,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..models import BIN_MAX, BinMove, Product, User
+from . import valuation
 
 #: A bin that sorts as a number sorts as a number. The client's bins are 0 to
 #: 145, and "10" before "2" is the kind of small wrongness that makes a
@@ -87,9 +88,10 @@ def directory(db: Session, *, q: str = "") -> dict:
             label.label("bin"),
             func.count(Product.id).label("lines"),
             func.coalesce(func.sum(Product.quantity_on_hand), 0).label("units"),
-            func.coalesce(
-                func.sum(Product.quantity_on_hand * Product.cost_price), 0
-            ).label("value"),
+            # Per UNIT, because quantity_on_hand is units and cost_price is
+            # what a PACK costs. Written the wrong way round here first and
+            # caught with the rest of them. See services/valuation.
+            func.coalesce(func.sum(valuation.cost_column()), 0).label("value"),
         )
         .filter(Product.active, label != "")
         .group_by(label)
@@ -161,7 +163,7 @@ def contents(db: Session, bin_name: str) -> dict:
         # something about it: they are standing in front of the gap.
         "short": bool((p.quantity_on_hand or 0) <= (p.reorder_level or 0)),
         "empty": not (p.quantity_on_hand or 0),
-        "value": round((p.quantity_on_hand or 0) * (p.cost_price or 0), 2),
+        "value": valuation.at_cost(p),
         "bin": p.bin_location or "",
     } for p in products]
 
@@ -197,13 +199,13 @@ def unbinned(db: Session, limit: int = 300) -> list[dict]:
     should be at the top of it.
     """
     products = _unbinned_query(db).all()
-    products.sort(key=lambda p: -((p.quantity_on_hand or 0) * (p.cost_price or 0)))
+    products.sort(key=lambda p: -valuation.at_cost(p))
     return [{
         "product_id": p.id,
         "name": p.name,
         "stock_code": p.stock_code or "",
         "on_hand": p.quantity_on_hand or 0,
-        "value": round((p.quantity_on_hand or 0) * (p.cost_price or 0), 2),
+        "value": valuation.at_cost(p),
     } for p in products[:limit]]
 
 

@@ -38,6 +38,9 @@ BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 # One rule for "how much of this actually sold", shared with the product
 # page, which had the same bug and would otherwise have needed its own copy.
 from ..sold import last_sold_at, units_sold_since  # noqa: E402
+# cost_price and unit_price are PER PACK and the quantities below are in
+# UNITS. Stated once in services/valuation rather than in ten places.
+from .. import valuation  # noqa: E402
 
 
 def line_cost():
@@ -344,7 +347,7 @@ def _dead_stock(db: Session, p: dict):
             "product": product.name,
             "category": (product.category or "").replace("_", " "),
             "quantity": product.quantity_on_hand,
-            "value": round((product.cost_price or 0) * product.quantity_on_hand, 2),
+            "value": valuation.at_cost(product),
             "last_sold": when.date().isoformat() if when else "",
             # Never sold is worse than sold long ago, so it sorts to the top
             # rather than being left blank and drifting to the bottom.
@@ -386,8 +389,9 @@ def _valuation(db: Session, p: dict):
         })
         row["lines"] += 1
         row["units"] += quantity
-        row["cost_value"] = round(row["cost_value"] + (product.cost_price or 0) * quantity, 2)
-        row["retail_value"] = round(row["retail_value"] + (product.unit_price or 0) * quantity, 2)
+        row["cost_value"] = round(row["cost_value"] + valuation.at_cost(product, quantity), 2)
+        row["retail_value"] = round(
+            row["retail_value"] + valuation.at_retail(product, quantity), 2)
     rows = []
     for row in groups.values():
         retail = row["retail_value"]
@@ -434,7 +438,7 @@ def _reorder(db: Session, p: dict):
             "on_hand": product.quantity_on_hand,
             "reorder_level": product.reorder_level,
             "suggested": quantity,
-            "cost": round((product.cost_price or 0) * quantity, 2),
+            "cost": valuation.at_cost(product, quantity),
         })
     rows.sort(key=lambda r: (r["supplier"], r["product"]))
     return rows
@@ -480,7 +484,7 @@ def _drug_usage(db: Session, p: dict):
         quantity = dispensing.quantity or 0
         entry["scripts"] += 1
         entry["units"] += quantity
-        entry["value"] = round(entry["value"] + (product.unit_price or 0) * quantity, 2)
+        entry["value"] = round(entry["value"] + valuation.at_retail(product, quantity), 2)
     return sorted(groups.values(), key=lambda r: -r["value"])
 
 
@@ -966,7 +970,7 @@ def _slow_movers(db: Session, p: dict):
             "sold": int(units),
             "turns": turns,
             "months_cover": round(product.quantity_on_hand / monthly, 1) if monthly else 999,
-            "value": round((product.cost_price or 0) * product.quantity_on_hand, 2),
+            "value": valuation.at_cost(product),
         })
     rows.sort(key=lambda r: -r["value"])
     return rows
@@ -2140,7 +2144,7 @@ def _min_max(db: Session, p: dict):
             "minimum": minimum,
             "target": target,
             "shortfall": shortfall,
-            "cost": round((product.cost_price or 0) * shortfall, 2),
+            "cost": valuation.at_cost(product, shortfall),
         })
     rows.sort(key=lambda r: (r["supplier"], -r["cost"]))
     return rows
@@ -2497,7 +2501,7 @@ def _department_stock(db: Session, p: dict):
             row["in_stock"] += 1
             row["units"] += quantity
             row["cost_value"] = round(
-                row["cost_value"] + (product.cost_price or 0) * quantity, 2)
+                row["cost_value"] + valuation.at_cost(product, quantity), 2)
     total = sum(r["cost_value"] for r in groups.values()) or 1
     rows = []
     for row in groups.values():
@@ -3087,7 +3091,7 @@ def _script_analysis(db: Session, p: dict):
         if (product.schedule or 0) >= 5:
             row["controlled"] += 1
         row["value"] = round(
-            row["value"] + (product.unit_price or 0) * (dispensing.quantity or 0), 2)
+            row["value"] + valuation.at_retail(product, dispensing.quantity or 0), 2)
     out = sorted(days.values(), key=lambda r: r["day"], reverse=True)
     return out
 
@@ -3143,7 +3147,7 @@ def _prescribers(db: Session, p: dict):
         row["patients"].add(script.patient_id)
         row["items"] += 1
         row["value"] = round(
-            row["value"] + (product.unit_price or 0) * (dispensing.quantity or 0), 2)
+            row["value"] + valuation.at_retail(product, dispensing.quantity or 0), 2)
     out = []
     for row in groups.values():
         row["scripts"] = len(row["scripts"])
@@ -5228,7 +5232,7 @@ def _bins(db: Session, p: dict):
             "bin_location": product.bin_location,
             "product": product.name,
             "on_hand": product.quantity_on_hand or 0,
-            "value": round((product.cost_price or 0) * (product.quantity_on_hand or 0), 2),
+            "value": valuation.at_cost(product),
         })
     rows.sort(key=lambda r: (r["bin_location"], r["product"]))
     if unassigned and not prefix:

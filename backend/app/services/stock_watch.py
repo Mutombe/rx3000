@@ -42,6 +42,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from . import valuation
 from ..models import (Branch, Dispensing, PrescriptionItem, Product,
                       StockAlert, StockBatch)
 
@@ -167,8 +168,11 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
     )
     for product in low:
         on_hand = product.quantity_on_hand or 0
-        cost = round(max(0, (product.reorder_quantity or product.reorder_level or 0))
-                     * (product.cost_price or 0.0), 2)
+        # reorder_quantity and reorder_level are held in UNITS, the same as
+        # quantity_on_hand they are compared against, so the cost of making
+        # the shortfall up is a per unit cost.
+        cost = valuation.at_cost(
+            product, max(0, (product.reorder_quantity or product.reorder_level or 0)))
         if on_hand <= 0:
             if product.id not in moved:
                 continue            # empty on purpose, not a problem

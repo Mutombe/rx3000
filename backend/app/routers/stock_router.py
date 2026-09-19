@@ -8,6 +8,7 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
+from ..services import valuation
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -305,7 +306,9 @@ def get_product(product_id: int, db: Session = Depends(get_db),
         "movements": movements,
         "units_dispensed": int(dispensed or 0),
         "units_sold": int(sold or 0),
-        "stock_value": round(product.quantity_on_hand * product.cost_price, 2),
+        # Per PACK cost against a UNIT count. This page showed 5,560,312.00
+        # here while `shelf.at_cost` beside it showed the true 11,120.62.
+        "stock_value": valuation.at_cost(product),
         "shelf": _shelf_figures(db, product, batches, user),
         # What this line has been priced at, and who moved it. Carried with
         # the product rather than behind another click: "why is this the
@@ -1153,7 +1156,7 @@ def unplaced_products(limit: int = 200, db: Session = Depends(get_db)):
     """
     rows = (db.query(Product)
             .filter(Product.active, Product.category_id.is_(None))
-            .order_by((Product.quantity_on_hand * Product.cost_price).desc())
+            .order_by(valuation.cost_column().desc())
             .limit(limit).all())
     total = (db.query(func.count(Product.id))
              .filter(Product.active, Product.category_id.is_(None)).scalar())
@@ -1164,7 +1167,7 @@ def unplaced_products(limit: int = 200, db: Session = Depends(get_db)):
             "id": p.id, "name": f"{p.name} {p.strength or ''}".strip(),
             "stock_code": p.stock_code or "", "schedule": p.schedule or 0,
             "on_hand": p.quantity_on_hand or 0,
-            "value": round((p.quantity_on_hand or 0) * (p.cost_price or 0.0), 2),
+            "value": valuation.at_cost(p),
         } for p in rows],
     }
 
