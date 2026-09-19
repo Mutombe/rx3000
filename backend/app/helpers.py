@@ -160,6 +160,61 @@ def receive_stock_batch(
         branch_id = _branches.branch_of(db, user_id) or _branches.default_branch(db).id
     from . import concurrency
     concurrency.lock_product(db, product)
+
+    # ONE LOT, ONE BATCH ROW.
+    #
+    # A batch number names a manufacturing lot. The same product and the same
+    # lot at the same branch is the SAME goods, so a second delivery from it
+    # belongs on the row that is already there rather than beside it. Two rows
+    # for one lot means a recall traces one of them, FEFO treats them as
+    # separate queues, and a delivery note posted twice silently doubles the
+    # shelf — which is the ordinary Monday mistake, not an exotic one.
+    #
+    # The importer has guarded this since it was written, with a comment
+    # saying so. Neither receive path did.
+    #
+    # An expiry that disagrees is refused rather than merged. One lot cannot
+    # have two expiry dates: either the number was mistyped or the date was,
+    # and both are worth somebody's attention before the stock is on a shelf
+    # and a patient is holding it.
+    existing = None
+    if batch_number:
+        existing = (
+            db.query(StockBatch)
+            .filter(StockBatch.product_id == product.id,
+                    StockBatch.branch_id == branch_id,
+                    func.upper(StockBatch.batch_number) == batch_number.strip().upper())
+            .first()
+        )
+    if existing is not None:
+        wanted = expiry_date or existing.expiry_date
+        if (existing.expiry_date and wanted and existing.expiry_date != wanted):
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name}: batch {batch_number} is already on "
+                        f"this shelf expiring {existing.expiry_date.isoformat()}, "
+                        f"and this delivery says {wanted.isoformat()}. One lot "
+                        "cannot have two expiry dates, so one of them is a "
+                        "typing mistake. Check the box."))
+        existing.quantity_received = (existing.quantity_received or 0) + quantity
+        existing.quantity_remaining = (existing.quantity_remaining or 0) + quantity
+        if unit_cost is not None:
+            existing.unit_cost = unit_cost / product.per_pack
+        product.quantity_on_hand = (product.quantity_on_hand or 0) + quantity
+        db.add(StockMovement(
+            product_id=product.id,
+            movement_type=movement_type,
+            quantity_delta=quantity,
+            balance_after=product.quantity_on_hand,
+            reference=reference,
+            notes=(notes + f" | added to existing batch {existing.batch_number}").strip(" |"),
+            user_id=user_id,
+            branch_id=branch_id,
+            prescription_id=prescription_id,
+            reason_code=reason_code,
+        ))
+        return existing
+
     batch = StockBatch(
         product_id=product.id,
         batch_number=batch_number or f"AUTO-{datetime.utcnow():%y%m%d%H%M%S}",
