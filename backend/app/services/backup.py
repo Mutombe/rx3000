@@ -210,6 +210,20 @@ def prune(keep: int = KEEP) -> list[str]:
     return removed
 
 
+def on_a_server() -> bool:
+    """Whether the database is somebody else's to back up.
+
+    `take()` refuses anything but SQLite, and says why: a server database is
+    backed up by whoever runs the server. That refusal is correct and it left
+    the screen saying something false on exactly the deployment where it
+    matters most. A hosted pharmacy has never taken a backup here and never
+    will, so "No backup has ever been taken, one disk failure ends this
+    business" read as an unanswered alarm rather than as a division of
+    responsibility.
+    """
+    return not settings.DATABASE_URL.startswith("sqlite")
+
+
 def status() -> dict:
     """Whether this pharmacy is actually protected, said plainly."""
     files = listing()
@@ -221,17 +235,36 @@ def status() -> dict:
     # whether a backup was taken, and the screen must not blur them: a shelf of
     # verified backups on the disk that dies is not protection.
     off = objects.check()
+    server = on_a_server()
+
+    if server and not files:
+        # Not an alarm. A hosted pharmacy's database is backed up where it is
+        # hosted, and saying so is the difference between a screen that
+        # divides responsibility and one that shouts about a gap nobody here
+        # can close.
+        message = ("This pharmacy's database runs on a server, so it is backed "
+                   "up there rather than from inside the product. Nothing on "
+                   "this screen replaces asking whoever runs it how often, and "
+                   "how long a restore takes.")
+    elif not files:
+        message = ("No backup has ever been taken. One disk failure ends this "
+                   "business.")
+    elif not stale:
+        message = f"Last backup {age_hours} hours ago."
+    else:
+        message = (f"The last backup was {age_hours} hours ago. A day's "
+                   "dispensing is not recoverable.")
+
     return {
         "directory": str(BACKUP_DIR.resolve()),
         "count": len(files),
         "keep": KEEP,
         "latest": latest,
         "age_hours": age_hours,
+        # On a server this screen is not the thing protecting anybody, so it
+        # does not claim to be, either way.
         "protected": bool(latest) and not stale,
+        "on_a_server": server,
         "off_machine": off,
-        "message": ("No backup has ever been taken. One disk failure ends this "
-                    "business." if not latest else
-                    f"Last backup {age_hours} hours ago." if not stale else
-                    f"The last backup was {age_hours} hours ago. A day's "
-                    "dispensing is not recoverable."),
+        "message": message,
     }
