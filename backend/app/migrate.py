@@ -804,6 +804,131 @@ def _true(conn, value: bool):
     return bool(value)
 
 
+def _settings_belong_to_a_pharmacy(conn, inspector, existing_tables: set) -> int:
+    """Give every settings row an owner, and stop one pharmacy owning them all.
+
+    `settings` was the only configuration table with no pharmacy on it, and its
+    `key` was globally unique. On a database serving more than one pharmacy
+    that means there was one `company.trading_name`, one `company.vat_no`, one
+    `company.bank_account` and one `company.logo` between them: whichever
+    tenant saved last owned the letterhead, and every other pharmacy printed
+    statements carrying that pharmacy's banking details, logo and VAT number.
+    Nothing looked wrong on any screen.
+
+    The column itself arrives with the automatic tenant pass above. Two things
+    are left, and they are not the same job:
+
+      - the old unique index on `key` has to go, or the second pharmacy to save
+        `company.city` collides with the first and the save simply fails.
+
+      - the rows already there have to be given to somebody, and WHICH somebody
+        depends on what the row is. A `company.*` row is an identity: a name, a
+        tax number, an account to be paid into. Copying one to every tenant
+        would be writing the leak into the schema on purpose, so those go to
+        the oldest pharmacy on the install, the one that wrote them, and every
+        other pharmacy starts with a blank profile it must fill in. Everything
+        else is policy - a minimum lay-by deposit, a default diagnosis code -
+        and those are copied to every pharmacy, because that is what each has
+        been running on, and quietly resetting them to a built-in default would
+        change how the software behaves on a Monday morning for a reason nobody
+        could see.
+    """
+    if "settings" not in existing_tables or "pharmacies" not in existing_tables:
+        return 0
+
+    # A FRESH inspector, not the one passed in. That one was built at the top of
+    # run_migrations, before the automatic pass a few lines above added
+    # settings.pharmacy_id, so it still reports a table without the column and
+    # this whole migration silently does nothing. The patient numbering pass
+    # hit the same trap and says so in its own words.
+    live = inspect(conn)
+    columns = {c["name"] for c in live.get_columns("settings")}
+    if "pharmacy_id" not in columns:
+        return 0                       # the tenant pass did not run; nothing to do
+
+    done = 0
+
+    # ---- the old uniqueness, which is now the wrong rule --------------------
+    for index in live.get_indexes("settings"):
+        if not index.get("unique"):
+            continue
+        if list(index.get("column_names") or []) != ["key"]:
+            continue
+        name = index["name"]
+        conn.execute(text(f'DROP INDEX "{name}"'))
+        log.info("Dropped the global unique index on settings.key")
+        done += 1
+
+    # ---- who owns what is already there -------------------------------------
+    orphans = conn.execute(text(
+        "SELECT id, key FROM settings WHERE pharmacy_id IS NULL")).fetchall()
+    if not orphans:
+        return done
+
+    pharmacies = [r[0] for r in conn.execute(text(
+        "SELECT id FROM pharmacies ORDER BY id")).fetchall()]
+    if not pharmacies:
+        return done
+    first = pharmacies[0]
+
+    for row_id, key in orphans:
+        conn.execute(text("UPDATE settings SET pharmacy_id = :p WHERE id = :i"),
+                     {"p": first, "i": row_id})
+        done += 1
+        if str(key or "").startswith("company."):
+            continue                   # an identity belongs to one pharmacy only
+        got = conn.execute(text(
+            "SELECT value, updated_at FROM settings WHERE id = :i"),
+            {"i": row_id}).fetchone()
+        if not got:
+            continue
+        value, updated = got
+        for other in pharmacies[1:]:
+            already = conn.execute(text(
+                "SELECT 1 FROM settings WHERE pharmacy_id = :p AND key = :k"),
+                {"p": other, "k": key}).fetchone()
+            if already:
+                continue
+            conn.execute(text(
+                "INSERT INTO settings (pharmacy_id, key, value, updated_at) "
+                "VALUES (:p, :k, :v, :u)"),
+                {"p": other, "k": key, "v": value, "u": updated})
+            done += 1
+
+    _one_value_per_key_per_pharmacy(conn, live)
+    log.info("Settings now belong to a pharmacy (%s change(s))", done)
+    return done
+
+
+def _one_value_per_key_per_pharmacy(conn, live) -> None:
+    """The uniqueness the old index was reaching for, said correctly.
+
+    create_all builds __table_args__ only for a table it creates, so an
+    install that already has `settings` gets the column and the backfill from
+    the pass above and no constraint at all. Without this, two rows saying
+    `company.vat_no` for one pharmacy is a state the database would accept,
+    and which of them a document printed would be luck.
+
+    Created only once every row has an owner, and only if no pharmacy already
+    holds the same key twice; otherwise it is logged and skipped, because a
+    server that will not start is a worse outcome than a duplicate nobody has
+    noticed yet.
+    """
+    name = "uq_settings_pharmacy_key"
+    if any(i["name"] == name for i in live.get_indexes("settings")):
+        return
+    clash = conn.execute(text(
+        "SELECT pharmacy_id, key, COUNT(*) c FROM settings "
+        "GROUP BY pharmacy_id, key HAVING c > 1 LIMIT 1")).fetchone()
+    if clash:
+        log.warning("settings holds %s twice for pharmacy %s; "
+                    "uniqueness not enforced", clash[1], clash[0])
+        return
+    conn.execute(text(
+        f"CREATE UNIQUE INDEX {name} ON settings (pharmacy_id, key)"))
+    log.info("settings: one value per key per pharmacy is now enforced")
+
+
 def _create_indexes(conn, inspector, existing_tables: set) -> int:
     """Add the indexes the queries actually need.
 
@@ -1166,6 +1291,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _departments_that_dispense(conn, existing_tables)
         applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)
+        applied += _settings_belong_to_a_pharmacy(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
     # The tidying passes run in their own transactions, and a failure in one is

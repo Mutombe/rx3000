@@ -2518,16 +2518,36 @@ class Driver(Base, TenantMixin):
     waybills = relationship("Waybill", back_populates="driver_profile")
 
 
-class Setting(Base):
+class Setting(Base, TenantMixin):
     """Key/value configuration that belongs to the pharmacy, not to the build.
 
     Columns would need a migration on every customer's database each time one
     pharmacy asks for a field the others do not have. A row does not.
+
+    WHY THIS IS SCOPED, HAVING NOT BEEN
+
+    It was the one configuration table with no pharmacy on it, and `key` was
+    globally unique. On a database serving more than one pharmacy that means
+    there was exactly one `company.trading_name`, one `company.vat_no`, one
+    `company.bank_account` and one `company.logo` for all of them: whichever
+    tenant saved last owned the letterhead, and the next pharmacy to print a
+    statement printed somebody else's banking details under somebody else's
+    logo, with a VAT number belonging to a different taxpayer.
+
+    Nothing looked wrong. The screen showed what had been saved, the document
+    rendered cleanly, and the only way to notice was for two customers to
+    compare their invoices.
+
+    Uniqueness is now on (pharmacy_id, key), which is what it always meant: one
+    value per key PER PHARMACY.
     """
     __tablename__ = "settings"
+    __table_args__ = (
+        UniqueConstraint("pharmacy_id", "key", name="uq_settings_pharmacy_key"),
+    )
 
     id = Column(Integer, primary_key=True)
-    key = Column(String(120), unique=True, nullable=False, index=True)
+    key = Column(String(120), nullable=False, index=True)
     value = Column(Text, default="")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
