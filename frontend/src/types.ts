@@ -791,6 +791,38 @@ export interface ShelfFigures {
   disagrees: boolean;
 }
 
+/** One move of a price, and who made it. */
+export interface PriceChange {
+  id: number;
+  at: string;
+  /** "selling" or "cost". Both per pack, like the columns they track. */
+  field: string;
+  was: number;
+  now: number;
+  difference: number;
+  percent: number;
+  source: string;
+  reason: string;
+  by: string;
+  /** The source said in words a pharmacist would use. */
+  how: string;
+}
+
+/** A time this line was ordered, and what was paid for it. */
+export interface PurchaseLine {
+  order_id: number;
+  order_number: string;
+  at: string;
+  received_at: string | null;
+  supplier_id: number | null;
+  supplier: string;
+  ordered: number;
+  received: number;
+  unit_cost: number;
+  status: string;
+  standing: string;
+}
+
 export interface ProductDetail {
   product: Product;
   batches: StockBatch[];
@@ -799,6 +831,8 @@ export interface ProductDetail {
   units_sold: number;
   stock_value: number;
   shelf?: ShelfFigures;
+  price_history?: PriceChange[];
+  buying?: PurchaseLine[];
 }
 
 export interface LeadScoreFactor {

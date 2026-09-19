@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
+import { EntityLink } from "../components/Filters";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import Variants from "../components/Variants";
@@ -9,14 +10,15 @@ import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Avatar, Highlights } from "../components/record";
-import { Product, ProductDetail as Detail, StockBatch, StockMovement } from "../types";
+import { PriceChange, Product, ProductDetail as Detail, PurchaseLine,
+         StockBatch, StockMovement } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
 import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
 import AdjustStock from "../components/AdjustStock";
 import Usage from "../components/Usage";
 
-type Tab = "batches" | "movements" | "usage";
+type Tab = "batches" | "movements" | "usage" | "pricing" | "buying";
 
 function expiryBadge(expiry: string | null) {
   if (!expiry) return <span className="badge muted">No expiry</span>;
@@ -48,6 +50,16 @@ export default function ProductDetail() {
     // shelf; only this says whether that is a lot.
     { key: "usage", label: "Usage",
       hint: "What has left the shelf each month, and what came in" },
+    // What this line has been priced at, and who moved it. The question
+    // "why is this the price" is asked while looking at the price.
+    { key: "pricing", label: "Price history",
+      count: data?.price_history?.length,
+      hint: "Every time the cost or the selling price moved, and who moved it" },
+    // Where it comes from. Readable only from the supplier's side until now,
+    // which answers a buyer's question rather than a pharmacist's.
+    { key: "buying", label: "Buying",
+      count: data?.buying?.length,
+      hint: "Who this was last ordered from, what was paid, and whether it came" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "batches");
 
@@ -127,6 +139,57 @@ export default function ProductDetail() {
     { key: "reference", header: "Reference", truncate: 26 },
     { key: "received_at", header: "Booked in", sortable: true,
       value: (b) => b.received_at, render: (b) => <span className="muted">{fmtDate(b.received_at)}</span> },
+  ];
+
+  const priceCols: Column<PriceChange>[] = [
+    { key: "at", header: "When", sortable: true,
+      value: (r) => r.at, render: (r) => fmtDateTime(r.at) },
+    // Which figure moved. Cost and selling sit on one timeline and the
+    // difference between them is the whole point, so the row has to say
+    // which one it is before it says anything else.
+    { key: "field", header: "What", sortable: true,
+      render: (r) => (
+        <span className={`badge ${r.field === "cost" ? "muted" : "ok"}`}>
+          {r.field === "cost" ? "Cost" : "Selling"}
+        </span>
+      ) },
+    { key: "was", header: "Was", align: "right", sortable: true,
+      render: (r) => money(r.was) },
+    { key: "now", header: "Now", align: "right", sortable: true,
+      render: (r) => <b>{money(r.now)}</b> },
+    { key: "percent", header: "Move", align: "right", sortable: true,
+      render: (r) => (
+        <span className={r.difference > 0 ? "cu-up" : r.difference < 0 ? "cu-diff" : "muted"}>
+          {r.difference > 0 ? "+" : ""}{money(r.difference)}
+          {r.was ? ` (${r.percent > 0 ? "+" : ""}${r.percent}%)` : ""}
+        </span>
+      ) },
+    { key: "how", header: "How", truncate: 34 },
+    { key: "by", header: "By", render: (r) => r.by || <span className="muted">Not recorded</span> },
+    { key: "reason", header: "Reason", truncate: 34 },
+  ];
+
+  const buyCols: Column<PurchaseLine>[] = [
+    { key: "at", header: "Ordered", sortable: true,
+      value: (r) => r.at, render: (r) => fmtDate(r.at) },
+    { key: "order_number", header: "Order",
+      render: (r) => <EntityLink kind="order" id={r.order_id}>{r.order_number}</EntityLink> },
+    { key: "supplier", header: "From",
+      render: (r) => (r.supplier_id
+        ? <EntityLink kind="supplier" id={r.supplier_id}>{r.supplier}</EntityLink>
+        : <span className="muted">Not recorded</span>) },
+    // "Units", not "Ordered": the date column is already called that, and
+    // two columns of the same name in one table is a table nobody trusts.
+    { key: "ordered", header: "Units", align: "right", sortable: true },
+    { key: "unit_cost", header: "Cost each", align: "right", sortable: true,
+      render: (r) => money(r.unit_cost) },
+    // Said in words. "3 of 10" beside a status token is the finding, and the
+    // token alone is not.
+    { key: "standing", header: "Standing",
+      render: (r) => (
+        <span className={`badge ${r.received >= r.ordered && r.received
+          ? "ok" : r.received ? "warn" : "muted"}`}>{r.standing}</span>
+      ) },
   ];
 
   const moveCols: Column<StockMovement>[] = [
@@ -306,6 +369,40 @@ export default function ProductDetail() {
       )}
 
       {tab === "usage" && <Usage productId={p.id} />}
+
+      {tab === "pricing" && (
+        <>
+          <p className="muted small pd-note">
+            Cost and selling on one timeline, because the margin between them
+            can only be read that way. A figure that did not move leaves no
+            row, so saving the product screen after correcting a spelling does
+            not bury the decisions that matter.
+          </p>
+          <DataTable
+            columns={priceCols}
+            rows={data.price_history ?? []}
+            rowKey={(r) => r.id}
+            initialSort={{ key: "at", dir: "desc" }}
+            empty="No price change has been recorded for this line yet"
+          />
+        </>
+      )}
+
+      {tab === "buying" && (
+        <>
+          <p className="muted small pd-note">
+            Ordered newest first rather than by arrival, because an order that
+            has not arrived is the interesting one when a shelf is empty.
+          </p>
+          <DataTable
+            columns={buyCols}
+            rows={data.buying ?? []}
+            rowKey={(r) => r.order_id}
+            initialSort={{ key: "at", dir: "desc" }}
+            empty="This line has never been ordered through the system"
+          />
+        </>
+      )}
 
       {tab === "movements" && (
         <DataTable
