@@ -151,3 +151,52 @@ def for_product(db: Session, product_id: int, since, until=None) -> dict:
         # which part rather than presenting a partial figure as the whole.
         "costed_units": int(costed_units or 0),
     }
+
+
+def last_sold_at(db: Session) -> dict[int, "object"]:
+    """When each line last sold anything. Keyed by product id.
+
+    Dead stock is built on this, and it was built on the stock ledger. On a
+    pharmacy that imported its trading history that ledger holds no sales at
+    all, so nothing had a last sale, so EVERY line with stock on it was dead:
+    1,731 products and 12.7 million at cost, reported to a pharmacy that was
+    selling most of them that week. A report is not improved by being
+    pessimistic. It is a number somebody acts on.
+    """
+    rows = (
+        db.query(SaleItem.product_id, func.max(Sale.created_at))
+        .join(Sale, Sale.id == SaleItem.sale_id)
+        .filter(Sale.status.notin_(("void", "credited")))
+        .group_by(SaleItem.product_id)
+        .all()
+    )
+    return {pid: when for pid, when in rows if when is not None}
+
+
+def by_month(db: Session, product_id: int, since) -> list[dict]:
+    """What went out of one line, month by month, newest last.
+
+    The assistant answers "how much of this do we get through" from here. It
+    used to read the stock ledger and therefore told a pharmacist that a line
+    they sell every day had never moved, in a sentence, with confidence. A
+    wrong answer from an assistant is worse than no assistant.
+    """
+    net = SaleItem.quantity - func.coalesce(SaleItem.quantity_returned, 0)
+    # SQLite and Postgres spell "the month this happened in" differently, and
+    # neither understands the other's. Named once here so the ordering and the
+    # grouping cannot drift apart.
+    month = (func.strftime("%Y-%m", Sale.created_at)
+             if db.bind.dialect.name == "sqlite"
+             else func.to_char(Sale.created_at, "YYYY-MM")).label("month")
+    rows = (
+        db.query(month, func.sum(net))
+        .join(SaleItem, SaleItem.sale_id == Sale.id)
+        .filter(SaleItem.product_id == product_id)
+        .filter(Sale.status.notin_(("void", "credited")))
+        .filter(Sale.created_at >= since)
+        .group_by(month)
+        .order_by(month)
+        .all()
+    )
+    return [{"month": when, "went_out": int(units or 0)}
+            for when, units in rows if when]

@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from ..models import (Prescription, Product, Sale, SaleItem, StockBatch,
                       StockMovement, User)
-from . import permissions
+from . import permissions, sold
 
 
 def _branch_of(db: Session, user: User) -> int | None:
@@ -111,18 +111,12 @@ def usage_history(db: Session, user: User, name: str, months: int = 6) -> dict:
         return {"note": f"Nothing in the catalogue matches '{name}'."}
 
     since = datetime.utcnow() - timedelta(days=31 * max(1, min(months, 24)))
-    rows = (db.query(StockMovement)
-            .filter(StockMovement.product_id == product.id,
-                    StockMovement.created_at >= since)
-            .all())
-    out: dict[str, int] = {}
-    for m in rows:
-        if (m.movement_type or "") != "sale":
-            continue
-        key = m.created_at.strftime("%Y-%m")
-        out[key] = out.get(key, 0) + int(-(m.quantity_delta or 0))
-    months_out = [{"month": k, "went_out": v} for k, v in sorted(out.items())]
-    total = sum(v for _, v in out.items())
+    # Counted off sale lines, not off the stock ledger. An invoice import
+    # writes no movements, so this used to tell a pharmacist that a line they
+    # sell every day had never moved, in a sentence, with confidence. A wrong
+    # answer from an assistant is worse than no assistant.
+    months_out = sold.by_month(db, product.id, since)
+    total = sum(m["went_out"] for m in months_out)
     return {
         "medicine": product.name,
         "months": months_out,

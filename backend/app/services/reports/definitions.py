@@ -37,7 +37,7 @@ BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 
 # One rule for "how much of this actually sold", shared with the product
 # page, which had the same bug and would otherwise have needed its own copy.
-from ..sold import units_sold_since  # noqa: E402
+from ..sold import last_sold_at, units_sold_since  # noqa: E402
 
 
 def line_cost():
@@ -325,12 +325,15 @@ def _dead_stock(db: Session, p: dict):
         days = 90
     cutoff = date.today() - timedelta(days=days)
 
-    last_sale = dict(
-        db.query(StockMovement.product_id, func.max(StockMovement.created_at))
-        .filter(StockMovement.movement_type == "sale")
-        .group_by(StockMovement.product_id)
-        .all()
-    )
+    # When each line last sold, off sale lines rather than the stock ledger.
+    #
+    # This read movements of type "sale". An invoice import writes none, so on
+    # a pharmacy that brought its history in, nothing had ever sold and every
+    # single line with stock on it came back as dead: 1,731 products and 12.7
+    # million at cost, on a catalogue most of which was selling that week. The
+    # most expensive report in the product, confidently wrong in the direction
+    # that makes somebody write off good stock.
+    last_sale = last_sold_at(db)
     rows = []
     for product in db.query(Product).filter(Product.active, Product.quantity_on_hand > 0).all():
         when = last_sale.get(product.id)
