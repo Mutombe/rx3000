@@ -1,13 +1,13 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import sourcing, stock_watch, paging, price_history
+from ..services import sourcing, spreadsheet, stock_watch, paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -1207,3 +1207,40 @@ def stock_alert_seen(alert_id: int, db: Session = Depends(get_db),
     row.seen_by_id = user.id
     db.commit()
     return {"ok": True, "seen_at": row.seen_at}
+
+@router.post("/stock/upload/spreadsheet")
+async def stock_upload_spreadsheet(
+    file: UploadFile = File(...),
+    sheet: str = Form(default=""),
+    _: User = Depends(require_role("admin", "manager")),
+):
+    """Turn an uploaded workbook into the CSV text the planner already reads.
+
+    A separate endpoint rather than a second shape on the planner itself. The
+    planner takes a JSON body and is used by the paste box as well as the file
+    drop; giving it a multipart twin would mean two ways in to one piece of
+    reasoning. This converts and hands back, and the screen then previews and
+    applies exactly as it always did.
+
+    Nothing is written here. The two phase plan, where `apply=false` shows what
+    would happen and writes nothing, is the whole safety of the import and this
+    does not step around it.
+    """
+    raw = await file.read()
+    try:
+        csv_text, used, rows = spreadsheet.read_any(raw, file.filename or "", sheet=sheet)
+        names = (spreadsheet.sheets(raw)
+                 if (file.filename or "").lower().endswith((".xlsx", ".xlsm")) else [])
+    except spreadsheet.SpreadsheetError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    return {
+        "csv_text": csv_text,
+        "sheet": used,
+        # So the screen can offer the others. A workbook with four sheets is a
+        # question, and picking the first one silently is how somebody imports
+        # last year's price list.
+        "sheets": names,
+        "rows": rows,
+        "filename": file.filename or "",
+    }

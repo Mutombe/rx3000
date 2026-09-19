@@ -74,6 +74,21 @@ ALIASES = {
     "schedule": "schedule", "sched": "schedule",
     "reorder_level": "reorder", "reorder": "reorder", "min_stock": "reorder",
     "vat": "vat", "vat_rate": "vat", "tax": "vat",
+
+    # THE NAMES THE INCUMBENT ACTUALLY WRITES.
+    #
+    # Every alias above is a sensible word somebody might use. These are the
+    # abbreviations the system most pharmacies here are coming off puts in its
+    # own exports, and they are not guessable: a stock export from it has
+    # STOCKCD and DESCR where this expected code and description, so every one
+    # of sixteen thousand rows was refused for having nothing that identifies a
+    # product, on a file where two columns did.
+    "stockcd": "code", "stock_cd": "code", "stkcd": "code",
+    "descr": "name", "desc": "name", "description1": "name",
+    "stockoh": "quantity", "stock_oh": "quantity", "qtyoh": "quantity",
+    "napcd": "nappi", "nap_cd": "nappi",
+    "binlocation": "bin", "bin_location": "bin", "bin": "bin",
+    "avgcost": "cost", "avg_cost": "cost",
 }
 
 #: Anything above this is a typo, not a schedule. S0–S6 is the whole scale.
@@ -332,6 +347,10 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
                 nappi_code=str(get(row, "nappi")).strip()[:20],
                 barcode=re.sub(r"\D", "", str(get(row, "barcode")))[:40],
                 manufacturer=str(get(row, "maker")).strip()[:120],
+                # Where it sits on the shelf, which the incumbent's export
+                # carries as BINLOCATION and which a picking list is useless
+                # without.
+                bin_location=str(get(row, "bin")).strip()[:40],
                 cost_price=_num(get(row, "cost")) or 0.0,
                 unit_price=_num(get(row, "price")) or 0.0,
                 vat_rate=(_num(get(row, "vat")) or 15.0) / 100

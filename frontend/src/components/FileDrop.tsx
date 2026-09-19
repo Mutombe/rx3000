@@ -20,8 +20,13 @@ import { DragEvent, useId, useRef, useState } from "react";
 interface Props {
   /** e.g. ".csv,text/csv" — also shown to the user, so it is never a mystery. */
   accept?: string;
-  /** Called with the file's text and its name. */
-  onFile: (text: string, name: string) => void;
+  /** Called with the file's text and its name.
+   *
+   *  A spreadsheet arrives with empty text and the File itself, because
+   *  `file.text()` on an xlsx gives the bytes of a zip archive. Reading it is
+   *  the server's job: it already writes real spreadsheets for every report
+   *  and has the library to read one back. */
+  onFile: (text: string, name: string, file?: File) => void;
   /** Overrides the "CSV file" wording where something else is expected. */
   label?: string;
   hint?: string;
@@ -67,10 +72,17 @@ export default function FileDrop({
         + `is ${maxMb}MB. Split it, or paste the part you need below.`);
       return;
     }
+    // A workbook is a zip archive. Reading it as text here would hand the
+    // importer a few kilobytes of binary and a puzzling error.
+    if (/\.(xlsx|xlsm|xls)$/i.test(file.name)) {
+      setChosen({ name: file.name, size: file.size });
+      onFile("", file.name, file);
+      return;
+    }
     file.text()
       .then((text) => {
         setChosen({ name: file.name, size: file.size });
-        onFile(text, file.name);
+        onFile(text, file.name, file);
       })
       .catch(() => setError("That file could not be read."));
   }

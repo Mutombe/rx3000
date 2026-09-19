@@ -46,6 +46,9 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
   const [name, setName] = useState("");
   const [reference, setReference] = useState("");
   const [result, setResult] = useState<Result | null>(null);
+  // A 2MB workbook takes a few seconds to turn into rows, and a screen that
+  // sits still for that long reads as one that did not accept the file.
+  const [reading, setReading] = useState(false);
   const toast = useToast();
 
   async function preview(text: string, fileName: string) {
@@ -92,12 +95,47 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
       </div>
 
       <FileDrop
-        label="Catalogue or delivery note (CSV)"
+        accept=".csv,text/csv,.xlsx,.xlsm"
+        label="Catalogue or delivery note"
         hint="Stock code, description, cost, selling price, and quantity, batch
               and expiry where you are receiving stock. Column names are matched
               loosely, so a supplier's own export usually works as it comes."
-        onFile={(text, fileName) => preview(text, fileName)}
+        onFile={(text, fileName, file) => {
+          // A workbook goes to the server to be turned into rows first. Every
+          // supplier and every legacy system sends one, and the pharmacy's own
+          // answer was to open it in Excel and save as CSV, which is a step
+          // where dates silently become American and a leading zero is eaten
+          // off a stock code.
+          if (!text && file) {
+            const form = new FormData();
+            form.append("file", file);
+            setReading(true);
+            api.post<{ csv_text: string; sheet: string; sheets: string[]; rows: number }>(
+              "/api/stock/upload/spreadsheet", form)
+              .then((r) => {
+                if (r.sheets.length > 1) {
+                  // A workbook with four sheets is a question, and reading the
+                  // first one silently is how somebody imports last year's
+                  // price list without noticing.
+                  toast.warn(`That workbook has ${r.sheets.length} sheets. `
+                             + `Read ${r.sheet}, which had `
+                             + `${r.rows.toLocaleString()} rows.`);
+                }
+                preview(r.csv_text, fileName);
+              })
+              .catch((e) => toast.error(errorText(e, "That spreadsheet could not be read.")))
+              .finally(() => setReading(false));
+            return;
+          }
+          preview(text, fileName);
+        }}
       />
+
+      {reading && (
+        <p className="muted" style={{ marginTop: 12 }}>
+          Reading the spreadsheet…
+        </p>
+      )}
 
       {result && (
         <>
