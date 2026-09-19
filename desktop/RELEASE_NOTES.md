@@ -1,31 +1,48 @@
-RX-Assistant answers on this machine.
+Adding a patient or a medicine without leaving the script.
 
-**The assistant works in the installed app**
+**A medicine the catalogue has never heard of**
 
-It was asking the wrong address. The app talks to your pharmacy server for
-everything else, but the assistant was looking for its answer on the app
-itself, found nothing there, and reported that the server did not have the
-feature yet. The server had it all along. It now asks the same address as the
-rest of the app.
+Search for it, and where nothing matches there is now Add it. Name, strength,
+form, classification and price, plus what arrived if you are holding the pack,
+and it lands on the script you already have open. What used to happen instead
+was a walk to the stock screens, a new line, a booking in, and starting the
+script again with an empty basket.
 
-**Correcting a count, arranged in the order it is asked**
+**The new patient form fits the dialog**
 
-Which way, how many, and what the shelf becomes, with the new figure shown
-beside the old one before you commit it. The batch and the expiry now sit
-under their own labels instead of squeezed beside them, and the reason a
-correction cannot go yet is written next to the button rather than onto it.
+Chronic conditions and Member number were being clipped to Chronic con and
+Member nu, both search boxes were cut mid word, and the dependant code was
+pushed off the right edge. Labels now sit above their fields and nothing is
+abbreviated.
 
-**A steady bar under the script**
+**Send to till waits for you**
 
-The strip holding Checked by, Save for later and Finish no longer shrinks
-when a search fills the table. It stays the same height whether the list is
-empty or full.
+The offer to take the payment yourself used to disappear after nine seconds,
+which is nothing while labels are printing and a bag is being handed over. It
+now waits until you take it or put it down.
 
-**The function keys the assistant teaches are the ones that work**
+**The patient list answers a question**
 
-Ask it which key does what and it now answers from the dispensary itself. It
-had been reading an older list that offered keys no screen binds.
+Seven filters above the table, each with a count: on a scheme, private,
+registered in the last month, not seen in six months, has a chronic condition,
+has a caregiver.
+
+**A branch is something you can open**
+
+Who is accountable for it, what it may trade on and what is on its shelves, on
+one page. Each licence says what it is, who issues it and whether the shop can
+trade without it.
+
+**Nothing changed by hand goes unnoticed**
+
+A price set at the counter, or a shelf corrected while a script was being
+dispensed, is now recorded against that script. Dispensing history marks the
+rows, and two reports list them: everything changed by hand while dispensing,
+and stock moved between branches.
 
 **Also**
 
-Downloading a backup from the admin screen works in the installed app.
+A pharmacist can correct the count on a shelf they are standing at, and the
+dialog closes on the click. Warnings printed on a label read as sentences.
+Chips and badges across sixty screens are capitalised. The assistant's history
+panel no longer scrolls sideways.
