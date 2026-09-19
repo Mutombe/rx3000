@@ -87,8 +87,21 @@ export function DoingProvider({ children }: { children: React.ReactNode }) {
         setJobs((all) => all.map((j) => (
           j.id === job.id ? { ...j, state: "done" as const, next: next ?? undefined } : j)));
         toast.ok(job.said ?? `${job.label}. Done.`);
-        // Somewhere to go stays long enough to be gone to.
-        forget(job.id, next ? 9000 : 2600);
+        // WORK THAT IS FINISHED FADES. AN OFFER WAITS.
+        //
+        // This used to give somewhere to go nine seconds, on the reasoning
+        // that it "stays long enough to be gone to". It is not long enough,
+        // and the dispensary is exactly where it is not: the labels are
+        // printing, the driver's copy may have opened a print dialog over the
+        // whole screen, and the bag is being handed across a counter. By the
+        // time the dispenser looks back to press "Nobody at the till? Take it
+        // yourself", the button has gone. Pressing where it was does nothing,
+        // which reads as the button being broken rather than expired.
+        //
+        // So an offer stays until it is taken or put down. Nothing else
+        // changes: work with nowhere to go still fades on its own, because
+        // that is a receipt rather than a question.
+        if (!next) forget(job.id, 2600);
         return result;
       })
       .catch((e) => {
@@ -150,13 +163,23 @@ export function DoingProvider({ children }: { children: React.ReactNode }) {
                 </>
               )}
               {job.state === "done" && job.next && (
-                <button type="button" className="doing-act"
-                        onClick={() => {
-                          setJobs((all) => all.filter((j) => j.id !== job.id));
-                          job.next!.go();
-                        }}>
-                  {job.next.label}
-                </button>
+                <>
+                  <button type="button" className="doing-act"
+                          onClick={() => {
+                            setJobs((all) => all.filter((j) => j.id !== job.id));
+                            job.next!.go();
+                          }}>
+                    {job.next.label}
+                  </button>
+                  {/* It waits rather than expiring, so there has to be a way
+                      to say no. Without this the tray would carry every offer
+                      of the morning. */}
+                  <button type="button" className="doing-act is-quiet"
+                          aria-label="Dismiss"
+                          onClick={() => setJobs((all) => all.filter((j) => j.id !== job.id))}>
+                    <X size={12} weight="bold" />
+                  </button>
+                </>
               )}
               {job.state === "working" && <span className="doing-bar" aria-hidden="true" />}
             </div>
