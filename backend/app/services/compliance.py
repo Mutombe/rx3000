@@ -321,10 +321,15 @@ def _summarise(rows: list[dict]) -> dict:
                 f"lawfully open, and this is the one to deal with today.")
     elif unproven:
         verdict = "cannot be proved"
-        says = (f"{len(unproven)} licence(s) that a branch cannot trade "
-                f"without have nothing on file: {unproven[0]} among them. "
-                f"The branch may well hold them; nobody here can show an "
-                f"inspector that it does.")
+        # "N licence(s) that a branch cannot trade without have nothing on
+        # file" put four words between the subject and its verb and read as a
+        # typo. The count leads, and the plural is chosen rather than bracketed.
+        n = len(unproven)
+        says = (f"Nothing is on file for {n} licence"
+                + ("s" if n != 1 else "")
+                + f" this branch cannot trade without, {unproven[0]} among "
+                f"them. The branch may well hold them; nobody here can show "
+                f"an inspector that it does.")
     elif counts.get("expired"):
         verdict = "expired"
         says = (f"{counts['expired']} document(s) have expired. None of them "

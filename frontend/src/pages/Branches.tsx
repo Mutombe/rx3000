@@ -344,8 +344,11 @@ export default function Branches() {
                   <tr key={b.id}
                       className={`${b.active ? "" : "is-off"} ${rowClass(list.stateOf(b))}`.trim()}>
                     <td className="mono">{b.code}</td>
-                    <td>
-                      <b>{b.name}</b>
+                    <td className="br-name">
+                      {/* A way into the shop. The table offered a row of
+                          actions and no way to look at the thing they act
+                          on. */}
+                      <EntityLink kind="branch" id={b.id}>{b.name}</EntityLink>
                       {b.is_default && <span className="badge ok">Default</span>}
                       {!b.active && <span className="badge muted">Closed</span>}
                     </td>
@@ -355,9 +358,9 @@ export default function Branches() {
                       {/* Empty is worth pointing at rather than leaving blank: a
                           branch with nobody named is a compliance gap, not a
                           missing nicety. */}
-                      <span className="clip" title={b.responsible_pharmacist}>
+                      <span className="br-wrap" title={b.responsible_pharmacist}>
                         {b.responsible_pharmacist || (
-                          <span className="cu-diff">nobody named</span>
+                          <span className="cu-diff">Nobody named</span>
                         )}
                       </span>
                     </td>

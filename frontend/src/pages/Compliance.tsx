@@ -269,15 +269,24 @@ export default function Compliance() {
                       style={{ cursor: "pointer" }}
                       className={b.verdict === "cannot trade" ? "row-danger"
                         : b.expired || b.urgent ? "row-flag" : undefined}>
-                      <td>
+                      <td className="br-name">
                         <b>{b.branch}</b>
                         <div className="muted small mono">{b.code}</div>
                       </td>
                       <td>
+                        {/* The verdict, and the reason on one line. The whole
+                            sentence was folded into this cell, in a column
+                            narrow enough to break it after two words: seven
+                            lines of wrapped prose per row, which made a table
+                            of four branches taller than the screen and told
+                            nobody anything faster. It is on the hover, and in
+                            full on the branch itself. */}
                         <span className={`badge ${VERDICT[b.verdict] ?? "muted"}`}>
                           {b.verdict}
                         </span>
-                        <div className="muted small wrap">{b.says}</div>
+                        <div className="muted small cp-says" title={b.says}>
+                          {b.says}
+                        </div>
                       </td>
                       <td className="num">
                         {b.expired || <span className="muted">—</span>}

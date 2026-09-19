@@ -11202,6 +11202,86 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   font-size: var(--t-xs); color: var(--ink-soft);
 }
 
+/* ========================================================================
+   ONE SHOP, AND WHAT IT MAY TRADE ON
+
+   The branch table clipped its own columns: "RESPONSIBLE PH...", a branch
+   called "RX5000 Pharm..." and a registration number cut mid code, which is
+   the one field somebody reads a branch row to find. A table that abbreviates
+   the answer has not saved space, it has moved the work to a hover.
+   ======================================================================== */
+/* The name of the shop is the one thing a row is read for, so it wraps
+   rather than being cut to "RX5000 Pharmacy Cent...". */
+.br-name { min-width: 15rem; white-space: normal; }
+.br-name a { font-weight: 600; }
+/* Wrap rather than clip. A responsible pharmacist's name with a council
+   number after it does not fit on one line and does not need to. */
+.br-wrap { display: block; white-space: normal; line-height: 1.35; }
+
+/* The verdict's reason, held to two lines on the list and given in full on
+   the branch. It was the whole paragraph, unbounded. */
+.cp-says {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  /* The clamp only clamps what has wrapped, and the table sets nowrap on its
+     cells, so without this the sentence was cut mid word on one line and the
+     two line budget did nothing. */
+  white-space: normal; overflow: hidden; line-height: 1.35; max-width: 46ch;
+}
+
+/* ---- the branch page ---------------------------------------------------- */
+/* Stacked, not side by side. The licence table carries five columns and a
+   sentence explaining each row; folded into seven twelfths of the page it
+   clipped every document name mid word, which is the fault this page was
+   written to fix. The facts above it are short and read better wide. */
+.bd-grid { display: grid; gap: var(--s4); margin-bottom: var(--s4); }
+
+
+
+.bd-tag { margin-left: var(--s2); vertical-align: middle; }
+.bd-head-acts { display: flex; gap: var(--s2); align-items: center; }
+.bd-why { display: flex; align-items: flex-start; gap: 8px; margin-bottom: var(--s4); }
+
+/* Label above value would waste the column; beside it, aligned, is what a
+   record of facts wants. */
+.bd-dl {
+  display: grid; grid-template-columns: minmax(8rem, auto) minmax(0, 1fr);
+  gap: 7px var(--s4); margin: 0;
+}
+.bd-dl dt { color: var(--ink-soft); font-size: var(--t-sm); }
+.bd-dl dd { margin: 0; min-width: 0; overflow-wrap: break-word; }
+/* Two columns of pairs while there is room, so a short list does not become a
+   tall thin one on a wide screen. Declared AFTER the base rule: the same
+   specificity inside a media query still loses if it comes first. */
+@media (min-width: 900px) {
+  .bd-dl {
+    grid-template-columns: minmax(8rem, auto) minmax(0, 1fr)
+                           minmax(8rem, auto) minmax(0, 1fr);
+  }
+}
+
+.bd-says { display: flex; align-items: flex-start; gap: 7px; margin-bottom: var(--s3); }
+.bd-missing {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  padding: var(--s3); margin-bottom: var(--s4);
+  background: var(--surface-sunk, var(--hover));
+}
+.bd-missing-head {
+  display: block; font-size: .78rem; font-weight: 600;
+  letter-spacing: .04em; text-transform: uppercase; color: var(--ink-mid);
+  margin-bottom: 5px;
+}
+.bd-missing ul { margin: 0; padding-left: 1.1rem; }
+.bd-missing li { line-height: 1.5; }
+
+.bd-doc { min-width: 18rem; white-space: normal; }
+.bd-licences .dt td { white-space: normal; }
+.bd-doc-why { line-height: 1.4; max-width: 52ch; margin-top: 2px; }
+.bd-crit { margin-left: 6px; vertical-align: middle; }
+
+.bd-facts h3, .bd-licences h3 {
+  display: flex; align-items: center; gap: 7px;
+}
+
 /* THE QUESTIONS ASKED OF THE PATIENT LIST
    One row of pills above the table. Each carries its own count, because a
    filter that might show nothing is one nobody presses twice. */

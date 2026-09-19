@@ -8,6 +8,9 @@
 export const ENTITY_ROUTES = {
   account: (id: Id) => `/accounts/${id}`,
   batch: (id: Id) => `/batches/${id}`,
+  branch: (id: Id) => `/branches/${id}`,
+  // The certificate itself, not the branch that holds it.
+  compliance_document: (id: Id) => `/compliance/documents/${id}`,
   campaign: (id: Id) => `/campaigns/${id}`,
   case: (id: Id) => `/cases/${id}`,
   claim: (id: Id) => `/claims/${id}`,

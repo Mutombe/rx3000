@@ -50,6 +50,26 @@ def _out(b: Branch) -> dict:
     }
 
 
+def _out_full(b: Branch) -> dict:
+    """Everything about one branch, for the screen that opened it.
+
+    The list carries what a list needs. This carries what somebody asking
+    about a particular shop needs, and the difference is the part that
+    explains a state rather than reporting it: a closed branch has a date, a
+    person and a reason behind it, and "Closed" on its own invites the next
+    question rather than answering it.
+    """
+    out = _out(b)
+    out.update({
+        "latitude": b.latitude, "longitude": b.longitude,
+        "created_at": b.created_at,
+        "frozen": bool(getattr(b, "frozen", False)),
+        "frozen_at": getattr(b, "frozen_at", None),
+        "frozen_reason": getattr(b, "frozen_reason", "") or "",
+    })
+    return out
+
+
 @router.get("")
 def list_branches(include_closed: bool = False, db: Session = Depends(get_db)):
     query = db.query(Branch)
@@ -232,3 +252,18 @@ def receive_transfer(transfer_id: int, db: Session = Depends(get_db),
         raise HTTPException(400, str(e))
     return {"reference": transfer.reference, "status": transfer.status,
             "message": "Received and on the shelf."}
+
+
+@router.get("/{branch_id}")
+def one_branch(branch_id: int, db: Session = Depends(get_db)):
+    """One shop, for the screen that opened it.
+
+    Declared last on purpose. A bare single segment path would otherwise sit
+    in front of every literal route added after it, and `/transfers` would
+    quietly start resolving to a branch whose id is the word transfers.
+    """
+    with every_branch():
+        b = db.get(Branch, branch_id)
+    if not b:
+        raise HTTPException(404, "That branch is not on file.")
+    return _out_full(b)

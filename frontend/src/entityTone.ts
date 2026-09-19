@@ -75,6 +75,16 @@ export const FAMILY: Record<EntityKind, Family> = {
   batch: "medicine",
   supplier: "medicine",
   order: "medicine",
+  // A branch is a shelf before it is anything else: the question anybody
+  // follows a branch link to ask is what it holds and whether it may trade.
+  // It has no family of its own because a fifth hue would have to pass the
+  // same measurements against the four that are already there, and the set
+  // has no room left above 17.
+  branch: "medicine",
+
+  // A licence is a document, which is what the script family actually means:
+  // the piece of paper that permits the act, rather than the act.
+  compliance_document: "script",
 
   // What is owed, taken, claimed or banked
   sale: "money",

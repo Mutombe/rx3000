@@ -93,6 +93,7 @@ const Patients = lazy(() => import("./pages/Patients"));
 const Periods = lazy(() => import("./pages/Periods"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const BranchDetail = lazy(() => import("./pages/BranchDetail"));
 const Register = lazy(() => import("./pages/Register"));
 const Reminders = lazy(() => import("./pages/Reminders"));
 const Repeats = lazy(() => import("./pages/Repeats"));
@@ -190,6 +191,7 @@ export default function App() {
                 <Route path="/system" element={<System />} />
                 <Route path="/claims-held" element={<DeferredClaims />} />
                 <Route path="/scorecard" element={<Scorecard />} />
+                <Route path="/branches/:id" element={<BranchDetail />} />
                 <Route path="/branches/:id/performance" element={<BranchPerformance />} />
                 <Route path="/stock-categories" element={<StockCategories />} />
                 <Route path="/pharmacies" element={<Pharmacies />} />
