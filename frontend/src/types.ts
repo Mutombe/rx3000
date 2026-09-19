@@ -778,6 +778,17 @@ export interface ShelfFigures {
   at_retail: number;
   a_day: number;
   out_90: number;
+  sold_90_revenue: number;
+  /** A year of trade in this one line. `profit` is null where the sales that
+   *  made it carry no recorded cost, which is every imported line. */
+  year: {
+    units: number;
+    revenue: number;
+    cost: number;
+    profit: number | null;
+    margin: number | null;
+    costed_units: number;
+  };
   /** Null where nothing moves, or where the count has gone negative. */
   days_cover: number | null;
   reorder_level: number;

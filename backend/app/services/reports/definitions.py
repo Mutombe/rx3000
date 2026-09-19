@@ -35,6 +35,11 @@ DATE_TO = Param("date_to", "To", "date", default=today)
 BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 
 
+# One rule for "how much of this actually sold", shared with the product
+# page, which had the same bug and would otherwise have needed its own copy.
+from ..sold import units_sold_since  # noqa: E402
+
+
 def line_cost():
     """What a sold line cost us, as one rule used by every margin report.
 
@@ -837,85 +842,6 @@ register(Report(
     ],
     rows=lambda db, p: _fast_movers(db, p),
 ))
-
-
-def units_sold_since(db: Session, since, until=None) -> dict[int, float]:
-    """How many units of each line actually sold in a period.
-
-    READ OFF SALE LINES, NOT OFF THE STOCK LEDGER, AND THAT IS THE FIX
-
-    Both movers reports used to count StockMovement rows of type "sale". It
-    reads as the more careful choice, because a movement is written whether
-    goods go over the counter or out on a script. It is also empty for every
-    pharmacy that brought its history with it.
-
-    An invoice import deliberately writes no stock movements: the closing
-    figures come from the same system's stock export and already reflect those
-    sales, so replaying two years of deductions would take the shelf count down
-    twice. Correct, and the consequence was that CareXpress had 45,728 sales
-    and 70,305 sale lines on file, and Fast movers, Slow movers and Stock usage
-    per item all returned nothing at all. The one thing a pharmacy asks an
-    inventory to tell them, answered with an empty table, on their own data.
-
-    A sale line is the record of goods leaving, it exists for a script line as
-    well as a counter sale (`prescription_item_id` says which), and it is
-    written by the importer and by the till alike. So it is what these count.
-
-    Revenue comes back with the units for the same reason: it is what the
-    pharmacy was actually paid, rather than this month's shelf price applied
-    to last quarter's sales.
-
-    Returns are taken off rather than ignored: four sold and one brought back
-    is three sold, and a line with a high return rate is one somebody should be
-    looking at, not one that should read as a fast mover.
-
-    Voided and credited sales are left out entirely. Both mean the sale did not
-    happen; a void reverses it on the day and a credit note gives the money
-    back later, and counting either as demand puts phantom lines at the top of
-    a reorder list.
-
-    WHAT THIS COUNTS, AND THE ONE PLACE IT IS KNOWN TO UNDERSTATE
-
-    `SaleItem.quantity` does not mean the same thing on every line, and that is
-    a fault in the column rather than in this function. A script line records
-    UNITS and prices per unit: thirty tablets, priced per tablet. A till line
-    records PACKS and prices per pack: one box. Both are correct for what the
-    customer was charged, and the pack size is the factor between them.
-
-    The quantity is therefore counted exactly as recorded, with no conversion.
-    On 13,923 of this catalogue's 15,541 lines the pack IS the unit and the
-    question does not arise. On the rest it can only be resolved by knowing
-    which door the sale came through, and on imported history that cannot be
-    known: the invoice importer links no line to a script item, so all 70,305
-    of CareXpress's lines look identical to a till sale whether they were one
-    or not.
-
-    Multiplying by the pack size on a guess would turn a dispensed line of
-    thirty capsules from a tub of a thousand into thirty thousand and put it at
-    the top of the fast movers list. Not converting understates a till sale of
-    a multi pack. The second error is the small one and it is in the safe
-    direction, so it is the one taken, and it is written down here rather than
-    discovered later in a figure nobody can explain.
-    """
-    net = SaleItem.quantity - func.coalesce(SaleItem.quantity_returned, 0)
-    query = (
-        db.query(SaleItem.product_id,
-                 func.sum(net),
-                 # What it was actually charged at, which is the other thing a
-                 # stock movement could not say. Fast movers used to multiply
-                 # units by TODAY'S price, so a line repriced last month
-                 # restated last quarter's takings every time somebody opened
-                 # the report.
-                 func.sum(net * SaleItem.unit_price))
-        .join(Sale, Sale.id == SaleItem.sale_id)
-        .filter(Sale.status.notin_(("void", "credited")))
-        .filter(func.date(Sale.created_at) >= since)
-    )
-    if until is not None:
-        query = query.filter(func.date(Sale.created_at) <= until)
-    return {pid: {"units": float(units or 0), "revenue": round(float(paid or 0), 2)}
-            for pid, units, paid in query.group_by(SaleItem.product_id).all()
-            if (units or 0) > 0}
 
 
 def _fast_movers(db: Session, p: dict):

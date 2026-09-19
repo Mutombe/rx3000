@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import bins, sourcing, spreadsheet, stock_watch, paging, price_history
+from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -422,12 +422,24 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
 
     # What actually leaves the shelf, over a window long enough to mean
     # something and short enough to still be true.
-    since = datetime.utcnow() - timedelta(days=90)
-    out_90 = int(db.query(func.coalesce(func.sum(-StockMovement.quantity_delta), 0))
-                 .filter(StockMovement.product_id == product.id,
-                         StockMovement.movement_type == "sale",
-                         StockMovement.created_at >= since).scalar() or 0)
+    #
+    # Counted off sale lines, not off the stock ledger. This read movements of
+    # type "sale" and was therefore ZERO for every product of every pharmacy
+    # that brought its trading history in, because an invoice import writes no
+    # movements on purpose. Days of cover is described above as the only figure
+    # on this page that answers "when do I reorder", and on a real catalogue it
+    # was blank on all sixteen thousand lines. See services/sold.
+    ninety = date.today() - timedelta(days=90)
+    recent = sold.for_product(db, product.id, ninety)
+    out_90 = recent["units"]
     a_day = round(out_90 / 90.0, 3) if out_90 > 0 else 0.0
+
+    # And what the line has actually earned, over a year, which is the
+    # question "how much have we made from this drug" asked plainly. The two
+    # percentages below answer a different one: what the margin WOULD be on
+    # the next sale at today's prices. That is the same number whether four
+    # boxes went out this year or four hundred.
+    earned = sold.for_product(db, product.id, date.today() - timedelta(days=365))
 
     each = product.per_unit()
     return {
@@ -450,6 +462,9 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
         "at_retail": round(units * each, 2),
         "a_day": a_day,
         "out_90": out_90,
+        "sold_90_revenue": recent["revenue"],
+        # A year of trade in this one line: units, takings, and what was kept.
+        "year": earned,
         # Blank rather than infinity where nothing moves: "never runs out" is
         # not a fact about the medicine, it is the absence of one. Blank too
         # where the record has gone negative, because "minus thirty days of

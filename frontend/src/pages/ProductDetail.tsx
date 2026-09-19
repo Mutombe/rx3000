@@ -262,6 +262,20 @@ export default function ProductDetail() {
             hint: "weighted over the stock on the shelf" },
           { label: "Markup", value: shelf.markup_percent === null ? "—" : `${shelf.markup_percent}%`,
             hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "—"}% margin` },
+          // What the line has actually EARNED, which the markup beside it does
+          // not say: that is the same percentage whether four boxes went out
+          // this year or four hundred. Profit where the sales carry a recorded
+          // cost, takings where they do not, and the hint says which.
+          { label: "Earned in a year",
+            value: shelf.year.profit !== null ? money(shelf.year.profit)
+                   : shelf.year.revenue > 0 ? money(shelf.year.revenue) : "—",
+            hint: shelf.year.units === 0
+              ? "nothing has sold in a year"
+              : shelf.year.profit !== null
+                ? `${shelf.year.units.toLocaleString()} sold for ${money(shelf.year.revenue)}, `
+                  + `${shelf.year.margin}% margin`
+                : `${shelf.year.units.toLocaleString()} sold. Takings, not profit: `
+                  + "no cost was recorded against these sales" },
           { label: "On order", value: String(shelf.on_order),
             hint: shelf.on_order > 0 ? "not yet received" : "nothing outstanding" },
         ] : [
