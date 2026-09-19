@@ -92,18 +92,18 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
         <>
           <div className="wc-bands" style={{ marginTop: 12 }}>
             <div className="wl-stat">
-              <b>{plan.considered.toLocaleString()}</b><span>lines looked at</span>
+              <b>{plan.considered.toLocaleString()}</b><span>Lines looked at</span>
             </div>
             <div className="wl-stat">
               <b className="tone-ok">{plan.placed.toLocaleString()}</b>
-              <span>the rules can file</span>
+              <span>The rules can file</span>
             </div>
             <div className="wl-stat">
               <b>{plan.unplaced.toLocaleString()}</b>
-              <span>they cannot, and will not guess at</span>
+              <span>They cannot, and will not guess at</span>
             </div>
             <div className="wl-stat">
-              <b>{sorted.length}</b><span>departments</span>
+              <b>{sorted.length}</b><span>Departments</span>
             </div>
           </div>
 
@@ -127,7 +127,7 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
                           used "COSMETICS" for ten years ends up with that and a
                           "Cosmetics & Fragrance" beside it. */}
                       {plan.created.includes(name)
-                        ? <span className="badge warn">will be created</span>
+                        ? <span className="badge warn">Will be created</span>
                         : <span className="muted small">existing</span>}
                     </td>
                   </tr>

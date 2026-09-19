@@ -419,7 +419,7 @@ def scorecard(db: Session, *, days: int = 30) -> dict:
             {"metric": "Clinical outcomes",
              "why": "A dispensary sees collections, not outcomes. Adherence "
                     "above is how reliably repeats are fetched, which is the "
-                    "nearest honest proxy — it does not say whether anybody got "
+                    "nearest honest proxy, it does not say whether anybody got "
                     "better, and no pharmacy system can."},
             {"metric": "Portal links issued",
              "why": "Links are signed rather than stored, so how many were sent "

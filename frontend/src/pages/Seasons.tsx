@@ -147,23 +147,23 @@ export default function Seasons() {
                 <div className="wc-bands">
                   <div className="wl-stat">
                     <b>{money(basket.average_repeat)}</b>
-                    <span>the repeat line is worth</span>
+                    <span>The repeat line is worth</span>
                   </div>
                   <div className="wl-stat">
                     <b className="tone-ok">{money(basket.average_basket)}</b>
-                    <span>the visit is worth</span>
+                    <span>The visit is worth</span>
                   </div>
                   <div className="wl-stat">
                     <b>{basket.multiple ? `${basket.multiple}×` : "—"}</b>
-                    <span>basket per dollar of repeat</span>
+                    <span>Basket per dollar of repeat</span>
                   </div>
                   <div className="wl-stat">
                     <b>{basket.attach_rate}%</b>
-                    <span>of repeat visits buy something else</span>
+                    <span>Of repeat visits buy something else</span>
                   </div>
                   <div className="wl-stat">
                     <b>{money(basket.uplift)}</b>
-                    <span>beyond the repeats, in this period</span>
+                    <span>Beyond the repeats, in this period</span>
                   </div>
                 </div>
 
@@ -282,14 +282,14 @@ export default function Seasons() {
           <>
             <div className="wc-bands">
               <div className="wl-stat">
-                <b>{group.group_busiest}</b><span>the group's busiest month</span>
+                <b>{group.group_busiest}</b><span>The group's busiest month</span>
               </div>
               <div className="wl-stat">
-                <b>{money(group.group_value)}</b><span>across the year</span>
+                <b>{money(group.group_value)}</b><span>Across the year</span>
               </div>
               <div className={`wl-stat${group.disagree.length ? " wc-stale" : ""}`}>
                 <b>{group.disagree.length}</b>
-                <span>branches whose year differs</span>
+                <span>Branches whose year differs</span>
               </div>
             </div>
 
@@ -330,7 +330,7 @@ export default function Seasons() {
                             : <span className="muted">no trade recorded</span>}
                           {b.traded && b.busiest !== group.group_busiest && (
                             <div><span className="badge warn">
-                              not the group's
+                              Not the group's
                             </span></div>
                           )}
                         </td>

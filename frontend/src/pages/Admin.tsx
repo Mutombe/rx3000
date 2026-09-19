@@ -996,7 +996,7 @@ export default function Admin() {
                   <td>{n.created_by || "—"}</td>
                   <td className="actions">
                     {n.active === false ? (
-                      <span className="badge muted">retired</span>
+                      <span className="badge muted">Retired</span>
                     ) : (
                       <button className="btn small ghost" onClick={() => retireNotice(n)}>
                         Retire
@@ -1065,8 +1065,8 @@ export default function Admin() {
                   </td>
                   <td>
                     {g.granted
-                      ? <span className="badge ok">granted</span>
-                      : <span className="badge danger">refused</span>}
+                      ? <span className="badge ok">Granted</span>
+                      : <span className="badge danger">Refused</span>}
                     {/* Granted and never spent is its own signal: somebody
                         got authority and then thought better of it, or was
                         interrupted. */}
@@ -1177,7 +1177,7 @@ export default function Admin() {
                   <td className="num">{(b.size_bytes / 1024).toFixed(0)} KB</td>
                   <td>
                     {b.verified ? (
-                      <span className="badge ok">verified</span>
+                      <span className="badge ok">Verified</span>
                     ) : (
                       // The reason travels with the verdict. "Failed" on its own
                       // tells an owner they have a problem and nothing about

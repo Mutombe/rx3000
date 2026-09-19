@@ -139,7 +139,7 @@ export default function StockPerformance() {
           <>
             <div className="wc-bands">
               <div className="wl-stat">
-                <b>{money(report.revenue)}</b><span>taken</span>
+                <b>{money(report.revenue)}</b><span>Taken</span>
               </div>
               <div className="wl-stat">
                 <b className="tone-ok">{money(report.profit)}</b>
@@ -148,20 +148,20 @@ export default function StockPerformance() {
               </div>
               <div className="wl-stat">
                 <b>{report.a_lines}</b>
-                <span>lines make 80% of it</span>
+                <span>Lines make 80% of it</span>
               </div>
               <div className="wl-stat">
-                <b>{money(report.held_at_cost)}</b><span>on the shelves, at cost</span>
+                <b>{money(report.held_at_cost)}</b><span>On the shelves, at cost</span>
               </div>
               <div className={`wl-stat${report.dead_money ? " wc-abandoned" : ""}`}>
                 <b className={report.dead_money ? "tone-danger" : undefined}>
                   {money(report.dead_money)}
                 </b>
-                <span>in lines that have not moved</span>
+                <span>In lines that have not moved</span>
               </div>
               <div className="wl-stat">
                 <b>{report.gmroi ?? "—"}</b>
-                <span>gross profit per dollar of stock</span>
+                <span>Gross profit per dollar of stock</span>
               </div>
             </div>
 

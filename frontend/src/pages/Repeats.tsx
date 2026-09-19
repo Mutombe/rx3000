@@ -331,7 +331,7 @@ export default function Repeats() {
           {due && (
             <div className="wc-bands">
               <div className="wl-stat">
-                <b>{money(due.due_value ?? 0)}</b><span>due, all of it</span>
+                <b>{money(due.due_value ?? 0)}</b><span>Due, all of it</span>
               </div>
               <div className={`wl-stat${(due.overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
                 <b>{money(due.overdue_value ?? 0)}</b>
@@ -343,7 +343,7 @@ export default function Repeats() {
                 <span>{due.cannot_supply} cannot be filled today</span>
               </div>
               <div className="wl-stat">
-                <b>{due.total_due ?? due.count}</b><span>repeats due</span>
+                <b>{due.total_due ?? due.count}</b><span>Repeats due</span>
               </div>
             </div>
           )}
@@ -452,7 +452,7 @@ export default function Repeats() {
                               <span className="btn-count">{i.quantity}</span>
                             </BusyButton>
                           ) : (
-                            <span className="badge warn">not enough stock</span>
+                            <span className="badge warn">Not enough stock</span>
                           )}
                         </span>
                         {/* Not every repeat goes out as written. The patient
@@ -562,11 +562,11 @@ export default function Repeats() {
                       {perf.value_capture_rate === null
                         ? "—" : `${Math.round(perf.value_capture_rate * 100)}%`}
                     </b>
-                    <span>of the value kept</span>
+                    <span>Of the value kept</span>
                   </div>
                   <div className="wl-stat">
                     <b>{money(perf.average_value)}</b>
-                    <span>what one repeat is worth</span>
+                    <span>What one repeat is worth</span>
                   </div>
                   <div className="wl-stat">
                     <b>{money(perf.due_today_value)}</b>
@@ -708,16 +708,16 @@ export default function Repeats() {
                 <div className="wl-stat">
                   <b>{money(daily.filter((d: any) => d.past || d.today)
                         .reduce((n: number, d: any) => n + d.value, 0))}</b>
-                  <span>the fortnight behind</span>
+                  <span>The fortnight behind</span>
                 </div>
                 <div className="wl-stat">
                   <b>{money(daily.filter((d: any) => !d.past && !d.today)
                         .reduce((n: number, d: any) => n + d.value, 0))}</b>
-                  <span>the fortnight ahead</span>
+                  <span>The fortnight ahead</span>
                 </div>
                 <div className="wl-stat">
                   <b>{money(daily.find((d: any) => d.today)?.value ?? 0)}</b>
-                  <span>due today</span>
+                  <span>Due today</span>
                 </div>
               </div>
             </div>

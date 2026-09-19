@@ -75,18 +75,18 @@ export default function Reconciliation() {
                 <b className={data.at_stake ? "tone-danger" : undefined}>
                   {money(data.at_stake)}
                 </b>
-                <span>two records disagree about this much</span>
+                <span>Two records disagree about this much</span>
               </div>
               <div className="wl-stat">
                 <b>{data.unchecked}</b>
-                <span>closed without being checked</span>
+                <span>Closed without being checked</span>
               </div>
               <div className={`wl-stat${data.not_run.length ? " wc-stale" : ""}`}>
                 <b>{data.not_run.length}</b>
-                <span>not run at all this period</span>
+                <span>Not run at all this period</span>
               </div>
               <div className="wl-stat">
-                <b>{data.days}</b><span>days covered</span>
+                <b>{data.days}</b><span>Days covered</span>
               </div>
             </div>
 

@@ -278,7 +278,7 @@ export default function Ledger() {
                     <td className="mono">{e.period_code}</td>
                     <td>
                       {e.description}
-                      {e.status === "reversed" && <span className="badge warn">reversed</span>}
+                      {e.status === "reversed" && <span className="badge warn">Reversed</span>}
                     </td>
                     <td className="muted">{e.source}</td>
                     <td className="num">{money(e.total)}</td>

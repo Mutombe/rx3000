@@ -190,21 +190,21 @@ export default function DispensaryWorklist({
           onClick={() => setPanel("queue")}
         >
           <b>{counts.waiting}</b>
-          <span>waiting</span>
+          <span>Waiting</span>
         </button>
         <button
           className={`wl-stat${panel === "queue" ? "" : ""}${counts.time_critical ? " is-urgent" : ""}`}
           onClick={() => setPanel("queue")}
         >
           <b>{counts.time_critical}</b>
-          <span>time-critical</span>
+          <span>Time-Critical</span>
         </button>
         <button
           className={`wl-stat${panel === "due" ? " is-on" : ""}${counts.overdue_repeats ? " is-urgent" : ""}`}
           onClick={() => setPanel("due")}
         >
           <b>{counts.overdue_repeats}</b>
-          <span>overdue</span>
+          <span>Overdue</span>
         </button>
       </div>
 

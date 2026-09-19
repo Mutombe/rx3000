@@ -267,7 +267,7 @@ def _action(peak: str, peak_index: float | None, peak_years: int,
             swing: float) -> str:
     if peak_years < YEARS_FOR_A_SEASON:
         return (f"Busiest in {peak}, seen once. Watch it next {peak} before "
-                f"buying to it — one {peak} is not a season.")
+                f"buying to it, one {peak} is not a season.")
     if peak_index and peak_index >= 1.5:
         return (f"Runs at {peak_index:.1f}× the average in {peak}. Have it on "
                 f"the shelf by the end of the month before.")

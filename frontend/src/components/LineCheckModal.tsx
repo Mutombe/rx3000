@@ -196,7 +196,7 @@ export default function LineCheckModal({
                       <span className={`badge ${tone === "major" ? "danger" : "muted"}`}>
                         {x.severity}
                       </span>
-                      {x.with_history && <span className="badge muted">already taking</span>}
+                      {x.with_history && <span className="badge muted">Already taking</span>}
                       <p>{x.effect}</p>
                       <p className="chk-action">{x.action}</p>
                       {x.context && <p className="chk-coverage">{x.context}</p>}

@@ -77,7 +77,7 @@ def statement(db: Session, supplier_id: int, *,
             "reference": pay.reference or f"PMT{pay.id}",
             # The wording a wholesaler uses, kept because a pharmacy reading
             # both statements side by side should not have to translate.
-            "description": "Payment — thank you",
+            "description": "Payment received with thanks",
             "debit": 0.0,
             "credit": _money(pay.amount),
             "due": None,

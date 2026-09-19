@@ -1984,7 +1984,7 @@ def _usage_per_item(db: Session, p: dict):
 
 register(Report(
     key="min_max_order",
-    title="Min–max order report",
+    title="Min to max order report",
     module="Stock",
     purpose="Where each line sits against its reorder level and target, and "
             "what ordering to the target would cost.",
@@ -4455,7 +4455,7 @@ def _deliveries(db: Session, p: dict):
             "address": (w.address or "")[:60],
             # A failure carries its reason, because "failed" alone tells nobody
             # whether to redeliver or refund.
-            "status": (w.status or "") + (f" — {w.failure_reason}" if w.failure_reason else ""),
+            "status": (w.status or "") + (f": {w.failure_reason}" if w.failure_reason else ""),
             "driver": users.get(w.driver_id, "-"),
             "received_by": w.received_by or "",
             "hours": round((end - start).total_seconds() / 3600, 1) if start else 0,

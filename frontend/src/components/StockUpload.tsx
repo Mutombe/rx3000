@@ -106,20 +106,20 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
               <b>{result.rows}</b><span>rows in {name || "the file"}</span>
             </div>
             <div className="wl-stat">
-              <b className="tone-ok">{result.create}</b><span>new products</span>
+              <b className="tone-ok">{result.create}</b><span>New products</span>
             </div>
             <div className="wl-stat">
-              <b>{result.update}</b><span>to change</span>
+              <b>{result.update}</b><span>To change</span>
             </div>
             <div className={`wl-stat${result.refuse ? " wc-abandoned" : ""}`}>
               <b className={result.refuse ? "tone-danger" : undefined}>
                 {result.refuse}
               </b>
-              <span>will not load</span>
+              <span>Will not load</span>
             </div>
             {result.units > 0 && (
               <div className="wl-stat">
-                <b>{result.units.toLocaleString()}</b><span>units to receive</span>
+                <b>{result.units.toLocaleString()}</b><span>Units to receive</span>
               </div>
             )}
           </div>

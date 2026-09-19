@@ -256,7 +256,7 @@ export default function Shifts() {
                     : "—"}
                 </td>
                 <td>{fmtDateTime(s.opened_at)}</td>
-                <td>{s.closed_at ? fmtDateTime(s.closed_at) : <span className="badge">open</span>}</td>
+                <td>{s.closed_at ? fmtDateTime(s.closed_at) : <span className="badge">Open</span>}</td>
                 <td className="num">{money(s.opening_float)}</td>
                 <td className="num">{money(s.expected_cash)}</td>
                 <td className="num">{money(s.counted_cash)}</td>

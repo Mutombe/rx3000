@@ -346,8 +346,8 @@ export default function Branches() {
                     <td className="mono">{b.code}</td>
                     <td>
                       <b>{b.name}</b>
-                      {b.is_default && <span className="badge ok">default</span>}
-                      {!b.active && <span className="badge muted">closed</span>}
+                      {b.is_default && <span className="badge ok">Default</span>}
+                      {!b.active && <span className="badge muted">Closed</span>}
                     </td>
                     <td><span className="clip" title={b.city}>
                       {b.city || <span className="muted">—</span>}</span></td>

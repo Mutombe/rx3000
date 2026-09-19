@@ -230,10 +230,10 @@ export default function Compliance() {
                 <b className={overview.expired ? "tone-danger" : undefined}>
                   {overview.expired}
                 </b>
-                <span>expired</span>
+                <span>Expired</span>
               </div>
               <div className="wl-stat">
-                <b>{overview.urgent}</b><span>due within three weeks</span>
+                <b>{overview.urgent}</b><span>Due within three weeks</span>
               </div>
               <div className={`wl-stat${overview.missing ? " wc-stale" : ""}`}>
                 <b>{overview.missing}</b>
@@ -243,7 +243,7 @@ export default function Compliance() {
               </div>
               <div className="wl-stat">
                 <b>{money(overview.renewal_cost_year)}</b>
-                <span>a year in renewals</span>
+                <span>A year in renewals</span>
               </div>
             </div>
 
@@ -359,7 +359,7 @@ export default function Compliance() {
                           ? <Link to={`/compliance/documents/${d.id}`}><b>{d.name}</b></Link>
                           : <b>{d.name}</b>}
                         {d.critical && (
-                          <span className="badge bad"> the shop closes without it</span>
+                          <span className="badge bad"> The shop closes without it</span>
                         )}
                         <div className="muted small wrap">{d.why}</div>
                         <div className="muted small">

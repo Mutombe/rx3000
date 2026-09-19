@@ -44,7 +44,7 @@ TYPES: list[tuple[str, str, str, str, bool]] = [
      True),
     ("patient", "Somebody the pharmacy dispenses to",
      "A signed link the pharmacy sends, and a four-digit code",
-     "Their own record only — never the application",
+     "Their own record only, never the application",
      False),
     ("prescriber", "A doctor who prescribes into this pharmacy",
      "Their own account, tied to a practice number",

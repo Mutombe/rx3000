@@ -149,7 +149,7 @@ export default function WillCall() {
           shelf rather than the visible page. */}
       <div className="wc-bands">
         <button className={`wl-stat${band === "" ? " is-on" : ""}`} onClick={() => setBand("")}>
-          <b>{shelf?.total ?? "—"}</b><span>on the shelf</span>
+          <b>{shelf?.total ?? "—"}</b><span>On the shelf</span>
         </button>
         {["fresh", "waiting", "stale", "abandoned"].map((b) => (
           <button key={b} className={`wl-stat wc-${b}${band === b ? " is-on" : ""}`}

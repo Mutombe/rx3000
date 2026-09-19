@@ -41,7 +41,7 @@ REASONS = {
     "DUPLICATE":        "Treated as a duplicate of an earlier claim.",
     "STALE":            "Submitted outside the funder's claiming window.",
     "MEMBER_INVALID":   "The member was not active on the service date.",
-    "SUSPENDED":        "Held by the funder pending a query — not rejected, "
+    "SUSPENDED":        "Held by the funder pending a query, not rejected, "
                         "and not paid.",
     "PENDING_DOCS":     "Held pending documents the funder has asked for.",
     "UNDER_REVIEW":     "Held for clinical or forensic review.",
@@ -356,7 +356,7 @@ def reconcile(db: Session, advice: Remittance) -> dict:
         "held_value": held_value,
         "held_says": (
             f"{len(held)} claim(s) worth {held_value:,.2f} are held by the "
-            f"funder pending a query. They are not rejections — they pay when "
+            f"funder pending a query. They are not rejections, they pay when "
             f"the query is answered, and filing them with the write-offs gives "
             f"away money the scheme was always going to pay."
             if held else ""),

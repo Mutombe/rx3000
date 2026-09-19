@@ -182,13 +182,13 @@ export default function SchemeCalendar() {
         <>
           <div className="wc-bands">
             <div className="wl-stat">
-              <b>{money(data.awaiting_payment)}</b><span>claimed, not yet paid</span>
+              <b>{money(data.awaiting_payment)}</b><span>Claimed, not yet paid</span>
             </div>
             <div className={`wl-stat${data.held ? " wc-stale" : ""}`}>
-              <b>{data.held}</b><span>claims held, not sent</span>
+              <b>{data.held}</b><span>Claims held, not sent</span>
             </div>
             <div className={`wl-stat${dueSoon.length ? " wc-abandoned" : ""}`}>
-              <b>{dueSoon.length}</b><span>cut-offs within three days</span>
+              <b>{dueSoon.length}</b><span>Cut-offs within three days</span>
             </div>
           </div>
 
@@ -246,7 +246,7 @@ export default function SchemeCalendar() {
                     </td>
                     <td>
                       {s.realtime
-                        ? <span className="badge ok">realtime</span>
+                        ? <span className="badge ok">Realtime</span>
                         : s.claim_cutoff_day
                           ? `${s.claim_cutoff_day}${ordinal(s.claim_cutoff_day)}`
                           : <span className="muted">not agreed</span>}

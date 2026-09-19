@@ -117,14 +117,14 @@ def check(db: Session, patient: Patient | None,
             f"{patient.first_name} {patient.last_name} {elapsed} day"
             f"{'' if elapsed == 1 else 's'} ago"
             + (f" as a {days_of_supply}-day supply" if not assumed
-               else f", and the line recorded no days of supply — read against "
+               else f", and the line recorded no days of supply, read against "
                     f"an assumed {days_of_supply} days")
             + f". That leaves {early} day{'' if early == 1 else 's'} of the "
               f"last supply unaccounted for."
         )
         advice = (
             "This is a schedule {s} medicine. Ask what happened to the last "
-            "supply and record the answer before dispensing — an early "
+            "supply and record the answer before dispensing, an early "
             "collection on a controlled item is the pattern a register is kept "
             "to catch.".format(s=schedule)
             if controlled else

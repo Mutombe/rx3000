@@ -188,7 +188,7 @@ export default function Fiscal() {
             <div className="fs-day">
               <div>
                 <span className="fs-daynum">Day {day.day_number}</span>
-                <span className="badge ok">open</span>
+                <span className="badge ok">Open</span>
               </div>
               <div className="muted">Opened {fmtDateTime(day.opened_at)}</div>
             </div>
@@ -324,7 +324,7 @@ export default function Fiscal() {
                       </td>
                       <td>
                         {r.receipt_type === "credit_note"
-                          ? <span className="badge warn">credit note</span>
+                          ? <span className="badge warn">Credit note</span>
                           : "sale"}
                       </td>
                       <td className="small">
@@ -394,7 +394,7 @@ export default function Fiscal() {
                     <td>{fmtDateTime(d.opened_at)}</td>
                     <td>
                       {d.closed_at ? fmtDateTime(d.closed_at)
-                        : <span className="badge ok">open</span>}
+                        : <span className="badge ok">Open</span>}
                     </td>
                     <td className="num">{d.receipt_count}</td>
                     <td className="num">{money(d.total_sales)}</td>

@@ -215,8 +215,8 @@ export default function Pipeline() {
                       {d.owner
                         ? <Avatar first={d.owner.full_name.split(" ")[0]} last={d.owner.full_name.split(" ").slice(-1)[0]}
                             size={22} label={d.owner.full_name} />
-                        : <span className="badge muted">unassigned</span>}
-                      {stale && <span className="badge warn">stale</span>}
+                        : <span className="badge muted">Unassigned</span>}
+                      {stale && <span className="badge warn">Stale</span>}
                     </div>
                     {d.lost_reason && <div className="muted lost-reason" style={{ fontSize: 11 }}><XCircle size={11} weight="fill" /> {d.lost_reason}</div>}
                   </div>

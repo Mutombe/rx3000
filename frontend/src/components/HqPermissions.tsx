@@ -150,12 +150,12 @@ export default function HqPermissions() {
                           <b>{g.capability}</b>
                           {!g.allow && (
                             <div><span className="badge bad">
-                              prevented. Beats any grant
+                              Prevented. Beats any grant
                             </span></div>
                           )}
                           {g.dual_approval && (
                             <div><span className="badge warn">
-                              never alone
+                              Never alone
                             </span></div>
                           )}
                         </td>
@@ -224,10 +224,10 @@ export default function HqPermissions() {
                         {c.allowed ? "yes" : "no"}
                       </span>
                       {c.denied_by_name && (
-                        <div><span className="badge bad">by name</span></div>
+                        <div><span className="badge bad">By name</span></div>
                       )}
                       {c.granted_by_name && !c.role_grants_it && (
-                        <div><span className="badge warn">by name</span></div>
+                        <div><span className="badge warn">By name</span></div>
                       )}
                     </td>
                     <td className="wrap muted small">{c.why}</td>

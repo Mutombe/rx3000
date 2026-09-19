@@ -137,7 +137,7 @@ def _claims(db: Session) -> dict:
         "worst": 0.0, "worst_where": "",
         "href": "/remittances",
         "says": (f"{count:,} line(s) short-paid and neither billed nor written "
-                 f"off — dispensed and not paid for"
+                 f"off, dispensed and not paid for"
                  if count else "every remittance line accounted for"),
     }
 

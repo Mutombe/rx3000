@@ -383,14 +383,14 @@ export default function RepeatDetail() {
                     <tr key={f.id}>
                       <td>
                         {fmtDateTime(f.dispensed_at)}
-                        {f.is_repeat && <span className="badge"> repeat</span>}
+                        {f.is_repeat && <span className="badge"> Repeat</span>}
                       </td>
                       <td className="num">{f.quantity}</td>
                       <td>{f.by || <span className="muted">—</span>}</td>
                       <td>
                         {f.collected_at
                           ? fmtDate(f.collected_at)
-                          : <span className="badge warn">on the shelf</span>}
+                          : <span className="badge warn">On the shelf</span>}
                       </td>
                       <td className="actions">
                         <Link className="btn ghost sm" to={`/dispensings/${f.id}`}>

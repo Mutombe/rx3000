@@ -239,9 +239,9 @@ export default function ChartOfAccounts() {
                       </td>
                       <td>
                         {a.name}
-                        {a.is_cash && <span className="badge ok">cash</span>}
+                        {a.is_cash && <span className="badge ok">Cash</span>}
                         {a.subledger && <span className="badge">{a.subledger}</span>}
-                        {!a.active && <span className="badge">retired</span>}
+                        {!a.active && <span className="badge">Retired</span>}
                       </td>
                       <td className="muted small wrap">
                         {a.notes || (a.protected

@@ -97,16 +97,16 @@ export default function BankReconcile() {
           </div>
           <div className="wc-bands">
             <div className="wl-stat">
-              <b>{money(bank.statement_total)}</b><span>on the statement</span>
+              <b>{money(bank.statement_total)}</b><span>On the statement</span>
             </div>
             <div className="wl-stat">
-              <b>{money(bank.ledger_balance)}</b><span>in the ledger</span>
+              <b>{money(bank.ledger_balance)}</b><span>In the ledger</span>
             </div>
             <div className="wl-stat">
-              <b>{bank.matched_count}/{bank.statement_lines}</b><span>lines tied up</span>
+              <b>{bank.matched_count}/{bank.statement_lines}</b><span>Lines tied up</span>
             </div>
             <div className={`wl-stat${Math.abs(bank.unreconciled_difference) > 0.005 ? " wc-stale" : ""}`}>
-              <b>{money(bank.unreconciled_difference)}</b><span>unreconciled</span>
+              <b>{money(bank.unreconciled_difference)}</b><span>Unreconciled</span>
             </div>
           </div>
 

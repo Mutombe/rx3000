@@ -21,7 +21,7 @@ type Tab = "products" | "batches" | "movements" | "reconcile" | "upload";
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
 function expiryBadge(expiry: string | null) {
-  if (!expiry) return <span className="badge muted">no expiry</span>;
+  if (!expiry) return <span className="badge muted">No expiry</span>;
   const days = Math.floor((new Date(expiry).getTime() - Date.now()) / 86400000);
   if (days < 0) return <span className="badge danger">EXPIRED</span>;
   if (days <= 90) return <span className="badge warn">{days}d left</span>;

@@ -296,7 +296,7 @@ export default function System() {
           <dd>
             {info?.environment}
             {info && !info.is_production && (
-              <span className="badge warn">simulators permitted</span>
+              <span className="badge warn">Simulators permitted</span>
             )}
           </dd>
           <dt>Jurisdiction</dt><dd>{info?.jurisdiction}</dd>

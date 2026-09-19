@@ -856,7 +856,7 @@ export default function Claiming() {
                 <div>
                   <span className="fm-name">{m.name}</span>
                   <span className="muted mono"> {m.code}</span>
-                  {!m.active && <span className="badge muted">inactive</span>}
+                  {!m.active && <span className="badge muted">Inactive</span>}
                 </div>
                 <div className="fm-flags">
                   <span className="badge muted">basis: {m.basis}</span>

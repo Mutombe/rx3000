@@ -84,7 +84,7 @@ export default function CardReconciliation() {
     { key: "auth_code", header: "Auth code",
       render: (r) => (r.auth_code
         ? <span className="mono">{r.auth_code}</span>
-        : <span className="badge warn">not captured</span>) },
+        : <span className="badge warn">Not captured</span>) },
     { key: "terminal_id", header: "Terminal", render: (r) => r.terminal_id || "—" },
     { key: "sale_total", header: "Amount", align: "right", sortable: true,
       render: (r) => <b>{money(r.sale_total)}</b>, total: (r) => r.sale_total, totalRender: (n) => money(n) },
@@ -106,7 +106,7 @@ export default function CardReconciliation() {
           <span className="mono"> auth_code / authcode / approval</span> and
           <span className="mono"> amount / value / total</span> are all understood.
           Lines are matched on auth code first, then reference, then a same-day amount.
-          Amount-only matches are flagged <span className="badge warn">weak</span> for review.
+          Amount-only matches are flagged <span className="badge warn">Weak</span> for review.
         </p>
         {/* The drop zone gets its own row. Sharing one with two narrow date
             fields wrapped the second date onto a line of its own and left the

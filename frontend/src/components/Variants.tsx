@@ -96,7 +96,7 @@ export default function Variants({ productId, skeleton = false }: {
               {/* A different strength is not a swap somebody should make without
                   thinking, so it is called out rather than blended in. */}
               {!v.same_strength && v.strength && (
-                <span className="badge warn">different strength</span>
+                <span className="badge warn">Different strength</span>
               )}
             </span>
             <span className="vr-price">

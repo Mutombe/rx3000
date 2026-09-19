@@ -254,7 +254,7 @@ export default function ToFollows() {
                 <td className="num">{o.quantity_on_hand}</td>
                 <td>
                   {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">—</span>}
-                  {o.overdue && <span className="badge warn">overdue</span>}
+                  {o.overdue && <span className="badge warn">Overdue</span>}
                 </td>
                 <RowActions>
                   {/* The verb is constant and the quantity is a chip beside it.

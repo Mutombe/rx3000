@@ -44,7 +44,7 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
      ("admin", "manager", "pharmacist", "cashier")),
     ("sale.discount", "Change a price at the till",
      ("admin", "manager")),
-    ("stock.write_off", "Write off stock — expired, damaged, recalled",
+    ("stock.write_off", "Write off stock that is expired, damaged or recalled",
      ("admin", "manager")),
     # The pharmacist is the person standing at the shelf with the box in their
     # hand. Withholding this meant the one member of staff who can SEE that the
@@ -315,7 +315,7 @@ def check(db: Session, user: User, capability: str, *,
         if not grant.allow:
             return _no(capability,
                        f"{user.full_name} is specifically prevented from this"
-                       + (f" — {grant.reason}" if grant.reason else "")
+                       + (f": {grant.reason}" if grant.reason else "")
                        + ". A denial is not overridden by a role or by a grant.")
 
     awake = [g for g in mine if g.allow and _within_hours(g, at)]
@@ -354,7 +354,7 @@ def check(db: Session, user: User, capability: str, *,
             "needs_approval": True, "limit": None,
             "why": (f"{user.full_name} may do this with a second person's "
                     f"approval, never alone"
-                    + (f" — {grant.reason}" if grant.reason else "") + "."),
+                    + (f": {grant.reason}" if grant.reason else "") + "."),
         }
 
     if grant.limit_value and amount > grant.limit_value:
@@ -468,7 +468,7 @@ def explain(db: Session, user: User, capability: str,
 
     if denied:
         why = (f"{user.full_name} has been specifically prevented from this"
-               + (f" — {denied[0].reason}" if denied[0].reason else "")
+               + (f": {denied[0].reason}" if denied[0].reason else "")
                + ". A denial is not overridden by a role or by a later grant.")
     elif role_allows(db, user.role, capability):
         why = f"Every {user.role} may do this."
@@ -476,7 +476,7 @@ def explain(db: Session, user: User, capability: str,
         g = granted[0]
         why = ("Granted to them by name"
                + (f" by {g.granted_by.full_name}" if g.granted_by else "")
-               + (f" — {g.reason}" if g.reason else "")
+               + (f": {g.reason}" if g.reason else "")
                + (f", until {g.expires_on:%d %b %Y}" if g.expires_on else "."))
     else:
         who = ", ".join(entry[2]) if entry else "an administrator"

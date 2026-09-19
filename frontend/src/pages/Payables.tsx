@@ -279,17 +279,17 @@ export default function Payables() {
         <>
           <div className="wc-bands">
             <div className="wl-stat">
-              <b>{money(ageing.total)}</b><span>owed to suppliers</span>
+              <b>{money(ageing.total)}</b><span>Owed to suppliers</span>
             </div>
             <div className={`wl-stat${late > 0.005 ? " wc-stale" : ""}`}>
-              <b>{money(late)}</b><span>past its due date</span>
+              <b>{money(late)}</b><span>Past its due date</span>
             </div>
             <div className={`wl-stat${ageing.queried > 0.005 ? " wc-abandoned" : ""}`}>
-              <b>{money(ageing.queried)}</b><span>queried with the supplier</span>
+              <b>{money(ageing.queried)}</b><span>Queried with the supplier</span>
             </div>
             <div className="wl-stat">
               <b>{money(waiting.reduce((s, w) => s + w.value, 0))}</b>
-              <span>received, not yet invoiced</span>
+              <span>Received, not yet invoiced</span>
             </div>
           </div>
 

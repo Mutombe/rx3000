@@ -154,7 +154,7 @@ def patient_standing(db: Session, patient_id: int) -> dict:
             "patient_id": patient.id,
             "has_cover": False,
             "verdict": "cash",
-            "why": "No medical aid on file — this is a cash patient.",
+            "why": "No medical aid on file, this is a cash patient.",
             "scheme": None,
             "benefit": _benefit_unknown(connected=False),
         }
@@ -219,6 +219,6 @@ def _benefit_unknown(*, connected: bool) -> dict:
         "available": None,
         "note": ("Benefit balances come from the scheme over the switch. This "
                  "pharmacy is not connected to it yet, so what is left on this "
-                 "member's limit is not known here — treat a clear screen as "
+                 "member's limit is not known here, treat a clear screen as "
                  "'unchecked', not as 'covered'."),
     }

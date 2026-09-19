@@ -130,19 +130,19 @@ export default function Drivers() {
             <>
               <div className="wc-bands" style={{ marginBottom: 14 }}>
                 <div className="wl-stat">
-                  <b>{road.deliveries}</b><span>out now</span>
+                  <b>{road.deliveries}</b><span>Out now</span>
                 </div>
                 <div className="wl-stat">
-                  <b>{money(road.to_collect)}</b><span>still to collect</span>
+                  <b>{money(road.to_collect)}</b><span>Still to collect</span>
                 </div>
                 <div className={`wl-stat${road.uncollected_cash ? " wc-abandoned" : ""}`}>
                   <b className={road.uncollected_cash ? "tone-danger" : undefined}>
                     {money(road.uncollected_cash)}
                   </b>
-                  <span>collected, not handed in</span>
+                  <span>Collected, not handed in</span>
                 </div>
                 <div className="wl-stat">
-                  <b>{money(road.fees_out)}</b><span>delivery fees riding on it</span>
+                  <b>{money(road.fees_out)}</b><span>Delivery fees riding on it</span>
                 </div>
               </div>
               <div className="dt-scroll">
@@ -239,7 +239,7 @@ export default function Drivers() {
                     <td className="num mono">
                       {d.cash_holding ? money(d.cash_holding) : <span className="muted">—</span>}
                       {d.over_cod_limit && (
-                        <div><span className="badge bad">over limit</span></div>
+                        <div><span className="badge bad">Over limit</span></div>
                       )}
                     </td>
                     <td className="num">

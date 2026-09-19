@@ -198,7 +198,7 @@ def repeat_baskets(db: Session, *, days: int = 90,
                 "Basket value cannot be measured on this data yet. The visits "
                 "found are worth less than the repeats they are supposed to "
                 "contain, which means the dispensings and the sales were "
-                "loaded from different exports and never tied together — "
+                "loaded from different exports and never tied together, "
                 f"only {direct:,} of {matched:,} repeats carry the sale they "
                 f"were paid on. Every repeat dispensed through the till from "
                 f"now on records it, so this fills in as the shop trades."),
@@ -220,7 +220,7 @@ def repeat_baskets(db: Session, *, days: int = 90,
         # report, it is a collection that took no money, and hiding it would
         # flatter every average below.
         "unmatched_note": (
-            f"{unmatched:,} repeat(s) had no sale on the day they went out — "
+            f"{unmatched:,} repeat(s) had no sale on the day they went out, "
             f"a scheme script settled elsewhere, or a bag nobody paid for. "
             f"They are excluded from the averages rather than counted as zero."
             if unmatched else ""),
@@ -252,7 +252,7 @@ def _headline(n: int, repeat: float, basket: float, extras: int) -> str:
     multiple = basket / repeat if repeat else 0
     return (
         f"A repeat collection is worth {avg_repeat:,.2f} on the line and "
-        f"{avg_basket:,.2f} in the basket — {multiple:.1f} times. "
+        f"{avg_basket:,.2f} in the basket: {multiple:.1f} times. "
         f"{100.0 * extras / n:.0f}% of repeat visits buy something else.")
 
 

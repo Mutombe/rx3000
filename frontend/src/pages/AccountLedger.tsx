@@ -110,7 +110,7 @@ export default function AccountLedger() {
                   <td>{fmtDate(l.entry_date)}</td>
                   <td>
                     {l.description}
-                    {l.status === "reversed" && <span className="badge warn">reversed</span>}
+                    {l.status === "reversed" && <span className="badge warn">Reversed</span>}
                   </td>
                   <td>
                     {l.party_type ? (

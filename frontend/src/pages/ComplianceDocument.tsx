@@ -287,10 +287,10 @@ export default function ComplianceDocument() {
                 <dt>On the register</dt>
                 <dd>
                   {doc.is_current
-                    ? <span className="badge ok">the current one</span>
+                    ? <span className="badge ok">The current one</span>
                     : doc.active
-                      ? <span className="badge muted">held, superseded</span>
-                      : <span className="badge muted">taken off</span>}
+                      ? <span className="badge muted">Held, superseded</span>
+                      : <span className="badge muted">Taken off</span>}
                 </dd>
               </dl>
               {doc.notes.trim() && <p className="prose">{doc.notes.trim()}</p>}

@@ -19,7 +19,7 @@ const CATEGORIES = [
 const PRIORITIES = [["low", "Low"], ["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"]];
 
 function slaBadge(t: Ticket) {
-  if (t.status === "resolved" || t.status === "closed") return <span className="badge ok">resolved</span>;
+  if (t.status === "resolved" || t.status === "closed") return <span className="badge ok">Resolved</span>;
   if (!t.due_at) return null;
   const mins = Math.round((new Date(t.due_at).getTime() - Date.now()) / 60000);
   if (mins < 0) return <span className="badge danger">SLA breached</span>;

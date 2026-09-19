@@ -258,7 +258,7 @@ def actions(overview_data: dict) -> list[dict]:
                     f"{'' if shelf['expiring_batches'] == 1 else 'es'} expiring "
                     f"within 90 days",
             "worth": shelf["expiring_value"],
-            "do": "Move it, return it, or write it off — the value falls to "
+            "do": "Move it, return it, or write it off, the value falls to "
                   "nothing on a date that is already known.",
             "to": "/stock?tab=batches",
             "tone": "warn",

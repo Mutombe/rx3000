@@ -25,8 +25,8 @@ const PATH_STAGES = [
 ];
 
 function slaBadge(t: Ticket) {
-  if (!t.due_at) return <span className="badge muted">no SLA</span>;
-  if (t.first_response_at) return <span className="badge ok">responded</span>;
+  if (!t.due_at) return <span className="badge muted">No SLA</span>;
+  if (t.first_response_at) return <span className="badge ok">Responded</span>;
   const late = new Date(t.due_at).getTime() < Date.now();
   return late
     ? <span className="badge danger">SLA breached</span>

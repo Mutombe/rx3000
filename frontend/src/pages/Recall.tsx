@@ -178,12 +178,12 @@ export default function Recall() {
           )}
 
           <div className="wc-bands">
-            <div className="wl-stat"><b>{qty?.received}</b><span>received</span></div>
-            <div className="wl-stat wc-abandoned"><b>{qty?.on_shelf}</b><span>still on the shelf</span></div>
-            <div className="wl-stat"><b>{qty?.traced_to_a_patient}</b><span>traced to a patient</span></div>
-            <div className="wl-stat"><b>{qty?.sold_to_a_walk_in}</b><span>sold to a walk-in</span></div>
+            <div className="wl-stat"><b>{qty?.received}</b><span>Received</span></div>
+            <div className="wl-stat wc-abandoned"><b>{qty?.on_shelf}</b><span>Still on the shelf</span></div>
+            <div className="wl-stat"><b>{qty?.traced_to_a_patient}</b><span>Traced to a patient</span></div>
+            <div className="wl-stat"><b>{qty?.sold_to_a_walk_in}</b><span>Sold to a walk-in</span></div>
             <div className={`wl-stat${qty?.unaccounted ? " wc-stale" : ""}`}>
-              <b>{qty?.unaccounted}</b><span>unaccounted for</span>
+              <b>{qty?.unaccounted}</b><span>Unaccounted for</span>
             </div>
           </div>
 

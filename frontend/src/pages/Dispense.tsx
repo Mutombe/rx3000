@@ -3497,7 +3497,7 @@ export default function Dispense() {
                     </td>
                     <td>
                       {r.indication || "—"}
-                      {r.referred_to_doctor && <div><span className="badge warn">referred to doctor</span></div>}
+                      {r.referred_to_doctor && <div><span className="badge warn">Referred to doctor</span></div>}
                     </td>
                     {/* The name, without the job title trailing it. "T. Moyo
                         (Pharmacist)" in a register of pharmacy medicines says
@@ -4784,10 +4784,10 @@ ${d.action}`}
                         {counter.error && <div className="alert error">{counter.error}</div>}
                         <div className="fin-stats">
                           <div className={`fin-stat${toAck ? " is-stop" : ""}`}>
-                            <b>{toAck}</b><span>to acknowledge</span>
+                            <b>{toAck}</b><span>To acknowledge</span>
                           </div>
                           <div className={`fin-stat${worthKnowing ? " is-warn" : ""}`}>
-                            <b>{worthKnowing}</b><span>worth knowing</span>
+                            <b>{worthKnowing}</b><span>Worth knowing</span>
                           </div>
                           <div className="fin-stat">
                             <b>{items.length}</b><span>line{items.length === 1 ? "" : "s"} screened</span>
@@ -4849,8 +4849,8 @@ ${d.action}`}
                                   <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
                                   <div className="fin-item-body">
                                     <div className="fin-item-meta">
-                                      <span className="badge">dose check</span>
-                                      <span className="badge muted">over the maximum</span>
+                                      <span className="badge">Dose check</span>
+                                      <span className="badge muted">Over the maximum</span>
                                     </div>
                                     {doseMajors.map((f) => (
                                       <p key={f.product}><b>{f.product}</b>: {f.detail}</p>
@@ -4928,8 +4928,8 @@ ${d.action}`}
                                   <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
                                   <div className="fin-item-body">
                                     <div className="fin-item-meta">
-                                      <span className="badge">scheme</span>
-                                      <span className="badge muted">not covered</span>
+                                      <span className="badge">Scheme</span>
+                                      <span className="badge muted">Not covered</span>
                                     </div>
                                     <p>
                                       {coverage!.blocked_count} line{coverage!.blocked_count === 1 ? " is" : "s are"} not
@@ -4945,8 +4945,8 @@ ${d.action}`}
                                   <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
                                   <div className="fin-item-body">
                                     <div className="fin-item-meta">
-                                      <span className="badge">scheme</span>
-                                      <span className="badge muted">authorisation</span>
+                                      <span className="badge">Scheme</span>
+                                      <span className="badge muted">Authorisation</span>
                                     </div>
                                     <p>
                                       One or more lines need an authorisation number from the scheme
@@ -5850,7 +5850,7 @@ ${d.action}`}
                           .map(([mark, done, why]) => (
                             <span key={mark}
                                   className={`dd-check${done ? " is-done" : ""}`}
-                                  title={done ? why : `${why} — not recorded`}>
+                                  title={done ? why : `${why}, not recorded`}>
                               {mark}
                             </span>
                           ))}

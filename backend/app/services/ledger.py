@@ -214,7 +214,7 @@ def post(db: Session, *, entry_date: date, description: str, lines: list[Line],
                 f"{line.account_code} is both debited and credited on one line. "
                 "Split it into two lines so the intent is readable.")
         if line.debit < 0 or line.credit < 0:
-            raise LedgerError("A negative amount is a posting on the other side — "
+            raise LedgerError("A negative amount is a posting on the other side, "
                               "put it there instead.")
 
     known = {a.code for a in db.query(Account).filter(Account.active).all()}

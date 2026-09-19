@@ -95,7 +95,7 @@ SEED: list[tuple[str, str, str, str, str]] = [
 
     # ------------------------------------------------------------ frequency
     ("od", "once a day", "omni die", "frequency",
-     "Once a day here. Never the right eye — for eyes use `r-eye`, `l-eye` or "
+     "Once a day here. Never the right eye. For eyes use `r-eye`, `l-eye` or "
      "`b-eye`, which cannot be read two ways."),
     ("bd", "twice a day", "bis die", "frequency", ""),
     ("bid", "twice a day", "bis in die", "frequency", ""),
@@ -111,7 +111,7 @@ SEED: list[tuple[str, str, str, str, str]] = [
     ("altd", "on alternate days", "alternis diebus", "frequency", ""),
     ("weekly", "once a week", "", "frequency", ""),
     ("prn", "when required", "pro re nata", "frequency",
-     "Give it a reason and a ceiling — \"when required for pain, no more than "
+     "Give it a reason and a ceiling: \"when required for pain, no more than "
      "four doses in 24 hours\". `prn` on its own is not a direction."),
     ("sos", "if necessary", "si opus sit", "frequency", ""),
     ("stat", "immediately", "statim", "frequency", ""),

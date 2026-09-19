@@ -106,9 +106,9 @@ export default function PatientHistoryModal({ patient, onClose }: {
         {error && <div className="alert error">{error}</div>}
 
         <div className="fin-stats">
-          <div className="fin-stat"><b>{lines ? lines.length : <span className="skel skel-num" />}</b><span>dispensed</span></div>
-          <div className="fin-stat"><b>{scripts ? scripts.length : <span className="skel skel-num" />}</b><span>scripts</span></div>
-          <div className="fin-stat"><b>{lines === null ? <span className="skel skel-num is-wide" /> : last ? fmtDate(last) : "—"}</b><span>last dispensed</span></div>
+          <div className="fin-stat"><b>{lines ? lines.length : <span className="skel skel-num" />}</b><span>Dispensed</span></div>
+          <div className="fin-stat"><b>{scripts ? scripts.length : <span className="skel skel-num" />}</b><span>Scripts</span></div>
+          <div className="fin-stat"><b>{lines === null ? <span className="skel skel-num is-wide" /> : last ? fmtDate(last) : "—"}</b><span>Last dispensed</span></div>
         </div>
 
         <div className="seg pt-tabs" role="tablist" aria-label="Which record">

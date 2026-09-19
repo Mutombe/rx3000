@@ -111,7 +111,7 @@ def plan(db: Session, sale: Sale, lines: list[dict]) -> dict:
             "why_not": ("" if restock else
                         f"Schedule {schedule}. Once a controlled medicine has "
                         f"left the pharmacy it cannot go back into saleable "
-                        f"stock — it is recorded as returned and destroyed "
+                        f"stock, it is recorded as returned and destroyed "
                         f"under the destruction procedure."),
         })
 
@@ -192,7 +192,7 @@ def apply(db: Session, sale: Sale, lines: list[dict], *, user_id: int | None,
         sale.vat_amount = round((sale.vat_amount or 0.0) * (1 - share), 2)
 
     note = (f"Returned {len(result['lines'])} line(s), {refund:.2f}"
-            + (f" — {reason}" if reason else ""))
+            + (f": {reason}" if reason else ""))
     sale.notes = ((getattr(sale, "notes", "") or "") + "\n" + note).strip()
 
     # Nothing left on the sale means it is fully returned, and a sale of

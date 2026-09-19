@@ -76,7 +76,7 @@ RULES: list[tuple[tuple[str, ...], tuple[str, ...], str, str]] = [
     (("pregnan", "antenatal"),
      ("ibuprofen", "diclofenac", "naproxen", "indomethacin", "meloxicam",
       "piroxicam", "aspirin"), "warn",
-     "NSAIDs are avoided in the third trimester — premature closure of the "
+     "NSAIDs are avoided in the third trimester: premature closure of the "
      "ductus arteriosus. Check how far along the patient is."),
     (("pregnan", "antenatal"), ("sodium valproate", "valproate", "valproic"),
      "stop",
@@ -103,7 +103,7 @@ RULES: list[tuple[tuple[str, ...], tuple[str, ...], str, str]] = [
      ("methotrexate", "amiodarone", "chloramphenicol"), "stop",
      "Contraindicated while breastfeeding."),
     (("breastfeed", "lactating", "nursing"), ("aspirin",), "warn",
-     "Aspirin is avoided while breastfeeding — Reye's syndrome risk."),
+     "Aspirin is avoided while breastfeeding: Reye's syndrome risk."),
 
     # ---- asthma ---------------------------------------------------------
     (("asthma", "asthmatic"),
@@ -197,7 +197,7 @@ def coverage() -> dict:
         "pairs": pairs,
         "conditions": len(conditions),
         "note": (f"{pairs} medicine-and-condition pairs across {len(conditions)} "
-                 f"conditions. This is a named list, not a clinical database — "
+                 f"conditions. This is a named list, not a clinical database, "
                  f"a clear result means nothing on the list matched, which is "
                  f"not the same as safe."),
     }

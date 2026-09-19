@@ -108,16 +108,16 @@ export default function Settlements() {
           <>
             <div className="wc-bands">
               <div className="wl-stat">
-                <b>{money(report.claimed)}</b><span>claimed</span>
+                <b>{money(report.claimed)}</b><span>Claimed</span>
               </div>
               <div className="wl-stat">
-                <b className="tone-ok">{money(report.paid)}</b><span>settled</span>
+                <b className="tone-ok">{money(report.paid)}</b><span>Settled</span>
               </div>
               <div className={`wl-stat${report.shortfall ? " wc-abandoned" : ""}`}>
                 <b className={report.shortfall ? "tone-danger" : undefined}>
                   {money(report.shortfall)}
                 </b>
-                <span>short-paid or refused</span>
+                <span>Short-paid or refused</span>
               </div>
               <div className={`wl-stat${report.held ? " wc-stale" : ""}`}>
                 <b>{money(report.held)}</b>
@@ -128,7 +128,7 @@ export default function Settlements() {
               </div>
               <div className="wl-stat">
                 <b>{report.paying_rate !== null ? `${report.paying_rate}%` : "—"}</b>
-                <span>of what is claimed arrives</span>
+                <span>Of what is claimed arrives</span>
               </div>
             </div>
 
@@ -217,10 +217,10 @@ export default function Settlements() {
 
             <div className="wc-bands">
               <div className="wl-stat">
-                <b>{held.count}</b><span>claims held</span>
+                <b>{held.count}</b><span>Claims held</span>
               </div>
               <div className="wl-stat">
-                <b>{money(held.value)}</b><span>waiting on an answer</span>
+                <b>{money(held.value)}</b><span>Waiting on an answer</span>
               </div>
             </div>
 

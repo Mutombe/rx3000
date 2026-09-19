@@ -117,16 +117,16 @@ export default function Scorecard() {
       {data && (
         <>
           <div className="wc-bands">
-            <div className="wl-stat"><b>{money(t.sales_value ?? 0)}</b><span>taken, all branches</span></div>
-            <div className="wl-stat"><b>{t.sales_count ?? 0}</b><span>sales</span></div>
-            <div className="wl-stat"><b>{money(t.stock_at_cost ?? 0)}</b><span>stock at cost</span></div>
-            <div className="wl-stat"><b>{t.claims_raised ?? 0}</b><span>claims raised</span></div>
+            <div className="wl-stat"><b>{money(t.sales_value ?? 0)}</b><span>Taken, all branches</span></div>
+            <div className="wl-stat"><b>{t.sales_count ?? 0}</b><span>Sales</span></div>
+            <div className="wl-stat"><b>{money(t.stock_at_cost ?? 0)}</b><span>Stock at cost</span></div>
+            <div className="wl-stat"><b>{t.claims_raised ?? 0}</b><span>Claims raised</span></div>
             <div className={`wl-stat${(t.repeats_overdue ?? 0) > 0 ? " wc-stale" : ""}`}>
-              <b>{t.repeats_overdue ?? 0}</b><span>repeats overdue</span>
+              <b>{t.repeats_overdue ?? 0}</b><span>Repeats overdue</span>
             </div>
-            <div className="wl-stat"><b>{t.orders_raised ?? 0}</b><span>orders raised</span></div>
+            <div className="wl-stat"><b>{t.orders_raised ?? 0}</b><span>Orders raised</span></div>
             <div className={`wl-stat${(t.portal_waiting ?? 0) > 0 ? " wc-stale" : ""}`}>
-              <b>{t.portal_waiting ?? 0}</b><span>portal scripts waiting</span>
+              <b>{t.portal_waiting ?? 0}</b><span>Portal scripts waiting</span>
             </div>
           </div>
 
@@ -136,9 +136,9 @@ export default function Scorecard() {
           <div className="card">
             <h3>How the money arrived</h3>
             <div className="wc-bands">
-              <div className="wl-stat"><b>{money(t.cash ?? 0)}</b><span>cash</span></div>
-              <div className="wl-stat"><b>{money(t.card ?? 0)}</b><span>card</span></div>
-              <div className="wl-stat"><b>{money(t.mobile_money ?? 0)}</b><span>mobile money</span></div>
+              <div className="wl-stat"><b>{money(t.cash ?? 0)}</b><span>Cash</span></div>
+              <div className="wl-stat"><b>{money(t.card ?? 0)}</b><span>Card</span></div>
+              <div className="wl-stat"><b>{money(t.mobile_money ?? 0)}</b><span>Mobile money</span></div>
             </div>
           </div>
 

@@ -249,7 +249,7 @@ export default function DispensingHistory() {
                             {r.collected_name && (
                               <div className="muted small">{r.collected_name}</div>
                             )}</>
-                        : <span className="badge warn">on the shelf</span>}
+                        : <span className="badge warn">On the shelf</span>}
                     </td>
                     <td className="actions">
                       <button

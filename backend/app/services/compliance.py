@@ -64,7 +64,7 @@ KINDS: list[tuple[str, str, str, int, bool, str]] = [
      "Required to hold and dispense schedule 5 and 6 medicines. Lapsed, the "
      "controlled cupboard cannot lawfully be opened."),
     ("city_health", "City health shop licence",
-     "Local authority — City of Harare, Bulawayo City Council", 12, False,
+     "Local authority, such as City of Harare or Bulawayo City Council", 12, False,
      "The municipal trading licence for a health premises. Enforced by "
      "inspection and by a padlock."),
     ("fire_clearance", "Fire brigade clearance certificate",
@@ -322,7 +322,7 @@ def _summarise(rows: list[dict]) -> dict:
     elif unproven:
         verdict = "cannot be proved"
         says = (f"{len(unproven)} licence(s) that a branch cannot trade "
-                f"without have nothing on file — {unproven[0]} among them. "
+                f"without have nothing on file: {unproven[0]} among them. "
                 f"The branch may well hold them; nobody here can show an "
                 f"inspector that it does.")
     elif counts.get("expired"):
@@ -333,7 +333,7 @@ def _summarise(rows: list[dict]) -> dict:
     elif counts.get("missing"):
         verdict = "gaps"
         says = (f"{counts['missing']} expected document(s) are not on file. "
-                f"They may exist in a folder somewhere — until they are here, "
+                f"They may exist in a folder somewhere, until they are here, "
                 f"nobody can say.")
     elif counts.get("urgent"):
         verdict = "renew now"
@@ -403,7 +403,7 @@ def overview(db: Session) -> dict:
             f"has expired. Deal with that today."
             if stopped else
             f"Nothing is on file yet. {len(unproven)} branch(es) hold licences "
-            f"nobody here can produce — start with the MCAZ premises licence "
+            f"nobody here can produce, start with the MCAZ premises licence "
             f"and the practice certificate, which are the two an inspector "
             f"asks for first."
             if unproven and not any(r["expired"] or r["urgent"] for r in rows)

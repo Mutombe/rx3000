@@ -406,7 +406,7 @@ export default function DispensingDetail() {
                       <td>
                         {s.collected_at
                           ? fmtDate(s.collected_at)
-                          : <span className="badge warn">on the shelf</span>}
+                          : <span className="badge warn">On the shelf</span>}
                       </td>
                     </tr>
                   ))}

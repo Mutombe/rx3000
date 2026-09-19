@@ -240,8 +240,8 @@ export default function PettyCash() {
                       </td>
                       <td>
                         {e.amount >= 0 ? <span className="muted">—</span>
-                          : e.receipt_seen ? <span className="badge ok">seen</span>
-                            : <span className="badge danger">none</span>}
+                          : e.receipt_seen ? <span className="badge ok">Seen</span>
+                            : <span className="badge danger">None</span>}
                       </td>
                       <td className="muted">{e.user ?? ""}</td>
                     </tr>

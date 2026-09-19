@@ -162,29 +162,29 @@ export default function DriverDetail() {
 
       <div className="wc-bands">
         <div className="wl-stat">
-          <b>{driver.out}</b><span>out right now</span>
+          <b>{driver.out}</b><span>Out right now</span>
         </div>
         <div className={`wl-stat${driver.cash_holding ? " wc-abandoned" : ""}`}>
           <b className={driver.cash_holding ? "tone-danger" : undefined}>
             {money(driver.cash_holding)}
           </b>
-          <span>collected, not handed in</span>
+          <span>Collected, not handed in</span>
         </div>
         <div className="wl-stat">
-          <b>{money(driver.cod_to_collect)}</b><span>still to collect</span>
+          <b>{money(driver.cod_to_collect)}</b><span>Still to collect</span>
         </div>
         <div className="wl-stat">
-          <b>{driver.delivered}</b><span>delivered</span>
+          <b>{driver.delivered}</b><span>Delivered</span>
         </div>
         <div className="wl-stat">
           <b className={driver.failure_rate && driver.failure_rate > 10
             ? "tone-danger" : undefined}>
             {driver.failure_rate === null ? "—" : `${driver.failure_rate}%`}
           </b>
-          <span>of attempts failed</span>
+          <span>Of attempts failed</span>
         </div>
         <div className="wl-stat">
-          <b>{money(driver.fees_earned)}</b><span>in delivery fees carried</span>
+          <b>{money(driver.fees_earned)}</b><span>In delivery fees carried</span>
         </div>
       </div>
 
@@ -311,7 +311,7 @@ export default function DriverDetail() {
                       {/* Handed in or still on them. The distinction is the
                           entire reason both figures are kept. */}
                       {w.cod_collected > 0 && !w.cod_settled_at && (
-                        <div><span className="badge warn">not handed in</span></div>
+                        <div><span className="badge warn">Not handed in</span></div>
                       )}
                     </td>
                     <td className="muted small">

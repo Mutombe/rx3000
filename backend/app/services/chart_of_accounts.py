@@ -157,8 +157,8 @@ def create(db: Session, *, code: str, name: str, type: str,
     section = section or ledger.DEFAULT_SECTION.get(type, "")
     if section and SECTION_OF.get(section) not in (None, type):
         raise ChartError(
-            f"A {type} account cannot sit under {SECTION_LABEL.get(section, section)} "
-            f"— that part of the statement is for "
+            f"A {type} account cannot sit under {SECTION_LABEL.get(section, section)}. "
+            f"That part of the statement is for "
             f"{SECTION_OF[section]} accounts.")
 
     if parent_code:
@@ -235,7 +235,7 @@ def update(db: Session, code: str, **changes) -> Account:
         if abs(ledger.balance(db, code)) > 0.005:
             raise ChartError(
                 f"{code} still has a balance. Clear it to nil with a journal "
-                f"first — retiring an account with money in it hides that money "
+                f"first, retiring an account with money in it hides that money "
                 f"rather than moving it.")
         account.active = False
     elif changes.get("active"):

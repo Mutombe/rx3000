@@ -214,7 +214,7 @@ export default function Compounding() {
                       {m.code}
                     </button>
                   </td>
-                  <td>{m.name}{!m.active && <span className="badge muted">inactive</span>}</td>
+                  <td>{m.name}{!m.active && <span className="badge muted">Inactive</span>}</td>
                   <td>{m.form}</td>
                   <td className="num">{m.yield_quantity} {m.yield_unit}</td>
                   <td className="num">{money(m.compounding_fee)}</td>

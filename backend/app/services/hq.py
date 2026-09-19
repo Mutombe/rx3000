@@ -121,7 +121,7 @@ def blocked(path: str, method: str, branch: Branch | None) -> str:
     return (
         f"{branch.name} is frozen by head office and nothing can be recorded "
         f"here until it is released"
-        + (f" — {branch.frozen_reason}" if branch.frozen_reason else "")
+        + (f": {branch.frozen_reason}" if branch.frozen_reason else "")
         + ". Reading still works; ring head office to have it lifted.")
 
 

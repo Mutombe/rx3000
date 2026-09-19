@@ -233,8 +233,8 @@ export default function Pharmacies() {
                 <td className="muted">{fmtDate(p.created_at)}</td>
                 <td>
                   {p.active
-                    ? <span className="badge ok">active</span>
-                    : <span className="badge bad">suspended</span>}
+                    ? <span className="badge ok">Active</span>
+                    : <span className="badge bad">Suspended</span>}
                 </td>
                 <td className="actions">
                   <button className="btn small secondary" onClick={() => openPharmacy(p)}>
@@ -362,8 +362,8 @@ export default function Pharmacies() {
                     <td className="mono">{u.username}</td>
                     <td>{u.role}</td>
                     <td>{u.active
-                      ? <span className="badge ok">active</span>
-                      : <span className="badge">inactive</span>}</td>
+                      ? <span className="badge ok">Active</span>
+                      : <span className="badge">Inactive</span>}</td>
                   </tr>
                 ))}
               </tbody>

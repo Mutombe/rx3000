@@ -19,9 +19,9 @@ import Usage from "../components/Usage";
 type Tab = "batches" | "movements" | "usage";
 
 function expiryBadge(expiry: string | null) {
-  if (!expiry) return <span className="badge muted">no expiry</span>;
+  if (!expiry) return <span className="badge muted">No expiry</span>;
   const days = Math.floor((new Date(expiry).getTime() - Date.now()) / 86400000);
-  if (days < 0) return <span className="badge danger">expired</span>;
+  if (days < 0) return <span className="badge danger">Expired</span>;
   if (days < 90) return <span className="badge warn">{days}d left</span>;
   return <span className="badge ok">{fmtDate(expiry)}</span>;
 }

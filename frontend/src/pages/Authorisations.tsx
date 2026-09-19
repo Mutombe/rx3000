@@ -453,7 +453,7 @@ export default function Authorisations() {
                               </td>
                               <td className="actions">
                                 {u.reversed ? (
-                                  <span className="badge muted">given back</span>
+                                  <span className="badge muted">Given back</span>
                                 ) : !u.reference && !u.claim_id ? (
                                   // Release works by reference or by claim, and
                                   // this draw carries neither, so the button

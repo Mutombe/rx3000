@@ -110,14 +110,14 @@ export default function MoneyOwed() {
       {data && (
         <div className="wc-bands">
           <div className="wl-stat">
-            <b>{money(data.total_owed)}</b><span>owed to the pharmacy</span>
+            <b>{money(data.total_owed)}</b><span>Owed to the pharmacy</span>
           </div>
           <div className="wl-stat">
             <b>{data.patients}</b><span>patient{data.patients === 1 ? "" : "s"}</span>
           </div>
           <div className={`wl-stat${stale.length ? " wc-stale" : ""}`}>
             <b>{money(stale.reduce((s, r) => s + r.balance, 0))}</b>
-            <span>owing more than a month</span>
+            <span>Owing more than a month</span>
           </div>
         </div>
       )}

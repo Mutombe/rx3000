@@ -272,7 +272,7 @@ def set_a_price(product_id: int = Body(...),
             reference="price change",
             notes=f"Shelf price set to {product.unit_price:.2f} a pack "
                   f"(was {round(shelf * pack, 2):.2f})"
-                  + (f" — {reason}" if reason else "")))
+                  + (f": {reason}" if reason else "")))
         kept = True
     db.commit()
     db.refresh(row)

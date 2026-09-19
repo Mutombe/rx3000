@@ -234,7 +234,7 @@ def close_day(db: Session) -> FiscalDay:
         )
         if queued:
             raise FiscalError(
-                f"{queued} receipt(s) on this day have not been filed yet — "
+                f"{queued} receipt(s) on this day have not been filed yet, "
                 "the day cannot be closed until they are"
             )
 

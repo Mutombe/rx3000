@@ -90,13 +90,13 @@ export default function ExpiryProvision() {
     <div className="prov">
       <div className="wc-bands">
         <div className="wl-stat">
-          <b>{money(state.stock_at_risk)}</b><span>stock within 90 days of expiry</span>
+          <b>{money(state.stock_at_risk)}</b><span>Stock within 90 days of expiry</span>
         </div>
         <div className="wl-stat">
-          <b>{money(state.required)}</b><span>provision required</span>
+          <b>{money(state.required)}</b><span>Provision required</span>
         </div>
         <div className="wl-stat">
-          <b>{money(state.carried)}</b><span>already provided</span>
+          <b>{money(state.carried)}</b><span>Already provided</span>
         </div>
         <div className={`wl-stat${nothingToDo ? "" : " wc-stale"}`}>
           <b>{state.movement >= 0 ? money(state.movement) : `(${money(Math.abs(state.movement))})`}</b>

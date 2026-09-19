@@ -227,13 +227,13 @@ export default function HeadOffice() {
             <div className="wc-bands">
               <div className="wl-stat">
                 <b>{money(estate.total)}</b>
-                <span>taken across the estate</span>
+                <span>Taken across the estate</span>
               </div>
               <div className="wl-stat">
-                <b>{estate.branches.length}</b><span>branches</span>
+                <b>{estate.branches.length}</b><span>Branches</span>
               </div>
               <div className={`wl-stat${estate.unpinned.length ? " wc-stale" : ""}`}>
-                <b>{estate.unpinned.length}</b><span>not on the map yet</span>
+                <b>{estate.unpinned.length}</b><span>Not on the map yet</span>
               </div>
             </div>
 
@@ -273,13 +273,13 @@ export default function HeadOffice() {
                       <td>
                         {b.frozen ? (
                           <>
-                            <span className="badge bad">frozen</span>
+                            <span className="badge bad">Frozen</span>
                             <div className="muted small wrap">
                               {b.frozen_reason}
                               {b.frozen_by && ` · ${b.frozen_by}`}
                             </div>
                           </>
-                        ) : <span className="badge ok">trading</span>}
+                        ) : <span className="badge ok">Trading</span>}
                       </td>
                       <td className="actions">
                         {b.frozen
@@ -474,7 +474,7 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
                     <b>{p.full_name}</b>
                     <div className="muted small mono">{p.username}</div>
                     {!p.active && (
-                      <span className="badge muted">login stopped</span>
+                      <span className="badge muted">Login stopped</span>
                     )}
                   </td>
                   <td>{p.role}</td>
@@ -550,7 +550,7 @@ function WhoSignsIn({ pins, types }: {
                   <b>{t.what}</b>
                   <div className="muted small mono">{t.user_type}</div>
                   {t.needs_pin && (
-                    <span className="badge warn">needs a till PIN</span>
+                    <span className="badge warn">Needs a till PIN</span>
                   )}
                 </td>
                 <td className="num">

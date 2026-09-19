@@ -92,7 +92,7 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
                 <tr key={s.key + a.code} className="st-line">
                   <td>
                     <span className="mono muted">{a.code}</span> {a.name}
-                    {a.computed && <span className="badge muted st-badge">calculated</span>}
+                    {a.computed && <span className="badge muted st-badge">Calculated</span>}
                     {a.subledger && <span className="badge st-badge">{a.subledger}</span>}
                   </td>
                   <td className="mono st-amount">{money(a.amount)}</td>

@@ -98,7 +98,7 @@ export default function ReportCatalogue() {
                       // Said here rather than discovered at the point of
                       // clicking, so nobody queues up behind a report they
                       // cannot open.
-                      <span className="badge muted rc-lock">manager</span>
+                      <span className="badge muted rc-lock">Manager</span>
                     )}
                   </span>
                   {r.purpose && <span className="rc-item-purpose">{r.purpose}</span>}

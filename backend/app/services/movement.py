@@ -302,7 +302,7 @@ def _summary(rows, moved, priced, dead, total_profit, days) -> dict:
         # be told anything about margin, and pretending otherwise is worse than
         # saying so.
         "unpriced_note": (
-            f"{unpriced_lines:,} line(s) moved with no sale behind them — a "
+            f"{unpriced_lines:,} line(s) moved with no sale behind them, a "
             f"scheme script settled by the funder, or stock that left before "
             f"the till saw it. Their usage is counted; their margin is not "
             f"known and is not guessed at."
@@ -313,7 +313,7 @@ def _summary(rows, moved, priced, dead, total_profit, days) -> dict:
             f"have not moved in {days} days."
             if priced else
             f"{len(moved):,} line(s) moved in {days} days and none carried a "
-            f"sale, so nothing can be said about what they earn — only about "
+            f"sale, so nothing can be said about what they earn, only about "
             f"how fast they go."
             if moved else
             f"Nothing moved in the last {days} days."),

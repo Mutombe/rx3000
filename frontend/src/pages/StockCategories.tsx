@@ -101,10 +101,10 @@ export default function StockCategories() {
       {list.error && <div className="alert error">{list.error}</div>}
 
       <div className="wc-bands">
-        <div className="wl-stat"><b>{rows.length}</b><span>departments</span></div>
-        <div className="wl-stat"><b>{totalLines.toLocaleString()}</b><span>lines catalogued</span></div>
-        <div className="wl-stat"><b>{totalStocked.toLocaleString()}</b><span>with stock on hand</span></div>
-        <div className="wl-stat"><b>{money(totalValue)}</b><span>on the shelf, at cost</span></div>
+        <div className="wl-stat"><b>{rows.length}</b><span>Departments</span></div>
+        <div className="wl-stat"><b>{totalLines.toLocaleString()}</b><span>Lines catalogued</span></div>
+        <div className="wl-stat"><b>{totalStocked.toLocaleString()}</b><span>With stock on hand</span></div>
+        <div className="wl-stat"><b>{money(totalValue)}</b><span>On the shelf, at cost</span></div>
       </div>
 
       {untagged > 0 && (

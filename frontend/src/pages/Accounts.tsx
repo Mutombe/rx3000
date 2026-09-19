@@ -132,8 +132,8 @@ export default function Accounts() {
       render: (c) => <span className="muted">{c.source || "—"}</span> },
     { key: "marketing_opt_in", header: "Marketing",
       render: (c) => (c.marketing_opt_in
-        ? <span className="badge ok">opted in</span>
-        : <span className="badge muted">no consent</span>) },
+        ? <span className="badge ok">Opted in</span>
+        : <span className="badge muted">No consent</span>) },
     { key: "created_at", header: "Added", sortable: true,
       render: (c) => <span className="muted">{fmtDate(c.created_at)}</span> },
   ];

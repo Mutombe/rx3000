@@ -521,16 +521,16 @@ class DirectFunderSwitch(SwitchAdapter):
         raise GatewayError(
             "SWITCH_UNAVAILABLE",
             f"A direct adapter for {funder.funder_id} is not implemented. This "
-            "funder is routed to DIRECT, which means it settles without a switch "
-            "— supply that funder's own API specification and add one adapter "
+            "funder is routed to DIRECT, which means it settles without a switch. "
+            "Supply that funder's own API specification and add one adapter "
             "class, or route it to a switch instead.")
 
     def claim(self, payload: dict, funder: Funder) -> SwitchResult:
         raise GatewayError(
             "SWITCH_UNAVAILABLE",
             f"A direct adapter for {funder.funder_id} is not implemented. This "
-            "funder is routed to DIRECT, which means it settles without a switch "
-            "— supply that funder's own API specification and add one adapter "
+            "funder is routed to DIRECT, which means it settles without a switch. "
+            "Supply that funder's own API specification and add one adapter "
             "class, or route it to a switch instead.")
 
 

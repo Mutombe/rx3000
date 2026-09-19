@@ -279,7 +279,7 @@ export default function AlterScript({ onClose, onAltered }: {
                           {i.product?.strength ? ` ${i.product.strength}` : ""}
                         </span>
                         <span className="alt-line-qty">×{i.quantity}</span>
-                        {gone && <span className="badge muted">dispensed</span>}
+                        {gone && <span className="badge muted">Dispensed</span>}
                       </button>
                     );
                   })}

@@ -241,7 +241,7 @@ register(Integration(
           "not a replacement for it: express checkout takes money FOR the "
           "pharmacy's own sale; BillPay takes money for SOMEONE ELSE'S bill and "
           "pays the pharmacy a commission. A pharmacy would be a BillPay "
-          "'vendor'. Neither the endpoints nor the field names are published — "
+          "'vendor'. Neither the endpoints nor the field names are published, "
           "there is no public SDK and the developer hub refuses automated "
           "access. So nothing here is guessed at.",
 ))

@@ -133,7 +133,7 @@ def save_driver(db: Session, driver: Driver, data: dict) -> Driver:
     """Apply an edit, refusing the ones that would make the record a lie."""
     name = (data.get("full_name") or driver.full_name or "").strip()
     if not name:
-        raise ValueError("A driver needs a name — somebody has to be findable "
+        raise ValueError("A driver needs a name, somebody has to be findable "
                          "when a delivery goes missing.")
     phone = (data.get("phone") if "phone" in data else driver.phone) or ""
     if not str(phone).strip():
@@ -204,7 +204,7 @@ def collect(db: Session, waybill: Waybill, *, amount: float, instrument: str,
     amount = round(float(amount or 0), 2)
     if amount < 0:
         raise ValueError("A collection cannot be negative. Reverse the sale "
-                         "instead — a delivery is not a refund counter.")
+                         "instead, a delivery is not a refund counter.")
     due = round(waybill.cod_amount or 0.0, 2)
     if due and amount > due + 0.005:
         raise ValueError(

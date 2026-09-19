@@ -396,8 +396,8 @@ export default function Leads() {
                 <div><dt>Captured</dt><dd>{fmtDateTime(selected.created_at)}</dd></div>
                 <div><dt>Marketing consent</dt>
                   <dd>{selected.marketing_opt_in
-                    ? <span className="badge ok">granted</span>
-                    : <span className="badge muted">not granted</span>}</dd></div>
+                    ? <span className="badge ok">Granted</span>
+                    : <span className="badge muted">Not granted</span>}</dd></div>
               </dl>
 
               {selected.interest && (

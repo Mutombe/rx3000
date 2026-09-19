@@ -175,15 +175,15 @@ export default function ReturnLines(
             {!plan.applied && plan.lines.length > 0 && (
               <div className="wc-bands" style={{ marginTop: 12 }}>
                 <div className="wl-stat">
-                  <b>{money(plan.refund)}</b><span>comes off the sale</span>
+                  <b>{money(plan.refund)}</b><span>Comes off the sale</span>
                 </div>
                 <div className="wl-stat">
                   <b>{money(plan.sale_total - plan.refund)}</b>
-                  <span>the sale becomes</span>
+                  <span>The sale becomes</span>
                 </div>
                 <div className="wl-stat">
                   <b>{plan.lines.filter((l) => l.restock).length}</b>
-                  <span>line(s) back on the shelf</span>
+                  <span>Line(s) back on the shelf</span>
                 </div>
               </div>
             )}

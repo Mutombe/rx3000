@@ -260,7 +260,7 @@ export default function Deliveries() {
                     {/* The driver needs to know this before they leave, not on
                         arrival at a locked gate. */}
                     {w.requires_id_check && (
-                      <div><span className="badge warn">check ID at the door</span></div>
+                      <div><span className="badge warn">Check ID at the door</span></div>
                     )}
                   </td>
                   <td>

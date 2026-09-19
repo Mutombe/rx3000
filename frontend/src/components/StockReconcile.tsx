@@ -78,18 +78,18 @@ export default function StockReconcile() {
               </div>
               <div className="wl-stat">
                 <b>{Math.round(data.agree_rate * 100)}%</b>
-                <span>agree with their batches</span>
+                <span>Agree with their batches</span>
               </div>
               <div className={`wl-stat${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
                 <b className={data.value_at_risk > 0.005 ? "neg" : undefined}>
                   {money(data.value_at_risk)}
                 </b>
-                <span>at cost, on the difference</span>
+                <span>At cost, on the difference</span>
               </div>
               {data.negative > 0 && (
                 <div className="wl-stat wc-abandoned">
                   <b className="tone-danger">{data.negative}</b>
-                  <span>counted below nothing</span>
+                  <span>Counted below nothing</span>
                 </div>
               )}
             </div>

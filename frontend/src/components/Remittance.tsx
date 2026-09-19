@@ -69,10 +69,10 @@ export default function Remittance({ data, onClose }: {
         </p>
 
         <div className="wc-bands">
-          <div className="wl-stat"><b>{money(data.amount)}</b><span>paid</span></div>
-          <div className="wl-stat"><b>{money(data.allocated)}</b><span>against invoices</span></div>
+          <div className="wl-stat"><b>{money(data.amount)}</b><span>Paid</span></div>
+          <div className="wl-stat"><b>{money(data.allocated)}</b><span>Against invoices</span></div>
           <div className={`wl-stat${data.on_account > 0.005 ? " wc-stale" : ""}`}>
-            <b>{money(data.on_account)}</b><span>on account</span>
+            <b>{money(data.on_account)}</b><span>On account</span>
           </div>
         </div>
 

@@ -213,9 +213,9 @@ export default function Samples() {
       )}
 
       <div className="wc-bands">
-        <div className="wl-stat"><b>{reg?.open ?? "—"}</b><span>open receipts</span></div>
-        <div className="wl-stat"><b>{reg?.units_held ?? "—"}</b><span>units held</span></div>
-        <div className="wl-stat"><b>{reg?.total ?? "—"}</b><span>ever received</span></div>
+        <div className="wl-stat"><b>{reg?.open ?? "—"}</b><span>Open receipts</span></div>
+        <div className="wl-stat"><b>{reg?.units_held ?? "—"}</b><span>Units held</span></div>
+        <div className="wl-stat"><b>{reg?.total ?? "—"}</b><span>Ever received</span></div>
       </div>
 
       {adding && (

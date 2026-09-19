@@ -295,7 +295,7 @@ export default function FiscalDay() {
                       <td>{fmtDateTime(r.created_at)}</td>
                       <td>
                         {r.receipt_type === "credit_note"
-                          ? <span className="badge warn">credit note</span>
+                          ? <span className="badge warn">Credit note</span>
                           : <span className="muted">sale</span>}
                       </td>
                       <td className="num">{money(r.total)}</td>

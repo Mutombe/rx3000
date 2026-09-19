@@ -249,7 +249,7 @@ export default function SaleDetail() {
             <div><dt>Auth code</dt>
               <dd>{sale.card_auth_code
                 ? <span className="mono">{sale.card_auth_code}</span>
-                : <span className="badge warn">not captured, cannot be reconciled</span>}</dd></div>
+                : <span className="badge warn">Not captured, cannot be reconciled</span>}</dd></div>
             <div><dt>Acquirer reference</dt><dd className="mono">{sale.card_reference || "—"}</dd></div>
             <div><dt>Card</dt><dd>{sale.card_last4 ? `${sale.card_scheme || "card"} **** ${sale.card_last4}` : "—"}</dd></div>
             <div><dt>Terminal</dt><dd>{sale.terminal_id || "—"}</dd></div>

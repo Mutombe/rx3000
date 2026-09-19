@@ -224,8 +224,8 @@ export default function RemittanceDetail() {
                           {l.resolution_note && (
                             <div className="muted small">{l.resolution_note}</div>
                           )}
-                          {l.patient_billed && <span className="badge">billed on</span>}
-                          {l.written_off && <span className="badge">written off</span>}
+                          {l.patient_billed && <span className="badge">Billed on</span>}
+                          {l.written_off && <span className="badge">Written off</span>}
                         </td>
                         <td className="actions">
                           {owed ? (

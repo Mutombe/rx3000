@@ -69,7 +69,7 @@ DECLARED: tuple[Declared, ...] = (
              "Counter",
              "On, any screen left idle asks for a PIN, which suits a pharmacy "
              "where every machine is a shared counter. Off, only the screens "
-             "where the keyboard actually changes hands lock — the till, the "
+             "where the keyboard actually changes hands lock, the till, the "
              "dispensary, the cash drawer, and a back-office machine stays "
              "signed in. Off by default: a manager who is asked for a PIN every "
              "five minutes while reading a report turns the lock off entirely, "
@@ -111,7 +111,7 @@ DECLARED: tuple[Declared, ...] = (
     Declared("dispensing.after_till", "After sending a sale to the till", "text",
              "stay", "Dispensing",
              "stay, or go. A pharmacy with a cashier leaves the dispenser on the "
-             "dispensary — the till is already showing what is waiting, and moving "
+             "dispensary, the till is already showing what is waiting, and moving "
              "somebody's screen mid-script is how the next patient is kept waiting. "
              "Where one person does both, 'go' opens the till on that sale the "
              "moment it is raised. Either way the dispensing says where it went and "

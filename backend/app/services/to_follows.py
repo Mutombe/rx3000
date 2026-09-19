@@ -102,7 +102,7 @@ def settle(db: Session, owed: OwedItem, quantity: int, user_id: int,
     available = product.quantity_on_hand or 0
     if available < quantity:
         raise OwedError(
-            f"Only {available} of {product.name} in stock — {quantity} is needed to "
+            f"Only {available} of {product.name} in stock: {quantity} is needed to "
             "settle this. Receive stock first.")
 
     # Through the ordinary FEFO path: an item handed over three weeks late still

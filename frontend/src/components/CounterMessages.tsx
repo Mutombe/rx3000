@@ -160,7 +160,7 @@ export default function CounterMessages(props: Props & { state?: CounterMessages
               {m.blocking && (
                 <div className="msg-action">
                   {done ? (
-                    <span className="badge ok">acknowledged</span>
+                    <span className="badge ok">Acknowledged</span>
                   ) : (
                     <button
                       className="btn danger sm"

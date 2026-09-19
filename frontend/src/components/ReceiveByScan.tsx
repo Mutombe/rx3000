@@ -115,9 +115,9 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
         <div className="scan-catch">
           <div className="scan-catch-head">
             <span className="scan-hit-name">{pending.name}</span>
-            {pending.fromPack && <span className="badge ok">batch read from pack</span>}
-            {pending.outstanding === 0 && <span className="badge warn">order already complete</span>}
-            {pending.outstanding === null && <span className="badge warn">not on this order</span>}
+            {pending.fromPack && <span className="badge ok">Batch read from pack</span>}
+            {pending.outstanding === 0 && <span className="badge warn">Order already complete</span>}
+            {pending.outstanding === null && <span className="badge warn">Not on this order</span>}
           </div>
 
           <div className="scan-catch-grid">
