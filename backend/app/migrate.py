@@ -1215,6 +1215,54 @@ def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
     return 1 if moved else 0
 
 
+def _nobody_works_at_another_pharmacy(conn, existing_tables: set[str]) -> int:
+    """Take away a branch that belongs to somebody else's pharmacy.
+
+    A user's branch narrows what they see: their shop's takings, their shop's
+    shelves, their shop's paperwork. Tenancy narrows it first, to their own
+    pharmacy. Hold a branch belonging to ANOTHER pharmacy and the two filters
+    have no overlap at all, so every branch scoped screen and every branch
+    scoped report comes back empty. Nothing errors. Nothing looks broken. The
+    person simply signs in to a product with no data in it and concludes the
+    import did not work.
+
+    Found on eleven production users across three tenants, including nine
+    staff of one pharmacy who all pointed at the first pharmacy's only branch.
+    How they got there is not recoverable from the data and does not change
+    what has to happen to them.
+
+    THE BRANCH IS CLEARED RATHER THAN GUESSED
+
+    Moving them to their own pharmacy's default branch would assert which shop
+    a person works in, and nothing here knows that. A null branch is already
+    defined as "every branch of their own pharmacy" (see User.branch_id and
+    branch_scope), which is what every user had before the column existed. It
+    is the honest answer and it is the one that cannot put somebody at the
+    wrong counter. Whoever runs the pharmacy can then place them, and now has
+    a screen to do it on.
+
+    It cannot leak anything: tenancy still holds, so "every branch" means every
+    branch of the pharmacy they belong to and no other.
+    """
+    if not {"users", "branches"} <= existing_tables:
+        return 0
+    cols = {c["name"] for c in inspect(conn).get_columns("users")}
+    if not {"branch_id", "pharmacy_id"} <= cols:
+        return 0
+    result = conn.execute(text("""
+        UPDATE users SET branch_id = NULL
+        WHERE branch_id IS NOT NULL
+          AND branch_id IN (SELECT b.id FROM branches b
+                            WHERE COALESCE(b.pharmacy_id, -1)
+                               <> COALESCE(users.pharmacy_id, -2))
+    """))
+    freed = result.rowcount or 0
+    if freed:
+        log.info("Cleared a branch belonging to another pharmacy from %s user(s)",
+                 freed)
+    return 1 if freed else 0
+
+
 def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
     """Decide, once, which departments the dispensary should offer.
 
@@ -1334,6 +1382,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
+        applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
         applied += _departments_that_dispense(conn, existing_tables)
         applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)

@@ -40,11 +40,25 @@ class PlacementError(Exception):
     """Something about the move does not make sense. Carries the sentence."""
 
 
-def _branch(db: Session, branch_id: int) -> Branch:
+def _branch(db: Session, branch_id: int, user: User | None = None) -> Branch:
     with branch_scope.every_branch():
         branch = db.get(Branch, branch_id)
     if branch is None:
         raise PlacementError("That branch does not exist.")
+    # A branch belonging to another pharmacy, stated rather than allowed.
+    #
+    # Tenancy already hides one from an ordinary request, so this is not the
+    # first line of defence. It is the one that holds when there is no tenant
+    # in force: an importer, a repair script, a seed. That is how eleven
+    # production users ended up pointing at the first pharmacy's only branch,
+    # and the damage is silent. Their tenant filter and their branch filter
+    # then have no overlap, so every branch scoped screen and report reads
+    # empty and nothing anywhere says why.
+    if user is not None and branch.pharmacy_id != user.pharmacy_id:
+        raise PlacementError(
+            f"{branch.name} belongs to another pharmacy, so {user.full_name} "
+            f"cannot be put there. Somebody placed at a branch their pharmacy "
+            f"does not own sees nothing at all.")
     return branch
 
 
@@ -65,10 +79,10 @@ def place(db: Session, user: User, branch_id: int | None, *, actor: User,
 
     from_id = user.branch_id
     if from_id == branch_id:
-        where = _branch(db, branch_id).name if branch_id else "no branch"
+        where = _branch(db, branch_id, user).name if branch_id else "no branch"
         raise PlacementError(f"{user.full_name} is already at {where}.")
 
-    to_branch = _branch(db, branch_id) if branch_id is not None else None
+    to_branch = _branch(db, branch_id, user) if branch_id is not None else None
 
     # A cover row for the shop they are moving to is now redundant, and worse
     # than redundant: it would outlive the transfer and quietly extend their
@@ -120,7 +134,7 @@ def set_reach(db: Session, user: User, all_branches: bool, *,
 def add_cover(db: Session, user: User, branch_id: int, *, actor: User,
               until: date | None = None, reason: str = "") -> UserBranch:
     """A shop somebody covers besides their own."""
-    branch = _branch(db, branch_id)
+    branch = _branch(db, branch_id, user)
     if user.branch_id == branch_id:
         raise PlacementError(
             f"{branch.name} is already {user.full_name}'s own branch.")
