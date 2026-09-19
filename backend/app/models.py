@@ -1250,6 +1250,19 @@ class StockMovement(Base, TenantMixin):
     balance_after = Column(Integer, default=0)
     reference = Column(String(60), default="")
     notes = Column(Text, default="")
+    #: WHY, from a list, as against `notes`, which is whatever somebody typed.
+    #:
+    #: The dialog that makes these has asked for a reason from five choices
+    #: since it was written, and then flattened the answer into a sentence at
+    #: the front of `notes`. So the information existed and was immediately
+    #: made unqueryable: "how much did we write off to damage last quarter"
+    #: could only be answered by matching words in free text, which finds
+    #: "damaged" and misses "broken" and counts "not damaged" as damage.
+    #:
+    #: Empty on every movement written before this and on the ones no person
+    #: chose a reason for, which is most of them: a sale, a receipt and a
+    #: transfer all say why in `movement_type` already.
+    reason_code = Column(String(20), default="", index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)

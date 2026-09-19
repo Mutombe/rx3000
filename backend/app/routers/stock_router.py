@@ -9,7 +9,7 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
-from ..services import config, stepup, valuation
+from ..services import config, stepup, stock_reasons, valuation
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -654,6 +654,19 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
     if threshold > 0 and worth > threshold:
         stepup.demand(db, action_key="stock.adjust", token=x_step_up, actor=user)
 
+    # WHY, from the list, and refused if it is not on it.
+    #
+    # A code the client invents would sail straight through and the column
+    # would be free text again with fewer characters in it. Empty is still
+    # allowed: a receipt and a transfer say why in movement_type, and every
+    # movement written before this column existed has none.
+    reason = stock_reasons.get(body.reason_code)
+    if body.reason_code and reason is None:
+        raise HTTPException(
+            400, f"{body.reason_code!r} is not a reason this system knows. "
+                 + "Use one of: "
+                 + ", ".join(r.code for r in stock_reasons.REASONS) + ".")
+
     # A correction and a write-off arrive on the same endpoint, and they are not
     # the same act: one says the count was wrong, the other says goods left the
     # building. They are separate capabilities for that reason, and this is the
@@ -661,6 +674,12 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
     # check, widening stock.adjust to the pharmacist — who should be able to
     # correct the shelf they are standing at — would have handed them write-offs
     # as well, through a dropdown, with no screen anywhere looking wrong.
+    #
+    # The reason now says which of the two it is, so a caller cannot label a
+    # write-off as a miscount to get past the capability: damaged, expired,
+    # recalled and missing all write off whatever movement_type was sent.
+    if reason is not None and reason.writes_off:
+        body.movement_type = "write_off"
     if body.movement_type == "write_off":
         decision = permissions.check(db, user, "stock.write_off")
         if not decision["allowed"]:
@@ -673,20 +692,20 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
     if product.category == "airtime":
         helpers.move_stock(db, product, body.quantity_delta, body.movement_type, user.id,
                            reference=body.reference, notes=body.notes,
-                           prescription_id=rx_id)
+                           prescription_id=rx_id, reason_code=body.reason_code)
     elif body.quantity_delta > 0:
         helpers.receive_stock_batch(
             db, product, body.quantity_delta, user.id,
             batch_number=body.batch_number, expiry_date=body.expiry_date,
             reference=body.reference, movement_type=body.movement_type, notes=body.notes,
-            prescription_id=rx_id,
+            prescription_id=rx_id, reason_code=body.reason_code,
         )
     else:
         # write-offs / stocktake variances may consume expired stock
         helpers.consume_stock_fefo(
             db, product, -body.quantity_delta, body.movement_type, user.id,
             reference=body.reference, notes=body.notes, allow_expired=True,
-            prescription_id=rx_id,
+            prescription_id=rx_id, reason_code=body.reason_code,
         )
     entry_type = "receive" if body.quantity_delta > 0 else "adjustment"
     helpers.record_register_entry(db, product, body.quantity_delta, entry_type, user.id, reference=body.reference or body.movement_type)
@@ -1411,3 +1430,15 @@ def move_to_bin(body: dict = Body(...), db: Session = Depends(get_db),
     return {"moved": moved, "asked": len(products), "bin": target,
             "message": (f"{moved} line(s) moved to {where}." if moved
                         else f"Nothing moved. Those lines were already in {where}.")}
+
+
+@router.get("/stock/reasons")
+def stock_reason_list():
+    """Why a stock figure may be changed, as the server knows it.
+
+    Published rather than kept in the screen so the chips a person presses and
+    the codes the endpoint accepts cannot drift apart. `writes_off` says which
+    of them mean goods have left the building, which is a different capability
+    and a different report.
+    """
+    return {"reasons": stock_reasons.catalogue()}

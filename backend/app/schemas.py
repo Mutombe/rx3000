@@ -349,6 +349,10 @@ class StockAdjust(BaseModel):
     product_id: int
     quantity_delta: int
     movement_type: str = "adjustment"  # receive | adjustment | return
+    #: Why, from services/stock_reasons. Empty is allowed and is the honest
+    #: answer for a movement nobody chose a reason for; anything not on the
+    #: list is refused rather than stored.
+    reason_code: str = ""
     reference: str = ""
     notes: str = ""
     batch_number: str = ""              # used when receiving stock

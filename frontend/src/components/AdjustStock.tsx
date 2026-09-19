@@ -32,8 +32,14 @@ import { useStepUp, CANCELLED } from "./StepUp";
 import { useCan } from "../session";
 
 /** Why a count is being corrected. The reason is what makes an adjustment an
- *  adjustment rather than an unexplained change, and a list beats free text:
- *  these five cover what actually happens, and they can be counted later. */
+ *  adjustment rather than an unexplained change, and a list beats free text.
+ *
+ *  These keys are sent as `reason_code` and stored as themselves. The server
+ *  keeps the same list in services/stock_reasons and REFUSES a code that is
+ *  not on it, so the two cannot quietly drift into different vocabularies;
+ *  `GET /api/stock/reasons` is that list, for anything that would rather ask
+ *  than hard-code. Held here as well so the dialog opens without a round
+ *  trip, which is the whole point of it. */
 const REASONS = [
   { key: "count", label: "Counted the shelf", note: "The count was wrong." },
   // Stock LEAVING the building, which is a write-off and a different
@@ -42,6 +48,8 @@ const REASONS = [
   // "you may not" is a worse answer than a chip that is not there.
   { key: "damaged", label: "Damaged or broken", note: "", writesOff: true },
   { key: "expired", label: "Expired, taken off the shelf", note: "", writesOff: true },
+  { key: "recalled", label: "Recalled by the supplier", note: "", writesOff: true },
+  { key: "theft", label: "Missing or stolen", note: "", writesOff: true },
   { key: "received", label: "Delivery not booked in", note: "" },
   { key: "returned", label: "Returned by a patient", note: "" },
 ] as const;
@@ -140,6 +148,10 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
       movement_type: delta > 0 ? "receive" : reason === "count" ? "adjustment" : "write_off",
       batch_number: batch.trim(),
       expiry_date: needsBatch ? expiry : null,
+      // The reason as a CODE, so "how much went to damage last quarter" is a
+      // query rather than a search through free text that finds "damaged",
+      // misses "broken" and counts "not damaged" as damage.
+      reason_code: reason,
       reference: `ADJ ${why?.label ?? ""}`.trim().slice(0, 60),
       notes: [why?.label, note.trim()].filter(Boolean).join(". "),
       prescription_id: prescriptionId ?? null,

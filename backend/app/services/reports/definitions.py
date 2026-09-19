@@ -40,7 +40,7 @@ BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 from ..sold import last_sold_at, units_sold_since  # noqa: E402
 # cost_price and unit_price are PER PACK and the quantities below are in
 # UNITS. Stated once in services/valuation rather than in ten places.
-from .. import valuation  # noqa: E402
+from .. import stock_reasons, valuation  # noqa: E402
 
 
 def line_cost():
@@ -997,6 +997,7 @@ register(Report(
         Column("delta", "Change", "number", total=True),
         Column("balance", "Balance after", "number"),
         Column("reference", "Reference", "code"),
+        Column("why", "Reason", "text"),
         Column("user", "By", "text"),
     ],
     rows=lambda db, p: _movements_report(db, p),
@@ -1021,6 +1022,10 @@ def _movements_report(db: Session, p: dict):
             "delta": m.quantity_delta,
             "balance": m.balance_after,
             "reference": m.reference or "",
+            # In words, because a report is read by a person. Blank where
+            # nobody chose one, which is every sale, receipt and transfer:
+            # those say why in the type beside them.
+            "why": stock_reasons.label(m.reason_code),
             "user": names.get(m.user_id, "-"),
         }
         # No cap. A limit here makes the footer report the cap as the total,
@@ -5718,3 +5723,65 @@ def _tariff_usage(db: Session, p: dict):
 
     out.sort(key=lambda r: (-r["out_of_band"], -r["charged"]))
     return out
+
+
+register(Report(
+    key="write_off_reasons",
+    title="What stock was written off for",
+    module="Stock",
+    purpose="Where stock goes when it does not go to a patient. Damage, "
+            "expiry, recall and theft are four different problems with four "
+            "different answers, and until the reason was recorded as a code "
+            "they could only be told apart by reading notes.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("why", "Reason", "text"),
+        Column("lines", "Times", "number", total=True),
+        Column("units", "Units", "number", total=True),
+        Column("value", "Value at cost", "money", total=True),
+        Column("worst", "Most of it", "text"),
+    ],
+    rows=lambda db, p: _write_off_reasons(db, p),
+))
+
+
+def _write_off_reasons(db: Session, p: dict):
+    """Grouped by reason, with the line that lost the most under each.
+
+    The single figure a pharmacy wants from this is which of the four is
+    costing them, and the second is what to do about it. "Expiry, 4,180.00"
+    leads to a conversation about ordering; the same money under "theft" leads
+    to a different one entirely. Naming the worst line under each is what
+    turns the total into something somebody can act on this week.
+    """
+    rows = (
+        db.query(StockMovement, Product)
+        .join(Product, Product.id == StockMovement.product_id)
+        .filter(StockMovement.reason_code != "",
+                StockMovement.quantity_delta < 0)
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .all()
+    )
+    groups: dict[str, dict] = {}
+    worst: dict[str, dict] = {}
+    for movement, product in rows:
+        units = abs(movement.quantity_delta or 0)
+        value = valuation.at_cost(product, units)
+        row = groups.setdefault(movement.reason_code, {
+            "why": stock_reasons.label(movement.reason_code),
+            "lines": 0, "units": 0, "value": 0.0, "worst": "",
+        })
+        row["lines"] += 1
+        row["units"] += units
+        row["value"] = round(row["value"] + value, 2)
+        seen = worst.get(movement.reason_code)
+        if seen is None or value > seen["value"]:
+            worst[movement.reason_code] = {"name": product.name, "value": value}
+
+    for code, row in groups.items():
+        top = worst.get(code)
+        if top and row["value"] > 0:
+            share = top["value"] / row["value"] * 100
+            row["worst"] = f"{top['name']} ({share:.0f}%)"
+    return sorted(groups.values(), key=lambda r: -r["value"])

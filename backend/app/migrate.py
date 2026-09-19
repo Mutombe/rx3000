@@ -105,7 +105,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "stock_batches": {"branch_id": "INTEGER"},
     # branch_id: which shelf moved. prescription_id: what the person was
     # doing when they moved it, where that was a script.
-    "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER"},
+    "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER",
+                        "reason_code": "VARCHAR(20) DEFAULT ''"},
     "stock_categories": {
         # Whether the dispensary offers what is filed here. Seeded from what is
         # actually in each department; see _departments_that_dispense.
