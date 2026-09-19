@@ -804,6 +804,11 @@ def _true(conn, value: bool):
     return bool(value)
 
 
+def _index_name(name: str, conn) -> str:
+    """An index name, quoted the way this database wants it dropped."""
+    return f'"{name}"' if conn.dialect.name.startswith("postgres") else name
+
+
 def _settings_belong_to_a_pharmacy(conn, inspector, existing_tables: set) -> int:
     """Give every settings row an owner, and stop one pharmacy owning them all.
 
@@ -849,15 +854,43 @@ def _settings_belong_to_a_pharmacy(conn, inspector, existing_tables: set) -> int
     done = 0
 
     # ---- the old uniqueness, which is now the wrong rule --------------------
-    for index in live.get_indexes("settings"):
-        if not index.get("unique"):
-            continue
-        if list(index.get("column_names") or []) != ["key"]:
-            continue
-        name = index["name"]
-        conn.execute(text(f'DROP INDEX "{name}"'))
-        log.info("Dropped the global unique index on settings.key")
-        done += 1
+    #
+    # Which SHAPE that rule has depends on the database. Postgres may hold it
+    # as a table constraint, reports the constraint's backing index in
+    # get_indexes() as well, and then refuses to drop that index: "cannot drop
+    # index ... because constraint ... requires it". So the constraint is
+    # looked for first and dropped by name, and only a plain index is dropped
+    # as an index. The per-tenant numbering pass above learned this the same
+    # way and says so there.
+    try:
+        constraints = [u["name"] for u in live.get_unique_constraints("settings")
+                       if list(u.get("column_names") or []) == ["key"] and u.get("name")]
+    except NotImplementedError:                       # pragma: no cover
+        constraints = []
+
+    for name in constraints:
+        if conn.dialect.name.startswith("postgres"):
+            conn.execute(text(f'ALTER TABLE settings DROP CONSTRAINT "{name}"'))
+            log.info("Dropped the global unique constraint on settings.key")
+            done += 1
+        else:
+            # SQLite cannot drop a table constraint without rebuilding the
+            # table. Left alone deliberately: it would block a second pharmacy
+            # from saving its own profile, and a SQLite file here is a desktop
+            # install serving one pharmacy, which never has a second one.
+            log.info("settings.key stays unique on SQLite; it is a table "
+                     "constraint and one file holds one pharmacy")
+
+    if not constraints:
+        for index in live.get_indexes("settings"):
+            if not index.get("unique"):
+                continue
+            if list(index.get("column_names") or []) != ["key"]:
+                continue
+            name = index["name"]
+            conn.execute(text(f'DROP INDEX {_index_name(name, conn)}'))
+            log.info("Dropped the global unique index on settings.key")
+            done += 1
 
     # ---- who owns what is already there -------------------------------------
     orphans = conn.execute(text(
