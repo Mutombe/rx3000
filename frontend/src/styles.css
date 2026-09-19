@@ -11436,3 +11436,67 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   .es-move > * { flex: 1 1 100%; }
   .es-arrow { display: none; }
 }
+
+/* THE SHELVES
+   A directory of bins as cards rather than a table, because a bin is a place
+   and a place is glanced at rather than read down a column. The number that
+   matters, stock on no shelf at all, sits above them as a band somebody can
+   press, not as a filter they would have to know to apply. */
+.bins-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap; margin-bottom: var(--s4);
+}
+.bins-say { margin: 0; max-width: 68ch; line-height: 1.5; }
+.bins-title { margin: var(--s2) 0 2px; font-size: 1.14rem; }
+.bins-find {
+  width: 16rem; max-width: 100%;
+}
+
+.bins-loose {
+  display: flex; align-items: center; gap: var(--s3); width: 100%;
+  text-align: left; margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
+  border: 1px solid var(--warn-line); border-radius: var(--r-md);
+  background: var(--warn-soft); color: var(--ink);
+  font: inherit; line-height: 1.45; cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.bins-loose:hover { border-color: var(--line-strong); }
+.bins-loose-n {
+  font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.bins-grid {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+}
+.bins-card {
+  display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: var(--s3) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface); color: var(--ink); font: inherit;
+  text-align: left; cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.bins-card:hover { border-color: var(--line-strong); background: var(--surface-sunk); }
+.bins-card-name { font-weight: 600; font-size: .98rem; }
+.bins-card-lines { font-size: var(--t-sm); color: var(--ink-mid); }
+.bins-card-units { font-size: var(--t-sm); color: var(--ink-soft); }
+.bins-card-value {
+  margin-top: 4px; font-variant-numeric: tabular-nums; font-weight: 500;
+}
+.bins-card-spell { margin-top: 6px; }
+
+/* The move bar appears only once something is ticked, so it never sits there
+   asking to be filled in. */
+.bins-move {
+  display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap;
+  margin: 0 0 var(--s3); padding: var(--s2) var(--s3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+.bins-move-count { font-size: var(--t-sm); font-weight: 600; white-space: nowrap; }
+.bins-move-bin { width: 9rem; }
+.bins-move-why { width: 18rem; max-width: 100%; }
+.bins-tick { width: 2.2rem; }
+.pd-binmove { margin-top: 3px; line-height: 1.4; max-width: 44ch; }

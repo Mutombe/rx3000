@@ -5,6 +5,7 @@ import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import StockUpload from "../components/StockUpload";
 import StockReconcile from "../components/StockReconcile";
 import StockWatch from "../components/StockWatch";
+import Bins from "../components/Bins";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -17,7 +18,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "watch" | "batches" | "movements" | "reconcile" | "upload";
+type Tab = "products" | "watch" | "bins" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -74,6 +75,10 @@ export default function Stock() {
     { key: "watch", label: "Needs attention", count: watching || undefined,
       hint: "Expired and short dated stock, empty shelves and reorder levels, "
             + "swept each morning" },
+    // Next to the catalogue rather than beside the reports, because it is
+    // how somebody walks the shop: bin by bin, not product by product.
+    { key: "bins", label: "Bins",
+      hint: "Which shelf each line lives on, and the stock that is on no shelf" },
     { key: "batches", label: "Batches & expiry", count: batches.length },
     { key: "movements", label: "Movement history", count: movements.length },
     // Beside the movements, because that is what explains a difference: the
@@ -413,6 +418,7 @@ export default function Stock() {
       )}
 
       {tab === "watch" && <StockWatch />}
+      {tab === "bins" && <Bins />}
       {tab === "reconcile" && <StockReconcile />}
 
       {tab === "upload" && <StockUpload onDone={load} />}

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import sourcing, spreadsheet, stock_watch, paging, price_history
+from ..services import bins, sourcing, spreadsheet, stock_watch, paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -318,6 +318,9 @@ def get_product(product_id: int, db: Session = Depends(get_db),
         # And who to buy it from next time, on their actual record rather
         # than on a rating somebody invented.
         "sourcing": sourcing.for_product(db, product.id),
+        # Where it has lived. The one stock event that left no trace anywhere
+        # else, which is exactly the one asked about when stock cannot be found.
+        "bin_history": bins.history(db, product.id),
     }
 
 
@@ -495,9 +498,15 @@ def update_product(product_id: int, body: schemas.ProductBase,
     # whether or not it moved, so the only way to know a price changed is to
     # have held the old one.
     before = {"selling": product.unit_price, "cost": product.cost_price}
+    was_bin = product.bin_location
 
     for key, value in body.model_dump().items():
         setattr(product, key, value)
+
+    # Trimmed and cut to the column width on the way in, so a bin typed with a
+    # trailing space is the same shelf as one typed without, everywhere.
+    product.bin_location = bins.normalise(product.bin_location)
+    bins.record(db, product, was_bin, user=user, source="form")
 
     for field, was in before.items():
         price_history.record(
@@ -1244,3 +1253,80 @@ async def stock_upload_spreadsheet(
         "rows": rows,
         "filename": file.filename or "",
     }
+
+
+# ---------- bins: the shelf, as something that can be run ----------
+@router.get("/stock/bins")
+def bin_directory(q: str = "", db: Session = Depends(get_db)):
+    """Every bin and what it holds, plus the count of stock in none of them."""
+    return bins.directory(db, q=q)
+
+
+@router.get("/stock/bins/unbinned")
+def bin_unbinned(limit: int = 300, db: Session = Depends(get_db)):
+    """Stock on hand with no shelf recorded, dearest first.
+
+    Literal path before the `/{bin_name}` one below, or FastAPI matches this
+    as a bin called "unbinned".
+    """
+    return {"lines": bins.unbinned(db, limit=limit)}
+
+
+@router.get("/stock/bins/{bin_name}")
+def bin_contents(bin_name: str, db: Session = Depends(get_db)):
+    """One shelf, in the order somebody reads the labels. The picking list."""
+    return bins.contents(db, bin_name)
+
+
+@router.post("/stock/bins/move")
+def move_to_bin(body: dict = Body(...), db: Session = Depends(get_db),
+                user: User = Depends(get_current_user),
+                _may=Depends(auth.requires("stock.adjust"))):
+    """Put one or more lines on a shelf, and write down that it happened.
+
+    Takes a list because the real act is a list: somebody reorganises the
+    dispensary and forty lines move at once, and doing that one product form
+    at a time is why the field stayed empty.
+
+    Carries `stock.adjust` rather than a permission of its own. Moving a line
+    to another shelf is correcting the record of the shelf a person is standing
+    at, which is the same act and the same trust as correcting its count.
+    """
+    ids = [int(i) for i in (body.get("product_ids") or []) if str(i).strip()]
+    if not ids:
+        raise HTTPException(400, "No products were chosen to move.")
+
+    target = bins.normalise(body.get("bin") or "")
+    reason = str(body.get("reason") or "").strip()
+    # Clearing a bin is a legitimate act — a shelf is taken out, its lines go
+    # back to unplaced — but it is also what an empty form field looks like, so
+    # it has to be asked for rather than defaulted into.
+    if not target and not body.get("clear"):
+        raise HTTPException(400, "Give a bin to move these to, or tick clear "
+                                 "to take them off the shelf.")
+
+    products = db.query(Product).filter(Product.id.in_(ids)).all()
+    if not products:
+        raise HTTPException(404, "Those products were not found.")
+
+    moved = 0
+    for product in products:
+        was = product.bin_location
+        # Left alone when it is already on that shelf, INCLUDING when the only
+        # difference is capitals. "a3" and "A3" are one shelf to the person
+        # standing in front of it, and quietly restyling what a pharmacy typed
+        # on sixteen thousand rows is not a decision to take on their behalf.
+        if (was or "").strip().upper() == target.upper():
+            continue
+        product.bin_location = target
+        if bins.record(db, product, was, user=user, source="form", reason=reason):
+            moved += 1
+
+    db.commit()
+    # Says what happened rather than what was asked for: a line already on that
+    # shelf is not a move, and reporting forty when thirty eight moved is how a
+    # trail and a toast start disagreeing.
+    where = f"bin {target}" if target else "no bin"
+    return {"moved": moved, "asked": len(products), "bin": target,
+            "message": (f"{moved} line(s) moved to {where}." if moved
+                        else f"Nothing moved. Those lines were already in {where}.")}

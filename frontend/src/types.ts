@@ -859,6 +859,20 @@ export interface ProductDetail {
   price_history?: PriceChange[];
   buying?: PurchaseLine[];
   sourcing?: Sourcing;
+  bin_history?: BinMove[];
+}
+
+/** Which shelf a line has lived on. `says` is written by the server so the
+ *  screen does not have to decide what an empty `was` means every time. */
+export interface BinMove {
+  id: number;
+  was: string;
+  now: string;
+  says: string;
+  source: string;
+  reason: string;
+  by: string;
+  at: string;
 }
 
 export interface LeadScoreFactor {

@@ -46,6 +46,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from ..models import Branch, Product, StockBatch, StockMovement, Supplier
+from . import bins
 
 #: What a column may be called. One canonical name per idea, so a file written
 #: by a wholesaler, by an accountant or by the previous system all land.
@@ -350,7 +351,7 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
                 # Where it sits on the shelf, which the incumbent's export
                 # carries as BINLOCATION and which a picking list is useless
                 # without.
-                bin_location=str(get(row, "bin")).strip()[:40],
+                bin_location=bins.normalise(get(row, "bin")),
                 cost_price=_num(get(row, "cost")) or 0.0,
                 unit_price=_num(get(row, "price")) or 0.0,
                 vat_rate=(_num(get(row, "vat")) or 15.0) / 100

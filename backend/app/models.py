@@ -10,6 +10,14 @@ from sqlalchemy.orm import relationship
 from .database import Base
 from .tenancy import TenantMixin
 
+#: How long a shelf location may be, in one place.
+#:
+#: The client's own export has sixty four distinct bins, none longer than ten
+#: characters, so twenty is generous. What matters is that every importer and
+#: every form cuts at the same number as the column, which is what was not true
+#: before: see Product.bin_location.
+BIN_MAX = 20
+
 
 class User(Base, TenantMixin):
     __tablename__ = "users"
@@ -649,7 +657,12 @@ class Product(Base, TenantMixin):
     barcode = Column(String(40), default="", index=True)
     # Where it lives on the shelf. A picking list in bin order is walked once;
     # a picking list in product order is walked three times.
-    bin_location = Column(String(20), default="", index=True)
+    #
+    # BIN_MAX is the width, named once, because it was not: the column said
+    # twenty and two importers truncated at forty. SQLite does not enforce a
+    # VARCHAR length, so that ran for months on a development machine and would
+    # have raised "value too long" on the first Postgres import with a long bin.
+    bin_location = Column(String(BIN_MAX), default="", index=True)
     # Who makes it, as against who sells it to us. Two suppliers can carry the
     # same manufacturer's product, and a recall names the manufacturer.
     manufacturer = Column(String(120), default="", index=True)
@@ -2237,6 +2250,49 @@ class PriceChange(Base, TenantMixin):
         if not base:
             return 0.0
         return round(((self.now or 0.0) - base) / base * 100, 2)
+
+
+class BinMove(Base, TenantMixin):
+    """A line changing shelf: where it was, where it went, who moved it.
+
+    WHY THIS IS NOT IN price_changes
+
+    `PriceChange` holds two floats and computes a percentage difference, which
+    is the right shape for money and the wrong shape for "B12" becoming "A3".
+    Forcing a bin through it would mean a text column nothing else uses and a
+    percentage that means nothing.
+
+    WHY IT IS WORTH RECORDING AT ALL
+
+    A bin change is the one stock event that leaves no trace anywhere else. A
+    quantity change writes a StockMovement, a price change writes a PriceChange,
+    a transfer writes a BranchTransfer. Moving a line to another shelf changes
+    one string on the product and, until now, the only record was the audit log
+    saying somebody opened PUT /api/products.
+
+    That matters on the day a line cannot be found. Somebody reorganised the
+    dispensary in March, forty lines moved, and the question in June is which
+    ones and who to ask. It also matters for the reverse: a picking list sends
+    a locum to bin 14 and the stock is not there, and the trail says it left
+    bin 14 three weeks ago and nobody updated the shelf label.
+    """
+    __tablename__ = "bin_moves"
+
+    id = Column(Integer, primary_key=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    #: Empty means the line had no bin, which is a first assignment rather than
+    #: a move, and the screen says so instead of showing a blank arrow.
+    was = Column(String(BIN_MAX), default="")
+    now = Column(String(BIN_MAX), default="")
+    #: form | import | merge. Where the change came from, which the software
+    #: knows, as against a reason, which only a person can give.
+    source = Column(String(16), default="form", index=True)
+    reason = Column(String(200), default="")
+    moved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    product = relationship("Product")
+    moved_by = relationship("User")
 
 
 class PriceOverride(Base, TenantMixin):

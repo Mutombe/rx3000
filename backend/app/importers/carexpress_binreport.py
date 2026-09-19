@@ -37,7 +37,7 @@ import sys
 from dataclasses import dataclass
 
 from ..database import SessionLocal
-from ..models import Pharmacy, Product
+from ..models import BIN_MAX, Pharmacy, Product
 from ..tenancy import unscoped
 
 TENANT = "CareXpress Pharmacy"
@@ -211,7 +211,7 @@ def load(path: str, *, apply: bool = False) -> dict:
             # catalogue export, which is a data file rather than a print-out,
             # and overwriting them from a worse source would be a step back.
             if row.bin and not product.bin_location:
-                product.bin_location = row.bin[:40]
+                product.bin_location = row.bin[:BIN_MAX]
                 counts["bins"] += 1
             if row.min_level and not product.reorder_level:
                 product.reorder_level = int(row.min_level)

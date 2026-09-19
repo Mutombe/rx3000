@@ -316,7 +316,23 @@ export default function ProductDetail() {
           <div><dt>AHFoZ code</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
           <div><dt>Barcode</dt><dd className="mono">{p.barcode || "—"}</dd></div>
           <div><dt>Pack size</dt><dd>{p.pack_size || "—"}</dd></div>
-          <div><dt>Bin</dt><dd>{p.bin_location || "—"}</dd></div>
+          <div>
+            <dt>Bin</dt>
+            <dd>
+              {p.bin_location || "—"}
+              {/* The last move, next to the bin itself. "Why is this not on
+                  the shelf the label says" is asked while looking at the
+                  shelf, not on a history tab two clicks away. */}
+              {data.bin_history && data.bin_history.length > 0 && (
+                <div className="muted small pd-binmove">
+                  {data.bin_history[0].says}
+                  {data.bin_history[0].by ? ` by ${data.bin_history[0].by}` : ""}
+                  {data.bin_history[0].at ? ` on ${fmtDate(data.bin_history[0].at)}` : ""}
+                  {data.bin_history[0].reason ? `. ${data.bin_history[0].reason}` : ""}
+                </div>
+              )}
+            </dd>
+          </div>
           <div><dt>Ingredient</dt><dd>{p.active_ingredient || "—"}</dd></div>
           <div><dt>Manufacturer</dt><dd>{p.manufacturer || "—"}</dd></div>
           <div><dt>Reorder quantity</dt><dd>{p.reorder_quantity}</dd></div>

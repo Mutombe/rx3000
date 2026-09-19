@@ -371,6 +371,9 @@ class ProductDetail(BaseModel):
     buying: list[dict] = []
     #: Who to buy it from next time, and each supplier's actual record.
     sourcing: dict = {}
+    #: Which shelves this line has lived on, and who moved it. Named here for
+    #: the same reason as the two above: undeclared keys are dropped.
+    bin_history: list[dict] = []
 
 
 # ---------- prescriptions ----------
