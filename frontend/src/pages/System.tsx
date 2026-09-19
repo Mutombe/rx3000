@@ -10,6 +10,7 @@
  *  database, and a screenshot of this page answers all of it at once.
  */
 import { useEffect, useState } from "react";
+import { HardDrives, Warning } from "@phosphor-icons/react";
 import { api, apiBase, errorText, fmtDateTime, isDesktop } from "../api";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -33,6 +34,10 @@ interface BackupFile { name: string; size_mb: number; taken_at: string; note: st
 interface BackupStatus {
   directory: string; count: number; keep: number; age_hours: number | null;
   protected: boolean; message: string; latest: BackupFile | null;
+  /** Whether a copy leaves this machine at all, which is a different claim
+   *  from whether a backup was taken. */
+  off_machine?: { configured: boolean; reachable: boolean; message: string;
+                  bucket?: string };
 }
 
 const LICENCE_TONE: Record<string, string> = {
@@ -168,6 +173,21 @@ export default function System() {
           rather than left to be relied on. Holding {backups?.status.keep} in{" "}
           {backups?.status.directory}.
         </p>
+
+        {/* Said separately, because it is a separate promise. A shelf of
+            verified backups on the disk that dies is not protection, and a
+            screen that reports only "protected" lets somebody believe it is. */}
+        {backups?.status.off_machine && (
+          <p className={backups.status.off_machine.reachable
+                          ? "muted small" : "alert warn"}>
+            {backups.status.off_machine.reachable
+              ? <><HardDrives size={13} weight="fill" />{" "}
+                  {backups.status.off_machine.message}</>
+              : <><Warning size={13} weight="fill" />{" "}
+                  {backups.status.off_machine.message} A backup kept only on
+                  this machine does not survive the machine.</>}
+          </p>
+        )}
 
         <Refreshable
           loading={loading}

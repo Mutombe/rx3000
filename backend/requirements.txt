@@ -17,3 +17,11 @@ psycopg[binary]>=3.2.10
 # Python, no system libraries, which is why this rather than WeasyPrint: a
 # pharmacy server should not need GTK installed to produce a one-page sheet.
 reportlab>=4.0
+
+# Off-machine backups to an S3-compatible bucket (DigitalOcean Spaces here;
+# Backblaze, MinIO and AWS all speak the same protocol). Optional at runtime:
+# with no credentials set, services/objects.py is inert and a pharmacy running
+# one machine in a back office never calls it. Installed anyway because the
+# hosted deployment is where the local filesystem is ephemeral and a backup
+# written to it is thrown away by the next deploy.
+boto3>=1.34

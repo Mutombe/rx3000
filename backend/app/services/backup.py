@@ -30,6 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..config import settings, env
+from . import objects
 
 log = logging.getLogger("rx5000.backup")
 
@@ -149,6 +150,19 @@ def take(note: str = "") -> dict:
     if note:
         (BACKUP_DIR / f"{target.stem}.txt").write_text(note, encoding="utf-8")
 
+    # --- off the machine, if there is anywhere to put it ---
+    #
+    # A backup on the same disk as the database survives a deleted row and
+    # nothing else: not the disk, not the theft of the till, not the fire. It
+    # is uploaded only AFTER verification, so what leaves the building is a
+    # copy already known to open and to hold every row.
+    #
+    # A failure here does not fail the backup. The local copy is good, and
+    # turning "the internet was down" into "your backup failed" is both untrue
+    # and how somebody learns to ignore this screen.
+    sent = objects.put_file(target, "backups", target.name,
+                            content_type="application/x-sqlite3")
+
     pruned = prune()
     size = target.stat().st_size
     return {
@@ -161,6 +175,9 @@ def take(note: str = "") -> dict:
         "pruned": pruned,
         "taken_at": datetime.now(),
         "note": note,
+        "off_machine": sent.ok,
+        "off_machine_key": sent.key,
+        "off_machine_message": sent.message,
     }
 
 
@@ -200,6 +217,10 @@ def status() -> dict:
     age_hours = (round((datetime.now() - latest["taken_at"]).total_seconds() / 3600, 1)
                  if latest else None)
     stale = age_hours is None or age_hours > 24
+    # Whether anything has left this machine is a separate question from
+    # whether a backup was taken, and the screen must not blur them: a shelf of
+    # verified backups on the disk that dies is not protection.
+    off = objects.check()
     return {
         "directory": str(BACKUP_DIR.resolve()),
         "count": len(files),
@@ -207,6 +228,7 @@ def status() -> dict:
         "latest": latest,
         "age_hours": age_hours,
         "protected": bool(latest) and not stale,
+        "off_machine": off,
         "message": ("No backup has ever been taken. One disk failure ends this "
                     "business." if not latest else
                     f"Last backup {age_hours} hours ago." if not stale else
