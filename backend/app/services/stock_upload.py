@@ -391,7 +391,11 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
                 # A supplier's file counts packs; the shelf counts units.
                 quantity_received=line.quantity * product.per_pack,
                 quantity_remaining=line.quantity * product.per_pack,
-                unit_cost=_num(get(row, "cost")) or (product.cost_price or 0.0),
+                # Per unit, to match the two lines above. A supplier's file
+                # quotes a pack cost and the shelf counts units, so the same
+                # division the quantities get has to be applied to the money.
+                unit_cost=((_num(get(row, "cost")) or (product.cost_price or 0.0))
+                           / product.per_pack),
                 reference=reference or "Stock upload",
                 branch_id=branch_id,
             ))

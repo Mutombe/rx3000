@@ -1263,6 +1263,79 @@ def _nobody_works_at_another_pharmacy(conn, existing_tables: set[str]) -> int:
     return 1 if freed else 0
 
 
+def _batch_costs_are_per_unit(conn, existing_tables: set[str]) -> int:
+    """Divide a batch cost that is plainly a PACK cost by the pack size.
+
+    `stock_batches.unit_cost` sits beside `quantity_received` and
+    `quantity_remaining`, both of which count dispensable units, and its own
+    name says per unit. Three writers put `product.cost_price` in it, which is
+    what a PACK cost, so the column ended up holding both meanings: on this
+    client's data 488 rows read as per unit, 73 as per pack, and 101 as
+    neither. Every reader that multiplies quantity by cost was over by the
+    pack size on that second group.
+
+    The writers are fixed. This is the rows already written.
+
+    ONLY THE ONES THAT CANNOT BE ANYTHING ELSE
+
+    Not "equals the catalogue's pack cost". That was the first rule and it was
+    too weak, because a price loaded last year no longer matches the column it
+    was copied from: it left a product page reading a margin of minus seven
+    hundred per cent.
+
+    The test is magnitude, which cannot be argued with. Where a pack holds
+    four units or more, a PER UNIT cost is at most a quarter of the pack cost.
+    So a stored figure of half the pack cost or more cannot be a unit cost at
+    all, whatever has happened to prices since. One of these rows holds 11.50
+    against a product whose whole pack of a hundred costs 8.25; that is not a
+    unit price that has drifted, it is a pack price in the wrong column.
+
+    Packs of two or three are left alone deliberately. There the two meanings
+    are only two or three times apart, the test would have no margin of
+    safety, and the money at stake is the smallest of any group.
+
+    Rows that are neither are left alone too. They are most likely genuine
+    costs from a delivery at a different price, and a heuristic that rewrites
+    them would be guessing at money to make a column tidier.
+
+    The divisor is floored at one so a row whose product says zero units to a
+    pack cannot divide by zero, which matches how the model floors it.
+    """
+    if not {"stock_batches", "products"} <= existing_tables:
+        return 0
+    cols = {c["name"] for c in inspect(conn).get_columns("stock_batches")}
+    if "unit_cost" not in cols:
+        return 0
+    result = conn.execute(text("""
+        UPDATE stock_batches SET unit_cost = unit_cost / p.per_pack
+        FROM (SELECT id,
+                     CASE WHEN COALESCE(units_per_pack, 1) > 1
+                          THEN units_per_pack ELSE 1 END AS per_pack,
+                     COALESCE(cost_price, 0) AS cost_price
+              FROM products) AS p
+        WHERE p.id = stock_batches.product_id
+          AND p.per_pack >= 4
+          AND p.cost_price > 0
+          AND COALESCE(stock_batches.unit_cost, 0) >= p.cost_price * 0.5
+    """) if conn.dialect.name != "sqlite" else text("""
+        UPDATE stock_batches SET unit_cost = unit_cost / (
+            SELECT CASE WHEN COALESCE(p.units_per_pack, 1) > 1
+                        THEN p.units_per_pack ELSE 1 END
+            FROM products p WHERE p.id = stock_batches.product_id)
+        WHERE COALESCE(unit_cost, 0) > 0
+          AND EXISTS (SELECT 1 FROM products p
+                      WHERE p.id = stock_batches.product_id
+                        AND COALESCE(p.units_per_pack, 1) >= 4
+                        AND COALESCE(p.cost_price, 0) > 0
+                        AND stock_batches.unit_cost >= p.cost_price * 0.5)
+    """))
+    fixed = result.rowcount or 0
+    if fixed:
+        log.info("Divided %s batch cost(s) that held a pack price by the pack size",
+                 fixed)
+    return 1 if fixed else 0
+
+
 def _departments_that_dispense(conn, existing_tables: set[str]) -> int:
     """Decide, once, which departments the dispensary should offer.
 
@@ -1383,6 +1456,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
+        applied += _batch_costs_are_per_unit(conn, existing_tables)
         applied += _departments_that_dispense(conn, existing_tables)
         applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)
         applied += _name_the_instruments(conn, inspector, existing_tables)

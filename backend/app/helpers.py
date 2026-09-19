@@ -162,7 +162,16 @@ def receive_stock_batch(
         expiry_date=expiry_date or (date.today() + timedelta(days=DEFAULT_SHELF_LIFE_DAYS)),
         quantity_received=quantity,
         quantity_remaining=quantity,
-        unit_cost=unit_cost if unit_cost is not None else product.cost_price,
+        # PER UNIT, the same as the two quantities above it.
+        #
+        # This stored `product.cost_price`, which is what a PACK cost, against
+        # a quantity that was converted to units three lines earlier. Every
+        # reader that multiplies `quantity_remaining * unit_cost` was then
+        # over by the pack size. A caller that passes a cost passes a per pack
+        # one too, because that is what a purchase order line and a supplier
+        # invoice carry, so it is converted here rather than at each call.
+        unit_cost=(unit_cost / product.per_pack if unit_cost is not None
+                   else product.unit_cost()),
         reference=reference,
         branch_id=branch_id,
     )
@@ -462,7 +471,9 @@ def ensure_opening_batches(db: Session) -> int:
                 expiry_date=date.today() + timedelta(days=540),
                 quantity_received=untracked,
                 quantity_remaining=untracked,
-                unit_cost=product.cost_price,
+                # `untracked` comes off quantity_on_hand, so it is units, and
+                # the cost beside it has to be per unit too.
+                unit_cost=product.unit_cost(),
                 reference="opening stock",
             ))
             created += 1

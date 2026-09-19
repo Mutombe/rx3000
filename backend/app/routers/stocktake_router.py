@@ -153,7 +153,10 @@ def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
         line = StockTakeLine(
             stock_take_id=take.id, product_id=product.id,
             counted=body.counted, expected=expected,
-            unit_cost=product.cost_price or 0,
+            # Per unit: `expected` comes from the branch's on hand figure and
+            # `counted` is what somebody counted off the shelf, both in units,
+            # so the variance they are priced at has to be a unit cost.
+            unit_cost=product.unit_cost(),
             counted_at=datetime.utcnow(), counted_by_id=user.id,
             note=body.note.strip(),
         )
