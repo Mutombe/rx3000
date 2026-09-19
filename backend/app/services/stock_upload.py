@@ -46,7 +46,7 @@ from datetime import date, datetime
 from sqlalchemy.orm import Session
 
 from ..models import Branch, Product, StockBatch, StockMovement, Supplier
-from . import bins
+from . import bins, price_sanity
 
 #: What a column may be called. One canonical name per idea, so a file written
 #: by a wholesaler, by an accountant or by the previous system all land.
@@ -110,6 +110,13 @@ class Line:
     quantity: int = 0
     batch: str = ""
     expiry: date | None = None
+    #: Something is wrong with this row, and it is going in anyway.
+    #:
+    #: Different from `reason`, which explains an action already taken. A
+    #: warning is the case where refusing would be worse than loading: a price
+    #: that cannot be right sits beside a quantity that is real, and dropping
+    #: the row to punish the price leaves the stock uncounted.
+    warning: str = ""
 
 
 def _num(value) -> float | None:
@@ -203,6 +210,15 @@ def plan(db: Session, rows: list[dict], mapping: dict[str, str], *,
     # double the shelf, and on a busy morning somebody will.
     held = {(b.product_id, (b.batch_number or "").upper())
             for b in db.query(StockBatch.product_id, StockBatch.batch_number).all()}
+
+    # Prices that cannot be right, measured against the rest of THIS file.
+    # Computed once over the whole upload rather than per row, because the
+    # yardstick is the file's own median: see services/price_sanity.
+    odd_prices = price_sanity.screen([
+        {"row": n,
+         "price": _num(get(row, "price")) or 0.0,
+         "cost": _num(get(row, "cost")) or 0.0}
+        for n, row in enumerate(rows, start=2)])
 
     seen_keys: set[str] = set()
     out: list[Line] = []
@@ -311,6 +327,16 @@ def plan(db: Session, rows: list[dict], mapping: dict[str, str], *,
             line.action = "skip"
             line.reason = "Nothing on this row differs from what is on file."
         out.append(line)
+
+    # Attached at the end so it reaches a row whichever way it was handled,
+    # INCLUDING a refused one. The row this check was written for is refused
+    # for an unrelated fault, a quantity with no expiry beside it, so a
+    # version that skipped refusals found nothing at all on the file that
+    # prompted it. The price is wrong in the pharmacy's own system whether or
+    # not this upload writes anything.
+    for line in out:
+        if line.row in odd_prices:
+            line.warning = odd_prices[line.row]
 
     return out
 

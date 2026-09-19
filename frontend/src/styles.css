@@ -11500,3 +11500,17 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .bins-move-why { width: 18rem; max-width: 100%; }
 .bins-tick { width: 2.2rem; }
 .pd-binmove { margin-top: 3px; line-height: 1.4; max-width: 44ch; }
+
+/* A FIGURE IN AN IMPORT THAT CANNOT BE RIGHT
+   Above the table rather than in it: the row that prompted this check was
+   11,701 of 16,038 and the table stops at 400. */
+.su-questions {
+  margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
+  border: 1px solid var(--warn-line); border-radius: var(--r-md);
+  background: var(--warn-soft);
+}
+.su-questions h4 { margin: 0 0 4px; font-size: .96rem; }
+.su-questions > p { margin: 0 0 var(--s2); max-width: 68ch; }
+.su-questions ul { margin: 0; padding-left: 1.1rem; }
+.su-questions li { margin-bottom: 6px; line-height: 1.45; }
+.su-questions li div { font-size: var(--t-sm); color: var(--ink-mid); }

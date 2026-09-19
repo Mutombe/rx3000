@@ -574,9 +574,15 @@ def stock_upload(csv_text: str = Body(..., embed=True),
             "row": l.row, "key": l.key, "name": l.name, "action": l.action,
             "reason": l.reason, "product_id": l.product_id,
             "changes": l.changes, "quantity": l.quantity,
-            "batch": l.batch, "expiry": l.expiry,
+            "batch": l.batch, "expiry": l.expiry, "warning": l.warning,
         } for l in lines[:400]],
         "truncated": len(lines) > 400,
+        # Carried OUTSIDE the truncated list on purpose. `lines` stops at 400
+        # and the row that prompted this check was 11,701 of 16,038: a warning
+        # that only ever appears inside the first four hundred rows is a
+        # warning nobody will ever be shown.
+        "questions": [{"row": l.row, "name": l.name, "says": l.warning}
+                      for l in lines if l.warning],
     }
     if not apply:
         return result

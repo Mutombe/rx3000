@@ -24,13 +24,16 @@ import { useToast } from "./Toast";
 interface Line {
   row: number; key: string; name: string; action: string; reason: string;
   product_id: number | null; changes: Record<string, [number | null, number]>;
-  quantity: number; batch: string; expiry: string | null;
+  quantity: number; batch: string; expiry: string | null; warning?: string;
 }
+/** A figure in the file that cannot be right, carried outside `lines`. */
+interface Question { row: number; name: string; says: string; }
 interface Result {
   applied: boolean;
   columns_read: string[]; columns_ignored: string[];
   rows: number; create: number; update: number; skip: number; refuse: number;
   units: number; lines: Line[]; truncated: boolean;
+  questions?: Question[];
   created?: number; updated?: number; batches?: number; message?: string;
 }
 
@@ -161,6 +164,34 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
               </div>
             )}
           </div>
+
+          {/* BEFORE the column note and before the table, because `lines`
+              stops at 400 rows and the row that prompted this check was
+              11,701 of 16,038. A warning that can only be found by scrolling
+              a truncated table is one nobody is ever shown. */}
+          {result.questions && result.questions.length > 0 && (
+            <section className="su-questions">
+              <h4>
+                {result.questions.length} figure
+                {result.questions.length === 1 ? "" : "s"} in this file
+                {result.questions.length === 1 ? " does" : " do"} not look right
+              </h4>
+              <p className="muted small">
+                Loaded exactly as sent, where the row loads at all. Nothing here
+                is changed for you: a price corrected quietly is a price that
+                comes back on the next upload.
+              </p>
+              <ul>
+                {result.questions.map((q) => (
+                  <li key={q.row}>
+                    <b>{q.name || `Row ${q.row}`}</b>
+                    <span className="muted"> · row {q.row.toLocaleString()}</span>
+                    <div>{q.says}</div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <p className="muted small">
             Columns read: {result.columns_read.join(", ") || "none"}.
