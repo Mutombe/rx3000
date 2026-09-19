@@ -2103,6 +2103,76 @@ class StepUpGrant(Base, TenantMixin):
     approved_by = relationship("User", foreign_keys=[approved_by_id])
 
 
+class StockAlert(Base, TenantMixin):
+    """Something about the stock that somebody should be told, once.
+
+    WHY THIS EXISTS WHEN THERE IS ALREADY A DASHBOARD
+
+    Expiry, low stock and out of stock were all visible and none of them was
+    ever told to anybody. A sidebar badge counts lines below reorder level, the
+    command centre lists what to do today with the money attached, and there
+    are reports for all of it. Every one of those is PULL: it requires somebody
+    to open the screen on the day it matters. A batch expires whether or not
+    anybody opened the dashboard that morning, and the branch that most needs
+    telling is the one whose manager is busiest.
+
+    WHY A ROW RATHER THAN A RECOMPUTED LIST
+
+    Because the useful question is not "what is wrong now", which the reports
+    already answer. It is "what is NEWLY wrong", and that can only be answered
+    against what was already known. A row is written the first time a finding
+    appears and is not written again while it stands, so a line that has been
+    below its reorder level for three months stops shouting after the first
+    morning. `last_seen_at` moves so that a stale row can be closed when the
+    finding goes away.
+
+    WHY IT IS NOT DELETED WHEN IT RESOLVES
+
+    "This was short for eleven days in March" is the question somebody asks
+    when a patient complains, and a table that only holds today's problems
+    cannot answer it. Resolving sets `resolved_at`; nothing is removed.
+    """
+    __tablename__ = "stock_alerts"
+    __table_args__ = (
+        # One open finding of a kind, per product, per branch. The job runs
+        # every morning and must not stack eleven identical rows by Friday.
+        UniqueConstraint("pharmacy_id", "branch_id", "product_id", "kind",
+                         "resolved_at", name="uq_stock_alert_open"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    #: expiring | expired | out_of_stock | below_reorder
+    kind = Column(String(20), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    #: The batch this is about, where it is about one.
+    batch_id = Column(Integer, ForeignKey("stock_batches.id"), nullable=True)
+
+    #: What the finding was when it was found. Kept rather than recomputed, so
+    #: the row still reads correctly after the shelf has moved on.
+    detail = Column(String(300), default="")
+    #: What it is worth, where that can be said: the stock at risk, or the cost
+    #: of reordering. Ranking by money is how the dashboard already decides
+    #: what to put first, and this should agree with it.
+    worth = Column(Float, default=0.0)
+    #: How pressing: 1 worth knowing, 2 act this week, 3 act today.
+    urgency = Column(Integer, default=1, index=True)
+
+    first_seen_at = Column(DateTime, default=datetime.utcnow, index=True)
+    last_seen_at = Column(DateTime, default=datetime.utcnow)
+    #: Set when the finding no longer holds. Never deleted: "this was short for
+    #: eleven days in March" is a question somebody asks later.
+    resolved_at = Column(DateTime, nullable=True, index=True)
+    #: Somebody has seen it. Separate from resolved, because reading that a
+    #: batch expires in a fortnight does not make it stop expiring.
+    seen_at = Column(DateTime, nullable=True)
+    seen_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    product = relationship("Product")
+    branch = relationship("Branch")
+    seen_by = relationship("User")
+
+
 class PriceChange(Base, TenantMixin):
     """What a line used to cost, what it costs now, and who moved it.
 

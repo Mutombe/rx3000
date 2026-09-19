@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import paging, price_history
+from ..services import stock_watch, paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
     Dispensing, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
-    Sale, SaleItem, StockBatch, StockMovement, Supplier, User,
+    Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier, User,
 )
 
 router = APIRouter(prefix="/api", tags=["stock"], dependencies=[Depends(get_current_user)])
@@ -1161,3 +1161,46 @@ def tag_product(product_id: int, body: dict, db: Session = Depends(get_db),
         product.category_id = cat.id
     db.commit()
     return {"id": product.id, "category_id": product.category_id}
+
+# ---------- what the shelves are trying to tell somebody ----------
+@router.get("/stock/alerts")
+def stock_alerts(unseen_only: bool = False, db: Session = Depends(get_db)):
+    """Stock findings that still stand, most pressing first.
+
+    Read rather than computed: the sweep decides what is NEW, which is the
+    question a list of alerts answers and a report does not. A report can
+    always say what is wrong now; only a record of what was already known can
+    say what has changed since somebody last looked.
+    """
+    return {"items": stock_watch.standing(db, include_seen=not unseen_only)}
+
+
+@router.post("/stock/alerts/sweep")
+def stock_alerts_sweep(db: Session = Depends(get_db),
+                       _: User = Depends(require_role("admin", "manager"))):
+    """Look now, rather than waiting for the morning.
+
+    The job runs on its own at ten past seven. This exists because somebody
+    who has just booked in a delivery wants the list to stop saying they are
+    out of it, and telling them to wait until tomorrow is how a screen loses
+    its credibility.
+    """
+    return stock_watch.sweep(db)
+
+
+@router.post("/stock/alerts/{alert_id}/seen")
+def stock_alert_seen(alert_id: int, db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Acknowledge one, without pretending it is fixed.
+
+    Seen and resolved are deliberately different columns. Reading that a batch
+    expires in a fortnight does not make it stop expiring, and a screen that
+    treats acknowledgement as a fix is one that loses the finding.
+    """
+    row = db.get(StockAlert, alert_id)
+    if not row:
+        raise HTTPException(404, "That alert is not on file.")
+    row.seen_at = datetime.utcnow()
+    row.seen_by_id = user.id
+    db.commit()
+    return {"ok": True, "seen_at": row.seen_at}

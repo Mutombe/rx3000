@@ -170,11 +170,40 @@ def run_all_jobs() -> dict:
 scheduler = BackgroundScheduler()
 
 
+def sweep_the_shelves() -> str:
+    """Write down what the shelves are trying to say, across every pharmacy.
+
+    Unscoped on purpose. A scheduled job has no request behind it and so no
+    tenant in force, and the tenant filter narrows to nothing rather than
+    showing everything when nobody has said which pharmacy this is. Without
+    widening it here the sweep would look at an empty estate every morning and
+    report, truthfully and uselessly, that there is nothing wrong.
+    """
+    from ..tenancy import unscoped
+    from . import stock_watch
+
+    db = SessionLocal()
+    try:
+        with unscoped():
+            result = stock_watch.sweep(db)
+        return (f"{result['new_total']} new stock finding(s), "
+                f"{result['resolved']} resolved")
+    except Exception as exc:                                   # noqa: BLE001
+        log.exception("The stock watch did not finish")
+        return f"stock watch failed: {exc}"
+    finally:
+        db.close()
+
+
 def start() -> None:
     scheduler.add_job(queue_repeat_reminders, "cron", hour=7, minute=0, id="repeats")
     scheduler.add_job(queue_birthday_messages, "cron", hour=7, minute=5, id="birthdays")
     scheduler.add_job(send_pending_messages, "interval", minutes=5, id="sender")
     scheduler.add_job(nightly_backup, "cron", hour=23, minute=30, id="backup")
+    # Ten past seven, after the repeat reminders and before the shop opens, so
+    # whoever unlocks the door finds the morning's findings already on the
+    # screen rather than having to go looking for them.
+    scheduler.add_job(sweep_the_shelves, "cron", hour=7, minute=10, id="stock-watch")
     scheduler.start()
     log.info("Scheduler started")
 
