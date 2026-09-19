@@ -11514,3 +11514,17 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .su-questions ul { margin: 0; padding-left: 1.1rem; }
 .su-questions li { margin-bottom: 6px; line-height: 1.45; }
 .su-questions li div { font-size: var(--t-sm); color: var(--ink-mid); }
+
+/* BATCHES PRICED A LONG WAY FROM THE CATALOGUE
+   The cost half of reconciliation. Reported, never repaired: rewriting a real
+   price to tidy a column destroys the only record of what was paid. */
+.rc-costs {
+  margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
+  border: 1px solid var(--warn-line); border-radius: var(--r-md);
+  background: var(--warn-soft);
+}
+.rc-costs h4 { margin: 0 0 4px; font-size: .96rem; }
+.rc-costs > p { margin: 0 0 var(--s2); max-width: 70ch; }
+.rc-costs ul { margin: 0; padding-left: 1.1rem; }
+.rc-costs li { margin-bottom: 7px; line-height: 1.45; }
+.rc-costs li div { font-size: var(--t-sm); color: var(--ink-mid); max-width: 78ch; }

@@ -45,8 +45,10 @@ importers write their own fixtures and are skipped too.
 """
 from __future__ import annotations
 
+import io
 import re
 import sys
+import tokenize
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,22 +71,61 @@ ALLOWED = re.compile(r"#\s*units ok:", re.I)
 SETTLED = re.compile(r"\b(unit_cost\(\)|per_unit\(\)|valuation\.|packs_at_cost)")
 
 
+def code_only(text: str) -> list[str]:
+    """The file with every string and comment blanked, line numbers intact.
+
+    Scanning the raw text read a docstring that says "a product carries
+    `cost_price`, what a PACK cost" as a multiplication, because the markdown
+    asterisk in front of it looks exactly like one. Prose about the bug is the
+    one thing guaranteed to sit near the bug, so a check that trips over its
+    own documentation is a check that gets switched off within a week.
+
+    Comments are blanked here as well, and the justification is read back off
+    the ORIGINAL text afterwards, so `# units ok:` still counts.
+    """
+    lines = text.splitlines()
+    blanked = list(lines)
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(text).readline):
+            if token.type not in (tokenize.STRING, tokenize.COMMENT):
+                continue
+            (r1, c1), (r2, c2) = token.start, token.end
+            for row in range(r1, r2 + 1):
+                i = row - 1
+                if i >= len(blanked):
+                    break
+                line = blanked[i]
+                start = c1 if row == r1 else 0
+                end = c2 if row == r2 else len(line)
+                blanked[i] = line[:start] + " " * (end - start) + line[end:]
+    except (tokenize.TokenError, IndentationError, SyntaxError):
+        # A file this cannot parse is read as written rather than skipped. A
+        # guard that silently ignores what it cannot understand is worse than
+        # one that reports a little noise.
+        return lines
+    return blanked
+
+
 def offenders(show_all: bool) -> tuple[list, list]:
     bad: list[tuple[str, int, str]] = []
     allowed: list[tuple[str, int, str]] = []
     for path in sorted(APP.rglob("*.py")):
         if path.name in SKIP_FILES or SKIP_DIRS & set(path.parts):
             continue
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-        for number, line in enumerate(lines, 1):
+        text = path.read_text(encoding="utf-8", errors="replace")
+        lines = text.splitlines()
+        # Strings and comments cannot multiply anything.
+        scan = code_only(text)
+        for number, line in enumerate(scan, 1):
             if not PRICED.search(line) or SETTLED.search(line):
                 continue
             # The justification may sit on the line or just above it, because
-            # a long expression is usually wrapped.
+            # a long expression is usually wrapped. Read off the ORIGINAL,
+            # where the comments still are.
             near = "\n".join(lines[max(0, number - 6):number])
             rel = path.relative_to(ROOT).as_posix()
             (allowed if ALLOWED.search(near) else bad).append(
-                (rel, number, line.strip()))
+                (rel, number, lines[number - 1].strip()))
     return bad, allowed
 
 

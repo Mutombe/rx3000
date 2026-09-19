@@ -28,6 +28,19 @@ seven and a dispenser reads "only -7 on hand".
 falls; it does not silently correct one from the other, because which of them
 is right is a question only a person holding the box can answer. The fix is a
 stock take, and that is a screen this software already has.
+
+**The cost is the same story.** A product carries `cost_price`, what a PACK
+cost, and each batch carries `unit_cost`, what ONE UNIT of that delivery cost.
+Two records of the same fact again, and they drifted the same way: three
+writers put the pack figure in the unit column, so a batch could be valued at
+the pack price against a count of units. The writers are fixed and the rows
+that were plainly a copied pack price have been divided.
+
+What is left over is reported here rather than repaired, for the reason above.
+A batch costing many times the catalogue's unit cost is either a delivery that
+really was dear, which is worth knowing, or a figure in the wrong unit, which
+is worth knowing. Neither is worth guessing at: a heuristic that rewrites a
+real price to tidy a column has destroyed the only record of what was paid.
 """
 from __future__ import annotations
 
@@ -89,9 +102,58 @@ def _rows(db: Session) -> list[dict]:
     return out
 
 
+#: How far a batch's cost may sit above the catalogue's unit cost before it is
+#: worth a person's attention. Three times is generous for a price that moved
+#: between deliveries and far below the pack size of any product where the two
+#: units could be confused, the smallest of which is four.
+COST_DRIFT = 3.0
+
+
+def _cost_disagreements(db: Session) -> list[dict]:
+    """Live batches whose cost is a long way from the catalogue's.
+
+    Only batches with stock left: a cost on an empty batch prices nothing and
+    putting it on the list buries the ones that still matter.
+    """
+    rows = (
+        db.query(StockBatch, Product)
+        .join(Product, Product.id == StockBatch.product_id)
+        .filter(StockBatch.quantity_remaining > 0,
+                StockBatch.unit_cost > 0,
+                Product.cost_price > 0,
+                Product.units_per_pack > 1)
+        .all()
+    )
+    out = []
+    for batch, product in rows:
+        catalogue = product.unit_cost()
+        if not catalogue or batch.unit_cost <= catalogue * COST_DRIFT:
+            continue
+        out.append({
+            "product_id": product.id,
+            "product": f"{product.name} {product.strength or ''}".strip(),
+            "batch": batch.batch_number or "",
+            "quantity": int(batch.quantity_remaining or 0),
+            "batch_cost": round(batch.unit_cost, 4),
+            "catalogue_cost": round(catalogue, 4),
+            "times": round(batch.unit_cost / catalogue, 1),
+            "per_pack": product.per_pack,
+            # Said plainly, because the two readings lead to different actions.
+            "says": (
+                f"This batch is priced at {batch.unit_cost:,.4f} a unit while "
+                f"the catalogue says {catalogue:,.4f}. Either the delivery was "
+                f"dearer than the catalogue knows, or the figure is a pack "
+                f"price in a unit column: one pack is {product.per_pack}."),
+            "value": round((batch.quantity_remaining or 0) * batch.unit_cost, 2),
+        })
+    out.sort(key=lambda r: -r["value"])
+    return out
+
+
 def reconcile(db: Session, *, limit: int = 200) -> dict:
     """The stock control account against its subledger."""
     rows = _rows(db)
+    costs = _cost_disagreements(db)
     off = [r for r in rows if r["difference"] != 0]
     negative = [r for r in rows if r["negative"]]
 
@@ -124,4 +186,8 @@ def reconcile(db: Session, *, limit: int = 200) -> dict:
             f"a pharmacy different things about the same shelf."),
         "lines": off[:limit],
         "truncated": len(off) > limit,
+        # The other half of the same question: not how many, but at what.
+        "cost_drift": costs[:limit],
+        "cost_drift_total": len(costs),
+        "cost_drift_value": round(sum(r["value"] for r in costs), 2),
     }

@@ -28,11 +28,19 @@ interface Line {
   on_hand: number; in_batches: number; usable: number; expired: number;
   difference: number; negative: boolean; value_at_risk: number;
 }
+/** A batch whose cost sits a long way from the catalogue's. The other half of
+ *  the same question the count answers: not how many, but at what. */
+interface CostDrift {
+  product_id: number; product: string; batch: string; quantity: number;
+  batch_cost: number; catalogue_cost: number; times: number; per_pack: number;
+  says: string; value: number;
+}
 interface Report {
   as_at: string; products: number; disagreeing: number; agree_rate: number;
   counted_low: number; counted_high: number; negative: number;
   value_at_risk: number; reconciled: boolean; message: string;
   lines: Line[]; truncated: boolean;
+  cost_drift?: CostDrift[]; cost_drift_total?: number; cost_drift_value?: number;
 }
 
 export default function StockReconcile() {
@@ -98,6 +106,41 @@ export default function StockReconcile() {
               {!data.reconciled && <Warning size={16} weight="fill" />}
               <span>{data.message}</span>
             </p>
+
+            {/* The cost half. Not repaired for the same reason the count is
+                not: a batch priced far from the catalogue is either a dear
+                delivery or a pack price in a unit column, and rewriting a real
+                price to tidy a column destroys the only record of what was
+                paid. */}
+            {data.cost_drift && data.cost_drift.length > 0 && (
+              <section className="rc-costs">
+                <h4>
+                  {data.cost_drift_total} batch
+                  {data.cost_drift_total === 1 ? "" : "es"} priced a long way
+                  from the catalogue
+                </h4>
+                <p className="muted small">
+                  Holding {money(data.cost_drift_value ?? 0)} of stock between
+                  them. Either the delivery was dearer than the catalogue knows,
+                  or the figure is a pack price in a unit column. Both are worth
+                  a look and neither is worth guessing at.
+                </p>
+                <ul>
+                  {data.cost_drift.map((d) => (
+                    <li key={`${d.product_id}-${d.batch}`}>
+                      <EntityLink kind="product" id={d.product_id}>
+                        {d.product}
+                      </EntityLink>
+                      <span className="muted">
+                        {" · "}batch {d.batch || "unnamed"}
+                        {" · "}{d.quantity.toLocaleString()} left
+                      </span>
+                      <div>{d.says}</div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {data.lines.length === 0 ? (
               <div className="empty">
