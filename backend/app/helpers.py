@@ -96,6 +96,7 @@ def move_stock(
     notes: str = "",
     *,
     in_packs: bool = False,
+    prescription_id: int | None = None,
 ) -> StockMovement:
     """Apply a stock movement and record it. Negative delta = stock out.
 
@@ -115,6 +116,9 @@ def move_stock(
         reference=reference,
         notes=notes,
         user_id=user_id,
+        # What the person was doing when they moved it, where that was a
+        # script. Null everywhere else, which is most of the time.
+        prescription_id=prescription_id,
     )
     db.add(movement)
     return movement
@@ -133,6 +137,7 @@ def receive_stock_batch(
     movement_type: str = "receive",
     notes: str = "",
     branch_id: int | None = None,
+    prescription_id: int | None = None,
 ) -> StockBatch:
     """Receive stock as a tracked batch (airtime is exempt from batch tracking).
 
@@ -172,6 +177,7 @@ def receive_stock_batch(
         notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}").strip(" |"),
         user_id=user_id,
         branch_id=branch_id,
+        prescription_id=prescription_id,
     ))
     return batch
 
@@ -251,6 +257,7 @@ def consume_stock_fefo(
     allow_expired: bool = False,
     branch_id: int | None = None,
     in_packs: bool = False,
+    prescription_id: int | None = None,
 ) -> list[BatchAllocation]:
     """Draw stock First-Expiry-First-Out, from one branch.
 
@@ -359,6 +366,7 @@ def consume_stock_fefo(
             notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}").strip(" |"),
             user_id=user_id,
             branch_id=branch_id,
+            prescription_id=prescription_id,
         ))
         allocation = BatchAllocation(
             batch_id=batch.id, sale_item_id=sale_item_id, quantity=take, reference=reference,

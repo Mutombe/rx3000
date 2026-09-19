@@ -1211,6 +1211,24 @@ class Claim(Base, TenantMixin):
 
 
 class StockMovement(Base, TenantMixin):
+    """Every unit that moved, and who moved it.
+
+    WHY A MOVEMENT CAN NAME A SCRIPT
+
+    A correction made at the counter is almost always made *about* something.
+    A dispenser reaches for a box, finds the shelf says four and holds three,
+    and fixes it on the spot with a script open in front of them. The movement
+    row recorded the product, the figure and the person, and nothing at all
+    about the thing they were doing at the time, so the question asked later
+    could not be answered: was the count on this script corrected while it was
+    being dispensed, and by whom?
+
+    Inferring it from timing was the alternative and it is not good enough.
+    "Same product, same user, within two minutes" is a guess that reads as a
+    fact, and on a busy counter it is wrong in both directions. So the screen
+    that was open says so, and a movement made anywhere else leaves this null,
+    which is the honest answer rather than a coincidence dressed up as a link.
+    """
     __tablename__ = "stock_movements"
     id = Column(Integer, primary_key=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
@@ -1222,6 +1240,10 @@ class StockMovement(Base, TenantMixin):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
+    #: The script that was on screen when this was done, where there was one.
+    #: Null for a correction made from the stock screens, which is most of them.
+    prescription_id = Column(Integer, ForeignKey("prescriptions.id"),
+                             nullable=True, index=True)
 
     product = relationship("Product")
     user = relationship("User")
@@ -2131,6 +2153,19 @@ class PriceOverride(Base, TenantMixin):
     used_at = Column(DateTime, nullable=True)
     prescription_item_id = Column(Integer, ForeignKey("prescription_items.id"),
                                   nullable=True, index=True)
+    #: THE SCRIPT IT WAS DONE ON, which is not the same as the line.
+    #:
+    #: `prescription_item_id` above was declared as the link and never once
+    #: written: all twenty overrides on this database carry NULL, because an
+    #: override is authorised while the line is still being typed and the item
+    #: row does not exist yet. A field that is only ever null is not a link, it
+    #: is a comment, and it made "was this script repriced" unanswerable.
+    #:
+    #: The script does exist by then, so it is what gets recorded. The item is
+    #: still filled in where it is known, because it says WHICH line, but
+    #: nothing depends on it being there.
+    prescription_id = Column(Integer, ForeignKey("prescriptions.id"),
+                             nullable=True, index=True)
     sale_item_id = Column(Integer, ForeignKey("sale_items.id"), nullable=True, index=True)
 
     product = relationship("Product")

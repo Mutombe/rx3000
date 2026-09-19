@@ -103,7 +103,9 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # here, and a column that arrives NOT NULL on a populated table cannot be
     # added at all on SQLite.
     "stock_batches": {"branch_id": "INTEGER"},
-    "stock_movements": {"branch_id": "INTEGER"},
+    # branch_id: which shelf moved. prescription_id: what the person was
+    # doing when they moved it, where that was a script.
+    "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER"},
     "stock_categories": {
         # Whether the dispensary offers what is filed here. Seeded from what is
         # actually in each department; see _departments_that_dispense.
@@ -127,6 +129,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # Which figure was set by hand: the line's price, or what the scheme is
         # asked to pay for it. Older rows are all prices.
         "kind": "VARCHAR(10) DEFAULT 'price'",
+        # The script it was done on. An override is authorised while the line
+        # is still being typed, so it can only ever name the script and never
+        # the item, which is why prescription_item_id was null on every row
+        # ever written. See the column's own note on the model.
+        "prescription_id": "INTEGER",
     },
     "branch_transfers": {
         # Which batches physically left, so the receiving branch can put the

@@ -48,6 +48,12 @@ interface Row {
   claim_status: string;
   scheme_pays: number;
   outstanding: number;
+  /** What somebody decided about this script rather than the system computing
+   *  it: a price set by hand, a shelf corrected while it was being dispensed.
+   *  Absent on almost every row, which is the point of showing it. */
+  price_adjusted?: boolean;
+  stock_adjusted?: boolean;
+  summary?: string;
 }
 
 const WINDOWS: [string, string][] = [
@@ -218,6 +224,23 @@ export default function DispensingHistory() {
                       <EntityLink kind="product" id={r.product_id}>{r.product}</EntityLink>
                       {r.schedule >= 3 && (
                         <span className="badge sched">S{r.schedule}</span>
+                      )}
+                      {/* TOUCHED BY HAND.
+                          Marked on the row rather than buried in a report,
+                          because the person who needs to notice is the one
+                          already looking at this screen. The whole sentence is
+                          on the hover: a badge with a number on it explains
+                          nothing, and this is the kind of thing somebody will
+                          be asked about weeks later. */}
+                      {(r.price_adjusted || r.stock_adjusted) && (
+                        <div className="disp-touched" title={r.summary || ""}>
+                          {r.price_adjusted && (
+                            <span className="badge warn">Price set by hand</span>
+                          )}
+                          {r.stock_adjusted && (
+                            <span className="badge warn">Shelf corrected</span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="num">{r.quantity}</td>

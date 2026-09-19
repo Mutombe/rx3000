@@ -11147,6 +11147,13 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   vertical-align: -1px; margin-right: 5px; color: var(--accent);
 }
 
+/* What somebody decided about a dispensing, beside the medicine it was about.
+   Wraps onto its own line under the name rather than widening a column that is
+   already the widest on the table. */
+.disp-touched {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px;
+}
+
 /* ========================================================================
    STOCK ACROSS THE ESTATE
    ======================================================================== */

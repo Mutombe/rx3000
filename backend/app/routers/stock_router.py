@@ -515,20 +515,27 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
         if not decision["allowed"]:
             raise HTTPException(403, decision["why"])
 
+    # The script that was on screen, carried into whichever of the three
+    # paths this correction takes, so the trail reads the same either way.
+    rx_id = body.prescription_id or None
+
     if product.category == "airtime":
         helpers.move_stock(db, product, body.quantity_delta, body.movement_type, user.id,
-                           reference=body.reference, notes=body.notes)
+                           reference=body.reference, notes=body.notes,
+                           prescription_id=rx_id)
     elif body.quantity_delta > 0:
         helpers.receive_stock_batch(
             db, product, body.quantity_delta, user.id,
             batch_number=body.batch_number, expiry_date=body.expiry_date,
             reference=body.reference, movement_type=body.movement_type, notes=body.notes,
+            prescription_id=rx_id,
         )
     else:
         # write-offs / stocktake variances may consume expired stock
         helpers.consume_stock_fefo(
             db, product, -body.quantity_delta, body.movement_type, user.id,
             reference=body.reference, notes=body.notes, allow_expired=True,
+            prescription_id=rx_id,
         )
     entry_type = "receive" if body.quantity_delta > 0 else "adjustment"
     helpers.record_register_entry(db, product, body.quantity_delta, entry_type, user.id, reference=body.reference or body.movement_type)

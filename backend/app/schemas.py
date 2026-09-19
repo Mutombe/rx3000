@@ -303,6 +303,10 @@ class StockAdjust(BaseModel):
     notes: str = ""
     batch_number: str = ""              # used when receiving stock
     expiry_date: Optional[date] = None  # used when receiving stock
+    #: The script on screen when the correction was made, where there was one.
+    #: It makes "was this script's stock corrected while it was dispensed" a
+    #: fact the movement carries rather than a guess about timing.
+    prescription_id: Optional[int] = None
 
 
 class BatchOut(ORM):

@@ -45,9 +45,17 @@ const REASONS = [
   { key: "returned", label: "Returned by a patient", note: "" },
 ] as const;
 
-export default function AdjustStock({ product, onClose, onAdjusted }: {
+export default function AdjustStock({ product, onClose, onAdjusted, prescriptionId }: {
   product: Product;
   onClose: () => void;
+  /** The script on screen when this was opened, where there was one.
+   *
+   *  It turns "was this script's stock corrected while it was being
+   *  dispensed" into something the movement records, rather than something a
+   *  report has to guess from two timestamps being close together. Null from
+   *  the stock screens, and null on a walk in that has not been saved yet,
+   *  which is the honest answer in both cases. */
+  prescriptionId?: number | null;
   /** The new figure for this branch, so the screen behind can move on without
    *  asking the server again.
    *
@@ -121,6 +129,7 @@ export default function AdjustStock({ product, onClose, onAdjusted }: {
       expiry_date: needsBatch ? expiry : null,
       reference: `ADJ ${why?.label ?? ""}`.trim().slice(0, 60),
       notes: [why?.label, note.trim()].filter(Boolean).join(". "),
+      prescription_id: prescriptionId ?? null,
     };
     const was = here;
     const expected = after;

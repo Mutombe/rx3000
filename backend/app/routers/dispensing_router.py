@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import doses, interactions, pack_dates, paging, willcall
+from ..services import adjustments, doses, interactions, pack_dates, paging, willcall
 from ..models import (
     Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
     SaleItem, StockBatch, User,
@@ -591,6 +591,15 @@ def dispensing_history(
     claims = {c.sale_id: c for c in
               db.query(Claim).filter(Claim.sale_id.in_(sale_ids or [0])).all()}
 
+    # WAS ANYTHING ABOUT THIS ONE CHANGED BY HAND.
+    #
+    # A price set at the counter, or a shelf corrected with this script on
+    # screen. Both are recorded already; what was missing was any way to see it
+    # from the row. Two queries for the whole page rather than two per row.
+    rx_ids = {d.prescription_item.prescription_id for d in result.items
+              if d.prescription_item}
+    touched = adjustments.summarise(db, rx_ids)
+
     def row(d):
         item = d.prescription_item
         rx = item.prescription if item else None
@@ -632,6 +641,11 @@ def dispensing_history(
             # What the patient still has to hand over. The reason a dispensing
             # is looked up at all, as often as not.
             "outstanding": owed,
+            # Who changed what by hand on this script, and why. Flags for the
+            # row, detail for whoever opens it. Empty where nothing was
+            # touched, which is almost every row and is the point: the ones
+            # that were touched should stand out.
+            **(touched.get(rx.id, {}) if rx else {}),
         }
 
     rows = [row(d) for d in result.items]

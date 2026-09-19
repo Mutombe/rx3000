@@ -15,8 +15,9 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ...models import (
-    Dispensing, Patient, Prescription, PrescriptionItem, PriceOverride, Product,
-    Sale, SaleItem, SaleTender, StockBatch, StockMovement, Supplier, User,
+    Branch, BranchTransfer, Dispensing, Patient, Prescription, PrescriptionItem,
+    PriceOverride, Product, Sale, SaleItem, SaleTender, StockBatch,
+    StockMovement, Supplier, User,
 )
 from .engine import Column, Param, Report, days_ago, month_start, register, today
 
@@ -2090,6 +2091,202 @@ def _on_order(db: Session, p: dict):
     # Oldest first: an order outstanding for six weeks is the one to chase.
     rows.sort(key=lambda r: -r["days"])
     return rows
+
+
+register(Report(
+    key="stock_transfers",
+    title="Stock moved between branches",
+    module="Stock",
+    purpose="Every transfer from one shop to another: what left, what arrived, "
+            "who despatched it and who booked it in. A transfer is the one "
+            "stock movement with two people and two shelves in it, and until "
+            "now it appeared on no report at all, so stock could cross the "
+            "estate and leave nothing anybody would look at.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("reference", "Reference", "code"),
+        Column("despatched", "Sent", "datetime"),
+        Column("from_branch", "From", "text"),
+        Column("to_branch", "To", "text"),
+        Column("product", "Product", "text"),
+        Column("quantity", "Units", "number", total=True),
+        Column("status", "Status", "text"),
+        Column("despatched_by", "Sent by", "text"),
+        Column("received", "Booked in", "datetime"),
+        Column("received_by", "Booked in by", "text"),
+        Column("hours_in_transit", "Hours in transit", "number"),
+        Column("notes", "Note", "text"),
+    ],
+    rows=lambda db, p: _transfers(db, p),
+))
+
+
+def _transfers(db: Session, p: dict):
+    """Transfers despatched in the window, whether or not they arrived.
+
+    Keyed on the despatch rather than the arrival, deliberately: a transfer
+    that never arrived is the one worth finding, and keying on receipt would
+    hide exactly those.
+    """
+    rows = (
+        db.query(BranchTransfer)
+        .filter(func.date(BranchTransfer.despatched_at) >= p["date_from"])
+        .filter(func.date(BranchTransfer.despatched_at) <= p["date_to"])
+        .order_by(BranchTransfer.despatched_at.desc())
+        .all()
+    )
+    if not rows:
+        return []
+
+    branches = {
+        b.id: b.name for b in db.query(Branch).filter(Branch.id.in_(
+            {t.from_branch_id for t in rows} | {t.to_branch_id for t in rows})).all()
+    }
+    products = {
+        pr.id: pr.name for pr in db.query(Product).filter(
+            Product.id.in_({t.product_id for t in rows})).all()
+    }
+    people = {
+        u.id: (u.full_name or u.username) for u in db.query(User).filter(
+            User.id.in_({t.despatched_by_id for t in rows if t.despatched_by_id}
+                        | {t.received_by_id for t in rows if t.received_by_id})).all()
+    }
+
+    out = []
+    for t in rows:
+        hours = None
+        if t.received_at and t.despatched_at:
+            hours = round((t.received_at - t.despatched_at).total_seconds() / 3600, 1)
+        out.append({
+            "reference": t.reference or "",
+            "despatched": t.despatched_at,
+            "from_branch": branches.get(t.from_branch_id, ""),
+            "to_branch": branches.get(t.to_branch_id, ""),
+            "product": products.get(t.product_id, ""),
+            "quantity": t.quantity or 0,
+            # Said in words rather than as the stored token, because "in
+            # transit" on a transfer sent three weeks ago is the finding.
+            "status": ("Booked in" if t.status == "received"
+                       else "Still in transit" if t.status == "despatched"
+                       else (t.status or "").replace("_", " ").capitalize()),
+            "despatched_by": people.get(t.despatched_by_id, ""),
+            "received": t.received_at,
+            "received_by": people.get(t.received_by_id, ""),
+            "hours_in_transit": hours,
+            "notes": t.notes or "",
+        })
+    return out
+
+
+register(Report(
+    key="hand_adjustments_on_scripts",
+    title="Changed by hand while dispensing",
+    module="Dispensing",
+    purpose="Prices set by hand and shelf counts corrected with a script on "
+            "screen, against the script they were done on. The two acts are "
+            "recorded in different tables and are the same question to a "
+            "manager: what about this dispensing did somebody decide rather "
+            "than the system compute, and who was it.",
+    params=[DATE_FROM, DATE_TO],
+    step_up=True,
+    columns=[
+        Column("date", "When", "datetime"),
+        Column("rx_number", "Script", "code"),
+        Column("patient", "Patient", "text"),
+        Column("what", "What changed", "text"),
+        Column("product", "Product", "text"),
+        Column("detail", "From, to", "text"),
+        Column("by", "By", "text"),
+        Column("approved_by", "Approved by", "text"),
+        Column("reason", "Reason", "text"),
+    ],
+    rows=lambda db, p: _hand_adjustments(db, p),
+))
+
+
+def _hand_adjustments(db: Session, p: dict):
+    """Both kinds, on one timeline, newest first."""
+    out = []
+
+    overrides = [
+        (o, o.prescription_id) for o in
+        db.query(PriceOverride)
+        .filter(PriceOverride.prescription_id.isnot(None))
+        .filter(func.date(PriceOverride.created_at) >= p["date_from"])
+        .filter(func.date(PriceOverride.created_at) <= p["date_to"])
+        .all()
+    ]
+    moves = (
+        db.query(StockMovement)
+        .filter(StockMovement.prescription_id.isnot(None))
+        .filter(func.date(StockMovement.created_at) >= p["date_from"])
+        .filter(func.date(StockMovement.created_at) <= p["date_to"])
+        .all()
+    )
+
+    rx_ids = ({rx for _, rx in overrides if rx}
+              | {m.prescription_id for m in moves if m.prescription_id})
+    scripts = {
+        r.id: r for r in db.query(Prescription).filter(
+            Prescription.id.in_(rx_ids or [0])).all()
+    }
+    patients = {
+        pt.id: f"{pt.first_name} {pt.last_name}".strip()
+        for pt in db.query(Patient).filter(Patient.id.in_(
+            {r.patient_id for r in scripts.values() if r.patient_id} or [0])).all()
+    }
+    products = {
+        pr.id: pr.name for pr in db.query(Product).filter(Product.id.in_(
+            ({o.product_id for o, _ in overrides} | {m.product_id for m in moves}) or [0]
+        )).all()
+    }
+    people = {
+        u.id: (u.full_name or u.username) for u in db.query(User).filter(
+            User.id.in_(
+                ({o.requested_by_id for o, _ in overrides}
+                 | {o.approved_by_id for o, _ in overrides if o.approved_by_id}
+                 | {m.user_id for m in moves if m.user_id}) or [0])).all()
+    }
+
+    def script_of(rx_id):
+        rx = scripts.get(rx_id)
+        return (rx.rx_number if rx else "",
+                patients.get(rx.patient_id, "") if rx else "")
+
+    for o, rx_id in overrides:
+        number, who = script_of(rx_id)
+        out.append({
+            "date": o.created_at,
+            "rx_number": number,
+            "patient": who,
+            "what": ("Claim amount set by hand" if o.kind == "claim"
+                     else "Price set by hand"),
+            "product": products.get(o.product_id, ""),
+            "detail": f"{(o.was or 0):,.2f} to {(o.now or 0):,.2f}"
+                      + ("" if o.used_at else ", never reached a sale"),
+            "by": people.get(o.requested_by_id, ""),
+            "approved_by": people.get(o.approved_by_id, ""),
+            "reason": o.reason or "",
+        })
+
+    for m in moves:
+        number, who = script_of(m.prescription_id)
+        delta = m.quantity_delta or 0
+        out.append({
+            "date": m.created_at,
+            "rx_number": number,
+            "patient": who,
+            "what": "Shelf corrected while dispensing",
+            "product": products.get(m.product_id, ""),
+            "detail": f"{delta:+,} to {m.balance_after:,} on the shelf",
+            "by": people.get(m.user_id, ""),
+            "approved_by": "",
+            "reason": m.notes or m.reference or "",
+        })
+
+    out.sort(key=lambda r: r["date"] or datetime.min, reverse=True)
+    return out
 
 
 register(Report(

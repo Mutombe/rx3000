@@ -5914,6 +5914,9 @@ ${d.action}`}
       {adjusting && (
         <AdjustStock
           product={adjusting}
+          // Which script was on screen. A correction made while dispensing is
+          // recorded against it, so the history can say so afterwards.
+          prescriptionId={fromRx?.id ?? null}
           onClose={() => setAdjusting(null)}
           onAdjusted={(onHand) => {
             const id = adjusting.id;

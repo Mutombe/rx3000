@@ -149,6 +149,8 @@ def set_a_claim(product_id: int = Body(...),
                 was: float | None = Body(default=None),
                 quantity: int = Body(default=1),
                 reason: str = Body(default=""),
+                # The script being repriced, so the record can name it.
+                prescription_id: int | None = Body(default=None),
                 db: Session = Depends(get_db),
                 user: User = Depends(get_current_user),
                 grant=Depends(require_step_up("script.claim_set"))):
@@ -197,6 +199,7 @@ def set_a_claim(product_id: int = Body(...),
         requested_by_id=user.id,
         approved_by_id=getattr(grant, "approved_by_id", None),
         grant_id=getattr(grant, "id", None),
+        prescription_id=prescription_id or None,
     )
     db.add(row)
     db.commit()
@@ -214,6 +217,8 @@ def set_a_price(product_id: int = Body(...),
                 quantity: int = Body(default=1),
                 reason: str = Body(default=""),
                 keep: bool = Body(default=False),
+                # The script being repriced, so the record can name it.
+                prescription_id: int | None = Body(default=None),
                 db: Session = Depends(get_db),
                 user: User = Depends(get_current_user),
                 grant=Depends(require_step_up("script.price_set"))):
@@ -254,6 +259,7 @@ def set_a_price(product_id: int = Body(...),
         requested_by_id=user.id,
         approved_by_id=getattr(grant, "approved_by_id", None),
         grant_id=getattr(grant, "id", None),
+        prescription_id=prescription_id or None,
     )
     db.add(row)
 
