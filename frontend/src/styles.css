@@ -11528,3 +11528,12 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .rc-costs ul { margin: 0; padding-left: 1.1rem; }
 .rc-costs li { margin-bottom: 7px; line-height: 1.45; }
 .rc-costs li div { font-size: var(--t-sm); color: var(--ink-mid); max-width: 78ch; }
+
+/* STOCK THAT IS HELD
+   Owned, counted, and not allowed out. The value leads because that is the
+   decision: two hundred dollars is a quiet afternoon, four thousand is a
+   conversation with a supplier this week. */
+.qn-head { margin-bottom: var(--s4); }
+.qn-say { margin: 0; max-width: 76ch; line-height: 1.5; }
+.qn-why { min-width: 16rem; white-space: normal; line-height: 1.4; }
+.qn-why .badge { margin-bottom: 3px; }

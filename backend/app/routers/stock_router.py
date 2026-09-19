@@ -9,7 +9,7 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
-from ..services import config, stepup, stock_reasons, valuation
+from ..services import config, quarantine, stepup, stock_reasons, valuation
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -1442,3 +1442,72 @@ def stock_reason_list():
     and a different report.
     """
     return {"reasons": stock_reasons.catalogue()}
+
+
+# ---------- quarantine: owned, on a shelf, and not allowed out ----------
+@router.get("/stock/quarantine")
+def quarantined_stock(limit: int = 300, db: Session = Depends(get_db)):
+    """Everything being held, dearest first, with why and since when."""
+    held = quarantine.held_stock(db, limit=limit)
+    return {
+        "lines": held,
+        "value": round(sum(l["value"] for l in held), 2),
+        "units": sum(l["quantity"] for l in held),
+    }
+
+
+@router.post("/stock/batches/{batch_id}/quarantine")
+def quarantine_batch(batch_id: int, body: dict = Body(default={}),
+                     db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user),
+                     _may=Depends(auth.requires("stock.adjust"))):
+    """Take one batch out of circulation without writing it off.
+
+    Carries `stock.adjust` rather than `stock.write_off`: holding goods is
+    reversible and decides nothing about the money, and the person who notices
+    a cracked bottle should be able to stop it going out without also being
+    the person who can decide it is worthless.
+    """
+    batch = db.get(StockBatch, batch_id)
+    if not batch:
+        raise HTTPException(404, "That batch no longer exists.")
+
+    reason = str(body.get("reason") or "").strip()
+    known = stock_reasons.get(reason)
+    if known is None:
+        raise HTTPException(
+            400, "Say why this is being held. One of: "
+                 + ", ".join(r.code for r in stock_reasons.REASONS) + ".")
+
+    if not quarantine.hold(db, batch, reason=reason, user=user,
+                           note=str(body.get("note") or "")):
+        raise HTTPException(400, "That batch is already being held.")
+    db.commit()
+    return {"ok": True, "batch_id": batch.id, "status": batch.status,
+            "message": (f"{batch.quantity_remaining} unit(s) of batch "
+                        f"{batch.batch_number} held. They stay on the books and "
+                        "cannot be dispensed, sold or transferred.")}
+
+
+@router.post("/stock/batches/{batch_id}/release")
+def release_batch(batch_id: int, body: dict = Body(default={}),
+                  db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user),
+                  _may=Depends(auth.requires("stock.write_off"))):
+    """Put a held batch back on the shelf.
+
+    A heavier capability than holding one, deliberately, and the asymmetry is
+    the point: stopping stock going out is a thing anybody responsible should
+    be able to do the moment they see a problem, and deciding the problem is
+    over is not.
+    """
+    batch = db.get(StockBatch, batch_id)
+    if not batch:
+        raise HTTPException(404, "That batch no longer exists.")
+    if not quarantine.release(db, batch, user=user,
+                              note=str(body.get("note") or "")):
+        raise HTTPException(400, "That batch is not being held.")
+    db.commit()
+    return {"ok": True, "batch_id": batch.id, "status": batch.status,
+            "message": (f"Batch {batch.batch_number} is back on the shelf and "
+                        "can be dispensed again.")}

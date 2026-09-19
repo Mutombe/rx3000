@@ -102,7 +102,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # is backfilled to the default branch by the seed rather than guessed at
     # here, and a column that arrives NOT NULL on a populated table cannot be
     # added at all on SQLite.
-    "stock_batches": {"branch_id": "INTEGER"},
+    "stock_batches": {"branch_id": "INTEGER",
+                      "status": "VARCHAR(16) DEFAULT 'available'",
+                      "quarantined_at": "TIMESTAMP",
+                      "quarantined_by_id": "INTEGER",
+                      "quarantine_reason": "VARCHAR(20) DEFAULT ''",
+                      "quarantine_note": "VARCHAR(200) DEFAULT ''"},
     # branch_id: which shelf moved. prescription_id: what the person was
     # doing when they moved it, where that was a script.
     "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER",

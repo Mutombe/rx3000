@@ -167,7 +167,13 @@ def _stock_here(db: Session, product_ids: list[int], branch_id: int) -> dict:
                      func.sum(StockBatch.quantity_remaining))
             .filter(StockBatch.product_id.in_(product_ids),
                     StockBatch.branch_id == branch_id,
-                    StockBatch.quantity_remaining > 0)
+                    StockBatch.quantity_remaining > 0,
+                    # What the counter may actually hand over. Counting
+                    # quarantined goods here is how a dispenser is told there
+                    # are five and then refused by the FEFO walk, which reads
+                    # as the software being broken rather than as the stock
+                    # being held.
+                    StockBatch.status != "quarantined")
             .group_by(StockBatch.product_id, StockBatch.expiry_date).all())
     for product_id, expiry, units in rows:
         if expiry is None:

@@ -192,7 +192,12 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
     batches = (db.query(StockBatch)
                .filter(StockBatch.product_id == product_id,
                        StockBatch.branch_id == from_branch_id,
-                       StockBatch.quantity_remaining > 0)
+                       StockBatch.quantity_remaining > 0,
+                       # Quarantined goods do not move between shops either.
+                       # Sending a damaged or recalled batch to another branch
+                       # is the failure this state exists to stop, and it is
+                       # the one that would look like ordinary housekeeping.
+                       StockBatch.status != "quarantined")
                .order_by(StockBatch.expiry_date.asc()).all())
     # What physically left, batch by batch, so the receiving branch can put the
     # same boxes on its shelf rather than one anonymous undated heap. A transfer

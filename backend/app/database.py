@@ -121,6 +121,31 @@ from . import patient_numbers  # noqa: E402
 patient_numbers.install()
 
 
+def job_session():
+    """A session for work with no request behind it, carrying the same guards.
+
+    `get_db` registers the tenant and branch stamps per session, because they
+    bind to that session's identity map. Every scheduled job called
+    `SessionLocal()` directly and therefore had NEITHER, which is not a
+    theoretical difference: a job that writes a tenant row then writes it with
+    no pharmacy, and a row with no pharmacy is invisible to the tenant it is
+    about, because the scoping filter matches on that column.
+
+    That is how the stock sweep filed 1,081 findings nobody could see. It was
+    found by a person noticing a screen was emptier than it ought to be, which
+    is not a detection method.
+
+    A job still has no tenant in force, so the stamp has nothing to write with
+    and says so in the log instead — which is the point. The job then passes
+    `pharmacy_id=` explicitly, off the record it is working on, and the
+    warning stops.
+    """
+    db = SessionLocal()
+    tenancy.stamp(db)
+    branch_scope.stamp(db)
+    return db
+
+
 def get_db():
     db = SessionLocal()
     # New rows get the pharmacy in force. Registered per session rather than on

@@ -29,10 +29,13 @@ Two things this deliberately does not do:
 from __future__ import annotations
 
 import contextvars
+import logging
 from typing import Iterator
 
 from sqlalchemy import Column, ForeignKey, Integer, event
 from sqlalchemy.orm import Mapped, Session, declared_attr, with_loader_criteria
+
+log = logging.getLogger("rx5000.tenancy")
 
 #: The pharmacy whose data the current request may see.
 #:
@@ -153,6 +156,33 @@ def stamp(session: Session) -> None:
     def _fill(sess, flush_context, instances) -> None:
         pharmacy_id = current_pharmacy_id()
         if pharmacy_id is None:
+            # NOTHING TO STAMP WITH, SO SAY SO RATHER THAN SAY NOTHING.
+            #
+            # This is the condition every scheduled job runs in, and a
+            # TenantMixin row written here keeps a null pharmacy. That is not
+            # untidy, it is INVISIBLE: the scoping filter matches on the
+            # column, so the row exists, belongs to nobody, and cannot be
+            # seen by the pharmacy it is about. Nothing anywhere looks wrong.
+            #
+            # It has happened three times. The stock sweep wrote findings this
+            # way, StockAlert wrote 1,081 of them, and the quarantine trail
+            # did it again the day it was written. Each was found by somebody
+            # noticing a screen was emptier than it should be.
+            #
+            # A job that means it passes `pharmacy_id=` explicitly, taken off
+            # the row it is about, and this stays quiet. One that forgets now
+            # leaves a line in the log naming the table, which is the whole
+            # difference between a bug that is found in an afternoon and one
+            # that is found in a quarter.
+            orphans = {type(o).__tablename__ for o in sess.new
+                       if isinstance(o, TenantMixin)
+                       and getattr(o, "pharmacy_id", None) is None}
+            if orphans:
+                log.warning(
+                    "Writing %s row(s) with no pharmacy and none in force: %s. "
+                    "These will be invisible to every tenant. Pass pharmacy_id "
+                    "explicitly from the record they are about.",
+                    len(orphans), ", ".join(sorted(orphans)))
             return
         for obj in sess.new:
             if not isinstance(obj, TenantMixin):

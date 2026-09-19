@@ -1891,7 +1891,35 @@ class StockBatch(Base, TenantMixin):
     # Stock is held per branch. A batch without one is stock nobody can locate.
     branch_id = Column(Integer, ForeignKey("branches.id"), index=True)
 
+    #: "available" or "quarantined". Goods still owned that may not go out.
+    #:
+    #: Expired stock was already unsellable, because the FEFO walk filters on
+    #: the date. That achieves the safety outcome and nothing else: the stock
+    #: is invisible rather than held. Nobody can list what is quarantined,
+    #: nobody is asked to do anything about it, and a batch pulled for damage
+    #: or a recall had no way to be marked at all — the recall module's own
+    #: docstring says it reports "how much is still on the shelf to
+    #: quarantine", a verb that did not exist.
+    #:
+    #: Quarantined stock is STILL COUNTED as owned. The pharmacy paid for it
+    #: and it is on a shelf; taking it out of the valuation would be writing
+    #: it off, which is a separate decision with a credit note behind it. It
+    #: is held apart from what can be dispensed, which is a different thing
+    #: from being gone.
+    status = Column(String(16), default="available", nullable=False, index=True)
+    quarantined_at = Column(DateTime, nullable=True)
+    quarantined_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    #: Why, from services/stock_reasons. "expired" where the sweep did it.
+    quarantine_reason = Column(String(20), default="")
+    quarantine_note = Column(String(200), default="")
+
     product = relationship("Product")
+    quarantined_by = relationship("User")
+
+    @property
+    def held(self) -> bool:
+        """Owned, on a shelf, and not allowed out."""
+        return (self.status or "available") == "quarantined"
 
 
 class BatchAllocation(Base, TenantMixin):

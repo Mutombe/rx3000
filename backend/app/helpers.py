@@ -309,6 +309,13 @@ def consume_stock_fefo(
     )
     if not allow_expired:
         query = query.filter(StockBatch.expiry_date >= date.today())
+        # Quarantined stock does not go out. Held on the same flag as
+        # `allow_expired` because the two callers that pass it are a write-off
+        # and a stock take, and both of those are exactly the acts that have
+        # to be able to reach quarantined goods: a batch pulled for damage is
+        # written off FROM quarantine, and a count counts what is on the shelf
+        # whether it may be sold or not.
+        query = query.filter(StockBatch.status != "quarantined")
     batches = query.order_by(StockBatch.expiry_date.asc(), StockBatch.id.asc()).all()
 
     available = sum(b.quantity_remaining for b in batches)

@@ -42,7 +42,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from . import config, valuation
+from . import config, quarantine, valuation
 from ..models import (Branch, Dispensing, PrescriptionItem, Product,
                       StockAlert, StockBatch)
 
@@ -209,10 +209,19 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
             row.resolved_at = datetime.utcnow()
             closed += 1
 
+    # ---- and hold what has gone past its date ------------------------------
+    #
+    # The sweep has just walked these rows to raise the alert; enforcing what
+    # the alert is ABOUT costs one more pass and turns "somebody should look
+    # at this" into stock that cannot leave the building while they do.
+    held = quarantine.sweep_expired(db, today=today)
+
     db.commit()
     total_new = sum(new.values())
-    log.info("Stock watch: %s new finding(s), %s resolved", total_new, closed)
-    return {"new": new, "new_total": total_new, "resolved": closed}
+    log.info("Stock watch: %s new finding(s), %s resolved, %s batch(es) held",
+             total_new, closed, held)
+    return {"new": new, "new_total": total_new, "resolved": closed,
+            "quarantined": held}
 
 
 def standing(db: Session, *, include_seen: bool = True, limit: int = 200) -> list[dict]:

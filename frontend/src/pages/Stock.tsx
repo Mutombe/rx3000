@@ -6,6 +6,7 @@ import StockUpload from "../components/StockUpload";
 import StockReconcile from "../components/StockReconcile";
 import StockWatch from "../components/StockWatch";
 import Bins from "../components/Bins";
+import Quarantine from "../components/Quarantine";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -18,7 +19,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "watch" | "bins" | "batches" | "movements" | "reconcile" | "upload";
+type Tab = "products" | "watch" | "bins" | "quarantine" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -79,6 +80,10 @@ export default function Stock() {
     // how somebody walks the shop: bin by bin, not product by product.
     { key: "bins", label: "Bins",
       hint: "Which shelf each line lives on, and the stock that is on no shelf" },
+    // Next to the bins, because both answer "where is it": one says which
+    // shelf, the other says why it may not come off one.
+    { key: "quarantine", label: "Held stock",
+      hint: "Stock the pharmacy owns that may not be dispensed, sold or transferred" },
     { key: "batches", label: "Batches & expiry", count: batches.length },
     { key: "movements", label: "Movement history", count: movements.length },
     // Beside the movements, because that is what explains a difference: the
@@ -419,6 +424,7 @@ export default function Stock() {
 
       {tab === "watch" && <StockWatch />}
       {tab === "bins" && <Bins />}
+      {tab === "quarantine" && <Quarantine />}
       {tab === "reconcile" && <StockReconcile />}
 
       {tab === "upload" && <StockUpload onDone={load} />}

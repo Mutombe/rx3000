@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy import extract
 
 from ..config import settings
-from ..database import SessionLocal
+from ..database import SessionLocal, job_session
 from ..models import Message, Patient, PrescriptionItem
 from . import messaging
 
@@ -34,7 +34,7 @@ def _already_queued(db, patient_id: int, message_type: str, ref_body_fragment: s
 
 def queue_repeat_reminders() -> int:
     """Queue reminders for repeats due within the next few days."""
-    db = SessionLocal()
+    db = job_session()
     created = 0
     try:
         horizon = date.today() + timedelta(days=REMIND_DAYS_AHEAD)
@@ -82,7 +82,7 @@ def queue_repeat_reminders() -> int:
 
 
 def queue_birthday_messages() -> int:
-    db = SessionLocal()
+    db = job_session()
     created = 0
     try:
         today = date.today()
@@ -116,7 +116,7 @@ def queue_birthday_messages() -> int:
 
 
 def send_pending_messages() -> int:
-    db = SessionLocal()
+    db = job_session()
     sent = 0
     try:
         pending = (
@@ -150,7 +150,7 @@ def nightly_backup() -> str:
 def escalate_tickets() -> int:
     """Raise the priority of help-desk tickets that have blown their SLA."""
     from . import automation
-    db = SessionLocal()
+    db = job_session()
     try:
         return automation.escalate_overdue_tickets(db)
     finally:
@@ -182,7 +182,7 @@ def sweep_the_shelves() -> str:
     from ..tenancy import unscoped
     from . import stock_watch
 
-    db = SessionLocal()
+    db = job_session()
     try:
         with unscoped():
             result = stock_watch.sweep(db)
