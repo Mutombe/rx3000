@@ -54,7 +54,8 @@ def list_products(q: str = "", category: str = "", category_id: int = 0,
 
 @router.delete("/products/{product_id}")
 def deactivate_product(product_id: int, db: Session = Depends(get_db),
-                       user: User = Depends(get_current_user)):
+                       user: User = Depends(get_current_user),
+                       _may=Depends(auth.requires("stock.deactivate"))):
     """Retire a product. Deactivates rather than deletes.
 
     A product that has ever been sold or dispensed cannot be removed: the sale
@@ -489,8 +490,24 @@ def _shelf_figures(db: Session, product: Product, batches: list, user: User) -> 
 
 
 @router.post("/products", response_model=schemas.ProductOut)
-def create_product(body: schemas.ProductCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_product(body: schemas.ProductCreate, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user),
+                   _may=Depends(auth.requires("stock.create"))):
     data = body.model_dump()
+
+    # A stock code is the pharmacy's own name for a line, and it is what an
+    # import matches on. Two products answering to the same one means an
+    # upload updates whichever the query returns first, silently, and the
+    # other drifts. Checked here rather than left to a unique index because a
+    # constraint violation reaches the counter as a 500.
+    code = (data.get("stock_code") or "").strip()
+    if code:
+        clash = (db.query(Product)
+                 .filter(func.upper(Product.stock_code) == code.upper())
+                 .first())
+        if clash:
+            raise HTTPException(409, f"Stock code {code} already belongs to "
+                                     f"{clash.name}. Two lines cannot share one.")
     opening = data.pop("quantity_on_hand", 0)
     product = Product(**data, quantity_on_hand=0)
     db.add(product)
@@ -983,6 +1000,16 @@ def set_order_status(
                 helpers.move_stock(db, product, line.quantity_ordered, "receive", user.id,
                                    reference=order.order_number, in_packs=True)
             else:
+                # The same refusal the scanner gives. Two ways in to one act
+                # and only one of them checked: a delivery keyed by hand could
+                # book in stock that had already expired, and FEFO would then
+                # hold it on the shelf unsellable until somebody noticed.
+                if info and info.expiry_date and info.expiry_date <= date.today():
+                    raise HTTPException(
+                        400,
+                        f"{product.name}: that batch expired on "
+                        f"{info.expiry_date.isoformat()}. Do not book it in. "
+                        "Quarantine it and raise it with the supplier.")
                 # An order line counts packs. Ten tubs of a thousand is ten
                 # thousand capsules on the shelf.
                 helpers.receive_stock_batch(

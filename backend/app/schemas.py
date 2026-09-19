@@ -1,7 +1,12 @@
 from datetime import date, datetime
 from typing import Optional
 
+import re
+
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+#: What a stock, scheme or barcode may be made of. Deliberately wide.
+_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9/-]*")
 
 
 class ORM(BaseModel):
@@ -230,8 +235,30 @@ class ProductBase(BaseModel):
     # an empty row on a receipt. Whitespace is stripped first so " " is caught
     # too: the constraint has to reject what the user can actually type.
     name: str = Field(min_length=1, max_length=200)
+    #: The scheme code, and NOT validated as a South African NAPPI.
+    #:
+    #: The blueprint asks for "NAPPI format validation", which in South Africa
+    #: means six or nine digits. This client's own catalogue holds 7,834 of
+    #: these and they are one to eight digits, plus a handful like CA0365 and
+    #: AVAK0096. A six-or-nine rule would reject almost every code the
+    #: pharmacy actually uses, which is building to the document and against
+    #: the people who have to type into it.
+    #:
+    #: What IS worth refusing is a code that cannot be a code. Two rows in
+    #: their file read "0.1", which is a spreadsheet having turned a code into
+    #: a number, and a space or a comma in one means a cell picked up more
+    #: than it should have. So: letters, digits, hyphens and slashes, nothing
+    #: else. That rejects the damage and nothing they use.
     nappi_code: str = ""
     barcode: str = ""
+    #: The pharmacy's OWN code for the line, and it was not on this schema.
+    #:
+    #: It is on their shelf labels, on every report their old system prints,
+    #: and it is what a stock import matches on. It was settable only by an
+    #: importer, and because a response_model drops what it does not declare,
+    #: it never reached the screen either: the product page renders a stock
+    #: code and the API had already thrown it away.
+    stock_code: str = ""
     # Where it sits on the shelf, who makes it, and the regulated
     # maximum where one is published. All optional: a pharmacy that
     # does not use bin locations should not be made to invent them.
@@ -270,6 +297,29 @@ class ProductBase(BaseModel):
     #: dispensary offers it while a patient waits, so it has to be settable
     #: where the product is created rather than only by the bulk tagger.
     category_id: Optional[int] = None
+
+    @field_validator("nappi_code", "barcode", "stock_code", mode="before")
+    @classmethod
+    def _a_code_is_a_code(cls, value):
+        """Refuse a code that a spreadsheet has damaged.
+
+        Not a format rule: see the note on `nappi_code`. This rejects the
+        shapes a code cannot have. A decimal point means Excel read the cell
+        as a number and "0010" came back "0.1"; a space or a comma means the
+        cell picked up more than one field. Both put a code in the catalogue
+        that will never match the file it came from again.
+        """
+        if value in (None, ""):
+            return ""
+        text = str(value).strip()
+        if not text:
+            return ""
+        if not _CODE.fullmatch(text):
+            raise ValueError(
+                f"{text!r} is not a code. Letters, digits, hyphens and "
+                "slashes only: a space or a decimal point usually means a "
+                "spreadsheet has changed it on the way here.")
+        return text
 
 
 class ProductCreate(ProductBase):

@@ -59,6 +59,13 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
      ("admin", "manager")),
     ("stock.deactivate", "Take a product code out of use across the group",
      ("admin",)),
+    # Creating a line had no capability at all: any signed-in account could add
+    # a medicine to the catalogue, price it, and have it appear in the
+    # dispensary search beside the real ones. Kept off the cashier and the
+    # accountant, because a new product is a master record rather than a
+    # transaction, and the pharmacist is the person who knows what it is.
+    ("stock.create", "Add a new product to the catalogue",
+     ("admin", "manager", "pharmacist")),
     # Moving stock between shops had no capability at all, so any signed-in
     # account could send any branch's stock to any other and book it in again.
     # Nothing about the screen would have looked wrong.
@@ -119,7 +126,7 @@ ACCOUNTANT_WITHHELD = (
     "sale.void", "sale.return", "sale.discount", "cash.petty",
     "dispense.prescription", "dispense.otc", "dispense.controlled",
     "stock.write_off", "stock.adjust", "stock.price", "stock.deactivate",
-    "stock.transfer",
+    "stock.create", "stock.transfer",
     "staff.manage", "branch.freeze", "hq.impersonate",
 )
 
