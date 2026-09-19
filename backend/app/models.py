@@ -2293,6 +2293,87 @@ class PriceChange(Base, TenantMixin):
         return round(((self.now or 0.0) - base) / base * 100, 2)
 
 
+class SupplierReturn(Base, TenantMixin):
+    """Goods going back to the wholesaler, and the credit expected for them.
+
+    The one part of the stock lifecycle with no record at all. Returns happen
+    constantly — a short dated delivery, a cracked bottle, a line ordered in
+    error, a manufacturer recall — and every one of them was done by telephone
+    and a note on a spike. The stock was adjusted out as a write-off, if it was
+    adjusted at all, so the shelf was right and the story was gone: nobody
+    could say what had gone back to whom, what it was worth, or which credits
+    were still owed.
+
+    That last one is money. A pharmacy that cannot list what it is owed does
+    not chase it.
+
+    WHY IT IS RAISED BEFORE IT IS APPROVED
+
+    Because the goods have to stop moving the moment somebody decides they are
+    going back. Raising a return QUARANTINES the batches on it, so they cannot
+    be dispensed, sold or transferred while the paperwork is done. Without
+    that the stock sits on the shelf looking available, somebody hands it to a
+    patient, and the return is approved against goods that have left.
+
+    Approval is what actually removes them, which is the order the blueprint
+    sets out and the right one: until a supervisor has agreed, nothing has
+    been written off and the batch can be released back.
+    """
+    __tablename__ = "supplier_returns"
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(30), nullable=False, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    #: raised | approved | credited | cancelled
+    status = Column(String(16), default="raised", nullable=False, index=True)
+    #: Why the goods are going back, from services/stock_reasons.
+    reason_code = Column(String(20), default="")
+    notes = Column(Text, default="")
+    #: What the supplier calls the credit when it arrives. Empty until it does,
+    #: which is the whole point of being able to list them.
+    credit_note = Column(String(40), default="", index=True)
+    credited_at = Column(DateTime, nullable=True)
+    #: What we expect back, at what the goods cost us.
+    total = Column(Float, default=0.0)
+
+    raised_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    supplier = relationship("Supplier")
+    raised_by = relationship("User", foreign_keys=[raised_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    lines = relationship("SupplierReturnLine", back_populates="parent",
+                         cascade="all, delete-orphan")
+
+
+class SupplierReturnLine(Base, TenantMixin):
+    """One batch going back, and how much of it."""
+    __tablename__ = "supplier_return_lines"
+    #: A line belongs to whichever pharmacy the return does.
+    TENANT_PARENT = "parent"
+    id = Column(Integer, primary_key=True)
+    return_id = Column(Integer, ForeignKey("supplier_returns.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    #: The exact batch. A return is always OF something received: a credit
+    #: claim that cannot name the lot is one a supplier can refuse.
+    batch_id = Column(Integer, ForeignKey("stock_batches.id"), nullable=True, index=True)
+    #: In dispensable units, like every other quantity on the shelf.
+    quantity = Column(Integer, nullable=False)
+    #: Per unit, at what it cost. Frozen here rather than read back later,
+    #: because the catalogue cost moves and a claim is for what was paid.
+    unit_cost = Column(Float, default=0.0)
+
+    parent = relationship("SupplierReturn", back_populates="lines")
+    product = relationship("Product")
+    batch = relationship("StockBatch")
+
+    @property
+    def line_total(self) -> float:
+        return round((self.quantity or 0) * (self.unit_cost or 0.0), 2)
+
+
 class BinMove(Base, TenantMixin):
     """A line changing shelf: where it was, where it went, who moved it.
 

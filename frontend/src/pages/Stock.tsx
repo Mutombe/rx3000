@@ -7,6 +7,7 @@ import StockReconcile from "../components/StockReconcile";
 import StockWatch from "../components/StockWatch";
 import Bins from "../components/Bins";
 import Quarantine from "../components/Quarantine";
+import SupplierReturns from "../components/SupplierReturns";
 import DataTable, { Column } from "../components/DataTable";
 import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -19,7 +20,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
-type Tab = "products" | "watch" | "bins" | "quarantine" | "batches" | "movements" | "reconcile" | "upload";
+type Tab = "products" | "watch" | "bins" | "quarantine" | "returns" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
 
@@ -84,6 +85,10 @@ export default function Stock() {
     // shelf, the other says why it may not come off one.
     { key: "quarantine", label: "Held stock",
       hint: "Stock the pharmacy owns that may not be dispensed, sold or transferred" },
+    // Straight after Held stock, because that is where a return starts: the
+    // goods are already being held and this is what happens to them next.
+    { key: "returns", label: "Supplier returns",
+      hint: "Goods going back to the wholesaler, and the credit owed for them" },
     { key: "batches", label: "Batches & expiry", count: batches.length },
     { key: "movements", label: "Movement history", count: movements.length },
     // Beside the movements, because that is what explains a difference: the
@@ -425,6 +430,7 @@ export default function Stock() {
       {tab === "watch" && <StockWatch />}
       {tab === "bins" && <Bins />}
       {tab === "quarantine" && <Quarantine />}
+      {tab === "returns" && <SupplierReturns />}
       {tab === "reconcile" && <StockReconcile />}
 
       {tab === "upload" && <StockUpload onDone={load} />}

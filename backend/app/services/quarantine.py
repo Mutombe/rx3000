@@ -160,6 +160,16 @@ def held_stock(db: Session, limit: int = 300) -> list[dict]:
         "note": batch.quarantine_note or "",
         "since": batch.quarantined_at.isoformat() if batch.quarantined_at else "",
         "by": batch.quarantined_by.username if batch.quarantined_by else "",
+        # Who it came from, so a return can be raised from this screen without
+        # the person having to know. Null where the line has no supplier on
+        # file, which is the honest answer and disables the button rather than
+        # guessing at a wholesaler.
+        "supplier_id": product.supplier_id,
+        "supplier": product.supplier.name if product.supplier else "",
+        # Whether a return has already been raised for this batch, so the
+        # button does not offer to do it twice.
+        "on_return": bool(batch.quarantine_note
+                          and "supplier return" in batch.quarantine_note.lower()),
     } for batch, product in rows]
     out.sort(key=lambda r: -r["value"])
     return out[:limit]

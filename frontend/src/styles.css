@@ -11537,3 +11537,22 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .qn-say { margin: 0; max-width: 76ch; line-height: 1.5; }
 .qn-why { min-width: 16rem; white-space: normal; line-height: 1.4; }
 .qn-why .badge { margin-bottom: 3px; }
+
+/* GOODS GOING BACK, AND THE CREDIT OWED
+   The band leads with money nobody is chasing: an approved return with no
+   credit note is stock given back and not paid for. */
+.sr-owed {
+  display: flex; align-items: center; gap: var(--s3); width: 100%;
+  margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
+  border: 1px solid var(--warn-line); border-radius: var(--r-md);
+  background: var(--warn-soft); line-height: 1.45;
+}
+.sr-owed-n {
+  font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+.sr-say { margin: 0 0 var(--s3); max-width: 74ch; }
+.sr-detail td { background: var(--surface-sunk); }
+.sr-detail ul { margin: 0 0 var(--s2); padding-left: 1.1rem; }
+.sr-detail li { margin-bottom: 4px; line-height: 1.45; }
+.sr-detail p { margin: 0; }

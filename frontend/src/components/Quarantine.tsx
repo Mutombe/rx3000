@@ -42,6 +42,9 @@ interface Held {
   note: string;
   since: string;
   by: string;
+  supplier_id: number | null;
+  supplier: string;
+  on_return: boolean;
 }
 
 export default function Quarantine() {
@@ -51,6 +54,7 @@ export default function Quarantine() {
   const [units, setUnits] = useState(0);
   const [loading, setLoading] = useState(true);
   const mayRelease = useCan("stock.write_off");
+  const mayReturn = useCan("stock.adjust");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -78,6 +82,25 @@ export default function Quarantine() {
       setValue((v) => Math.round((v + line.value) * 100) / 100);
       setUnits((u) => u + line.quantity);
       toast.error(errorText(e, "That batch could not be released."));
+    }
+  }
+
+  async function sendBack(line: Held) {
+    if (!line.supplier_id) return;
+    // Raised, not approved: the goods are already held, and this adds the
+    // paperwork and the claim. Somebody with the write-off capability agrees
+    // it afterwards, which is when the stock actually leaves.
+    try {
+      const said = await api.post<{ message: string }>("/api/supplier-returns", {
+        supplier_id: line.supplier_id,
+        reason: line.reason_code || "damaged",
+        notes: `Raised from held stock. ${line.note}`.trim(),
+        lines: [{ batch_id: line.batch_id, quantity: line.quantity }],
+      });
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That return could not be raised."));
     }
   }
 
@@ -136,6 +159,13 @@ export default function Quarantine() {
                     </div>
                   </td>
                   <td className="actions">
+                    {mayReturn && l.supplier_id && !l.on_return && (
+                      <button type="button" className="btn small ghost"
+                              onClick={() => sendBack(l)}
+                              title={`Raise a return to ${l.supplier}. The goods stay held until it is approved.`}>
+                        Return to supplier
+                      </button>
+                    )}
                     {mayRelease && (
                       <button type="button" className="btn small ghost"
                               onClick={() => release(l)}

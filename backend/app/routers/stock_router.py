@@ -9,12 +9,14 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
-from ..services import config, quarantine, stepup, stock_reasons, valuation
+from ..services import (config, quarantine, stepup, stock_reasons,
+                        supplier_returns, valuation)
 from ..services import permissions
 from ..services import posting
 from ..models import (
     Dispensing, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
-    Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier, User,
+    Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier,
+    SupplierReturn, User,
 )
 
 router = APIRouter(prefix="/api", tags=["stock"], dependencies=[Depends(get_current_user)])
@@ -1511,3 +1513,116 @@ def release_batch(batch_id: int, body: dict = Body(default={}),
     return {"ok": True, "batch_id": batch.id, "status": batch.status,
             "message": (f"Batch {batch.batch_number} is back on the shelf and "
                         "can be dispensed again.")}
+
+
+# ---------- returning goods to the wholesaler ----------
+@router.get("/supplier-returns")
+def list_supplier_returns(status: str = "", db: Session = Depends(get_db)):
+    """Returns on file, newest first, optionally of one status."""
+    query = db.query(SupplierReturn)
+    if status:
+        query = query.filter(SupplierReturn.status == status)
+    rows = query.order_by(SupplierReturn.created_at.desc()).limit(200).all()
+    return {"returns": [supplier_returns.shape(r) for r in rows]}
+
+
+@router.get("/supplier-returns/outstanding")
+def supplier_returns_outstanding(db: Session = Depends(get_db)):
+    """Approved and not yet credited. Literally the money to chase.
+
+    Declared before the `/{return_id}` route below, or FastAPI hands it
+    "outstanding" as an id and answers 422.
+    """
+    return supplier_returns.outstanding(db)
+
+
+@router.get("/supplier-returns/{return_id}")
+def get_supplier_return(return_id: int, db: Session = Depends(get_db)):
+    out = db.get(SupplierReturn, return_id)
+    if not out:
+        raise HTTPException(404, "That return is not on file.")
+    return supplier_returns.shape(out)
+
+
+@router.post("/supplier-returns")
+def raise_supplier_return(body: dict = Body(...), db: Session = Depends(get_db),
+                          user: User = Depends(get_current_user),
+                          _may=Depends(auth.requires("stock.adjust"))):
+    """Start a return and hold the goods.
+
+    `stock.adjust` rather than `stock.write_off`, because nothing has left the
+    building yet: this stops stock moving and asks somebody to agree. The
+    approval below is where the goods actually go, and that carries the
+    heavier capability.
+    """
+    out = supplier_returns.raise_return(
+        db, supplier_id=int(body.get("supplier_id") or 0),
+        lines=body.get("lines") or [],
+        reason=str(body.get("reason") or ""),
+        notes=str(body.get("notes") or ""),
+        branch_id=body.get("branch_id"),
+        user=user)
+    db.commit()
+    db.refresh(out)
+    said = supplier_returns.shape(out)
+    said["message"] = (
+        f"{out.reference} raised for {out.supplier.name}. "
+        f"{len(out.lines)} batch(es) held and cannot be dispensed until this "
+        "is approved or cancelled.")
+    return said
+
+
+@router.post("/supplier-returns/{return_id}/approve")
+def approve_supplier_return(return_id: int, db: Session = Depends(get_db),
+                            user: User = Depends(get_current_user),
+                            _may=Depends(auth.requires("stock.write_off"))):
+    """Agree it and take the goods off the books."""
+    out = db.get(SupplierReturn, return_id)
+    if not out:
+        raise HTTPException(404, "That return is not on file.")
+    supplier_returns.approve(db, out, user=user)
+    db.commit()
+    db.refresh(out)
+    said = supplier_returns.shape(out)
+    said["message"] = (f"{out.reference} approved. {money_words(out.total)} of "
+                       f"stock has left the shelf and is owed by "
+                       f"{out.supplier.name}.")
+    return said
+
+
+@router.post("/supplier-returns/{return_id}/cancel")
+def cancel_supplier_return(return_id: int, db: Session = Depends(get_db),
+                           user: User = Depends(get_current_user),
+                           _may=Depends(auth.requires("stock.adjust"))):
+    """Call it off before approval. The goods go back on the shelf."""
+    out = db.get(SupplierReturn, return_id)
+    if not out:
+        raise HTTPException(404, "That return is not on file.")
+    supplier_returns.cancel(db, out, user=user)
+    db.commit()
+    return {"ok": True, "reference": out.reference,
+            "message": (f"{out.reference} cancelled and the stock is back on "
+                        "the shelf.")}
+
+
+@router.post("/supplier-returns/{return_id}/credit")
+def credit_supplier_return(return_id: int, body: dict = Body(...),
+                           db: Session = Depends(get_db),
+                           user: User = Depends(get_current_user),
+                           _may=Depends(auth.requires("stock.adjust"))):
+    """Record the supplier's credit note against it."""
+    out = db.get(SupplierReturn, return_id)
+    if not out:
+        raise HTTPException(404, "That return is not on file.")
+    supplier_returns.record_credit(
+        db, out, credit_note=str(body.get("credit_note") or ""), user=user)
+    db.commit()
+    return {"ok": True, "reference": out.reference,
+            "credit_note": out.credit_note,
+            "message": (f"Credit note {out.credit_note} recorded against "
+                        f"{out.reference}. Nothing further is owed on it.")}
+
+
+def money_words(amount: float) -> str:
+    """A figure for a sentence, without dragging a formatter in."""
+    return f"{amount:,.2f}"
