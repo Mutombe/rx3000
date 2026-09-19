@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import stock_watch, paging, price_history
+from ..services import sourcing, stock_watch, paging, price_history
 from ..services import permissions
 from ..services import posting
 from ..models import (
@@ -315,6 +315,9 @@ def get_product(product_id: int, db: Session = Depends(get_db),
         # of the same question and was only answerable from the supplier's
         # side until now.
         "buying": _recent_purchases(db, product.id),
+        # And who to buy it from next time, on their actual record rather
+        # than on a rating somebody invented.
+        "sourcing": sourcing.for_product(db, product.id),
     }
 
 

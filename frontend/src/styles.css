@@ -11293,6 +11293,17 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: flex; align-items: center; gap: 7px;
 }
 
+/* Where to buy a line. The advice reads first and large, because it is the
+   decision; the table under it is the evidence for it. */
+.pd-source { margin-bottom: var(--s4); }
+.pd-source-says {
+  font-size: 1.02rem; line-height: 1.5; max-width: 76ch;
+  margin: 0 0 var(--s4);
+}
+.pd-source-name { min-width: 16rem; white-space: normal; }
+.pd-source-name .badge { margin-left: 6px; }
+.pd-source-record { white-space: normal; max-width: 40ch; line-height: 1.4; }
+
 /* WHAT THE SHELVES ARE TRYING TO SAY
    A list of findings rather than a report: ranked by money, dimmed once read,
    and each row carrying somewhere to go and do something about it. */

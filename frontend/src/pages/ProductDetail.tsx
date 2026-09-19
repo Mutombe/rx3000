@@ -397,6 +397,57 @@ export default function ProductDetail() {
 
       {tab === "buying" && (
         <>
+          {data.sourcing && data.sourcing.suppliers.length > 0 && (
+            <section className="card pd-source">
+              <h3>Where to buy it</h3>
+              {/* The reason is stated so somebody can disagree with it. A
+                  recommendation nobody can argue with is one nobody can
+                  correct when it is wrong about their trade. */}
+              <p className="pd-source-says">{data.sourcing.advice.says}</p>
+              <div className="dt-scroll">
+                <table className="dt">
+                  <thead>
+                    <tr>
+                      <th>Supplier</th>
+                      <th className="num">Last cost</th>
+                      <th className="num">Best seen</th>
+                      <th>Record</th>
+                      <th className="num">Days</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.sourcing.suppliers.map((sp) => (
+                      <tr key={sp.supplier_id}
+                          className={sp.supplier_id === data.sourcing!.advice.supplier_id
+                            ? "row-flag" : undefined}>
+                        <td className="pd-source-name">
+                          <EntityLink kind="supplier" id={sp.supplier_id}>
+                            {sp.supplier}
+                          </EntityLink>
+                          {sp.supplier_id === data.sourcing!.advice.supplier_id && (
+                            <span className="badge ok">Buy here</span>
+                          )}
+                          {!sp.delivers && sp.fill_rate !== null && (
+                            <span className="badge warn">Short deliveries</span>
+                          )}
+                        </td>
+                        <td className="num">
+                          {sp.last_cost !== null ? money(sp.last_cost) : "\u2014"}
+                        </td>
+                        <td className="num muted">
+                          {sp.best_cost !== null ? money(sp.best_cost) : "\u2014"}
+                        </td>
+                        <td className="pd-source-record">{sp.record}</td>
+                        <td className="num">
+                          {sp.avg_days !== null ? sp.avg_days : "\u2014"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
           <p className="muted small pd-note">
             Ordered newest first rather than by arrival, because an order that
             has not arrived is the interesting one when a shelf is empty.

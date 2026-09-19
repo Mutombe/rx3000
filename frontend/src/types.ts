@@ -823,6 +823,31 @@ export interface PurchaseLine {
   standing: string;
 }
 
+/** One supplier's record on one line. No star rating: a number out of five is
+ *  a judgement wearing the clothes of a measurement, and nobody can act on
+ *  "3.4 stars". These four facts are what a buyer actually decides on. */
+export interface SupplierOption {
+  supplier_id: number;
+  supplier: string;
+  orders: number;
+  ordered: number;
+  received: number;
+  last_cost: number | null;
+  best_cost: number | null;
+  last_ordered: string | null;
+  fill_rate: number | null;
+  avg_days: number | null;
+  slowest_days: number | null;
+  delivers: boolean;
+  few_orders: boolean;
+  record: string;
+}
+
+export interface Sourcing {
+  suppliers: SupplierOption[];
+  advice: { supplier_id: number | null; says: string };
+}
+
 export interface ProductDetail {
   product: Product;
   batches: StockBatch[];
@@ -833,6 +858,7 @@ export interface ProductDetail {
   shelf?: ShelfFigures;
   price_history?: PriceChange[];
   buying?: PurchaseLine[];
+  sourcing?: Sourcing;
 }
 
 export interface LeadScoreFactor {

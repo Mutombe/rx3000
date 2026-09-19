@@ -369,6 +369,8 @@ class ProductDetail(BaseModel):
     price_history: list[dict] = []
     #: Who this line was last bought from, and what was paid.
     buying: list[dict] = []
+    #: Who to buy it from next time, and each supplier's actual record.
+    sourcing: dict = {}
 
 
 # ---------- prescriptions ----------
