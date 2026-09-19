@@ -11202,6 +11202,37 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   font-size: var(--t-xs); color: var(--ink-soft);
 }
 
+/* THE QUESTIONS ASKED OF THE PATIENT LIST
+   One row of pills above the table. Each carries its own count, because a
+   filter that might show nothing is one nobody presses twice. */
+.pt-views {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 0 0 var(--s4);
+}
+.pt-view {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: auto; padding: 6px 11px; border-radius: var(--r-pill);
+  border: 1px solid var(--line); background: var(--surface);
+  color: var(--ink-mid); font-size: .82rem; font-weight: 500;
+  white-space: nowrap;
+  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+}
+.pt-view:hover:not(.is-on) { border-color: var(--line-strong); color: var(--ink); }
+.pt-view.is-on {
+  border-color: var(--accent); color: var(--accent); font-weight: 600;
+  background: var(--accent-soft, var(--hover));
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* Dimmed, not hidden: "nobody has a caregiver recorded" is worth knowing, and
+   a button that disappears says nothing at all. */
+.pt-view.is-empty { opacity: .5; }
+.pt-view-count {
+  font-variant-numeric: tabular-nums; font-size: .74rem; font-weight: 600;
+  padding: 1px 6px; border-radius: var(--r-pill);
+  background: var(--surface-sunk, var(--hover)); color: var(--ink-soft);
+}
+.pt-view.is-on .pt-view-count { background: var(--surface); color: var(--accent); }
+
 /* The two sentences on the medicine form, which explain a choice rather than
    label a field, so they sit tight under what they are explaining. */
 .med-sub { max-width: 68ch; margin: 0 0 var(--s4); }

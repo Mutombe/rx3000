@@ -1,7 +1,8 @@
 import logging
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import schemas
@@ -10,8 +11,8 @@ from ..database import get_db
 from ..services import insurance_standing
 from ..services import patient_duplicates
 from ..services import paging
-from ..models import (BatchAllocation, Doctor, MedicalAid, Patient, Sale,
-                      SaleItem, User)
+from ..models import (BatchAllocation, Dispensing, Doctor, MedicalAid, Patient,
+                      Prescription, PrescriptionItem, Sale, SaleItem, User)
 from .periods_router import require_step_up
 
 log = logging.getLogger(__name__)
@@ -19,7 +20,28 @@ log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["patients"], dependencies=[Depends(get_current_user)])
 
 
-def _patient_search(db: Session, q: str):
+#: The questions a pharmacy actually asks of its patient list.
+#:
+#: Not a general query builder. Each of these is a question somebody walks up
+#: to the screen already holding: who is on a scheme, who pays cash, who have
+#: we just registered, and who has stopped coming. A filter nobody can name in
+#: a sentence is a filter nobody uses.
+#:
+#: "Lapsed" is the one worth arguing about. Six months without a dispensing is
+#: not proof that somebody has gone elsewhere, and it is the only signal a
+#: pharmacy has: a patient who used to come monthly and has not been in since
+#: March is a conversation worth having, whether or not the reason turns out to
+#: be a move, a new doctor or a death. It is named for what is measured rather
+#: than for what it is taken to mean.
+PATIENT_FILTERS = ("aid", "private", "recent", "lapsed", "chronic", "caregiver")
+
+#: What "recently added" and "lapsed" mean, in days. Stated once here rather
+#: than spelled into three queries that can drift apart.
+RECENT_DAYS = 30
+LAPSED_DAYS = 180
+
+
+def _patient_search(db: Session, q: str, view: str = ""):
     query = db.query(Patient)
     if q:
         like = f"%{q}%"
@@ -32,6 +54,41 @@ def _patient_search(db: Session, q: str):
             # A number read off a label or a card finds the patient.
             Patient.profile_number.ilike(like),
         ))
+
+    view = (view or "").strip().lower()
+    if view == "aid":
+        query = query.filter(Patient.medical_aid_id.isnot(None))
+    elif view == "private":
+        query = query.filter(Patient.medical_aid_id.is_(None))
+    elif view == "recent":
+        query = query.filter(
+            Patient.created_at >= datetime.utcnow() - timedelta(days=RECENT_DAYS))
+    elif view == "chronic":
+        query = query.filter(
+            func.coalesce(Patient.chronic_conditions, "") != "")
+    elif view == "caregiver":
+        query = query.filter(func.coalesce(Patient.caregiver_name, "") != "")
+    elif view == "lapsed":
+        # Nothing dispensed to them in the window. Expressed as "no dispensing
+        # since" rather than "last seen before", so a patient who has never
+        # been dispensed to is included: never having come back is the strongest
+        # version of having stopped.
+        seen = (
+            db.query(Prescription.patient_id)
+            .join(PrescriptionItem,
+                  PrescriptionItem.prescription_id == Prescription.id)
+            .join(Dispensing,
+                  Dispensing.prescription_item_id == PrescriptionItem.id)
+            .filter(Dispensing.dispensed_at
+                    >= datetime.utcnow() - timedelta(days=LAPSED_DAYS))
+        )
+        query = query.filter(Patient.id.notin_(seen))
+
+    # Newest first where the question is about recency, alphabetical otherwise:
+    # "recently added" sorted by surname answers a different question than the
+    # one that was asked.
+    if view == "recent":
+        return query.order_by(Patient.created_at.desc())
     return query.order_by(Patient.last_name, Patient.first_name)
 
 
@@ -50,6 +107,7 @@ def list_patients(q: str = "", limit: int = 100, db: Session = Depends(get_db)):
 @router.get("/patients/paged")
 def list_patients_paged(
     q: str = "",
+    view: str = "",
     page: int = 1,
     per_page: int = paging.DEFAULT_PER_PAGE,
     db: Session = Depends(get_db),
@@ -58,11 +116,29 @@ def list_patients_paged(
 
     A list that has been cut short must say so. Returning 100 of 159 with no
     total is not a smaller answer, it is a wrong one.
+
+    `view` narrows it to one of PATIENT_FILTERS. An unknown value is ignored
+    rather than refused: a stale bookmark should show the patient list, not an
+    error page.
     """
-    result = paging.page(_patient_search(db, q), page=page, per_page=per_page)
+    result = paging.page(_patient_search(db, q, view), page=page, per_page=per_page)
     return result.envelope(
         lambda p: schemas.PatientOut.model_validate(p, from_attributes=True).model_dump()
     )
+
+
+@router.get("/patients/counts")
+def patient_counts(q: str = "", db: Session = Depends(get_db)):
+    """How many patients each filter would show, for the buttons themselves.
+
+    A filter button that might show nothing is a button nobody presses twice.
+    Counted against the same search text the list is using, so the numbers
+    describe what pressing it would actually do.
+    """
+    return {
+        "all": _patient_search(db, q).count(),
+        **{name: _patient_search(db, q, name).count() for name in PATIENT_FILTERS},
+    }
 
 
 @router.post("/patients/duplicates")

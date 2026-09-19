@@ -21,6 +21,21 @@ const EMPTY = {
 };
 
 export default function Patients() {
+  // The questions a pharmacy walks up to the screen already holding. Each is
+  // a whole question, not a field and an operator: a filter nobody can name in
+  // a sentence is a filter nobody uses.
+  const VIEWS: { key: string; label: string; hint: string }[] = [
+    { key: "", label: "Everyone", hint: "Every patient on file" },
+    { key: "aid", label: "Medical Aid", hint: "On a scheme, so their claims are raised here" },
+    { key: "private", label: "Private", hint: "No scheme on file, so they pay at the counter" },
+    { key: "recent", label: "Recently Added", hint: "Registered in the last 30 days, newest first" },
+    { key: "lapsed", label: "Not Seen in 6 Months", hint: "Nothing dispensed to them since, which is the only retention signal a pharmacy has" },
+    { key: "chronic", label: "Chronic", hint: "A long term condition is recorded against them" },
+    { key: "caregiver", label: "Has a Caregiver", hint: "Somebody else gets the reminder and signs for the delivery" },
+  ];
+
+  const [view, setView] = useState("");
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState<Paged<Patient> | null>(null);
@@ -37,7 +52,8 @@ export default function Patients() {
     setLoading(true);
     api
       .get<Paged<Patient>>(
-        `/api/patients/paged?q=${encodeURIComponent(q)}&page=${page}&per_page=${perPage}`,
+        `/api/patients/paged?q=${encodeURIComponent(q)}&view=${view}`
+        + `&page=${page}&per_page=${perPage}`,
       )
       .then((r) => {
         setPatients(r.items);
@@ -50,8 +66,15 @@ export default function Patients() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [q, page, perPage]);
-  useEffect(() => setPage(1), [q]);
+  useEffect(load, [q, view, page, perPage]);
+  useEffect(() => setPage(1), [q, view]);
+  // Counted against the same search text the list is using, so a number
+  // describes what pressing that button would actually do.
+  useEffect(() => {
+    api.get<Record<string, number>>(`/api/patients/counts?q=${encodeURIComponent(q)}`)
+      .then(setCounts)
+      .catch(() => setCounts(null));
+  }, [q]);
   useEffect(() => { api.get<MedicalAid[]>("/api/medical-aids").then(setAids); }, []);
 
   function openNew() {
@@ -88,6 +111,27 @@ export default function Patients() {
       <div className="card">
         <div className="toolbar">
           <input type="search" placeholder="Search name, ID number, phone, member no…" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
+        {/* One row of whole questions. The count is on the button because a
+            filter that might show nothing is one nobody presses twice, and an
+            empty one is dimmed rather than hidden: "no patient has a caregiver
+            recorded" is itself worth knowing, and a button that disappears
+            says nothing at all. */}
+        <div className="pt-views" role="group" aria-label="Filter the patient list">
+          {VIEWS.map((v) => {
+            const n = counts ? (counts[v.key || "all"] ?? 0) : null;
+            const empty = n === 0;
+            return (
+              <button key={v.key} type="button" title={v.hint}
+                      className={`pt-view${view === v.key ? " is-on" : ""}`
+                                 + (empty && view !== v.key ? " is-empty" : "")}
+                      aria-pressed={view === v.key}
+                      onClick={() => setView(v.key)}>
+                {v.label}
+                {n !== null && <span className="pt-view-count">{n.toLocaleString()}</span>}
+              </button>
+            );
+          })}
         </div>
         <Refreshable
           loading={loading}
