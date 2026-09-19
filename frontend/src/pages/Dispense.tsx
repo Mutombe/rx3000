@@ -58,6 +58,7 @@ import { EntityLink } from "../components/Filters";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
 import PatientForm, { draftFrom } from "../components/PatientForm";
+import NewMedicine, { MedicineDraft } from "../components/NewMedicine";
 import ScriptTotals, { useScriptPricing } from "../components/ScriptTotals";
 import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
@@ -873,6 +874,10 @@ export default function Dispense() {
   const [showKeys, setShowKeys] = useState(false);
   /** Somebody at the counter who is not on file yet. */
   const [newPatient, setNewPatient] = useState(false);
+  // A medicine the catalogue has never heard of, added without leaving the
+  // script. Holds the draft rather than a boolean so that a refusal can hand
+  // the typing back instead of losing it.
+  const [newMedicine, setNewMedicine] = useState<MedicineDraft | null>(null);
   /** Making something up at the counter, to go on this script. */
   const [mixing, setMixing] = useState(false);
   /** A prescriber nobody has written down yet.
@@ -3791,6 +3796,25 @@ export default function Dispense() {
             </div>
 
             <div className="card sec sec-items" id="step-items">
+              {/* The end of the search is the beginning of the work, the same
+                  as it is for a patient and a prescriber. A dispenser holding
+                  a script for something not in the catalogue had to leave for
+                  the stock screens, create the line, book in what arrived and
+                  start the script again. What happens instead is that the
+                  medicine goes out on a handwritten note. */}
+              {productQ.trim().length >= 2 && productResults.length === 0 && (
+                <div className="pick-none">
+                  <span>No medicine on file matches &ldquo;{productQ.trim()}&rdquo;.</span>
+                  <button type="button" className="btn small"
+                          onClick={() => setNewMedicine({
+                            name: productQ.trim(), strength: "",
+                            dosage_form: "Tablet", schedule: "3", pack_size: "",
+                            units_per_pack: 1, unit_price: 0, cost_price: 0,
+                            quantity: "", batch: "", expiry: "" })}>
+                    Add it
+                  </button>
+                </div>
+              )}
               {productResults.map((p) => (
                 <div key={p.id} className="product-pick" onClick={() => addItem(p)}>
                   <span>
@@ -5911,6 +5935,17 @@ ${d.action}`}
           results and the basket both hold their own copy of the product — so
           nothing has to be looked up again and the dispenser carries on from
           where they were. */}
+      {newMedicine && (
+        <NewMedicine
+          draft={newMedicine}
+          onClose={() => setNewMedicine(null)}
+          // Straight onto the script that is already open, which is the whole
+          // point of adding it from here.
+          onAdded={(product) => { setProductQ(""); setProductResults([]); addItem(product); }}
+          onRefused={(draft) => setNewMedicine(draft)}
+        />
+      )}
+
       {adjusting && (
         <AdjustStock
           product={adjusting}

@@ -197,7 +197,7 @@ export default function PatientForm({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <form className="modal modal-wide" onClick={(e) => e.stopPropagation()}
+      <form className="modal modal-wide patient-form" onClick={(e) => e.stopPropagation()}
             onSubmit={save}>
         <h2>{title ?? (editing ? "Edit patient" : "New patient")}</h2>
 
@@ -323,9 +323,11 @@ export default function PatientForm({
           >
             Contact the caregiver first
             {/* Meaningless without a number to ring, so it cannot be ticked
-                until there is one. */}
+                until there is one. Said as its own sentence: as a fragment
+                beginning with a comma it wrapped onto a second line and read
+                as a stray clause with nothing in front of it. */}
             {!form.caregiver_phone.trim() && (
-              <span className="muted">, needs a caregiver phone number</span>
+              <span className="check-why">Needs a caregiver phone number first</span>
             )}
           </Checkbox>
         </div>

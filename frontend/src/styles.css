@@ -11147,6 +11147,75 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   vertical-align: -1px; margin-right: 5px; color: var(--accent);
 }
 
+/* ========================================================================
+   ADDING A PATIENT MID SCRIPT
+
+   This opens over the dispensary, and the dispensary puts every label in a
+   fixed 5.5rem column beside its input so that a dense screen reads as one
+   aligned thing. Inherited here it was a mess: "Chronic conditions" and
+   "Member number" were clipped to "Chronic con..." and "Member nu...", both
+   search placeholders were cut mid word, and the two character "Dep." field
+   was squeezed off the right edge of the dialog entirely.
+
+   A form somebody meets once, while a patient waits, is the wrong place to
+   save vertical space. Labels go above their fields, every field gets the
+   width its content needs, and nothing is abbreviated.
+   ======================================================================== */
+.patient-form .field {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  align-items: start; gap: 5px; margin-bottom: 0;
+}
+/* Placement beats the column template: without putting the children back into
+   one column the label stays pinned left of an input sitting in a column that
+   no longer exists. The correction dialog learned this the same way. */
+.patient-form .field > * { grid-column: 1; min-width: 0; }
+.patient-form .field > label {
+  grid-column: 1; grid-row: auto; width: auto; text-align: left;
+  margin: 0; padding: 0; line-height: 1.25; white-space: normal;
+  font-size: .78rem; font-weight: 500; color: var(--ink-soft);
+}
+.patient-form .field > input,
+.patient-form .field > select,
+.patient-form .field > .sel-trigger { width: 100%; height: 38px; }
+
+/* Twelve columns, and the rows are allowed to breathe. */
+.patient-form .form-row {
+  display: grid; grid-template-columns: repeat(12, 1fr);
+  gap: var(--s3) var(--s4); margin: 0 0 var(--s4);
+}
+.patient-form .form-row > .field { grid-column: span 6; }
+/* 6 + 4 + 2 is the medical aid row, and it has to come to twelve. At three the
+   dependant code was a thirteenth column and wrapped onto a line of its own
+   under a half empty row. */
+.patient-form .field.span-2 { grid-column: span 2; }
+.patient-form .field.span-3 { grid-column: span 3; }
+.patient-form .field.span-4 { grid-column: span 4; }
+.patient-form .field.span-6 { grid-column: span 6; }
+.patient-form > .field { margin-bottom: var(--s4); }
+
+/* The section heading, and the sentence under it. */
+.patient-form h3 { margin-top: var(--s5); }
+.patient-form .check-row { margin-top: var(--s2); }
+/* Its own line, not a fragment hanging off the label with a comma. */
+.check-why {
+  display: block; margin-top: 2px;
+  font-size: var(--t-xs); color: var(--ink-soft);
+}
+
+/* The two sentences on the medicine form, which explain a choice rather than
+   label a field, so they sit tight under what they are explaining. */
+.med-sub { max-width: 68ch; margin: 0 0 var(--s4); }
+.med-legend { margin-top: var(--s5); }
+
+/* One field per line where two will not fit, rather than two clipped ones. */
+@media (max-width: 620px) {
+  .patient-form .form-row > .field,
+  .patient-form .field.span-2,
+  .patient-form .field.span-3,
+  .patient-form .field.span-4,
+  .patient-form .field.span-6 { grid-column: span 12; }
+}
+
 /* What somebody decided about a dispensing, beside the medicine it was about.
    Wraps onto its own line under the name rather than widening a column that is
    already the widest on the table. */
