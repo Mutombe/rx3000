@@ -814,6 +814,107 @@ def _top_customers(db: Session, p: dict):
 # paging, sorting, footer totals, Excel, CSV and print without asking.
 
 register(Report(
+    key="fast_movers",
+    title="Fast movers",
+    module="Stock",
+    purpose="The lines this pharmacy actually turns over, and whether there is "
+            "enough of them on the shelf. The mirror of Slow movers, and the "
+            "one people ask for first: a shop knows what it sells and wants to "
+            "see it ranked, with the ones about to run out marked.",
+    params=[
+        Param("days", "Over the last (days)", "text", default="90"),
+        Param("min_turns", "More turns per year than", "text", default="6"),
+    ],
+    columns=[
+        Column("product", "Product", "text"),
+        Column("sold", "Sold in period", "number", total=True),
+        Column("a_month", "A month", "number"),
+        Column("on_hand", "On hand", "number", total=True),
+        Column("turns", "Turns/year", "number"),
+        Column("weeks_cover", "Weeks of cover", "number"),
+        Column("revenue", "Sold for", "money", total=True),
+        Column("standing", "Standing", "text"),
+    ],
+    rows=lambda db, p: _fast_movers(db, p),
+))
+
+
+def _fast_movers(db: Session, p: dict):
+    """What turns over, ranked, with the ones about to run out marked.
+
+    Counted off stock movements rather than sale lines, for the same reason
+    Slow movers does: a movement exists for a dispensing as well as a till
+    sale, and a pharmacy's fastest lines are usually dispensed rather than
+    sold over the counter. Counting sale lines alone would rank the front
+    shop above the dispensary and be quietly wrong.
+
+    Weeks of cover is the column that makes this actionable rather than
+    merely interesting. A line selling two hundred a month with three weeks
+    left is the one to order today; the same line with four months of cover
+    is simply a good line.
+    """
+    try:
+        days = max(7, int(p.get("days") or 90))
+        min_turns = float(p.get("min_turns") or 6)
+    except (TypeError, ValueError):
+        days, min_turns = 90, 6.0
+    since = date.today() - timedelta(days=days)
+
+    sold = dict(
+        db.query(StockMovement.product_id,
+                 func.sum(func.abs(StockMovement.quantity_delta)))
+        .filter(StockMovement.movement_type == "sale")
+        .filter(func.date(StockMovement.created_at) >= since)
+        .group_by(StockMovement.product_id)
+        .all()
+    )
+    if not sold:
+        return []
+
+    rows = []
+    for product in (db.query(Product)
+                    .filter(Product.id.in_(list(sold)))
+                    .filter(Product.active).all()):
+        units = float(sold.get(product.id) or 0)
+        if units <= 0:
+            continue
+        on_hand = product.quantity_on_hand or 0
+        annual = units * (365.0 / days)
+        monthly = annual / 12
+        weekly = annual / 52
+
+        # A line with nothing on the shelf has no turns figure to speak of,
+        # and excluding it would hide exactly the lines that ran out because
+        # they move fastest. It is kept, and its standing says so.
+        turns = round(annual / on_hand, 2) if on_hand > 0 else 0.0
+        if on_hand > 0 and turns < min_turns:
+            continue
+
+        # A shelf in deficit has no cover, not negative cover. The
+        # minus sign is real in the count and meaningless as a duration.
+        weeks = round(on_hand / weekly, 1) if weekly and on_hand > 0 else 0.0
+        rows.append({
+            "product_id": product.id,
+            "product": product.name,
+            "sold": int(units),
+            "a_month": round(monthly, 1),
+            "on_hand": on_hand,
+            "turns": turns,
+            "weeks_cover": weeks,
+            "revenue": round(units * (product.per_unit() or 0.0), 2),
+            "standing": ("Out of stock" if on_hand <= 0
+                         else "Under two weeks left" if weeks < 2
+                         else "Under a month left" if weeks < 4.5
+                         else "Comfortable"),
+        })
+    # By what it sold for. A line that moves in tens of thousands of cheap
+    # units matters less than one that moves the money, and the money is what
+    # an owner is deciding about.
+    rows.sort(key=lambda r: -r["revenue"])
+    return rows
+
+
+register(Report(
     key="slow_movers",
     title="Slow movers",
     module="Stock",

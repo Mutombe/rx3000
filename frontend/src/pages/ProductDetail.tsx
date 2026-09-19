@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import { EntityLink } from "../components/Filters";
+import ProductDispensings from "../components/ProductDispensings";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
 import Variants from "../components/Variants";
@@ -18,7 +19,7 @@ import ProductBarcodes from "../components/ProductBarcodes";
 import AdjustStock from "../components/AdjustStock";
 import Usage from "../components/Usage";
 
-type Tab = "batches" | "movements" | "usage" | "pricing" | "buying";
+type Tab = "batches" | "movements" | "usage" | "dispensings" | "pricing" | "buying";
 
 function expiryBadge(expiry: string | null) {
   if (!expiry) return <span className="badge muted">No expiry</span>;
@@ -52,6 +53,10 @@ export default function ProductDetail() {
       hint: "What has left the shelf each month, and what came in" },
     // What this line has been priced at, and who moved it. The question
     // "why is this the price" is asked while looking at the price.
+    // Who it went to. Asked in a recall, in a dispute about a repeat, and
+    // whenever a prescriber rings about a patient.
+    { key: "dispensings", label: "Dispensed to",
+      hint: "Every time this medicine was handed over, and to whom" },
     { key: "pricing", label: "Price history",
       count: data?.price_history?.length,
       hint: "Every time the cost or the selling price moved, and who moved it" },
@@ -369,6 +374,8 @@ export default function ProductDetail() {
       )}
 
       {tab === "usage" && <Usage productId={p.id} />}
+
+      {tab === "dispensings" && <ProductDispensings productId={p.id} />}
 
       {tab === "pricing" && (
         <>
