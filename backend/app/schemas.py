@@ -916,10 +916,32 @@ class POCreate(BaseModel):
     notes: str = ""
 
 
-class ReceiveLine(BaseModel):
-    item_id: int
+class ReceivedBatch(BaseModel):
+    """One lot within a delivered line.
+
+    A supplier sends three cartons of the same product from three lots. That
+    is ONE order line and three batches, each with its own number and its own
+    expiry, and it is the ordinary case rather than an exotic one. The
+    receive body used to carry a single batch number per line, so two of the
+    three had to be discarded or invented.
+    """
     batch_number: str = ""
     expiry_date: Optional[date] = None
+    #: In PACKS, like the order line it belongs to.
+    quantity: int = 0
+
+
+class ReceiveLine(BaseModel):
+    item_id: int
+    #: How many PACKS actually arrived. None means "all of what is
+    #: outstanding", which is the common case and what the old body meant.
+    quantity: Optional[int] = None
+    #: The single batch, kept because most deliveries are one lot and every
+    #: existing caller sends it this way.
+    batch_number: str = ""
+    expiry_date: Optional[date] = None
+    #: Or several, where the carton says so. Takes precedence when present.
+    batches: list[ReceivedBatch] = []
 
 
 class ReceiveOrderBody(BaseModel):

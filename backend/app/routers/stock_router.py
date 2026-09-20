@@ -1045,35 +1045,109 @@ def set_order_status(
         batch_info = {l.item_id: l for l in (body.lines if body else [])}
         for line in order.items:
             product = line.product
-            line.quantity_received = line.quantity_ordered
             info = batch_info.get(line.id)
+
+            # WHAT ARRIVED, NOT WHAT WAS ORDERED.
+            #
+            # This set `quantity_received = quantity_ordered` for every line
+            # and closed the order, whatever turned up. A supplier who sent
+            # eight of ten was recorded as having sent ten: the shelf gained
+            # two units that were not on it, the outstanding quantity the
+            # column exists to hold was never anything but zero, and the
+            # short delivery could not be chased because nothing said it was
+            # short.
+            #
+            # None still means "all of it", so every caller that sent no
+            # quantity behaves exactly as before.
+            outstanding = (line.quantity_ordered or 0) - (line.quantity_received or 0)
+            if outstanding <= 0:
+                continue
+            arrived = outstanding if (info is None or info.quantity is None)                 else int(info.quantity)
+            if arrived <= 0:
+                continue
+            if arrived > outstanding:
+                raise HTTPException(
+                    400,
+                    f"{product.name}: {outstanding} pack(s) are outstanding on "
+                    f"this order and {arrived} were entered. Book in what "
+                    "arrived; a delivery larger than the order is a separate "
+                    "receipt.")
+            line.quantity_received = (line.quantity_received or 0) + arrived
+
             if product.category == "airtime":
-                helpers.move_stock(db, product, line.quantity_ordered, "receive", user.id,
+                helpers.move_stock(db, product, arrived, "receive", user.id,
                                    reference=order.order_number, in_packs=True)
             else:
                 # The same refusal the scanner gives. Two ways in to one act
                 # and only one of them checked: a delivery keyed by hand could
                 # book in stock that had already expired, and FEFO would then
                 # hold it on the shelf unsellable until somebody noticed.
-                if info and info.expiry_date and info.expiry_date <= date.today():
+                # ONE LINE, AS MANY LOTS AS THE CARTONS SAY.
+                #
+                # A supplier sending three cartons of one product from three
+                # lots is ordinary, and the body carried a single batch number
+                # per line, so two of the three had to be discarded or
+                # invented. `batches` takes precedence where it is given; a
+                # line without it is the single batch it always was.
+                lots = list(info.batches) if (info and info.batches) else []
+                explicit = bool(lots)
+                if not lots:
+                    lots = [schemas.ReceivedBatch(
+                        batch_number=(info.batch_number if info else ""),
+                        expiry_date=(info.expiry_date if info else None),
+                        quantity=arrived)]
+                named = sum(int(l.quantity or 0) for l in lots)
+                # Checked for ONE named lot as much as for several. The first
+                # version only tested a list of more than one, so a single lot
+                # saying two packs against a delivery of six recorded six as
+                # received and put two on the shelf: the order closed, the
+                # shelf was four packs light, and nothing disagreed with
+                # anything. A quantity that is named has to be right.
+                if explicit and named != arrived:
                     raise HTTPException(
                         400,
-                        f"{product.name}: that batch expired on "
-                        f"{info.expiry_date.isoformat()}. Do not book it in. "
-                        "Quarantine it and raise it with the supplier.")
-                # An order line counts packs. Ten tubs of a thousand is ten
-                # thousand capsules on the shelf.
-                helpers.receive_stock_batch(
-                    db, product, line.quantity_ordered, user.id, in_packs=True,
-                    batch_number=(info.batch_number if info else "") or f"{order.order_number}-{line.id}",
-                    expiry_date=info.expiry_date if info else None,
-                    unit_cost=line.unit_cost or None,
-                    reference=order.order_number,
-                )
-            helpers.record_register_entry(db, product, line.quantity_ordered, "receive", user.id, reference=order.order_number)
+                        f"{product.name}: the batches add up to {named} pack(s) "
+                        f"and {arrived} arrived. Every pack has to be on a lot, "
+                        "or a recall cannot find it.")
+                for lot in lots:
+                    # The same refusal the scanner gives. Two ways in to one
+                    # act and only one of them checked: a delivery keyed by
+                    # hand could book in stock that had already expired, and
+                    # FEFO would then hold it on the shelf unsellable until
+                    # somebody noticed.
+                    if lot.expiry_date and lot.expiry_date <= date.today():
+                        raise HTTPException(
+                            400,
+                            f"{product.name}: that batch expired on "
+                            f"{lot.expiry_date.isoformat()}. Do not book it in. "
+                            "Quarantine it and raise it with the supplier.")
+                    # An order line counts packs. Ten tubs of a thousand is ten
+                    # thousand capsules on the shelf.
+                    helpers.receive_stock_batch(
+                        db, product, int(lot.quantity or arrived), user.id,
+                        in_packs=True,
+                        batch_number=lot.batch_number or f"{order.order_number}-{line.id}",
+                        expiry_date=lot.expiry_date,
+                        unit_cost=line.unit_cost or None,
+                        reference=order.order_number,
+                    )
+            helpers.record_register_entry(db, product, arrived, "receive", user.id, reference=order.order_number)
             if line.unit_cost:
                 product.cost_price = line.unit_cost
-        order.received_at = datetime.utcnow()
+
+        # AN ORDER IS ONLY RECEIVED WHEN ALL OF IT IS.
+        #
+        # This closed the order whatever turned up, which is what made a short
+        # delivery vanish: the order said received, every line said fully
+        # received, and the two packs nobody sent were on the shelf figure. A
+        # part delivery now leaves the order open, so the outstanding quantity
+        # is visible and the next van can be booked against it.
+        short = [l for l in order.items
+                 if (l.quantity_received or 0) < (l.quantity_ordered or 0)]
+        if short:
+            status = "sent"
+        else:
+            order.received_at = datetime.utcnow()
     order.status = status
     db.commit()
     if status == "received":
