@@ -24,6 +24,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import helpers
@@ -31,7 +32,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Product, StockTake, StockTakeLine, User
 from ..services import branches as branch_svc
-from ..services import config, stepup
+from ..services import bins, config, stepup
 
 router = APIRouter(prefix="/api/stock-takes", tags=["stock take"],
                    dependencies=[Depends(get_current_user)])
@@ -109,6 +110,74 @@ def open_take(body: OpenIn, db: Session = Depends(get_db),
     return {**_out(db, take), "message": f"{take.reference} open. Nothing is adjusted until it is closed."}
 
 
+def _in_scope(db: Session, take: StockTake):
+    """The products this count is supposed to cover.
+
+    `scope_category` and `scope_bin` have been on the model since it was
+    written, with a comment explaining that they let a pharmacy "count one
+    aisle on a Tuesday rather than the whole shop on a Sunday". They were
+    stored, shown back on the screen, and used for NOTHING: no sheet was built
+    from them and no close was checked against them.
+
+    So a count of one line out of a thousand closed and posted, and the take
+    was recorded as done. Every uncounted line in that aisle kept its old
+    figure while the paperwork said the aisle had been counted, which is worse
+    than not counting it: nobody comes back to a shelf that has been signed
+    off.
+
+    An empty scope means the whole active catalogue, which is what a full
+    count is and what the screen already implies by leaving both boxes blank.
+    """
+    query = db.query(Product).filter(Product.active)
+    if take.scope_bin:
+        query = query.filter(func.lower(func.trim(Product.bin_location))
+                             == take.scope_bin.strip().lower())
+    if take.scope_category:
+        wanted = take.scope_category.strip().lower()
+        query = query.filter(func.lower(Product.category) == wanted)
+    return query
+
+
+@router.get("/{take_id}/sheet")
+def count_sheet(take_id: int, db: Session = Depends(get_db)):
+    """What to walk, in the order somebody walks it.
+
+    Bin order, not product order. A sheet in product order is walked three
+    times; it is the same reason the bin report exists. The expected figure is
+    included because a counter who cannot see it cannot spot the one line that
+    is obviously wrong, and excluded from the printable column on purpose is a
+    different argument this pharmacy has not asked for.
+    """
+    take = db.query(StockTake).get(take_id)
+    if not take:
+        raise HTTPException(status_code=404, detail="That stock take no longer exists.")
+
+    counted = {l.product_id: l for l in take.lines}
+    rows = []
+    for product in _in_scope(db, take).all():
+        line = counted.get(product.id)
+        rows.append({
+            "product_id": product.id,
+            "product": f"{product.name} {product.strength or ''}".strip(),
+            "stock_code": product.stock_code or "",
+            "bin": product.bin_location or "",
+            "pack_size": product.pack_size or "",
+            "expected": branch_svc.on_hand(db, product.id, take.branch_id),
+            "counted": line.counted if line else None,
+            "variance": line.variance if line else None,
+        })
+    rows.sort(key=lambda r: (bins.sort_key(r["bin"]), r["product"].upper()))
+    done = sum(1 for r in rows if r["counted"] is not None)
+    return {
+        "reference": take.reference,
+        "scope": {"category": take.scope_category or "", "bin": take.scope_bin or ""},
+        "lines": rows,
+        "expected_lines": len(rows),
+        "counted_lines": done,
+        "outstanding": len(rows) - done,
+    }
+
+
 @router.get("/open")
 def current(db: Session = Depends(get_db)):
     take = db.query(StockTake).filter(StockTake.status == "open").first()
@@ -180,7 +249,8 @@ def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
 
 
 @router.post("/{take_id}/close")
-def close_take(take_id: int, db: Session = Depends(get_db),
+def close_take(take_id: int, partial: bool = False,
+               db: Session = Depends(get_db),
                user: User = Depends(get_current_user),
                x_step_up: str = Header(default="")):
     """Post the variances and bring the system into line with the shelves.
@@ -215,6 +285,34 @@ def close_take(take_id: int, db: Session = Depends(get_db),
             status_code=400,
             detail="Nothing has been counted, so there is nothing to post. Abandon it instead.",
         )
+
+    # EVERYTHING IN SCOPE, OR SAY OUT LOUD THAT IT IS NOT.
+    #
+    # This checked only that SOMETHING had been counted, so a count of one
+    # line out of a thousand closed and posted and the take was recorded as
+    # done. Every uncounted line in that aisle kept its old figure while the
+    # paperwork said the aisle had been counted, which is worse than not
+    # counting it: nobody goes back to a shelf that has been signed off.
+    #
+    # Not an absolute block. A pharmacy interrupted halfway through a Tuesday
+    # aisle should be able to post what it did count rather than throw the
+    # afternoon away — but it has to ask for that, and the number left is
+    # written into the record so the next person knows what this take covered.
+    counted_ids = {l.product_id for l in take.lines}
+    outstanding = [p for p in _in_scope(db, take).all() if p.id not in counted_ids]
+    if outstanding and not partial:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"{len(outstanding)} line(s) in this count have not been "
+                    f"counted yet, including {outstanding[0].name}. Post it as "
+                    "a partial count if that is deliberate, otherwise finish "
+                    "the sheet: an uncounted line keeps its old figure while "
+                    "the count says the shelf was checked."))
+    if outstanding:
+        take.notes = ((take.notes or "") + (" " if take.notes else "")
+                      + f"Posted as a partial count: {len(outstanding)} of "
+                        f"{len(outstanding) + len(counted_ids)} line(s) in "
+                        "scope were never counted.").strip()
 
     # Priced off the line's own captured cost, which is what the variance
     # report shows, so the figure that decides the gate is the figure the

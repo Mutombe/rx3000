@@ -34,6 +34,19 @@ interface Line {
   product_id: number; product: string; counted: number; expected: number;
   variance: number; value: number; note: string;
 }
+interface SheetLine {
+  product_id: number; product: string; stock_code: string; bin: string;
+  pack_size: string; expected: number; counted: number | null;
+  variance: number | null;
+}
+interface Sheet {
+  reference: string;
+  scope: { category: string; bin: string };
+  lines: SheetLine[];
+  expected_lines: number;
+  counted_lines: number;
+  outstanding: number;
+}
 interface Detail extends Take { lines: Line[] }
 interface CountReply {
   product: string; counted: number; expected: number;
@@ -47,6 +60,12 @@ export default function StockTake() {
 
   const [take, setTake] = useState<Take | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
+  /** What this count is supposed to cover, and how much of it is done.
+   *
+   *  The scope fields have been on the record since it was written and were
+   *  used for nothing, so a count of one line out of a thousand closed and
+   *  posted as if the aisle had been checked. */
+  const [sheet, setSheet] = useState<Sheet | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
 
@@ -64,11 +83,16 @@ export default function StockTake() {
   const countBox = useRef<HTMLInputElement>(null);
 
   const load = useCallback(() => {
+    setSheet(null);
     api.get<Take | null>("/api/stock-takes/open")
       .then((open) => {
         setTake(open);
         if (open) {
           api.get<Detail>(`/api/stock-takes/${open.id}`).then(setDetail).catch(() => undefined);
+          // What the count is supposed to cover, so the screen can say how
+          // much is left rather than only what has been done.
+          api.get<Sheet>(`/api/stock-takes/${open.id}/sheet`)
+            .then(setSheet).catch(() => undefined);
         } else {
           setDetail(null);
         }
@@ -141,10 +165,24 @@ export default function StockTake() {
     if (!ok) return;
     setBusy("close");
     try {
+      // A count that has not covered its own scope is refused, and the
+      // refusal names what is left. Offering to post it anyway is a separate
+      // decision the person has to make out loud, because an uncounted line
+      // keeps its old figure while the paperwork says the shelf was checked.
+      let asPartial = false;
+      const left = sheet ? sheet.outstanding : 0;
+      if (left > 0) {
+        asPartial = window.confirm(
+          `${left} line${left === 1 ? " has" : "s have"} not been counted yet. `
+          + "Post this as a partial count? The lines you did not count keep "
+          + "their present figures and the count is recorded as incomplete.");
+        if (!asPartial) return;
+      }
       const res = await guarded(
         "stocktake.close",
         (token) => api.post<{ message: string }>(
-          `/api/stock-takes/${take.id}/close`, {}, token),
+          `/api/stock-takes/${take.id}/close${asPartial ? "?partial=true" : ""}`,
+          {}, token),
         take.reference,
       );
       if (res === CANCELLED) return;
@@ -247,8 +285,20 @@ export default function StockTake() {
             <div className="stat-row">
               <div className="stat">
                 <span className="stat-label">Lines counted</span>
-                <span className="stat-value">{take.counted_lines}</span>
+                <span className="stat-value">
+                  {take.counted_lines}
+                  {/* Out of how many. A count that shows only what has been
+                      done cannot tell anybody it is unfinished, which is how
+                      one line out of a thousand used to close and post. */}
+                  {sheet && <span className="muted"> of {sheet.expected_lines}</span>}
+                </span>
               </div>
+              {sheet && sheet.outstanding > 0 && (
+                <div className="stat">
+                  <span className="stat-label">Still to count</span>
+                  <span className="stat-value tone-danger">{sheet.outstanding}</span>
+                </div>
+              )}
               {/* Over and short separately, never netted. A count 40 over and 40
                   short is not a clean count, it is two errors. */}
               <div className="stat">
