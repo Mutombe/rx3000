@@ -44,6 +44,12 @@ interface Receipt {
   items: Item[];
 }
 
+/** A bill this delivery could be the goods for. */
+interface Candidate {
+  id: number; invoice_number: string; invoice_date: string;
+  total: number; status: string; differs_by: number; mine: boolean;
+}
+
 export default function GoodsReceipts() {
   const toast = useToast();
   const ask = useAsk();
@@ -51,6 +57,10 @@ export default function GoodsReceipts() {
   const [rows, setRows] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState<number | null>(null);
+  /** The delivery being put against a bill, and the bills it could be on. */
+  const [matching, setMatching] = useState<Receipt | null>(null);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [looking, setLooking] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,6 +83,41 @@ export default function GoodsReceipts() {
 
   const stillOpen = useMemo(
     () => rows.filter((r) => r.status === "open").length, [rows]);
+
+  async function openMatch(r: Receipt) {
+    setMatching(r);
+    setLooking(true);
+    setCandidates([]);
+    try {
+      const said = await api.get<{ invoices: Candidate[] }>(
+        `/api/goods-receipts/${r.id}/invoice-candidates`);
+      setCandidates(said.invoices);
+    } catch (e) {
+      toast.error(errorText(e, "The invoices could not be read."));
+    } finally {
+      setLooking(false);
+    }
+  }
+
+  async function putOn(r: Receipt, invoice: Candidate | null) {
+    // Optimistic: the row moves out of "no invoice yet" on the click, because
+    // this is a decision somebody has just made rather than a question.
+    const was = r.invoice_number;
+    setRows((all) => all.map((x) => x.id === r.id
+      ? { ...x, invoice_number: invoice?.invoice_number ?? "" } : x));
+    setMatching(null);
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/goods-receipts/${r.id}/match`,
+        { invoice_id: invoice?.id ?? null });
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      setRows((all) => all.map((x) => x.id === r.id
+        ? { ...x, invoice_number: was } : x));
+      toast.error(errorText(e, "That delivery could not be matched."));
+    }
+  }
 
   async function sign(r: Receipt) {
     const { ok, value } = await ask({
@@ -107,8 +152,81 @@ export default function GoodsReceipts() {
     }
   }
 
+  // WHICH BILL THESE GOODS ARE ON.
+  //
+  // Led by how far each invoice differs from what arrived, nearest first,
+  // because that is the question somebody is actually answering: a bill for
+  // what the delivery cost is almost certainly the one, and a bill that
+  // differs is the whole reason anybody checks. The list is narrowed to this
+  // supplier and to bills nothing else has claimed — the only ones it could
+  // honestly be.
+  const matchPanel = matching && (
+    <div className="modal-backdrop" onClick={() => setMatching(null)}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Which bill is {matching.grv_number} on?</h2>
+        <p className="muted small">
+          {matching.packs.toLocaleString()} pack
+          {matching.packs === 1 ? "" : "s"} from {matching.supplier},
+          {" "}{money(matching.goods_total)} at cost
+          {matching.delivery_note ? `, on note ${matching.delivery_note}` : ""}.
+        </p>
+
+        {looking && <p className="muted">Reading the bills on file…</p>}
+
+        {!looking && candidates.length === 0 && (
+          <div className="empty">
+            <b>No bill on file from {matching.supplier}</b>
+            <p>
+              An invoice arrives on the supplier's timetable, often weeks
+              after the van. Capture it on Payables and come back, or leave
+              this delivery unmatched until it does.
+            </p>
+          </div>
+        )}
+
+        {!looking && candidates.length > 0 && (
+          <ul className="gr-bills">
+            {candidates.map((inv) => (
+              <li key={inv.id}>
+                <button type="button"
+                        className={`gr-bill${inv.mine ? " on" : ""}`}
+                        onClick={() => void putOn(matching, inv)}>
+                  <span className="gr-bill-no">{inv.invoice_number || "unnumbered"}</span>
+                  <span className="muted small">
+                    {inv.invoice_date ? fmtDate(inv.invoice_date) : "no date"}
+                    {" · "}{money(inv.total)}
+                  </span>
+                  {Math.abs(inv.differs_by) < 0.01
+                    ? <span className="badge ok">agrees with the goods</span>
+                    : <span className="badge warn">
+                        {money(Math.abs(inv.differs_by))}{" "}
+                        {inv.differs_by > 0 ? "more than" : "less than"} the goods
+                      </span>}
+                  {inv.mine && <span className="badge muted">currently on this</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="modal-actions">
+          {matching.invoice_number && (
+            <button className="secondary"
+                    onClick={() => void putOn(matching, null)}>
+              Take it off this bill
+            </button>
+          )}
+          <button className="secondary" onClick={() => setMatching(null)}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
+      {matchPanel}
       {/* Goods on the shelf that cannot be checked against a bill. */}
       {unbilled.count > 0 && (
         <div className="sr-owed">
@@ -210,6 +328,12 @@ export default function GoodsReceipts() {
                         <button type="button" className="btn small"
                                 onClick={() => sign(r)}>
                           Sign for it
+                        </button>
+                      )}
+                      {r.status === "received" && mayReceive && (
+                        <button type="button" className="btn small secondary"
+                                onClick={() => void openMatch(r)}>
+                          {r.invoice_number ? "Change invoice" : "Put on a bill"}
                         </button>
                       )}
                     </td>

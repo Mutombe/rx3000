@@ -1835,6 +1835,107 @@ def close_goods_receipt(receipt_id: int, body: dict = Body(default={}),
                         "on the shelf.")}
 
 
+@router.get("/goods-receipts/{receipt_id}/invoice-candidates")
+def invoice_candidates(receipt_id: int, db: Session = Depends(get_db),
+                       _: User = Depends(get_current_user)):
+    """Bills this delivery could be the goods for.
+
+    Narrowed to the same supplier and to invoices nothing else has claimed,
+    because those are the only ones it could honestly be. Ordered by how close
+    the money is: an invoice for what this delivery cost is almost certainly
+    the one, and putting it first saves reading a list.
+    """
+    from ..models import SupplierInvoice
+
+    receipt = db.get(GoodsReceipt, receipt_id)
+    if receipt is None:
+        raise HTTPException(404, "That delivery is not on file.")
+
+    taken = {row.invoice_id for row in
+             db.query(GoodsReceipt).filter(GoodsReceipt.invoice_id.isnot(None)).all()}
+    rows = (db.query(SupplierInvoice)
+            .filter(SupplierInvoice.supplier_id == receipt.supplier_id)
+            .order_by(SupplierInvoice.invoice_date.desc()).limit(60).all())
+    goods = round(receipt.goods_total or 0.0, 2)
+    out = []
+    for inv in rows:
+        if inv.id in taken and inv.id != receipt.invoice_id:
+            continue
+        total = round(inv.total or 0.0, 2)
+        out.append({
+            "id": inv.id,
+            "invoice_number": inv.invoice_number or "",
+            "invoice_date": inv.invoice_date.isoformat() if inv.invoice_date else "",
+            "total": total,
+            "status": inv.status or "",
+            # What the two differ by, said rather than left to be worked out.
+            # A delivery and its bill agreeing is the ordinary case, and the
+            # gap is the whole reason anybody looks.
+            "differs_by": round(total - goods, 2),
+            "mine": inv.id == receipt.invoice_id,
+        })
+    out.sort(key=lambda r: abs(r["differs_by"]))
+    return {"goods_total": goods, "invoices": out,
+            "matched": receipt.invoice_id}
+
+
+@router.post("/goods-receipts/{receipt_id}/match")
+def match_goods_receipt(receipt_id: int, body: dict = Body(...),
+                        db: Session = Depends(get_db),
+                        user: User = Depends(get_current_user),
+                        _may=Depends(auth.requires("stock.receive"))):
+    """Say which bill this delivery is on.
+
+    Kept apart from signing for the goods because it happens on the
+    supplier's timetable, often weeks later, and a delivery with no invoice
+    against it yet is an ordinary state rather than a gap. It is the other
+    half of the number on the Deliveries screen: goods received that cannot
+    be checked against a bill.
+    """
+    from ..models import SupplierInvoice
+
+    receipt = db.get(GoodsReceipt, receipt_id)
+    if receipt is None:
+        raise HTTPException(404, "That delivery is not on file.")
+
+    invoice_id = body.get("invoice_id")
+    if invoice_id in (None, "", 0):
+        # Unmatching is a real act: somebody matched the wrong one and the
+        # way back has to exist, or the mistake is permanent.
+        receipt.invoice_id = None
+        db.commit()
+        return {"ok": True, "receipt": grv.shape(receipt),
+                "message": f"{receipt.grv_number} is no longer against an invoice."}
+
+    invoice = db.get(SupplierInvoice, int(invoice_id))
+    if invoice is None:
+        raise HTTPException(404, "That invoice is not on file.")
+    if invoice.supplier_id != receipt.supplier_id:
+        raise HTTPException(
+            400, "That invoice is from a different supplier. A delivery and "
+                 "its bill come from the same wholesaler.")
+    clash = (db.query(GoodsReceipt)
+             .filter(GoodsReceipt.invoice_id == invoice.id,
+                     GoodsReceipt.id != receipt.id).first())
+    if clash is not None:
+        raise HTTPException(
+            409, f"Invoice {invoice.invoice_number} is already against "
+                 f"{clash.grv_number}. One bill, one delivery.")
+
+    grv.match_invoice(db, receipt, invoice)
+    db.commit()
+    gap = round((invoice.total or 0.0) - (receipt.goods_total or 0.0), 2)
+    return {
+        "ok": True, "receipt": grv.shape(receipt), "differs_by": gap,
+        "message": (f"{receipt.grv_number} is on invoice "
+                    f"{invoice.invoice_number}."
+                    + (f" The bill is {abs(gap):,.2f} "
+                       f"{'more' if gap > 0 else 'less'} than the goods, which "
+                       "is worth querying." if abs(gap) >= 0.01 else
+                       " The bill and the goods agree.")),
+    }
+
+
 # ---------- returning goods to the wholesaler ----------
 @router.get("/supplier-returns")
 def list_supplier_returns(status: str = "", db: Session = Depends(get_db)):
