@@ -28,15 +28,36 @@ const BIG = "assistant_dock_big";
 
 /** Whether the dock should be showing. Read once at mount and kept here, so
  *  the top bar button and the dock cannot disagree about it. */
+/** Screens whose primary action sits where this panel does.
+ *
+ *  The dock is fixed to the bottom right at 480 by 347. The dispensary's
+ *  Finish button is in the same corner, and measuring it at 1500x980 and at
+ *  1366x768 showed the button was not reachable at all: on a first sign-in
+ *  the panel opened itself straight over it, so a dispenser's first script
+ *  could not be completed until they worked out that the chat window had to
+ *  be closed. Raising the button above the panel does not work, because the
+ *  sticky row is inside an ancestor that traps it in its own stacking
+ *  context, and fighting that would be fragile in both directions.
+ *
+ *  So the panel does not OPEN ITSELF here. It is still one press away on the
+ *  top bar, which is where somebody reaches for it deliberately, and it still
+ *  opens itself everywhere else, which is what made it discoverable. */
+const CROWDED = [/^\/dispense/, /^\/till/, /^\/pos/];
+
 export function useDock() {
+  const crowded = CROWDED.some((r) => r.test(window.location.pathname));
   const [open, setOpen] = useState(() => {
     try {
       // On for everybody, the first time. That was the decision, and the
       // reason is that nobody goes looking for an assistant they have not
       // seen. After that it is whatever they last chose.
-      if (readStored(SEEN) !== "1") return true;
+      //
+      // Except where it would land on the work: see CROWDED above. A first
+      // run there leaves it closed and unremembered, so the next screen
+      // still introduces it.
+      if (readStored(SEEN) !== "1") return !crowded;
       return readStored(OPEN) === "1";
-    } catch { return true; }
+    } catch { return !crowded; }
   });
   const set = (next: boolean) => {
     setOpen(next);

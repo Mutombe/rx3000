@@ -26,12 +26,22 @@ await page.keyboard.press("Enter"); await page.waitForTimeout(3000);
 
 await page.goto("http://localhost:5180/repeats", { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(3000);
-const n = await page.locator("button", { hasText: "Dispense" }).count();
+// The row's own action, not the first thing on the page whose label happens
+// to contain the word. A bare hasText match picked up a filter chip and
+// clicked that instead, so the test reported that the dialog would not open
+// when the dialog was never asked to.
+const ACTION = 'button.btn.primary.sm';
+const n = await page.locator(ACTION, { hasText: "Dispense" }).count();
 console.log(`repeats with a Dispense button: ${n}`);
 if (!n) { console.log("no due repeats to try"); await b.close(); process.exit(0); }
 
-await page.locator("button", { hasText: "Dispense" }).first().click();
-await page.waitForTimeout(1200);
+await page.locator(ACTION, { hasText: "Dispense" }).first().click();
+// Wait for the dialog rather than guessing at a delay. The button is a
+// BusyButton, so the click goes through a state change before the modal
+// mounts, and a fixed wait raced it: the check read an empty document and
+// reported that the modal had not opened at all.
+await page.waitForSelector(".modal", { timeout: 15000 }).catch(() => {});
+await page.waitForTimeout(400);
 const m = await page.evaluate(() => ({
   open: !!document.querySelector(".modal"),
   title: document.querySelector(".modal h2")?.textContent?.trim() ?? "",
@@ -41,6 +51,7 @@ console.log(`  ${m.open ? "ok  " : "FAIL"} modal opens: "${m.title}"`);
 console.log(`  ${m.disabled ? "ok  " : "FAIL"} "Dispense it" is blocked before initials are entered`);
 
 // Initials only — still blocked until the script is affirmed.
+await page.locator(".modal input").first().waitFor({ state: "visible", timeout: 10000 });
 await page.locator(".modal input").first().fill("TM");
 await page.waitForTimeout(400);
 const half = await page.evaluate(() => document.querySelector(".modal .modal-actions button:last-of-type")?.disabled);

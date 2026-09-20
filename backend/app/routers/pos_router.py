@@ -634,8 +634,30 @@ def get_sale(sale_id: int, db: Session = Depends(get_db), _: User = Depends(get_
 @router.post("/sales/{sale_id}/void", response_model=schemas.SaleOut)
 def void_sale(sale_id: int, db: Session = Depends(get_db),
               user: User = Depends(get_current_user),
-              _grant=Depends(require_step_up("sale.void")),
-              _may=Depends(auth.requires("sale.void"))):
+              _grant=Depends(require_step_up("sale.void"))):
+    """Take back a sale that was never filed with the revenue authority.
+
+    THE AUTHORITY IS THE GRANT, NOT THE ROLE OF WHOEVER IS AT THE TILL
+
+    This asked for two things at once: a step-up, which is a second person
+    typing their own password, AND the `sale.void` capability held by the
+    person standing at the screen. The second made the first useless for the
+    only people who need it. A cashier finds a mistake, a manager walks over
+    and authorises it, and the request was refused 403 because the CASHIER
+    does not hold the capability, with no way for the pharmacy to proceed
+    except to sign the manager in.
+
+    The two gates did not even agree on who counts as senior: the step-up
+    names admin and pharmacist as approvers, the capability named admin and
+    manager. A pharmacist could approve a void nobody could perform, and a
+    manager could perform one they were not allowed to approve.
+
+    The step-up is the stronger control of the two and the right one to keep.
+    It is per action, it refuses self approval, so the person who rang the
+    sale up cannot reverse it alone, and it records WHO approved rather than
+    only what role they hold. Requiring a role on top of a second person's
+    password is belt and braces that takes the trousers away.
+    """
     sale = db.get(Sale, sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")

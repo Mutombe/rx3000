@@ -2651,8 +2651,12 @@ export default function Dispense() {
           const short = Math.round((due - took) * 100) / 100;
           toast.ok(
             short > 0.005
+              // "The scheme" starts a sentence here, so it is capitalised.
+              // Interpolating the fallback in lower case produced "still
+              // owed. the scheme allowed less…" on every patient without a
+              // named aid, which is most walk-ins.
               ? `${money(took)} taken, ${money(short)} still owed. `
-                + `${patient?.medical_aid?.name ?? "the scheme"} allowed less `
+                + `${patient?.medical_aid?.name ?? "The scheme"} allowed less `
                 + `than its terms suggested. It is on the till as `
                 + `${sale.sale_number}.`
               : due < sale.total - 0.005
