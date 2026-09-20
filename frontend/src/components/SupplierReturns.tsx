@@ -20,7 +20,7 @@
  *  timetable and often weeks later, which is exactly why it is a separate
  *  state rather than something assumed at approval.
  */
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
@@ -157,15 +157,30 @@ export default function SupplierReturns() {
         </div>
       )}
 
-      <p className="muted small sr-say">
-        {rows.length === 0 && !loading
-          ? mayRaise
-            ? "No returns on file. Raise one from Held stock, where damaged, "
-              + "expired and recalled batches are already waiting."
-            : "No returns on file."
-          : `${rows.length} return${rows.length === 1 ? "" : "s"} on file.`}
-      </p>
+      {rows.length > 0 && (
+        <p className="muted small sr-say">
+          {rows.length} return{rows.length === 1 ? "" : "s"} on file.
+        </p>
+      )}
 
+      {/* Said as a block rather than a line over an empty table, and it says
+          where a return STARTS. A screen whose only content is "none" and a
+          header teaches nobody how to make the first one. */}
+      {rows.length === 0 && !loading ? (
+        <div className="empty">
+          <b>No returns on file</b>
+          <p>
+            {mayRaise
+              ? "A return starts from Held stock, where damaged, expired and "
+                + "recalled batches are already waiting: the supplier and the "
+                + "quantity are known there, so it is one button rather than a "
+                + "form. Raising one holds the goods; approving it is when they "
+                + "leave and the credit becomes owed."
+              : "Goods sent back to a wholesaler appear here with the credit "
+                + "owed for them. Raising one needs permission to adjust stock."}
+          </p>
+        </div>
+      ) : (
       <Refreshable loading={loading} hasData={rows.length > 0}
                    skeleton={<TableSkeleton cols={6} rows={5}
                                             widths={["12ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
@@ -183,8 +198,12 @@ export default function SupplierReturns() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <>
-                  <tr key={r.id}>
+                // Keyed on the fragment, not on the first row inside it: a
+                // bare <> in a map gives React nothing to track, so it
+                // rebuilds both rows on every change and loses the open
+                // detail panel while somebody is reading it.
+                <Fragment key={r.id}>
+                  <tr>
                     <td>
                       <button type="button" className="btn-link"
                               onClick={() => setOpen(open === r.id ? null : r.id)}>
@@ -225,7 +244,7 @@ export default function SupplierReturns() {
                     </td>
                   </tr>
                   {open === r.id && (
-                    <tr key={`${r.id}-lines`} className="sr-detail">
+                    <tr className="sr-detail">
                       <td colSpan={6}>
                         <ul>
                           {r.lines.map((l, i) => (
@@ -249,12 +268,13 @@ export default function SupplierReturns() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
       </Refreshable>
+      )}
     </>
   );
 }

@@ -109,8 +109,7 @@ export default function Quarantine() {
       <div className="qn-head">
         <p className="muted qn-say">
           {lines.length === 0 && !loading
-            ? "Nothing is being held. Expired stock is taken off the shelf "
-              + "automatically each morning and would appear here."
+            ? null
             : <>
                 <b>{lines.length.toLocaleString()}</b> batch
                 {lines.length === 1 ? "" : "es"} held,
@@ -122,6 +121,20 @@ export default function Quarantine() {
         </p>
       </div>
 
+      {/* An empty table is a header over a void, which reads as a screen that
+          failed rather than one with nothing to show. The house empty block
+          says what would be here and why it is not. */}
+      {lines.length === 0 && !loading ? (
+        <div className="empty">
+          <b>Nothing is being held</b>
+          <p>
+            Expired stock is taken off the shelf automatically each morning and
+            would appear here, along with anything pulled by hand for damage or
+            a recall. Held stock stays owned and counted; it simply cannot be
+            dispensed, sold or sent to another branch.
+          </p>
+        </div>
+      ) : (
       <Refreshable loading={loading} hasData={lines.length > 0}
                    skeleton={<TableSkeleton cols={5} rows={6}
                                             widths={["30ch", "14ch", "10ch", "12ch", "12ch"]} />}>
@@ -180,6 +193,7 @@ export default function Quarantine() {
           </table>
         </div>
       </Refreshable>
+      )}
     </>
   );
 }

@@ -11453,6 +11453,12 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 
 .bins-loose {
+  /* A BUTTON THAT IS NOT BUTTON SHAPED.
+     `button, .btn` sets height: var(--control) and zero vertical padding on
+     every button in the product, which is right for a control and wrong for
+     a panel somebody presses. Without height: auto the content is squashed
+     into 38px and spills out of its own border. */
+  height: auto;
   display: flex; align-items: center; gap: var(--s3); width: 100%;
   text-align: left; margin: 0 0 var(--s4); padding: var(--s3) var(--s4);
   border: 1px solid var(--warn-line); border-radius: var(--r-md);
@@ -11471,6 +11477,11 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
 }
 .bins-card {
+  /* Same as the band above: a card is not a control, so it sets its own
+     height and its own alignment rather than inheriting a 38px row and
+     centred content from the global button rule. This is what made every
+     card overlap the one below it. */
+  height: auto; justify-content: flex-start;
   display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
   padding: var(--s3) var(--s3);
   border: 1px solid var(--line); border-radius: var(--r-md);
