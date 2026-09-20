@@ -11,8 +11,8 @@ from .periods_router import require_step_up
 from ..models import (BatchAllocation, Claim, Patient, Product, Sale, SaleItem,
                       SaleTender, User, PriceOverride,
 )
-from ..services import (claims_engine, currency, fiscal, pack_dates, posting,
-                        reconciliation, stepup)
+from ..services import (claims_engine, currency, fefo, fiscal, pack_dates,
+                        posting, reconciliation, stepup)
 from . import shifts_router
 
 
@@ -329,7 +329,9 @@ def _settle_payment(db: Session, sale: Sale, payment_method: str,
 
 
 @router.post("/sales", response_model=schemas.SaleOut)
-def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db),
+                user: User = Depends(get_current_user),
+                x_step_up: str = Header(default="")):
     """Direct POS sale: builds the basket, moves stock, settles payment."""
     if not body.items:
         raise HTTPException(status_code=400, detail="Basket is empty")
@@ -404,10 +406,19 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
             # A counter sale is a box: `line.quantity` counts packs, which is
             # also why POS still prices at the pack price. The shelf is in
             # tablets, so the box has to be converted on the way out.
+            # Settled before the shelf is touched. The front lot passes
+            # without ceremony; any other needs a reason and a password.
+            from ..services import branches as _br
+            prefer, why_taken = fefo.authorise(
+                db, product=product, batch_id=line.batch_id,
+                branch_id=_br.branch_of(db, user.id),
+                reason=line.batch_reason, note=line.batch_note,
+                user=user, token=x_step_up)
             helpers.consume_stock_fefo(
                 db, product, line.quantity, "sale", user.id,
                 reference=sale.sale_number, sale_item_id=sale_item.id,
                 in_packs=True,
+                prefer_batch_id=prefer, override_note=why_taken,
             )
             helpers.record_register_entry(
                 db, product, -line.quantity, "dispense", user.id,

@@ -14,6 +14,7 @@ from ..services import (config, levels, quarantine, stepup, stock_reasons,
 from ..services import permissions
 from ..services import posting
 from ..services import grv
+from ..services import fefo
 from ..models import (
     Dispensing, GoodsReceipt, PrescriptionItem, Product, PurchaseOrder,
     PurchaseOrderItem,
@@ -1707,6 +1708,53 @@ def release_batch(batch_id: int, body: dict = Body(default={}),
     return {"ok": True, "batch_id": batch.id, "status": batch.status,
             "message": (f"Batch {batch.batch_number} is back on the shelf and "
                         "can be dispensed again.")}
+
+
+# ---------- which lot is going out ----------
+@router.get("/stock/lots/{product_id}")
+def lots_on_the_shelf(product_id: int, db: Session = Depends(get_db),
+                      user: User = Depends(get_current_user)):
+    """The lots of one medicine at this branch, in the order they will go out.
+
+    A dispenser cannot choose a lot they cannot see. The first row is the one
+    the rotation will take, said plainly, so the ordinary act stays one tap
+    and only a departure from it costs anybody anything.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, "That medicine is not on file.")
+    from ..services import branches as _br
+    branch_id = _br.branch_of(db, user.id) or _br.default_branch(db).id
+    rows = (db.query(StockBatch)
+            .filter(StockBatch.product_id == product.id,
+                    StockBatch.quantity_remaining > 0,
+                    StockBatch.branch_id == branch_id)
+            .order_by(StockBatch.expiry_date.asc(), StockBatch.id.asc())
+            .limit(40).all())
+    today = date.today()
+    out = []
+    for i, b in enumerate(rows):
+        expired = bool(b.expiry_date and b.expiry_date < today)
+        held = (b.status or "") == "quarantined"
+        out.append({
+            "batch_id": b.id,
+            "batch_number": b.batch_number or "",
+            "expiry": b.expiry_date.isoformat() if b.expiry_date else "",
+            "remaining": b.quantity_remaining or 0,
+            "held": held,
+            "expired": expired,
+            # The lot the rotation takes: the first one that may actually go
+            # out, which is not always the first one on the shelf.
+            "next_out": False,
+            "may_dispense": not (expired or held),
+        })
+    for row in out:
+        if row["may_dispense"]:
+            row["next_out"] = True
+            break
+    return {"product_id": product.id, "product": product.name,
+            "lots": out,
+            "reasons": [{"code": c, "says": s} for c, s in fefo.REASONS]}
 
 
 # ---------- deliveries, as documents ----------

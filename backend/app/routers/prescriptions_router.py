@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
@@ -37,7 +37,8 @@ from ..models import (
 # attempt to create a prescription raised NameError and returned 500. A local
 # import satisfies the function it sits in and quietly leaves the rest of the
 # module referring to a name that does not exist.
-from ..services import (branches, claims_engine, counselling, holds, messages, paging,
+from ..services import (branches, claims_engine, counselling, fefo, holds,
+                        messages, paging,
                         permissions, proppharm,
                         sig, to_follows)
 
@@ -542,6 +543,7 @@ def dispense(
     body: schemas.DispenseRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    x_step_up: str = Header(default=""),
 ):
     """Dispense selected script items: stock out, register entries for S5/S6,
     repeat tracking, and a pending sale handed over to the POS for payment."""
@@ -870,9 +872,22 @@ def dispense(
         # Only what actually left the shelf moves; the owed balance is not stock
         # the pharmacy has, so it must not be deducted from stock it does have.
         if supplied:
+            # A LOT NAMED AT THE SHELF, SETTLED BEFORE ANYTHING MOVES.
+            #
+            # Refusals belong here rather than inside the walk: every one of
+            # them should leave the stock exactly where it was. Naming the lot
+            # the rotation would have taken anyway costs nothing; naming any
+            # other needs a reason and a supervisor's password.
+            prefer, why_taken = fefo.authorise(
+                db, product=product,
+                batch_id=body.batch_choice.get(item.id),
+                branch_id=branches.branch_of(db, user.id),
+                reason=body.batch_reason, note=body.batch_note,
+                user=user, token=x_step_up)
             helpers.consume_stock_fefo(
                 db, product, supplied, "sale", user.id,
                 reference=rx.rx_number, sale_item_id=sale_item.id,
+                prefer_batch_id=prefer, override_note=why_taken,
             )
             helpers.record_register_entry(
                 db, product, -supplied, "dispense", user.id,

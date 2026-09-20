@@ -117,6 +117,16 @@ register(Action(
     approvers=("admin", "pharmacist"), self_approval=True))
 
 register(Action(
+    key="stock.batch_override", name="Take a lot ahead of the rotation",
+    why="First expiry first out is what stops short dated stock quietly ageing "
+        "into a write-off at the back of a shelf, and a dispenser who can step "
+        "past it freely will, because the pack at the front is the easiest one "
+        "to reach. Asking for a password is what makes it a decision somebody "
+        "made rather than a habit nobody noticed. It is demanded only when the "
+        "lot named is not the one the rotation would have taken.",
+    approvers=("admin", "pharmacist", "manager"), self_approval=True))
+
+register(Action(
     key="register.view", name="Open the controlled-substances register",
     why="A legal record of who received which controlled medicine. Access should "
         "be deliberate and attributable, not incidental to being logged in.",

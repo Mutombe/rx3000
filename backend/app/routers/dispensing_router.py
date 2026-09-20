@@ -7,14 +7,15 @@ Three distinct workflows:
 """
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy import and_, func, or_, true
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
-from ..services import adjustments, doses, interactions, pack_dates, paging, willcall
+from ..services import (adjustments, doses, fefo, interactions, pack_dates,
+                        paging, willcall)
 from ..models import (
     Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
     SaleItem, StockBatch, User,
@@ -189,6 +190,7 @@ def otc_sale(
     body: schemas.OTCSaleCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    x_step_up: str = Header(default=""),
 ):
     """Sell a pharmacy medicine over the counter and record the consultation."""
     product = db.get(Product, body.product_id)
@@ -257,9 +259,17 @@ def otc_sale(
     # the front shop unable to sell anything at all.
     pack_dates.apply(db, _branch_of(db, user), user.id, {product.id: product},
                      {product.id: body.pack_expiry} if body.pack_expiry else None)
+    # Settled before the shelf is touched, so every refusal leaves the stock
+    # where it was.
+    prefer, why_taken = fefo.authorise(
+        db, product=product, batch_id=body.batch_id,
+        branch_id=_branch_of(db, user),
+        reason=body.batch_reason, note=body.batch_note,
+        user=user, token=x_step_up)
     helpers.consume_stock_fefo(
         db, product, body.quantity, "sale", user.id,
         reference=sale.sale_number, sale_item_id=sale_item.id,
+        prefer_batch_id=prefer, override_note=why_taken,
     )
     sale.subtotal = line_ex
     sale.vat_amount = round(line_total - line_ex, 2)

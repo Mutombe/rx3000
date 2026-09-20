@@ -328,11 +328,21 @@ def consume_stock_fefo(
     in_packs: bool = False,
     prescription_id: int | None = None,
     reason_code: str = "",
+    prefer_batch_id: int | None = None,
+    override_note: str = "",
 ) -> list[BatchAllocation]:
     """Draw stock First-Expiry-First-Out, from one branch.
 
     Expired batches are skipped for dispensing and sales (allow_expired=False)
     but remain usable for write-offs.
+
+    `prefer_batch_id` names a lot to take ahead of the rotation. It moves that
+    batch to the front of the walk and changes NOTHING else: the lot is still
+    checked for branch, expiry, quarantine and stock, and anything the walk
+    cannot fill from it carries on FEFO down the rest of the shelf. An
+    override is permission to break the rotation rule, never a safety one.
+    Authorisation is the caller's business, because only the caller knows
+    whether a supervisor stood there; see services/fefo.py.
 
     `branch_id` is the till's branch. It defaults to the default branch, which
     is what a single-shop pharmacy has and never thinks about. It matters the
@@ -372,6 +382,19 @@ def consume_stock_fefo(
         # whether it may be sold or not.
         query = query.filter(StockBatch.status != "quarantined")
     batches = query.order_by(StockBatch.expiry_date.asc(), StockBatch.id.asc()).all()
+
+    # A NAMED LOT GOES FIRST, AND ONLY FIRST.
+    #
+    # Moved to the head of the same list rather than replacing it, so a lot
+    # holding three units of a ten unit supply gives its three and the other
+    # seven come off the shelf in rotation, which is what happens in the room.
+    # It is taken from `batches` rather than fetched separately, so every
+    # filter above still applies to it: naming a quarantined or out of branch
+    # lot cannot smuggle it past the checks by way of the override.
+    if prefer_batch_id:
+        chosen = [b for b in batches if b.id == int(prefer_batch_id)]
+        if chosen:
+            batches = chosen + [b for b in batches if b.id != int(prefer_batch_id)]
 
     available = sum(b.quantity_remaining for b in batches)
     if available < quantity:
@@ -434,13 +457,21 @@ def consume_stock_fefo(
         batch.quantity_remaining -= take
         remaining -= take
         product.quantity_on_hand = (product.quantity_on_hand or 0) - take
+        # Said on the movement for the lot that was actually jumped to, not on
+        # the ones the walk carried on to afterwards. A report counting
+        # overrides counts packs taken out of turn, and the remainder that
+        # came off the shelf in rotation was not taken out of turn.
+        jumped = (override_note and prefer_batch_id
+                  and batch.id == int(prefer_batch_id))
         db.add(StockMovement(
             product_id=product.id,
             movement_type=movement_type,
             quantity_delta=-take,
             balance_after=product.quantity_on_hand,
             reference=reference,
-            notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}").strip(" |"),
+            notes=(notes + f" | batch {batch.batch_number} exp {batch.expiry_date}"
+                   + (f" | taken ahead of rotation: {override_note}" if jumped else "")
+                   ).strip(" |"),
             user_id=user_id,
             branch_id=branch_id,
             prescription_id=prescription_id,

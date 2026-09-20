@@ -605,6 +605,14 @@ class DispenseRequest(BaseModel):
     # out from stock with no expiry recorded. Written onto that stock before it
     # is drawn (helpers.date_undated_stock).
     pack_expiries: dict[int, date] = {}
+    # The lot to take ahead of the rotation, by prescription item id, keyed the
+    # same way as `scanned_codes` because it comes from the same act: a pack
+    # scanned at the shelf that turns out not to be the front one. A lot that
+    # IS the front one is not an override and passes without ceremony; any
+    # other needs a reason below and a supervisor's password.
+    batch_choice: dict[int, int] = {}
+    batch_reason: str = ""
+    batch_note: str = ""
     # Paid by medical aid, chosen at Finish. Absent, a patient with a scheme on
     # file is claimed automatically, as before.
     claim: Optional[DispenseClaim] = None
@@ -644,6 +652,12 @@ class OTCSaleCreate(BaseModel):
     notes: str = ""
     payment_method: str = "cash"
     amount_tendered: float = 0.0
+    #: A lot named at the shelf, to be taken ahead of the rotation. The front
+    #: lot passes without ceremony; any other needs the reason and a
+    #: supervisor's password.
+    batch_id: Optional[int] = None
+    batch_reason: str = ""
+    batch_note: str = ""
 
 
 class OTCSaleOut(ORM):
@@ -749,6 +763,12 @@ class SaleItemIn(BaseModel):
     # figure is read off that row. A till free to name its own price would have
     # walked round the code rather than through it.
     price_override_id: Optional[int] = None
+    #: A lot named at the shelf, to be taken ahead of the rotation. Per line,
+    #: because a basket holds several medicines and only one of them is
+    #: usually the pack somebody is holding.
+    batch_id: Optional[int] = None
+    batch_reason: str = ""
+    batch_note: str = ""
 
 
 class CardTender(BaseModel):
