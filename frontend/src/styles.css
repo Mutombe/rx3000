@@ -6597,7 +6597,8 @@ table.dt.sub th { font-size: var(--t-xs); }
   max-height: 46vh; overflow-y: auto;
 }
 .cf-choice {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 2px; justify-content: flex-start;
+  align-items: flex-start;
   width: 100%; height: auto;            /* the global button height squashes these */
   padding: var(--s3);
   text-align: left; cursor: pointer;
@@ -11597,3 +11598,112 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .sr-detail li { margin-bottom: 4px; line-height: 1.45; }
 .sr-detail p { margin: 0; }
 .bins-card-also { margin-top: 2px; }
+
+/* ---------- Booking a van in ----------
+   The old form asked one batch and one expiry per line and sent no quantity,
+   which asserted that everything ordered turned up, from one lot, undamaged.
+   This one can say otherwise, so it has more in it and has to stay legible
+   while somebody works down a pallet with a delivery note in one hand. */
+.rd-modal { max-width: 760px; }
+/* The paperwork, set apart from the goods: it is about the delivery rather
+   than about any line on it. */
+.rd-paper {
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s2);
+}
+.rd-line {
+  padding-top: var(--s3); margin-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.rd-line-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); margin-bottom: var(--s2);
+}
+.rd-lot {
+  align-items: flex-end;
+  padding: var(--s2) var(--s3); margin-bottom: var(--s2);
+  border-radius: var(--r-sm); background: var(--surface-sunk);
+}
+/* A pack count is three characters. Given a full column it sits in a field
+   wide enough to look like a name, which is how "10" gets typed into the
+   batch box. */
+.rd-qty { flex: 0 0 8.5rem; }
+.rd-cond { flex: 0 0 9.5rem; }
+.rd-worth { flex: 0 0 10rem; }
+.rd-worth-n {
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  padding-top: calc(var(--s2) + 2px);
+}
+/* `height: auto` because the global control height squashes a button that has
+   to sit level with a row of fields. */
+.rd-drop { height: auto; align-self: flex-end; margin-bottom: 2px; }
+.rd-line-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+/* The running sum, while somebody types, against the number it has to reach. */
+.rd-off { color: var(--danger); font-weight: 600; }
+.rd-problem {
+  margin: var(--s3) 0 0; padding: var(--s3);
+  border: 1px solid var(--danger-line); border-radius: var(--r-md);
+  background: var(--danger-soft); line-height: 1.45;
+}
+.rd-total {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-top: var(--s4); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .rd-qty, .rd-cond, .rd-worth { flex: 1 1 100%; }
+}
+
+/* ---------- Which lot is going out ----------
+   Shut by default, because the rotation is almost always right and a control
+   that demands a decision every time is one that gets clicked through. */
+.lot-pick {
+  margin: var(--s2) 0 0; padding: var(--s2) var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+/* Stepping past the rotation is a different act, so it looks like one. */
+.lot-pick.jumping { border-color: var(--warn-line); background: var(--warn-soft); }
+.lot-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.lot-say { margin: var(--s2) 0 0; }
+.lot-list { list-style: none; margin: var(--s2) 0 0; padding: 0;
+            display: flex; flex-direction: column; gap: 4px; }
+.lot-row {
+  /* `justify-content` explicitly, because the global button rule centres its
+     contents and a list of lots centred on each row reads as a set of labels
+     rather than as a column somebody scans down. */
+  display: flex; align-items: baseline; justify-content: flex-start;
+  gap: var(--s2); flex-wrap: wrap;
+  width: 100%; height: auto; padding: var(--s2) var(--s3);
+  text-align: left; cursor: pointer;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+}
+.lot-row:hover:not(:disabled) { border-color: var(--line-strong); }
+.lot-row.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+/* An expired or held lot is shown rather than hidden: a dispenser holding that
+   pack needs to know the shelf knows about it, and why it cannot go out. */
+.lot-row:disabled { opacity: 0.55; cursor: not-allowed; }
+.lot-name { font-weight: 600; font-size: var(--t-sm); }
+.lot-why { margin-top: var(--s3); }
+.lot-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--s2) 0; }
+.lot-reason {
+  height: auto; padding: 6px var(--s3); cursor: pointer;
+  justify-content: flex-start;
+  font-size: var(--t-xs); line-height: 1.35; text-align: left;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-pill);
+}
+.lot-reason.on { border-color: var(--accent); background: var(--tint); font-weight: 600; }
+.lot-note { width: 100%; }
+
+/* A username can be anything, so it wraps rather than running out of its
+   column. Clipped mid word reads as a rendering fault, not as a long name. */
+.gr-by { overflow-wrap: anywhere; }

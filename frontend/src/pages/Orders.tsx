@@ -10,13 +10,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
-
-interface ReceiveLine {
-  item_id: number;
-  label: string;
-  batch_number: string;
-  expiry_date: string;
-}
+import ReceiveDelivery from "../components/ReceiveDelivery";
 
 type Tab = "orders" | "low";
 
@@ -34,7 +28,6 @@ export default function Orders() {
   const [busy, setBusy] = useState(false);
   const [raising, setRaising] = useState(false);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
-  const [receiveLines, setReceiveLines] = useState<ReceiveLine[]>([]);
 
   const TABS: TabDef<Tab>[] = [
     { key: "orders", label: "Purchase orders", count: orders.length },
@@ -75,34 +68,6 @@ export default function Orders() {
   async function setStatus(order: PurchaseOrder, status: string) {
     try {
       await api.post(`/api/orders/${order.id}/status?status=${status}`);
-      load();
-    } catch (e: any) {
-      toast.error(errorText(e));
-    }
-  }
-
-  function openReceive(order: PurchaseOrder) {
-    setReceiving(order);
-    setReceiveLines(order.items.map((i) => ({
-      item_id: i.id,
-      label: `${i.product?.name ?? ""} ${i.product?.strength ?? ""} × ${i.quantity_ordered}`,
-      batch_number: "",
-      expiry_date: "",
-    })));
-  }
-
-  async function submitReceive() {
-    if (!receiving) return;
-    try {
-      await api.post(`/api/orders/${receiving.id}/status?status=received`, {
-        lines: receiveLines.map((l) => ({
-          item_id: l.item_id,
-          batch_number: l.batch_number,
-          expiry_date: l.expiry_date || null,
-        })),
-      });
-      setReceiving(null);
-      toast.ok("Stock received, batches created and quantities updated.");
       load();
     } catch (e: any) {
       toast.error(errorText(e));
@@ -163,7 +128,7 @@ export default function Orders() {
                         <td className="num">{money(value)}</td>
                         <td className="actions" onClick={(e) => e.stopPropagation()}>
                           {o.status === "draft" && <BusyButton className="small" onClick={() => setStatus(o, "sent")}>Send</BusyButton>}
-                          {o.status === "sent" && <button className="small" onClick={() => openReceive(o)}>Receive</button>}
+                          {o.status === "sent" && <button className="small" onClick={() => setReceiving(o)}>Receive</button>}
                           {o.status !== "received" && o.status !== "cancelled" && (
                             <BusyButton className="ghost small" onClick={() => setStatus(o, "cancelled")}>Cancel</BusyButton>
                           )}
@@ -227,33 +192,11 @@ export default function Orders() {
       )}
 
       {receiving && (
-        <div className="modal-backdrop" onClick={() => setReceiving(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Receive {receiving.order_number}</h2>
-            <p className="muted">Capture the batch number and expiry date from each delivered pack. Left blank, a batch number is auto-generated and a 2-year shelf life assumed.</p>
-            {receiveLines.map((l, idx) => (
-              <div key={l.item_id} style={{ borderTop: "1px solid rgba(28,29,27,0.08)", paddingTop: 12, marginTop: 12 }}>
-                <b>{l.label}</b>
-                <div className="form-row" style={{ marginTop: 8 }}>
-                  <div className="field">
-                    <label>Batch number</label>
-                    <input value={l.batch_number} placeholder="auto"
-                      onChange={(e) => setReceiveLines(receiveLines.map((x, i) => i === idx ? { ...x, batch_number: e.target.value } : x))} />
-                  </div>
-                  <div className="field">
-                    <label>Expiry date</label>
-                    <input type="date" value={l.expiry_date}
-                      onChange={(e) => setReceiveLines(receiveLines.map((x, i) => i === idx ? { ...x, expiry_date: e.target.value } : x))} />
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div className="modal-actions">
-              <button className="secondary" onClick={() => setReceiving(null)}>Cancel</button>
-              <button onClick={submitReceive}>Receive into stock</button>
-            </div>
-          </div>
-        </div>
+        <ReceiveDelivery
+          order={receiving}
+          onCancel={() => setReceiving(null)}
+          onDone={(said) => { setReceiving(null); toast.ok(said); load(); }}
+        />
       )}
     </>
   );

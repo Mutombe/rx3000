@@ -25,6 +25,7 @@ import { usePharmacy } from "../hooks/usePharmacy";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
+import LotPicker, { LotChoice, ROTATION } from "../components/LotPicker";
 import SchemeCodeField, { NoCodeMark, useSchemeCodes } from "../components/SchemeCode";
 import SetThePrice, { PriceAsked } from "../components/SetThePrice";
 import Variants from "../components/Variants";
@@ -603,6 +604,10 @@ export default function Dispense() {
    *  Cleared when the medicine changes: a date read off one box says nothing
    *  about the next. */
   const [otcPackExpiry, setOtcPackExpiry] = useState("");
+  /** Which lot is going out, when it is not the one the rotation would take. */
+  const [otcLot, setOtcLot] = useState<LotChoice>(ROTATION);
+  /** Waiting on a supervisor, so the counter says so rather than looking idle. */
+  const [otcAuthorising, setOtcAuthorising] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [indication, setIndication] = useState("");
   const [counselled, setCounselled] = useState(false);
@@ -2794,6 +2799,84 @@ export default function Dispense() {
    *  refusal hands everything back exactly as it was, because the one thing
    *  worse than a slow sale is a sale that loses what somebody just typed.
    */
+  /** Everything one counter sale is built from, taken before the counter is
+   *  cleared: by the time the request runs the assistant may be serving the
+   *  next customer. */
+  interface OtcSnapshot {
+    product: Product;
+    quantity: number;
+    patient: Patient | null;
+    customerName: string;
+    indication: string;
+    counselled: boolean;
+    referred: boolean;
+    notes: string;
+    tendered: string;
+    expiry: string;
+    lot: LotChoice;
+  }
+
+  /** One sale, one shape, whichever path posts it. */
+  function otcBody(was: OtcSnapshot) {
+    return {
+      product_id: was.product.id, quantity: was.quantity,
+      patient_id: was.patient?.id ?? null,
+      customer_name: was.customerName, indication: was.indication,
+      counselling_given: was.counselled, referred_to_doctor: was.referred,
+      notes: was.notes, payment_method: "cash",
+      amount_tendered: Number(was.tendered) || 0,
+      // The date read off the pack, when this can only go out from stock that
+      // carries none. Without it an opening count leaves the front shop
+      // unable to sell anything at all.
+      ...(was.expiry ? { pack_expiry: was.expiry } : {}),
+      ...(was.lot.batch_id ? {
+        batch_id: was.lot.batch_id,
+        batch_reason: was.lot.reason,
+        batch_note: was.lot.note,
+      } : {}),
+    };
+  }
+
+  /** The sale where a lot is being taken out of turn.
+   *
+   *  Waits, rather than clearing the counter and finishing behind the
+   *  operator. The server answers 428 to ask for a supervisor's password, and
+   *  a password dialog about a sale that has already left the screen is one
+   *  nobody can check. The counter stays exactly as it is until either the
+   *  sale is made or somebody walks away from it.
+   */
+  async function sellOtcWithAuthority(was: OtcSnapshot, what: string) {
+    setOtcAuthorising(true);
+    try {
+      const record = await guarded<OTCSale>(
+        "stock.batch_override",
+        (token) => api.post<OTCSale>("/api/dispensing/otc", otcBody(was), token),
+        `${what} · lot ${was.lot.reason ? "taken out of turn" : "chosen by hand"}`);
+      if (record === CANCELLED) {
+        // A decision, not a failure. Nothing has left the shelf and the
+        // counter is untouched, so there is nothing to put back.
+        toast.warn("Nothing was sold. That lot needs a supervisor.");
+        return;
+      }
+      setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
+      setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
+      setOtcPackExpiry(""); setOtcLot(ROTATION);
+      loadLists();
+      toast.ok(`Sold ${record.quantity} × ${record.product?.name ?? was.product.name} `
+               + "out of turn. The lot and the reason are on the movement.");
+      if (record.sale_id) {
+        try {
+          const sale = await api.get<Sale>(`/api/pos/sales/${record.sale_id}`);
+          printReceipt(sale, pharmacy.name, pharmacy.regNo);
+        } catch { /* a receipt that will not print must not undo a sale */ }
+      }
+    } catch (e) {
+      toast.error(errorText(e, "That sale could not be recorded."));
+    } finally {
+      setOtcAuthorising(false);
+    }
+  }
+
   function sellOtc() {
     if (!otcProduct) return;
     const pack = otcPackProblem();
@@ -2805,28 +2888,33 @@ export default function Dispense() {
     const was = {
       product: otcProduct, quantity: otcQty, patient, customerName, indication,
       counselled, referred, notes: otcNotes, tendered, expiry: otcPackExpiry,
+      lot: otcLot,
     };
     const what = `${was.quantity} × ${was.product.name}`;
 
+    // A LOT TAKEN AHEAD OF THE ROTATION IS NOT A BACKGROUND SALE.
+    //
+    // The ordinary sale clears the counter on the click and finishes behind
+    // the operator, which is right: the medicine has gone out and the next
+    // customer is already there. An override cannot work that way, because
+    // the server answers 428 to ask for a supervisor's password and by then
+    // the counter is empty, the picker has gone, and a password dialog is
+    // asking about a sale nobody can see any more. It was doing exactly that.
+    //
+    // So an override waits, and it should: somebody has to fetch a supervisor
+    // either way, and nothing has left the shelf until they do. The picker
+    // only ever sets a lot here when it is NOT the one the rotation would
+    // take, so the ordinary sale never comes down this path.
+    if (was.lot.batch_id) { void sellOtcWithAuthority(was, what); return; }
+
     setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
     setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
-    setOtcPackExpiry("");
+    setOtcPackExpiry(""); setOtcLot(ROTATION);
 
     doing.run({
       label: `${what} · ${money(otcEach(was.product) * was.quantity)}`,
       said: "Recording the sale…",
-      run: () => api.post<OTCSale>("/api/dispensing/otc", {
-        product_id: was.product.id, quantity: was.quantity,
-        patient_id: was.patient?.id ?? null,
-        customer_name: was.customerName, indication: was.indication,
-        counselling_given: was.counselled, referred_to_doctor: was.referred,
-        notes: was.notes, payment_method: "cash",
-        amount_tendered: Number(was.tendered) || 0,
-        // The date read off the pack, when this can only go out from stock that
-        // carries none. Without it an opening count leaves the front shop
-        // unable to sell anything at all.
-        ...(was.expiry ? { pack_expiry: was.expiry } : {}),
-      }),
+      run: () => api.post<OTCSale>("/api/dispensing/otc", otcBody(was)),
       done: (record: OTCSale) => {
         loadLists();
         toast.ok(`Sold ${record.quantity} × ${record.product?.name ?? was.product.name}. `
@@ -2851,6 +2939,7 @@ export default function Dispense() {
         setIndication(was.indication); setCounselled(was.counselled);
         setReferred(was.referred); setOtcNotes(was.notes);
         setTendered(was.tendered); setOtcPackExpiry(was.expiry);
+        setOtcLot(was.lot);
       },
     });
   }
@@ -3337,7 +3426,7 @@ export default function Dispense() {
                   onChange={(e) => setProductQ(e.target.value)} />
               )}
               {!otcProduct && productResults.map((p) => (
-                <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); }}
+                <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); setOtcLot(ROTATION); }}
                   // Selected. A class, not an inline `background: "#fff"`.
                   // That literal did not invert with the theme, so on the dark
                   // counter the chosen medicine became near-white text on a
@@ -3463,6 +3552,17 @@ export default function Dispense() {
                     onChange={(e) => setOtcPackExpiry(e.target.value)} />
                 </div>
               )}
+              {/* WHICH LOT IS GOING OUT.
+                  Shut, it names the lot the rotation will take, which is worth
+                  saying on its own: the pack in somebody's hand and the pack
+                  the system records have never been checked against each other
+                  at this counter. Opened, it offers the others, and choosing
+                  one that is not the front lot asks why and then asks for a
+                  supervisor. */}
+              {otcProduct && (
+                <LotPicker productId={otcProduct.id} productName={otcProduct.name}
+                           value={otcLot} onChange={setOtcLot} />
+              )}
               <div className="form-row">
                 <div className="field">
                   <label>Tendered</label>
@@ -3471,11 +3571,16 @@ export default function Dispense() {
               </div>
               {/* Not disabled while a sale is in flight. The work is in the
                   tray and the next customer can start, which is the whole
-                  point of clearing the counter on the click. */}
+                  point of clearing the counter on the click.
+                  The exception is a lot taken out of turn: that one waits for
+                  a supervisor with the counter still on screen, so the button
+                  has to say so rather than sit there looking ignored. */}
               <button onClick={sellOtc}
                 disabled={!otcProduct || (otcPolicy?.counselling_required && !counselled)
-                          || !!otcPackProblem()}>
-                Sell &amp; record{otcProduct ? ` for ${money(otcTotal)}` : ""}
+                          || !!otcPackProblem() || otcAuthorising}>
+                {otcAuthorising
+                  ? "Waiting for a supervisor…"
+                  : <>Sell &amp; record{otcProduct ? ` for ${money(otcTotal)}` : ""}</>}
               </button>
               {otcPolicy?.counselling_required && !counselled && (
                 <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
@@ -5578,11 +5683,10 @@ ${d.action}`}
               />
             )}
 
-            {/* The code prompt for a price set by hand. Rendered here, over
-                everything, because it is asked for from two places. The table
-                and the line editor. And neither of them unmounts while it is
-                open, so whatever was being typed is still there afterwards. */}
-            {stepUpPrompt}
+            {/* The step-up prompt used to be rendered here. It is now at the
+                foot of the component, because this subtree belongs to the
+                prescription route and does not exist on the counter. See
+                there. */}
 
             {/* Setting a price: the figure or the margin, and whether it
                 outlives this script. Asked before the code, because a code
@@ -6045,6 +6149,16 @@ ${d.action}`}
 
           The numbers are theirs: Mix, WayBill, Auth, Repts, Hist, Finish. */}
       <KeyBar keys={hotkeys} />
+
+      {/* THE PASSWORD PROMPT, AT THE TOP LEVEL, FOR EVERY ROUTE.
+          It lived inside the prescription route's own subtree, which does not
+          exist while the counter is open. So a counter sale that needed a
+          supervisor asked the server, got its 428, and rendered the dialog
+          into a tree nobody was looking at: the request simply hung with no
+          way to answer it. Here it belongs to the screen rather than to one
+          tab of it, and nothing that opens it unmounts while it is open, so
+          whatever was being typed is still there afterwards. */}
+      {stepUpPrompt}
     </div>
   );
 }
