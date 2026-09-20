@@ -432,6 +432,18 @@ def demo_state(user: User = Depends(get_current_user)):
         "is_demo": bool(user.is_demo),
         "seconds_left": left,
         "hours": demo.DEMO_HOURS,
+        # The code that gets a visitor past a step-up prompt, said only to a
+        # demo account and only about itself. A real session answers "" here,
+        # so nothing on a live till can ever quote a code at anybody.
+        #
+        # Guarded on the ROW rather than on the constant, so a bug that made
+        # this endpoint reachable without a demo session still tells a real
+        # user nothing.
+        "pin": demo.DEMO_PIN if user.is_demo else "",
+        # Who to name at the prompt for the three actions that refuse to be
+        # self-approved. A real session gets nothing here either.
+        "approver": demo.APPROVER_USERNAME if user.is_demo else "",
+        "approver_name": demo.APPROVER_NAME if user.is_demo else "",
     }
 
 

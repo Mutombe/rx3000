@@ -11721,3 +11721,9 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* A username can be anything, so it wraps rather than running out of its
    column. Clipped mid word reads as a rendering fault, not as a long name. */
 .gr-by { overflow-wrap: anywhere; }
+
+/* The demonstration's own code, on the dialog that asks for it. Set apart as
+   an aside rather than styled as an error: nothing has gone wrong, this is
+   the product telling a visitor what it is about to ask them for. */
+.su-demo { margin: var(--s3) 0 0; line-height: 1.45; }
+.su-demo b { font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }

@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 
 from .. import auth
 from ..models import User
+from . import pins
 
 #: Long enough to work a real shift's worth of scenarios, short enough that it
 #: is plainly a trial. Named rather than inlined because the login screen quotes
@@ -44,6 +45,88 @@ DEMO_HOURS = 4
 #: not credentials. There is nothing to write on a sticky note and nothing to
 #: reuse against a live install.
 _PASSWORD_BYTES = 24
+
+#: THE ONE CREDENTIAL A DEMO VISITOR IS GIVEN, AND WHY THERE IS ONE.
+#:
+#: Sixteen actions in this product are protected by step-up: voiding a sale,
+#: adjusting stock, setting a price by hand, taking a lot out of turn. Each
+#: asks for a credential before it will proceed.
+#:
+#: A demo visitor had none. The password above is random and nobody is told
+#: it, which is right, and the consequence had not been followed through: every
+#: one of those sixteen answered "That password was not accepted", about a
+#: password that had never existed. The demo dead-ended at precisely the
+#: features worth demonstrating, and the prospect had no way past it.
+#:
+#: A known PIN fixes that without weakening anything, and where it can be used
+#: is the whole reason. It belongs to one throwaway account, in the
+#: demonstration tenant, holding demonstration data, for four hours. It is set
+#: ONLY on accounts created here, so no real login is affected. It is not a
+#: password and cannot be exchanged for one. And it lets a visitor meet the
+#: control honestly — they see the product stop and ask, and they can answer —
+#: rather than meeting a wall.
+#:
+#: Quoted back on `/api/auth/demo/state`, so the screen that asks for it can
+#: also say what it is; a code the visitor must guess is the same dead end
+#: wearing a different hat.
+DEMO_PIN = "2580"
+
+
+#: The colleague a demo visitor can call over.
+#:
+#: Three of the protected actions refuse to be self-approved: voiding a sale,
+#: overriding a price at the till, and closing a stock take. That is two person
+#: control and it is the point of them — the person ringing the sale is not the
+#: person who decides it can be unrung.
+#:
+#: A demo visitor is alone, so those three were unreachable even with a code.
+#: Rather than weaken the rule for the demonstration, which would demonstrate
+#: something that is not true of the product, the demonstration pharmacy has a
+#: second member of staff. The visitor names her at the prompt exactly as a
+#: cashier names the pharmacist on the floor, and sees the control work the way
+#: it will work in their shop.
+APPROVER_USERNAME = "demo-pharmacist"
+APPROVER_NAME = "Tendai Moyo, pharmacist"
+
+
+def approver(db: Session, pharmacy_id: int) -> User:
+    """The demonstration pharmacy's standing pharmacist, made once.
+
+    Not a demo account: it has no expiry, because it is part of the
+    demonstration pharmacy rather than one visitor's session. It exists only
+    inside that tenant and can therefore approve nothing anywhere else.
+    """
+    # LOOKED UP UNSCOPED, OR IT IS MADE TWICE AND THE SECOND ONE FAILS.
+    #
+    # `User` carries the tenant mixin, so an ordinary query here is narrowed to
+    # whatever pharmacy is in force — and during a demo sign-up that is not
+    # the demonstration pharmacy, because nobody is signed in yet. The lookup
+    # found nothing, the insert ran again, and the unique index on `username`
+    # refused it: every demo after the first answered 500. Caught by the guard
+    # on the second run rather than by reading it.
+    from ..tenancy import unscoped
+
+    with unscoped():
+        found = (db.query(User)
+                 .filter(User.username == APPROVER_USERNAME).first())
+    if found is not None:
+        return found
+    found = User(
+        username=APPROVER_USERNAME,
+        password_hash=auth.hash_password(secrets.token_urlsafe(_PASSWORD_BYTES)),
+        pin_hash=pins.hash_pin(pins.validate(DEMO_PIN)),
+        full_name=APPROVER_NAME,
+        # A pharmacist approves all three of the actions that need a second
+        # person, which is who would approve them in a real dispensary.
+        role="pharmacist",
+        active=True,
+        is_demo=False,
+        pharmacy_id=pharmacy_id,
+    )
+    db.add(found)
+    db.commit()
+    db.refresh(found)
+    return found
 
 
 def _unique_username(db: Session) -> str:
@@ -75,10 +158,17 @@ def start(db: Session, full_name: str, role: str = "admin") -> tuple[User, datet
     # any screen. That was the first impression the product made to everybody
     # who asked to try it.
     pharmacy = demo_tenant.get(db)
+    # The colleague the visitor can call over for the three actions that refuse
+    # to be self-approved. Made on the first demo and found thereafter.
+    approver(db, pharmacy.id)
 
     user = User(
         username=_unique_username(db),
         password_hash=auth.hash_password(secrets.token_urlsafe(_PASSWORD_BYTES)),
+        # Set here rather than through `pins.set_pin`, which commits, and this
+        # row does not exist yet. Hashed the same way every other PIN is, so
+        # the check at the prompt is the ordinary one and not a demo path.
+        pin_hash=pins.hash_pin(pins.validate(DEMO_PIN)),
         full_name=name[:120],
         role=role,
         active=True,

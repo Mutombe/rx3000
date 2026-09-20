@@ -64,6 +64,19 @@ interface Props {
 export default function StepUp({ action, context = "", onGranted, onCancel }: Props) {
   const [spec, setSpec] = useState<StepUpAction | null>(null);
   const [approver, setApprover] = useState("");
+  /** What a demo visitor needs to get past this prompt.
+   *
+   *  A demo account is issued a session rather than credentials, so there was
+   *  nothing a visitor could type here and every protected action dead-ended:
+   *  the dialog asked them to re-enter a password that had never existed. The
+   *  demonstration tenant now has a code, and a pharmacist to call over for
+   *  the three actions nobody may approve alone. Saying both here is the
+   *  point — a code the visitor has to guess is the same dead end wearing a
+   *  different hat.
+   *
+   *  Empty for every real session, because the server answers nothing to one. */
+  const [demo, setDemo] = useState<{ pin: string; approver: string;
+                                     approver_name: string } | null>(null);
   const [password, setPassword] = useState("");
   /* PIN first, password as the way out.
      This prompt interrupts a transaction with a patient at the counter. A
@@ -82,7 +95,25 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
    *  back exactly as it was rather than as a fresh prompt. */
   const [sent, setSent] = useState(false);
   const needsSecondPerson = spec && !spec.self_approval;
+
   const { me } = useSession();
+
+  useEffect(() => {
+    if (!me?.is_demo) return;
+    let live = true;
+    api.get<{ pin: string; approver: string; approver_name: string }>(
+      "/api/auth/demo/state")
+      .then((said) => { if (live && said.pin) setDemo(said); })
+      .catch(() => { /* a hint that will not load must not block the prompt */ });
+    return () => { live = false; };
+  }, [me?.is_demo]);
+
+  // The colleague to call over, filled in rather than guessed at. A visitor
+  // cannot know the name of a member of staff in a pharmacy they have never
+  // seen, and an empty required field is the dead end again.
+  useEffect(() => {
+    if (demo?.approver && needsSecondPerson && !approver) setApprover(demo.approver);
+  }, [demo, needsSecondPerson, approver]);
 
   /* Making a code, here, without leaving. Everything above stays mounted while
      this is open, so the approver's username, the action and the context are
@@ -352,6 +383,18 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
            paragraph explaining why the software wants a code is a paragraph
            read once and skipped forever after, with a patient at the counter. */
         }
+
+        {/* The demonstration's own code, said on the dialog that asks for it.
+            Only a demo session ever gets one: the server answers "" to a real
+            one, so nothing on a live till can quote a code at anybody. */}
+        {demo && (
+          <p className="alert ok su-demo">
+            This is a demonstration. The code is <b>{demo.pin}</b>
+            {needsSecondPerson && demo.approver_name
+              ? <>, and {demo.approver_name} is the colleague to call over.</>
+              : "."}
+          </p>
+        )}
 
         {/* A refusal is the most important thing on the dialog the moment it
             happens: it says whether to try again, fetch a manager, or stop.
