@@ -56,6 +56,26 @@ export interface ScanResult {
     unit_price: number; cost_price: number; barcode: string;
     nappi_code: string; quantity_on_hand: number;
   } | null;
+  /** What the server recognised. A script number resolves to a prescription;
+   *  everything else is a product. Declared rather than inferred from which
+   *  key is populated, because "no product" and "this is a script" are
+   *  different facts and a screen that confuses them opens the wrong thing. */
+  kind?: "product" | "prescription";
+  prescription?: {
+    id: number; rx_number: string; status: string; says: string;
+    may_dispense: boolean; refuse: string;
+    patient_id: number | null; patient: string;
+    prescriber: string; written_on: string;
+    /** The highest schedule anything on it carries, so the screen opens on
+     *  the route that governs the strictest line. */
+    schedule: number;
+    lines: {
+      item_id: number; product_id: number; medicine: string;
+      quantity: number; dispensed: number; outstanding: number;
+      directions: string; repeats_allowed: number; repeats_used: number;
+      not_dispensed: boolean;
+    }[];
+  } | null;
   suggestions: { id: number; name: string; barcode: string }[];
   warnings: string[];
   message?: string;

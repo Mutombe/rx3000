@@ -32,6 +32,7 @@ from ..models import (Product, ProductBarcode, PrescriptionItem, PurchaseOrderIt
                       StockBatch, User)
 from ..services import barcodes as bc
 from ..services import branches as branch_svc
+from ..services import script_scan
 
 router = APIRouter(prefix="/api/scan", tags=["scan"], dependencies=[Depends(get_current_user)])
 
@@ -158,11 +159,47 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
         "expiry_date": scan.expiry.isoformat() if scan.expiry else None,
         "serial": scan.serial,
         "product": None,
+        # What was recognised. Declared on every response rather than left for
+        # a caller to infer from which key is populated, because "product is
+        # null" and "this is a script" are different facts and a screen that
+        # confuses them opens the wrong thing.
+        "kind": "product",
+        "prescription": None,
         "suggestions": [],
         "warnings": warnings,
     }
 
     if not product:
+        # A SCRIPT, BEFORE GIVING UP.
+        #
+        # This product prints a Code 128 of the script number along the bottom
+        # of every dispensing label, and on a standalone sticker besides, and
+        # could not read one: every path here resolved to a product, and a
+        # script number is not a product. Scanning a label the pharmacy itself
+        # produced answered "Nothing is stocked under that code." The barcode
+        # was decoration — printed because it was asked for, connected to
+        # nothing.
+        #
+        # Tried after the product and not before, so nothing that resolves
+        # today can change what it resolves to. A script number and a GTIN do
+        # not collide in practice, and if one ever did, the pack on the shelf
+        # is the answer somebody scanning at a till meant.
+        rx = script_scan.find(db, scan.code)
+        if rx is not None:
+            script_scan.note_scan(db, rx, user=user, where=body.context or "")
+            db.commit()
+            out["found"] = True
+            out["kind"] = "prescription"
+            out["matched_on"] = "script number"
+            out["prescription"] = script_scan.shape(db, rx)
+            may = out["prescription"]["may_dispense"]
+            out["message"] = (out["prescription"]["refuse"] if not may
+                              else f"Script {out['prescription']['rx_number']} "
+                                   f"for {out['prescription']['patient']}.")
+            if not may:
+                out["warnings"] = warnings + [out["prescription"]["refuse"]]
+            return out
+
         out["suggestions"] = _suggestions(db, scan)
         # The checksum note is noise when we found the item anyway — a pharmacy's
         # own repack labels fail it routinely. It only earns its place here.

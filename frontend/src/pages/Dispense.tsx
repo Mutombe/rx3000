@@ -1158,6 +1158,33 @@ export default function Dispense() {
         code, context: "dispense",
         prescription_id: fromRx && !fromRx.draft ? fromRx.id : null,
       });
+      // A SCRIPT, NOT A PACK.
+      //
+      // The label this pharmacy printed carries a Code 128 of the script
+      // number along its bottom edge. Scanning one used to say "nothing is
+      // stocked under that code", because every scan resolved to a product.
+      // Now it opens the script, which is what somebody holding a printed
+      // label and looking at a worklist of four Moyos actually wants.
+      if (res.kind === "prescription" && res.prescription) {
+        const rx = res.prescription;
+        if (!rx.may_dispense) {
+          // Said and stopped. The refusal is the whole value of the scan:
+          // learning at the counter that this was cancelled or already
+          // dispensed is the point, and opening it anyway would invite
+          // somebody to hand it over.
+          toast.error(rx.refuse || rx.says || `${rx.rx_number} cannot be dispensed.`);
+          return;
+        }
+        if (!rx.patient_id) {
+          toast.warn(`${rx.rx_number} has no patient attached, so it cannot be opened here.`);
+          return;
+        }
+        await openQueued({ patient_id: rx.patient_id,
+                           prescription_id: rx.id,
+                           schedule: rx.schedule ?? 0 });
+        toast.ok(`${rx.rx_number} for ${rx.patient}.`);
+        return;
+      }
       if (!res.found) {
         // Two thirds of this catalogue arrived with no barcode at all, so an
         // unrecognised pack is the ordinary case rather than an error. The
