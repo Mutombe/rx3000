@@ -39,6 +39,7 @@ from .models import (
     LayByPayment,
     Lead, MedicalAid, Message, OwedItem, Patient, Prescription,
     PrescriptionItem,
+    GoodsReceipt, GoodsReceiptLine,
     Product, PurchaseOrder, PurchaseOrderItem, RegisterEntry, Remittance,
     Sale, SaleItem,
     Shift, StockBatch, Supplier, SupplierInvoice, SupplierInvoiceItem,
@@ -77,6 +78,23 @@ PLACEHOLDER_PATIENTS = [
     ("last_name", "Probe%"),
 ]
 PLACEHOLDER_PATIENT = "Sweep"
+
+#: Branches left behind by fixtures, by the shape of the names they were given:
+#: "Branch 2971BC", "Test Branch", "Probe Branch 4F1A22".
+#:
+#: This list was referenced and never defined, so the branch sweep raised
+#: NameError every time it ran and took the whole seeding run down with it
+#: before a single order was written. It was never caught because the sweep is
+#: reached only on a run that starts from an empty database, which is the one
+#: shape of run nobody does twice.
+#:
+#: A branch reaches more screens than a stray product or patient does — every
+#: scorecard, every transfer, every cash-up — which is why the sweep below only
+#: removes the ones that have never been used.
+PLACEHOLDER_BRANCHES = [
+    "Branch %", "Test %", "%Probe%", "%Fixture%", "%Sweep%",
+    "Unnamed branch%",
+]
 
 #: Schemes from the wrong country. Discovery, Bonitas, GEMS and Momentum are
 #: South African, and a Zimbabwean pharmacist reading that list decides in about
@@ -1153,6 +1171,33 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
             )
             db.add(order)
             db.flush()
+            # THE DELIVERY ITSELF, FOR AN ORDER THAT ARRIVED.
+            #
+            # An order is what was asked for and an invoice is what is billed;
+            # the van is neither, and this generator predated it having a
+            # record. So a demonstration opened on an empty Deliveries screen
+            # while the orders and the invoices either side of it were full,
+            # which reads as a feature that does not work rather than as one
+            # nothing has happened on yet.
+            grv = None
+            if status == "received":
+                grv = GoodsReceipt(
+                    grv_number=f"GRV{order.created_at:%y%m}{n:05d}",
+                    supplier_id=order.supplier_id,
+                    order_id=order.id,
+                    branch_id=order.branch_id,
+                    status="received",
+                    delivery_note=f"DN-{RNG.randint(10000, 99999)}",
+                    # Not all of them. An invoice arrives on the supplier's
+                    # timetable, often weeks later, and the screen leads on
+                    # what has been received and not yet billed — a number
+                    # that is always zero demonstrates nothing.
+                    invoice_number=(f"INV-{RNG.randint(10000, 99999)}"
+                                    if RNG.random() < 0.6 else ""),
+                    received_at=order.received_at,
+                )
+                db.add(grv)
+                db.flush()
             for product in lines:
                 qty = RNG.choice([20, 30, 50, 100])
                 # Not every delivery is complete. A short delivery is what the
@@ -1161,13 +1206,50 @@ def _stock_and_supply(db: Session, products, staff) -> dict[str, int]:
                 got = qty
                 if status == "received" and RNG.random() < 0.12:
                     got = int(qty * RNG.uniform(0.6, 0.9))
-                db.add(PurchaseOrderItem(
+                item = PurchaseOrderItem(
                     order_id=order.id, product_id=product.id,
                     quantity_ordered=qty,
                     quantity_received=got if status == "received" else 0,
                     unit_cost=product.cost_price or 0,
-                ))
+                )
+                db.add(item)
+                if grv is not None and got:
+                    db.flush()
+                    # A lot number off a batch of this product where the shelf
+                    # has one, so the delivery names something a recall could
+                    # actually follow rather than a number invented here.
+                    lot = (db.query(StockBatch)
+                           .filter(StockBatch.product_id == product.id)
+                           .order_by(StockBatch.id.desc()).first())
+                    # One line in twenty arrives damaged. It is received and
+                    # held rather than refused, which is the behaviour worth
+                    # demonstrating: the goods are on the books and the credit
+                    # is claimable.
+                    #
+                    # At least one, always. The seed is fixed so that two
+                    # people running this get the same pharmacy, which means a
+                    # 5% roll that comes up empty comes up empty for everybody,
+                    # forever — and the first run of this produced exactly that
+                    # across seventy-seven lines. A behaviour a demonstration
+                    # can never reach is one the demonstration does not have.
+                    hurt = RNG.random() < 0.05 or not made["damaged deliveries"]
+                    if hurt:
+                        made["damaged deliveries"] += 1
+                    db.add(GoodsReceiptLine(
+                        receipt_id=grv.id, product_id=product.id,
+                        order_item_id=item.id,
+                        batch_id=lot.id if lot is not None else None,
+                        quantity=got,
+                        unit_cost=product.cost_price or 0,
+                        batch_number=(lot.batch_number if lot is not None else ""),
+                        expiry_date=(lot.expiry_date if lot is not None else None),
+                        condition="damaged" if hurt else "good",
+                    ))
+                    grv.goods_total = round((grv.goods_total or 0)
+                                            + got * (product.cost_price or 0), 2)
             made["purchase orders"] += 1
+            if grv is not None:
+                made["deliveries"] += 1
             if n % 6 == 0:
                 db.commit()
     db.commit()
