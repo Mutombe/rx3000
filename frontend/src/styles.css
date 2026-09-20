@@ -6593,12 +6593,25 @@ table.dt.sub th { font-size: var(--t-xs); }
    enough to choose between them. */
 .cf-choices {
   display: flex; flex-direction: column; gap: var(--s2);
-  margin: var(--s4) 0 0;
-  max-height: 46vh; overflow-y: auto;
+  margin: var(--s4) 0 var(--s2);
+  /* Tall enough that a short closed set is shown whole. A row cut across the
+     middle of its own sentence reads as a rendering fault; a row cut cleanly
+     below a full one reads as a list that continues. */
+  max-height: 58vh; overflow-y: auto;
+  /* Room for the scrollbar, so a description does not sit under it, and a
+     hairline that says the list continues rather than letting the last row
+     dissolve into the action bar. */
+  padding-right: var(--s2);
+  border-bottom: 1px solid var(--line);
 }
 .cf-choice {
   display: flex; flex-direction: column; gap: 2px; justify-content: flex-start;
   align-items: flex-start;
+  /* `white-space` because every button in this system is `nowrap`, and these
+     carry a sentence. Without it each description ran off the right of the
+     dialog and was clipped mid word, which reads as a rendering fault rather
+     than as a line that is too long. */
+  white-space: normal;
   width: 100%; height: auto;            /* the global button height squashes these */
   padding: var(--s3);
   text-align: left; cursor: pointer;
@@ -11676,6 +11689,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .lot-list { list-style: none; margin: var(--s2) 0 0; padding: 0;
             display: flex; flex-direction: column; gap: 4px; }
 .lot-row {
+  white-space: normal;
   /* `justify-content` explicitly, because the global button rule centres its
      contents and a list of lots centred on each row reads as a set of labels
      rather than as a column somebody scans down. */
@@ -11696,7 +11710,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .lot-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin: var(--s2) 0; }
 .lot-reason {
   height: auto; padding: 6px var(--s3); cursor: pointer;
-  justify-content: flex-start;
+  justify-content: flex-start; white-space: normal;
   font-size: var(--t-xs); line-height: 1.35; text-align: left;
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--r-pill);
