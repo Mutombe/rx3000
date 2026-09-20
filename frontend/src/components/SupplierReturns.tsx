@@ -26,6 +26,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
+import { useAsk } from "./Confirm";
 
 interface Line {
   product_id: number; product: string; batch: string; expiry: string;
@@ -58,6 +59,19 @@ export default function SupplierReturns() {
   const [open, setOpen] = useState<number | null>(null);
   const mayApprove = useCan("stock.write_off");
   const mayRaise = useCan("stock.adjust");
+  const ask = useAsk();
+
+  /** Move a row's standing on the screen, before the server has agreed.
+   *
+   *  These are state changes on a row already in front of somebody, which is
+   *  the case the optimistic pattern is for: the badge moves on the click and
+   *  goes back if the server refuses. The refusal is real and worth handling
+   *  rather than assuming away — approving re-checks that the stock is still
+   *  there, and it may not be. */
+  function stand(id: number, status: string, extra: Partial<Ret> = {}) {
+    setRows((all) => all.map((r) =>
+      r.id === id ? { ...r, status, ...extra } : r));
+  }
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,26 +87,57 @@ export default function SupplierReturns() {
   useEffect(load, [load]);
 
   async function act(r: Ret, what: "approve" | "cancel", label: string) {
+    const was = r.status;
+    const owedBefore = owed;
+    stand(r.id, what === "approve" ? "approved" : "cancelled");
+    // Approving is money owed by the supplier from the moment it is agreed,
+    // so the band at the top moves with the badge rather than waiting for a
+    // reload to tell somebody what they already decided.
+    if (what === "approve") {
+      setOwed((o) => ({ count: o.count + 1,
+                        total: Math.round((o.total + r.total) * 100) / 100 }));
+    }
     try {
       const said = await api.post<{ message: string }>(
         `/api/supplier-returns/${r.id}/${what}`, {});
       toast.ok(said.message);
       load();
     } catch (e) {
+      stand(r.id, was);
+      setOwed(owedBefore);
       toast.error(errorText(e, `That return could not be ${label}.`));
     }
   }
 
   async function credit(r: Ret) {
-    const note = window.prompt(
-      `Credit note number from ${r.supplier} for ${r.reference}:`, "");
-    if (!note?.trim()) return;
+    // The house dialog rather than window.prompt: a browser prompt freezes
+    // the whole application until somebody clicks OK, and cannot say what is
+    // about to happen or refuse an empty answer.
+    const { ok, value } = await ask({
+      title: `Credit note for ${r.reference}`,
+      body: <>Enter the number {r.supplier} put on the credit. {money(r.total)}{" "}
+            stops being owed once this is recorded.</>,
+      field: "Credit note number",
+      placeholder: "as it appears on the supplier's document",
+      required: true,
+      maxLength: 40,
+      confirmLabel: "Record the credit",
+    });
+    if (!ok || !value.trim()) return;
+
+    const was = r.status;
+    const owedBefore = owed;
+    stand(r.id, "credited", { credit_note: value.trim() });
+    setOwed((o) => ({ count: Math.max(0, o.count - 1),
+                      total: Math.round((o.total - r.total) * 100) / 100 }));
     try {
       const said = await api.post<{ message: string }>(
-        `/api/supplier-returns/${r.id}/credit`, { credit_note: note.trim() });
+        `/api/supplier-returns/${r.id}/credit`, { credit_note: value.trim() });
       toast.ok(said.message);
       load();
     } catch (e) {
+      stand(r.id, was, { credit_note: r.credit_note });
+      setOwed(owedBefore);
       toast.error(errorText(e, "That credit could not be recorded."));
     }
   }

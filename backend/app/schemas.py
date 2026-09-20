@@ -5,8 +5,19 @@ import re
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-#: What a stock, scheme or barcode may be made of. Deliberately wide.
-_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9/-]*")
+#: What a code cannot contain, as against what it may.
+#:
+#: The first version was an allowlist of letters, digits, hyphens and slashes,
+#: and it was wrong: this pharmacy's own catalogue holds "++", "567489*" and
+#: "50S5=L-M-0", which are their codes and not damage. An allowlist has to
+#: predict every punctuation mark a pharmacy has ever typed, and it cannot.
+#:
+#: So it names the two shapes that mean something WENT WRONG rather than
+#: guessing at what is allowed. A decimal point is Excel having read a code as
+#: a number, which is how "0010" comes back "0.1" and there are two of those
+#: in their file. A space or a comma means a cell picked up more than one
+#: field. Everything else is somebody's code scheme and none of our business.
+_DAMAGED = re.compile(r"[\s,]|^\d+\.\d+$")
 
 
 class ORM(BaseModel):
@@ -317,11 +328,11 @@ class ProductBase(BaseModel):
         text = str(value).strip()
         if not text:
             return ""
-        if not _CODE.fullmatch(text):
+        if _DAMAGED.search(text):
             raise ValueError(
-                f"{text!r} is not a code. Letters, digits, hyphens and "
-                "slashes only: a space or a decimal point usually means a "
-                "spreadsheet has changed it on the way here.")
+                f"{text!r} does not look like a code that survived the trip. "
+                "A space or comma means a cell picked up more than one field, "
+                "and a decimal point means a spreadsheet read it as a number.")
         return text
 
 
@@ -330,6 +341,26 @@ class ProductCreate(ProductBase):
 
 
 class ProductOut(ORM, ProductBase):
+    """What goes OUT, which is never refused for the shape of a code.
+
+    The validator on ProductBase guards what comes IN. Because this inherits
+    it, it was also guarding what went out, and a stricter version of it took
+    the whole product list down with a 500: three rows in this pharmacy's
+    catalogue hold codes it did not like, and every screen that lists
+    products died on them rather than on anything the reader had done.
+
+    That is the wrong way round in principle as well as in effect. A record
+    already in the database is a fact; refusing to show it because it offends
+    a rule written afterwards means nobody can find it to correct it. Input is
+    where a rule belongs, and this overrides the inherited one with a
+    pass-through of the same name so reads cannot fail on old data.
+    """
+
+    @field_validator("nappi_code", "barcode", "stock_code", mode="before")
+    @classmethod
+    def _a_code_is_a_code(cls, value):
+        return "" if value in (None, "") else str(value)
+
     id: int
     quantity_on_hand: int
     active: bool = True

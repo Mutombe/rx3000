@@ -172,10 +172,22 @@ export default function StockTake() {
       let asPartial = false;
       const left = sheet ? sheet.outstanding : 0;
       if (left > 0) {
-        asPartial = window.confirm(
-          `${left} line${left === 1 ? " has" : "s have"} not been counted yet. `
-          + "Post this as a partial count? The lines you did not count keep "
-          + "their present figures and the count is recorded as incomplete.");
+        // The house dialog, not the browser's. A native confirm freezes the
+        // whole application until somebody clicks OK and cannot name the
+        // action or park focus on Cancel, which is the wrong default when
+        // the answer posts an incomplete count.
+        asPartial = await confirm({
+          title: "Post an incomplete count?",
+          body: <>
+            {left} line{left === 1 ? " has" : "s have"} not been counted yet.
+            {" "}The lines you did not count keep their present figures, and
+            {" "}this count is recorded as incomplete so the next person knows
+            {" "}what it covered.
+          </>,
+          confirmLabel: "Post what was counted",
+          cancelLabel: "Keep counting",
+          destructive: true,
+        });
         if (!asPartial) return;
       }
       const res = await guarded(
