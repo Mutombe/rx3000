@@ -3162,8 +3162,27 @@ class BranchTransfer(Base, TenantMixin):
     to_branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, nullable=False)
-    # despatched | received | cancelled
+    # requested | despatched | received | cancelled
+    #
+    # "requested" exists because the blueprint asks for a supervisor to agree
+    # a transfer before the stock leaves, and because moving stock between
+    # shops had no gate of any kind: anybody holding `stock.transfer` could
+    # send any branch's stock anywhere, instantly, and nothing about the
+    # screen looked wrong.
+    #
+    # It is not compulsory. The client's own blueprint lists the transfer
+    # approval model as a decision still to be confirmed with them — all
+    # transfers, or only those above a threshold — so this ships with the
+    # threshold at zero, meaning no approval, which is exactly how it behaved
+    # before. A pharmacy turns it on by naming a figure.
     status = Column(String(12), default="despatched")
+    requested_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    #: How much of it has actually arrived. A lorry that brings eight of ten
+    #: is the ordinary case, and a transfer that can only be received whole
+    #: forces somebody to lie about one or the other.
+    quantity_received = Column(Integer, default=0)
     #: Which batches actually left, as [{batch_number, expiry_date, quantity}].
     #:
     #: Written when the stock is despatched and replayed when it is received, so

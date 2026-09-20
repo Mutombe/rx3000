@@ -106,6 +106,11 @@ DECLARED: tuple[Declared, ...] = (
              "A count whose variance is worth more than this needs a second "
              "person before it posts. Zero means every count does, which is "
              "the safest and the slowest."),
+    Declared("stock.transfer_threshold", "Transfer needing approval",
+             "money", "0", "Stock",
+             "A transfer worth more than this is only requested, and somebody "
+             "has to agree it before the stock leaves the shelf. Zero means "
+             "none do, which is how transfers have always worked here."),
     Declared("stock.adjust_threshold", "Adjustment needing a password",
              "money", "0", "Stock",
              "An adjustment worth more than this asks for a second person's "

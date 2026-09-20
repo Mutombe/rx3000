@@ -235,10 +235,54 @@ def create_transfer(body: TransferIn, db: Session = Depends(get_db),
                 user_id=user.id, notes=body.notes)
     except branches.BranchError as e:
         raise HTTPException(400, str(e))
+    # The message has to match what actually happened. A transfer above the
+    # approval threshold has moved no stock at all, and telling somebody it is
+    # "in transit" is how a lorry gets loaded against a request nobody has
+    # agreed to.
+    asked = transfer.status == "requested"
     return {"id": transfer.id, "reference": transfer.reference,
             "status": transfer.status,
-            "message": "Despatched. It is in transit until the receiving branch "
-                       "books it in."}
+            "message": ("Requested. Nothing has left the shelf: this is worth "
+                        "more than the figure the pharmacy set, so somebody "
+                        "has to approve it first."
+                        if asked else
+                        "Despatched. It is in transit until the receiving "
+                        "branch books it in.")}
+
+
+@router.post("/transfers/{transfer_id}/approve")
+def approve_transfer(transfer_id: int, db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user)):
+    """Agree a requested transfer. This is when the stock leaves."""
+    _guard(db, user, "stock.write_off")
+    try:
+        with every_branch():
+            transfer = branches.approve_transfer(
+                db, transfer_id=transfer_id, user_id=user.id)
+    except branches.BranchError as e:
+        raise HTTPException(400, str(e))
+    return {"id": transfer.id, "reference": transfer.reference,
+            "status": transfer.status,
+            "message": (f"{transfer.reference} approved. {transfer.quantity} "
+                        "unit(s) have left and are in transit.")}
+
+
+@router.post("/transfers/{transfer_id}/refuse")
+def refuse_transfer(transfer_id: int, body: dict = Body(default={}),
+                    db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user)):
+    """Turn down a request. Nothing moved, so nothing has to move back."""
+    _guard(db, user, "stock.write_off")
+    try:
+        with every_branch():
+            transfer = branches.refuse_transfer(
+                db, transfer_id=transfer_id, user_id=user.id,
+                why=str(body.get("why") or ""))
+    except branches.BranchError as e:
+        raise HTTPException(400, str(e))
+    return {"id": transfer.id, "reference": transfer.reference,
+            "status": transfer.status,
+            "message": f"{transfer.reference} refused. No stock moved."}
 
 
 @router.post("/transfers/{transfer_id}/receive")

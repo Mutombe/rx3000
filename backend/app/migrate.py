@@ -146,6 +146,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # same boxes on its shelf. Without it a transfer created one undated
         # batch at the far end and erased the expiry off everything it moved.
         "drawn_json": "TEXT",
+        # A transfer can now be asked for before it is agreed, and received in
+        # parts. See BranchTransfer.status.
+        "requested_by_id": "INTEGER",
+        "approved_by_id": "INTEGER",
+        "approved_at": "TIMESTAMP",
+        "quantity_received": "INTEGER DEFAULT 0",
     },
     "sales": {
         # Who actually took the money, as against who rang the sale up. A

@@ -186,6 +186,38 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
             f"{source.name} holds {available}, so {quantity} cannot be sent. "
             "Transfer what is there or receive stock first.")
 
+    # ASK FIRST, IF THIS ONE IS BIG ENOUGH TO NEED ASKING.
+    #
+    # Moving stock between shops had no gate at all: anybody holding
+    # `stock.transfer` could send any branch's stock anywhere, instantly.
+    # The blueprint asks for a supervisor to agree one before the stock
+    # leaves, and then lists the model as a decision still to be confirmed
+    # with the pharmacy: every transfer, or only those above a threshold.
+    #
+    # So `stock.transfer_threshold` is the value above which a transfer is
+    # only REQUESTED, and it ships at zero, which asks for nobody. Until a
+    # pharmacy names a figure this behaves exactly as it did.
+    #
+    # Nothing is drawn off the shelf for a request. The sending branch may
+    # still need those boxes while the paperwork waits, and holding them for
+    # a transfer that might be refused is the wrong trade. Approval re-checks
+    # availability, which is the honest place to find out.
+    from . import config, valuation
+    from ..models import Product as _Product
+    threshold = config.number(db, "stock.transfer_threshold", 0.0)
+    product = db.get(_Product, product_id)
+    worth = valuation.at_cost(product, quantity) if product else 0.0
+    if threshold > 0 and worth > threshold:
+        asked = BranchTransfer(
+            reference=_next_reference(db),
+            from_branch_id=from_branch_id, to_branch_id=to_branch_id,
+            product_id=product_id, quantity=quantity, drawn_json="[]",
+            status="requested", notes=notes, requested_by_id=user_id)
+        db.add(asked)
+        db.commit()
+        db.refresh(asked)
+        return asked
+
     # Oldest expiry first: a transfer should not leave the short-dated stock
     # behind for the sending branch to write off.
     remaining = quantity
@@ -220,7 +252,8 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
         reference=_next_reference(db),
         from_branch_id=from_branch_id, to_branch_id=to_branch_id,
         product_id=product_id, quantity=quantity, drawn_json=json.dumps(drawn),
-        status="despatched", notes=notes, despatched_by_id=user_id)
+        status="despatched", notes=notes, despatched_by_id=user_id,
+        requested_by_id=user_id)
     db.add(transfer)
     db.add(StockMovement(
         product_id=product_id, movement_type="transfer_out",
@@ -327,3 +360,86 @@ def in_transit(db: Session) -> list[dict]:
         "days_in_transit": (datetime.utcnow() - t.despatched_at).days
         if t.despatched_at else 0,
     } for t in rows]
+
+
+def approve_transfer(db: Session, *, transfer_id: int,
+                     user_id: int | None) -> BranchTransfer:
+    """Agree a requested transfer, and only now take the stock off the shelf.
+
+    Availability is re-checked rather than trusted. A request sits for as long
+    as it takes somebody to look at it, and the sending branch has been
+    dispensing from those shelves the whole time: the figure that mattered
+    when it was asked for may not be the figure now, and finding that out at
+    approval is better than finding it out when a lorry is loaded.
+    """
+    concurrency.serialise(db, f"branch-transfer-{transfer_id}")
+    transfer = db.get(BranchTransfer, transfer_id)
+    if not transfer:
+        raise BranchError("That transfer does not exist.")
+    if transfer.status != "requested":
+        raise BranchError(
+            f"That transfer is already '{transfer.status}', so there is "
+            "nothing to approve.")
+
+    available = on_hand(db, transfer.product_id, transfer.from_branch_id)
+    if available < transfer.quantity:
+        source = db.get(Branch, transfer.from_branch_id)
+        raise BranchError(
+            f"{source.name if source else 'That branch'} now holds "
+            f"{available}, fewer than the {transfer.quantity} this transfer "
+            "asks for. Stock has moved since it was requested: reduce it or "
+            "cancel it.")
+
+    remaining = transfer.quantity
+    batches = (db.query(StockBatch)
+               .filter(StockBatch.product_id == transfer.product_id,
+                       StockBatch.branch_id == transfer.from_branch_id,
+                       StockBatch.quantity_remaining > 0,
+                       StockBatch.status != "quarantined")
+               .order_by(StockBatch.expiry_date.asc()).all())
+    drawn: list[dict] = []
+    for batch in batches:
+        if remaining <= 0:
+            break
+        take = min(batch.quantity_remaining, remaining)
+        batch.quantity_remaining -= take
+        remaining -= take
+        drawn.append({
+            "batch_number": batch.batch_number or "",
+            "expiry_date": batch.expiry_date.isoformat() if batch.expiry_date else None,
+            "quantity": int(take),
+            "unit_cost": float(batch.unit_cost or 0.0),
+        })
+
+    transfer.drawn_json = json.dumps(drawn)
+    transfer.status = "despatched"
+    transfer.approved_by_id = user_id
+    transfer.approved_at = datetime.utcnow()
+    transfer.despatched_by_id = user_id
+    db.add(StockMovement(
+        product_id=transfer.product_id, movement_type="transfer_out",
+        quantity_delta=-transfer.quantity,
+        balance_after=available - transfer.quantity,
+        reference=transfer.reference, branch_id=transfer.from_branch_id,
+        user_id=user_id))
+    db.commit()
+    db.refresh(transfer)
+    return transfer
+
+
+def refuse_transfer(db: Session, *, transfer_id: int, user_id: int | None,
+                    why: str = "") -> BranchTransfer:
+    """Turn down a request. Nothing has moved, so nothing has to move back."""
+    transfer = db.get(BranchTransfer, transfer_id)
+    if not transfer:
+        raise BranchError("That transfer does not exist.")
+    if transfer.status != "requested":
+        raise BranchError(
+            f"That transfer is '{transfer.status}'. Stock that has already "
+            "left cannot be refused: cancel it at the far end instead.")
+    transfer.status = "cancelled"
+    transfer.notes = ((transfer.notes or "") + (" " if transfer.notes else "")
+                      + f"Refused. {why}".strip())
+    db.commit()
+    db.refresh(transfer)
+    return transfer
