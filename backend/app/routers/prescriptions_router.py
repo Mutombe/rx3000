@@ -1422,8 +1422,18 @@ def finalise(rx_id: int, db: Session = Depends(get_db),
 
 
 @router.delete("/prescriptions/{rx_id}/draft")
-def discard_draft(rx_id: int, db: Session = Depends(get_db)):
-    """Throw a draft away. Only ever a draft. A real script is cancelled, not deleted."""
+def discard_draft(rx_id: int, db: Session = Depends(get_db),
+                  _: User = Depends(get_current_user)):
+    """Throw a draft away. Only ever a draft. A real script is cancelled, not deleted.
+
+    Signed in, which it was not. This deletes a prescription row and asked for
+    no credential at all, so the only thing standing between a stranger and a
+    dispensary's drafts was that with nobody signed in there is no pharmacy in
+    force, tenancy narrows the lookup to rows with no pharmacy, and it found
+    nothing. That is protection by accident: it reads as a closed door and is
+    not one, and it stops being even that the moment a draft carries a null
+    tenant.
+    """
     rx = db.get(Prescription, rx_id)
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found")

@@ -423,8 +423,23 @@ def run_invoices(shift_id: int, db: Session = Depends(get_db),
 
 
 @router.get("/{shift_id}/cashup")
-def read_cashup(shift_id: int, db: Session = Depends(get_db)):
-    """Read a cash-up back, after it has been committed."""
+def read_cashup(shift_id: int, db: Session = Depends(get_db),
+                _: User = Depends(get_current_user)):
+    """Read a cash-up back, after it has been committed.
+
+    Signed in, which it was not. This router carries no dependency of its own
+    and this handler asked for none, so a cash-up — what was counted, what was
+    banked, what the variance was — could be read by anybody who could reach
+    the API.
+
+    What made that hard to notice is that it appeared to work correctly: with
+    nobody signed in there is no pharmacy in force, tenancy narrows every
+    query to rows with no pharmacy, and the lookup found nothing. So it
+    answered "that shift no longer exists" and looked like a closed door. It
+    was not one. It was the right answer arrived at by accident, and it would
+    have stopped being the right answer the moment a single shift row carried
+    a null tenant.
+    """
     shift = db.query(Shift).get(shift_id)
     if not shift:
         raise HTTPException(status_code=404, detail="That shift no longer exists.")
