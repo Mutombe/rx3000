@@ -45,7 +45,7 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
     ("sale.discount", "Change a price at the till",
      ("admin", "manager")),
     ("stock.write_off", "Write off stock that is expired, damaged or recalled",
-     ("admin", "manager")),
+     ("admin", "manager", "supervisor")),
     # The pharmacist is the person standing at the shelf with the box in their
     # hand. Withholding this meant the one member of staff who can SEE that the
     # count is wrong had to find a manager to say so, and a correction nobody
@@ -54,7 +54,7 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
     # whoever made it, so this widens who may correct a figure, not who may do
     # it unrecorded.
     ("stock.adjust", "Adjust a stock figure outside a stock take",
-     ("admin", "manager", "pharmacist")),
+     ("admin", "manager", "supervisor", "pharmacist")),
     ("stock.price", "Change what the shop charges for something",
      ("admin", "manager")),
     ("stock.deactivate", "Take a product code out of use across the group",
@@ -70,7 +70,27 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
     # account could send any branch's stock to any other and book it in again.
     # Nothing about the screen would have looked wrong.
     ("stock.transfer", "Move stock from one branch to another",
-     ("admin", "manager", "pharmacist")),
+     ("admin", "manager", "supervisor", "pharmacist", "assistant")),
+    # THE THREE THE ROLE TABLE NEEDED AND THIS LIST COULD NOT SAY.
+    #
+    # A pharmacy assistant books deliveries in and enters counts, and neither
+    # act had a capability: both were open to any signed-in account, so there
+    # was nothing to grant an assistant and nothing to withhold from anybody
+    # else either. Booking a delivery in creates stock out of nothing and a
+    # count can write off thousands, so "everybody who is logged in" was never
+    # the right answer to who may do them.
+    ("stock.receive", "Book a supplier delivery in against an order",
+     ("admin", "manager", "supervisor", "pharmacist", "assistant")),
+    ("stock.count", "Enter a physical stock count",
+     ("admin", "manager", "supervisor", "pharmacist", "assistant")),
+    # The approval half of the same work, which is the whole point of the
+    # supervisor existing: the person who counts is not the person who signs
+    # off the variance. It was gated on `stock.write_off` before, borrowed
+    # because nothing better existed, which made "may approve a transfer" and
+    # "may write stock off" the same question when they are not.
+    ("stock.approve",
+     "Approve an adjustment, transfer, variance or return, and release held stock",
+     ("admin", "manager", "supervisor")),
     ("cash.reconcile", "Commit a cash-up and sign off a variance",
      ("admin", "manager", "accountant")),
     ("cash.petty", "Pay money out of the till", ("admin", "manager")),
@@ -88,6 +108,18 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
      ("admin", "manager", "pharmacist", "cashier")),
     ("dispense.controlled", "Dispense a schedule 5 or 6 medicine",
      ("admin", "pharmacist")),
+    # Two decisions that were written as role lists in four places: twice in
+    # Python (holds.CLEARERS, script_cancel.CANCELLERS) and twice again in
+    # TypeScript on the dispensing screen. The TypeScript copies are the
+    # dangerous half, because a role list in a browser cannot see ceilings,
+    # hours, branch scope or a denial that beats a grant, and the way it fails
+    # is a button that works until somebody is granted something by name.
+    #
+    # Granted to exactly the three roles the old lists named, so nobody gains
+    # or loses anything by this becoming a capability.
+    ("script.manage",
+     "Release a dispensing hold, or cancel a script that never went out",
+     ("admin", "manager", "pharmacist")),
     ("claims.submit", "Send a claim batch to a funder",
      ("admin", "manager", "pharmacist", "accountant")),
     ("claims.write_off", "Write off a claim shortfall",
@@ -125,8 +157,10 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
 ACCOUNTANT_WITHHELD = (
     "sale.void", "sale.return", "sale.discount", "cash.petty",
     "dispense.prescription", "dispense.otc", "dispense.controlled",
+    "script.manage",
     "stock.write_off", "stock.adjust", "stock.price", "stock.deactivate",
-    "stock.create", "stock.transfer",
+    "stock.create", "stock.transfer", "stock.receive", "stock.count",
+    "stock.approve",
     "staff.manage", "branch.freeze", "hq.impersonate",
 )
 

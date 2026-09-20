@@ -48,6 +48,13 @@ interface Ask {
   /** An empty answer is refused. Used where the value is the record. */
   required?: boolean;
   maxLength?: number;
+  /** A closed set to pick from rather than a box to type in.
+   *
+   *  Where the answer is one of a known few, typing it is a bug waiting: a
+   *  role typed "pharmasist" is an account with no permissions at all, found
+   *  out at a counter weeks later. `value` is what gets returned, `says` is
+   *  what somebody reads, and `why` is the line under it. */
+  choices?: { value: string; says: string; why?: string }[];
 }
 
 type Answer = { ok: boolean; value: string };
@@ -81,7 +88,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
 
   const request = useCallback((next: Ask) => {
     setAsk(next);
-    setValue("");
+    // A picker opens on what is already true, so the dialog shows the current
+    // answer rather than making somebody re-derive it.
+    setValue(next.choices ? (next.placeholder ?? "") : "");
     return new Promise<Answer>((resolve) => { resolver.current = resolve; });
   }, []);
 
@@ -98,7 +107,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     // start typing, and a dialog that makes them click first is one they fight.
     // Otherwise the safe option: on a destructive prompt that is Cancel, so the
     // dispenser's habitual Enter does not confirm something irreversible.
-    if (ask.field) fieldRef.current?.focus();
+    if (ask.field && !ask.choices) fieldRef.current?.focus();
     else cancelRef.current?.focus();
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") { e.preventDefault(); close(false); }
@@ -122,7 +131,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           >
             <h3 className="cf-title">{ask.title}</h3>
             {ask.body && <div className="cf-body">{ask.body}</div>}
-            {ask.field && (
+            {ask.choices && ask.choices.length > 0 ? (
+              <div className="cf-choices" role="radiogroup" aria-label={ask.field}>
+                {ask.choices.map((c) => (
+                  <button
+                    type="button"
+                    key={c.value}
+                    role="radio"
+                    aria-checked={value === c.value}
+                    className={`cf-choice${value === c.value ? " on" : ""}`}
+                    onClick={() => setValue(c.value)}
+                  >
+                    <span className="cf-choice-says">{c.says}</span>
+                    {c.why && <span className="cf-choice-why">{c.why}</span>}
+                  </button>
+                ))}
+              </div>
+            ) : ask.field && (
               <label className="cf-field">
                 <span>
                   {ask.field}
@@ -153,7 +178,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 className={`btn ${ask.destructive ? "danger" : "primary"}`}
                 // A required answer cannot be skipped by pressing the button
                 // either. The value IS the record on a controlled handover.
-                disabled={!!ask.field && !!ask.required && !value.trim()}
+                disabled={(!!ask.field || !!ask.choices)
+                          && !!ask.required && !value.trim()}
                 onClick={() => close(true)}
               >
                 {ask.confirmLabel ?? "Confirm"}

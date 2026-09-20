@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import nulls_last, or_
 from sqlalchemy.orm import Session
 
+from .. import auth as _auth
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import (Product, ProductBarcode, PrescriptionItem, PurchaseOrderItem,
@@ -381,6 +382,7 @@ class ReceiveLineIn(BaseModel):
 def receive_line(
     order_id: int, body: ReceiveLineIn,
     db: Session = Depends(get_db), user: User = Depends(get_current_user),
+    _may=Depends(_auth.requires("stock.receive")),
 ):
     """Book in what actually arrived, one line at a time.
 

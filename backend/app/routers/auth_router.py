@@ -98,11 +98,25 @@ def create_user(
 ):
     if auth.find_by_username(db, body.username):
         raise HTTPException(status_code=400, detail="Username already exists")
+    # CHECKED ON THE WAY IN, LIKE THE EDIT BESIDE IT.
+    #
+    # Creating validated nothing while renaming validated against ROLES, so a
+    # role could be typed wrong exactly once: at the moment an account was
+    # made, which is the one moment nobody looks at it again. That account
+    # then held a role no capability names, which grants nothing at all, and
+    # the person holding it finds out at a counter. It is the precise failure
+    # ROLES was introduced to prevent, left open on the only path that creates.
+    role = (body.role or "").strip().lower()
+    if role not in auth.ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"{body.role} is not a role. Choose one of: "
+                    + ", ".join(auth.ROLES) + "."))
     user = User(
         username=body.username,
         password_hash=auth.hash_password(body.password),
         full_name=body.full_name,
-        role=body.role,
+        role=role,
     )
     db.add(user)
     db.commit()
@@ -592,6 +606,29 @@ def role_matrix(db: Session = Depends(get_db),
         "roles": [r for r in auth.ROLES],
         "rows": _permissions.role_matrix(db),
     }
+
+
+@router.get("/roles")
+def list_roles(db: Session = Depends(get_db),
+               _: User = Depends(get_current_user)):
+    """The roles somebody may be given, and what each one is for.
+
+    Served rather than written into a screen, because a role list typed into
+    the browser goes stale the moment one is added here and the way it fails
+    is somebody being offered a role that no longer exists. That has already
+    happened once in this file's history.
+    """
+    from ..services import permissions as _permissions
+
+    rows = _permissions.role_matrix_rows(db)
+    out = []
+    for role in auth.ROLES:
+        can = [key for key, _says, _default in _permissions.CAPABILITIES
+               if _permissions.role_allows(db, role, key, rows)]
+        out.append({"role": role,
+                    "says": auth.ROLE_NOTES.get(role, ""),
+                    "grants": len(can)})
+    return {"roles": out}
 
 
 @router.put("/role-matrix")

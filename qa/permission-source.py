@@ -45,7 +45,8 @@ SRC = ROOT / "frontend" / "src"
 #: roles takes.
 COMPARISON = re.compile(
     r'\brole\b\s*[!=]==?\s*["\']|'
-    r'["\'](?:admin|manager|pharmacist|assistant|cashier)["\']\s*[!=]==?\s*\S*\brole\b|'
+    r'["\'](?:admin|manager|supervisor|pharmacist|cashier|assistant'
+    r'|accountant)["\']\s*[!=]==?\s*\S*\brole\b|'
     r'\[[^\]]*["\'](?:admin|manager)["\'][^\]]*\]\s*\.\s*includes\s*\(\s*\w*\.?role')
 
 #: Where the answers legitimately live.

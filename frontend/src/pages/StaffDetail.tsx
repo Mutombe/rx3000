@@ -88,25 +88,53 @@ export default function StaffDetail() {
 
   async function changeRole() {
     if (!d) return;
+    // PICKED, NOT TYPED.
+    //
+    // This was a free text box listing the roles in a sentence, and the
+    // sentence had gone stale: it offered a role that had been retired and
+    // omitted one that had been added. A role typed wrong is an account with
+    // no permissions at all, found out at a counter weeks later, which is
+    // exactly the failure the server side list was introduced to prevent.
+    //
+    // The list comes from the server for the same reason. A copy kept here
+    // goes stale the next time a role is added, and it goes stale silently.
+    let choices: { value: string; says: string; why?: string }[] = [];
+    try {
+      const said = await api.get<{ roles: { role: string; says: string }[] }>(
+        "/api/auth/roles");
+      choices = said.roles.map((r) => ({
+        value: r.role,
+        says: r.role.charAt(0).toUpperCase() + r.role.slice(1),
+        why: r.says,
+      }));
+    } catch (e) {
+      toast.error(errorText(e, "The list of roles could not be read."));
+      return;
+    }
+
     const answer = await ask({
       title: `What is ${d.full_name}'s role?`,
-      body: "admin, pharmacist, manager, assistant or cashier. A role typed "
-          + "wrong used to be permanent, so a qualified pharmacist set up as "
-          + "an assistant needed a second account, and then two logins "
-          + "belonged to one person and the register could not say which of "
-          + "them checked a controlled item.",
+      body: "What somebody may do is decided by their role, and every screen "
+          + "is built from it. Changing this takes effect the next time they "
+          + "sign in.",
       field: "Role",
+      choices,
       placeholder: d.role,
       required: true,
-      maxLength: 20,
       confirmLabel: "Change it",
     });
-    if (!answer.ok) return;
+    if (!answer.ok || answer.value === d.role) return;
+    // Optimistic: the badge moves on the click and goes back if the server
+    // refuses, which it does for the last administrator and for the account
+    // doing the asking.
+    const was = d.role;
+    setD({ ...d, role: answer.value });
     try {
-      await api.put(`/api/auth/users/${d.id}`, { role: answer.value.toLowerCase() });
-      toast.ok(`${d.full_name} is now a ${answer.value.toLowerCase()}.`);
+      await api.put(`/api/auth/users/${d.id}`, { role: answer.value });
+      toast.ok(`${d.full_name} is now a ${answer.value}.`);
       load();
     } catch (e) {
+      setD((now) => (now ? { ...now, role: was } : now));
       toast.error(errorText(e));
     }
   }

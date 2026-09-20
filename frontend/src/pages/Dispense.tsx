@@ -1013,8 +1013,13 @@ export default function Dispense() {
   useEffect(() => {
     loadHold(fromRx && !fromRx.draft ? fromRx.id : null);
   }, [fromRx?.id, fromRx?.draft, loadHold]);
-  /** Releasing a hold is a decision about why it was placed. */
-  const mayReleaseHold = ["pharmacist", "manager", "admin"].includes(session.role);
+  /** Releasing a hold is a decision about why it was placed.
+   *
+   *  Asked of the resolved rule, not of the role. A role comparison in the
+   *  browser cannot see a ceiling, an hour window, a branch scope or a denial
+   *  that beats a grant, and the way it fails is a button that works until
+   *  somebody is granted something by name. */
+  const mayReleaseHold = session.can("script.manage");
 
   /** Taking a script that never went out off the worklist
    *  (backend/app/services/script_cancel.py). A saved, undispensed script had
@@ -1046,7 +1051,7 @@ export default function Dispense() {
       && !mixing && !newPatient && !altering,
   });
 
-  const mayCancelScript = ["pharmacist", "manager", "admin"].includes(session.role);
+  const mayCancelScript = session.can("script.manage");
 
   /** Cancel a script, without standing there while it happens.
    *

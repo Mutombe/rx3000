@@ -32,7 +32,10 @@ REASONS: dict[str, str] = {
     "payment": "Payment to be arranged",
 }
 
-CLEARERS = ("pharmacist", "manager", "admin")
+#: Kept as the name of the capability rather than a list of roles. The list
+#: was duplicated in the browser, where a role comparison cannot see a ceiling,
+#: an hour window, a branch scope or a denial that beats a grant.
+CLEARERS = "script.manage"
 
 
 class HoldError(Exception):
@@ -68,8 +71,21 @@ def place(db: Session, *, prescription, reason_code: str, note: str, user):
     return hold
 
 
+def may_clear(db: Session, user) -> bool:
+    """Whether this person may release a hold. Asked of the rule, not the role.
+
+    A role comparison cannot see a ceiling, an hour window, a branch scope or
+    a denial that beats a grant, and a pharmacy that has granted one named
+    locum the right for a fortnight has said something a role list cannot
+    read.
+    """
+    from . import permissions
+
+    return permissions.can(db, user, CLEARERS)
+
+
 def clear(db: Session, *, hold, note: str, user):
-    if user.role not in CLEARERS:
+    if not may_clear(db, user):
         raise HoldError("A pharmacist or a manager clears a hold. Ask one to release this script.")
     if hold.cleared_at is not None:
         raise HoldError("That hold has already been cleared.")

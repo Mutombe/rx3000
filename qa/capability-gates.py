@@ -61,7 +61,15 @@ def check(condition, message):
 
 # ---- 1. is each capability attached to anything? -------------------------
 
-ROUTERS = sorted((BACKEND/"app"/"routers").glob("*.py"))
+# Services as well as routers. A rule enforced in a service is enforced: the
+# hold and the script cancellation are decided there, and reading only routers
+# reported both as unprotected while they were refusing people all along.
+ROUTERS = (sorted((BACKEND/"app"/"routers").glob("*.py"))
+           + sorted((BACKEND/"app"/"services").glob("*.py")))
+# The two files that DESCRIBE capabilities rather than enforce them. Reading
+# them would mark every capability as gated by virtue of being declared, which
+# is the one answer this check must never give.
+ROUTERS = [p for p in ROUTERS if p.name not in ("permissions.py", "stepup.py")]
 source = "\n".join(p.read_text(encoding="utf-8", errors="replace")
                    for p in ROUTERS)
 gated = set(re.findall(r'auth\.requires\("([^"]+)"\)', source))
@@ -74,6 +82,29 @@ gated = set(re.findall(r'auth\.requires\("([^"]+)"\)', source))
 # of wrong that stops people reading a check.
 gated |= set(re.findall(r'_guard\(\s*db,\s*\w+,\s*"([^"]+)"', source))
 
+# EVERY OTHER SHAPE ENFORCEMENT TAKES, BECAUSE THERE ARE SEVERAL.
+#
+# Two regexes matched two spellings and this check reported four capabilities
+# as "administrable and unenforced" that were nothing of the sort: a sale void
+# behind `require_step_up`, two dispensing routes looked up through a dict of
+# route to capability, and a script cancellation asked through
+# `permissions.can`. Each is a real gate that refuses real people.
+#
+# Four false alarms out of twenty five is a check nobody reads, and a check
+# nobody reads is worse than no check, because it occupies the place where a
+# working one would go. So this counts a capability as enforced when its name
+# is PASSED to something, anywhere outside the two files that merely declare
+# them. It is deliberately loose: the thing being guarded against is a
+# capability nothing consults at all, and a name that appears as an argument
+# in live code is being consulted by something.
+gated |= set(re.findall(r'["\']([a-z_]+\.[a-z_]+)["\']\s*[,)\]]', source))
+# And named once at the top of the service that consults it, which is how the
+# hold and the script cancellation are written: a constant so that the browser
+# and the server cannot drift apart about which rule is being asked.
+gated |= set(re.findall(r'^[A-Z][A-Z_]* = ["\']([a-z_]+\.[a-z_]+)["\']',
+                        source, re.M))
+gated &= {key for key, _n, _r in permissions.CAPABILITIES}
+
 print(f"\n  {len(gated)} of {len(permissions.CAPABILITIES)} capabilities are "
       f"checked somewhere\n")
 
@@ -84,8 +115,11 @@ NOT_AN_ENDPOINT = {
                      "figures inside responses rather than a route",
     "sale.discount": "a price override is part of the sale body, checked with "
                      "the amount in hand rather than by a dependency",
-    "stock.price": "the same: a price change carries a number, and the ceiling "
-                   "is the point",
+    # `stock.price` used to sit here on the same reasoning and it was wrong:
+    # the capability was declared and consulted by nothing at all, so any
+    # signed-in account could change what the shop charged for anything. It is
+    # now checked in the product form against the price that was on file, so
+    # it has a gate and does not belong on this list.
     "stock.deactivate": "retiring a product code is an admin route already "
                         "behind require_role('admin')",
     "claims.write_off": "a shortfall write-off carries an amount",

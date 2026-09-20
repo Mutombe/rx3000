@@ -28,6 +28,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import helpers
+from .. import auth as _auth
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Product, StockTake, StockTakeLine, User
@@ -72,7 +73,8 @@ def _out(db: Session, take: StockTake) -> dict:
 
 @router.post("")
 def open_take(body: OpenIn, db: Session = Depends(get_db),
-              user: User = Depends(get_current_user)):
+              user: User = Depends(get_current_user),
+              _may=Depends(_auth.requires("stock.count"))):
     """Open a count. Only one may be open at a time per branch."""
     branch_id = body.branch_id or branch_svc.default_branch(db).id
     existing = (
@@ -186,7 +188,8 @@ def current(db: Session = Depends(get_db)):
 
 @router.post("/{take_id}/count")
 def count_line(take_id: int, body: CountIn, db: Session = Depends(get_db),
-               user: User = Depends(get_current_user)):
+               user: User = Depends(get_current_user),
+               _may=Depends(_auth.requires("stock.count"))):
     """Record what was physically on the shelf for one product."""
     take = db.query(StockTake).get(take_id)
     if not take:

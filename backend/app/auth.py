@@ -165,22 +165,62 @@ def get_current_user(
 #: dropdown when somebody is hired and heads the columns of the role matrix, and
 #: alphabetical order there puts the administrator between the accountant and
 #: the cashier for no reason anybody could name.
-ROLES = ("admin", "manager", "pharmacist", "cashier", "accountant")
+ROLES = ("admin", "manager", "supervisor", "pharmacist", "cashier",
+         "assistant", "accountant")
 
-#: Roles that used to exist, and what somebody holding one becomes.
+#: THE TWO THAT CAME BACK, AND WHY IT IS NOT THE SAME MISTAKE TWICE.
 #:
-#: `assistant` granted nothing. Not little — nothing: no capability in the whole
-#: list named it, so the role conferred exactly what holding no role conferred.
-#: It was offered in a dropdown, chosen in good faith, and did not work, which
-#: is the worst way for a permission to be missing: silently, and only for the
-#: people somebody deliberately placed there.
+#: `assistant` was here before and was retired for granting nothing. Not
+#: little: nothing. No capability in the whole list named it, so the role
+#: conferred exactly what holding no role conferred. It was offered in a
+#: dropdown, chosen in good faith, and did not work, which is the worst way
+#: for a permission to be missing: silently, and only for the people somebody
+#: deliberately placed there.
 #:
-#: They become cashiers, which is what they could already do.
+#: The fix then was to delete it, which was right while there was nothing for
+#: it to hold. It is back because there now is. The client's own role table
+#: describes two jobs this list could not express:
 #:
-#: Kept as data rather than deleted so `migrate_roles()` below can move them and
-#: so a token issued before the change — they last hours — still names something
-#: this file recognises.
-RETIRED_ROLES = {"assistant": "cashier"}
+#:   Pharmacy Assistant — books deliveries in, enters counts, sees stock on
+#:   hand, asks for transfers. Cannot approve adjustments or override holds.
+#:
+#:   Supervisor — everything the assistant does, plus approving adjustments,
+#:   transfers, variances and returns, and releasing held stock.
+#:
+#: Those needed three capabilities that did not exist either (stock.receive,
+#: stock.count, stock.approve), so the roles are added WITH them rather than
+#: as two more empty names. A role that grants nothing is the bug; a role is
+#: only worth adding at the same time as the rights that make it real.
+#:
+#: Ordered by reach, because this list is read as a list — it fills the role
+#: picker when somebody is hired and heads the columns of the role matrix.
+#:
+#: Roles that used to exist, and what somebody holding one becomes. Empty now
+#: that assistant is a real role again: anybody moved onto `cashier` by the
+#: earlier migration stays a cashier, because silently promoting them back on
+#: an upgrade would hand out stock rights nobody asked for.
+RETIRED_ROLES: dict[str, str] = {}
+
+#: What each role is FOR, in one line, for the person choosing one.
+#:
+#: Somebody hiring is not choosing between seven words; they are deciding what
+#: a new colleague will be doing on Monday. The words alone have never been
+#: enough to decide that, which is how a qualified pharmacist ends up set up
+#: as a cashier by a manager who picked the nearest sounding option.
+ROLE_NOTES: dict[str, str] = {
+    "admin": "Everything, including staff, branches and configuration.",
+    "manager": "Runs the shop: prices, new products, reports, approvals.",
+    "supervisor": "Signs off adjustments, transfers, counts and returns, "
+                  "and releases held stock. No pricing or new products.",
+    "pharmacist": "Dispenses, including controlled medicines, and may "
+                  "correct a stock figure at the shelf.",
+    "cashier": "The till and the front counter. Sells over the counter and "
+               "takes returns; no access to stock records.",
+    "assistant": "Day to day stock handling: books deliveries in, enters "
+                 "counts, asks for transfers. Approves nothing.",
+    "accountant": "The books: claims, creditors, cash ups and the money "
+                  "reports. Cannot change the figures being checked.",
+}
 
 
 def migrate_roles(db) -> dict[str, int]:

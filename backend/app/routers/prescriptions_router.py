@@ -323,7 +323,7 @@ def clear_hold(hold_id: int, note: str = Body(default="", embed=True),
     try:
         holds.clear(db, hold=hold, note=note, user=user)
     except holds.HoldError as exc:
-        status = 403 if user.role not in holds.CLEARERS else 400
+        status = 400 if holds.may_clear(db, user) else 403
         raise HTTPException(status_code=status, detail=str(exc)) from exc
     db.commit()
     return holds.summarise(db, hold)

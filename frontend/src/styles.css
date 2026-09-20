@@ -6586,6 +6586,35 @@ table.dt.sub th { font-size: var(--t-xs); }
 .cf-field input { width: 100%; }
 .cf-required { color: var(--danger); font-weight: 600; }
 
+/* ---------- Picking one of a few, in a dialog ----------
+   Where the answer is one of a known set, typing it is a bug waiting: a role
+   typed wrong is an account that quietly grants nothing. Each row carries the
+   line that says what it is FOR, because the words alone have never been
+   enough to choose between them. */
+.cf-choices {
+  display: flex; flex-direction: column; gap: var(--s2);
+  margin: var(--s4) 0 0;
+  max-height: 46vh; overflow-y: auto;
+}
+.cf-choice {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%; height: auto;            /* the global button height squashes these */
+  padding: var(--s3);
+  text-align: left; cursor: pointer;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.cf-choice:hover { border-color: var(--line-strong); background: var(--surface-sunk); }
+.cf-choice.on {
+  /* `--tint` rather than a colour: selection in this interface is carried by
+     weight and contrast, which is what leaves actual colour free to mean
+     passed, check, stop. It also flips correctly on the dark ground. */
+  border-color: var(--accent); background: var(--tint);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.cf-choice-says { font-weight: 600; font-size: var(--t-sm); }
+.cf-choice-why { color: var(--ink-soft); font-size: var(--t-xs); line-height: 1.45; }
+
 /* The estate, drawn. Tall enough to be a map rather than a strip — a map you
    have to scroll inside tells you less than the table under it. */
 .hq-map {

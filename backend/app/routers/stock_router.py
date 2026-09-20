@@ -550,6 +550,29 @@ def update_product(product_id: int, body: schemas.ProductBase,
     # whether or not it moved, so the only way to know a price changed is to
     # have held the old one.
     before = {"selling": product.unit_price, "cost": product.cost_price}
+
+    # WHO MAY MOVE A PRICE.
+    #
+    # `stock.price` was declared in the capability list and enforced nowhere,
+    # so it read as a rule and was not one: any signed-in account could change
+    # what the shop charges for anything, through the ordinary product form,
+    # and nothing about the screen would have looked wrong.
+    #
+    # Gated on the CHANGE rather than on the endpoint, deliberately. A
+    # pharmacist holds `stock.create` and not `stock.price`, and locking the
+    # whole form would stop them correcting a strength or a pack size, which
+    # is most of what this form is for and none of what the rule is about.
+    moved = [what for what, was in
+             (("selling price", before["selling"]), ("cost price", before["cost"]))
+             if round(float(was or 0), 4)
+             != round(float((body.unit_price if what == "selling price"
+                             else body.cost_price) or 0), 4)]
+    if moved and not permissions.can(db, user, "stock.price"):
+        raise HTTPException(
+            status_code=403,
+            detail=(f"Changing the {' and the '.join(moved)} is a manager's "
+                    "decision. Everything else on this form you may edit: "
+                    "save it with the price left as it is."))
     # All three shelves, because a line can be kept in three places and a
     # change to the second one is as much a move as a change to the first.
     # The first version read only `bin_location`, so setting a back store
@@ -1049,6 +1072,7 @@ def set_order_status(
     body: schemas.ReceiveOrderBody | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
+    _may=Depends(auth.requires("stock.receive")),
 ):
     order = db.get(PurchaseOrder, order_id)
     if not order:
@@ -1690,7 +1714,7 @@ def quarantine_batch(batch_id: int, body: dict = Body(default={}),
 def release_batch(batch_id: int, body: dict = Body(default={}),
                   db: Session = Depends(get_db),
                   user: User = Depends(get_current_user),
-                  _may=Depends(auth.requires("stock.write_off"))):
+                  _may=Depends(auth.requires("stock.approve"))):
     """Put a held batch back on the shelf.
 
     A heavier capability than holding one, deliberately, and the asymmetry is
@@ -1871,7 +1895,7 @@ def raise_supplier_return(body: dict = Body(...), db: Session = Depends(get_db),
 @router.post("/supplier-returns/{return_id}/approve")
 def approve_supplier_return(return_id: int, db: Session = Depends(get_db),
                             user: User = Depends(get_current_user),
-                            _may=Depends(auth.requires("stock.write_off"))):
+                            _may=Depends(auth.requires("stock.approve"))):
     """Agree it and take the goods off the books."""
     out = db.get(SupplierReturn, return_id)
     if not out:

@@ -254,7 +254,12 @@ def create_transfer(body: TransferIn, db: Session = Depends(get_db),
 def approve_transfer(transfer_id: int, db: Session = Depends(get_db),
                      user: User = Depends(get_current_user)):
     """Agree a requested transfer. This is when the stock leaves."""
-    _guard(db, user, "stock.write_off")
+    # An approval, not a write-off. It was gated on `stock.write_off` because
+    # nothing better existed, which made "may approve a transfer" and "may
+    # write stock off" the same question when they are not: a supervisor signs
+    # movements between shops all day and should never be writing stock off to
+    # do it.
+    _guard(db, user, "stock.approve")
     try:
         with every_branch():
             transfer = branches.approve_transfer(
@@ -272,7 +277,7 @@ def refuse_transfer(transfer_id: int, body: dict = Body(default={}),
                     db: Session = Depends(get_db),
                     user: User = Depends(get_current_user)):
     """Turn down a request. Nothing moved, so nothing has to move back."""
-    _guard(db, user, "stock.write_off")
+    _guard(db, user, "stock.approve")
     try:
         with every_branch():
             transfer = branches.refuse_transfer(

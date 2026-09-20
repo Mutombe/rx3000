@@ -20,7 +20,10 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-CANCELLERS = ("pharmacist", "manager", "admin")
+#: The capability, not a list of roles: the same list lived here, in holds.py
+#: and twice more in the browser, and only one of the four could see a grant
+#: made to one named person.
+CANCELLERS = "script.manage"
 
 
 class CancelError(Exception):
@@ -34,7 +37,8 @@ def cancel(db: Session, *, rx, reason: str, user):
     from . import holds
 
     label = rx.rx_number or rx.draft_ref or f"#{rx.id}"
-    if user.role not in CANCELLERS:
+    from . import permissions
+    if not permissions.can(db, user, CANCELLERS):
         raise CancelError("A pharmacist or a manager cancels a script. Ask one to take it off.", 403)
     if rx.status == "draft":
         raise CancelError(f"{label} is still being captured. Delete the draft instead.")
