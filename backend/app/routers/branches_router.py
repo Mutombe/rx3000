@@ -286,16 +286,32 @@ def refuse_transfer(transfer_id: int, body: dict = Body(default={}),
 
 
 @router.post("/transfers/{transfer_id}/receive")
-def receive_transfer(transfer_id: int, db: Session = Depends(get_db),
+def receive_transfer(transfer_id: int, body: dict = Body(default={}),
+                     db: Session = Depends(get_db),
                      user: User = Depends(get_current_user)):
+    """Book in what arrived, which may not be all of it.
+
+    An absent quantity means everything still in transit, so the ordinary
+    case of the whole transfer turning up needs nothing new from the screen.
+    """
     _guard(db, user, "stock.transfer")
+    asked = body.get("quantity")
     try:
         with every_branch():
-            transfer = branches.receive(db, transfer_id=transfer_id, user_id=user.id)
+            transfer = branches.receive(
+                db, transfer_id=transfer_id, user_id=user.id,
+                quantity=int(asked) if asked not in (None, "") else None)
     except branches.BranchError as e:
         raise HTTPException(400, str(e))
+    short = int(transfer.quantity or 0) - int(transfer.quantity_received or 0)
     return {"reference": transfer.reference, "status": transfer.status,
-            "message": "Received and on the shelf."}
+            "quantity_received": int(transfer.quantity_received or 0),
+            "outstanding": short,
+            "message": ("Received and on the shelf."
+                        if short <= 0 else
+                        f"{transfer.quantity_received} of {transfer.quantity} "
+                        f"on the shelf. {short} still in transit, and the "
+                        "transfer stays open until they arrive.")}
 
 
 @router.get("/{branch_id}")

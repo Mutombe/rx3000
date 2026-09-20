@@ -264,8 +264,29 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
     return transfer
 
 
-def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTransfer:
+def receive(db: Session, *, transfer_id: int, user_id: int | None,
+            quantity: int | None = None) -> BranchTransfer:
     """Book in stock that has arrived at the destination branch.
+
+    PART OF IT, IF THAT IS WHAT ARRIVED
+
+    A lorry that brings eight of ten is the ordinary case, not an exotic one,
+    and a transfer that could only be received whole forced somebody to lie
+    about one or the other: book in ten that are not there, or leave the
+    eight in transit and dispense from stock the system says is elsewhere.
+
+    `quantity` defaults to whatever is still outstanding, so the common case
+    of everything arriving needs nothing new from the caller. The transfer
+    stays in transit until the last unit is booked in, which is what keeps
+    the shortfall visible instead of quietly closing it.
+
+    WHERE THE BOXES COME FROM ON A SECOND RECEIPT
+
+    `drawn` is the manifest of what left, batch by batch. Rather than storing
+    which of it has arrived, the walk skips the first `quantity_received`
+    units of that manifest, because those have been booked in already. The
+    manifest is ordered and does not change, so the arithmetic is the record:
+    one number, and no second list to keep in step with the first.
 
     Serialised on the transfer itself. The status check below and the commit at
     the end were not, so two people clicking "Confirm arrival" at the same
@@ -283,6 +304,19 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTran
         raise BranchError(
             f"This transfer is already '{transfer.status}'. Only stock in "
             "transit can be received.")
+
+    already = int(transfer.quantity_received or 0)
+    outstanding = int(transfer.quantity or 0) - already
+    if outstanding <= 0:
+        raise BranchError("Every unit on this transfer has already arrived.")
+    taking = outstanding if quantity is None else int(quantity)
+    if taking <= 0:
+        raise BranchError("Say how many arrived.")
+    if taking > outstanding:
+        raise BranchError(
+            f"This transfer has {outstanding} unit(s) still in transit and "
+            f"{taking} were entered. Book in what arrived; if more turned up "
+            "than was sent, that is a separate receipt.")
 
     # New batches at the destination rather than moved ones: the receiving
     # branch needs its own batch records to dispense and to recall against.
@@ -307,29 +341,78 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None) -> BranchTran
                                         "expiry_date": None,
                                         "quantity": transfer.quantity,
                                         "unit_cost": 0.0}]
+
+    # Walk the manifest, skipping what has already been booked in and stopping
+    # once this receipt is satisfied. On a transfer received in one go this is
+    # the whole list, which is what it always was.
+    skip = already
+    want = taking
+    arriving: list[dict] = []
     for line in moved:
+        have = int(line.get("quantity") or 0)
+        if skip >= have:
+            skip -= have
+            continue
+        usable = have - skip
+        skip = 0
+        take = min(usable, want)
+        if take <= 0:
+            break
+        arriving.append({**line, "quantity": take})
+        want -= take
+        if want <= 0:
+            break
+
+    for line in arriving:
         expiry = line.get("expiry_date")
+        wanted = date.fromisoformat(expiry) if expiry else None
+        number = (f"{line.get('batch_number')}" if line.get("batch_number")
+                  else f"{transfer.reference}")[:50]
+
+        # ONE LOT, ONE ROW, HERE TOO.
+        #
+        # A transfer received in two parts is one lot arriving twice, and
+        # creating a second row for the second half is exactly what the
+        # receiving path was taught not to do: a recall traces one of them,
+        # and FEFO treats them as separate queues. The rule is the same
+        # wherever stock lands, so it applies here as well.
+        same = (db.query(StockBatch)
+                .filter(StockBatch.product_id == transfer.product_id,
+                        StockBatch.branch_id == transfer.to_branch_id,
+                        StockBatch.batch_number == number,
+                        StockBatch.expiry_date == wanted)
+                .first())
+        if same is not None:
+            same.quantity_received = (same.quantity_received or 0) + int(line.get("quantity") or 0)
+            same.quantity_remaining = (same.quantity_remaining or 0) + int(line.get("quantity") or 0)
+            continue
+
         db.add(StockBatch(
             product_id=transfer.product_id,
             # The batch as the manufacturer numbered it, with the transfer that
             # carried it, so a recall finds it at whichever shop it ended up in.
-            batch_number=(f"{line.get('batch_number')}" if line.get("batch_number")
-                          else f"{transfer.reference}")[:50],
+            batch_number=number,
             quantity_received=int(line.get("quantity") or 0),
             quantity_remaining=int(line.get("quantity") or 0),
-            expiry_date=date.fromisoformat(expiry) if expiry else None,
+            expiry_date=wanted,
             unit_cost=float(line.get("unit_cost") or 0.0),
             reference=transfer.reference,
             branch_id=transfer.to_branch_id))
     db.add(StockMovement(
         product_id=transfer.product_id, movement_type="transfer_in",
-        quantity_delta=transfer.quantity,
-        balance_after=before + transfer.quantity,
+        quantity_delta=taking,
+        balance_after=before + taking,
         reference=transfer.reference,
+        notes=("" if taking == outstanding else
+               f"Part receipt: {taking} of {outstanding} still in transit."),
         branch_id=transfer.to_branch_id, user_id=user_id))
-    transfer.status = "received"
-    transfer.received_by_id = user_id
-    transfer.received_at = datetime.utcnow()
+    transfer.quantity_received = already + taking
+    # In transit until the last unit is here. Closing it early is what makes a
+    # shortfall disappear rather than be chased.
+    if transfer.quantity_received >= (transfer.quantity or 0):
+        transfer.status = "received"
+        transfer.received_by_id = user_id
+        transfer.received_at = datetime.utcnow()
     db.commit()
     db.refresh(transfer)
     return transfer
