@@ -127,6 +127,17 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
     # to assume. Read once per sweep: the job runs over every branch and the
     # answer cannot change while it does.
     warn_within = config.whole(db, "stock.expiry_alert_days", EXPIRING_DAYS)
+    # And what each DEPARTMENT calls short dated, where it has said.
+    #
+    # A wholesaler takes short dated antibiotics back at sixty days and will
+    # not look at cosmetics at any notice, so one number for the whole shop is
+    # either too late to return the medicines or too noisy about the shampoo.
+    # Read once for the sweep: there are tens of departments, not thousands.
+    from ..models import StockCategory
+    by_department = {c.id: c.expiry_alert_days
+                     for c in db.query(StockCategory).all()
+                     if c.expiry_alert_days}
+    widest = max([warn_within, *by_department.values()]) if by_department else warn_within
 
     # ---- what is on the shelf past its date, and what is nearly there -----
     batches = (
@@ -134,7 +145,10 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
         .join(Product, StockBatch.product_id == Product.id)
         .filter(StockBatch.quantity_remaining > 0,
                 StockBatch.expiry_date.isnot(None),
-                StockBatch.expiry_date <= today + timedelta(days=warn_within))
+                # The WIDEST window any department asks for, narrowed per
+                # line below. One query rather than one per department, and
+                # nothing is missed by a department that wants longer notice.
+                StockBatch.expiry_date <= today + timedelta(days=widest))
         .all()
     )
     for batch, product in batches:
@@ -149,6 +163,13 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
                           seen=seen)
             new["expired"] += made
         else:
+            # Narrowed to what THIS department asked for. The query above used
+            # the widest window any department wants, so a cosmetics line with
+            # a thirty day rule does not appear on day eighty-nine merely
+            # because the dispensary wants ninety.
+            mine = by_department.get(product.category_id) or warn_within
+            if days > mine:
+                continue
             made = _raise(db, "expiring", product, branch_id=batch.branch_id,
                           batch_id=batch.id, worth=worth,
                           detail=f"{batch.quantity_remaining} unit(s) of batch "

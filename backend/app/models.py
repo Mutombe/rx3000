@@ -633,6 +633,15 @@ class StockCategory(Base, TenantMixin):
     #: The margin expected of this department, where a pharmacy works that way.
     #: A cosmetics line and a dispensary line are not judged on the same number.
     target_margin = Column(Float, default=0.0)
+    #: How far ahead to warn about expiry for THIS department, in days.
+    #:
+    #: Null means the pharmacy's own setting, which means the module default
+    #: of ninety. The blueprint asks for the threshold to vary by category and
+    #: the reason is practical: a wholesaler takes short dated antibiotics back
+    #: at sixty days and will not look at cosmetics at any notice, so one
+    #: number for the whole shop is either too late to return the medicines or
+    #: too noisy about the shampoo.
+    expiry_alert_days = Column(Integer, nullable=True)
     notes = Column(Text, default="")
     active = Column(Boolean, default=True)
     #: Whether the dispensary offers what is filed here.

@@ -1242,6 +1242,9 @@ def list_stock_categories(db: Session = Depends(get_db),
     out = [{
         "id": c.id, "code": c.code or "", "name": c.name,
         "target_margin": c.target_margin or 0.0,
+        # Null means "whatever the pharmacy's own setting says", which is how
+        # every department starts and how most of them stay.
+        "expiry_alert_days": c.expiry_alert_days,
         "active": bool(c.active),
         # Whether the dispensary offers what is filed here.
         "dispensable": bool(c.dispensable),
@@ -1315,6 +1318,18 @@ def update_stock_category(category_id: int, body: dict, db: Session = Depends(ge
         cat.name = name
     if "code" in body:
         cat.code = (body.get("code") or "").strip()[:20]
+    if "expiry_alert_days" in body:
+        given = body.get("expiry_alert_days")
+        if given in (None, ""):
+            cat.expiry_alert_days = None          # back to the pharmacy's own
+        else:
+            days = int(given)
+            if days < 1 or days > 720:
+                raise HTTPException(
+                    400, "Warn between 1 and 720 days ahead. Shorter than a day "
+                         "is not a warning and longer than two years is not "
+                         "short dated.")
+            cat.expiry_alert_days = days
     if "target_margin" in body:
         margin = float(body.get("target_margin") or 0)
         # A margin above a hundred per cent is a keying slip — 30 typed as 300 —
@@ -1716,6 +1731,12 @@ def approve_supplier_return(return_id: int, db: Session = Depends(get_db),
     supplier_returns.approve(db, out, user=user)
     db.commit()
     db.refresh(out)
+    # The goods left the shelf, so the liability leaves with them. Posted here
+    # rather than when the credit note arrives: waiting for the supplier's
+    # paperwork would leave the pharmacy owing money for stock it had sent
+    # back, on its own books, for as long as they took. Non-fatal, like every
+    # other posting: the stock has gone whatever the ledger thinks.
+    posting.post_supplier_return(db, out, user.id)
     said = supplier_returns.shape(out)
     said["message"] = (f"{out.reference} approved. {money_words(out.total)} of "
                        f"stock has left the shelf and is owed by "

@@ -277,3 +277,67 @@ def unposted_receipts(db: Session, limit: int = 200) -> list[dict]:
     return [{"order_id": o.id, "order_number": o.order_number,
              "supplier_id": o.supplier_id}
             for o in rows if o.id not in posted][:limit]
+
+
+def post_supplier_return(db: Session, out, user_id: int | None = None) -> dict:
+    """Post goods going back to the wholesaler, the reverse of a receipt.
+
+        Dr Creditors      what the supplier now owes back
+           Cr Stock       the goods that left the shelf
+           Cr VAT input   the tax that came back off with them
+
+    Exactly the receipt entry turned round, because that is exactly what a
+    return is: the goods and the liability both unwind together.
+
+    WHY THIS EXISTS AT ALL
+
+    Approving a return took stock off the shelf and left the creditor sitting
+    at the full delivery value. The pharmacy owed money for goods it had sent
+    back, on its own books, until somebody noticed and passed a manual
+    journal. The blueprint's returns flow ends with "creditor account updated
+    (credit posted)" and that was the one step with nothing behind it.
+
+    Posted at APPROVAL rather than when the credit note arrives. The goods
+    leave at approval, so the liability has to move with them; waiting for the
+    supplier's paperwork would leave the ledger wrong for as long as they take,
+    which is the exact gap this is closing.
+
+    Idempotent per return, and never fatal. The stock has left the building
+    whatever the ledger thinks, which is the same rule every other posting
+    here follows.
+    """
+    existing = already_posted(db, "supplier_return", out.id)
+    if existing:
+        return {"posted": False, "reason": "already posted",
+                "reference": existing.reference}
+
+    ledger.ensure_chart(db)
+    goods = round(sum(line.line_total for line in out.lines), 2)
+    if goods <= 0:
+        return {"posted": False, "reason": "nothing to post"}
+
+    rate = settings.VAT_RATE or 0.0
+    net = round(goods / (1 + rate), 2) if rate else goods
+    vat = round(goods - net, 2)
+
+    lines = [ledger.Line(
+        account_code=CREDITORS, debit=goods,
+        description=f"Return {out.reference}",
+        party_type="supplier", party_id=out.supplier_id)]
+    lines.append(ledger.Line(account_code=STOCK, credit=net,
+                             description="Goods returned"))
+    if vat:
+        lines.append(ledger.Line(account_code=VAT_INPUT, credit=vat,
+                                 description="VAT on goods returned"))
+
+    try:
+        entry = ledger.post(
+            db, entry_date=date.today(),
+            description=f"Goods returned on {out.reference}", lines=lines,
+            source="supplier_return", source_id=out.id, user_id=user_id)
+    except ledger.LedgerError as exc:
+        log.warning("return %s did not post: %s", out.reference, exc)
+        return {"posted": False, "reason": str(exc), "reference": ""}
+
+    return {"posted": True, "reference": entry.reference,
+            "goods": goods, "vat": vat}

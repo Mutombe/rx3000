@@ -113,6 +113,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "stock_movements": {"branch_id": "INTEGER", "prescription_id": "INTEGER",
                         "reason_code": "VARCHAR(20) DEFAULT ''"},
     "stock_categories": {
+        # Per-department expiry warning. See StockCategory.
+        "expiry_alert_days": "INTEGER",
         # Whether the dispensary offers what is filed here. Seeded from what is
         # actually in each department; see _departments_that_dispense.
         "dispensable": "BOOLEAN DEFAULT 1",
