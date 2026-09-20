@@ -78,6 +78,10 @@ def chart(db: Session, *, include_inactive: bool = False) -> dict:
             "section": a.section or "", "subledger": a.subledger or "",
             "parent_code": a.parent_code or "", "is_cash": bool(a.is_cash),
             "active": bool(a.active), "notes": a.notes or "",
+            # The same account in the pharmacy's own Pastel books, where the
+            # accountant keeps them. Ours is 1200; theirs may be 8400, and
+            # neither number is guessable from the other.
+            "external_code": (a.external_code or "").strip(),
             "balance": balance,
             "protected": a.code in PROTECTED,
             "posted_to": a.code in used,
@@ -226,6 +230,23 @@ def update(db: Session, code: str, **changes) -> Account:
 
     if "is_cash" in changes:
         account.is_cash = bool(changes["is_cash"])
+
+    if "external_code" in changes:
+        # The number this account carries in the pharmacy's own Pastel books,
+        # so the export arrives under the accountant's numbering rather than
+        # ours. Checked for length and shape only: what is a valid account
+        # number over there is their business, and refusing a code Pastel
+        # accepts would simply stop the export working.
+        theirs = str(changes["external_code"] or "").strip()
+        if len(theirs) > 20:
+            raise ChartError(
+                "A Pastel account code is at most twenty characters.")
+        if theirs and any(c in theirs for c in ',";\r\n'):
+            raise ChartError(
+                "A Pastel account code cannot contain a comma, a quote or a "
+                "line break: the export is a csv and those would split the "
+                "line in two.")
+        account.external_code = theirs
 
     if "active" in changes and not changes["active"]:
         if code in PROTECTED:

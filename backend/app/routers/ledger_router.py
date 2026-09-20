@@ -1,13 +1,13 @@
 """General ledger: chart, journal, trial balance, subledger reconciliation."""
 from datetime import date
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from sqlalchemy import desc
 from sqlalchemy.orm import Session, selectinload
 
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import paging
+from ..services import paging, pastel
 from ..models import Account, JournalEntry, User
 from ..services import (bank_recon, chart_of_accounts, ledger, posting,
                         reporting, statements, writedowns)
@@ -83,6 +83,7 @@ def update_account(code: str, changes: dict = Body(...),
             "section": account.section, "subledger": account.subledger,
             "is_cash": account.is_cash, "active": account.active,
             "notes": account.notes,
+            "external_code": account.external_code or "",
             "message": f"{account.code} updated."}
 
 
@@ -511,3 +512,65 @@ def post_expiry_provision(db: Session = Depends(get_db),
         return writedowns.post(db, user_id=user.id)
     except ledger.LedgerError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+# ---------- handing the books to the accountant ----------
+
+@router.get("/pastel-export/preview")
+def pastel_preview(start: date, end: date, db: Session = Depends(get_db),
+                   _: User = Depends(require_role("admin", "manager",
+                                                  "accountant"))):
+    """What the file would contain, before anybody sends it anywhere.
+
+    Whether it balances is the point. Pastel refuses an unbalanced import,
+    and finding that out in the accountant's office the next day costs both
+    of them a day.
+    """
+    if end < start:
+        raise HTTPException(400, "The last day comes before the first.")
+    return pastel.summary(db, start, end)
+
+
+@router.get("/pastel-export")
+def pastel_export(start: date, end: date,
+                  force: bool = Query(default=False),
+                  db: Session = Depends(get_db),
+                  _: User = Depends(require_role("admin", "manager",
+                                                 "accountant"))):
+    """The day's journal, as a file their Pastel can import.
+
+    REFUSED WHERE ACCOUNTS ARE UNMAPPED, AND WHY THAT IS NOT PEDANTRY
+
+    An account here is 1200 STOCK ON HAND; in their books it might be 8400.
+    Exporting an unmapped line sends it under OUR number, which imports
+    perfectly well into whatever their 1200 happens to be. The result is a
+    wrong set of books that balances — the hardest kind of error to find, and
+    the easiest to prevent by not writing the file.
+
+    `force` exists because somebody genuinely may want the file anyway, to
+    look at it. It is a deliberate answer to a stated problem rather than a
+    default.
+    """
+    if end < start:
+        raise HTTPException(400, "The last day comes before the first.")
+    missing = pastel.unmapped(db, start, end)
+    if missing and not force:
+        raise HTTPException(
+            409,
+            {
+                "error_code": "PASTEL_UNMAPPED",
+                "message": (
+                    f"{len(missing)} account(s) have no Pastel code, so those "
+                    "lines would arrive under this system's own numbering and "
+                    "land in whatever account holds that number over there. "
+                    "Set the codes on the chart of accounts first."),
+                "accounts": missing,
+            })
+
+    body = pastel.to_csv(db, start, end)
+    name = f"pastel-{start:%Y%m%d}-{end:%Y%m%d}.csv"
+    return Response(
+        content=body,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )

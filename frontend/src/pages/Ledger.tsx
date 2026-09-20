@@ -23,6 +23,7 @@ import ExportButton from "../components/ExportButton";
 import { EntityLink } from "../components/Filters";
 import NewJournal from "../components/NewJournal";
 import ChartOfAccounts from "../components/ChartOfAccounts";
+import PastelExport from "../components/PastelExport";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -53,7 +54,7 @@ interface UnpostedReceipts {
             value: number; received_at: string | null }[];
 }
 
-type Tab = "chart" | "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "bank" | "unposted" | "provision";
+type Tab = "chart" | "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "bank" | "unposted" | "provision" | "pastel";
 
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
@@ -103,6 +104,11 @@ export default function Ledger() {
     { key: "unposted", label: "Not posted",
       count: (unposted?.count ?? 0) + (receipts?.count ?? 0),
       hint: "Sales and deliveries the ledger has not caught up with" },
+    // Last, because it is what happens after everything else is right. The
+    // pharmacy's accountant keeps the financials in Pastel and wants a file,
+    // not a login.
+    { key: "pastel", label: "To Pastel",
+      hint: "The journal as a file the accountant's Pastel can import" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "trial");
 
@@ -206,6 +212,7 @@ export default function Ledger() {
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
       {tab === "chart" && <ChartOfAccounts />}
+      {tab === "pastel" && <PastelExport onFixMapping={() => setTab("chart")} />}
       {tab === "income" && <Statements kind="income" />}
       {tab === "balance" && <Statements kind="balance" />}
       {tab === "cash" && <CashFlow />}

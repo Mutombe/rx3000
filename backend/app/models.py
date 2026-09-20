@@ -2857,6 +2857,13 @@ class Account(Base, TenantMixin):
     name = Column(String(120), nullable=False)
     # asset | liability | equity | income | expense
     type = Column(String(12), nullable=False, index=True)
+    #: What the pharmacy's accountant calls this account in their own books.
+    #:
+    #: Ours and theirs are both right and are rarely the same number. An
+    #: export that assumes they match is one a bookkeeper re-keys line by
+    #: line, which is exactly the work the export exists to remove. Empty
+    #: means nobody has said, and the export says so rather than guessing.
+    external_code = Column(String(20), default="")
     # A control account is the general ledger's summary of a subledger. Its
     # balance must equal the subledger it controls, and the day it does not is
     # the day something was posted around the subledger instead of through it.

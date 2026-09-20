@@ -32,6 +32,9 @@ interface Row {
   code: string; name: string; type: string; section: string;
   subledger: string; parent_code: string; is_cash: boolean; active: boolean;
   notes: string; balance: number; protected: boolean; posted_to: boolean;
+  /** The same account in the pharmacy's own Pastel books. Ours is 1200; theirs
+   *  may be 8400, and the export refuses to guess. */
+  external_code: string;
 }
 interface Group {
   section: string; label: string; type: string; accounts: Row[]; total: number;
@@ -113,7 +116,11 @@ export default function ChartOfAccounts() {
         { key: "code", label: "Code", width: "20mm" },
         { key: "name", label: "Account" },
         { key: "type", label: "Type", width: "24mm" },
-        { key: "section", label: "Where it appears", width: "42mm" },
+        { key: "section", label: "Where it appears", width: "36mm" },
+        // Printed with the rest because this sheet has one obvious use: it
+        // goes to the accountant, who writes their own number beside ours and
+        // sends it back. A blank column is the point of it.
+        { key: "external_code", label: "In Pastel", width: "22mm" },
         { key: "balance", label: "Balance", numeric: true, width: "28mm" },
       ],
       // The section headings survive into the document as rows of their own:
@@ -121,10 +128,11 @@ export default function ChartOfAccounts() {
       // an alphabetical list is what everybody already has in a spreadsheet.
       rows: (chart?.groups ?? []).flatMap((g) => [
         { code: "", name: g.label.toUpperCase(), type: "", section: "",
-          balance: money(g.total) },
+          external_code: "", balance: money(g.total) },
         ...g.accounts.map((a) => ({
           code: a.code, name: a.name + (a.active ? "" : " (retired)"),
-          type: a.type, section: g.label, balance: money(a.balance),
+          type: a.type, section: g.label, external_code: a.external_code,
+          balance: money(a.balance),
         })),
       ]),
       note: "Balances are as at the date shown and include every posted entry.",
@@ -221,6 +229,9 @@ export default function ChartOfAccounts() {
                     <th style={{ width: "8rem" }}>Code</th>
                     <th>Account</th>
                     <th style={{ width: "12rem" }}>Notes</th>
+                    <th style={{ width: "8rem" }} title="The number this account carries in the pharmacy's own Pastel books">
+                      In Pastel
+                    </th>
                     <th className="num" style={{ width: "10rem" }}>Balance</th>
                     <th className="actions" />
                   </tr>
@@ -247,6 +258,38 @@ export default function ChartOfAccounts() {
                         {a.notes || (a.protected
                           ? "Used by the posting rules"
                           : a.posted_to ? "" : "Never posted to")}
+                      </td>
+                      {/* THEIR NUMBER FOR THIS ACCOUNT.
+                          Editable in place, because mapping a chart is twenty
+                          small facts read off one sheet of paper, and twenty
+                          dialogs is how that job gets abandoned halfway.
+                          Empty is the honest state: the export names what is
+                          unmapped and refuses rather than sending a line under
+                          our numbering, which would import cleanly into the
+                          wrong account. */}
+                      <td>
+                        <input
+                          className="coa-pastel-box mono"
+                          key={`${a.code}-ext-${a.external_code}`}
+                          defaultValue={a.external_code}
+                          maxLength={20}
+                          placeholder="not set"
+                          aria-label={`Pastel code for ${a.code} ${a.name}`}
+                          title="The number this account has in the accountant's Pastel books. Leave empty and the export will refuse rather than guess."
+                          disabled={accounts.isPending(a)}
+                          onBlur={(e) => {
+                            const next = e.target.value.trim();
+                            if (next === a.external_code) return;
+                            accounts.update(
+                              a.code,
+                              { external_code: next } as Partial<Row>,
+                              () => api.patch(`/api/ledger/accounts/${a.code}`,
+                                              { external_code: next }),
+                              next
+                                ? `${a.code} exports as ${next}.`
+                                : `${a.code} has no Pastel code again.`);
+                          }}
+                        />
                       </td>
                       <td className="num"><Balance value={a.balance} /></td>
                       <td className="actions">

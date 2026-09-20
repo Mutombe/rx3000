@@ -11818,6 +11818,62 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    inherited value. It holds at most three digits, so the rest is placeholder. */
 .sc-days-box { width: 10ch; text-align: right; }
 .sc-days-box::placeholder { font-size: var(--t-xs); text-align: right; }
+
+/* The account's number in the accountant's own Pastel books, typed straight
+   into the chart of accounts. Quiet until it holds something or is focused:
+   most of this column is empty on a chart nobody has mapped yet, and twenty
+   boxed inputs down a page read as twenty errors. */
+.coa-pastel-box {
+  /* Wide enough for the words "not set", which is what most of this column
+     says on a chart nobody has mapped. At 7ch that clipped to "not se",
+     which reads as a broken field rather than as an empty one. */
+  width: 9.5ch;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  border-radius: var(--r-xs);
+}
+.coa-pastel-box::placeholder {
+  font-size: var(--t-xs);
+  color: var(--ink-faint);
+}
+.coa-pastel-box:hover:not(:disabled) { border-color: var(--line); }
+.coa-pastel-box:focus {
+  background: var(--surface);
+  border-color: var(--accent);
+}
+.coa-pastel-box:disabled { opacity: .5; }
+
+/* The accounts holding up a Pastel export, named rather than counted. Laid
+   out across rather than down: it is a list to work through, and five short
+   entries stacked one per line push the button that fixes them off the
+   screen. */
+.pe-missing {
+  list-style: none;
+  margin: var(--s2) 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s3);
+}
+.pe-missing li { white-space: nowrap; }
+.pe-missing .mono { font-weight: 600; }
+
+/* How the file is shaped, and the button that writes it. The sentence sits
+   beside the button rather than under it: it is the thing to read before
+   pressing, not a footnote after. */
+.pe-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--line);
+}
+.pe-foot p { flex: 1 1 22rem; margin: 0; }
 /* The tally sits under the viewfinder, in `scan-feed`. That panel is the
    surface colour with ordinary ink on it, NOT the dark stage above it — a
    first attempt painted this text near-white and put it on white. It needs no

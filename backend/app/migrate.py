@@ -69,7 +69,12 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "driver_profile_id": "INTEGER",
         "branch_id": "INTEGER",
     },
-    "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0"},
+    # `external_code` is what the pharmacy's accountant calls this account in
+    # Pastel. Ours and theirs are both right and are rarely the same number,
+    # and an export that assumes they are is one their bookkeeper has to
+    # re-key line by line, which is the work the export existed to remove.
+    "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0",
+                 "external_code": "VARCHAR(20)"},
     # Till PINs. Nullable throughout: every user that existed before this has no
     # PIN, and the password path has to keep working for them rather than
     # locking them out of a prompt they have always answered with a password.
