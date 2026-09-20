@@ -1052,6 +1052,7 @@ def set_order_status(
         raise HTTPException(status_code=404, detail="Order not found")
     if status not in ("draft", "sent", "received", "cancelled"):
         raise HTTPException(status_code=400, detail="Invalid status")
+    sep_breaches: list[dict] = []
     if status == "received" and order.status != "received":
         batch_info = {l.item_id: l for l in (body.lines if body else [])}
         for line in order.items:
@@ -1087,6 +1088,32 @@ def set_order_status(
                     "arrived; a delivery larger than the order is a separate "
                     "receipt.")
             line.quantity_received = (line.quantity_received or 0) + arrived
+
+            # THE REGULATED MAXIMUM, CHECKED WHERE THE MONEY IS AGREED.
+            #
+            # There is a report for this, and a report is read afterwards. The
+            # blueprint asks for the comparison at goods receipt, which is the
+            # only moment somebody can still telephone the wholesaler with the
+            # delivery note in their hand. After it is booked in, an overcharge
+            # is a credit to chase rather than a line to query.
+            #
+            # Advisory, not blocking. Zimbabwe does not operate a single exit
+            # price the way South Africa does, the column is empty on 40% of
+            # this catalogue, and refusing a delivery standing in the
+            # dispensary over a price is not a trade any pharmacy would take.
+            # So it is reported back and the goods go on the shelf either way.
+            if (product.sep_price or 0) > 0 and (line.unit_cost or 0) > product.sep_price:
+                over = round(line.unit_cost - product.sep_price, 2)
+                sep_breaches.append({
+                    "product_id": product.id, "product": product.name,
+                    "sep": round(product.sep_price, 2),
+                    "cost": round(line.unit_cost, 2),
+                    "over": over, "packs": arrived,
+                    "says": (f"{product.name}: invoiced at {line.unit_cost:,.2f} "
+                             f"against a published maximum of "
+                             f"{product.sep_price:,.2f}, {over:,.2f} over on each "
+                             f"of {arrived} pack(s). Recoverable if it is queried."),
+                })
 
             if product.category == "airtime":
                 helpers.move_stock(db, product, arrived, "receive", user.id,
@@ -1170,6 +1197,16 @@ def set_order_status(
         # arrived whatever the ledger thinks.
         posting.post_stock_receipt(db, order, user.id)
     db.refresh(order)
+    # Handed back with the order so the receiving screen can say it while the
+    # delivery note is still on the counter, rather than leaving it to a
+    # report somebody opens next month.
+    if sep_breaches:
+        # Attached to the order rather than replacing it, so every existing
+        # caller keeps the shape it already reads and the screen that wants
+        # to say something gets what it needs.
+        said = schemas.POOut.model_validate(order)
+        said.sep_breaches = [schemas.SepBreach(**b) for b in sep_breaches]
+        return said
     return order
 
 

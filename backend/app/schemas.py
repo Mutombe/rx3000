@@ -982,6 +982,17 @@ class ReceiveOrderBody(BaseModel):
     lines: list[ReceiveLine] = []
 
 
+class SepBreach(BaseModel):
+    """A line invoiced above the published maximum, noticed at goods receipt."""
+    product_id: int
+    product: str
+    sep: float
+    cost: float
+    over: float
+    packs: int
+    says: str
+
+
 class POItemOut(ORM):
     id: int
     product_id: int
@@ -1001,6 +1012,12 @@ class POOut(ORM):
     notes: str
     items: list[POItemOut] = []
     supplier: Optional[SupplierOut] = None
+    #: Lines invoiced above the published maximum, noticed as they were booked
+    #: in. Declared here because a response_model silently DROPS what it does
+    #: not name, and this exact mistake has already cost this codebase a
+    #: feature that was computed on every request and thrown away on the way
+    #: out. Empty on every receipt that is priced properly, which is most.
+    sep_breaches: list[SepBreach] = []
 
 
 # ---------- register ----------
