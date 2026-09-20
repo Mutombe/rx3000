@@ -538,6 +538,39 @@ interface ScanBarProps {
    *  delivery so far. Without it the operator is scanning blind. */
   cameraFeed?: React.ReactNode;
   cameraTitle?: string;
+  /** Take back an answer given from the local catalogue before the server
+   *  had spoken.
+   *
+   *  Providing this is what turns scanning optimistic. Without it a scan
+   *  waits on the server, which against the hosted API is over two seconds —
+   *  a basket of six is thirteen seconds of somebody standing still. With it,
+   *  a code the browser already knows is answered at once and this is called
+   *  when the server replies: `agreed` for the ordinary case, where the only
+   *  job is to settle the pack size and the branch stock figure the catalogue
+   *  could not know, and false where the line has to be replaced or removed.
+   *
+   *  It is opt in because the correction is the hard half, and because most
+   *  screens should NOT have it. Where the line is drawn, and why:
+   *
+   *  The till has it. A basket line is provisional by nature — it sits in
+   *  front of the cashier, is reviewed before payment, and a correction that
+   *  lands two seconds later lands while they are still scanning.
+   *
+   *  The stock screen does not. A scan there opens an adjustment for that
+   *  product, and swapping the product underneath somebody who has already
+   *  typed a quantity is worse than the wait: the adjustment is a write to
+   *  the shelf.
+   *
+   *  Goods receipt does not. Each scan books a pack in. A provisional booking
+   *  is a real one, and there is no version of taking it back that is better
+   *  than being right the first time.
+   *
+   *  The dispensary does not. The scan there confirms the pack in the
+   *  dispenser's hand is the one on the script, and a tick that appears
+   *  before that has been established is the one thing the check exists to
+   *  prevent. */
+  onCorrect?: (fix: { was: number; applied: number; result: ScanResult;
+                      agreed: boolean }) => void;
 }
 
 /** The scan input: a wedge target, a typed fallback, and a camera button.
@@ -549,7 +582,7 @@ export function ScanBar({
   onResolved, context, branchId, orderId,
   placeholder = "Scan a barcode, or type a code or name…",
   enabled = true, autoFocus = false, value, onValueChange, inputRef: externalRef,
-  cameraFeed, cameraTitle,
+  cameraFeed, cameraTitle, onCorrect,
 }: ScanBarProps) {
   const toast = useToast();
   const { online } = useConnection();
@@ -574,6 +607,42 @@ export function ScanBar({
   // The same pack held in front of a camera decodes many times a second.
   const lastCode = useRef<{ code: string; at: number }>({ code: "", at: 0 });
 
+  /** Check a local answer against the server, and correct it if they differ.
+   *
+   *  Quiet when they agree, which is the ordinary case. When they do not, the
+   *  screen has already acted on the local answer, so this says what actually
+   *  happened rather than leaving somebody holding a pack the system thinks
+   *  is something else.
+   */
+  const confirm = useCallback(
+    async (code: string, guess: ScanResult) => {
+      try {
+        const real = await resolve(code);
+        const same = real.found && real.product?.id === guess.product?.id;
+        // Handed to the screen's own correction handler, never to
+        // `onResolved` again: that one ADDS a line, so calling it twice would
+        // put the same pack in the basket twice rather than settling it.
+        // `applied` is what the screen acted on, so it can adjust by the
+        // difference rather than guessing. The catalogue does not hold the
+        // alternate barcodes that carry a pack size, so a case scanned off
+        // its outer code reads as one locally and as twelve from the server.
+        onCorrect!({ was: guess.product!.id,
+                     applied: Math.max(1, guess.quantity_multiplier || 1),
+                     result: real, agreed: !!same });
+        if (!same) {
+          toast.error(real.found && real.product
+            ? `That code is ${real.product.name}, not ${guess.product?.name}. `
+              + "The line has been corrected."
+            : (real.message || "That code is not one this pharmacy stocks."));
+        }
+      } catch {
+        // The scan stands on the local answer. A confirmation that could not
+        // be made is not a reason to undo work somebody has already done.
+      }
+    },
+    [resolve, onResolved, toast],
+  );
+
   const handle = useCallback(
     async (code: string) => {
       const clean = code.trim();
@@ -584,9 +653,41 @@ export function ScanBar({
 
       setBusy(true);
       try {
-        // Offline, the same code is answered from the local catalogue. Same
-        // shape either way, so nothing above this has to know which happened.
-        const result = online ? await resolve(clean) : await resolveLocally(clean);
+        // ANSWER FROM THE SHELF IN THE BROWSER FIRST, THEN CONFIRM.
+        //
+        // Offline this was the only path; online it was never used, and every
+        // scan waited on a round trip. Measured against the hosted API that
+        // round trip is over two seconds, so a cashier scanning a basket of
+        // six stood there for thirteen — for an answer the browser already
+        // had, because the catalogue is synced for exactly this.
+        //
+        // So a code the local catalogue knows is answered immediately and the
+        // server is asked in the background. The screen moves on the scan;
+        // the confirmation either agrees, in which case nothing happens, or
+        // it does not, in which case it corrects the line and says so.
+        //
+        // Only an exact, confident hit is trusted this way. A miss goes to
+        // the server as it always did, because "this code is unknown" is a
+        // claim the browser is not entitled to make: it holds a catalogue and
+        // the server holds every alternate barcode anybody has ever taught.
+        let result: ScanResult;
+        if (!online) {
+          result = await resolveLocally(clean);
+        } else {
+          // Only where the screen has said it can take a correction back. A
+          // screen without that contract would be handed a second answer it
+          // could only add, so those keep waiting for the server, which is
+          // slower and always right.
+          const guess = onCorrect
+            ? await resolveLocally(clean).catch(() => null)
+            : null;
+          if (guess?.found && guess.product) {
+            result = guess;
+            void confirm(clean, guess);
+          } else {
+            result = await resolve(clean);
+          }
+        }
         setTyped("");
         // Warnings are advisory — an out-of-stock line or a schedule 5 item is
         // still added, the operator is just told. Errors come back as throws.
@@ -612,7 +713,7 @@ export function ScanBar({
         inputRef.current?.focus();
       }
     },
-    [resolve, onResolved, toast],
+    [resolve, onResolved, toast, online, confirm],
   );
 
   // Looking for the product an unknown code belongs to.

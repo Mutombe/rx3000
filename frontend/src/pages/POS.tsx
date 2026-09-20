@@ -231,6 +231,40 @@ export default function POS() {
     addToCart(result.product as unknown as Product, result.quantity_multiplier);
   }
 
+  /** Settle a line the till added from its own catalogue, once the server
+   *  has answered.
+   *
+   *  A scan against the hosted API takes over two seconds, so the basket
+   *  cannot wait for it: the line goes in on the beep from the catalogue the
+   *  browser already syncs. This is the other half of that bargain. Usually
+   *  the server agrees and the only thing to settle is a pack size the
+   *  catalogue could not know, because alternate barcodes — the outer carton
+   *  that means a case of twelve — are not cached. Where it disagrees the
+   *  line is taken out again and the right one put in, which is the whole
+   *  reason an optimistic line has to be reversible.
+   */
+  function onCorrected({ was, applied, result, agreed }: {
+    was: number; applied: number; result: ScanResult; agreed: boolean;
+  }) {
+    const real = Math.max(1, result.quantity_multiplier || 1);
+    if (agreed) {
+      if (real === applied) return;              // nothing to settle
+      setCart((prev) => prev.map((l) => (l.product.id === was
+        ? { ...l, quantity: l.quantity - applied + real } : l)));
+      return;
+    }
+    // Wrong product, or no product. Remove exactly what was added: the line
+    // if this scan put it there, a unit if it was already in the basket.
+    setCart((prev) => prev.flatMap((l) => {
+      if (l.product.id !== was) return [l];
+      const left = l.quantity - applied;
+      return left > 0 ? [{ ...l, quantity: left }] : [];
+    }));
+    if (result.found && result.product) {
+      addToCart(result.product as unknown as Product, real);
+    }
+  }
+
   function addToCart(p: Product, units = 1) {
     // An outer carton scans as one code and means a case. `quantity_multiplier`
     // is where that pack size arrives.
@@ -1082,6 +1116,7 @@ export default function POS() {
               value={scan}
               onValueChange={setScan}
               onResolved={onScanned}
+              onCorrect={onCorrected}
               placeholder="Scan a barcode, or type a product name…"
               cameraTitle="Scan items"
               // The basket travels with the camera. Scanning a trolley of
