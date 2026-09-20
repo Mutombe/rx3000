@@ -11556,3 +11556,4 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .sr-detail ul { margin: 0 0 var(--s2); padding-left: 1.1rem; }
 .sr-detail li { margin-bottom: 4px; line-height: 1.45; }
 .sr-detail p { margin: 0; }
+.bins-card-also { margin-top: 2px; }

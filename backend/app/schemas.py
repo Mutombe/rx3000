@@ -263,6 +263,9 @@ class ProductBase(BaseModel):
     # maximum where one is published. All optional: a pharmacy that
     # does not use bin locations should not be made to invent them.
     bin_location: str = ""
+    #: Two more places the same line is kept. See Product.bins().
+    bin_location_2: str = ""
+    bin_location_3: str = ""
     manufacturer: str = ""
     sep_price: float = 0.0
     category: str = "medicine"

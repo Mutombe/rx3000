@@ -663,6 +663,29 @@ class Product(Base, TenantMixin):
     # VARCHAR length, so that ran for months on a development machine and would
     # have raised "value too long" on the first Postgres import with a long bin.
     bin_location = Column(String(BIN_MAX), default="", index=True)
+    #: Two more places the same line is kept.
+    #:
+    #: The blueprint asks for up to three bin locations per item, and the
+    #: pharmacy's own bin report already has a second column: the importer
+    #: has been parsing `bin2` and throwing it away since it was written.
+    #: A line lives in the dispensary AND the back store AND sometimes a
+    #: fridge, and a picker sent to one of the three finds an empty shelf.
+    #:
+    #: Three columns rather than a table, because the blueprint says three
+    #: and a table would put a join in front of every picking list to buy
+    #: flexibility nobody has asked for. `bin_location` stays the primary and
+    #: keeps its index, so every query that already reads it is untouched.
+    bin_location_2 = Column(String(BIN_MAX), default="", index=True)
+    bin_location_3 = Column(String(BIN_MAX), default="", index=True)
+
+    def bins(self) -> list[str]:
+        """Every place this line is kept, primary first, without blanks."""
+        found = []
+        for value in (self.bin_location, self.bin_location_2, self.bin_location_3):
+            text = (value or "").strip()
+            if text and text.upper() not in {f.upper() for f in found}:
+                found.append(text)
+        return found
     # Who makes it, as against who sells it to us. Two suppliers can carry the
     # same manufacturer's product, and a recall names the manufacturer.
     manufacturer = Column(String(120), default="", index=True)
@@ -2409,6 +2432,9 @@ class BinMove(Base, TenantMixin):
     #: form | import | merge. Where the change came from, which the software
     #: knows, as against a reason, which only a person can give.
     source = Column(String(16), default="form", index=True)
+    #: Which of the product's three shelves this move was about. 1 on every
+    #: row written before there were three, which is what they all were.
+    slot = Column(Integer, default=1)
     reason = Column(String(200), default="")
     moved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)

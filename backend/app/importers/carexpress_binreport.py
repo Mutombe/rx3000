@@ -72,6 +72,12 @@ class Row:
     cost: float = 0.0
     retail: float = 0.0
     bin: str = ""
+    #: The report's SECOND bin column, which this importer has parsed and
+    #: thrown away since it was written: the field was read off the print-out
+    #: and never reached the Row. The incumbent system evidently holds more
+    #: than one location per line, and the client's blueprint asks for up to
+    #: three, so it is now kept.
+    bin2: str = ""
     barcode: str = ""
     min_level: float = 0.0
     max_level: float = 0.0
@@ -212,6 +218,9 @@ def load(path: str, *, apply: bool = False) -> dict:
             # and overwriting them from a worse source would be a step back.
             if row.bin and not product.bin_location:
                 product.bin_location = row.bin[:BIN_MAX]
+                counts["bins"] += 1
+            if row.bin2 and not product.bin_location_2                     and row.bin2.strip().upper() != (product.bin_location or "").strip().upper():
+                product.bin_location_2 = row.bin2[:BIN_MAX]
                 counts["bins"] += 1
             if row.min_level and not product.reorder_level:
                 product.reorder_level = int(row.min_level)

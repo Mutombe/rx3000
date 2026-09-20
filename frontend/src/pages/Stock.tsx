@@ -45,7 +45,7 @@ const EMPTY = {
   // Where it sits on the shelf and who makes it. Both columns existed, both were
   // read by reports and by the stock-take sheet, and neither had a field on this
   // form, so they were NULL on all 545 products.
-  bin_location: "", manufacturer: "",
+  bin_location: "", bin_location_2: "", bin_location_3: "", manufacturer: "",
 };
 
 export default function Stock() {
@@ -544,6 +544,20 @@ export default function Stock() {
                 <div className="field">
                   <label>Bin location</label>
                   <input value={form.bin_location} onChange={set("bin_location")} placeholder="e.g. A3-04" />
+                </div>
+                {/* The other two places it is kept, if it is. Left blank on
+                    almost every line: a product normally lives in one bin,
+                    and these are for the one that is also in the back store
+                    or the fridge. Stock is valued at the first. */}
+                <div className="field" style={{ maxWidth: 140 }}>
+                  <label>Also in</label>
+                  <input value={form.bin_location_2} onChange={set("bin_location_2")}
+                         placeholder="optional" />
+                </div>
+                <div className="field" style={{ maxWidth: 140 }}>
+                  <label>And in</label>
+                  <input value={form.bin_location_3} onChange={set("bin_location_3")}
+                         placeholder="optional" />
                 </div>
                 <div className="field">
                   <label>Manufacturer</label>

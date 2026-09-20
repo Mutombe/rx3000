@@ -32,6 +32,9 @@ interface Bin {
   units: number;
   value: number;
   spellings: string[];
+  /** Lines kept here as well as somewhere else. Their stock is valued at
+   *  their main shelf, so this bin counts them to walk and not to price. */
+  also: number;
 }
 
 interface Directory {
@@ -53,6 +56,8 @@ interface Line {
   short?: boolean;
   empty?: boolean;
   value: number;
+  primary?: boolean;
+  also_in?: string[];
 }
 
 export default function Bins() {
@@ -233,7 +238,16 @@ export default function Bins() {
                     </td>
                     <td className="muted small">{l.stock_code || "—"}</td>
                     <td className="num">{l.on_hand.toLocaleString()}</td>
-                    <td className="num">{l.value > 0.005 ? money(l.value) : "—"}</td>
+                    <td className="num">
+                      {/* Valued where it mainly lives, or the same stock is
+                          worth money on two shelves at once and the bin
+                          totals stop adding up to the shelf. */}
+                      {l.primary === false
+                        ? <span className="muted small">
+                            valued in {l.also_in?.[0] ?? "its main bin"}
+                          </span>
+                        : l.value > 0.005 ? money(l.value) : "—"}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -295,6 +309,11 @@ export default function Bins() {
               {/* Two spellings of one bin means two shelf labels, or a typing
                   mistake, and either is worth seeing rather than quietly
                   merging. */}
+              {b.also > 0 && (
+                <span className="muted small bins-card-also">
+                  {b.also} also kept here
+                </span>
+              )}
               {b.spellings.length > 1 && (
                 <span className="badge warn bins-card-spell">
                   Spelt {b.spellings.length} ways

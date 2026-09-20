@@ -276,6 +276,14 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # NULL, and the API declares them as plain strings, which took
         # GET /api/products down with a 500 for all 545 products.
         "bin_location": "VARCHAR(20) DEFAULT ''",
+        # Up to three places one line is kept. See Product.bins().
+        "bin_location_2": "VARCHAR(20) DEFAULT ''",
+        "bin_location_3": "VARCHAR(20) DEFAULT ''",
+    },
+    "bin_moves": {
+        # Which of the three shelves a move was about. 1 on every row written
+        # before there were three, which is what they all were.
+        "slot": "INTEGER DEFAULT 1",
         "manufacturer": "VARCHAR(120) DEFAULT ''",
         "sep_price": "DOUBLE PRECISION DEFAULT 0","mmap_price": "FLOAT DEFAULT 0",
         "active_ingredient": "VARCHAR(160) DEFAULT ''",

@@ -100,6 +100,11 @@ export interface Product {
   /** Shelf position and maker. Optional — a pharmacy that does not use bin
    *  locations should not be made to invent them. */
   bin_location: string;
+  /** Two more places the same line is kept. Empty on almost everything: a
+   *  product usually lives in one bin, and these are for the line that is
+   *  also in the back store or the fridge. */
+  bin_location_2?: string;
+  bin_location_3?: string;
   manufacturer: string;
   /** What the medicine actually is. The only thing that makes two products
    *  interchangeable, so it is what variants are grouped on. */

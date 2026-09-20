@@ -42,7 +42,7 @@ sixteen thousand rows.
 """
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from ..models import BIN_MAX, BinMove, Product, User
@@ -82,45 +82,50 @@ def directory(db: Session, *, q: str = "") -> dict:
     one, and pulling all of it back to count it is how a page that should take
     a moment takes ten seconds.
     """
-    label = func.trim(Product.bin_location)
-    rows = (
-        db.query(
-            label.label("bin"),
-            func.count(Product.id).label("lines"),
-            func.coalesce(func.sum(Product.quantity_on_hand), 0).label("units"),
-            # Per UNIT, because quantity_on_hand is units and cost_price is
-            # what a PACK costs. Written the wrong way round here first and
-            # caught with the rest of them. See services/valuation.
-            func.coalesce(func.sum(valuation.cost_column()), 0).label("value"),
-        )
-        .filter(Product.active, label != "")
-        .group_by(label)
-        .all()
-    )
-
-    # Fold case in Python rather than in SQL. `lower()` in a GROUP BY throws
-    # away the index and differs between SQLite and Postgres on accented text,
-    # and there are tens of bins, not thousands.
+    # WALKED IN PYTHON NOW, BECAUSE A LINE CAN BE IN THREE PLACES.
+    #
+    # This was a GROUP BY on the single bin column, which was right when there
+    # was one. With three, the same product appears under each place it is
+    # kept, and summing its stock under all three would report the shelf as
+    # worth three times what it is — the exact error that took a whole commit
+    # to get out of twenty two other places.
+    #
+    # So the money is attributed to the PRIMARY bin only, and the others
+    # count the line as "also kept here" without its value. That keeps the
+    # directory's total equal to the stock valuation, which is the property
+    # that makes the figure trustworthy. A pharmacy that wants to know how
+    # much is in each of three places would have to tell us how the stock is
+    # split between them, and nothing in this system knows that.
+    #
+    # Sixteen thousand products in Python rather than in SQL is the cost, and
+    # it is one pass over rows already being read for the unbinned count.
+    products = (db.query(Product)
+                .filter(Product.active)
+                .options()
+                .all())
     folded: dict[str, dict] = {}
-    for row in rows:
-        key = row.bin.upper()
-        seen = folded.get(key)
-        if seen is None:
-            folded[key] = {
-                "bin": row.bin,
-                "lines": row.lines,
-                "units": int(row.units or 0),
-                "value": round(float(row.value or 0), 2),
-                "spellings": [row.bin],
-            }
-            continue
-        seen["lines"] += row.lines
-        seen["units"] += int(row.units or 0)
-        seen["value"] = round(seen["value"] + float(row.value or 0), 2)
-        # Said out loud rather than quietly merged. Two spellings of one bin
-        # means two shelf labels, or a typing mistake, and either is worth
-        # seeing.
-        seen["spellings"].append(row.bin)
+    for product in products:
+        places = product.bins()
+        for index, place in enumerate(places):
+            key = place.upper()
+            row = folded.get(key)
+            if row is None:
+                row = folded[key] = {
+                    "bin": place, "lines": 0, "units": 0, "value": 0.0,
+                    "spellings": [place], "also": 0,
+                }
+            elif place not in row["spellings"]:
+                # Said out loud rather than quietly merged. Two spellings of
+                # one bin means two shelf labels, or a typing mistake.
+                row["spellings"].append(place)
+            row["lines"] += 1
+            if index == 0:
+                row["units"] += int(product.quantity_on_hand or 0)
+                row["value"] = round(row["value"] + valuation.at_cost(product), 2)
+            else:
+                # Kept here as well. Counted as a line to walk and not as
+                # stock to value, or the same units are worth money twice.
+                row["also"] += 1
 
     out = list(folded.values())
     term = (q or "").strip().upper()
@@ -145,9 +150,17 @@ def directory(db: Session, *, q: str = "") -> dict:
 def contents(db: Session, bin_name: str) -> dict:
     """What is on one shelf, in the order somebody would read the labels."""
     wanted = (bin_name or "").strip()
+    folded = wanted.lower()
+    # Any of the three, because a line kept in the back store as well is on
+    # the back store's picking list too. Matched in SQL on all three columns
+    # rather than walking the catalogue: this one IS a shelf walk and wants
+    # to be quick.
     products = (
         db.query(Product)
-        .filter(Product.active, func.lower(func.trim(Product.bin_location)) == wanted.lower())
+        .filter(Product.active)
+        .filter(or_(func.lower(func.trim(Product.bin_location)) == folded,
+                    func.lower(func.trim(Product.bin_location_2)) == folded,
+                    func.lower(func.trim(Product.bin_location_3)) == folded))
         .all()
     )
     products.sort(key=lambda p: (p.name or "").upper())
@@ -163,8 +176,19 @@ def contents(db: Session, bin_name: str) -> dict:
         # something about it: they are standing in front of the gap.
         "short": bool((p.quantity_on_hand or 0) <= (p.reorder_level or 0)),
         "empty": not (p.quantity_on_hand or 0),
-        "value": valuation.at_cost(p),
+        # Money belongs to the line's MAIN shelf, here as in the directory.
+        #
+        # Nothing in this system knows how the stock is split between the two
+        # or three places a line is kept, so attributing it to one of them is
+        # the only answer that does not invent a division. The primary shelf
+        # carries it; a secondary shelf shows zero and says where the value
+        # is counted, which keeps every bin total adding up to the stock
+        # valuation. A shelf that claimed the whole line's worth would make
+        # the directory sum to more than the pharmacy owns.
+        "value": valuation.at_cost(p) if (p.bin_location or "").strip().lower() == folded else 0.0,
         "bin": p.bin_location or "",
+        "primary": (p.bin_location or "").strip().lower() == folded,
+        "also_in": [b for b in p.bins() if b.lower() != folded],
     } for p in products]
 
     return {
@@ -183,11 +207,14 @@ def _unbinned_query(db: Session):
     sitting at zero with no bin is not a problem anybody needs to solve, and
     putting four thousand of them on this list is how the list gets ignored.
     """
+    blank = ""
     return (
         db.query(Product)
         .filter(Product.active,
                 Product.quantity_on_hand > 0,
-                func.coalesce(func.trim(Product.bin_location), "") == "")
+                func.coalesce(func.trim(Product.bin_location), blank) == blank,
+                func.coalesce(func.trim(Product.bin_location_2), blank) == blank,
+                func.coalesce(func.trim(Product.bin_location_3), blank) == blank)
     )
 
 
@@ -210,7 +237,7 @@ def unbinned(db: Session, limit: int = 300) -> list[dict]:
 
 
 def record(db: Session, product: Product, was: str, *, user: User | None = None,
-           source: str = "form", reason: str = "") -> BinMove | None:
+           source: str = "form", reason: str = "", slot: int = 1) -> BinMove | None:
     """Write the trail, and only when something actually moved.
 
     Returns None on a no-op. The product form sends every field on every save,
@@ -219,13 +246,14 @@ def record(db: Session, product: Product, was: str, *, user: User | None = None,
     price history follows and for the same reason.
     """
     old = (was or "").strip()
-    new = (product.bin_location or "").strip()
+    field = "bin_location" if slot == 1 else f"bin_location_{slot}"
+    new = (getattr(product, field, "") or "").strip()
     if old.upper() == new.upper():
         return None
 
     move = BinMove(
         product_id=product.id, was=old[:BIN_MAX], now=new[:BIN_MAX],
-        source=source, reason=(reason or "")[:200],
+        source=source, reason=(reason or "")[:200], slot=slot,
         moved_by_id=getattr(user, "id", None),
     )
     db.add(move)
@@ -245,6 +273,7 @@ def history(db: Session, product_id: int, limit: int = 20) -> list[dict]:
         "id": row.id,
         "was": row.was or "",
         "now": row.now or "",
+        "slot": row.slot or 1,
         # Said in words so the screen does not have to decide what an empty
         # "was" means every time it renders one.
         "says": (f"Put in bin {row.now}" if not row.was

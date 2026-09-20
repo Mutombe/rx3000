@@ -89,6 +89,8 @@ ALIASES = {
     "stockoh": "quantity", "stock_oh": "quantity", "qtyoh": "quantity",
     "napcd": "nappi", "nap_cd": "nappi",
     "binlocation": "bin", "bin_location": "bin", "bin": "bin",
+    "binlocation2": "bin2", "bin_location_2": "bin2", "bin2": "bin2",
+    "binlocation3": "bin3", "bin_location_3": "bin3", "bin3": "bin3",
     "avgcost": "cost", "avg_cost": "cost",
 }
 
@@ -378,6 +380,8 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
                 # carries as BINLOCATION and which a picking list is useless
                 # without.
                 bin_location=bins.normalise(get(row, "bin")),
+                bin_location_2=bins.normalise(get(row, "bin2")),
+                bin_location_3=bins.normalise(get(row, "bin3")),
                 cost_price=_num(get(row, "cost")) or 0.0,
                 unit_price=_num(get(row, "price")) or 0.0,
                 vat_rate=(_num(get(row, "vat")) or 15.0) / 100

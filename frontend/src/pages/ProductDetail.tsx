@@ -334,6 +334,15 @@ export default function ProductDetail() {
             <dt>Bin</dt>
             <dd>
               {p.bin_location || "—"}
+              {/* Where else it is kept. The stock is valued at the first,
+                  so the others are places to walk rather than piles to
+                  price. */}
+              {(p.bin_location_2 || p.bin_location_3) && (
+                <span className="muted small">
+                  {" also in "}
+                  {[p.bin_location_2, p.bin_location_3].filter(Boolean).join(" and ")}
+                </span>
+              )}
               {/* The last move, next to the bin itself. "Why is this not on
                   the shelf the label says" is asked while looking at the
                   shelf, not on a history tab two clicks away. */}

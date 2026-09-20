@@ -530,6 +530,11 @@ def create_product(body: schemas.ProductCreate, db: Session = Depends(get_db),
     return product
 
 
+def _bin_field(slot: int) -> str:
+    """The column for one of a product's three shelves."""
+    return "bin_location" if slot == 1 else f"bin_location_{slot}"
+
+
 @router.put("/products/{product_id}", response_model=schemas.ProductOut)
 def update_product(product_id: int, body: schemas.ProductBase,
                    db: Session = Depends(get_db),
@@ -542,15 +547,21 @@ def update_product(product_id: int, body: schemas.ProductBase,
     # whether or not it moved, so the only way to know a price changed is to
     # have held the old one.
     before = {"selling": product.unit_price, "cost": product.cost_price}
-    was_bin = product.bin_location
+    # All three shelves, because a line can be kept in three places and a
+    # change to the second one is as much a move as a change to the first.
+    # The first version read only `bin_location`, so setting a back store
+    # location through this form wrote no trail at all.
+    was_bins = {slot: getattr(product, _bin_field(slot)) for slot in (1, 2, 3)}
 
     for key, value in body.model_dump().items():
         setattr(product, key, value)
 
     # Trimmed and cut to the column width on the way in, so a bin typed with a
     # trailing space is the same shelf as one typed without, everywhere.
-    product.bin_location = bins.normalise(product.bin_location)
-    bins.record(db, product, was_bin, user=user, source="form")
+    for slot in (1, 2, 3):
+        field = _bin_field(slot)
+        setattr(product, field, bins.normalise(getattr(product, field)))
+        bins.record(db, product, was_bins[slot], user=user, source="form", slot=slot)
 
     for field, was in before.items():
         price_history.record(
@@ -1474,6 +1485,13 @@ def move_to_bin(body: dict = Body(...), db: Session = Depends(get_db),
 
     target = bins.normalise(body.get("bin") or "")
     reason = str(body.get("reason") or "").strip()
+    # Which of the three. A line kept in the dispensary and the back store
+    # has two, and moving it "to bin 14" without saying which one is being
+    # set is how the back store location gets silently overwritten.
+    slot = int(body.get("slot") or 1)
+    if slot not in (1, 2, 3):
+        raise HTTPException(400, "A product has up to three bins: 1, 2 or 3.")
+    field = _bin_field(slot)
     # Clearing a bin is a legitimate act — a shelf is taken out, its lines go
     # back to unplaced — but it is also what an empty form field looks like, so
     # it has to be asked for rather than defaulted into.
@@ -1487,15 +1505,16 @@ def move_to_bin(body: dict = Body(...), db: Session = Depends(get_db),
 
     moved = 0
     for product in products:
-        was = product.bin_location
+        was = getattr(product, field)
         # Left alone when it is already on that shelf, INCLUDING when the only
         # difference is capitals. "a3" and "A3" are one shelf to the person
         # standing in front of it, and quietly restyling what a pharmacy typed
         # on sixteen thousand rows is not a decision to take on their behalf.
         if (was or "").strip().upper() == target.upper():
             continue
-        product.bin_location = target
-        if bins.record(db, product, was, user=user, source="form", reason=reason):
+        setattr(product, field, target)
+        if bins.record(db, product, was, user=user, source="form", reason=reason,
+                       slot=slot):
             moved += 1
 
     db.commit()
