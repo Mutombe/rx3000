@@ -110,6 +110,23 @@ def approver(db: Session, pharmacy_id: int) -> User:
         found = (db.query(User)
                  .filter(User.username == APPROVER_USERNAME).first())
     if found is not None:
+        # SHE FOLLOWS THE DEMONSTRATION PHARMACY WHEN IT IS REPLACED.
+        #
+        # `demoseed --fresh` sets the old tenant aside and a new one takes its
+        # name, which is how the demonstration is refreshed. She was made in
+        # the old one and would have stayed there, and the approver lookup at
+        # the prompt IS tenant scoped: a visitor in the new pharmacy would
+        # name a colleague the server could not see, and the three actions
+        # that need a second person would go back to being unreachable.
+        #
+        # Moved rather than made again, because the username is unique across
+        # the estate and a second one cannot exist.
+        if found.pharmacy_id != pharmacy_id:
+            with unscoped():
+                found.pharmacy_id = pharmacy_id
+                found.active = True
+                db.commit()
+                db.refresh(found)
         return found
     found = User(
         username=APPROVER_USERNAME,
