@@ -607,6 +607,10 @@ export default function Dispense() {
   const [otcPackExpiry, setOtcPackExpiry] = useState("");
   /** Which lot is going out, when it is not the one the rotation would take. */
   const [otcLot, setOtcLot] = useState<LotChoice>(ROTATION);
+  /** A lot chosen by hand on a script line, keyed by the script's own item id
+   *  because that is how the server keys it back. Empty for the ordinary
+   *  dispensing, where the rotation decides and nobody is asked anything. */
+  const [scriptLots, setScriptLots] = useState<Record<number, LotChoice>>({});
   /** Waiting on a supervisor, so the counter says so rather than looking idle. */
   const [otcAuthorising, setOtcAuthorising] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -2622,7 +2626,19 @@ export default function Dispense() {
         throw new Error("None of the lines on screen are on that script any more. "
                         + "Reopen it and try again.");
       }
-      const sale = await api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
+      // THROUGH `guarded`, BECAUSE A LOT TAKEN OUT OF TURN NEEDS A SUPERVISOR.
+      //
+      // The server answers 428 to ask for one, and this is the call that
+      // carries the chosen lots. Without this the dispensing would fail with
+      // a raw error at the Finish button — the point at which somebody has
+      // done all the work and a patient is waiting.
+      //
+      // An ordinary dispensing never sees the dialog: with no lot named, or
+      // one naming the lot the rotation would have taken anyway, the server
+      // does not ask.
+      const dispensed = await guarded<Sale>(
+        "stock.batch_override",
+        (token) => api.post<Sale>(`/api/prescriptions/${rx.id}/dispense`, {
         item_ids: selected,
         receipt_private: receiptPrivate,
         // The code scanned for each line, keyed by the script's own item ids,
@@ -2635,6 +2651,16 @@ export default function Dispense() {
         pack_expiries: Object.fromEntries(
           expiryNeeded.filter((l) => packExpiry[l.product_id])
             .map((l) => [l.product_id, packExpiry[l.product_id]])),
+        // A lot taken ahead of the rotation, per line. Only lines where
+        // somebody actually chose one: naming the lot the rotation would have
+        // taken anyway is not an override and the server says so by not
+        // asking for a password.
+        batch_choice: Object.fromEntries(
+          Object.entries(scriptLots)
+            .filter(([, choice]) => choice.batch_id)
+            .map(([itemId, choice]) => [Number(itemId), choice.batch_id])),
+        batch_reason: Object.values(scriptLots).find((c) => c.batch_id)?.reason ?? "",
+        batch_note: Object.values(scriptLots).find((c) => c.batch_id)?.note ?? "",
         ...compliancePayload(),
         // The warnings acknowledged at the counter, recorded against this
         // script by the server as it is dispensed.
@@ -2647,7 +2673,15 @@ export default function Dispense() {
             hold: aidHold, hold_reason: aidHold ? aidHoldReason.trim() : "",
           },
         } : {}),
-      });
+      }, token),
+        `${rx.rx_number ?? "this script"} · lot taken out of turn`);
+      if (dispensed === CANCELLED) {
+        // A decision, not a failure. Nothing has left the shelf and the
+        // script is untouched, so there is nothing to undo.
+        toast.warn("Nothing was dispensed. That lot needs a supervisor.");
+        return;
+      }
+      const sale = dispensed;
       // Take the money here when that is what was asked for. The sale is
       // raised pending either way; settling it is the same call the till makes,
       // so there is one payment path in the system rather than two that can
@@ -4979,6 +5013,44 @@ ${d.action}`}
                         {/* Stock with no expiry recorded. Asked here, before
                             paying, of the person holding the pack. Rather than
                             refused after, as "expired", which it was not. */}
+                        {/* WHICH LOT IS GOING OUT.
+                            Here, beside the expiry read off the pack, because
+                            it is the same moment and the same act: confirming
+                            what is actually being handed over. Each line says
+                            which lot the rotation will take, which is worth
+                            stating on its own; choosing a different one asks
+                            why and then asks for a supervisor.
+
+                            The picker draws nothing for a line whose shelf
+                            holds one lot, so an ordinary script shows an
+                            ordinary list and nobody is asked anything. */}
+                        {items.length > 0 && (
+                          <section className="fin-group" id="finish-lots">
+                            <h4>Which lot is going out</h4>
+                            <p className="fin-note">
+                              First expiry first out, unless somebody says
+                              otherwise. Taking a lot out of turn needs a
+                              reason and a supervisor.
+                            </p>
+                            <ul className="fin-list">
+                              {items.filter((it) => it.item_id).map((it) => (
+                                <li key={it.item_id} className="fin-item">
+                                  <div className="fin-item-body">
+                                    <p><b>{lineName(it.product)}</b></p>
+                                    <LotPicker
+                                      productId={it.product.id}
+                                      productName={it.product.name}
+                                      value={scriptLots[it.item_id!] ?? ROTATION}
+                                      onChange={(next) => setScriptLots((cur) => ({
+                                        ...cur, [it.item_id!]: next }))}
+                                    />
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </section>
+                        )}
+
                         {expiryNeeded.length > 0 && (
                           <section className="fin-group fin-expiry" id="finish-expiry">
                             <h4>Expiry from the pack</h4>

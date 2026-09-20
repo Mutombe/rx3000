@@ -26,6 +26,9 @@ import TagProducts from "../components/TagProducts";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
+  /** How many days before expiry this department wants warning. Null means
+   *  it takes the pharmacy's own setting, which is not the same as zero. */
+  expiry_alert_days: number | null;
   /** Whether the dispensary offers what is filed here. */
   dispensable: boolean;
   active: boolean; products: number; in_stock: number; at_cost: number;
@@ -69,6 +72,9 @@ export default function StockCategories() {
       {
         id: 0, name, code: form.code.trim(),
         target_margin: Number(form.target_margin) || 0,
+        // A new department inherits the pharmacy's warning until somebody
+        // decides otherwise. Null, not zero: they are different answers.
+        expiry_alert_days: null,
         dispensable: true, active: true, products: 0, in_stock: 0, at_cost: 0,
       },
       () => api.post<Category>("/api/stock-categories", {
@@ -141,6 +147,11 @@ export default function StockCategories() {
               <th className="num">With stock</th>
               <th className="num">At cost</th>
               <th className="num">Target margin</th>
+              {/* Ninety days is right for tablets and useless at either end of
+                  a catalogue. A fridge line with six weeks of shelf life needs
+                  telling at thirty; consignment stock nobody reorders is worth
+                  knowing about at six months. */}
+              <th className="num">Warn (days)</th>
               <th>In the dispensary</th>
               <th className="actions" />
             </tr>
@@ -194,6 +205,41 @@ export default function StockCategories() {
                         () => api.put(`/api/stock-categories/${c.id}`,
                                       { target_margin: next }),
                         `${c.name} now aims at ${next}%.`,
+                      );
+                    }}
+                  />
+                </td>
+                {/* HOW EARLY THIS DEPARTMENT WANTS TELLING.
+                    Empty means it takes the pharmacy's own setting, which is
+                    not the same as zero — so the box says what it inherits
+                    rather than pretending the department has decided. */}
+                <td className="num">
+                  <input
+                    type="number" min={1} max={720} className="sc-days-box"
+                    key={`${c.id}-exp-${c.expiry_alert_days ?? ""}`}
+                    defaultValue={c.expiry_alert_days ?? ""}
+                    /* Short, because the column is narrow and a placeholder
+                       that clips reads as a broken field rather than as an
+                       inherited value. The unit is in the header. */
+                    placeholder="default"
+                    title="Days before expiry this department wants warning. Empty takes the pharmacy's own setting."
+                    disabled={list.isPending(c)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === "" ? null : Number(raw);
+                      if ((next ?? null) === (c.expiry_alert_days ?? null)) return;
+                      // The range is the server's rule and is not repeated
+                      // here. A refusal rolls the row back and shows what it
+                      // said, which is one rule rather than two that can
+                      // drift apart.
+                      list.update(
+                        c.id,
+                        { expiry_alert_days: next },
+                        () => api.put(`/api/stock-categories/${c.id}`,
+                                      { name: c.name, expiry_alert_days: next }),
+                        next === null
+                          ? `${c.name} goes back to the pharmacy's own warning.`
+                          : `${c.name} is now flagged ${next} days before expiry.`,
                       );
                     }}
                   />

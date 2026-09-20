@@ -42,6 +42,12 @@ interface Lot {
   quantity: number;
   condition: "good" | "damaged";
 }
+/** A line invoiced above the published maximum, noticed as it was booked in. */
+interface SepBreach {
+  product_id: number; product: string; sep: number; cost: number;
+  over: number; packs: number; says: string;
+}
+
 interface Line {
   item_id: number;
   name: string;
@@ -67,6 +73,15 @@ export default function ReceiveDelivery({
   const [note, setNote] = useState("");
   const [invoice, setInvoice] = useState("");
   const [busy, setBusy] = useState(false);
+  /** Lines invoiced above the regulated maximum. Held on the modal rather
+   *  than thrown into a toast: this is money the pharmacy can still recover,
+   *  and the moment to act is now, with the delivery note in somebody's hand
+   *  and the wholesaler's number on the screen. A toast is gone in four
+   *  seconds and takes the amount with it. */
+  const [breaches, setBreaches] = useState<SepBreach[]>([]);
+  /** What the toast would have said. Held so that closing the price screen
+   *  still reports the delivery, rather than swallowing it. */
+  const [done, setDone] = useState("");
   const [lines, setLines] = useState<Line[]>(() =>
     order.items
       .map((i) => {
@@ -124,7 +139,8 @@ export default function ReceiveDelivery({
     if (problem) { toast.error(problem); return; }
     setBusy(true);
     try {
-      const said = await api.post<{ status: string; grv_number?: string }>(
+      const said = await api.post<{ status: string; grv_number?: string;
+                                    sep_breaches?: SepBreach[] }>(
         `/api/orders/${order.id}/status?status=received`,
         {
           delivery_note: note.trim(),
@@ -140,6 +156,25 @@ export default function ReceiveDelivery({
             })),
           })),
         });
+      // Shown here and NOT closed, where there is something to act on. The
+      // goods are booked in either way — refusing a delivery standing in the
+      // dispensary over a price is not a trade any pharmacy would take — so
+      // this is a claim to make, not a decision to reverse.
+      const settled =
+        `${said.grv_number ? said.grv_number + ": " : ""}`
+        + `stock is on the shelf.`
+        + (said.status === "sent"
+          ? " The order stays open: some of it has not arrived yet."
+          : " The order is complete.")
+        + (damaged
+          ? ` ${damaged} pack(s) came in damaged and are held, not on sale.`
+          : "");
+      if (said.sep_breaches?.length) {
+        setDone(settled);
+        setBreaches(said.sep_breaches);
+        setBusy(false);
+        return;
+      }
       onDone(
         `${said.grv_number ? said.grv_number + ": " : ""}`
         + `stock is on the shelf.`
@@ -154,6 +189,56 @@ export default function ReceiveDelivery({
     } finally {
       setBusy(false);
     }
+  }
+
+  // THE GOODS ARE IN. THE PRICE IS THE ARGUMENT.
+  //
+  // Zimbabwe does not operate a single exit price the way South Africa does,
+  // the published maximum is empty on a large part of this catalogue, and
+  // refusing a delivery standing in the dispensary over a price is not a
+  // trade any pharmacy would take. So the stock is already on the shelf and
+  // this is a claim to make rather than a decision to reverse — which is why
+  // it is a screen somebody can read and copy from, not a toast that takes
+  // the amount with it after four seconds.
+  if (breaches.length) {
+    const over = breaches.reduce((sum, b) => sum + b.over * b.packs, 0);
+    return (
+      <div className="modal-backdrop" onClick={() => onDone(done)}>
+        <div className="modal rd-modal" onClick={(e) => e.stopPropagation()}>
+          <h2>Booked in, and worth querying</h2>
+          <div className="sr-owed">
+            <span className="sr-owed-n">{money(over)}</span>
+            <span>
+              charged above the published maximum on this delivery, across
+              {" "}{breaches.length} line{breaches.length === 1 ? "" : "s"}.
+              {" "}Recoverable if it is queried, and this is the moment: the
+              {" "}delivery note is in your hand and the wholesaler is
+              {" "}expecting the call.
+            </span>
+          </div>
+          <ul className="rd-breaches">
+            {breaches.map((b) => (
+              <li key={b.product_id}>
+                <b>{b.product}</b>
+                <span className="muted">
+                  {" · "}invoiced {money(b.cost)} against a maximum of
+                  {" "}{money(b.sep)}
+                  {" · "}{b.packs} pack{b.packs === 1 ? "" : "s"}
+                </span>
+                <span className="rd-breach-over">{money(b.over * b.packs)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="muted small">
+            The stock is on the shelf and the order is updated. Nothing here
+            needs undoing.
+          </p>
+          <div className="modal-actions">
+            <button onClick={() => onDone(done)}>Close</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

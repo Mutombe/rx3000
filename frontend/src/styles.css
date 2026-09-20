@@ -11808,6 +11808,16 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   flex: 0 0 auto;
 }
 .ph-last { margin: 0; overflow-wrap: anywhere; }
+
+/* How early a department wants telling about expiry. Narrow on purpose: it
+   holds at most three digits, and a wide box here squeezed the column beside
+   it until "Dispensed here" clipped. */
+/* Wide enough for the word "default", which is what it says when a
+   department has not chosen and inherits the pharmacy's own setting. At 7.5ch
+   that clipped to "defa", which reads as a broken field rather than as an
+   inherited value. It holds at most three digits, so the rest is placeholder. */
+.sc-days-box { width: 10ch; text-align: right; }
+.sc-days-box::placeholder { font-size: var(--t-xs); text-align: right; }
 /* The tally sits under the viewfinder, in `scan-feed`. That panel is the
    surface colour with ordinary ink on it, NOT the dark stage above it — a
    first attempt painted this text near-white and put it on white. It needs no
