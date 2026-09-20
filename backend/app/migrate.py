@@ -664,6 +664,14 @@ PER_TENANT_NUMBERS: list[tuple[str, str]] = [
     ("trading_periods", "code"),
     ("journal_entries", "reference"),
     ("mixtures", "code"),
+    # Both of these take a number from `next_number` and neither was listed
+    # here, so nothing refused a second document carrying the first one's
+    # reference. The index is what makes the numbering safe rather than merely
+    # usually right: two people booking deliveries in at once is not an exotic
+    # case at a back door, and a credit claim quoting a reference that names
+    # two different returns is one a wholesaler is entitled to refuse.
+    ("supplier_returns", "reference"),
+    ("goods_receipts", "grv_number"),
 ]
 
 
@@ -727,8 +735,33 @@ def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
                 conn.execute(text(f"DROP INDEX {plain}"))
                 dropped = True
 
+        # A TABLE THAT NEVER HAD AN ESTATE-WIDE INDEX STILL NEEDS THE TENANT ONE.
+        #
+        # This returned here unless something had just been dropped, which was
+        # right while every numbered document predated the change and wrong the
+        # moment a new one was added: `goods_receipts` and `supplier_returns`
+        # were listed above, carried a number from `next_number`, had no unique
+        # index to drop, and so quietly got no index at all. Nothing refused a
+        # second document carrying the first one's reference.
+        #
+        # There is nothing to drop and nothing to be careful about: creating
+        # the composite is the whole job.
         if not dropped:
+            clash = conn.execute(text(
+                f"SELECT COUNT(*) FROM (SELECT pharmacy_id, {column} FROM {table} "
+                f"WHERE {column} IS NOT NULL "
+                f"GROUP BY pharmacy_id, {column} HAVING COUNT(*) > 1) d")).scalar()
+            if clash:
+                log.warning("%s.%s is duplicated %d time(s) within one "
+                            "pharmacy; left as it is", table, column, clash)
+                continue
+            conn.execute(text(
+                f"CREATE UNIQUE INDEX IF NOT EXISTS {composite} "
+                f"ON {table} (pharmacy_id, {column})"))
+            log.info("%s.%s is now unique within each pharmacy", table, column)
+            moved += 1
             continue
+
         conn.execute(text(
             f"CREATE INDEX IF NOT EXISTS ix_{table}_{column} ON {table} ({column})"))
 
