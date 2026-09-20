@@ -370,6 +370,11 @@ class ReceiveLineIn(BaseModel):
     batch_number: str = ""
     expiry_date: str = ""      # ISO date; blank where the pack carries none
     unit_cost: float | None = None
+    #: What is on the driver's paperwork. Sent on any scan of the delivery and
+    #: filed on the first one, because a scanner works down a pallet and the
+    #: note is read once.
+    delivery_note: str = ""
+    invoice_number: str = ""
 
 
 @router.post("/receive/{order_id}")
@@ -393,6 +398,7 @@ def receive_line(
 
     from .. import helpers
     from ..models import PurchaseOrder
+    from ..services import grv
 
     order = db.query(PurchaseOrder).get(order_id)
     if not order:
@@ -446,18 +452,34 @@ def receive_line(
         db.add(line)
 
     batch = (body.batch_number or "").strip() or f"{order.order_number}-{product.id}"
+    # THE DELIVERY THIS SCAN BELONGS TO.
+    #
+    # A scanned delivery is thirty of these calls over twenty minutes as
+    # somebody works down a pallet, so they all join one document rather than
+    # leaving thirty one-line receipts. It stays open until the order closes
+    # or the working day does.
+    receipt = grv.open_for(db, supplier_id=order.supplier_id, user=user,
+                           order=order, branch_id=order.branch_id,
+                           delivery_note=body.delivery_note,
+                           invoice_number=body.invoice_number)
+    made = None
     if product.category == "airtime":
         helpers.move_stock(db, product, body.quantity, "receive", user.id,
                            reference=order.order_number, in_packs=True)
     else:
         # A scanned delivery is counted in boxes, because that is what carries
         # the barcode.
-        helpers.receive_stock_batch(
+        made = helpers.receive_stock_batch(
             db, product, body.quantity, user.id, in_packs=True,
             batch_number=batch, expiry_date=expiry,
             unit_cost=body.unit_cost or line.unit_cost or None,
             reference=order.order_number,
         )
+    db.flush()
+    grv.line(db, receipt, product=product, packs=body.quantity,
+             unit_cost=body.unit_cost or line.unit_cost,
+             batch=made, batch_number=batch, expiry_date=expiry,
+             order_item_id=line.id)
     helpers.record_register_entry(db, product, body.quantity, "receive", user.id,
                                   reference=order.order_number)
     if body.unit_cost:
@@ -465,14 +487,20 @@ def receive_line(
 
     if order.status == "draft":
         order.status = "sent"
-    db.commit()
 
     outstanding = sum(
         max(0, (l.quantity_ordered or 0) - (l.quantity_received or 0)) for l in order.items
     )
+    # Nothing left to unload, so the document is finished. Until then it stays
+    # open and the next scan joins it.
+    if outstanding == 0:
+        grv.close(db, receipt)
+    db.commit()
+
     return {
         "ok": True,
         "outstanding": outstanding,
+        "grv_number": receipt.grv_number,
         "quantity_received": line.quantity_received,
         "message": (
             f"{body.quantity} × {product.name} booked in on batch {batch}."

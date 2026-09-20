@@ -48,7 +48,7 @@ from sqlalchemy.orm import Session
 
 from ..models import (Product, StockBatch, StockMovement, Supplier,
                       SupplierReturn, SupplierReturnLine, User)
-from . import quarantine, stock_reasons
+from . import grv, quarantine, stock_reasons
 
 #: What a return may be for. A return is always goods leaving because
 #: something is wrong with them or with the order, never a count correction.
@@ -206,6 +206,26 @@ def outstanding(db: Session) -> dict:
     }
 
 
+def _delivery(line: SupplierReturnLine) -> dict:
+    """The goods receipt a returned lot arrived on, where one is recorded.
+
+    Empty for stock that predates the GRV document, which is most of what is
+    on a shelf today and not a failure: the batch is still named, and that is
+    what it always had.
+    """
+    from sqlalchemy.orm import object_session
+
+    db = object_session(line)
+    if db is None or not line.batch_id:
+        return {}
+    got = grv.for_batch(db, line.batch_id)
+    if got is None:
+        return {}
+    return {"id": got.id, "grv_number": got.grv_number,
+            "delivery_note": got.delivery_note or "",
+            "received_at": got.received_at.isoformat() if got.received_at else ""}
+
+
 def shape(out: SupplierReturn) -> dict:
     """One return, as a screen needs it."""
     return {
@@ -228,6 +248,13 @@ def shape(out: SupplierReturn) -> dict:
             "product_id": l.product_id,
             "product": l.product.name if l.product else "",
             "batch": l.batch.batch_number if l.batch else "",
+            # WHICH DELIVERY THESE CAME OFF.
+            #
+            # The blueprint asks that a return be raised against the GRV the
+            # goods arrived on, and the reason is money: a credit claim that
+            # can quote the delivery note and the date is one a wholesaler
+            # settles, and one that cannot is one they argue about.
+            "grv": _delivery(l),
             "expiry": (l.batch.expiry_date.isoformat()
                        if l.batch and l.batch.expiry_date else ""),
             "quantity": l.quantity,

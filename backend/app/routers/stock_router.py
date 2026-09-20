@@ -13,8 +13,10 @@ from ..services import (config, levels, quarantine, stepup, stock_reasons,
                         supplier_returns, valuation)
 from ..services import permissions
 from ..services import posting
+from ..services import grv
 from ..models import (
-    Dispensing, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
+    Dispensing, GoodsReceipt, PrescriptionItem, Product, PurchaseOrder,
+    PurchaseOrderItem,
     Branch, Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier,
     SupplierReturn, User,
 )
@@ -1053,8 +1055,20 @@ def set_order_status(
     if status not in ("draft", "sent", "received", "cancelled"):
         raise HTTPException(status_code=400, detail="Invalid status")
     sep_breaches: list[dict] = []
+    grv_number = ""
     if status == "received" and order.status != "received":
         batch_info = {l.item_id: l for l in (body.lines if body else [])}
+        # THE DELIVERY, AS A DOCUMENT.
+        #
+        # Opened before the first line is booked and signed at the end. Until
+        # this existed, two vans a week apart against one order left batches
+        # stamped with the same order number and nothing saying which arrived
+        # when, on whose note, or who signed for it.
+        receipt = grv.open_for(
+            db, supplier_id=order.supplier_id, user=user, order=order,
+            branch_id=order.branch_id,
+            delivery_note=(body.delivery_note if body else ""),
+            invoice_number=(body.invoice_number if body else ""))
         for line in order.items:
             product = line.product
             # Booking new stock IN against a line nobody may sell puts goods
@@ -1118,6 +1132,8 @@ def set_order_status(
             if product.category == "airtime":
                 helpers.move_stock(db, product, arrived, "receive", user.id,
                                    reference=order.order_number, in_packs=True)
+                grv.line(db, receipt, product=product, packs=arrived,
+                         unit_cost=line.unit_cost, order_item_id=line.id)
             else:
                 # The same refusal the scanner gives. Two ways in to one act
                 # and only one of them checked: a delivery keyed by hand could
@@ -1164,7 +1180,7 @@ def set_order_status(
                             "Quarantine it and raise it with the supplier.")
                     # An order line counts packs. Ten tubs of a thousand is ten
                     # thousand capsules on the shelf.
-                    helpers.receive_stock_batch(
+                    made = helpers.receive_stock_batch(
                         db, product, int(lot.quantity or arrived), user.id,
                         in_packs=True,
                         batch_number=lot.batch_number or f"{order.order_number}-{line.id}",
@@ -1172,6 +1188,30 @@ def set_order_status(
                         unit_cost=line.unit_cost or None,
                         reference=order.order_number,
                     )
+                    # DAMAGED GOODS ARE RECEIVED, THEN HELD.
+                    #
+                    # A cracked carton is ours the moment it is signed for, and
+                    # writing it off at the door loses the claim against the
+                    # wholesaler, which is the money in the box. So it comes on
+                    # to the books, counted, and straight into quarantine where
+                    # it cannot be dispensed while the credit is chased.
+                    hurt = (lot.condition or "good") == "damaged"
+                    # Flushed so the batch has an id. Without this the receipt
+                    # line files a null, and the whole point of the link is
+                    # that a supplier return can walk backwards from a lot on
+                    # the shelf to the delivery it came off.
+                    db.flush()
+                    grv.line(db, receipt, product=product,
+                             packs=int(lot.quantity or arrived),
+                             unit_cost=line.unit_cost, batch=made,
+                             batch_number=lot.batch_number,
+                             expiry_date=lot.expiry_date,
+                             order_item_id=line.id,
+                             condition="damaged" if hurt else "good")
+                    if hurt:
+                        quarantine.hold(
+                            db, made, reason="damaged", user=user,
+                            note=f"Damaged on arrival, {receipt.grv_number}.")
             helpers.record_register_entry(db, product, arrived, "receive", user.id, reference=order.order_number)
             if line.unit_cost:
                 product.cost_price = line.unit_cost
@@ -1189,6 +1229,11 @@ def set_order_status(
             status = "sent"
         else:
             order.received_at = datetime.utcnow()
+        # Signed for. A keyed delivery is entered in one go, so the document
+        # is final the moment the last line is booked; a scanned one stays
+        # open while somebody is still working down the pallet.
+        grv.close(db, receipt, notes=(body.delivery_notes if body else ""))
+        grv_number = receipt.grv_number
     order.status = status
     db.commit()
     if status == "received":
@@ -1200,12 +1245,13 @@ def set_order_status(
     # Handed back with the order so the receiving screen can say it while the
     # delivery note is still on the counter, rather than leaving it to a
     # report somebody opens next month.
-    if sep_breaches:
+    if sep_breaches or grv_number:
         # Attached to the order rather than replacing it, so every existing
         # caller keeps the shape it already reads and the screen that wants
         # to say something gets what it needs.
         said = schemas.POOut.model_validate(order)
         said.sep_breaches = [schemas.SepBreach(**b) for b in sep_breaches]
+        said.grv_number = grv_number
         return said
     return order
 
@@ -1661,6 +1707,60 @@ def release_batch(batch_id: int, body: dict = Body(default={}),
     return {"ok": True, "batch_id": batch.id, "status": batch.status,
             "message": (f"Batch {batch.batch_number} is back on the shelf and "
                         "can be dispensed again.")}
+
+
+# ---------- deliveries, as documents ----------
+@router.get("/goods-receipts")
+def list_goods_receipts(supplier_id: int = 0, order_id: int = 0,
+                        status: str = "", db: Session = Depends(get_db),
+                        _: User = Depends(get_current_user)):
+    """Deliveries on file, newest first.
+
+    The document that was missing between the order and the invoice. Stock
+    used to arrive stamped with the ORDER number, so two vans a week apart
+    against one order were indistinguishable afterwards: no delivery note, no
+    date, nobody's name on it.
+    """
+    query = db.query(GoodsReceipt)
+    if supplier_id:
+        query = query.filter(GoodsReceipt.supplier_id == supplier_id)
+    if order_id:
+        query = query.filter(GoodsReceipt.order_id == order_id)
+    if status:
+        query = query.filter(GoodsReceipt.status == status)
+    rows = query.order_by(GoodsReceipt.received_at.desc()).limit(200).all()
+    return {"receipts": [grv.shape(r) for r in rows],
+            "count": len(rows)}
+
+
+@router.get("/goods-receipts/{receipt_id}")
+def get_goods_receipt(receipt_id: int, db: Session = Depends(get_db),
+                      _: User = Depends(get_current_user)):
+    row = db.get(GoodsReceipt, receipt_id)
+    if not row:
+        raise HTTPException(404, "That delivery is not on file.")
+    return grv.shape(row)
+
+
+@router.post("/goods-receipts/{receipt_id}/close")
+def close_goods_receipt(receipt_id: int, body: dict = Body(default={}),
+                        db: Session = Depends(get_db),
+                        user: User = Depends(get_current_user)):
+    """Sign for a delivery somebody is still scanning."""
+    row = db.get(GoodsReceipt, receipt_id)
+    if not row:
+        raise HTTPException(404, "That delivery is not on file.")
+    if row.status != "open":
+        raise HTTPException(400, f"{row.grv_number} is already signed for.")
+    grv.close(db, row,
+              delivery_note=(body.get("delivery_note") or ""),
+              invoice_number=(body.get("invoice_number") or ""),
+              notes=(body.get("notes") or ""))
+    db.commit()
+    return {"ok": True, "receipt": grv.shape(row),
+            "message": (f"{row.grv_number} signed for. "
+                        f"{sum(l.quantity or 0 for l in row.lines):,} pack(s) "
+                        "on the shelf.")}
 
 
 # ---------- returning goods to the wholesaler ----------

@@ -963,6 +963,10 @@ class ReceivedBatch(BaseModel):
     expiry_date: Optional[date] = None
     #: In PACKS, like the order line it belongs to.
     quantity: int = 0
+    #: good | damaged. A damaged lot is still received: the goods are ours the
+    #: moment they are signed for, and writing them off at the door loses the
+    #: claim against the wholesaler. It goes on the books and into quarantine.
+    condition: str = "good"
 
 
 class ReceiveLine(BaseModel):
@@ -980,6 +984,12 @@ class ReceiveLine(BaseModel):
 
 class ReceiveOrderBody(BaseModel):
     lines: list[ReceiveLine] = []
+    #: What is written on the driver's paperwork, captured at the back door
+    #: because that is the only moment anybody has it in their hand. Kept
+    #: verbatim on the goods receipt and never validated into anything.
+    delivery_note: str = ""
+    invoice_number: str = ""
+    delivery_notes: str = ""
 
 
 class SepBreach(BaseModel):
@@ -1018,6 +1028,10 @@ class POOut(ORM):
     #: feature that was computed on every request and thrown away on the way
     #: out. Empty on every receipt that is priced properly, which is most.
     sep_breaches: list[SepBreach] = []
+    #: The delivery document this receipt raised, so the screen can say it
+    #: while the driver's note is still on the counter. Declared for the same
+    #: reason as the line above.
+    grv_number: str = ""
 
 
 # ---------- register ----------

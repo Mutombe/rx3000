@@ -2373,6 +2373,111 @@ class BranchStockLevel(Base, TenantMixin):
     set_by = relationship("User")
 
 
+class GoodsReceipt(Base, TenantMixin):
+    """One delivery, as a document. The GRV.
+
+    An order is what we asked for and an invoice is what we are billed. The
+    delivery itself is neither, and it was the one of the three this system
+    did not write down. Stock went onto the shelf stamped with the ORDER
+    number, so two vans arriving a week apart against one order left batches
+    and movements that were indistinguishable: same reference, same supplier,
+    nothing saying which day, which driver's note, or who signed for it.
+
+    WHAT THAT COST, CONCRETELY
+
+    A supplier return has to name the delivery it is returning against, and
+    the blueprint says so. Without this, the best a claim could say was "one
+    of the two deliveries on order PO-1183". A short delivery could be seen in
+    the outstanding quantity but not attributed to a particular van. And a
+    pharmacy querying an invoice had nothing to hold it against: the invoice
+    says twelve, the order says twelve, and the only record of the ten that
+    actually arrived was spread across batch rows.
+
+    WHY IT CARRIES THE SUPPLIER'S OWN NUMBERS
+
+    `delivery_note` and `invoice_number` are what is written on the paperwork
+    in somebody's hand at the back door. They are kept verbatim and not
+    validated into anything, because the moment to capture them is that one,
+    and a system that demands the invoice be on file first simply does not get
+    them captured at all.
+
+    WHY IT IS NOT THE INVOICE
+
+    `SupplierInvoice` already exists and is the bill. This is the goods. They
+    are linked where somebody has matched them and separate until then, which
+    is the ordinary state of affairs for the fortnight between the van and the
+    statement.
+    """
+    __tablename__ = "goods_receipts"
+    id = Column(Integer, primary_key=True)
+    #: Ours, not the supplier's. GRV-00014.
+    grv_number = Column(String(30), nullable=False, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False, index=True)
+    #: The order it came against. Nullable, because stock does arrive with no
+    #: order behind it and refusing to book that in is how it ends up on a
+    #: shelf with no record at all.
+    order_id = Column(Integer, ForeignKey("purchase_orders.id"), nullable=True, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    #: open while a scanner is still working through the pallet; received once
+    #: it is signed off. A GRV is never deleted, because the goods are on the
+    #: shelf either way.
+    status = Column(String(16), default="open", nullable=False, index=True)
+    #: The driver's note and the invoice, as written on them.
+    delivery_note = Column(String(40), default="", index=True)
+    invoice_number = Column(String(40), default="", index=True)
+    #: Set once somebody matches this delivery to a bill on file.
+    invoice_id = Column(Integer, ForeignKey("supplier_invoices.id"),
+                        nullable=True, index=True)
+    #: What arrived, at cost. Packs times pack cost, summed over the lines.
+    goods_total = Column(Float, default=0.0)
+    notes = Column(Text, default="")
+    received_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    received_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+    supplier = relationship("Supplier")
+    order = relationship("PurchaseOrder")
+    invoice = relationship("SupplierInvoice")
+    received_by = relationship("User", foreign_keys=[received_by_id])
+    lines = relationship("GoodsReceiptLine", back_populates="parent",
+                         cascade="all, delete-orphan")
+
+
+class GoodsReceiptLine(Base, TenantMixin):
+    """One lot off one van."""
+    __tablename__ = "goods_receipt_lines"
+    #: A line belongs to whichever pharmacy the receipt does.
+    TENANT_PARENT = "parent"
+    id = Column(Integer, primary_key=True)
+    receipt_id = Column(Integer, ForeignKey("goods_receipts.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    #: The order line this satisfies, where there is one.
+    order_item_id = Column(Integer, ForeignKey("purchase_order_items.id"),
+                           nullable=True, index=True)
+    #: The shelf stock this created. This is the link a supplier return walks
+    #: backwards to say which delivery a returned lot came off.
+    batch_id = Column(Integer, ForeignKey("stock_batches.id"), nullable=True, index=True)
+    #: In PACKS, like the order line it answers. The batch it created holds
+    #: the same goods in units.
+    quantity = Column(Integer, default=0)
+    #: Per PACK, as invoiced.
+    unit_cost = Column(Float, default=0.0)
+    batch_number = Column(String(50), default="")
+    expiry_date = Column(Date, nullable=True)
+    #: good | damaged. Damaged goods are received and then held: they are ours,
+    #: they are counted, and they may not be sold. Writing them off instead
+    #: loses the claim against the supplier, which is the money in the box.
+    condition = Column(String(16), default="good")
+
+    parent = relationship("GoodsReceipt", back_populates="lines")
+    product = relationship("Product")
+    batch = relationship("StockBatch")
+
+    @property
+    def line_total(self) -> float:
+        return round((self.unit_cost or 0.0) * (self.quantity or 0), 2)
+
+
 class SupplierReturn(Base, TenantMixin):
     """Goods going back to the wholesaler, and the credit expected for them.
 
