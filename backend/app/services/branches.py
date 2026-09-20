@@ -135,22 +135,44 @@ def stock_at(db: Session, branch_id: int, *, low_only: bool = False) -> list[dic
     by_product = {r.product_id: int(r.qty or 0) for r in rows}
     if not by_product:
         return []
-    products = {p.id: p for p in db.query(Product)
-                .filter(Product.id.in_(list(by_product))).all()}
+    found = (db.query(Product)
+             .filter(Product.id.in_(list(by_product))).all())
+    products = {p.id: p for p in found}
+
+    # WHAT THIS BRANCH WANTS, NOT WHAT THE GROUP WANTS.
+    #
+    # This compared each branch's shelf against the PRODUCT's reorder level,
+    # which is the group's. So the shop beside the clinic, which gets through
+    # four times the amoxicillin, was judged against a figure set for three
+    # shops, and read as comfortable while it ran out every Friday.
+    #
+    # Resolved in one query for the whole page. See services/levels: a branch
+    # that has never been asked inherits the group's, which is every branch
+    # and every line until somebody says otherwise.
+    from . import levels
+    wanted = levels.for_branch(db, branch_id, found)
+
     out = []
     for pid, qty in by_product.items():
         product = products.get(pid)
         if not product:
             continue
-        if low_only and qty > (product.reorder_level or 0):
+        mine = wanted.get(pid, {})
+        level = int(mine.get("reorder_level") or 0)
+        if low_only and qty > level:
             continue
         out.append({
             "product_id": pid,
             "name": product.name,
             "here": qty,
             "group_total": product.quantity_on_hand or 0,
-            "reorder_level": product.reorder_level or 0,
-            "below_reorder": qty <= (product.reorder_level or 0),
+            "reorder_level": level,
+            "below_reorder": qty <= level,
+            # Whether this shop has an opinion of its own, so a screen can say
+            # so rather than leaving somebody to wonder why two branches show
+            # different levels for the same medicine.
+            "own_level": bool(mine.get("from_branch", {}).get("reorder_level")),
+            "group_level": int(product.reorder_level or 0),
         })
     return sorted(out, key=lambda r: r["name"])
 

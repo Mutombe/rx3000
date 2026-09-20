@@ -68,6 +68,11 @@ interface Register {
 interface ShelfLine {
   product_id: number; name: string; here: number;
   group_total: number; reorder_level: number; below_reorder: boolean;
+  /** Whether this shop has set its own reorder level, or is using the
+   *  group's. Shown, because two branches reading different levels for the
+   *  same medicine looks like a fault until you know it was a decision. */
+  own_level?: boolean;
+  group_level?: number;
 }
 interface Shelf { branch_id: number; lines: ShelfLine[]; below_reorder: number }
 
@@ -291,6 +296,7 @@ export default function BranchDetail() {
                 <tr>
                   <th>Medicine</th>
                   <th className="num">Here</th>
+                  <th className="num">Reorder at</th>
                   <th className="num">Across the group</th>
                 </tr>
               </thead>
@@ -304,6 +310,17 @@ export default function BranchDetail() {
                       )}
                     </td>
                     <td className="num">{row.here}</td>
+                    <td className="num">
+                      {row.reorder_level}
+                      {/* Said out loud when this shop has set its own. Two
+                          branches showing different levels for one medicine
+                          reads as a fault until you know it was a decision. */}
+                      {row.own_level && (
+                        <div className="muted small">
+                          its own, group says {row.group_level}
+                        </div>
+                      )}
+                    </td>
                     <td className="num muted">{row.group_total}</td>
                   </tr>
                 ))}

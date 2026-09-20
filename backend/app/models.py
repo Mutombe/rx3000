@@ -2316,6 +2316,54 @@ class PriceChange(Base, TenantMixin):
         return round(((self.now or 0.0) - base) / base * 100, 2)
 
 
+class BranchStockLevel(Base, TenantMixin):
+    """What ONE branch wants of a line, where it differs from the group.
+
+    Reorder levels live on the product, so all three Care Xpress shops share
+    one. That is right for most of a catalogue and wrong for the lines that
+    matter: the branch by the clinic gets through four times the amoxicillin,
+    and a level set for the group either leaves it short every week or leaves
+    the other two carrying stock they cannot sell.
+
+    AN OVERRIDE, NOT A REPLACEMENT
+
+    `Product.reorder_level` and its two companions are read in fifty three
+    places across fourteen files. Repointing all of them at a new table would
+    be a large change with a large blast radius, to give every pharmacy a
+    per-branch answer whether they wanted one or not.
+
+    So this holds only what a branch has DECIDED to differ on, and each column
+    is nullable: a row that sets a minimum and leaves the maximum null takes
+    the group's maximum. A product with no row anywhere behaves exactly as it
+    does today, which is what almost every product will do.
+
+    See services/levels for the one function that resolves the two.
+    """
+    __tablename__ = "branch_stock_levels"
+    __table_args__ = (
+        # One row per line per shop. Two would mean two answers to the same
+        # question, and whichever the query returned first would win.
+        UniqueConstraint("branch_id", "product_id",
+                         name="uq_branch_stock_level"),
+    )
+    id = Column(Integer, primary_key=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    #: Each nullable, and null means "use the group's". Zero is a real answer
+    #: and a different one: a branch that never wants to hold a line sets its
+    #: maximum to zero, and that must not read as "nobody has said".
+    reorder_level = Column(Integer, nullable=True)
+    max_level = Column(Integer, nullable=True)
+    reorder_quantity = Column(Integer, nullable=True)
+    note = Column(String(200), default="")
+    set_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow)
+
+    branch = relationship("Branch")
+    product = relationship("Product")
+    set_by = relationship("User")
+
+
 class SupplierReturn(Base, TenantMixin):
     """Goods going back to the wholesaler, and the credit expected for them.
 

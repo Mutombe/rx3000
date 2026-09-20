@@ -9,13 +9,13 @@ from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
 from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
-from ..services import (config, quarantine, stepup, stock_reasons,
+from ..services import (config, levels, quarantine, stepup, stock_reasons,
                         supplier_returns, valuation)
 from ..services import permissions
 from ..services import posting
 from ..models import (
     Dispensing, PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem,
-    Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier,
+    Branch, Sale, SaleItem, StockAlert, StockBatch, StockMovement, Supplier,
     SupplierReturn, User,
 )
 
@@ -1719,3 +1719,58 @@ def credit_supplier_return(return_id: int, body: dict = Body(...),
 def money_words(amount: float) -> str:
     """A figure for a sentence, without dragging a formatter in."""
     return f"{amount:,.2f}"
+
+
+# ---------- what one branch wants of a line ----------
+@router.get("/branches/{branch_id}/levels")
+def branch_levels(branch_id: int, db: Session = Depends(get_db)):
+    """Every line this branch has chosen to treat differently, and how.
+
+    The list is the point. A group that cannot see where its branches have
+    departed from the standard cannot tell a deliberate decision from an
+    experiment somebody forgot about.
+    """
+    rows = levels.differences(db, branch_id)
+    return {"branch_id": branch_id, "lines": rows, "count": len(rows)}
+
+
+@router.put("/branches/{branch_id}/levels/{product_id}")
+def set_branch_level(branch_id: int, product_id: int, body: dict = Body(...),
+                     db: Session = Depends(get_db),
+                     user: User = Depends(get_current_user),
+                     _may=Depends(auth.requires("stock.adjust"))):
+    """Say what THIS branch wants of a line, or clear it back to the group's.
+
+    A field sent as null is cleared, which is how a branch goes back to the
+    group's figure without having to know what that figure is.
+    """
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, "That product is not on file.")
+    branch = db.get(Branch, branch_id)
+    if not branch:
+        raise HTTPException(404, "That branch is not on file.")
+
+    given = {f: body[f] for f in levels.FIELDS if f in body}
+    if not given:
+        raise HTTPException(
+            400, "Say which figure this branch wants: "
+                 + ", ".join(levels.FIELDS) + ".")
+    for field, value in given.items():
+        if value not in (None, "") and int(value) < 0:
+            raise HTTPException(400, f"{field} cannot be negative.")
+
+    levels.set_for(db, product=product, branch_id=branch_id, values=given,
+                   user=user, note=str(body.get("note") or ""))
+    db.commit()
+    resolved = levels.for_product(db, product, branch_id)
+    own = sorted(resolved["from_branch"].keys())
+    return {
+        "product_id": product.id, "branch_id": branch_id,
+        **{f: resolved[f] for f in levels.FIELDS},
+        "overridden": own,
+        "message": (f"{branch.name} now keeps its own figures for "
+                    f"{product.name}." if own else
+                    f"{branch.name} is back to the group's figures for "
+                    f"{product.name}."),
+    }
