@@ -63,19 +63,37 @@ product = products[0]
 # leaves a sale pending is dispensing a script, which is exactly the case this
 # feature is for: the medicine has gone out and the money has not come in.
 _, queue = call("/api/dispensary/worklist", token)
-row = next((r for r in queue["queue"]), None)
-if row is None:
+rows = queue.get("queue") or []
+if not rows:
     raise SystemExit("nothing on the worklist to dispense")
-_, script = call(f"/api/prescriptions/{row['prescription_id']}", token)
-status, sale = call(f"/api/prescriptions/{script['id']}/dispense", token, data={
-    "item_ids": [row["item_id"]],
-    "payment_method": "cash",
-    "supply": {},
-    "id_verified": True, "script_sighted": True, "prescriber_verified": True,
-    "id_number_seen": "", "pharmacist_initial": "QA", "compliance_notes": "",
-})
-if status != 200:
-    raise SystemExit(f"could not dispense: {sale}")
+
+# THE FIRST ROW THAT CAN ACTUALLY BE DISPENSED, NOT SIMPLY THE FIRST.
+#
+# This took queue[0] and dispensed it. The head of that queue was a repeat
+# with all six supplies taken, so the test died on "no repeats remaining"
+# and reported it as a part-payment failure — for a feature it had not
+# reached yet, on a queue with 199 other rows behind it that were fine.
+#
+# A refused dispense writes nothing, so trying the next one costs only the
+# request. The reason for the last refusal is kept so a genuinely empty
+# worklist still says why rather than "could not dispense: {}".
+sale = None
+why = "no rows tried"
+for row in rows[:12]:
+    _, script = call(f"/api/prescriptions/{row['prescription_id']}", token)
+    status, attempt = call(f"/api/prescriptions/{script['id']}/dispense", token, data={
+        "item_ids": [row["item_id"]],
+        "payment_method": "cash",
+        "supply": {},
+        "id_verified": True, "script_sighted": True, "prescriber_verified": True,
+        "id_number_seen": "", "pharmacist_initial": "QA", "compliance_notes": "",
+    })
+    if status == 200:
+        sale = attempt
+        break
+    why = attempt.get("detail", attempt) if isinstance(attempt, dict) else attempt
+if sale is None:
+    raise SystemExit(f"nothing on the worklist could be dispensed. Last said: {why}")
 total = sale["total"]
 part = round(total / 3, 2)
 print(f"sale {sale['sale_number']} for {total}; the patient can find {part}\n")
