@@ -577,3 +577,34 @@ def record_register_entry(
     )
     db.add(entry)
     return entry
+
+
+def refuse_if_retired(product: Product, doing: str) -> None:
+    """A line taken out of use cannot be used for anything NEW.
+
+    Deactivating a product hid it from the pickers and stopped there. The
+    catalogue search would not offer it, the dispensary would not suggest it,
+    and every endpoint that took a `product_id` would still accept one: a
+    stale browser tab, a barcode on an old box, a saved basket, an import
+    naming the code. So a line retired precisely BECAUSE it should not go out
+    any more could still be dispensed, sold, received and transferred, and
+    nothing on any screen looked wrong.
+
+    WHAT IS STILL ALLOWED, AND WHY IT HAS TO BE
+
+    Correcting and writing off. A product is usually retired while there is
+    still stock on the shelf, and that stock has to be counted, written off
+    and reconciled afterwards. Refusing those would leave the units stranded
+    on the books with no lawful way to remove them, which is a worse problem
+    than the one this fixes.
+
+    So: nothing new goes OUT to a patient or IN from a supplier, and the
+    housekeeping that empties the shelf is untouched.
+    """
+    if product is not None and product.active is False:
+        raise HTTPException(
+            status_code=400,
+            detail=(f"{product.name} has been taken out of use, so it cannot "
+                    f"be {doing}. Stock already on the shelf can still be "
+                    "counted or written off. If this line is wanted again, "
+                    "put it back into use first."))

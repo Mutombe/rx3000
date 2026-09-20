@@ -202,6 +202,12 @@ def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,
     if not target.active:
         raise BranchError(f"{target.name} is closed, so stock cannot be sent there.")
 
+    # Sending a retired line to another shop is not housekeeping: it puts
+    # stock nobody may sell onto a second shelf, where the next person has
+    # no way of knowing why it will not go out.
+    from .. import helpers as _helpers
+    _helpers.refuse_if_retired(db.get(Product, product_id), "transferred")
+
     available = on_hand(db, product_id, from_branch_id)
     if available < quantity:
         raise BranchError(

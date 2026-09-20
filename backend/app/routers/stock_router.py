@@ -1056,6 +1056,9 @@ def set_order_status(
         batch_info = {l.item_id: l for l in (body.lines if body else [])}
         for line in order.items:
             product = line.product
+            # Booking new stock IN against a line nobody may sell puts goods
+            # on a shelf that cannot lawfully leave it.
+            helpers.refuse_if_retired(product, "received")
             info = batch_info.get(line.id)
 
             # WHAT ARRIVED, NOT WHAT WAS ORDERED.

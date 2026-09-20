@@ -209,6 +209,43 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
             row.resolved_at = datetime.utcnow()
             closed += 1
 
+    # ---- a branch that has set its own level, judged against its own shelf --
+    #
+    # The pass above compares the GROUP's shelf against the GROUP's reorder
+    # level, which is right for a pharmacy that runs one set of figures and
+    # blind for one that does not. The shop beside the clinic gets through
+    # four times the amoxicillin: the group looks comfortable while that shelf
+    # empties every Friday.
+    #
+    # Only branches that have SAID they differ are walked. A pharmacy with no
+    # overrides sees exactly what it saw before, and one that has set twenty
+    # gets twenty more findings rather than three times everything, which is
+    # the difference between a list somebody reads and a list somebody mutes.
+    from ..models import BranchStockLevel
+    from . import branches as branch_svc
+
+    own = (db.query(BranchStockLevel)
+           .filter(BranchStockLevel.reorder_level.isnot(None))
+           .all())
+    for rule in own:
+        product = db.get(Product, rule.product_id)
+        if product is None or not product.active:
+            continue
+        here = branch_svc.on_hand(db, product.id, rule.branch_id)
+        level = int(rule.reorder_level or 0)
+        if here > level:
+            continue
+        branch = db.get(Branch, rule.branch_id)
+        where = branch.name if branch else f"branch {rule.branch_id}"
+        made = _raise(
+            db, "below_reorder", product, branch_id=rule.branch_id,
+            worth=valuation.at_cost(product, max(0, level - here)),
+            detail=(f"{here} left at {where}, at or below the {level} that "
+                    f"branch asks for. The group holds "
+                    f"{product.quantity_on_hand or 0}."),
+            seen=seen)
+        new["below_reorder"] += made
+
     # ---- and hold what has gone past its date ------------------------------
     #
     # The sweep has just walked these rows to raise the alert; enforcing what

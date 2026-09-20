@@ -85,6 +85,9 @@ def raise_return(db: Session, *, supplier_id: int, lines: list[dict],
         if batch is None:
             raise HTTPException(400, "A line names a batch that is not on file.")
         product = db.get(Product, batch.product_id)
+        # Deliberately NOT refused for a retired line. Sending it back to the
+        # wholesaler is one of the two lawful ways stock leaves a shelf after
+        # a product is taken out of use, and the other is a write-off.
         quantity = int(raw.get("quantity") or 0)
         if quantity <= 0:
             raise HTTPException(400, f"{product.name}: a return needs a quantity.")

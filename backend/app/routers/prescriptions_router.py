@@ -782,6 +782,10 @@ def dispense(
     subtotal = vat_total = 0.0
     for position, item in enumerate(items, start=1):
         product = item.product
+        # A line retired since the script was written. The picker would not
+        # offer it today and a repeat captured months ago still names it, so
+        # the refusal belongs here rather than only in the search.
+        helpers.refuse_if_retired(product, "dispensed")
         is_repeat = item.repeats_used > 0 or bool(item.dispensings)
         # The count is the authority, with or without local history.
         #

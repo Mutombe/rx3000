@@ -370,6 +370,9 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db), user: U
         product = basket.get(line.product_id)
         if not product:
             raise HTTPException(status_code=404, detail=f"Product {line.product_id} not found")
+        # A retired line is hidden from the search and was still accepted by
+        # the endpoint: a stale tab or an old barcode would sell it.
+        helpers.refuse_if_retired(product, "sold")
         # A price set by hand, if one was authorised for this line. Read off the
         # record the code wrote, never off the request: a till that could name
         # its own price has gone round the password rather than through it.

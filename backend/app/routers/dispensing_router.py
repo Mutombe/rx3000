@@ -194,6 +194,7 @@ def otc_sale(
     product = db.get(Product, body.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
+    helpers.refuse_if_retired(product, "handed over the counter")
 
     policy = schedule_policy.policy_for(product.schedule)
     if policy.route != "otc":
