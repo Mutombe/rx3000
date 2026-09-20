@@ -22,7 +22,7 @@ from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import nulls_last, or_
+from sqlalchemy import and_, nulls_last, or_
 from sqlalchemy.orm import Session
 
 from .. import auth as _auth
@@ -83,32 +83,42 @@ def _match(db: Session, keys: list[str]) -> tuple[Product | None, int, str]:
     if not keys:
         return None, 1, ""
 
-    alias = (
-        db.query(ProductBarcode)
-        .filter(ProductBarcode.code.in_(keys))
-        .first()
+    # ONE ROUND TRIP, NOT THREE.
+    #
+    # This asked three questions in turn — the alias table, then the product's
+    # own barcode, then its NAPPI code — and returned on the first hit. Three
+    # queries is right when a query is free. Against the hosted database a
+    # round trip is about a hundred milliseconds, so a scan that matched on
+    # NAPPI spent three hundred of them asking.
+    #
+    # The same three conditions, OR'd, in one statement. The LEFT JOIN is what
+    # preserves the precedence: an alias row comes back attached to its
+    # product, so the rule below is decided in Python from data already in
+    # hand rather than by asking again.
+    rows = (
+        db.query(Product, ProductBarcode)
+        .outerjoin(ProductBarcode,
+                   (ProductBarcode.product_id == Product.id)
+                   & (ProductBarcode.code.in_(keys)))
+        .filter(or_(ProductBarcode.id.isnot(None),
+                    and_(Product.barcode.in_(keys), Product.barcode != ""),
+                    and_(Product.nappi_code.in_(keys), Product.nappi_code != "")))
+        .limit(8)
+        .all()
     )
-    if alias:
-        product = db.query(Product).get(alias.product_id)
-        if product:
+    if not rows:
+        return None, 1, ""
+
+    # The alias wins, and it wins for a reason worth keeping: only an alias
+    # carries a pack size, so an outer carton scanned at goods receipt has to
+    # book in the case rather than a single unit.
+    for product, alias in rows:
+        if alias is not None:
             return product, max(1, alias.pack_size or 1), (alias.label or "alternate code")
-
-    product = (
-        db.query(Product)
-        .filter(Product.barcode.in_(keys), Product.barcode != "")
-        .first()
-    )
-    if product:
-        return product, 1, "barcode"
-
-    product = (
-        db.query(Product)
-        .filter(Product.nappi_code.in_(keys), Product.nappi_code != "")
-        .first()
-    )
-    if product:
-        return product, 1, "NAPPI code"
-    return None, 1, ""
+    for product, _alias in rows:
+        if product.barcode and product.barcode in keys:
+            return product, 1, "barcode"
+    return rows[0][0], 1, "NAPPI code"
 
 
 def _suggestions(db: Session, scan: bc.Scan, limit: int = 5) -> list[dict]:

@@ -107,6 +107,20 @@ class MeOut(UserOut):
     #: Where they work, of those. Null for head office and the unplaced.
     branch: BranchBrief | None = None
     all_branches: bool = False
+    #: Every branch this person could switch to, as against the one they are
+    #: currently narrowed to.
+    #:
+    #: DECLARED, because a response_model silently drops what it does not
+    #: name. The endpoint has always computed this and it has never once
+    #: reached the browser: `Layout` reads `me.may_switch ?? []`, so the
+    #: branch switcher in the top bar has been permanently empty and a
+    #: multi-branch pharmacy could not change which shop it was looking at.
+    #:
+    #: This is the fourth time this exact trap has cost this codebase a
+    #: feature that was computed on every request and thrown away on the way
+    #: out. See `POOut.sep_breaches` and `POOut.grv_number` for two of the
+    #: others.
+    may_switch: list[BranchBrief] = []
 
 
 class UserCreate(BaseModel):

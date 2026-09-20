@@ -37,6 +37,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import Prescription, ScriptChange, User
@@ -64,20 +65,33 @@ def find(db: Session, code: str) -> Prescription | None:
     wanted = (code or "").strip()
     if not wanted:
         return None
-    # The number as printed, and the same number in upper case. A scanner
-    # reproduces what was encoded exactly, but a code typed into the fallback
-    # box by hand does not.
-    found = (db.query(Prescription)
-             .filter(Prescription.rx_number == wanted).first())
-    if found is None:
-        found = (db.query(Prescription)
-                 .filter(Prescription.rx_number == wanted.upper()).first())
-    if found is None:
-        # A draft carries its own reference and can be printed, so a sticker
-        # from one has to find its way home as well.
-        found = (db.query(Prescription)
-                 .filter(Prescription.draft_ref == wanted.upper()).first())
-    return found
+    # THREE POSSIBILITIES, ONE ROUND TRIP.
+    #
+    # The number as printed, the same number in upper case — a scanner
+    # reproduces what was encoded, a code typed into the fallback box by hand
+    # does not — and a draft's own reference, because a draft can be printed
+    # and its sticker has to find its way home too.
+    #
+    # Asked in turn this was three queries, and every scan that was NOT a
+    # script paid all three before giving up. Against the hosted database that
+    # is three hundred milliseconds spent proving a pack is a pack.
+    upper = wanted.upper()
+    matches = (db.query(Prescription)
+               .filter(or_(Prescription.rx_number == wanted,
+                           Prescription.rx_number == upper,
+                           Prescription.draft_ref == upper))
+               .limit(4).all())
+    if not matches:
+        return None
+    # The same precedence the three queries had: an exact number as printed,
+    # then the upper case reading of it, then a draft reference.
+    for rx in matches:
+        if rx.rx_number == wanted:
+            return rx
+    for rx in matches:
+        if rx.rx_number == upper:
+            return rx
+    return matches[0]
 
 
 def dispensable(rx: Prescription) -> tuple[bool, str]:

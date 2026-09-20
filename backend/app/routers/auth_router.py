@@ -52,15 +52,25 @@ def me(user: User = Depends(auth.get_current_user),
     from .. import branch_scope as _branch_scope
 
     visible = _branch_scope.visible_branch_ids()
+    # THE BRANCH TABLE, ONCE.
+    #
+    # This asked for branches twice: the ones this person can see, and then
+    # again for the ones they could switch to. Two questions about a table
+    # holding a handful of rows, and against the hosted database each one is
+    # about a hundred milliseconds — on an endpoint every page load waits for.
+    #
+    # Read once and both answers derived below. A pharmacy with so many
+    # branches that fetching them all is the expensive part does not exist.
     with _branch_scope.every_branch():
-        branches = [
-            {"id": b.id, "name": b.name, "code": b.code}
-            for b in db.query(models.Branch)
-            .filter(models.Branch.id.in_(visible)).all()
-        ] if visible is not None else [
-            {"id": b.id, "name": b.name, "code": b.code}
-            for b in db.query(models.Branch).all()
+        every = [
+            {"id": b.id, "name": b.name, "code": b.code, "active": bool(b.active)}
+            for b in db.query(models.Branch).order_by(models.Branch.name).all()
         ]
+    branches = [
+        {k: v for k, v in b.items() if k != "active"}
+        for b in every
+        if visible is None or b["id"] in visible
+    ]
 
     out = schemas.UserOut.model_validate(user).model_dump()
     # All seventeen from two queries. Asking one at a time meant thirty-four
@@ -76,13 +86,10 @@ def me(user: User = Depends(auth.get_current_user),
     # so on its own it cannot answer "what else could I look at" — and a picker
     # built from it would offer exactly the branch already chosen.
     if visible is None or len(branches) > 1:
-        with _branch_scope.every_branch():
-            out["may_switch"] = [
-                {"id": b.id, "name": b.name, "code": b.code}
-                for b in db.query(models.Branch)
-                .filter(models.Branch.active.is_(True))
-                .order_by(models.Branch.name).all()
-            ] if visible is None else branches
+        out["may_switch"] = ([
+            {k: v for k, v in b.items() if k != "active"}
+            for b in every if b["active"]
+        ] if visible is None else branches)
     else:
         # One branch and no choice about it. An empty list rather than a list of
         # one, so the top bar can tell "may choose, and has" from "has no say".
