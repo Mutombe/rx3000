@@ -48,6 +48,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 // tablets are ready must not download a point-of-sale system to find out.
 const PatientPortal = lazy(() => import("./portal/PatientPortal"));
 const DoctorPortal = lazy(() => import("./portal/DoctorPortal"));
+const PhoneScanner = lazy(() => import("./pages/PhoneScanner"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Assistant = lazy(() => import("./pages/Assistant"));
@@ -145,6 +146,15 @@ export default function App() {
       <Route
         path="/portal/doctor/:token"
         element={<Suspense fallback={null}><DoctorPortal /></Suspense>}
+      />
+      {/* A phone borrowed as a scanner. Public for the same reason the portal
+          is: nobody signs in here. The pairing code shown on the counter's
+          screen is the credential, and a member of staff typing their password
+          into a phone at a counter in front of a queue is a worse trade than a
+          code that dies in three minutes. */}
+      <Route
+        path="/scanner"
+        element={<Suspense fallback={null}><PhoneScanner /></Suspense>}
       />
       <Route
         path="/*"

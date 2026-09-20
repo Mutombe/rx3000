@@ -106,6 +106,7 @@ async def stream(link_id: int, request: Request,
     async def frames():
         seen = 0
         quiet = 0.0
+        said_paired = False
         db = SessionLocal()
         try:
             # The link, belonging to THIS session.
@@ -160,7 +161,24 @@ async def stream(link_id: int, request: Request,
                     # out. The stream has to notice, or the screen goes on
                     # saying "scanner connected" over a phone that is not.
                     db.expire(link)
-                    if link.status != "live":
+                    # A PHONE HAS ACTUALLY TAKEN IT.
+                    #
+                    # Said once, when the pairing flips from pending to live.
+                    # The `open` frame above means only that this stream is
+                    # open, which is true while the code is still sitting
+                    # unclaimed on the screen — treating the two as one thing
+                    # made the counter announce "phone scanning" the instant
+                    # it displayed a code nobody had picked up.
+                    if link.status == "live" and not said_paired:
+                        said_paired = True
+                        quiet = 0.0
+                        yield ("event: paired\ndata: "
+                               + json.dumps({"station": link.station or "",
+                                             "device": link.device or ""})
+                               + "\n\n")
+                    # Pending is a pairing still waiting to be claimed, which
+                    # is not a reason to hang up on the counter showing it.
+                    if link.status not in ("pending", "live"):
                         yield "event: closed\ndata: {}\n\n"
                         break
                 await asyncio.sleep(POLL_SECONDS)

@@ -11727,3 +11727,90 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    the product telling a visitor what it is about to ask them for. */
 .su-demo { margin: var(--s3) 0 0; line-height: 1.45; }
 .su-demo b { font-variant-numeric: tabular-nums; letter-spacing: 0.08em; }
+
+/* ---------- Borrowing a phone as this counter's scanner ----------
+   The pairing panel sits in a row of toolbar buttons, so it has to be able to
+   grow out of one without pushing the rest of the row around. */
+.ps-open { white-space: nowrap; }
+/* Sized, not greedy. It lives in a row of toolbar buttons, and given room to
+   grow it took the whole row and pushed the page heading out from under it.
+   A phone reads this from arm's length off a bright screen, which needs a
+   legible symbol and not a large one. */
+.ps-pair {
+  flex: 0 0 auto; width: 19rem; max-width: 100%;
+  padding: var(--s3); border: 1px solid var(--line);
+  border-radius: var(--r-md); background: var(--surface);
+  box-shadow: var(--e2);
+}
+.ps-pair p { margin: 0 0 var(--s2); }
+/* The symbol itself. Given a white ground and real quiet zones whatever the
+   theme is: a camera reading a screen needs the contrast and the margin, and
+   bars on a dark panel in dark mode do not decode. */
+.ps-symbol {
+  background: #ffffff; padding: 10px 14px;
+  border-radius: var(--r-sm); border: 1px solid var(--line);
+}
+.ps-symbol svg { display: block; width: 100%; height: 62px; }
+.ps-symbol svg rect, .ps-symbol .bars rect { fill: #000000; }
+/* The code in words underneath, because a camera that will not focus is a
+   thing that happens and somebody has to be able to read it out. */
+.ps-code {
+  margin: var(--s2) 0; font-size: var(--t-lg); font-weight: 600;
+  letter-spacing: 0.22em; font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.ps-live {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 0 var(--s3); height: var(--control);
+  border: 1px solid var(--ok-line); border-radius: var(--r-md);
+  background: var(--ok-soft); font-size: var(--t-sm); white-space: nowrap;
+}
+.ps-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok); flex: 0 0 auto;
+  animation: ps-pulse 2s ease-in-out infinite;
+}
+@keyframes ps-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .ps-dot { animation: none; } }
+
+/* ---------- The phone's own screen ----------
+   Its only job is the viewfinder and a count, held by somebody standing up,
+   one handed, possibly in a stock room. So it is one column, large text, and
+   nothing to hunt for. */
+.ph-wrap {
+  min-height: 100%; padding: var(--s4);
+  display: flex; justify-content: center; align-items: flex-start;
+  background: var(--surface-sunk);
+}
+.ph-card {
+  width: 100%; max-width: 30rem;
+  display: flex; flex-direction: column; gap: var(--s3);
+}
+.ph-card h1 { margin: 0; font-size: var(--t-xl); }
+.ph-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s3);
+}
+.ph-live {
+  display: block; font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-soft);
+}
+/* The number is the feedback. Somebody scanning a shelf is not reading a
+   sentence; they are checking that it went up. */
+.ph-count {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s3); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--line);
+  line-height: 1.4;
+}
+.ph-count-n {
+  font-size: 2rem; font-weight: 600; font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+.ph-last { margin: 0; overflow-wrap: anywhere; }
+/* The tally sits under the viewfinder, in `scan-feed`. That panel is the
+   surface colour with ordinary ink on it, NOT the dark stage above it — a
+   first attempt painted this text near-white and put it on white. It needs no
+   colour of its own; it inherits the right one. */
+.scan-feed .ph-count { background: var(--surface-sunk); }
+.ph-say { margin: 0 0 var(--s2); line-height: 1.45; }

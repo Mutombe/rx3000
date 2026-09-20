@@ -25,6 +25,7 @@ import { usePharmacy } from "../hooks/usePharmacy";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
+import PairedScanner from "../components/PairedScanner";
 import LotPicker, { LotChoice, ROTATION } from "../components/LotPicker";
 import SchemeCodeField, { NoCodeMark, useSchemeCodes } from "../components/SchemeCode";
 import SetThePrice, { PriceAsked } from "../components/SetThePrice";
@@ -1055,6 +1056,7 @@ export default function Dispense() {
     enabled: finishing === null && !cameraOpen && !cancelTarget && !holding
       && !mixing && !newPatient && !altering,
   });
+
 
   const mayCancelScript = session.can("script.manage");
 
@@ -3322,6 +3324,12 @@ export default function Dispense() {
           </div>
         )}
         <div className="page-actions">
+          {/* A phone borrowed as this counter's scanner. It produces the same
+              event the scanner plugged into this machine does — a string
+              arrived — and hands it to the same place, so nothing below knows
+              which one it came from. */}
+          <PairedScanner station="Dispensing"
+                         onScan={(code) => { setProductQ(""); void scanPack(code); }} />
           <button className="btn" onClick={newScript}>
             <Plus size={14} weight="bold" /> New script
           </button>

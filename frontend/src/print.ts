@@ -460,7 +460,10 @@ export function labelSheetHtml(labels: Label[], copies = 1): string {
  *  way into a print window, where there is nothing to draw on yet, and because
  *  a vector scales to whatever density the driver rasterises at.
  */
-function barcodeSvg(text: string, wideMm = 54, tallMm = 3.4): string {
+/** Exported so the phone-pairing control draws its code with this same
+ *  encoder. Two ways to draw a Code 128 in one product is two ways for it to
+ *  be wrong, and only one of them has guards pointed at it. */
+export function barcodeSvg(text: string, wideMm = 54, tallMm = 3.4): string {
   const clean = String(text ?? "").trim();
   const modules = clean ? code128Width(clean) : 0;
   if (!modules) return "";
