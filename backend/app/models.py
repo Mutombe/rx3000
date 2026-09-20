@@ -3943,3 +3943,86 @@ class ClinicalTerm(Base):
     __table_args__ = (
         UniqueConstraint("kind", "name", name="uq_clinical_term_kind_name"),
     )
+
+
+class ScannerLink(Base, TenantMixin):
+    """A phone borrowed as a barcode scanner, and the counter it is serving.
+
+    A pharmacy that has not bought a scanner for every station still has a
+    camera in everybody's pocket. This is the pairing between one of those and
+    one workstation, so that a scan taken in somebody's hand appears on the
+    screen they are standing at.
+
+    WHY THE PHONE IS A DUMB INPUT DEVICE
+
+    It sends a string and is told "sent". It is never given the patient, the
+    medicine or the script, and the token it holds can do nothing else. That
+    is the whole security design: a phone left on a counter, or a pairing
+    forwarded to somebody who should not have it, can put a code into one
+    screen that a pharmacist is looking at. It cannot read a record.
+
+    WHY THE PAIRING CODE IS A BARCODE
+
+    Because this product can already draw one and the phone can already read
+    one. The desktop shows a Code 128 of the pairing code, the phone scans it
+    with the camera it is about to use for everything else, and nobody types
+    anything. A QR would have meant writing a second encoder.
+
+    WHY IT EXPIRES TWICE
+
+    `expires_at` is how long an unclaimed code is worth offering — minutes,
+    because it is on a screen in a dispensary. `closed_at` is the end of the
+    session itself. A pairing that lives until somebody remembers to end it is
+    a pairing that outlives the shift, the member of staff, and the phone.
+    """
+    __tablename__ = "scanner_links"
+    id = Column(Integer, primary_key=True)
+    #: Short, single use, and only useful before it is claimed.
+    code = Column(String(16), nullable=False, index=True)
+    #: pending | live | closed
+    status = Column(String(10), default="pending", nullable=False, index=True)
+    #: Whose session this is. Scans arrive as though this person had scanned.
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
+    #: What the desktop calls itself, so the phone can say what it is attached
+    #: to. "Dispensing 2" is the difference between a scan going to the right
+    #: counter and somebody wondering why nothing happened.
+    station = Column(String(60), default="")
+    #: What the phone calls itself, for the same reason in the other direction.
+    device = Column(String(80), default="")
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    expires_at = Column(DateTime, nullable=True)
+    claimed_at = Column(DateTime, nullable=True)
+    last_seen_at = Column(DateTime, nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")
+
+
+class ScannerScan(Base, TenantMixin):
+    """One string a paired phone sent, waiting to be picked up.
+
+    Written down rather than pushed through memory. The obvious design is an
+    in-process queue and a socket, and it is wrong here for a dull reason:
+    nothing guarantees the phone's request and the desktop's stream are being
+    served by the same worker, and a scan delivered to the wrong process is a
+    scan that silently never arrives. A row is seen by every worker, survives a
+    restart mid-shift, and costs a poll of a tiny indexed table.
+
+    The latency that buys is under half a second, against a person moving a
+    phone to the next box.
+    """
+    __tablename__ = "scanner_scans"
+    #: A scan belongs to whichever pharmacy the link does.
+    TENANT_PARENT = "link"
+    id = Column(Integer, primary_key=True)
+    link_id = Column(Integer, ForeignKey("scanner_links.id"), nullable=False, index=True)
+    #: The raw string off the camera. Resolved by the desktop, not here: the
+    #: phone is an input device and the screen is what knows the context.
+    code = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    #: Set when a desktop stream has handed it over. Kept rather than deleted,
+    #: so "the phone says it sent it and nothing happened" has an answer.
+    delivered_at = Column(DateTime, nullable=True, index=True)
+
+    link = relationship("ScannerLink")
