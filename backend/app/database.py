@@ -46,7 +46,25 @@ engine = create_engine(
     _normalise(settings.DATABASE_URL),
     connect_args=({"check_same_thread": False, "timeout": 30} if _is_sqlite
                   else _PG_CONNECT_ARGS),
-    pool_pre_ping=True,
+    # WHY THIS IS NOT `pool_pre_ping`.
+    #
+    # Pre-ping sends a SELECT 1 on every checkout to prove the connection is
+    # still alive. That is one database round trip before the query you
+    # actually wanted, and it is free only when the database is next door.
+    #
+    # Measured against the hosted API it is not next door: a round trip costs
+    # about a hundred milliseconds, so pre-ping was adding that to every
+    # request, twice on a POST — once for the request's own session and once
+    # for the audit write's.
+    #
+    # `pool_recycle` buys the same protection differently: a connection older
+    # than this is discarded before it is handed out rather than tested. Set
+    # below the idle timeout a pooler uses, so a connection is retired while it
+    # is still certainly good instead of being checked after it might not be.
+    # The keepalives above remain the guard against a socket that dies mid
+    # query, which pre-ping never covered anyway.
+    pool_pre_ping=_is_sqlite,
+    pool_recycle=240,
     # More connections than the worker threads that can ask for one. At the
     # default five-plus-ten, requests waiting their turn on a lock held every
     # connection, and the request holding the lock could not get one to finish

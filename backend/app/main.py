@@ -140,6 +140,14 @@ async def lifespan(app: FastAPI):
         _tenancy.reset_current_pharmacy(_tenant_token)
     scheduler.start()
     yield
+    # The audit rows that were still being written when this began. They are
+    # no longer awaited per request, so shutdown is where they are collected —
+    # otherwise a deploy silently drops whatever was in flight, which is the
+    # one thing a log that exists to be complete must not do.
+    from . import audit as _audit
+    settled = await _audit.settle()
+    if settled:
+        log.info("Settled %s audit write(s) before shutdown", settled)
     scheduler.stop()
 
 

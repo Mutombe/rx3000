@@ -4,6 +4,7 @@ A middleware records every state-changing API call (method, path, user, status)
 so a pharmacy manager can answer "who did what, when" — required for
 controlled-substance compliance and dispute resolution.
 """
+import asyncio
 import logging
 
 import jwt
@@ -16,6 +17,26 @@ from .database import SessionLocal
 from .models import AuditLog
 
 log = logging.getLogger("rx5000.audit")
+
+#: Audit writes still in flight.
+#:
+#: Held so the event loop keeps a reference to each one. A task nobody is
+#: holding can be collected before it runs, which would lose rows silently and
+#: at random — the worst possible failure for a log whose entire job is to be
+#: complete.
+#:
+#: Drained on shutdown by `settle()`, so a deploy or a restart does not drop
+#: the calls that were in flight when it began.
+_in_flight: set[asyncio.Task] = set()
+
+
+async def settle(timeout: float = 5.0) -> int:
+    """Wait for outstanding audit writes. Called on shutdown."""
+    if not _in_flight:
+        return 0
+    waiting = list(_in_flight)
+    done, _ = await asyncio.wait(waiting, timeout=timeout)
+    return len(done)
 
 # Never log these (credentials in body, or pure noise)
 SKIP_PATHS = {"/api/auth/login"}
@@ -88,7 +109,26 @@ class AuditMiddleware(BaseHTTPMiddleware):
             status_code=response.status_code,
             ip_address=request.client.host if request.client else "",
         )
-        await run_in_threadpool(_write, row)
+        # NOT AWAITED, DELIBERATELY.
+        #
+        # The response is already built by this point: `call_next` returned
+        # above and nothing below can change what the caller gets. Awaiting
+        # the write meant every state-changing request also waited for a
+        # connection, an INSERT and a COMMIT before the client saw a byte —
+        # three database round trips, which against the hosted database is
+        # about three hundred milliseconds added to every sale, every
+        # dispensing and every stock movement.
+        #
+        # The row is still written, and still written from a worker thread so
+        # it cannot block the event loop. What changed is who waits for it: the
+        # server rather than the person at the counter.
+        #
+        # It is tracked rather than fired and forgotten, because an audit log
+        # that loses rows when a deploy lands is not one anybody can rely on.
+        # See `_in_flight` and `settle`.
+        task = asyncio.create_task(run_in_threadpool(_write, row))
+        _in_flight.add(task)
+        task.add_done_callback(_in_flight.discard)
         return response
 
 
