@@ -1375,6 +1375,20 @@ class PurchaseOrder(Base, TenantMixin):
     received_at = Column(DateTime, nullable=True)
     notes = Column(Text, default="")
 
+    # WHAT THE WHOLESALER SAID BACK.
+    #
+    # "When is it coming" is the commonest telephone call a pharmacy makes,
+    # and the answer lived in whoever took it. These three let the supplier
+    # answer once, in writing, on their own link: that they have it, when it
+    # will arrive, and anything they need to say about it.
+    acknowledged_at = Column(DateTime, nullable=True)
+    #: When THEY say it will arrive. Kept apart from anything the pharmacy
+    #: guessed, and compared with what actually happened afterwards: a
+    #: supplier who is reliably late is a different problem from one who is
+    #: reliably short, and neither was measurable before.
+    promised_date = Column(Date, nullable=True)
+    supplier_note = Column(Text, default="")
+
     supplier = relationship("Supplier")
     items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan")
 
@@ -1525,6 +1539,12 @@ class PurchaseOrderItem(Base, TenantMixin):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity_ordered = Column(Integer, default=0)
     quantity_received = Column(Integer, default=0)
+    #: What the wholesaler says they will actually send, from their own
+    #: acknowledgement. NULL until they say, which is not the same as nought:
+    #: an unanswered line is not a refused one. Knowing on Monday that only
+    #: sixty of the hundred are coming is the difference between ordering the
+    #: rest elsewhere and finding out on Thursday when the van arrives.
+    quantity_confirmed = Column(Integer, nullable=True)
     unit_cost = Column(Float, default=0.0)
 
     order = relationship("PurchaseOrder", back_populates="items")

@@ -427,6 +427,62 @@
   .pp .sq-total { flex: 1 1 100%; text-align: left; }
 }
 
+/* ------------------------------------------------ a wholesaler's own orders
+
+   One card per order, collapsed to its number and its state, because a
+   supplier with nine orders wants to find the one that is waiting on them
+   rather than read all nine. */
+.pp .so-order { padding: 0; overflow: hidden; }
+.pp .so-order.is-waiting { border-color: var(--pp-warn); }
+.pp .so-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  width: 100%; min-height: 0; padding: 16px 18px;
+  background: transparent; border: 0; border-radius: 0;
+  color: var(--pp-ink); font-family: inherit; font-size: 1rem;
+  text-align: left; cursor: pointer;
+}
+.pp .so-head-main { display: flex; flex-direction: column; gap: 2px; }
+.pp .so-head-main b { font-size: 1.02rem; }
+.pp .so-note { padding: 0 18px; }
+.pp .so-order form { padding: 0 18px 18px; }
+
+.pp .so-lines { border-top: 1px solid var(--pp-line); }
+.pp .so-line {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  padding: 13px 0; border-bottom: 1px solid var(--pp-line);
+}
+.pp .so-line:last-child { border-bottom: 0; }
+.pp .so-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pp .so-what b { font-size: 0.98rem; }
+.pp .so-counts { display: flex; align-items: flex-end; gap: 14px; }
+.pp .so-cap {
+  display: block; font-size: 0.72rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--pp-faint);
+}
+/* What the pharmacy asked for, set as a fact rather than as a field: it is
+   not theirs to change here. */
+.pp .so-ordered { text-align: right; }
+.pp .so-ordered b {
+  display: block; margin-top: 5px; min-height: 46px; line-height: 46px;
+  font-size: 1.05rem; font-variant-numeric: tabular-nums;
+}
+.pp .so-sending { margin: 0; width: 6.5rem; }
+.pp .so-sending input {
+  margin-top: 5px; min-height: 46px; padding: 10px 12px;
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+/* Stated, not warned about. A short line is an ordinary fact and the
+   pharmacy would far rather hear it now than on delivery day. */
+.pp .so-short {
+  flex: 1 1 100%; font-size: 0.85rem; color: var(--pp-warn);
+}
+.pp .so-foot {
+  display: grid; gap: 12px; padding-top: 16px;
+  border-top: 1px solid var(--pp-line);
+}
+
 /* A secondary action, "add another medicine", which must not look like the
    one that sends the script. */
 .pp .pp-ghost {

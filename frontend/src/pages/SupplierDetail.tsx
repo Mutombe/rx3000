@@ -5,7 +5,7 @@
  *  no answer short of running three reports.
  */
 import { useEffect, useState } from "react";
-import { Printer } from "@phosphor-icons/react";
+import { LinkSimple, Printer } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
@@ -17,6 +17,11 @@ import { useParams } from "react-router-dom";
 interface Order {
   id: number; order_number: string; status: string;
   created_at: string; received_at: string | null; value: number;
+  /** What the wholesaler said on their own link. */
+  acknowledged_at: string | null;
+  promised_date: string | null;
+  supplier_note: string;
+  lines_short: number;
 }
 interface Invoice {
   id: number; invoice_number: string; invoice_date: string; due_date: string | null;
@@ -69,6 +74,22 @@ export default function SupplierDetail() {
    *  once a month, so it has to carry the same furniture: the account it is
    *  for, a brought-forward, a running balance that ties, and the ageing.
    */
+  /** Mint their standing link and put a message around it on the clipboard.
+   *  A pharmacy that has to compose the message itself sends a bare URL with
+   *  no explanation, and nobody opens those. */
+  const portalLink = async () => {
+    try {
+      const made = await api.post<{ share_text: string; expires_in_days: number }>(
+        `/api/portal-admin/links/supplier/${id}`);
+      await navigator.clipboard.writeText(made.share_text);
+      toast.ok(`${d?.name ?? "Their"} order link is on the clipboard, with a `
+        + `message around it. It lasts ${made.expires_in_days} days and shows `
+        + "them their own orders only.");
+    } catch (e) {
+      toast.error(errorText(e, "That link could not be made."));
+    }
+  };
+
   const printStatement = async () => {
     setPrinting(true);
     try {
@@ -145,9 +166,19 @@ export default function SupplierDetail() {
       loading={!d && !error}
       error={error}
       actions={d && (
-        <button className="btn secondary" onClick={printStatement} disabled={printing}>
-          <Printer size={15} /> {printing ? "Preparing…" : "Statement"}
-        </button>
+        <>
+          {/* THE LINK THAT STOPS THE TELEPHONE CALL.
+              "When is it coming" is the commonest call a pharmacy makes.
+              This lets the wholesaler answer it once, in writing, on their
+              own link, and the answer lands beside the order instead of on
+              somebody's scrap of paper. */}
+          <button className="btn secondary" onClick={portalLink}>
+            <LinkSimple size={15} /> Their order link
+          </button>
+          <button className="btn secondary" onClick={printStatement} disabled={printing}>
+            <Printer size={15} /> {printing ? "Preparing…" : "Statement"}
+          </button>
+        </>
       )}
       facts={d ? [
         { label: "Owed now", value: money(d.owed),
@@ -260,7 +291,15 @@ export default function SupplierDetail() {
                    empty="No order has been raised with this supplier.">
               <table className="dt">
                 <thead>
-                  <tr><th>Order</th><th>Status</th><th>Received</th><th className="num">Value</th></tr>
+                  <tr>
+                    <th>Order</th><th>Status</th>
+                    {/* What THEY said, beside what actually happened. Two
+                        different facts and worth comparing: a wholesaler
+                        who promises Tuesday and delivers Friday every time
+                        is a different problem from one who never promises. */}
+                    <th>They said</th><th>Received</th>
+                    <th className="num">Value</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {d.orders.map((o) => (
@@ -269,7 +308,29 @@ export default function SupplierDetail() {
                         <EntityLink kind="order" id={o.id}>{o.order_number}</EntityLink>
                       </td>
                       <td><span className="badge">{o.status}</span></td>
-                      <td>{o.received_at ? fmtDate(o.received_at) : "—"}</td>
+                      <td className="small">
+                        {o.acknowledged_at ? (
+                          <>
+                            {o.promised_date
+                              ? <>due {fmtDate(o.promised_date)}</>
+                              : "confirmed, no date given"}
+                            {o.lines_short > 0 && (
+                              <div className="muted small">
+                                {o.lines_short} line(s) short
+                              </div>
+                            )}
+                            {o.supplier_note && (
+                              <div className="muted small wrap">{o.supplier_note}</div>
+                            )}
+                          </>
+                        ) : o.status === "sent" ? (
+                          <span className="muted">not confirmed yet</span>
+                        ) : (
+                          <span className="muted">not asked</span>
+                        )}
+                      </td>
+                      <td>{o.received_at ? fmtDate(o.received_at)
+                                         : <span className="muted">not yet</span>}</td>
                       <td className="num">{money(o.value)}</td>
                     </tr>
                   ))}

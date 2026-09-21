@@ -287,6 +287,15 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "approved_by_id": "INTEGER",
         "approved_at": "TIMESTAMP",
         "approved_value": "FLOAT DEFAULT 0",
+        # What the wholesaler said back, on their own portal link.
+        "acknowledged_at": "TIMESTAMP",
+        "promised_date": "DATE",
+        "supplier_note": "TEXT DEFAULT ''",
+    },
+    "purchase_order_items": {
+        # What they say they will actually send. NULL until they say, which
+        # is not the same as nought.
+        "quantity_confirmed": "INTEGER",
     },
     "products": {
         "category_id": "INTEGER",

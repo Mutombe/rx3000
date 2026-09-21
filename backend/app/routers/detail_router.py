@@ -116,6 +116,16 @@ def supplier(supplier_id: int, db: Session = Depends(get_db)):
         "orders": [{"id": o.id, "order_number": o.order_number,
                     "status": o.status, "created_at": o.created_at,
                     "received_at": o.received_at,
+                    # What the wholesaler said back on their own link. A
+                    # promise the pharmacy can hold them to beats a date
+                    # somebody wrote on a scrap of paper.
+                    "acknowledged_at": o.acknowledged_at,
+                    "promised_date": o.promised_date,
+                    "supplier_note": o.supplier_note or "",
+                    "lines_short": sum(
+                        1 for i in o.items
+                        if i.quantity_confirmed is not None
+                        and i.quantity_confirmed < (i.quantity_ordered or 0)),
                     "value": round(sum((i.unit_cost or 0.0) * (i.quantity_ordered or 0)
                                        for i in o.items), 2)}
                    for o in orders],

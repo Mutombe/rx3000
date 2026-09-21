@@ -1,6 +1,6 @@
-"""Outside-facing portals: one for patients, one for prescribers.
+"""Outside-facing portals: patients, prescribers and wholesalers.
 
-The two are built differently on purpose, and the dividing line is reading
+They are built differently on purpose, and the dividing line is reading
 versus writing.
 
 **Patients only ever read.** Is my repeat ready, what do I owe, what did I get
@@ -12,6 +12,20 @@ is the credential and it arrives on the phone number already on file.
 that can prescribe is a prescription pad held by everyone it was ever forwarded
 to. Prescribing therefore requires a real account tied to a practice number, and
 every submitted script carries that prescriber's identity.
+
+**Wholesalers read and write a narrow thing.** Two links: one for a single
+request for quotation, where they type their own prices, and a standing one
+for the orders this pharmacy has sent them, where they say what they are
+sending and when. Both are signed links for the same reason the patient's is:
+nobody at a wholesaler will create an account to quote for eight boxes of
+amoxicillin, and a portal nobody signs into is a portal nobody uses.
+
+What a supplier cannot do is change the transaction. Not a price, not a
+quantity ordered, not anything the pharmacy decided. What they say is
+recorded as what THEY said, beside what the pharmacy ordered, and the two are
+compared rather than merged: a portal where the other side can edit the deal
+is a shared document with no owner, and the first dispute about what was
+agreed ends it.
 
 One further rule on the writing side: a doctor cannot put a dispensable script
 into this pharmacy. Submissions land as `submitted` and a pharmacist accepts
@@ -29,8 +43,8 @@ from sqlalchemy.orm import Session
 from .. import auth, tenancy
 from ..database import get_db
 from ..models import (Doctor, Patient, Pharmacy, Prescription, PrescriptionItem,
-                      Product, RfqSupplier, Sale, User)
-from ..services import patient_portal, portal_tokens
+                      Product, PurchaseOrder, RfqSupplier, Sale, Supplier, User)
+from ..services import config, patient_portal, portal_tokens, supplier_portal
 from ..services import rfq as rfq_svc
 
 # Unauthenticated by design: the link or the prescriber login is the credential.
@@ -313,6 +327,95 @@ def submit_quote(token: str, body: dict = Body(default={}),
             if invited.declined else
             f"Thank you. Your prices for {invited.rfq.reference} have "
             "reached the pharmacy."),
+    }
+
+
+def _supplier_from(token: str, db: Session) -> Supplier:
+    """The wholesaler a standing link names, and their pharmacy in force.
+
+    Same shape and same reasoning as `_patient_from`: a portal request
+    carries no session, so the ordinary tenant filter matches nothing and
+    every link would answer "no longer available". The token is the
+    authority, so the supplier is read unscoped, deliberately and only here,
+    and their pharmacy is then set.
+    """
+    try:
+        sid = portal_tokens.read(token, expect="supplier")
+    except portal_tokens.TokenError as e:
+        raise HTTPException(401, str(e))
+
+    with tenancy.unscoped():
+        supplier = db.get(Supplier, sid)
+    if not supplier:
+        raise HTTPException(404, "This link is no longer available.")
+    if supplier.active is False:
+        raise HTTPException(
+            403, "This account is closed. Please ring the pharmacy.")
+    if supplier.pharmacy_id:
+        tenancy.set_current_pharmacy(supplier.pharmacy_id)
+        tenancy.stamp(db)
+    return supplier
+
+
+@router.get("/supplier/{token}")
+def supplier_orders(token: str, db: Session = Depends(get_db)):
+    """What a wholesaler sees: the orders this pharmacy has sent them."""
+    supplier = _supplier_from(token, db)
+    return supplier_portal.view(db, supplier,
+                                pharmacy_name=_asking_pharmacy(db))
+
+
+@router.post("/supplier/{token}/orders/{order_id}")
+def acknowledge_order(token: str, order_id: int, body: dict = Body(default={}),
+                      db: Session = Depends(get_db)):
+    """The wholesaler confirms what they are sending, and when.
+
+    This is the answer to the telephone call a pharmacy would otherwise make,
+    given once and in writing by the person who actually knows.
+    """
+    supplier = _supplier_from(token, db)
+    order = db.get(PurchaseOrder, order_id)
+    if order is None:
+        raise HTTPException(404, "That order is not on file.")
+    try:
+        said = supplier_portal.acknowledge(
+            db, supplier, order,
+            promised=str(body.get("promised_date") or ""),
+            note=str(body.get("note") or ""),
+            lines=body.get("lines") or [])
+    except supplier_portal.PortalError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    db.commit()
+    return said
+
+
+@admin.post("/links/supplier/{supplier_id}")
+def issue_supplier_link(supplier_id: int, db: Session = Depends(get_db)):
+    """A standing link for a wholesaler, to send by email or WhatsApp."""
+    supplier = db.get(Supplier, supplier_id)
+    if not supplier:
+        raise HTTPException(404, "Supplier not found")
+    token = portal_tokens.issue(kind="supplier", subject_id=supplier.id,
+                                ttl=supplier_portal.TTL)
+    base = config.text(db, "portal.base_url",
+                       rfq_svc.DEFAULT_PORTAL_BASE).rstrip("/")
+    link = f"{base}/supplier/{token}"
+    pharmacy = _asking_pharmacy(db)
+    return {
+        "token": token,
+        "link": link,
+        "path": f"/supplier/{token}",
+        "supplier": supplier.name,
+        "send_to": (supplier.email or "").strip(),
+        "expires_in_days": supplier_portal.TTL // 86400,
+        # Written to be sent as it stands.
+        "share_text": (
+            f"Good day. {pharmacy or 'We'} can now show you our orders with "
+            "you online. You can confirm what you are sending and when, "
+            f"which saves us ringing: {link}"),
+        "message": (f"Link for {supplier.name} created. It lasts "
+                    f"{supplier_portal.TTL // 86400} days and shows them "
+                    "their own orders only."),
     }
 
 
