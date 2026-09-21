@@ -40,6 +40,8 @@ export default function CurrencyRates() {
       // Default to the first currency that is not the base — on a two-currency
       // installation that is the only one anybody ever sets.
       setCode((c) => c || s.currencies.find((x) => !x.is_base)?.code || "");
+    // Deliberately silent: this screen is only reachable where currencies
+    // are already configured, and it renders its own empty state.
     }).catch(() => {});
     api.get<Rate[]>("/api/currency/rates?limit=25").then(setHistory).catch(() => setHistory([]));
   }

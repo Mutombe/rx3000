@@ -86,7 +86,10 @@ export default function CashUp(
     const q = currency ? `?currency=${currency}` : "";
     api.get<Setup>(`/api/shifts/cashup/denominations${q}`)
       .then((s) => { setSetup(s); if (!currency) setCurrency(s.currency); })
-      .catch(() => {});
+      // Without these there is nothing to count into, so it is said rather
+      // than leaving somebody looking at an empty cash-up sheet.
+      .catch((e) => toast.error(errorText(e,
+        "The note and coin list could not be loaded.")));
   }, [currency]);
 
   // Shown as the operator counts, because it is their own arithmetic, not the

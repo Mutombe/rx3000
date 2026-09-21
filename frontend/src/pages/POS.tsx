@@ -125,7 +125,9 @@ export default function POS() {
       setCurrencyState(c);
       setChangeCurrency(c.base);
       setTenderLines([{ method: "cash", currency_code: c.base, amount: "" }]);
-    }).catch(() => {});
+    }).catch((e) => toast.error(errorText(e,
+      "The till could not read this pharmacy's currencies. Reload before "
+      + "taking money, or the tender lines will be wrong.")));
   }, []);
 
   /* Two lists, two flags. The till's own tab is built from what the cashier
@@ -760,6 +762,9 @@ export default function POS() {
     // Points move when a sale lands, so a linked customer is re-read — but only
     // if they are still the one on the counter.
     if (was.patient) {
+      // Deliberately silent: a best-effort refresh of a record already on
+      // screen after a sale. Nothing is blocked if it does not arrive, and
+      // the figures shown are the ones the sale was made against.
       api.get<Patient>(`/api/patients/${was.patient.id}`)
         .then((fresh) => setPatient((now) => (now && now.id === fresh.id ? fresh : now)))
         .catch(() => {});

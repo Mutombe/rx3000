@@ -131,6 +131,33 @@ def create_user(
     return user
 
 
+@router.get("/roster", response_model=list[schemas.UserOut])
+def roster(db: Session = Depends(get_db), _: User = Depends(auth.get_current_user)):
+    """Who works here, for the screens that ask you to pick a colleague.
+
+    WHY THIS IS NOT `/users`
+
+    Six screens wanted a list of staff to fill an "assign to" box: a help desk
+    ticket, a lead, a sample, a case, a dispensing check. All six called
+    `/users`, which is administration and requires an administrator, so for
+    every pharmacist and every cashier the request came back 403 and the
+    dropdown was simply empty. Each caller swallowed the refusal, so nothing
+    said why, and a pharmacist who wanted to pass a ticket to a colleague was
+    left looking at an empty list deciding the feature was broken.
+
+    Naming your colleagues is not a privilege inside one pharmacy. Reading
+    their accounts is. So this returns the roster — who is here and what they
+    do, which is on their badge — and `/users` keeps the administration.
+
+    Only people who still work here: assigning a ticket to somebody who left
+    is how work goes missing quietly.
+    """
+    return (db.query(User)
+            .filter(User.is_demo.is_(False), User.active)
+            .order_by(User.full_name)
+            .all())
+
+
 @router.get("/users", response_model=list[schemas.UserOut])
 def list_users(db: Session = Depends(get_db), _: User = Depends(auth.require_role("admin"))):
     """The pharmacy's staff. Demo visitors are not staff and are left out."""

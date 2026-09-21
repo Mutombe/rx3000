@@ -169,6 +169,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   // because a replayed sale is recognised by its reference rather than posted
   // again — see offline/queue.ts, which is where that property is argued for.
   useEffect(() => {
+    // Deliberately silent: this is the offline subsystem reading its own
+    // local queue. It runs when the network is already known to be down, and
+    // an error toast about being offline, shown to somebody who can see the
+    // offline banner, is noise.
     queue.pendingCount().then(setHeld).catch(() => {});
     // Same reason: a queued sale cannot be posted by a till nobody is signed
     // in to, and trying produces a 401 that looks like a rejected sale.
@@ -180,6 +184,9 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
         setHeld(r.remaining);
         if (r.posted) setFlushed(r.posted);
       })
+      // Deliberately silent: this is the offline queue trying to flush. It
+      // runs on every reconnection and failing simply means it stays held
+      // and tries again, which the banner already shows.
       .catch(() => {});
     return () => { cancelled = true; };
   }, [online, signedIn]);

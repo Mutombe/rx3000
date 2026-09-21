@@ -72,7 +72,8 @@ export default function Leads() {
   }
   useEffect(() => {
     load();
-    api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {});
+    api.get<User[]>("/api/auth/roster").then(setUsers)
+      .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded.")));
   }, []);
 
   // live duplicate warning while typing contact details
@@ -101,6 +102,8 @@ export default function Leads() {
   useEffect(() => {
     if (!selected) { setExplain(null); return; }
     setExplain(null);
+    // Deliberately silent: the score breakdown is an extra beside the score
+    // itself, and the panel reads correctly without it.
     api.get<LeadScoreExplanation>(`/api/crm/leads/${selected.id}/score`).then(setExplain).catch(() => {});
   }, [selected?.id]);
 

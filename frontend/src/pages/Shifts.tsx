@@ -31,7 +31,9 @@ export default function Shifts() {
       setCurrent(shift);
       // Only meaningful once a shift exists; skipped entirely on single-currency tills.
       if (shift) {
-        api.get<ShiftTakings>(`/api/shifts/${shift.id}/takings`).then(setTakings).catch(() => {});
+        api.get<ShiftTakings>(`/api/shifts/${shift.id}/takings`).then(setTakings)
+          .catch((e) => toast.error(errorText(e,
+            "This shift's takings could not be read.")));
       } else {
         setTakings(null);
       }

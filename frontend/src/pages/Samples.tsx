@@ -114,8 +114,11 @@ export default function Samples() {
   useEffect(() => {
     api.get<any[]>("/api/products?limit=300").then((r) =>
       setProducts((Array.isArray(r) ? r : (r as any).items ?? []).map((p: any) =>
-        ({ id: p.id, name: p.name, strength: p.strength ?? "" })))).catch(() => {});
-    api.get<any[]>("/api/auth/users").then(setStaff).catch(() => {});
+        ({ id: p.id, name: p.name, strength: p.strength ?? "" }))))
+      .catch((e) => toast.error(errorText(e,
+        "The product list could not be loaded, so nothing can be recorded.")));
+    api.get<any[]>("/api/auth/roster").then(setStaff)
+      .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded.")));
   }, []);
 
   async function openRow(r: Receipt) {

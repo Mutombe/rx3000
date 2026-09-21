@@ -81,7 +81,9 @@ export default function Deliveries() {
       .then((all) => setRows(Object.fromEntries(all)))
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<DriverOption[]>("/api/drivers").then(setDrivers).catch(() => {});
+    api.get<DriverOption[]>("/api/drivers").then(setDrivers)
+      .catch((e) => toast.error(errorText(e,
+        "The list of drivers could not be loaded.")));
   }
   useEffect(load, []);
 

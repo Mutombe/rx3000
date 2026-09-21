@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDateTime } from "../api";
+import { api, errorText, fmtDateTime } from "../api";
 import DraftEditor from "../components/DraftEditor";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
@@ -46,7 +46,11 @@ export default function CaseDetail() {
   }
   useEffect(() => {
     load();
-    api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {});
+    // Said in this page's own error banner, which is how it reports
+    // everything else. An assignment box that is silently empty reads as a
+    // feature that does not work.
+    api.get<User[]>("/api/auth/roster").then(setUsers)
+      .catch((e) => setError(errorText(e, "The list of colleagues could not be loaded.")));
   }, [id]);
 
   async function patch(body: any) {

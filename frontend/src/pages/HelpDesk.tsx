@@ -108,7 +108,8 @@ export default function HelpDesk() {
   }
 
   useEffect(load, [filter]);
-  useEffect(() => { api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}); }, []);
+  useEffect(() => { api.get<User[]>("/api/auth/roster").then(setUsers)
+    .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded."))); }, []);
   useEffect(() => {
     api.get<any>("/api/crm/companies?limit=200")
       .then((d) => setCompanies(d.items ?? d ?? [])).catch(() => setCompanies([]));

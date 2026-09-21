@@ -146,8 +146,12 @@ export default function Accounts() {
 
   useEffect(load, [q]);
   useEffect(() => {
-    api.get<any>("/api/auth/users").then((d) => setStaff(d.items ?? d ?? []))
-      .catch(() => setStaff([]));
+    // The roster, not the admin list. Naming the colleague who owns an
+    // account is not an administrative act, and asking for it as one left
+    // every non-admin with an empty owner box and no reason given.
+    api.get<any>("/api/auth/roster").then((d) => setStaff(d.items ?? d ?? []))
+      .catch((e) => toast.error(errorText(e,
+        "The list of colleagues could not be loaded.")));
   }, []);
   useEffect(() => {
     if (linkQ.trim().length < 2) { setLinkHits([]); return; }

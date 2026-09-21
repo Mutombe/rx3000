@@ -18,7 +18,7 @@
  */
 import { useEffect, useState } from "react";
 import { Printer } from "@phosphor-icons/react";
-import { api, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { TableSkeleton } from "./Skeleton";
@@ -53,14 +53,22 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
   const [income, setIncome] = useState<Income | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
 
+  /* A statement that failed to load is not a statement of zero. Swallowed,
+     the skeleton stayed up for ever and the reader waited on a figure that
+     was never coming. */
+  const [problem, setProblem] = useState("");
+
   useEffect(() => {
     const q = `upto=${upto}&hide_zero=${hideZero}`;
+    const failed = (e: unknown) =>
+      setProblem(errorText(e, "That statement could not be read."));
+    setProblem("");
     if (kind === "income") {
       setIncome(null);
-      api.get<Income>(`/api/ledger/income-statement?${q}`).then(setIncome).catch(() => {});
+      api.get<Income>(`/api/ledger/income-statement?${q}`).then(setIncome).catch(failed);
     } else {
       setBalance(null);
-      api.get<Balance>(`/api/ledger/balance-sheet?${q}`).then(setBalance).catch(() => {});
+      api.get<Balance>(`/api/ledger/balance-sheet?${q}`).then(setBalance).catch(failed);
     }
   }, [kind, upto, hideZero]);
 
@@ -187,7 +195,9 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
         </button>
       </div>
 
-      {!data ? (
+      {problem && <div className="alert error">{problem}</div>}
+
+      {problem ? null : !data ? (
         <TableSkeleton cols={2} rows={7} />
       ) : (
         <>

@@ -129,6 +129,8 @@ export default function ReportRunner({
             [p.key]: [{ value: "", label: "All branches" },
                       ...rows.map((b) => ({ value: b.id, label: b.name }))],
           })))
+          // Deliberately silent: these fill an optional branch filter that
+          // defaults to every branch, so a failure narrows nothing.
           .catch(() => {});
       }
     });

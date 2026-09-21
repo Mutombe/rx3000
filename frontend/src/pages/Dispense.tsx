@@ -646,7 +646,8 @@ export default function Dispense() {
   useEffect(() => {
     api.get<SchedulePolicy[]>("/api/dispensing/policy").then(setPolicies);
     api.get<Doctor[]>("/api/doctors").then(setDoctors);
-    api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {});
+    api.get<User[]>("/api/auth/roster").then(setUsers)
+      .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded.")));
     loadLists();
   }, []);
 

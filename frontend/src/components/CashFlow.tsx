@@ -14,7 +14,7 @@
  *  actual cash accounts is a guess with a heading on it.
  */
 import { useEffect, useState } from "react";
-import { api, money } from "../api";
+import { api, errorText, money } from "../api";
 import { TableSkeleton } from "./Skeleton";
 
 interface Line { label: string; amount: number; note?: string }
@@ -29,10 +29,16 @@ interface Flow {
 export default function CashFlow() {
   const [upto, setUpto] = useState(() => new Date().toISOString().slice(0, 10));
   const [data, setData] = useState<Flow | null>(null);
+  /* A statement that could not be fetched is not a statement of nothing.
+     Swallowed, this left a skeleton on the screen for ever, and a reader
+     waiting on a figure that was never coming. */
+  const [problem, setProblem] = useState("");
 
   useEffect(() => {
     setData(null);
-    api.get<Flow>(`/api/ledger/cash-flow?upto=${upto}`).then(setData).catch(() => {});
+    setProblem("");
+    api.get<Flow>(`/api/ledger/cash-flow?upto=${upto}`).then(setData)
+      .catch((e) => setProblem(errorText(e, "The cash flow could not be read.")));
   }, [upto]);
 
   return (
@@ -50,7 +56,9 @@ export default function CashFlow() {
         )}
       </div>
 
-      {!data ? (
+      {problem && <div className="alert error">{problem}</div>}
+
+      {problem ? null : !data ? (
         <TableSkeleton cols={2} rows={9} />
       ) : (
         <>

@@ -170,7 +170,12 @@ export default function Admin() {
     if (tab === "automation") {
       job = Promise.all([
         loadRules(),
-        api.get<User[]>("/api/auth/users").then(setUsers).catch(() => {}),
+        // This one IS the administration screen, so the admin list is the
+        // right call here. Its failure still has to be said: the automation
+        // rules below assign work to these people.
+        api.get<User[]>("/api/auth/users").then(setUsers)
+          .catch((e) => toast.error(errorText(e,
+            "The staff list could not be loaded."))),
       ]);
     }
     if (tab === "templates") job = loadTemplates();
