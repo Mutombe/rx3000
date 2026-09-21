@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 
 from fastapi import (APIRouter, Body, Depends, File, Form, Header,
                      HTTPException, UploadFile)
@@ -838,21 +838,67 @@ def write_off_batch(batch_id: int, db: Session = Depends(get_db),
 @router.get("/stock/movements/paged")
 def list_movements_paged(
     product_id: int | None = None,
+    q: str = "",
+    movement_type: str = "",
+    reason_code: str = "",
+    user_id: int | None = None,
+    branch_id: int | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
     page: int = 1, per_page: int = paging.DEFAULT_PER_PAGE,
     db: Session = Depends(get_db),
 ):
-    """Movement history, paged.
+    """Movement history, paged and filtered HERE.
 
     This was the worst of them: 5,143 movements behind a cap of 200. Ninety-six
     per cent of the stock history was unreachable from the screen that exists to
     show it, and nothing said so.
+
+    THE FILTERS USED TO RUN ON THE PAGE, WHICH IS WORSE THAN NOT HAVING THEM
+
+    The screen filtered the twenty five rows it had already been given. Type a
+    medicine's name and it searched a twenty fifth of one per cent of the
+    history and said "no matches" with complete confidence. A filter that
+    quietly narrows to what is already on screen does not fail loudly — it
+    gives a wrong answer that looks like a right one, and somebody acts on it.
+
+    So every filter is a predicate on the query, applied before the count and
+    before the page is cut.
     """
     # Each row names its medicine, and naming them one at a time is a round trip
     # a row: fifty-five queries for a page of fifty, and sixteen seconds against
-    # the hosted database. One more query loads the lot.
-    query = db.query(StockMovement).options(selectinload(StockMovement.product))
+    # the hosted database. One more query loads the lot. Who and where are
+    # loaded the same way, now that the row says them.
+    query = (db.query(StockMovement)
+             .options(selectinload(StockMovement.product),
+                      selectinload(StockMovement.user),
+                      selectinload(StockMovement.branch)))
     if product_id:
         query = query.filter(StockMovement.product_id == product_id)
+    if movement_type:
+        query = query.filter(StockMovement.movement_type == movement_type)
+    if reason_code:
+        query = query.filter(StockMovement.reason_code == reason_code)
+    if user_id:
+        query = query.filter(StockMovement.user_id == user_id)
+    if branch_id:
+        query = query.filter(StockMovement.branch_id == branch_id)
+    if date_from:
+        query = query.filter(StockMovement.created_at >= date_from)
+    if date_to:
+        # Through the end of that day, not up to midnight at the start of it.
+        # Off by one here loses a whole day's corrections and looks like data
+        # that is simply missing.
+        query = query.filter(
+            StockMovement.created_at < datetime.combine(date_to, time.max))
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = (query.join(Product, Product.id == StockMovement.product_id)
+                 .filter(or_(Product.name.ilike(like),
+                             Product.stock_code.ilike(like),
+                             Product.barcode.ilike(like),
+                             StockMovement.reference.ilike(like),
+                             StockMovement.notes.ilike(like))))
     result = paging.page(query.order_by(StockMovement.created_at.desc()),
                          page=page, per_page=per_page)
     return result.envelope(

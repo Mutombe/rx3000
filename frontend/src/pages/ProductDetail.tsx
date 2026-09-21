@@ -199,7 +199,9 @@ export default function ProductDetail() {
 
   const moveCols: Column<StockMovement>[] = [
     { key: "created_at", header: "When", sortable: true,
-      value: (m) => m.created_at, render: (m) => fmtDateTime(m.created_at) },
+      value: (m) => m.created_at ?? "",
+      render: (m) => (m.created_at ? fmtDateTime(m.created_at)
+                                   : <span className="muted">not recorded</span>) },
     { key: "movement_type", header: "Type", sortable: true,
       render: (m) => <span className="badge muted">{m.movement_type}</span> },
     { key: "quantity_delta", header: "Change", align: "right", sortable: true,

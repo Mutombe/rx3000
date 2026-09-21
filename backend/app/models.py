@@ -1305,6 +1305,28 @@ class StockMovement(Base, TenantMixin):
 
     product = relationship("Product")
     user = relationship("User")
+    branch = relationship("Branch")
+
+    # SAID IN WORDS, BESIDE THE CODES.
+    #
+    # The codes were stored and nothing rendered them, so "who moved this and
+    # why" — the only two questions a stock movement is ever asked — had no
+    # answer on screen. Resolved here rather than in each caller so there is
+    # one copy of the mapping, and read through the relationships the list
+    # endpoints eager load: left lazy, a page of twenty five rows becomes
+    # fifty more round trips, which on a hosted database is a visible wait.
+    @property
+    def reason(self) -> str:
+        from .services import stock_reasons
+        return stock_reasons.label(self.reason_code or "")
+
+    @property
+    def user_name(self) -> str:
+        return (self.user.full_name if self.user else "") or ""
+
+    @property
+    def branch_name(self) -> str:
+        return (self.branch.name if self.branch else "") or ""
 
 
 class PurchaseOrder(Base, TenantMixin):

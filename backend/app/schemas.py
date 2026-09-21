@@ -449,11 +449,34 @@ class StockMovementOut(ORM):
     product_id: int
     movement_type: str
     quantity_delta: int
-    balance_after: int
-    reference: str
-    notes: str
-    created_at: datetime
+    # Optional because every one of these columns is nullable, the same way
+    # BatchOut.received_at was: `default=` applies to an ORM insert and to
+    # nothing else, and one NULL in a required field does not blank a cell,
+    # it 500s the whole list.
+    balance_after: Optional[int] = None
+    reference: Optional[str] = ""
+    notes: Optional[str] = ""
+    created_at: Optional[datetime] = None
     product: Optional[ProductOut] = None
+
+    # WHO DID THIS, AND WHY, WHICH WAS RECORDED AND NEVER SHOWN.
+    #
+    # `reason_code`, `user_id` and `branch_id` have been written on every
+    # movement since the adjustment dialog was built. None of them were in
+    # this response, so the two questions anybody actually asks of a stock
+    # movement — who moved it and why — could not be answered from the
+    # screen that exists to answer them. The data was there the whole time.
+    reason_code: Optional[str] = ""
+    #: The reason in words, resolved server side from `stock_reasons` so the
+    #: screen does not keep a second copy of the list that can drift.
+    reason: Optional[str] = ""
+    user_id: Optional[int] = None
+    #: Who, by name. A staff id on a screen is not an answer to "who".
+    user_name: Optional[str] = ""
+    branch_id: Optional[int] = None
+    branch_name: Optional[str] = ""
+    #: The script that was on screen when this happened, where there was one.
+    prescription_id: Optional[int] = None
 
 
 class ProductDetail(BaseModel):

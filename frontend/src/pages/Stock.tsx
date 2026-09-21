@@ -139,6 +139,17 @@ export default function Stock() {
   const [adjBatch, setAdjBatch] = useState("");
   const [adjExpiry, setAdjExpiry] = useState("");
   const toast = useToast();
+  /* The reason list, from the endpoint that publishes it, so the chips a
+     person filters by and the codes the server stores cannot drift apart. */
+  const [reasons, setReasons] = useState<{ code: string; label: string }[]>([]);
+  useEffect(() => {
+    api.get<{ reasons: { code: string; label: string }[] }>("/api/stock/reasons")
+      .then((r) => setReasons(r.reasons))
+      .catch(() => {
+        // Deliberately silent: without it the Why filter simply offers
+        // nothing, and every other filter on the bar still works.
+      });
+  }, []);
   useScanFeed("Inventory", (code) => void fromPhone(code), !adjusting);
   const confirm = useConfirm();
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
@@ -154,11 +165,28 @@ export default function Stock() {
     },
   }), [products, filters]);
 
-  const shownMovements = useMemo(() => applyFilters(movements, moveFilters, {
-    search: (m) => [m.product?.name, m.reference, m.notes],
-    date: (m) => m.created_at,
-    dims: { movement_type: (m) => m.movement_type },
-  }), [movements, moveFilters]);
+  /* THE FILTERS GO TO THE SERVER, WHICH IS THE ONLY PLACE THEY MEAN ANYTHING.
+     They used to run over `movements`, which is the page that has already
+     been fetched: typing a medicine's name searched twenty five rows of five
+     thousand and answered "no matches" with total confidence. A filter that
+     narrows to what is already on screen does not fail loudly, it gives a
+     wrong answer that looks right. */
+  const moveQuery = useMemo(() => {
+    const p = new URLSearchParams();
+    if (moveFilters.q.trim()) p.set("q", moveFilters.q.trim());
+    if (moveFilters.from) p.set("date_from", moveFilters.from);
+    if (moveFilters.to) p.set("date_to", moveFilters.to);
+    const kind = moveFilters.dims.movement_type;
+    if (kind) p.set("movement_type", kind);
+    const why = moveFilters.dims.reason_code;
+    if (why) p.set("reason_code", why);
+    const s = p.toString();
+    return s ? `&${s}` : "";
+  }, [moveFilters]);
+
+  /* Back to page one whenever what is being asked for changes: staying on
+     page nine of a filter that now matches four rows shows an empty table. */
+  useEffect(() => { setMvPage(1); }, [moveQuery]);
 
   const productCols: Column<Product>[] = [
     { key: "name", header: "Product", sortable: true, value: (p) => p.name,
@@ -232,8 +260,10 @@ export default function Stock() {
   ];
 
   const movementCols: Column<StockMovement>[] = [
-    { key: "created_at", header: "When", sortable: true, value: (m) => m.created_at,
-      render: (m) => fmtDateTime(m.created_at) },
+    { key: "created_at", header: "When", sortable: true,
+      value: (m) => m.created_at ?? "",
+      render: (m) => (m.created_at ? fmtDateTime(m.created_at)
+                                   : <span className="muted">not recorded</span>) },
     { key: "product", header: "Product", sortable: true, value: (m) => m.product?.name ?? "",
       render: (m) => m.product?.name ?? "—" },
     { key: "movement_type", header: "Type", sortable: true,
@@ -244,6 +274,17 @@ export default function Stock() {
     { key: "quantity_delta", header: "Δ Qty", align: "right", sortable: true,
       render: (m) => (m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta) },
     { key: "balance_after", header: "Balance", align: "right", sortable: true },
+    /* WHY AND WHO, WHICH WERE RECORDED FROM THE START AND SHOWN NOWHERE.
+       Every adjustment has asked for a reason from a list since the dialog
+       was written, and stamped the staff member who did it. Neither reached
+       this table, so the two questions a stock movement is ever asked could
+       not be answered from the screen that exists to answer them. */
+    { key: "reason", header: "Why", sortable: true, value: (m) => m.reason ?? "",
+      render: (m) => (m.reason
+        ? <span className="badge">{m.reason}</span>
+        : <span className="muted">—</span>) },
+    { key: "user_name", header: "Who", sortable: true, value: (m) => m.user_name ?? "",
+      render: (m) => m.user_name || <span className="muted">—</span> },
     { key: "reference", header: "Reference", truncate: 34,
       render: (m) => <span className="mono">{m.reference}{m.notes && <span className="muted">, {m.notes}</span>}</span> },
   ];
@@ -269,7 +310,8 @@ export default function Stock() {
   useEffect(() => {
     if (tab === "movements")
       api
-        .get<Paged<StockMovement>>(`/api/stock/movements/paged?page=${mvPage}&per_page=${mvSize}`)
+        .get<Paged<StockMovement>>(
+          `/api/stock/movements/paged?page=${mvPage}&per_page=${mvSize}` + moveQuery)
         .then((r) => {
           setMovements(r.items);
           setMvMeta(r);
@@ -277,7 +319,7 @@ export default function Stock() {
         })
         .catch((e) => toast.error(errorText(e)));
     if (tab === "batches") loadBatches();
-  }, [tab, expiringOnly, mvPage, mvSize, bPage, bSize]);
+  }, [tab, expiringOnly, mvPage, mvSize, bPage, bSize, moveQuery]);
   useEffect(() => setBPage(1), [expiringOnly]);
 
   function loadBatches() {
@@ -461,7 +503,7 @@ export default function Stock() {
       {tab === "movements" && (
         <DataTable
           columns={movementCols}
-          rows={shownMovements}
+          rows={movements}
           rowKey={(m) => m.id}
           rowHref={(m) => (m.product ? `/products/${m.product.id}` : "")}
           initialSort={{ key: "created_at", dir: "desc" }}
@@ -485,6 +527,13 @@ export default function Stock() {
                 key: "movement_type", label: "Type",
                 options: [["receive", "Receive"], ["sale", "Sale"], ["dispense", "Dispense"],
                           ["adjustment", "Adjustment"], ["return", "Return"], ["write_off", "Write-off"]],
+              }, {
+                /* Read from the server rather than listed here. The screen
+                   that WRITES these reasons kept its own copy of the list;
+                   a second copy on the screen that reads them is how the
+                   two drift until a filter silently matches nothing. */
+                key: "reason_code", label: "Why",
+                options: reasons.map((r) => [r.code, r.label] as [string, string]),
               }]}
             />
           }

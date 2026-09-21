@@ -224,11 +224,21 @@ export interface StockMovement {
   product_id: number;
   movement_type: string;
   quantity_delta: number;
-  balance_after: number;
+  balance_after: number | null;
   reference: string;
   notes: string;
-  created_at: string;
+  created_at: string | null;
   product?: Product;
+  /** Why, from the server's list, already in words. */
+  reason_code?: string;
+  reason?: string;
+  /** Who did it, by name rather than by staff id. */
+  user_id?: number | null;
+  user_name?: string;
+  branch_id?: number | null;
+  branch_name?: string;
+  /** The script that was on screen at the time, where there was one. */
+  prescription_id?: number | null;
 }
 
 export interface POItem {
