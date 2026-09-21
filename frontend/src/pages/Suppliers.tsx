@@ -127,7 +127,12 @@ export default function Suppliers() {
             </div>
           ) : (
             <div className="table-wrap">
-              <table className="dt">
+              {/* Widths given rather than left to the browser. Shared out by
+                  content the contact column lost to two columns that are
+                  mostly empty, and the email clipped mid-word with no
+                  ellipsis — which reads as a rendering fault rather than as
+                  a long address. */}
+              <table className="dt sup-table">
                 <thead>
                   <tr>
                     <th>Supplier</th><th>Contact</th><th>Paid to</th>
@@ -147,9 +152,14 @@ export default function Suppliers() {
                       </td>
                       <td>
                         {s.contact_person || <span className="muted">—</span>}
-                        {(s.phone || s.email) && (
-                          <div className="muted small">
-                            {[s.phone, s.email].filter(Boolean).join(" · ")}
+                        {s.phone && <div className="muted small">{s.phone}</div>}
+                        {/* Truncated with an ellipsis and its full value on
+                            hover: an address that simply stops mid-word looks
+                            broken, and one that wraps to three lines pushes
+                            every row apart. */}
+                        {s.email && (
+                          <div className="muted small sup-email" title={s.email}>
+                            {s.email}
                           </div>
                         )}
                       </td>

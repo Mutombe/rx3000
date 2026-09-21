@@ -12197,3 +12197,18 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 .stock-reports-pick:hover { border-color: var(--ink-faint); }
 .stock-reports-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* The supplier table. Contact holds a name, a number and an address and was
+   losing width to two columns that are mostly empty. */
+.sup-table { table-layout: fixed; width: 100%; }
+.sup-table th:nth-child(1), .sup-table td:nth-child(1) { width: 26%; }
+.sup-table th:nth-child(2), .sup-table td:nth-child(2) { width: 30%; }
+.sup-table th:nth-child(3), .sup-table td:nth-child(3) { width: 18%; }
+.sup-table th:nth-child(4), .sup-table td:nth-child(4) { width: 12%; }
+/* An address that stops mid-word reads as a fault. This one says it has been
+   cut, and hovering gives the whole of it. */
+.sup-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
