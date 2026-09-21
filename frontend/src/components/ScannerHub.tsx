@@ -279,20 +279,34 @@ export function useScanFeed(
   const current = useRef(handler);
   current.current = handler;
 
+  // The hub through a ref, so this subscribes ONCE.
+  //
+  // Depending on `hub` looked right and was not: the context value is rebuilt
+  // whenever the listener stack changes, so subscribing caused a new value,
+  // which re-ran this effect, which unsubscribed and subscribed again. The
+  // stack was empty at unpredictable moments — which is why a pairing made on
+  // the dispensing screen came out named "This counter" instead of
+  // "Dispensing": `offer` read the stack mid-churn and found nothing in it.
+  //
+  // `subscribe` and `bump` are stable by construction, so capturing them once
+  // is safe. `enabled` and `station` are pushed through `bump` below rather
+  // than re-subscribing, which would reorder the stack and hand the scan to
+  // the wrong screen every time a dialog toggled.
+  const hubRef = useRef(hub);
+  hubRef.current = hub;
+
   useEffect(() => {
-    if (!hub) return;
-    return hub.subscribe({
+    const h = hubRef.current;
+    if (!h) return;
+    return h.subscribe({
       id, station,
       handler: (code, format) => current.current(code, format),
       enabled,
     });
-    // Subscribing once per screen: `enabled` and `station` are pushed through
-    // `bump` below rather than re-subscribing, which would reorder the stack
-    // and hand the scan to the wrong screen every time a dialog toggled.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hub, id]);
+  }, [id]);
 
   useEffect(() => {
-    hub?.bump(id, { enabled, station });
-  }, [hub, id, enabled, station]);
+    hubRef.current?.bump(id, { enabled, station });
+  }, [id, enabled, station]);
 }

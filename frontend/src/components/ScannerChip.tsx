@@ -24,7 +24,21 @@ import { useEffect, useRef, useState } from "react";
 import { DeviceMobileCamera, X } from "@phosphor-icons/react";
 
 import { qrSvg } from "../qr";
+
 import { useScannerHub } from "./ScannerHub";
+
+/** Where a member of staff is told to point their phone.
+ *
+ *  Said as the product's own address rather than read off `location.host`,
+ *  which in production is the deployment's hostname — a string nobody in a
+ *  pharmacy recognises, would not think to type, and would mistype if they
+ *  did. This is the one instruction the product gives out loud to somebody
+ *  holding a phone, so it is the product's name.
+ *
+ *  The address serves the scanner itself, not a redirect, so what loads is a
+ *  viewfinder and not the whole application.
+ */
+const SCANNER_ADDRESS = "rx5000.com/scanner";
 
 export default function ScannerChip() {
   const hub = useScannerHub();
@@ -114,7 +128,7 @@ export default function ScannerChip() {
           ) : (
             <>
               <p className="muted small">
-                On the phone open <b>{location.host}/scanner</b> and point it at
+                On the phone open <b>{SCANNER_ADDRESS}</b> and point it at
                 this code.
               </p>
               <div className="sc-pop-symbol"

@@ -5,67 +5,536 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RX5000 Scanner</title>
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#141419">
+<link rel="icon" href="/assets/favicon.png">
 <!--
-  rx5000.com/scanner, which is the address somebody types on a phone at a
-  counter.
+  rx5000.com/scanner — the address somebody types on a phone at a counter.
 
-  WHY THIS FILE EXISTS
+  WHY THIS IS A PAGE AND NOT A REDIRECT
 
-  The marketing site and the application are two separate deployments. The
-  site answers rx5000.com and serves its index.html for every path it does
-  not recognise, so a member of staff typing rx5000.com/scanner on their
-  phone got the home page, decided the feature did not work, and went back
-  to the counter. It is the first thing anybody is asked to type, so it is a
-  bad first thing to get wrong.
+  It was a redirect, and a redirect is a worse thing to hand somebody than a
+  page. The address changes in front of them, the application's whole bundle
+  loads to show one viewfinder, and on a bad line in a pharmacy that is
+  several seconds of white screen before the camera opens. The first thing a
+  new user is asked to do should be the fastest thing in the product.
 
-  This bounces to the application, which is where the scanner lives.
+  So this is the scanner, served from the marketing site, self contained. It
+  is one file, a decoder that most phones never download, and no framework.
 
-  THE BETTER FIX, WHICH NEEDS THE HOSTING DASHBOARD RATHER THAN THIS REPO
+  WHAT IT TALKS TO
 
-  A rewrite rule on the static site — /scanner/* proxied to the application
-  — would keep the address in the bar and cost one line of configuration.
-  That cannot be committed here, so this ships the working version now and
-  the address changes in front of the user, which is honest but not elegant.
+  Three endpoints on the API, all of them public by design: claim a pairing
+  code, push a scan, ask whether the pairing is still live. It holds an opaque
+  pairing token and nothing else. It cannot read a patient, a script or a
+  price, and it never learns what any code it sends actually meant — which is
+  the reason it is safe to put on a public address at all.
 
-  The redirect is written in the markup as well as in script: a phone with
-  scripting blocked still gets a link rather than a blank page.
+  THE DECODER
+
+  The browser's own BarcodeDetector where it exists, which on the Android
+  phones most of this market carries means nothing is downloaded at all. Only
+  where it is missing — iPhones, chiefly — is the bundled decoder fetched, and
+  its WebAssembly is served from this same origin rather than a CDN, so the
+  one feature that must work in a shop does not depend on a third party being
+  up.
 -->
-<meta http-equiv="refresh" content="0; url=https://rx3000-app.onrender.com/scanner">
-<link rel="canonical" href="https://rx3000-app.onrender.com/scanner">
 <style>
-  :root { color-scheme: light dark; }
+  /* Sized to Material's metrics: 48px touch targets and an 8px grid, because
+     this is held in one hand with a box in the other, often in a cold room.
+     Dark by default — a viewfinder wants a dark surround, and a bright page
+     at a counter at night is unkind. */
+  :root {
+    color-scheme: dark;
+    --ink: #f4f3f1;
+    --ink-soft: #a5a2ad;
+    --ground: #141419;
+    --panel: #1d1d24;
+    --sunk: #26262f;
+    --line: #34343f;
+    --ok: #6ed08d;
+    --ok-soft: rgba(110, 208, 141, .14);
+    --bad: #f18d7d;
+    --bad-soft: rgba(241, 141, 125, .14);
+    --accent: #f4f3f1;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
-    margin: 0; min-height: 100svh;
-    display: grid; place-items: center;
-    padding: 24px;
-    font: 500 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #faf9f7; color: #1b1b22;
+    margin: 0;
+    padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
+    background: var(--ground); color: var(--ink);
+    font: 400 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex; flex-direction: column;
+    overscroll-behavior: none;
   }
-  @media (prefers-color-scheme: dark) {
-    body { background: #141419; color: #f2f1ef; }
-    a.go { background: #f2f1ef; color: #141419; }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
   }
-  .card { max-width: 22rem; text-align: center; }
-  h1 { font-size: 1.15rem; margin: 0 0 8px; }
-  p { margin: 0 0 20px; opacity: .72; font-weight: 400; }
-  a.go {
+  header h1 { margin: 0; font-size: 1rem; font-weight: 600; }
+  header .where { display: block; font-size: .72rem; color: var(--ink-soft);
+                  text-transform: uppercase; letter-spacing: .08em; }
+  .tools { display: flex; gap: 8px; }
+  .tool {
+    width: 48px; height: 48px; flex: 0 0 auto;
     display: inline-flex; align-items: center; justify-content: center;
-    min-height: 48px; padding: 0 24px;
-    border-radius: 999px; text-decoration: none;
-    background: #1b1b22; color: #ffffff; font-weight: 600;
+    border: 0; border-radius: 50%;
+    background: rgba(255,255,255,.1); color: var(--ink); cursor: pointer;
   }
+  .tool svg { flex: 0 0 auto; }
+  .tool.on { background: #ffd54f; color: #201c00; }
+  .tool[hidden] { display: none !important; }
+
+  .stage {
+    position: relative; flex: 1 1 auto; min-height: 38vh;
+    background: #000; overflow: hidden;
+  }
+  .stage video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  /* Four corners rather than a box: a full rectangle reads as a required
+     alignment and people waste time squaring the pack up inside it. */
+  .reticle {
+    position: absolute; inset: 14% 10%;
+    border-radius: 14px; pointer-events: none;
+    background:
+      linear-gradient(var(--accent),var(--accent)) 0 0/28px 3px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0 0/3px 28px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 0/28px 3px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 0/3px 28px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0 100%/28px 3px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 0 100%/3px 28px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 100%/28px 3px no-repeat,
+      linear-gradient(var(--accent),var(--accent)) 100% 100%/3px 28px no-repeat;
+    opacity: .85;
+  }
+  .stage.hit::after {
+    content: ""; position: absolute; inset: 0;
+    background: #ffffff; opacity: .5;
+    animation: flash 220ms ease-out forwards;
+  }
+  @keyframes flash { to { opacity: 0; } }
+  .over {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    padding: 24px; text-align: center; color: var(--ink-soft);
+  }
+
+  .panel { padding: 16px; background: var(--panel); }
+  .say { margin: 0 0 12px; color: var(--ink-soft); font-size: .95rem; }
+  .say b { color: var(--ink); }
+
+  .count { display: flex; align-items: center; gap: 12px;
+           padding: 12px 16px; border-radius: 12px; background: var(--sunk); }
+  .count b { font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .count span { color: var(--ink-soft); font-size: .92rem; }
+
+  ul.shots { list-style: none; margin: 8px 0 0; padding: 0;
+             display: flex; flex-direction: column; gap: 4px;
+             max-height: 30vh; overflow-y: auto; }
+  ul.shots li { display: flex; align-items: center; gap: 12px;
+                min-height: 48px; padding: 8px 12px; border-radius: 10px;
+                background: var(--sunk); }
+  ul.shots li.bad { background: var(--bad-soft); }
+  .mark { width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%;
+          display: inline-flex; align-items: center; justify-content: center;
+          background: var(--ok-soft); color: var(--ok); font-size: .8rem; }
+  li.bad .mark { background: transparent; color: var(--bad); }
+  .body { flex: 1 1 auto; min-width: 0; }
+  .code { display: block; font-weight: 600; font-family: ui-monospace, monospace;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+  .chip { flex: 0 0 auto; padding: 2px 8px; border-radius: 999px;
+          font-size: .68rem; font-weight: 600; background: rgba(255,255,255,.08);
+          color: var(--ink-soft); }
+  .why { font-size: .72rem; color: var(--ink-soft);
+         overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li.bad .why { color: var(--bad); }
+
+  form { margin-top: 12px; }
+  label.lbl { display: block; font-size: .72rem; color: var(--ink-soft);
+              text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+  .row { display: flex; gap: 8px; }
+  input {
+    flex: 1 1 auto; min-width: 0; min-height: 48px;
+    padding: 0 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--sunk); color: var(--ink);
+    font-size: 1rem; font-family: ui-monospace, monospace;
+  }
+  input#code { text-align: center; letter-spacing: .22em; font-size: 1.15rem; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button.go {
+    flex: 0 0 auto; min-height: 48px; padding: 0 22px;
+    border: 0; border-radius: 10px; cursor: pointer;
+    background: var(--accent); color: #141419; font-weight: 600; font-size: 1rem;
+  }
+  button.go:disabled { opacity: .45; cursor: default; }
+  button.quiet {
+    width: 100%; min-height: 48px; margin-top: 12px;
+    border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+    background: transparent; color: var(--ink-soft); font-size: .95rem;
+  }
+  .alert { margin: 12px 0 0; padding: 12px 14px; border-radius: 10px;
+           background: var(--bad-soft); color: var(--bad); font-size: .92rem; }
+  a { color: var(--ink); }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Opening the scanner</h1>
-    <p>Taking you to the RX5000 scanner. If nothing happens, tap below.</p>
-    <a class="go" href="https://rx3000-app.onrender.com/scanner">Open the scanner</a>
+  <header>
+    <div>
+      <span class="where" id="where">Not paired</span>
+      <h1 id="title">Point this at the counter</h1>
+    </div>
+    <div class="tools">
+      <button class="tool" id="lamp" hidden aria-pressed="false" aria-label="Turn the light on">
+        <svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M176,32H80A16,16,0,0,0,64,48V80a15.87,15.87,0,0,0,4.69,11.31L96,118.63V224a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V118.63l27.31-27.32A15.87,15.87,0,0,0,192,80V48A16,16,0,0,0,176,32Zm0,48-32,32V224H112V112L80,80V48h96Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video>
+    <div class="reticle" id="reticle"></div>
+    <div class="over" id="over">Starting the camera…</div>
   </div>
-  <script>
-    // Replace rather than assign, so the back button returns to whatever the
-    // person was doing instead of bouncing them forward again.
-    location.replace("https://rx3000-app.onrender.com/scanner");
-  </script>
+
+  <div class="panel" id="panel"></div>
+
+<script type="module">
+/* --------------------------------------------------------------- the API
+   Same origin would be simpler and is not available: this page is served by
+   the marketing site and the API is its own service. The host is written
+   here rather than guessed, and every call is public by design. */
+const API = "https://rx3000-api.onrender.com";
+const APP = "https://rx3000-app.onrender.com";
+
+const HELD = "rx5000_scanner_pairing";
+/* Kept in step with ALPHABET in services/scanner_link.py, which leaves out
+   O, 0, I, 1, B, S and Z because somebody reads this aloud across a counter. */
+const SHAPE = /^[ACDEFGHJKLMNPQRTUVWXY2345679]{6}$/;
+const NAMES = {
+  code_128:"Code 128", code_39:"Code 39", code_93:"Code 93", codabar:"Codabar",
+  ean_13:"EAN-13", ean_8:"EAN-8", upc_a:"UPC-A", upc_e:"UPC-E", itf:"ITF",
+  qr_code:"QR", data_matrix:"Data Matrix", aztec:"Aztec", pdf417:"PDF417",
+};
+const FORMATS = Object.keys(NAMES);
+
+const $ = (id) => document.getElementById(id);
+const panel = $("panel");
+
+let pairing = null;
+try { pairing = JSON.parse(localStorage.getItem(HELD) || "null"); } catch {}
+let shots = [];
+let problem = "";
+let lastHit = { code: "", at: 0 };
+let track = null;
+
+/* ------------------------------------------------------------ the sounds
+   Synthesised, not fetched: an audio file is a network request at the exact
+   moment the operator needs the answer, and a pharmacy on a bad line would
+   get silence. */
+let tones = null;
+function beep(ok = true) {
+  try {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return;
+    tones = tones || new C();
+    if (tones.state === "suspended") tones.resume();
+    const at = tones.currentTime;
+    const osc = tones.createOscillator(), gain = tones.createGain();
+    osc.type = "square";
+    osc.frequency.setValueAtTime(ok ? 2000 : 380, at);
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.16, at + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + (ok ? 0.09 : 0.22));
+    osc.connect(gain).connect(tones.destination);
+    osc.start(at); osc.stop(at + (ok ? 0.1 : 0.24));
+  } catch {}
+}
+
+/* ----------------------------------------------------------- talking out
+   The server writes a sentence saying exactly what is wrong. It is shown as
+   written; a page that works out the problem and then says something vaguer
+   is worse than one that never worked it out. */
+async function ask(path, body, token) {
+  const r = await fetch(API + path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(token ? { "X-Scanner": token } : {}),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  let said = {};
+  try { said = await r.json(); } catch {}
+  if (!r.ok) {
+    const detail = said && said.detail;
+    throw new Error(
+      (detail && detail.message) || (typeof detail === "string" && detail) ||
+      "That did not work.");
+  }
+  return said;
+}
+
+/* ------------------------------------------------------------ the decoder
+   The browser's own where it exists, which on most Android phones means
+   nothing is downloaded. Only where it is missing is the bundled one fetched,
+   and its WebAssembly comes from this origin rather than a CDN. */
+let detectorPromise = null;
+function getDetector() {
+  if (detectorPromise) return detectorPromise;
+  detectorPromise = (async () => {
+    const Native = globalThis.BarcodeDetector;
+    if (Native) {
+      try {
+        const can = await Native.getSupportedFormats?.();
+        if (!can || can.includes("ean_13")) return new Native({ formats: FORMATS });
+      } catch {}
+    }
+    const mod = await import("./vendor/barcode-detector.js");
+    mod.setZXingModuleOverrides({
+      locateFile: (p, prefix) =>
+        p.endsWith(".wasm") ? "./vendor/zxing_reader.wasm" : prefix + p,
+    });
+    return new mod.BarcodeDetector({ formats: FORMATS });
+  })();
+  return detectorPromise;
+}
+
+/* ------------------------------------------------------------ the camera */
+async function startCamera() {
+  const over = $("over"), video = $("video");
+  if (!window.isSecureContext) {
+    over.textContent = "The camera needs a secure connection. Open this page "
+      + "over https.";
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    over.textContent = "This browser does not give web pages a camera. "
+      + "Type the number instead.";
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      // The back camera. Without this a phone opens the selfie camera and the
+      // operator has to work out why nothing decodes.
+      video: { facingMode: { ideal: "environment" },
+               width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+  } catch (e) {
+    over.textContent = e && e.name === "NotAllowedError"
+      ? "Camera access was refused. Allow the camera for this site, then reload."
+      : "The camera could not be started. Type the number instead.";
+    return;
+  }
+  video.srcObject = stream;
+  await video.play();
+  over.hidden = true;
+
+  track = stream.getVideoTracks()[0] || null;
+  try {
+    if (track?.getCapabilities?.().torch) {
+      const lamp = $("lamp");
+      lamp.hidden = false;
+      lamp.addEventListener("click", async () => {
+        const want = lamp.getAttribute("aria-pressed") !== "true";
+        try {
+          await track.applyConstraints({ advanced: [{ torch: want }] });
+          lamp.setAttribute("aria-pressed", String(want));
+          lamp.classList.toggle("on", want);
+          lamp.setAttribute("aria-label", want ? "Turn the light off" : "Turn the light on");
+        } catch { lamp.hidden = true; }   // claimed it, then refused it
+      });
+    }
+  } catch {}
+
+  const detector = await getDetector();
+  const tick = async () => {
+    try {
+      const found = await detector.detect(video);
+      const value = found?.[0]?.rawValue;
+      if (value) {
+        const now = Date.now();
+        // A pack held in front of a lens decodes many times a second and the
+        // operator means one item.
+        if (!(lastHit.code === value && now - lastHit.at < 1800)) {
+          lastHit = { code: value, at: now };
+          navigator.vibrate?.(60);
+          beep(true);
+          const stage = $("stage");
+          stage.classList.add("hit");
+          setTimeout(() => stage.classList.remove("hit"), 240);
+          onScan(value, found[0].format || "");
+        }
+      }
+    } catch {
+      // A frame that will not decode is the normal case, not an error.
+    }
+    setTimeout(tick, 120);
+  };
+  tick();
+}
+
+/* -------------------------------------------------------------- the flow */
+function onScan(value, format) {
+  if (!pairing) { void claim(value); return; }
+  void send(value, format);
+}
+
+async function claim(raw) {
+  const code = String(raw || "").trim().toUpperCase();
+  if (!SHAPE.test(code)) {
+    // Pointing this at a dispensing label is not an error, it is scanning the
+    // right thing at the wrong moment, and it deserves to be told which.
+    problem = code.length > 8
+      ? "That looks like a label, not a pairing code. This phone is not paired "
+        + "to a counter yet: on the counter screen press the phone icon in the "
+        + "top bar, then point this at the code it shows."
+      : "That is not a pairing code. The code on the counter screen is six "
+        + "characters long.";
+    navigator.vibrate?.([90, 70, 90]);
+    beep(false);
+    draw();
+    return;
+  }
+  problem = "";
+  draw();
+  try {
+    const said = await ask("/api/scanner/claim",
+      { code, device: navigator.userAgent.slice(0, 80) });
+    pairing = { token: said.token, station: said.station, id: said.id };
+    localStorage.setItem(HELD, JSON.stringify(pairing));
+    navigator.vibrate?.([40, 60, 40]);
+    beep(true);
+  } catch (e) {
+    problem = e.message;
+    beep(false);
+  }
+  draw();
+}
+
+async function send(code, format) {
+  problem = "";
+  const at = Date.now();
+  try {
+    await ask("/api/scanner/scan", { code }, pairing.token);
+    shots = [{ code, format, at, ok: true }, ...shots].slice(0, 50);
+  } catch (e) {
+    // Kept as a failure rather than dropped: "it said forty and the counter
+    // has thirty-nine" is not a conversation anybody can have without a list.
+    shots = [{ code, format, at, ok: false, why: e.message }, ...shots].slice(0, 50);
+    problem = e.message;
+    navigator.vibrate?.([70, 60, 70]);
+    beep(false);
+    if (/paired/i.test(e.message)) forget();
+  }
+  draw();
+}
+
+function forget() {
+  localStorage.removeItem(HELD);
+  pairing = null;
+  shots = [];
+  draw();
+}
+
+/* ---------------------------------------------------------------- drawing
+   Written out rather than framework-rendered. The page has two states and a
+   list; a framework here would be more bytes than the whole feature. */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (c) => (
+    { "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c]));
+}
+
+function draw() {
+  const sent = shots.filter((s) => s.ok).length;
+  $("where").textContent = pairing ? "Paired to" : "Not paired";
+  $("title").textContent = pairing
+    ? (pairing.station || "the counter")
+    : "Point this at the counter";
+
+  const alert = problem ? `<p class="alert">${esc(problem)}</p>` : "";
+
+  if (!pairing) {
+    panel.innerHTML = `
+      <p class="say">On the counter screen press the phone icon in the top bar.
+         Point this at the code it shows and this phone becomes a scanner for
+         that station.</p>
+      ${alert}
+      <form id="pairform">
+        <label class="lbl" for="code">or type the six characters</label>
+        <div class="row">
+          <input id="code" maxlength="6" placeholder="A2C4EF" autocomplete="off"
+                 autocapitalize="characters" autocorrect="off" spellcheck="false">
+          <button class="go" type="submit">Pair</button>
+        </div>
+      </form>`;
+    $("pairform").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const v = $("code").value.trim();
+      if (v) void claim(v);
+    });
+    return;
+  }
+
+  const list = shots.slice(0, 8).map((s) => `
+    <li class="${s.ok ? "" : "bad"}">
+      <span class="mark">${s.ok ? "&#10003;" : "!"}</span>
+      <span class="body">
+        <span class="code">${esc(s.code)}</span>
+        <span class="meta">
+          ${s.format ? `<span class="chip">${esc(NAMES[s.format] || s.format)}</span>` : ""}
+          <span class="why">${s.ok
+            ? esc(new Date(s.at).toLocaleTimeString())
+            : esc(s.why || "did not arrive")}</span>
+        </span>
+      </span>
+    </li>`).join("");
+
+  panel.innerHTML = `
+    <div class="count">
+      <b>${sent}</b>
+      <span>scan${sent === 1 ? "" : "s"} sent to ${esc(pairing.station || "the counter")}</span>
+    </div>
+    ${alert}
+    ${shots.length ? `<ul class="shots">${list}</ul>` : ""}
+    <form id="handform">
+      <label class="lbl" for="hand">or type the number under the bars</label>
+      <div class="row">
+        <input id="hand" placeholder="e.g. RX260900015" autocomplete="off"
+               autocapitalize="characters" autocorrect="off" spellcheck="false">
+        <button class="go" type="submit">Send</button>
+      </div>
+    </form>
+    <button class="quiet" id="unpair">Stop using this phone as a scanner</button>`;
+
+  $("handform").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const v = $("hand").value.trim();
+    if (!v) return;
+    $("hand").value = "";
+    void send(v, "");
+  });
+  $("unpair").addEventListener("click", forget);
+}
+
+/* A pairing left in a pocket overnight should say so rather than swallowing
+   scans, so it is checked once on open. */
+(async () => {
+  draw();
+  if (pairing) {
+    try {
+      const said = await ask("/api/scanner/paired", undefined, pairing.token);
+      if (said.status !== "live") forget();
+    } catch { forget(); }
+  }
+  void startCamera();
+})();
+</script>
+<noscript>
+  <div class="panel">
+    <p class="say">The scanner needs JavaScript.
+      <a href="https://rx3000-app.onrender.com/scanner">Open it in the application</a>.</p>
+  </div>
+</noscript>
 </body>
 </html>
