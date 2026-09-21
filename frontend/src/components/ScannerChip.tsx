@@ -37,8 +37,18 @@ import { useScannerHub } from "./ScannerHub";
  *
  *  The address serves the scanner itself, not a redirect, so what loads is a
  *  viewfinder and not the whole application.
+ *
+ *  THE TRAILING SLASH IS LOAD BEARING, FOR NOW
+ *
+ *  The static site answers any path it does not recognise with a 301 to
+ *  /index.html, and "/scanner" without the slash is one of those: it lands on
+ *  the marketing home page, which is exactly what a member of staff does not
+ *  want at a counter. "/scanner/" resolves to the directory's own index and
+ *  works. The slash comes off the day a redirect rule from /scanner to
+ *  /scanner/ is added ahead of that catch-all, which lives in the hosting
+ *  dashboard rather than in this repository.
  */
-const SCANNER_ADDRESS = "rx5000.com/scanner";
+const SCANNER_ADDRESS = "rx5000.com/scanner/";
 
 export default function ScannerChip() {
   const hub = useScannerHub();
