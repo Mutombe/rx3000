@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money } from "../api";
+import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import { Avatar, Highlights, Path } from "../components/record";
@@ -21,6 +22,32 @@ export default function OrderDetail() {
   const { id } = useParams();
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [error, setError] = useState("");
+  /** The document, when somebody asks to see it before it goes. */
+  const [preview_, setPreview] = useState<string | null>(null);
+  const toast = useToast();
+
+  /** Actually send it, and say where it went. */
+  async function sendToSupplier() {
+    try {
+      const said = await api.post<{ message: string }>(`/api/orders/${id}/send`);
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      // The server refuses with the reason — no address on the supplier, no
+      // lines, the mail server said no — and each of those is something a
+      // person can act on. Passed through as written.
+      toast.error(errorText(e, "That order could not be sent."));
+    }
+  }
+
+  async function preview() {
+    try {
+      const said = await api.get<{ document: string }>(`/api/orders/${id}/document`);
+      setPreview(said.document);
+    } catch (e) {
+      toast.error(errorText(e, "That order could not be read."));
+    }
+  }
 
   function load() {
     api.get<PurchaseOrder>(`/api/orders/${id}`).then(setOrder).catch((e) => setError(e.message));
@@ -105,15 +132,56 @@ export default function OrderDetail() {
           { label: "Status", value: order.status, hint: order.notes || "—" },
         ]} />
         <div className="record-exit">
-          {order.status === "draft" && <BusyButton className="small" onClick={() => setStatus("sent")}>Send to supplier</BusyButton>}
+          {/* THIS NOW SENDS. It used to set a string to "sent" and the order
+              never left the building, so an order a wholesaler had received
+              and one somebody had clicked a button on looked identical. */}
+          {order.status === "draft" && (
+            <>
+              <BusyButton className="small" onClick={sendToSupplier}
+                          busyLabel="Sending…">
+                Send to supplier
+              </BusyButton>
+              <button type="button" className="btn-link small"
+                      onClick={() => void preview()}>
+                See what will be sent
+              </button>
+            </>
+          )}
           {order.status === "sent" && (
-            <span className="muted">Receive stock from the Procurement list so batch numbers and expiry dates can be captured</span>
+            <span className="muted">
+              {order.sent_at
+                ? <>Sent {fmtDateTime(order.sent_at)}
+                    {order.sent_to && <> to <b>{order.sent_to}</b></>}. Receive
+                    stock from the Procurement list so batch numbers and expiry
+                    dates can be captured.</>
+                : <>Receive stock from the Procurement list so batch numbers and
+                    expiry dates can be captured</>}
+            </span>
           )}
           {order.status !== "received" && order.status !== "cancelled" && (
             <BusyButton className="secondary small" onClick={() => setStatus("cancelled")}>Cancel order</BusyButton>
           )}
         </div>
       </div>
+
+      {/* WHAT WILL ACTUALLY BE SENT.
+          Nobody should have to send a document to somebody else's order desk
+          to find out what it says. It is also the copy a pharmacy that faxes
+          or hands orders over can print. */}
+      {preview_ !== null && (
+        <div className="modal-backdrop" onClick={() => setPreview(null)}>
+          <div className="modal od-preview" onClick={(e) => e.stopPropagation()}>
+            <h2>What the supplier will get</h2>
+            <pre className="od-doc">{preview_}</pre>
+            <div className="modal-foot">
+              <button className="btn secondary" onClick={() => setPreview(null)}>
+                Close
+              </button>
+              <button className="btn" onClick={() => window.print()}>Print it</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {order.status !== "received" && order.status !== "cancelled" && (
         <ReceiveByScan

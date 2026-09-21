@@ -1343,6 +1343,16 @@ class PurchaseOrder(Base, TenantMixin):
     branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
     status = Column(String(20), default="draft")  # draft | sent | received | cancelled
+    #: When this order was actually transmitted, and to where.
+    #:
+    #: "Sent" used to be a word in a column. The order never left, so an order
+    #: marked sent and an order nobody had told the supplier about looked
+    #: identical — and the first anybody knew was a wholesaler saying no order
+    #: had ever arrived. `sent_to` keeps the address it really went to rather
+    #: than the one on the supplier record today, because that record changes.
+    sent_at = Column(DateTime, nullable=True)
+    sent_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    sent_to = Column(String(200), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     received_at = Column(DateTime, nullable=True)
     notes = Column(Text, default="")

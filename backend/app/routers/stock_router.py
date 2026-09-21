@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import bins, sold, sourcing, spreadsheet, stock_watch, paging, price_history
+from ..services import bins, order_send, sold, sourcing, spreadsheet, stock_watch, paging, price_history
 from ..services import (config, levels, quarantine, stepup, stock_reasons,
                         supplier_returns, valuation)
 from ..services import permissions
@@ -1158,6 +1158,58 @@ def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db)):
             if created or unassigned else
             "Nothing is at its reorder level."),
     }
+
+
+@router.get("/orders/{order_id}/document")
+def order_document(order_id: int, db: Session = Depends(get_db),
+                   _: User = Depends(get_current_user)):
+    """The order as the wholesaler will read it, before it is sent.
+
+    Shown rather than described. Nobody should have to send a document to
+    find out what it says, and a pharmacy that faxes or hands orders over
+    needs the same text without sending anything.
+    """
+    order = db.get(PurchaseOrder, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    return {"order_number": order.order_number,
+            "document": order_send.document(
+                db, order, pharmacy_name=_pharmacy_name(db))}
+
+
+@router.post("/orders/{order_id}/send")
+def send_order(order_id: int, db: Session = Depends(get_db),
+               user: User = Depends(get_current_user),
+               _may=Depends(auth.requires("stock.receive"))):
+    """Email the order to its supplier, and record that it went.
+
+    This replaces a button that set a string and sent nothing. See
+    `services/order_send` for why that was worse than having no button.
+    """
+    order = db.get(PurchaseOrder, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    if order.status not in ("draft", "sent"):
+        raise HTTPException(
+            409, f"{order.order_number} is {order.status} and cannot be sent.")
+    try:
+        said = order_send.send(db, order, user=user,
+                               pharmacy_name=_pharmacy_name(db))
+    except order_send.NotSendable as exc:
+        raise HTTPException(400, str(exc)) from exc
+    db.commit()
+    db.refresh(order)
+    return {**said,
+            "order": schemas.POOut.model_validate(order, from_attributes=True).model_dump()}
+
+
+def _pharmacy_name(db: Session) -> str:
+    """This pharmacy's name, for the top of the document."""
+    from ..models import Pharmacy
+    from ..tenancy import current_pharmacy_id
+    pid = current_pharmacy_id()
+    row = db.get(Pharmacy, pid) if pid else None
+    return (row.trading_name or row.name) if row else ""
 
 
 #: What a purchase order may become, from where it is.

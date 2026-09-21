@@ -260,6 +260,13 @@ export interface PurchaseOrder {
   notes: string;
   items: POItem[];
   supplier?: Supplier;
+  /** When the order actually went, and to which address. Null on an order
+   *  that has only ever been a draft. `sent_to` is kept rather than read off
+   *  the supplier record, because that record changes and "which address did
+   *  it go to" is the question six weeks later. */
+  sent_at?: string | null;
+  sent_by_id?: number | null;
+  sent_to?: string;
 }
 
 export interface RegisterEntry {

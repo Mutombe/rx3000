@@ -12225,3 +12225,22 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s1) var(--s3);
 }
 .ord-orphans li { white-space: nowrap; }
+
+/* The purchase order as the wholesaler's order desk will read it. Monospace
+   and preserved whitespace, because the columns are aligned with spaces: this
+   is the same text that goes in the email, so what is previewed is what is
+   sent rather than a prettier rendering of it. */
+.od-preview { max-width: 46rem; }
+.od-doc {
+  margin: 0;
+  padding: var(--s3);
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--t-xs);
+  line-height: 1.5;
+  white-space: pre;
+}

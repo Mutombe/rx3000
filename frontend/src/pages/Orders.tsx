@@ -83,6 +83,18 @@ export default function Orders() {
     }
   }
 
+  /** Send it for real. This used to set the status to "sent" and the order
+   *  never left the building. */
+  async function send(order: PurchaseOrder) {
+    try {
+      const said = await api.post<{ message: string }>(`/api/orders/${order.id}/send`);
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That order could not be sent."));
+    }
+  }
+
   async function setStatus(order: PurchaseOrder, status: string) {
     try {
       await api.post(`/api/orders/${order.id}/status?status=${status}`);
@@ -145,7 +157,7 @@ export default function Orders() {
                         <td className="num">{o.items.length}</td>
                         <td className="num">{money(value)}</td>
                         <td className="actions" onClick={(e) => e.stopPropagation()}>
-                          {o.status === "draft" && <BusyButton className="small" onClick={() => setStatus(o, "sent")}>Send</BusyButton>}
+                          {o.status === "draft" && <BusyButton className="small" busyLabel="Sending…" onClick={() => send(o)}>Send</BusyButton>}
                           {o.status === "sent" && <button className="small" onClick={() => setReceiving(o)}>Receive</button>}
                           {o.status !== "received" && o.status !== "cancelled" && (
                             <BusyButton className="ghost small" onClick={() => setStatus(o, "cancelled")}>Cancel</BusyButton>

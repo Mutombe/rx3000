@@ -1134,6 +1134,13 @@ class POOut(ORM):
     notes: str
     items: list[POItemOut] = []
     supplier: Optional[SupplierOut] = None
+    #: When the order actually left, who sent it, and the address it went to.
+    #: Declared here for the same reason as the note below: a response_model
+    #: silently drops what it does not name, and an order that says "sent"
+    #: with no evidence of sending is the state this was built to remove.
+    sent_at: Optional[datetime] = None
+    sent_by_id: Optional[int] = None
+    sent_to: str = ""
     #: Lines invoiced above the published maximum, noticed as they were booked
     #: in. Declared here because a response_model silently DROPS what it does
     #: not name, and this exact mistake has already cost this codebase a

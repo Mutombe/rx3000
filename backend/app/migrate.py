@@ -268,7 +268,21 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "settled_amount": "FLOAT DEFAULT 0",
         "settled_at": "DATETIME",
     },
-    "purchase_orders": {"branch_id": "INTEGER"},
+    "purchase_orders": {
+        "branch_id": "INTEGER",
+        # WHAT ACTUALLY LEFT THE BUILDING, AND WHEN.
+        #
+        # "Send to supplier" flipped a status string and did nothing else. The
+        # order never went anywhere, `Supplier.email` was stored and never
+        # used, and afterwards nobody could tell an order that had been sent
+        # from one somebody had merely clicked. These three say so: when it
+        # went, who sent it, and the address it was actually delivered to,
+        # which is the only one worth having when a wholesaler says they never
+        # received it.
+        "sent_at": "TIMESTAMP",
+        "sent_by_id": "INTEGER",
+        "sent_to": "VARCHAR(200)",
+    },
     "products": {
         "category_id": "INTEGER",
         # The ceiling to go with the reorder level's floor. A floor alone

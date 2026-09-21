@@ -16,6 +16,13 @@ from ..models import Message
 log = logging.getLogger("rx5000.messaging")
 
 
+def send_email(to_addr: str, subject: str, body: str) -> tuple[bool, str]:
+    """Send one email to one address. Public, because a purchase order is not
+    a patient message and should not have to pretend to be one to get out of
+    the building. `deliver` below still owns the patient/queue path."""
+    return _send_email(to_addr, subject, body)
+
+
 def _send_email(to_addr: str, subject: str, body: str) -> tuple[bool, str]:
     if not settings.SMTP_HOST:
         log.info("EMAIL (console) to=%s subject=%s body=%s", to_addr, subject, body)
