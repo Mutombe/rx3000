@@ -53,6 +53,7 @@ from .routers import (
     seasons_router,
     compliance_router,
     hq_router,
+    rfq_router,
 )
 from .seed import (
     seed, seed_claiming_if_empty, seed_crm_if_empty, seed_formulary_if_empty,
@@ -260,6 +261,7 @@ for router_module in (
     seasons_router,
     compliance_router,
     hq_router,
+    rfq_router,
 ):
     app.include_router(router_module.router)
 app.include_router(samples_router.router)

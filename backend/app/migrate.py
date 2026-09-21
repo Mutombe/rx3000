@@ -696,6 +696,7 @@ PER_TENANT_NUMBERS: list[tuple[str, str]] = [
     # two different returns is one a wholesaler is entitled to refuse.
     ("supplier_returns", "reference"),
     ("goods_receipts", "grv_number"),
+    ("rfqs", "reference"),
 ]
 
 

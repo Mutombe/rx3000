@@ -12244,3 +12244,52 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   line-height: 1.5;
   white-space: pre;
 }
+
+/* ------------------------------------------- comparing quotes side by side
+
+   Lines down, wholesalers across: what a buyer comparing three quotes on
+   paper draws, because the interesting comparison is across a row and the
+   interesting decision is per row too. */
+.rfq-grid th.num { vertical-align: bottom; }
+.rfq-cell { padding: 4px 8px; }
+/* The cheapest on each line, marked and not chosen. A quote three weeks out
+   is no use for a line that is out of stock today. */
+.rfq-cell.is-cheapest { background: var(--ok-soft); }
+.rfq-cell.is-picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rfq-pick {
+  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px;
+  width: 100%; padding: 6px 8px; min-height: 44px;
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: inherit; cursor: pointer; text-align: right;
+}
+.rfq-pick:hover:not(:disabled) { border-color: var(--line); background: var(--surface); }
+.rfq-pick:disabled { cursor: default; opacity: .6; }
+
+/* What has been chosen, and the button that turns it into orders. Sticky to
+   the bottom of the card rather than the page: a grid of twenty lines should
+   not hide the thing that acts on it. */
+.rfq-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+
+/* Raising a request: what to ask about on the left, who to ask on the right. */
+.rfq-new { max-width: 52rem; }
+.rfq-new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }
+.rfq-new-list {
+  max-height: 34vh; overflow-y: auto;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: var(--s2);
+}
+.rfq-new-line {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s2); min-height: 36px; padding: 2px 4px;
+}
+.rfq-new-line input[type="number"] { width: 7ch; text-align: right; }
+.lbl {
+  display: block; font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: .08em; color: var(--ink-soft); margin-bottom: var(--s1);
+}
+@media (max-width: 40rem) {
+  .rfq-new-grid { grid-template-columns: 1fr; }
+}

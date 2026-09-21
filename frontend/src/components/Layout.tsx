@@ -174,6 +174,9 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // The wholesalers themselves, which had no screen at all: create, edit
       // and retire existed on the server with no caller, so a supplier could
       // only be reached by following a link off an order.
+      // Asking around before buying. Beside Procurement because it is the
+      // step before an order, not a separate concern.
+      { to: "/rfqs", label: "Quotes", icon: Scales },
       { to: "/suppliers", label: "Suppliers", icon: Buildings },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
       { to: "/samples", label: "Samples", icon: Gift },

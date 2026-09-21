@@ -1379,6 +1379,101 @@ class PurchaseOrder(Base, TenantMixin):
     items = relationship("PurchaseOrderItem", back_populates="order", cascade="all, delete-orphan")
 
 
+class Rfq(Base, TenantMixin):
+    """A request for a price, sent to several wholesalers at once.
+
+    WHY THIS IS NOT THE `quotes` TABLE
+
+    That one is a QUOTE THIS PHARMACY GIVES a customer, hanging off a CRM
+    deal. This is the opposite direction: a pharmacy asking several suppliers
+    what they would charge, and then comparing the answers. Sharing a table
+    between the two would mean one row that is sometimes outbound and
+    sometimes inbound, with half its columns null either way.
+
+    WHY IT IS WORTH HAVING
+
+    A purchase order names one supplier and a price somebody typed in. Where
+    that price came from was a telephone call, remembered. Nothing recorded
+    that three wholesalers were asked, what each said, or why the dearest was
+    chosen — which is exactly what an owner asks about afterwards, and exactly
+    what makes the difference between buying well and buying from whoever
+    answered the phone.
+    """
+    __tablename__ = "rfqs"
+    id = Column(Integer, primary_key=True)
+    reference = Column(String(30), nullable=False, index=True)
+    #: draft | sent | closed | cancelled
+    status = Column(String(20), default="draft", index=True)
+    notes = Column(Text, default="")
+    #: When answers stop being accepted. A request with no closing date is one
+    #: that is never compared, because there is always a reason to wait.
+    closes_at = Column(DateTime, nullable=True)
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    sent_at = Column(DateTime, nullable=True)
+
+    lines = relationship("RfqLine", back_populates="rfq",
+                         cascade="all, delete-orphan")
+    invited = relationship("RfqSupplier", back_populates="rfq",
+                           cascade="all, delete-orphan")
+
+
+class RfqLine(Base, TenantMixin):
+    """One medicine being asked about, and how many."""
+    __tablename__ = "rfq_lines"
+    id = Column(Integer, primary_key=True)
+    rfq_id = Column(Integer, ForeignKey("rfqs.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    quantity = Column(Integer, default=0)
+
+    rfq = relationship("Rfq", back_populates="lines")
+    product = relationship("Product")
+
+
+class RfqSupplier(Base, TenantMixin):
+    """A wholesaler this request went to, and whether they answered."""
+    __tablename__ = "rfq_suppliers"
+    id = Column(Integer, primary_key=True)
+    rfq_id = Column(Integer, ForeignKey("rfqs.id"), nullable=False, index=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=False)
+    sent_at = Column(DateTime, nullable=True)
+    #: The address it actually went to, kept rather than read off the supplier
+    #: later, for the same reason a purchase order keeps its own.
+    sent_to = Column(String(200), default="")
+    responded_at = Column(DateTime, nullable=True)
+    #: Who entered the answer. Until a supplier can sign in and type it
+    #: themselves, somebody at the pharmacy writes down what they were told,
+    #: and it matters who.
+    recorded_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    declined = Column(Boolean, default=False)
+    note = Column(Text, default="")
+
+    rfq = relationship("Rfq", back_populates="invited")
+    supplier = relationship("Supplier")
+    quotes = relationship("RfqQuote", back_populates="invited",
+                          cascade="all, delete-orphan")
+
+
+class RfqQuote(Base, TenantMixin):
+    """What one wholesaler said about one line."""
+    __tablename__ = "rfq_quotes"
+    id = Column(Integer, primary_key=True)
+    rfq_supplier_id = Column(Integer, ForeignKey("rfq_suppliers.id"),
+                             nullable=False, index=True)
+    rfq_line_id = Column(Integer, ForeignKey("rfq_lines.id"),
+                         nullable=False, index=True)
+    unit_price = Column(Float, default=0.0)
+    #: Whether they have it at all. A supplier who cannot supply is a real
+    #: answer and a different one from an expensive supplier, and comparing
+    #: on price alone hides it.
+    available = Column(Boolean, default=True)
+    lead_days = Column(Integer, nullable=True)
+    note = Column(Text, default="")
+
+    invited = relationship("RfqSupplier", back_populates="quotes")
+    line = relationship("RfqLine")
+
+
 class PurchaseOrderItem(Base, TenantMixin):
     __tablename__ = "purchase_order_items"
     id = Column(Integer, primary_key=True)

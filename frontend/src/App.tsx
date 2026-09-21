@@ -22,6 +22,8 @@ const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
 const StockTakeDetail = lazy(() => import("./pages/StockTakeDetail"));
 const AuditDetail = lazy(() => import("./pages/AuditDetail"));
 const Suppliers = lazy(() => import("./pages/Suppliers"));
+const Rfqs = lazy(() => import("./pages/Rfqs"));
+const RfqDetail = lazy(() => import("./pages/RfqDetail"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -195,6 +197,10 @@ export default function App() {
                 {/* There was no supplier list at all: create, edit and
                     retire had existed with no caller anywhere, so a
                     wholesaler could only be reached from an order. */}
+                {/* Asking several wholesalers before buying, which had
+                    no model, no endpoint and no screen. */}
+                <Route path="/rfqs" element={<Rfqs />} />
+                <Route path="/rfqs/:id" element={<RfqDetail />} />
                 <Route path="/suppliers" element={<Suppliers />} />
                 <Route path="/suppliers/:id" element={<SupplierDetail />} />
                 <Route path="/claims/:id" element={<ClaimDetail />} />
