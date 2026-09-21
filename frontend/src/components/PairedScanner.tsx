@@ -75,6 +75,43 @@ export function usePairedScanner({
     }
   }, [link?.id]);
 
+  // PICK THE PHONE BACK UP AFTER A RELOAD.
+  //
+  // The pairing's id was written to storage with a comment saying it was kept
+  // "so a reload does not drop the phone", and then nothing ever read it back.
+  // So refreshing the counter screen — or the dispensary tab being closed and
+  // reopened, which happens all day — silently abandoned the pairing while the
+  // phone carried on scanning into a stream nobody was listening to. Every
+  // scan returned "Sent." and none of them arrived.
+  //
+  // The server is asked what is actually still live rather than trusting the
+  // stored id, because the pairing may have been closed from the phone, timed
+  // out, or been ended at another counter while this tab was shut.
+  useEffect(() => {
+    const held = readStored(HELD);
+    if (!held) return;
+    let dropped = false;
+    api.get<{ links: Link[] }>("/api/scanner/links")
+      .then(({ links }) => {
+        if (dropped) return;
+        const mine = links.find((l) => String(l.id) === held);
+        if (mine) {
+          setLink(mine);
+          setLive(mine.status === "live");
+        } else {
+          // It is gone. Clear the note rather than leaving a dead id behind
+          // to be resurrected on the next reload.
+          writeStored(HELD, null);
+        }
+      })
+      .catch(() => {
+        // Deliberately silent: this is a best-effort resume on mount. The
+        // counter works exactly as it always has without it, and the button
+        // to pair again is right there.
+      });
+    return () => { dropped = true; };
+  }, []);
+
   // The stream. Opened once a pairing exists and closed with it.
   //
   // `fetch` rather than `EventSource`, for the reason the assistant's own

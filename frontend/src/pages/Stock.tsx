@@ -16,6 +16,7 @@ import ExportButton from "../components/ExportButton";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
 import { Paged } from "../components/Pagination";
 import { ScanBar, ScanResult } from "../components/Scanner";
+import PairedScanner from "../components/PairedScanner";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
@@ -112,6 +113,18 @@ export default function Stock() {
    *  with the batch and expiry already read off it where the code carried them.
    *  Scanning to *find* a product and then hunting for its Adjust button would
    *  be scanning in name only. */
+  /** A pack scanned on a phone, resolved the way the box on this page
+   *  resolves one so the adjust dialog opens identically. */
+  async function fromPhone(code: string) {
+    if (adjusting) return;          // the dialog owns the flow once it is up
+    try {
+      onScanned(await api.post<ScanResult>(
+        "/api/scan", { code, context: "stock" }));
+    } catch (e) {
+      toast.error(errorText(e, "That pack could not be read."));
+    }
+  }
+
   function onScanned(r: ScanResult) {
     if (!r.found || !r.product) return;
     setAdjusting(r.product as unknown as Product);
@@ -387,13 +400,18 @@ export default function Stock() {
       )}
 
       {tab === "products" && (
-        <div style={{ marginBottom: "var(--s3)" }}>
+        <div className="stock-scan-row" style={{ marginBottom: "var(--s3)" }}>
           <ScanBar
             context="stock"
             onResolved={onScanned}
             placeholder="Scan a pack to adjust it, or type a code…"
             enabled={!adjusting}
           />
+          {/* Checking a shelf is done at the shelf. The counter scanner is on
+              a cable at the till, so without this the only way to look
+              something up while standing in front of it was to carry the box
+              back to the machine. */}
+          <PairedScanner station="Stock" onScan={(code) => void fromPhone(code)} />
         </div>
       )}
 

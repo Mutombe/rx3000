@@ -11920,3 +11920,25 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .gr-bill:hover { border-color: var(--line-strong); background: var(--surface-sunk); }
 .gr-bill.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .gr-bill-no { font-weight: 600; font-size: var(--t-sm); }
+
+/* A borrowed phone sits beside the thing it scans into, not in a toolbar of
+   its own. The row wraps rather than squeezing the scan box on a narrow
+   screen, which is where somebody counting a shelf actually is. */
+.stock-scan-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+.stock-scan-row > :first-child { flex: 1 1 22rem; min-width: 0; }
+/* The label and the borrow-a-phone button share a line above the search box,
+   so the control is where somebody looks when the shelf is in front of them
+   and the counter is not. */
+.st-find-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  margin-bottom: var(--s1);
+}
+.st-find-head label { margin: 0; }

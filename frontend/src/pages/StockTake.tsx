@@ -19,6 +19,7 @@ import { api, errorText, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
+import PairedScanner from "../components/PairedScanner";
 import { Product } from "../types";
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
@@ -81,6 +82,28 @@ export default function StockTake() {
   const [note, setNote] = useState("");
   const [lastCount, setLastCount] = useState<CountReply | null>(null);
   const countBox = useRef<HTMLInputElement>(null);
+
+  /** A pack scanned on a phone at the shelf.
+   *
+   *  Picks the product straight away and puts the cursor in the count box, so
+   *  the whole interaction is: point the phone, type what is on the shelf,
+   *  press record. Nothing is typed twice and nothing is carried anywhere.
+   */
+  async function fromPhone(code: string) {
+    try {
+      const r = await api.post<{ found: boolean; product: Product | null }>(
+        "/api/scan", { code, context: "stock" });
+      if (!r.found || !r.product) {
+        toast.error("That pack is not one this pharmacy stocks.");
+        return;
+      }
+      setPicked(r.product);
+      setLastCount(null);
+      window.setTimeout(() => countBox.current?.focus(), 0);
+    } catch (e) {
+      toast.error(errorText(e, "That pack could not be read."));
+    }
+  }
 
   const load = useCallback(() => {
     setSheet(null);
@@ -381,10 +404,20 @@ export default function StockTake() {
               </form>
             ) : (
               <>
+                {/* A COUNT IS DONE AT THE SHELF, NOT AT THE MACHINE.
+                    This box said "or scan the barcode" and nothing behind it
+                    could scan anything: a scanner plugged into the counter
+                    types into it, which works if you carry every box to the
+                    till, and that is not how a stock count is done. The phone
+                    goes to the shelf. */}
                 <div className="field">
-                  <label>Find the product</label>
+                  <div className="st-find-head">
+                    <label htmlFor="st-find">Find the product</label>
+                    <PairedScanner station="Stock count"
+                                   onScan={(code) => void fromPhone(code)} />
+                  </div>
                   <input
-                    value={query} autoFocus
+                    id="st-find" value={query} autoFocus
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Name, or scan the barcode"
                   />

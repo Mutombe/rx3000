@@ -15,6 +15,7 @@
 import { useCallback, useRef, useState } from "react";
 import { api, errorText  } from "../api";
 import { ScanBar, ScanResult } from "./Scanner";
+import PairedScanner from "./PairedScanner";
 import { useToast } from "./Toast";
 
 interface Props {
@@ -41,6 +42,26 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const qtyRef = useRef<HTMLInputElement>(null);
+
+  /** A pack scanned on a phone rather than into the box on this screen.
+   *
+   *  Resolved through the same endpoint with the same context and order, so
+   *  the GS1 batch and expiry are read off the carton exactly as they are
+   *  when the scan comes from the counter.
+   */
+  const fromPhone = useCallback(async (code: string) => {
+    // The confirm dialog owns the flow once something is waiting; a second
+    // pack arriving on top of it would lose the first, the same reason the
+    // scan box below is disabled while `pending` is set.
+    if (pending) return;
+    try {
+      const r = await api.post<ScanResult>(
+        "/api/scan", { code, context: "receive", order_id: orderId });
+      onResolved(r);
+    } catch (e) {
+      toast.error(errorText(e, "That pack could not be read."));
+    }
+  }, [pending, orderId]);
 
   const onResolved = useCallback((r: ScanResult) => {
     if (!r.found || !r.product) return;   // ScanBar has already said so
@@ -94,11 +115,21 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
 
   return (
     <div className="card">
-      <h3>Receive by scanning</h3>
-      <p className="muted" style={{ marginTop: 0 }}>
-        Scan each pack as it comes off the delivery for {orderNumber}. Where the pack
-        carries a GS1 code, the batch and expiry are read from it.
-      </p>
+      <div className="card-head">
+        <div>
+          <h3>Receive by scanning</h3>
+          <p className="muted" style={{ marginTop: 0 }}>
+            Scan each pack as it comes off the delivery for {orderNumber}. Where
+            the pack carries a GS1 code, the batch and expiry are read from it.
+          </p>
+        </div>
+        {/* A phone borrowed for the back door, which is the single best
+            reason this feature exists and the one place it was not offered.
+            Booking in a delivery happens standing over boxes, away from the
+            machine, and a counter scanner on a cable does not reach. */}
+        <PairedScanner station={`Delivery ${orderNumber}`}
+                       onScan={(code) => void fromPhone(code)} />
+      </div>
 
       <ScanBar
         context="receive"
