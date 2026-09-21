@@ -1714,7 +1714,10 @@ td.actions > * + * { margin-left: var(--s2); }
 .sel-trigger.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .sel-trigger.invalid { border-color: var(--danger); }
 .sel-trigger:disabled { opacity: 0.5; cursor: not-allowed; background: var(--surface-sunk); }
-.sel-trigger.empty .sel-value { color: var(--ink-faint); }
+/* Nothing chosen yet: the placeholder is set back. Named `unset` because a
+   bare `empty` is the page-level EMPTY STATE block below, and a trigger
+   wearing it stood 14rem (224px) tall. See the note in Select.tsx. */
+.sel-trigger.unset .sel-value { color: var(--ink-faint); }
 .sel-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sel-caret { color: var(--ink-faint); font-size: 10px; flex-shrink: 0; }
 .sel-clear {
@@ -12182,21 +12185,6 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    explicitly so it sits on the line with the buttons beside it rather than
    stretching to the header's full height, which is what happened when this
    was the app's own combobox. */
-.stock-reports-pick {
-  flex: 0 0 auto;
-  align-self: center;
-  width: 13rem;
-  height: var(--control);
-  padding: 0 var(--s2);
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-md);
-  font-size: var(--t-base);
-  cursor: pointer;
-}
-.stock-reports-pick:hover { border-color: var(--ink-faint); }
-.stock-reports-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* The supplier table. Contact holds a name, a number and an address and was
    losing width to two columns that are mostly empty. */

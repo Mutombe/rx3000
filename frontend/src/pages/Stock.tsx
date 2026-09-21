@@ -503,7 +503,7 @@ export default function Stock() {
           <h1>Inventory</h1>
           <div className="sub">Products, quantities, movements and reorder levels</div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div className="page-actions">
           {/* THE REPORTS, FROM WHERE THE QUESTION IS ASKED.
               There are twenty six stock reports and every one of them was
               reachable only through a nav item labelled "Analytics", gated on
@@ -513,29 +513,32 @@ export default function Stock() {
 
               Offered per tab, because the report that answers "what is about
               to expire" is not the one that answers "where did this go", and
-              a list of twenty six is its own kind of hiding. */}
-          {/* A NATIVE SELECT, DELIBERATELY.
-              The app's own combobox rendered here as a 208x224 empty panel:
-              its fixed height loses to something in this header's cascade,
-              and no other screen puts one in a page head so nobody had met
-              it. Chasing that down is worth doing once; shipping a control
-              that cannot be stretched into a wall is worth doing now. A
-              native select is also the better answer for a jump menu — it
-              opens with the keyboard and behaves like the device it is on. */}
-          <select
-            className="stock-reports-pick"
-            aria-label="Stock reports"
+              a list of twenty six is its own kind of hiding.
+
+              THIS WAS A NATIVE SELECT, AND WHY IT IS NOT ANY MORE
+
+              The app's own combobox rendered here as a 208 by 224 empty
+              panel, and the note that replaced it blamed "something in this
+              header's cascade" and said no other screen put one in a page
+              head. Both were wrong. Five other screens do, and every one of
+              them works.
+
+              208 pixels is 13rem, which was the width on `.stock-reports-pick`
+              — a class written for a native select, with a fixed width and a
+              fixed height, put on a control that sizes itself. The panel was
+              clipped to the box the class gave it, so the options were
+              rendered and could not be seen.
+
+              The same shape as the `.lbl` bug: a class written for one
+              control worn by another. Neither is a cascade problem and
+              neither is mysterious once the numbers are read. */}
+          <Select
             value=""
-            onChange={(e) => {
-              const key = e.target.value;
-              if (key) navigate(`/reports?report=${key}`);
-            }}
-          >
-            <option value="">Reports…</option>
-            {(REPORTS_FOR[tab] ?? REPORTS_FOR.products).map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
-            ))}
-          </select>
+            placeholder="Reports…"
+            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
+            options={(REPORTS_FOR[tab] ?? REPORTS_FOR.products)
+              .map((r) => ({ value: r.value, label: r.label }))}
+          />
           <ExportButton dataset={tab === "batches" ? "batches" : "products"}
                         label={tab === "batches" ? "Batches as a spreadsheet"
                                                  : "Catalogue as a spreadsheet"} />

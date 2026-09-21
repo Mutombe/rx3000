@@ -148,7 +148,13 @@ export default function Select({
         aria-haspopup="listbox"
         aria-label={ariaLabel}
         disabled={disabled}
-        className={`sel-trigger${open ? " open" : ""}${invalid ? " invalid" : ""}${selected ? "" : " empty"}`}
+        /* `unset`, not `empty`. A bare `empty` class is the application's
+           EMPTY STATE block, which carries `min-height: 14rem`. A combobox
+           with nothing chosen wore it and stood 224 pixels tall, and 14rem
+           is exactly 224. The stock reports picker is a jump menu that is
+           never selected, so it was the only one that showed it, and it was
+           blamed on the page header's cascade for months. */
+        className={`sel-trigger${open ? " open" : ""}${invalid ? " invalid" : ""}${selected ? "" : " unset"}`}
         onClick={() => setOpen((o) => !o)}
         onKeyDown={onKeyDown}
       >
