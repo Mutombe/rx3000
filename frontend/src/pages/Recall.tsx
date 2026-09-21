@@ -12,7 +12,7 @@
  *  telephone — because the list of names is long and the thing that stops another
  *  person receiving it takes ten seconds.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { useToast } from "../components/Toast";
@@ -49,6 +49,10 @@ export default function Recall() {
   const [hits, setHits] = useState<Hit[]>([]);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Which batch is being traced, so its own button says so and the others
+   *  do not all go busy at once. */
+  const [tracing, setTracing] = useState<number | null>(null);
+  const traceRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
 
   const search = useCallback(async (term: string) => {
@@ -68,11 +72,32 @@ export default function Recall() {
     return () => window.clearTimeout(t);
   }, [q, search]);
 
+  /** Trace one batch, and say so while it is happening.
+   *
+   *  It said nothing at all. No busy state on the button, and the result
+   *  renders BELOW a search that routinely returns forty rows, so on a real
+   *  screen the panel appeared somewhere off the bottom of the page. Pressing
+   *  it looked exactly like pressing a dead button, and the honest reading of
+   *  that is that the software ignored you.
+   *
+   *  A recall trace is also the slowest read in this product — it walks every
+   *  sale line, dispensing and patient the batch ever reached — so it is the
+   *  last place to leave somebody guessing.
+   */
   async function open(hit: Hit) {
+    setTracing(hit.batch_id);
     try {
-      setTrace(await api.get<Trace>(`/api/recall/batches/${hit.batch_id}`));
+      const got = await api.get<Trace>(`/api/recall/batches/${hit.batch_id}`);
+      setTrace(got);
+      // Put the answer in front of them. Requested rather than instant so it
+      // does not fight a reader who has already started scrolling.
+      window.requestAnimationFrame(() => {
+        traceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
     } catch (e) {
       toast.error(errorText(e, "That batch could not be traced."));
+    } finally {
+      setTracing(null);
     }
   }
 
@@ -154,7 +179,10 @@ export default function Recall() {
                     {h.quantity_remaining} <span className="muted">of {h.quantity_received}</span>
                   </td>
                   <RowActions>
-                    <button className="btn small" onClick={() => open(h)}>Trace it</button>
+                    <button className="btn small" onClick={() => open(h)}
+                            disabled={tracing !== null}>
+                      {tracing === h.batch_id ? "Tracing…" : "Trace it"}
+                    </button>
                   </RowActions>
                 </RowLink>
               ))}
@@ -164,7 +192,7 @@ export default function Recall() {
       </div>
 
       {trace && (
-        <>
+        <div ref={traceRef}>
           {/* What to do first, before the list of names. Quarantining what is
               still on the shelf takes ten seconds and is the only step that
               stops another person receiving it. */}
@@ -302,7 +330,7 @@ export default function Recall() {
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
     </>
   );

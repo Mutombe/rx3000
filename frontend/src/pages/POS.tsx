@@ -4,6 +4,7 @@ import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute, Refused } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
+import PairedScanner from "../components/PairedScanner";
 import { useConnection } from "../components/Connection";
 import * as queue from "../offline/queue";
 import * as deviceAgent from "../deviceAgent";
@@ -218,6 +219,26 @@ export default function POS() {
   }, [patientQ]);
 
   /** A scan came back resolved. Warnings are already on screen as toasts. */
+  /** A code that arrived from a phone rather than from the box in this page.
+   *
+   *  The phone sends a string; everything below here wants a resolved scan.
+   *  So it is resolved the same way the scan box resolves one, through the
+   *  same endpoint with the same context, and handed to the same function —
+   *  which is why nothing downstream needs to know a phone was involved.
+   */
+  async function fromPhone(code: string) {
+    setScan("");
+    try {
+      const result = await api.post<ScanResult>(
+        "/api/scan", { code, context: "pos" });
+      onScanned(result);
+    } catch (e) {
+      // Said out loud. A scan that vanishes is the complaint this whole
+      // feature exists to answer.
+      toast.error(errorText(e, "That scan could not be read."));
+    }
+  }
+
   function onScanned(result: ScanResult) {
     if (!result.found || !result.product) {
       // Exactly one candidate is not a guess, it is the answer.
@@ -1109,7 +1130,15 @@ export default function POS() {
       <div className="pos-layout till-dense">
         <div>
           <div className="card">
-            <h3>Scan or search</h3>
+            <div className="card-head">
+              <h3>Scan or search</h3>
+              {/* A phone borrowed as this till's scanner. It was built for
+                  the dispensary and mounted only there, which left the till
+                  — the counter most likely to have no scanner plugged into
+                  it — with no way to borrow one. It produces the same event
+                  the ScanBar below does and hands it to the same place. */}
+              <PairedScanner station="Till" onScan={(code) => void fromPhone(code)} />
+            </div>
             <ScanBar
               context="pos"
               inputRef={scanRef}

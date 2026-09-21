@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api, apiBase, errorText } from "../api";
-import { barcodeSvg } from "../print";
+import { qrSvg } from "../qr";
 import { useToast } from "./Toast";
 import { readStored, writeStored } from "../storage";
 
@@ -129,9 +129,17 @@ export function usePairedScanner({
     return () => { shut = true; stop.abort(); };
   }, [link?.id]);
 
-  /** The code, drawn the way the phone will read it. */
+  /** The code, drawn the way the phone will read it.
+   *
+   *  A QR, not the Code 128 this was built with. Six characters of Code 128
+   *  is 121 modules; in a panel this wide that is a bar about two pixels
+   *  across, photographed off a glossy monitor by a phone decoding at eight
+   *  frames a second. It read sometimes. The same payload as a QR is 21x21,
+   *  which is nearly twelve pixels a module in the same space, carries error
+   *  correction, and does not care which way up the phone is held.
+   */
   const symbol = link && link.status === "pending" && link.code
-    ? barcodeSvg(link.code, 46, 16)
+    ? qrSvg(link.code)
     : "";
 
   return { link, live, asking, offer, stop, symbol };
@@ -175,12 +183,15 @@ export default function PairedScanner({
         code. It becomes a scanner for {link.station || "this counter"} until
         you stop it.
       </p>
-      {/* Drawn by the same encoder that puts the script number on every
-          dispensing label, so there is one Code 128 in this product and not
-          two that could disagree. */}
       <div className="ps-symbol" aria-label={`Pairing code ${link.code}`}
            dangerouslySetInnerHTML={{ __html: symbol }} />
+      {/* The characters, large enough to read across a counter. The phone can
+          be given them by hand when the camera will not cooperate: a cracked
+          lens, a dim shop, a screen with the sun on it. */}
       <p className="ps-code">{link.code}</p>
+      <p className="muted small ps-or">
+        or type it on the phone
+      </p>
       <button type="button" className="btn small ghost" onClick={() => void stop()}>
         Cancel
       </button>

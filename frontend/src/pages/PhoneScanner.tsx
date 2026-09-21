@@ -30,7 +30,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { apiBase, errorText } from "../api";
+import { ApiError, apiBase, errorText } from "../api";
 import { ScanCamera, cameraSupported } from "../components/Scanner";
 import { readStored, writeStored } from "../storage";
 
@@ -54,9 +54,21 @@ async function ask<T>(path: string, body?: unknown, token?: string): Promise<T> 
   });
   const said = await r.json().catch(() => ({}));
   if (!r.ok) {
-    const err: any = new Error(said?.detail?.message ?? said?.detail ?? "That did not work.");
-    err.status = r.status;
-    err.detail = said?.detail;
+    // An ApiError, not a plain Error, and that difference was the whole bug.
+    //
+    // `errorText` unwraps ApiError and Refused and nothing else, so a plain
+    // Error fell through to the caller's fallback. The server computes a
+    // sentence saying exactly what is wrong — "That code is not one this
+    // pharmacy is showing", "That code has expired. Ask the counter for a new
+    // one" — and every one of them was replaced, on the screen of the person
+    // standing there holding the phone, by "That code could not be used."
+    //
+    // Software that works out what went wrong and then says something vaguer
+    // is worse than software that never worked it out.
+    const spoken = said?.detail?.message
+      ?? (typeof said?.detail === "string" ? said.detail : "");
+    const err = new ApiError(r.status, spoken || "That did not work.");
+    (err as ApiError & { detail?: unknown }).detail = said?.detail;
     throw err;
   }
   return said as T;
@@ -64,6 +76,15 @@ async function ask<T>(path: string, body?: unknown, token?: string): Promise<T> 
 
 /** The pairing, kept so a phone that locks its screen comes back to work. */
 const HELD = "scanner_pairing";
+
+/** What a pairing code looks like: six characters of the server's alphabet.
+ *
+ *  Kept in step with `ALPHABET` in `services/scanner_link.py`, which leaves
+ *  out O, 0, I, 1, B, S and Z because somebody has to read this aloud across
+ *  a counter. Checked here only to tell a pairing code apart from the other
+ *  things a camera can see; the server decides whether it is a real one.
+ */
+const PAIRING_SHAPE = /^[ACDEFGHJKLMNPQRTUVWXY2345679]{6}$/;
 
 interface Pairing { token: string; station: string; id: number }
 
@@ -78,6 +99,8 @@ export default function PhoneScanner() {
   const [last, setLast] = useState("");
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  /** The code somebody read off the counter screen and typed. */
+  const [typed, setTyped] = useState("");
   /** Whether the viewfinder is up. `ScanCamera` is a full screen sheet with
    *  its own Done button, so closing it has to land somewhere rather than
    *  unpairing: an accidental tap should not cost somebody the pairing and a
@@ -108,6 +131,29 @@ export default function PhoneScanner() {
   }, [pairing?.token, forget]);
 
   async function claim(code: string) {
+    // IS THIS EVEN A PAIRING CODE?
+    //
+    // The camera reads thirteen symbologies and fires on whatever it sees
+    // first. Point this screen at a dispensing label — the obvious thing to
+    // do, since scanning labels is what the phone is FOR — and it read the Rx
+    // number off it, posted that to the server as a pairing code, and came
+    // back with a refusal that explained nothing.
+    //
+    // A pairing code is six characters from a known alphabet. Anything else
+    // is not a failed pairing, it is somebody scanning the right thing at the
+    // wrong moment, and it deserves to be told which.
+    const seen = code.trim().toUpperCase();
+    if (!PAIRING_SHAPE.test(seen)) {
+      setProblem(
+        seen.length > 8
+          ? "That looks like a label, not a pairing code. The phone is not "
+            + "paired to a counter yet: on the counter screen press \"Use a "
+            + "phone as a scanner\", then point this at the code it shows."
+          : "That is not a pairing code. The code on the counter screen is "
+            + "six characters long.");
+      if (navigator.vibrate) navigator.vibrate([90, 70, 90]);
+      return;
+    }
     setBusy(true);
     setProblem("");
     try {
@@ -173,10 +219,33 @@ export default function PhoneScanner() {
         onClose={() => { /* there is nothing to close back to */ }}
       >
         <p className="ph-say">
-          The screen at the counter is showing a barcode. Scan it and this
-          phone becomes a scanner for that station.
+          On the counter screen press <b>Use a phone as a scanner</b>. Point
+          this at the code it shows and this phone becomes a scanner for that
+          station.
         </p>
         {problem && <p className="alert error">{problem}</p>}
+
+        {/* TYPING IT IN, BECAUSE A CAMERA IS NOT ALWAYS THE ANSWER.
+            The counter shows the six characters under the symbol and this
+            page had no way to use them: a glossy monitor, a cracked lens or a
+            dim shop left somebody with a code they could read perfectly well
+            and no way in. Six characters is a few seconds of typing. */}
+        <form className="ph-typed" onSubmit={(e) => {
+          e.preventDefault();
+          if (!busy && typed.trim()) void claim(typed);
+        }}>
+          <label htmlFor="ph-typed-code">or type the six characters</label>
+          <div className="ph-typed-row">
+            <input id="ph-typed-code" value={typed} inputMode="text"
+                   autoCapitalize="characters" autoCorrect="off"
+                   spellCheck={false} maxLength={6} placeholder="A2C4EF"
+                   onChange={(e) => setTyped(e.target.value.toUpperCase())} />
+            <button type="submit" className="btn primary"
+                    disabled={busy || typed.trim().length < 6}>
+              {busy ? "Pairing…" : "Pair"}
+            </button>
+          </div>
+        </form>
       </ScanCamera>
     );
   }

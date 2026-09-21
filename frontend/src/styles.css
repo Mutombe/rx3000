@@ -11750,8 +11750,15 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   background: #ffffff; padding: 10px 14px;
   border-radius: var(--r-sm); border: 1px solid var(--line);
 }
-.ps-symbol svg { display: block; width: 100%; height: 62px; }
-.ps-symbol svg rect, .ps-symbol .bars rect { fill: #000000; }
+/* Square, because it is a QR now and not a strip of bars. Sized so the whole
+   symbol stays comfortably inside the panel: at 21 modules across ~230px this
+   is about eleven pixels a module, which a phone reads from arm's length
+   without being held still. */
+.ps-symbol svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.ps-symbol .bars rect { fill: #000000; }
+/* Said under the characters, so somebody whose camera will not focus knows
+   there is a way through rather than walking back to the counter. */
+.ps-or { text-align: center; margin-top: calc(var(--s1) * -1); }
 /* The code in words underneath, because a camera that will not focus is a
    thing that happens and somebody has to be able to read it out. */
 .ps-code {
@@ -11795,6 +11802,21 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: block; font-size: var(--t-xs); text-transform: uppercase;
   letter-spacing: 0.08em; color: var(--ink-soft);
 }
+/* Typing the code in, for when the camera will not read the screen. It sits
+   under the viewfinder's own panel, which is a light surface, so it takes
+   ordinary ink and not the dark stage above it. */
+.ph-typed { margin-top: var(--s3); }
+.ph-typed label {
+  display: block; font-size: var(--t-xs); text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-soft); margin-bottom: var(--s1);
+}
+.ph-typed-row { display: flex; gap: var(--s2); }
+.ph-typed-row input {
+  flex: 1 1 auto; min-width: 0;
+  font-size: var(--t-lg); font-weight: 600; letter-spacing: 0.22em;
+  text-align: center; text-transform: uppercase;
+}
+.ph-typed-row .btn { flex: 0 0 auto; }
 /* The number is the feedback. Somebody scanning a shelf is not reading a
    sentence; they are checking that it went up. */
 .ph-count {
