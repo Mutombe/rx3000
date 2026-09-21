@@ -1521,7 +1521,6 @@ label {
   margin: 0; white-space: nowrap; font-weight: 400;
 }
 .dt-filters label + label { margin-left: var(--s3); }
-.filter-search { min-width: 200px; flex: 1 1 200px; max-width: 320px; }
 .filter-range { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
 .filter-range input { max-width: 150px; }
 
@@ -6660,9 +6659,19 @@ table.dt.sub th { font-size: var(--t-xs); }
   padding-bottom: var(--s4);
   border-bottom: 1px solid var(--line);
 }
-/* The search takes the room; everything else takes what it needs. */
+/* The search takes the room; everything else takes what it needs.
+ *
+ * It did not, for as long as this rule has existed. An earlier
+ * `.filter-search` further up this sheet carried `max-width: 320px`, and a
+ * second rule for the same class only overrides the properties it mentions,
+ * so the cap survived: the box sat at 320px with 916 pixels of empty row
+ * beside it, on a screen whose one useful control is the search. That rule
+ * is gone and this is the whole of it now.
+ *
+ * The cap below is deliberate and wide. A search that runs the full width of
+ * a 2000px monitor is its own kind of wrong. */
 .filter-search {
-  flex: 1 1 18rem; min-width: 12rem;
+  flex: 1 1 18rem; min-width: 12rem; max-width: 46rem;
   height: var(--control);
 }
 /* A dropdown sized to its own content rather than stretched by the flex row —
