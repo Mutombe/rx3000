@@ -21,6 +21,7 @@ const GoodsReceiptDetail = lazy(() => import("./pages/GoodsReceiptDetail"));
 const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
 const StockTakeDetail = lazy(() => import("./pages/StockTakeDetail"));
 const AuditDetail = lazy(() => import("./pages/AuditDetail"));
+const Suppliers = lazy(() => import("./pages/Suppliers"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -191,6 +192,10 @@ export default function App() {
                 <Route path="/will-call/:id" element={<WillCallBag />} />
                 <Route path="/to-follows/:id" element={<ToFollowDetail />} />
                 <Route path="/claiming-calendar" element={<SchemeCalendar />} />
+                {/* There was no supplier list at all: create, edit and
+                    retire had existed with no caller anywhere, so a
+                    wholesaler could only be reached from an order. */}
+                <Route path="/suppliers" element={<Suppliers />} />
                 <Route path="/suppliers/:id" element={<SupplierDetail />} />
                 <Route path="/claims/:id" element={<ClaimDetail />} />
                 <Route path="/claim-batches/:id" element={<ClaimBatchDetail />} />

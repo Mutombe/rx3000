@@ -225,6 +225,18 @@ class SupplierBase(BaseModel):
 
 class SupplierOut(ORM, SupplierBase):
     id: int
+    # ACCEPTED ON THE WAY IN AND NEVER RETURNED.
+    #
+    # `update_supplier` takes all of these, and the comment above it explains
+    # why the bank account matters: "a wholesaler changes its bank account,
+    # which they do, and which is exactly the message a fraudster imitates".
+    # None of them were in this response, so a pharmacy could record the new
+    # account number and then had no way to read it back and check it — which
+    # is the entire point of recording it.
+    account_number: str = ""
+    payment_terms: str = ""
+    notes: str = ""
+    active: bool = True
 
 
 # ---------- patients ----------

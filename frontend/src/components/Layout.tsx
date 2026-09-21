@@ -171,6 +171,10 @@ const NAV: { section: string; links: NavLinkDef[] }[] = [
       // conversation, which units sold alone cannot have.
       { to: "/stock-performance", label: "Stock performance", icon: TrendUp, needs: "reports.money" },
       { to: "/orders", label: "Procurement", icon: Truck },
+      // The wholesalers themselves, which had no screen at all: create, edit
+      // and retire existed on the server with no caller, so a supplier could
+      // only be reached by following a link off an order.
+      { to: "/suppliers", label: "Suppliers", icon: Buildings },
       { to: "/stock-take", label: "Stock Take", icon: ClipboardText },
       { to: "/samples", label: "Samples", icon: Gift },
       { to: "/recall", label: "Recall", icon: Siren },
