@@ -24,6 +24,7 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
+import { EntityLink } from "./Filters";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
 import { useAsk } from "./Confirm";
@@ -205,9 +206,13 @@ export default function SupplierReturns() {
                 <Fragment key={r.id}>
                   <tr>
                     <td>
-                      <button type="button" className="btn-link"
+                      {/* The reference opens the return. Expanding in
+                          place stays for a quick look at the lines. */}
+                      <EntityLink to={`/returns/${r.id}`}>{r.reference}</EntityLink>
+                      <button type="button" className="btn-link small gr-peek"
+                              aria-expanded={open === r.id}
                               onClick={() => setOpen(open === r.id ? null : r.id)}>
-                        {r.reference}
+                        {open === r.id ? "Hide lines" : "Lines"}
                       </button>
                       <div className="muted small">{fmtDate(r.created_at)}</div>
                     </td>

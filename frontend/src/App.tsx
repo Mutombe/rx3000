@@ -17,6 +17,8 @@ const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const BatchDetail = lazy(() => import("./pages/BatchDetail"));
 const MovementDetail = lazy(() => import("./pages/MovementDetail"));
+const GoodsReceiptDetail = lazy(() => import("./pages/GoodsReceiptDetail"));
+const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -195,6 +197,11 @@ export default function App() {
                     the product, which is what the reader was already looking
                     at. */}
                 <Route path="/movements/:id" element={<MovementDetail />} />
+                {/* Both endpoints have existed since the documents were
+                    built and nothing reached them, so a delivery and a
+                    return could be listed and never opened. */}
+                <Route path="/deliveries/:id" element={<GoodsReceiptDetail />} />
+                <Route path="/returns/:id" element={<SupplierReturnDetail />} />
                 <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
                 <Route path="/staff/:id" element={<StaffDetail />} />
                 <Route path="/prescribers/:id" element={<PrescriberDetail />} />

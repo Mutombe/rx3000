@@ -24,6 +24,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
+import { EntityLink } from "./Filters";
 import { useToast } from "./Toast";
 import { useAsk } from "./Confirm";
 import { useCan } from "../session";
@@ -285,9 +286,15 @@ export default function GoodsReceipts() {
                 <Fragment key={r.id}>
                   <tr>
                     <td>
-                      <button type="button" className="btn-link"
+                      {/* An identifier opens the record. It used to only
+                          expand a row, so the delivery document had a page
+                          nothing could reach. The peek stays, on its own
+                          control, for reading a line without leaving. */}
+                      <EntityLink to={`/deliveries/${r.id}`}>{r.grv_number}</EntityLink>
+                      <button type="button" className="btn-link small gr-peek"
+                              aria-expanded={open === r.id}
                               onClick={() => setOpen(open === r.id ? null : r.id)}>
-                        {r.grv_number}
+                        {open === r.id ? "Hide lines" : "Lines"}
                       </button>
                       {/* Two lines rather than one. The date and a username
                           joined by a dot overran the column and clipped mid

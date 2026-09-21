@@ -12138,3 +12138,9 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 .sc-pop-or { text-align: center; }
 .sc-pop-go { width: 100%; justify-content: center; }
+
+/* The "peek" control beside a document's number. Small and secondary: the
+   number is what opens the record, and this only expands the lines in place
+   for somebody who does not want to leave the list. */
+.gr-peek { display: block; margin-top: 2px; color: var(--ink-soft); }
+.gr-peek:hover { color: var(--ink); }
