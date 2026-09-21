@@ -16,6 +16,7 @@ const SchemeCalendar = lazy(() => import("./pages/SchemeCalendar"));
 const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const BatchDetail = lazy(() => import("./pages/BatchDetail"));
+const MovementDetail = lazy(() => import("./pages/MovementDetail"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -190,6 +191,10 @@ export default function App() {
                 <Route path="/claims/:id" element={<ClaimDetail />} />
                 <Route path="/claim-batches/:id" element={<ClaimBatchDetail />} />
                 <Route path="/batches/:id" element={<BatchDetail />} />
+                {/* A movement had no page of its own: clicking a row went to
+                    the product, which is what the reader was already looking
+                    at. */}
+                <Route path="/movements/:id" element={<MovementDetail />} />
                 <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
                 <Route path="/staff/:id" element={<StaffDetail />} />
                 <Route path="/prescribers/:id" element={<PrescriberDetail />} />

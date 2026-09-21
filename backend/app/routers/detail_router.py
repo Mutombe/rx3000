@@ -22,9 +22,9 @@ from sqlalchemy.orm import Session, joinedload
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import (
-    Campaign, Claim, Dispensing, Doctor, Message, Patient, Prescription,
+    Branch, Campaign, Claim, Dispensing, Doctor, Message, Patient, Prescription,
     PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem, Sale, Shift,
-    StockBatch, Supplier, SupplierInvoice, SupplierPayment, User,
+    StockBatch, StockMovement, Supplier, SupplierInvoice, SupplierPayment, User,
 )
 from ..services import counselling, payables
 
@@ -194,6 +194,112 @@ def stock_batch(batch_id: int, db: Session = Depends(get_db)):
         "recipients": traced.get("recipients", [])[:100],
         "warnings": traced.get("warnings", []),
     }
+
+
+# ------------------------------------------------------------ stock movement
+
+@router.get("/stock/movements/{movement_id}")
+def stock_movement(movement_id: int, db: Session = Depends(get_db)):
+    """One stock movement, and enough around it to answer for itself.
+
+    THE QUESTION THIS PAGE EXISTS FOR
+
+    Nobody opens a stock movement out of curiosity. They open it because a
+    figure is wrong, and what they need is: what happened, who did it, why,
+    and does the running balance either side of it make sense. A row in a
+    table answers the first of those and the screen offered nothing else —
+    clicking it went to the product, which is the one thing the reader was
+    already looking at.
+
+    So the neighbours come too. A balance that jumps between two movements is
+    the signature of a correction made behind the system's back, and it is
+    invisible until you can see the two rows next to each other.
+    """
+    from ..services import stock_reasons
+
+    row = _found(db.get(StockMovement, movement_id), "stock movement")
+    product = db.get(Product, row.product_id)
+    who = db.get(User, row.user_id) if row.user_id else None
+    where = db.get(Branch, row.branch_id) if row.branch_id else None
+
+    def brief(m: StockMovement) -> dict:
+        return {
+            "id": m.id, "created_at": m.created_at,
+            "movement_type": m.movement_type,
+            "quantity_delta": m.quantity_delta,
+            "balance_after": m.balance_after,
+            "reference": m.reference or "",
+        }
+
+    # The five either side, on this product, in time order. Ordered by id as
+    # well as by date: bulk work writes many movements inside one second, and
+    # on a date alone they come back shuffled, which makes a correct balance
+    # look like a broken one.
+    before = (db.query(StockMovement)
+              .filter(StockMovement.product_id == row.product_id,
+                      StockMovement.id < row.id)
+              .order_by(StockMovement.id.desc()).limit(5).all())
+    after = (db.query(StockMovement)
+             .filter(StockMovement.product_id == row.product_id,
+                     StockMovement.id > row.id)
+             .order_by(StockMovement.id.asc()).limit(5).all())
+
+    # Whether the arithmetic holds across this row. The balance is stored, not
+    # derived, so it can disagree with the movement that produced it — and
+    # when stock is wrong that disagreement is the whole answer.
+    prior = before[0] if before else None
+    expected = ((prior.balance_after or 0) + (row.quantity_delta or 0)
+                if prior is not None else None)
+    agrees = expected is None or expected == (row.balance_after or 0)
+
+    script = (db.get(Prescription, row.prescription_id)
+              if row.prescription_id else None)
+
+    return {
+        "id": row.id,
+        "created_at": row.created_at,
+        "movement_type": row.movement_type,
+        "quantity_delta": row.quantity_delta,
+        "balance_after": row.balance_after,
+        "reference": row.reference or "",
+        "notes": row.notes or "",
+        "reason_code": row.reason_code or "",
+        "reason": stock_reasons.label(row.reason_code or ""),
+        "product_id": row.product_id,
+        "product": f"{product.name} {product.strength or ''}".strip() if product else "",
+        "pack_size": (product.pack_size or "") if product else "",
+        "schedule": product.schedule if product else 0,
+        "user_id": row.user_id,
+        "user": (who.full_name if who else ""),
+        "user_role": (who.role if who else ""),
+        "branch_id": row.branch_id,
+        "branch": (where.name if where else ""),
+        "prescription_id": row.prescription_id,
+        "rx_number": (script.rx_number if script else ""),
+        "before": [brief(m) for m in reversed(before)],
+        "after": [brief(m) for m in after],
+        "balance_agrees": agrees,
+        "balance_expected": expected,
+        "says": _movement_says(row, agrees, expected),
+    }
+
+
+def _movement_says(row, agrees: bool, expected: int | None) -> str:
+    """The row in a sentence, for somebody who has just been sent this link.
+
+    A page of figures assumes the reader already knows what they are looking
+    at. Often they have been handed the link by a colleague who does.
+    """
+    when = row.created_at.strftime("%d %B %Y at %H:%M") if row.created_at else "an unrecorded time"
+    moved = ("added" if (row.quantity_delta or 0) > 0 else "removed")
+    size = abs(row.quantity_delta or 0)
+    tail = ""
+    if not agrees and expected is not None:
+        tail = (f" The balance before this was {expected - (row.quantity_delta or 0)}, "
+                f"so it should read {expected} and it reads {row.balance_after}. "
+                "Something changed this figure outside the movement history.")
+    return (f"{size} unit(s) {moved} on {when} as a {row.movement_type}."
+            + tail)
 
 
 # --------------------------------------------------------------------- staff

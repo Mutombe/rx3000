@@ -505,7 +505,10 @@ export default function Stock() {
           columns={movementCols}
           rows={movements}
           rowKey={(m) => m.id}
-          rowHref={(m) => (m.product ? `/products/${m.product.id}` : "")}
+          // The movement, not the product. Clicking a row used to go to the
+          // medicine, which is the thing the reader was already looking at, so
+          // the click cost them their place and told them nothing new.
+          rowHref={(m) => `/movements/${m.id}`}
           initialSort={{ key: "created_at", dir: "desc" }}
           empty="No stock movements recorded"
           server={
