@@ -321,6 +321,21 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # Whether the nightly job raised it or a person did. 0 on every
         # existing row, which is what they all were.
         "raised_automatically": "BOOLEAN DEFAULT 0",
+        # A second signature on who won, which no award has ever needed.
+        "awarded_by_id": "INTEGER",
+        "awarded_at": "TIMESTAMP",
+        "award_reason": "TEXT DEFAULT ''",
+        "approved_by_id": "INTEGER",
+        "approved_at": "TIMESTAMP",
+        "approved_value": "FLOAT DEFAULT 0",
+        "award_refused_reason": "TEXT DEFAULT ''",
+        "award_refused_by_id": "INTEGER",
+        "award_refused_at": "TIMESTAMP",
+    },
+    "rfq_lines": {
+        # Which wholesaler won this line, written when the award is proposed
+        # so that what is approved is what gets raised.
+        "chosen_rfq_supplier_id": "INTEGER",
     },
     "rfq_suppliers": {
         # WHO ACTUALLY TYPED THE PRICE.

@@ -34,6 +34,7 @@ import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import InviteSupplier from "./RfqInvite";
 import SupplierCard from "./RfqSuppliers";
+import { AwaitingApproval, AwardState, WhyNotCheapest, WhyRefused } from "./RfqAward";
 
 interface Answer {
   rfq_supplier_id: number;
@@ -73,6 +74,16 @@ interface Invited {
   recorded_by: string;
 }
 
+/** The status, as a person would say it. The stored values stay as they are;
+ *  these are only for reading. */
+const SAYS_STATUS: Record<string, string> = {
+  draft: "draft",
+  sent: "out for quotation",
+  awaiting_approval: "waiting to be signed off",
+  closed: "orders raised",
+  cancelled: "cancelled",
+};
+
 interface Detail {
   id: number;
   reference: string;
@@ -87,6 +98,7 @@ interface Detail {
   asked: number;
   answered: number;
   document: string;
+  award: AwardState;
 }
 
 export default function RfqDetail() {
@@ -97,12 +109,23 @@ export default function RfqDetail() {
   const [picks, setPicks] = useState<Record<number, number>>({});
   const [showDoc, setShowDoc] = useState(false);
   const [inviting, setInviting] = useState(false);
+  const [asking, setAsking] = useState(false);
   const toast = useToast();
   const confirm = useConfirm();
 
   const load = useCallback(() => {
     api.get<Detail>(`/api/rfqs/${id}`)
-      .then(setRow)
+      .then((r) => {
+        setRow(r);
+        // What was already awarded, so somebody returning to an award that
+        // was sent back sees their own choices rather than an empty grid and
+        // has to reconstruct them from memory.
+        const had = r.award?.chosen ?? {};
+        if (Object.keys(had).length) {
+          setPicks(Object.fromEntries(
+            Object.entries(had).map(([line, who]) => [Number(line), who])));
+        }
+      })
       .catch((e) => setError(errorText(e, "That request could not be loaded.")));
   }, [id]);
   useEffect(load, [load]);
@@ -117,13 +140,82 @@ export default function RfqDetail() {
     }
   }
 
-  async function convert() {
+  /** Say who won. The server refuses without a reason when the cheapest
+   *  lost, and the dialog below collects it rather than letting the refusal
+   *  arrive as an error the buyer has to decode. */
+  async function award(reason = "") {
     const chosen = Object.entries(picks).map(([line, supplier]) => ({
       rfq_line_id: Number(line), rfq_supplier_id: supplier,
     }));
     try {
       const said = await api.post<{ message: string }>(
-        `/api/rfqs/${id}/to-orders`, { picks: chosen });
+        `/api/rfqs/${id}/award`, { picks: chosen, reason });
+      toast.ok(said.message);
+      setAsking(false);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "Those choices could not be awarded."));
+    }
+  }
+
+  /** Ask for the reason FIRST where one will be needed, rather than letting
+   *  the server's refusal be how somebody finds out. */
+  function proposeAward() {
+    const dearer = dearerLines();
+    if (dearer.length > 0) { setAsking(true); return; }
+    void award();
+  }
+
+  /** Which lines have a chosen supplier that is not the cheapest quoted.
+   *  Worked out here as well as on the server so the dialog can be filled in
+   *  before anything is posted; the server is still the one that refuses. */
+  function dearerLines() {
+    if (!row) return [];
+    const out = [];
+    for (const line of row.lines) {
+      const who = picks[line.rfq_line_id];
+      if (!who) continue;
+      const mine = line.answers.find((a) => a.rfq_supplier_id === who);
+      const best = line.answers.find((a) => a.cheapest);
+      if (!mine || !best || mine.unit_price === null || best.unit_price === null) continue;
+      if (best.rfq_supplier_id === who) continue;
+      const extra = Number(((mine.unit_price - best.unit_price) * line.quantity).toFixed(2));
+      if (extra <= 0) continue;
+      out.push({
+        rfq_line_id: line.rfq_line_id, product: line.product,
+        chosen: mine.supplier, chosen_price: mine.unit_price,
+        chosen_lead_days: mine.lead_days,
+        cheapest: best.supplier, cheapest_price: best.unit_price,
+        cheapest_lead_days: best.lead_days, extra,
+      });
+    }
+    return out;
+  }
+
+  async function approve() {
+    try {
+      const said = await api.post<{ message: string }>(`/api/rfqs/${id}/approve`);
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That award could not be approved."));
+    }
+  }
+
+  async function sendBack(reason: string) {
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/rfqs/${id}/send-back`, { reason });
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That award could not be sent back."));
+    }
+  }
+
+  async function convert() {
+    try {
+      const said = await api.post<{ message: string }>(`/api/rfqs/${id}/to-orders`);
       toast.ok(said.message);
       load();
     } catch (e) {
@@ -220,7 +312,9 @@ export default function RfqDetail() {
             : row.answered ? `${row.asked - row.answered} still to reply`
             : row.status === "draft" ? "nobody has been asked yet"
             : "nobody has replied yet" },
-        { label: "Status", value: row.status },
+        // In words, not in the database's spelling. "awaiting_approval" on
+        // a screen is the software showing somebody its own internals.
+        { label: "Status", value: SAYS_STATUS[row.status] ?? row.status },
         { label: "Closes", value: row.closes_at ? fmtDate(row.closes_at) : "no date",
           hint: row.closes_at ? "" : "a request with no closing date is never compared" },
         // What asking around was actually worth, which is the case for doing it.
@@ -355,26 +449,77 @@ export default function RfqDetail() {
             </div>
           </Panel>
 
-          {/* Draft orders, never sent. Choosing a quote is a buying decision;
-              sending the order is a separate one, and may need a second
-              signature first. */}
-          {row.status !== "closed" && row.status !== "draft" && (
-            <div className="card rfq-foot">
-              <div>
-                <b>{chosenCount} of {row.lines.length} line(s) chosen</b>
-                {chosenCount > 0 && (
-                  <span className="muted"> · {money(chosenValue)}</span>
-                )}
-                <div className="muted small">
-                  This raises draft orders, grouped by supplier. Nothing is
-                  sent until you send it.
+          {/* WHY THE AWARD IS ITS OWN STEP.
+              Asking three wholesalers commits the pharmacy to nothing;
+              choosing which one wins commits it to the money. So that is the
+              act that carries a name and, over a value the pharmacy sets, a
+              second one. */}
+          {/* Shown when somebody has ANSWERED, not when the request has been
+              sent. A draft carries answers routinely: the nightly job raises
+              one, a wholesaler with a link fills it in, or staff write down a
+              telephone call. Keying this off the status hid the only button
+              that acts on those answers, so a request that had been priced
+              could not be awarded at all. Third time reasoning from the
+              status rather than the facts has broken this screen. */}
+          {row.status !== "closed" && row.status !== "cancelled"
+            && row.answered > 0 && (
+            <>
+              <WhyRefused award={row.award} />
+
+              {row.status === "awaiting_approval" ? (
+                <AwaitingApproval award={row.award} onApprove={approve}
+                                  onSendBack={sendBack} />
+              ) : (
+                <div className="card rfq-foot">
+                  <div>
+                    <b>{chosenCount} of {row.lines.length} line(s) chosen</b>
+                    {chosenCount > 0 && (
+                      <span className="muted"> · {money(chosenValue)}</span>
+                    )}
+                    <div className="muted small">
+                      {/* Said before the click, not after it. A person who
+                          discovers the approval step at the moment they try
+                          to raise the orders is the wrong person to discover
+                          it and it is the worst time. */}
+                      {row.award.approved
+                        ? "Approved. This raises draft orders, grouped by "
+                          + "supplier. Nothing is sent until you send it."
+                        : row.award.approval_used
+                          ? `Awards over ${money(row.award.threshold)} need a `
+                            + "second person to sign them off. Whoever chooses "
+                            + "cannot approve their own choice."
+                          : "This raises draft orders, grouped by supplier. "
+                            + "Nothing is sent until you send it."}
+                    </div>
+                  </div>
+                  {row.award.approved || !row.award.approval_used ? (
+                    <div className="rfq-foot-acts">
+                      {/* Re-awarding stays available so a choice can be
+                          changed before the orders are raised. */}
+                      <button type="button" className="btn secondary"
+                              onClick={proposeAward} disabled={chosenCount === 0}>
+                        Change the award
+                      </button>
+                      <BusyButton className="btn primary" onClick={convert}
+                                  disabled={chosenCount === 0} busyLabel="Raising…">
+                        Raise the orders
+                      </BusyButton>
+                    </div>
+                  ) : (
+                    <BusyButton className="btn primary" onClick={proposeAward}
+                                disabled={chosenCount === 0} busyLabel="Awarding…">
+                      Award these suppliers
+                    </BusyButton>
+                  )}
                 </div>
-              </div>
-              <BusyButton className="btn primary" onClick={convert}
-                          disabled={chosenCount === 0} busyLabel="Raising…">
-                Raise the orders
-              </BusyButton>
-            </div>
+              )}
+            </>
+          )}
+
+          {asking && (
+            <WhyNotCheapest dearer={dearerLines()}
+                            onClose={() => setAsking(false)}
+                            onSaid={award} />
           )}
 
           {inviting && (

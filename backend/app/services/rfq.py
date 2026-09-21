@@ -431,23 +431,29 @@ def compare(db: Session, rfq: Rfq) -> dict:
 
 # --------------------------------------------------------------- converting
 
-def to_orders(db: Session, rfq: Rfq, *, picks: list[dict],
-              user: User | None = None) -> dict:
-    """Turn chosen answers into draft purchase orders, grouped by supplier.
+def to_orders(db: Session, rfq: Rfq, *, user: User | None = None) -> dict:
+    """Turn the AWARDED answers into draft purchase orders, by supplier.
 
     Draft, never sent. Choosing a quote is a buying decision; sending the
     order is a separate one, and on a pharmacy that has set a threshold it
     may need somebody else's signature first.
-    """
-    if not picks:
-        raise RfqError("Nothing was chosen. Pick a supplier for at least one "
-                       "line.")
 
+    WHY THIS NO LONGER TAKES THE CHOICES FROM THE CALLER
+
+    It used to raise orders from whatever the screen posted. Once an award
+    can be signed off by a second person, that is a hole straight through the
+    control: a manager approves Datlabs at 12.40 and the orders go to
+    whichever suppliers the buyer's screen happened to be holding when they
+    pressed the button. The choices are written to the lines when the award
+    is proposed and read back from them here, so what was approved is what is
+    raised.
+    """
     wanted: dict[int, list[tuple[RfqLine, float]]] = {}
-    for pick in picks:
-        line = db.get(RfqLine, int(pick.get("rfq_line_id") or 0))
-        invited = db.get(RfqSupplier, int(pick.get("rfq_supplier_id") or 0))
-        if line is None or invited is None or line.rfq_id != rfq.id:
+    for line in rfq.lines:
+        invited = line.chosen
+        if invited is None:
+            continue
+        if invited.rfq_id != rfq.id:
             raise RfqError("One of those choices does not belong to this request.")
         quote = next((q for q in invited.quotes if q.rfq_line_id == line.id), None)
         if quote is None or not quote.available:
@@ -455,6 +461,10 @@ def to_orders(db: Session, rfq: Rfq, *, picks: list[dict],
                 f"{invited.supplier.name if invited.supplier else 'That supplier'} "
                 "did not quote a price for one of the lines chosen.")
         wanted.setdefault(invited.supplier_id, []).append((line, quote.unit_price))
+
+    if not wanted:
+        raise RfqError("Nothing has been awarded on this request. Choose a "
+                       "supplier for at least one line first.")
 
     created = []
     for supplier_id, rows in wanted.items():

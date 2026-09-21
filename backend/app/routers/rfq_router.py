@@ -13,7 +13,7 @@ from .. import auth
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Pharmacy, Rfq, RfqSupplier, User
-from ..services import config, portal_tokens, rfq_auto
+from ..services import config, portal_tokens, rfq_auto, rfq_award
 from ..services import rfq as rfq_svc
 from ..tenancy import current_pharmacy_id
 
@@ -158,11 +158,35 @@ def run_auto_now(db: Session = Depends(get_db),
                         "then send it.")}
 
 
+@router.get("/awaiting-approval")
+def awaiting_approval(db: Session = Depends(get_db)):
+    """Awards waiting for a second signature.
+
+    A queue, because without one an approval step is a thing that happens to
+    somebody at the moment they try to raise the orders: the worst time to
+    discover it and the wrong person to discover it. Declared above
+    /{rfq_id} because FastAPI matches in declaration order.
+    """
+    rows = rfq_award.awaiting(db)
+    return {
+        "rfqs": [{**_shape(db, r),
+                  "value": rfq_award.value_of(db, r),
+                  "awarded_by": (r.awarded_by.full_name if r.awarded_by else ""),
+                  "awarded_at": r.awarded_at,
+                  "award_reason": r.award_reason or "",
+                  "dearer_lines": len(rfq_award.dearer_than_cheapest(db, r))}
+                 for r in rows],
+        "count": len(rows),
+        "threshold": rfq_award.threshold(db),
+    }
+
+
 @router.get("/{rfq_id}")
 def get_rfq(rfq_id: int, db: Session = Depends(get_db)):
     """One request, with every answer laid against every line."""
     row = _found(rfq_id, db)
     return {**_shape(db, row), **rfq_svc.compare(db, row),
+            "award": rfq_award.state(db, row),
             "document": rfq_svc.document(db, row,
                                          pharmacy_name=_pharmacy_name(db))}
 
@@ -249,14 +273,69 @@ def record_answer(rfq_id: int, invited_id: int, body: dict = Body(...),
     return said
 
 
-@router.post("/{rfq_id}/to-orders")
-def convert(rfq_id: int, body: dict = Body(...), db: Session = Depends(get_db),
-            user: User = Depends(get_current_user),
-            _may=Depends(auth.requires("stock.receive"))):
-    """Turn the chosen answers into draft purchase orders."""
+@router.post("/{rfq_id}/award")
+def award(rfq_id: int, body: dict = Body(...), db: Session = Depends(get_db),
+          user: User = Depends(get_current_user),
+          _may=Depends(auth.requires("stock.receive"))):
+    """Say who won each line, and put it up for approval where one is needed.
+
+    Refuses without a reason when the cheapest quote lost. That reason is
+    perfectly good on the day and unrecoverable six weeks later, which is
+    why it is asked for now.
+    """
     row = _found(rfq_id, db)
     try:
-        said = rfq_svc.to_orders(db, row, picks=body.get("picks") or [], user=user)
+        said = rfq_award.propose(db, row, picks=body.get("picks") or [],
+                                 user=user, reason=str(body.get("reason") or ""))
+    except rfq_award.AwardError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    db.commit()
+    return {**said, **rfq_award.state(db, row)}
+
+
+@router.post("/{rfq_id}/approve")
+def approve_award(rfq_id: int, db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user),
+                  _may=Depends(auth.requires("stock.receive"))):
+    """Sign off who won. Never the person who chose them."""
+    row = _found(rfq_id, db)
+    try:
+        said = rfq_award.approve(db, row, user=user)
+    except rfq_award.AwardError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    db.commit()
+    return {**said, **rfq_award.state(db, row)}
+
+
+@router.post("/{rfq_id}/send-back")
+def send_back_award(rfq_id: int, body: dict = Body(default={}),
+                    db: Session = Depends(get_db),
+                    user: User = Depends(get_current_user),
+                    _may=Depends(auth.requires("stock.receive"))):
+    """Refuse the award and say why, so the buyer can choose again."""
+    row = _found(rfq_id, db)
+    try:
+        said = rfq_award.send_back(db, row, user=user,
+                                   reason=str(body.get("reason") or ""))
+    except rfq_award.AwardError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    db.commit()
+    return {**said, **rfq_award.state(db, row)}
+
+
+@router.post("/{rfq_id}/to-orders")
+def convert(rfq_id: int, db: Session = Depends(get_db),
+            user: User = Depends(get_current_user),
+            _may=Depends(auth.requires("stock.receive"))):
+    """Turn the APPROVED award into draft purchase orders."""
+    row = _found(rfq_id, db)
+    refused = rfq_award.why_refused(db, row)
+    if refused:
+        # 409 rather than 403: nothing is wrong with who is asking, the
+        # request is simply not in a state where this can be done yet.
+        raise HTTPException(409, refused)
+    try:
+        said = rfq_svc.to_orders(db, row, user=user)
     except rfq_svc.RfqError as exc:
         raise HTTPException(400, str(exc)) from exc
     db.commit()

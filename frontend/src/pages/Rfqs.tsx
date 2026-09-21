@@ -36,6 +36,25 @@ interface RfqRow {
   raised_automatically: boolean;
 }
 
+/** The status in words rather than in the database's spelling. */
+const SAYS_STATUS: Record<string, string> = {
+  draft: "draft",
+  sent: "out for quotation",
+  awaiting_approval: "waiting to be signed off",
+  closed: "orders raised",
+  cancelled: "cancelled",
+};
+
+interface Awaiting {
+  id: number;
+  reference: string;
+  value: number;
+  awarded_by: string;
+  awarded_at: string;
+  award_reason: string;
+  dearer_lines: number;
+}
+
 interface SupplierLite { id: number; name: string; email: string }
 
 export default function Rfqs() {
@@ -43,6 +62,7 @@ export default function Rfqs() {
   const [rows, setRows] = useState<RfqRow[] | null>(null);
   const [raising, setRaising] = useState(false);
   const [auto, setAuto] = useState(false);
+  const [queue, setQueue] = useState<Awaiting[]>([]);
 
   const load = useCallback(() => {
     api.get<{ rfqs: RfqRow[] }>("/api/rfqs")
@@ -50,6 +70,20 @@ export default function Rfqs() {
       .catch((e) => toast.error(errorText(e, "Requests could not be loaded.")));
   }, [toast]);
   useEffect(load, [load]);
+
+  // WHY THIS IS A QUEUE AND NOT A BADGE ON A ROW.
+  //
+  // Without somewhere to look, an approval step is a thing that happens to
+  // somebody at the moment they try to raise the orders: the worst time to
+  // discover it and the wrong person to discover it. The manager who can
+  // sign it off is not the person standing at that screen.
+  useEffect(() => {
+    api.get<{ rfqs: Awaiting[] }>("/api/rfqs/awaiting-approval")
+      .then((r) => setQueue(r.rfqs))
+      // Quiet: the list below still works, and a toast about a queue nobody
+      // asked for is noise on a screen somebody opened for something else.
+      .catch(() => setQueue([]));
+  }, []);
 
   return (
     <>
@@ -67,6 +101,35 @@ export default function Rfqs() {
           </button>
         </div>
       </div>
+
+      {queue.length > 0 && (
+        <div className="card rfq-queue">
+          <div className="rfq-queue-head">
+            <b>
+              {queue.length} award{queue.length === 1 ? "" : "s"} waiting to be
+              signed off
+            </b>
+            <span className="muted small">
+              Whoever chose the suppliers cannot approve their own choice.
+            </span>
+          </div>
+          <ul className="rfq-queue-list">
+            {queue.map((q) => (
+              <li key={q.id}>
+                <EntityLink to={`/rfqs/${q.id}`}>{q.reference}</EntityLink>
+                <span className="rfq-queue-worth">{money(q.value)}</span>
+                <span className="muted small">
+                  {[q.awarded_by ? `chosen by ${q.awarded_by}` : "",
+                    q.awarded_at ? fmtDate(q.awarded_at) : "",
+                    q.dearer_lines
+                      ? `${q.dearer_lines} line(s) where the cheapest lost`
+                      : "cheapest on every line"].filter(Boolean).join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="card">
         <Refreshable loading={rows === null} hasData={(rows?.length ?? 0) > 0}
@@ -104,7 +167,7 @@ export default function Rfqs() {
                         )}
                         {r.notes && <div className="muted small wrap">{r.notes}</div>}
                       </td>
-                      <td><span className="badge muted">{r.status}</span></td>
+                      <td><span className="badge muted">{SAYS_STATUS[r.status] ?? r.status}</span></td>
                       <td className="small">{fmtDate(r.created_at)}</td>
                       <td className="num">{r.line_count}</td>
                       {/* The only actionable thing here: who still owes an

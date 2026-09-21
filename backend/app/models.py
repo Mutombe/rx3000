@@ -1407,7 +1407,7 @@ class Rfq(Base, TenantMixin):
     #: nobody trusts, and the answer to "who asked for this" is "nobody, a
     #: line ran out".
     raised_automatically = Column(Boolean, default=False)
-    #: draft | sent | closed | cancelled
+    #: draft | sent | awaiting_approval | closed | cancelled
     status = Column(String(20), default="draft", index=True)
     notes = Column(Text, default="")
     #: When answers stop being accepted. A request with no closing date is one
@@ -1417,10 +1417,34 @@ class Rfq(Base, TenantMixin):
     created_at = Column(DateTime, default=datetime.utcnow)
     sent_at = Column(DateTime, nullable=True)
 
+    # WHO DECIDED WHERE THE MONEY GOES, AND WHO AGREED.
+    #
+    # Asking three wholesalers commits the pharmacy to nothing. Choosing
+    # which one wins commits it to the money, so that is the decision that
+    # carries a name and, over a value the pharmacy sets, a second one.
+    awarded_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    awarded_at = Column(DateTime, nullable=True)
+    #: Why the cheapest did not win. Required only when it did not, and asked
+    #: for at the one moment anybody still knows the answer.
+    award_reason = Column(Text, default="")
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    #: What it was worth when it was approved. Without this, approving a
+    #: small award and then changing it is a way to get anything signed off.
+    approved_value = Column(Float, default=0.0)
+    #: A refusal the buyer can act on. One with no reason produces the same
+    #: proposal again tomorrow.
+    award_refused_reason = Column(Text, default="")
+    award_refused_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    award_refused_at = Column(DateTime, nullable=True)
+
     lines = relationship("RfqLine", back_populates="rfq",
                          cascade="all, delete-orphan")
     invited = relationship("RfqSupplier", back_populates="rfq",
                            cascade="all, delete-orphan")
+    awarded_by = relationship("User", foreign_keys=[awarded_by_id])
+    approved_by = relationship("User", foreign_keys=[approved_by_id])
+    award_refused_by = relationship("User", foreign_keys=[award_refused_by_id])
 
 
 class RfqLine(Base, TenantMixin):
@@ -1430,9 +1454,15 @@ class RfqLine(Base, TenantMixin):
     rfq_id = Column(Integer, ForeignKey("rfqs.id"), nullable=False, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     quantity = Column(Integer, default=0)
+    #: Which wholesaler won this line. Written when the award is PROPOSED,
+    #: not held on somebody's screen, so that what a second person approves
+    #: is what actually gets raised.
+    chosen_rfq_supplier_id = Column(Integer, ForeignKey("rfq_suppliers.id"),
+                                    nullable=True)
 
     rfq = relationship("Rfq", back_populates="lines")
     product = relationship("Product")
+    chosen = relationship("RfqSupplier", foreign_keys=[chosen_rfq_supplier_id])
 
 
 class RfqSupplier(Base, TenantMixin):

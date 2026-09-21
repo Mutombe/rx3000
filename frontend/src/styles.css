@@ -12350,6 +12350,49 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .rfq-answer .dt input[type="checkbox"] { margin: 0; }
 .rfq-answer .dt tfoot th { font-variant-numeric: tabular-nums; }
 
+/* Awards waiting on somebody. Above the list, because it is the only thing
+   on this screen that is waiting on the person reading it. */
+.rfq-queue { border-color: var(--warn-line); background: var(--warn-soft); }
+.rfq-queue-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--s3); }
+.rfq-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.rfq-queue-list > li {
+  display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap;
+}
+.rfq-queue-worth { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------- the second signature on who won
+
+   Asking three wholesalers commits the pharmacy to nothing; choosing which
+   one wins commits it to the money. This is the card the approver reads, so
+   it leads on the figure being committed and on where the cheapest lost. */
+.rfq-approval { display: grid; gap: var(--s3); border-color: var(--warn-line); }
+.rfq-approval-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+.rfq-approval-worth { text-align: right; }
+.rfq-approval-worth b {
+  display: block; font-size: var(--t-xl); font-variant-numeric: tabular-nums;
+}
+/* The buyer's own sentence, set apart from our description of it: in six
+   weeks it is the only record of why the cheapest did not win. */
+.rfq-approval-reason p {
+  margin: 0; padding-left: var(--s3);
+  border-left: 3px solid var(--line); color: var(--ink);
+}
+.rfq-approval-acts {
+  display: flex; gap: var(--s2); justify-content: flex-end; flex-wrap: wrap;
+}
+.rfq-approval-back { display: grid; gap: var(--s2); }
+
+.rfq-foot-acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* Asking why the cheapest lost, before the award is made rather than as a
+   refusal afterwards. */
+.rfq-why { max-width: 46rem; }
+.rfq-why-list { max-height: 30vh; overflow-y: auto; margin-bottom: var(--s3); }
+.rfq-why-list td:first-child { white-space: normal; }
+
 /* What gets asked about by itself. The preview of what WOULD be asked sits
    under the choice, because "automatic" is a word that makes people assume
    the worst and a buyer who cannot see what a setting does leaves it alone. */
