@@ -28,10 +28,32 @@ interface Payment {
 interface Supplies {
   product_id: number; product: string; units_received: number; last_cost: number;
 }
+/** One thing the buying record says about this wholesaler, in a sentence
+ *  somebody can disagree with. See services/supplier_record for why these
+ *  are separate findings and not a score out of five. */
+interface Finding { tone: string; says: string }
+
+interface Quoting {
+  asked: number; answered: number; declined: number; never_answered: number;
+  avg_reply_days: number | null; lines_quoted: number; keenest_on: number;
+}
+
+interface Behaviour {
+  orders: number; orders_received: number;
+  units_ordered: number; units_received: number;
+  fill_rate: number | null; short_orders: number; lines_supplied: number;
+  units_outstanding: number;
+  spend: number; recent_spend: number;
+  avg_days: number | null; slowest_days: number | null; quickest_days: number | null;
+  last_ordered: string | null; last_delivered: string | null;
+  delivers: boolean; few_orders: boolean;
+  quoting: Quoting; findings: Finding[];
+}
+
 interface Data {
   id: number; name: string; contact_person: string; phone: string; email: string;
   owed: number; orders: Order[]; invoices: Invoice[];
-  payments: Payment[]; supplies: Supplies[];
+  payments: Payment[]; supplies: Supplies[]; record: Behaviour;
 }
 
 export default function SupplierDetail() {
@@ -132,13 +154,72 @@ export default function SupplierDetail() {
           hint: d.owed > 0 ? "unpaid invoices" : "nothing outstanding" },
         { label: "Orders", value: d.orders.length,
           hint: `${received} received` },
-        { label: "Invoices", value: d.invoices.length },
-        { label: "Paid to date",
-          value: money(d.payments.reduce((s, p) => s + p.amount, 0)) },
+        // THE TWO FIGURES A BUYER RENEWING TERMS ACTUALLY ARGUES FROM.
+        //
+        // What arrived of what was asked for, and how long it took. Both
+        // existed in the orders all along and neither had a screen, so the
+        // conversation with a wholesaler was held on what somebody
+        // remembered.
+        { label: "Arrives",
+          value: d.record.fill_rate === null ? "not known"
+            : `${Math.round(d.record.fill_rate * 100)}%`,
+          hint: d.record.fill_rate === null
+            ? (d.record.units_outstanding
+                ? `${d.record.units_outstanding} unit(s) still to come`
+                : "nothing delivered yet")
+            : d.record.short_orders
+              ? `${d.record.short_orders} order(s) came up short`
+              : "of what was ordered",
+          tone: d.record.fill_rate === null ? undefined
+            : d.record.delivers ? "ok" : "bad" },
+        { label: "Takes",
+          value: d.record.avg_days === null ? "not known"
+            : `${d.record.avg_days} days`,
+          hint: d.record.slowest_days !== null && d.record.quickest_days !== null
+            && d.record.slowest_days > d.record.quickest_days
+              ? `between ${d.record.quickest_days} and ${d.record.slowest_days}`
+              : "from sending the order" },
+        { label: "Spent with them", value: money(d.record.spend),
+          hint: d.record.recent_spend
+            ? `${money(d.record.recent_spend)} in the last 90 days`
+            : "nothing in the last 90 days" },
       ] : undefined}
     >
       {d && (
         <>
+          {/* Leads the page: a buyer opening a supplier is usually about to
+              order from them or about to stop, and both are decided on this
+              rather than on the invoice list. */}
+          <Panel title="How they behave" count={d.record.findings.length}
+                 empty="Nothing has been ordered from them yet, so there is
+                        nothing to judge.">
+            <ul className="sup-findings">
+              {d.record.findings.map((f, i) => (
+                <li key={i} className={`sup-finding is-${f.tone}`}>{f.says}</li>
+              ))}
+            </ul>
+            {d.record.quoting.asked > 0 && (
+              <div className="sup-quoting">
+                <div>
+                  <b>{d.record.quoting.answered} of {d.record.quoting.asked}</b>
+                  <span className="muted small">requests answered</span>
+                </div>
+                <div>
+                  <b>{d.record.quoting.keenest_on} of {d.record.quoting.lines_quoted}</b>
+                  <span className="muted small">lines they were cheapest on</span>
+                </div>
+                <div>
+                  <b>
+                    {d.record.quoting.avg_reply_days === null
+                      ? "not known"
+                      : `${d.record.quoting.avg_reply_days} days`}
+                  </b>
+                  <span className="muted small">to reply on average</span>
+                </div>
+              </div>
+            )}
+          </Panel>
+
           <Panel title="Invoices" count={d.invoices.length}
                  empty="Nothing has been billed by this supplier yet.">
             <table className="dt">

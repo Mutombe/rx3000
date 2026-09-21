@@ -7,7 +7,7 @@ refuses to pick a winner.
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .. import auth
 from ..auth import get_current_user
@@ -44,7 +44,7 @@ def _shape(db: Session, row: Rfq) -> dict:
         "closes_at": row.closes_at,
         "created_at": row.created_at,
         "sent_at": row.sent_at,
-        "lines": len(row.lines),
+        "line_count": len(row.lines),
         "asked": len(row.invited),
         "answered": answered,
         # The one figure that says whether this is worth chasing.
@@ -55,7 +55,11 @@ def _shape(db: Session, row: Rfq) -> dict:
 @router.get("")
 def list_rfqs(status: str = "", db: Session = Depends(get_db)):
     """Requests on file, newest first."""
-    query = db.query(Rfq)
+    # The lines and the invitations come with the request: `_shape` counts
+    # both, so without this the list is two queries per row and gets slower
+    # every time somebody asks a wholesaler for a price.
+    query = db.query(Rfq).options(joinedload(Rfq.lines),
+                                  joinedload(Rfq.invited))
     if status:
         query = query.filter(Rfq.status == status)
     rows = query.order_by(Rfq.created_at.desc()).limit(200).all()

@@ -19,7 +19,7 @@
  *  the server refuses to retire one that is still owed money: a creditor that
  *  stops appearing on the ageing is a debt nobody pays.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Warning } from "@phosphor-icons/react";
 
 import { api, errorText } from "../api";
@@ -43,6 +43,22 @@ interface Supplier {
   active: boolean;
 }
 
+/** How a wholesaler has actually behaved, from the buying record. Loaded
+ *  apart from the list on purpose: it is the more expensive query of the two,
+ *  and a supplier list that will not open because a performance figure could
+ *  not be worked out is a worse list than one without the figure. */
+interface Behaviour {
+  supplier_id: number;
+  fill_rate: number | null;
+  short_orders: number;
+  avg_days: number | null;
+  orders: number;
+  units_outstanding: number;
+  spend: number;
+  delivers: boolean;
+  few_orders: boolean;
+}
+
 const BLANK = {
   name: "", contact_person: "", phone: "", email: "",
   account_number: "", payment_terms: "", notes: "",
@@ -62,6 +78,18 @@ export default function Suppliers() {
   });
 
   const reload = list.reload;
+
+  const [records, setRecords] = useState<Record<number, Behaviour> | null>(null);
+  useEffect(() => {
+    api.get<{ suppliers: Behaviour[] }>("/api/suppliers/league")
+      .then((r) => setRecords(Object.fromEntries(
+        r.suppliers.map((s) => [s.supplier_id, s]))))
+      // Deliberately quiet, and the column says "not known" rather than
+      // going blank: the list itself is unaffected and a toast about a
+      // figure nobody asked for is noise on a screen somebody opened to
+      // change a phone number.
+      .catch(() => setRecords({}));
+  }, []);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -135,7 +163,11 @@ export default function Suppliers() {
               <table className="dt sup-table">
                 <thead>
                   <tr>
-                    <th>Supplier</th><th>Contact</th><th>Paid to</th>
+                    <th>Supplier</th><th>Contact</th>
+                    {/* The column a buyer renewing terms argues from. It was
+                        in the purchase orders all along and had no screen. */}
+                    <th>How they arrive</th>
+                    <th>Paid to</th>
                     <th>Terms</th><th className="actions" />
                   </tr>
                 </thead>
@@ -151,7 +183,7 @@ export default function Suppliers() {
                         {s.notes && <div className="muted small wrap">{s.notes}</div>}
                       </td>
                       <td>
-                        {s.contact_person || <span className="muted">—</span>}
+                        {s.contact_person || <span className="muted">not named</span>}
                         {s.phone && <div className="muted small">{s.phone}</div>}
                         {/* Truncated with an ellipsis and its full value on
                             hover: an address that simply stops mid-word looks
@@ -163,13 +195,17 @@ export default function Suppliers() {
                           </div>
                         )}
                       </td>
+                      <td>
+                        <SupplierRecord record={records?.[s.id]}
+                                        loading={records === null} />
+                      </td>
                       {/* The bank account, readable at last. A payment made
                           against a stale number is not a data-entry problem. */}
                       <td className="mono small">
                         {s.account_number || <span className="muted">not recorded</span>}
                       </td>
                       <td className="small">
-                        {s.payment_terms || <span className="muted">—</span>}
+                        {s.payment_terms || <span className="muted">none agreed</span>}
                       </td>
                       <td className="actions">
                         <button className="btn ghost small"
@@ -336,6 +372,48 @@ function SupplierForm({ supplier, onClose, onSaved }: {
           </BusyButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** One wholesaler's delivery record, in the width of a table cell.
+ *
+ *  Two facts and no score: what arrived of what was asked for, and how long
+ *  it took. See services/supplier_record for why there is no number out of
+ *  five, and why a blended one would be worse than either fact alone.
+ */
+function SupplierRecord({ record, loading }: {
+  record: Behaviour | undefined;
+  loading: boolean;
+}) {
+  if (loading) return <span className="muted small">…</span>;
+  if (!record || !record.orders) {
+    return <span className="muted small">never ordered from</span>;
+  }
+  // Waiting on them is not failing. An order still in transit used to drag
+  // this to a red "0% arrives", which branded most of the supplier list as
+  // total failures on the strength of having ordered from them yesterday.
+  if (record.fill_rate === null) {
+    return (
+      <span className="muted small">
+        {record.units_outstanding
+          ? `${record.units_outstanding} unit(s) still to come`
+          : `${record.orders} order(s), none delivered yet`}
+      </span>
+    );
+  }
+  return (
+    <div className="sup-record">
+      <span className={`badge ${record.delivers ? "ok" : "bad"}`}>
+        {Math.round(record.fill_rate * 100)}% arrives
+      </span>
+      <span className="muted small">
+        {[
+          record.avg_days !== null ? `${record.avg_days} days` : "",
+          record.short_orders ? `${record.short_orders} short` : "",
+          record.few_orders ? `${record.orders} order(s) only` : "",
+        ].filter(Boolean).join(" · ")}
+      </span>
     </div>
   );
 }

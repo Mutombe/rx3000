@@ -12273,6 +12273,37 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s4); flex-wrap: wrap;
 }
 
+/* The delivery record in a table cell: a badge and one line under it. */
+.sup-record { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+
+/* ------------------------------------------- how a wholesaler has behaved
+
+   A list of findings rather than a score out of five: the weights in a
+   blended score would be ours, and a shop that cannot hold stock cares far
+   more about lead time than about two percent on price. The colour says what
+   the pharmacy should feel about each one; the sentence says why. */
+.sup-findings { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.sup-finding {
+  padding: var(--s2) var(--s3);
+  border-left: 3px solid var(--line);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface-sunk);
+  font-size: var(--t-sm); line-height: 1.5; color: var(--ink);
+}
+.sup-finding.is-ok   { border-left-color: var(--ok);     background: var(--ok-soft); }
+.sup-finding.is-warn { border-left-color: var(--warn);   background: var(--warn-soft); }
+.sup-finding.is-bad  { border-left-color: var(--danger); background: var(--danger-soft); }
+
+/* Whether they answer when asked, which until now was recorded nowhere
+   anybody looked. */
+.sup-quoting {
+  display: grid; gap: var(--s3); margin-top: var(--s3);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  padding-top: var(--s3); border-top: 1px solid var(--line);
+}
+.sup-quoting > div { display: flex; flex-direction: column; gap: 2px; }
+.sup-quoting b { font-size: var(--t-lg); font-variant-numeric: tabular-nums; }
+
 /* --------------------------------------------------- who was asked, and how
 
    Above the comparison grid, because chasing a wholesaler is a different job

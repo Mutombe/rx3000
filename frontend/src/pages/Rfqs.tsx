@@ -26,7 +26,7 @@ interface RfqRow {
   notes: string;
   closes_at: string | null;
   created_at: string;
-  lines: number;
+  line_count: number;
   asked: number;
   answered: number;
   waiting_on: number;
@@ -91,7 +91,7 @@ export default function Rfqs() {
                       </td>
                       <td><span className="badge muted">{r.status}</span></td>
                       <td className="small">{fmtDate(r.created_at)}</td>
-                      <td className="num">{r.lines}</td>
+                      <td className="num">{r.line_count}</td>
                       {/* The only actionable thing here: who still owes an
                           answer. A request nobody has replied to needs
                           chasing; one everybody has replied to needs

@@ -80,6 +80,7 @@ interface Detail {
   notes: string;
   closes_at: string | null;
   lines: Line[];
+  line_count: number;
   suppliers: Invited[];
   waiting_on: string[];
   saving: number;

@@ -26,7 +26,7 @@ from ..models import (
     PrescriptionItem, Product, PurchaseOrder, PurchaseOrderItem, Sale, Shift,
     StockBatch, StockMovement, Supplier, SupplierInvoice, SupplierPayment, User,
 )
-from ..services import counselling, payables
+from ..services import counselling, payables, supplier_record
 
 router = APIRouter(prefix="/api", tags=["detail"],
                    dependencies=[Depends(get_current_user)])
@@ -49,6 +49,35 @@ def _person(patient: Patient | None) -> dict:
 
 
 # ------------------------------------------------------------------ supplier
+
+# DECLARED ABOVE /suppliers/{supplier_id}, AND IT HAS TO BE.
+#
+# FastAPI matches in declaration order, so a static path below a
+# parameterised one is read as a value for the parameter: this would be a
+# supplier whose id is the word "league", and the screen would answer 422
+# with nothing on it to explain why. Same trap that took
+# /orders/awaiting-approval down.
+@router.get("/suppliers/league")
+def supplier_league(db: Session = Depends(get_db)):
+    """Every wholesaler side by side, dearest relationship first.
+
+    Ordered by spend rather than by any measure of quality, because the
+    supplier worth ten minutes of an owner's attention is the one taking the
+    most money, whether they are the best on the list or the worst.
+    """
+    rows = supplier_record.league(db)
+    return {
+        "suppliers": rows,
+        "spend": round(sum(r["spend"] for r in rows), 2),
+        # The two an owner opens this page to find.
+        "worst_fill": min(
+            (r for r in rows if r["fill_rate"] is not None and r["orders"] >= 2),
+            key=lambda r: r["fill_rate"], default=None),
+        "slowest": max(
+            (r for r in rows if r["avg_days"] is not None),
+            key=lambda r: r["avg_days"], default=None),
+    }
+
 
 @router.get("/suppliers/{supplier_id}")
 def supplier(supplier_id: int, db: Session = Depends(get_db)):
@@ -104,7 +133,18 @@ def supplier(supplier_id: int, db: Session = Depends(get_db)):
                       "units_received": int(units or 0),
                       "last_cost": round(cost or 0.0, 2)}
                      for pid, name, strength, units, cost in lines],
+        # How they have actually behaved, read down the supplier rather than
+        # across the product. See services/supplier_record for why there is
+        # no score out of five.
+        "record": supplier_record.card(db, row),
     }
+
+
+@router.get("/suppliers/{supplier_id}/record")
+def supplier_performance(supplier_id: int, db: Session = Depends(get_db)):
+    """Just the behaviour, for anything that wants it without the ledger."""
+    return supplier_record.card(db, _found(db.get(Supplier, supplier_id),
+                                           "supplier"))
 
 
 # --------------------------------------------------------------------- claim

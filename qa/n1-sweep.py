@@ -54,6 +54,29 @@ def wanted_paths() -> list[str]:
     return sorted(found)
 
 
+def _rows_in(body) -> int:
+    """How many rows an endpoint returned, whatever shape it chose.
+
+    This used to read `body["lines"]` and call len() on it. An endpoint whose
+    "lines" is a COUNT rather than a list took the whole sweep down with a
+    TypeError, so one unexpected shape stopped this guard checking the
+    fourteen endpoints after it. A guard that dies on a surprise is not a
+    guard; it takes the first row it does not recognise and reports nought.
+    """
+    if isinstance(body, list):
+        return len(body)
+    if not isinstance(body, dict):
+        return 0
+    for key in ("items", "queue", "lines", "rows", "results", "data"):
+        value = body.get(key)
+        if isinstance(value, list):
+            return len(value)
+    # Otherwise the longest list anywhere at the top level, which is what a
+    # named collection like {"rfqs": [...]} or {"suppliers": [...]} is.
+    lists = [len(v) for v in body.values() if isinstance(v, list)]
+    return max(lists) if lists else 0
+
+
 def main() -> int:
     top = 0
     if "--top" in sys.argv:
@@ -78,9 +101,7 @@ def main() -> int:
             rows.append((0, took, counter["n"], path, f"HTTP {response.status_code}"))
             continue
         body = response.json()
-        count = (len(body) if isinstance(body, list)
-                 else len(body.get("items", body.get("queue", body.get("lines", []))))
-                 if isinstance(body, dict) else 0)
+        count = _rows_in(body)
         rows.append((counter["n"], took, count, path, ""))
 
     rows.sort(reverse=True)
