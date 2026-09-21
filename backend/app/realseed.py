@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import collections
+import logging
 import random
 import re
 import sys
@@ -45,6 +46,8 @@ from .models import (
     Shift, StockBatch, Supplier, SupplierInvoice, SupplierInvoiceItem,
     SupplierPayment, SupplierPaymentAllocation, User,
 )
+
+log = logging.getLogger(__name__)
 
 # A fixed seed, so two people running this get the same pharmacy and can talk
 # about "the Chirenje script" and mean the same one.
@@ -257,9 +260,14 @@ def _clear_placeholders(db: Session) -> dict[str, int]:
             PrescriptionItem.product_id.in_(probe_ids)
         ).delete(synchronize_session=False)
 
-        batch_ids = [r[0] for r in db.execute(text(
-            "SELECT id FROM stock_batches WHERE product_id IN ("
-            + ",".join(str(int(i)) for i in probe_ids) + ")")).fetchall()] if probe_ids else []
+        # Through the ORM like the deletes around it, rather than raw SQL with
+        # the ids pasted into the string. It was already bounded in practice,
+        # since `probe_ids` is a scoped query and a product belongs to one
+        # pharmacy, but "safe because of something two statements away" is the
+        # reasoning that put another pharmacy's takings in the demo ledger.
+        # This is safe by construction instead.
+        batch_ids = [r[0] for r in db.query(StockBatch.id)
+                     .filter(StockBatch.product_id.in_(probe_ids)).all()]
         _delete_where_in(db, "batch_allocations", "batch_id", batch_ids)
 
         for table in ["authorisations", "branch_transfers", "deal_items",
@@ -520,6 +528,33 @@ def _username_for_tenant(db: Session, username: str) -> str:
     if owner is None or here is None or owner[0] == here:
         return username
     return f"{username}.{here}"
+
+
+def _only_here(column: str = "pharmacy_id") -> tuple[str, dict]:
+    """A WHERE fragment restricting raw SQL to the pharmacy being seeded.
+
+    RAW SQL IS NOT SCOPED, AND NOTHING WARNS YOU
+
+    Tenancy is enforced by a `do_orm_execute` hook that adds loader criteria to
+    ORM queries. `db.execute(text("SELECT ... FROM sales"))` is not an ORM
+    query, so the hook never sees it and the statement reads every pharmacy on
+    the database. That is invisible in development, where there is one, and it
+    stays invisible in production until the day a second tenant is seeded.
+
+    What it cost: the takings below summed `FROM sales` with no predicate. On a
+    fresh tenant nothing is in `posted_takings`, so seeding the demonstration
+    pharmacy would have posted every other pharmacy's daily revenue into its
+    ledger — a customer's takings, by day, readable by any prospect who opened
+    the general ledger. It had not fired only because `_ledger` was never
+    reached from the demo path.
+
+    Returns an empty fragment when no pharmacy is in force, which is the case
+    on the development CLI and keeps its behaviour exactly as it was.
+    """
+    here = tenancy.current_pharmacy_id()
+    if here is None:
+        return "", {}
+    return f" AND {column} = :only_here ", {"only_here": here}
 
 
 def _retire_expired_demos(db: Session) -> int:
@@ -1268,7 +1303,12 @@ def _allocate_batches(db: Session) -> dict[str, int]:
     tells the truth about which batch a patient actually got.
     """
     made = collections.Counter()
-    if db.execute(text("SELECT COUNT(*) FROM batch_allocations")).scalar() > 50:
+    # Scoped, because "has this already been done" is a question about THIS
+    # pharmacy. Counted across the database, one tenant's allocations were
+    # enough to make every later tenant skip the stage and get none.
+    scope, args = _only_here()
+    if db.execute(text("SELECT COUNT(*) FROM batch_allocations WHERE 1 = 1"
+                       + scope), args).scalar() > 50:
         return dict(made)
 
     # Batches per product, soonest expiry first: that is the order stock leaves
@@ -1290,10 +1330,17 @@ def _allocate_batches(db: Session) -> dict[str, int]:
             if batch["left"] <= 0:
                 continue
             take = min(batch["left"], want)
+            # pharmacy_id written explicitly. A raw INSERT does not go through
+            # the before_flush handler that stamps ORM objects, so these rows
+            # were landing with a null pharmacy — which is not "visible to
+            # everyone" but visible to NOBODY, since a scoped query narrows to
+            # the tenant in force and never matches null.
             db.execute(text(
-                "INSERT INTO batch_allocations (batch_id, sale_item_id, quantity, created_at) "
-                "VALUES (:b, :s, :q, :t)"),
-                {"b": batch["id"], "s": line_id, "q": take, "t": datetime.now()})
+                "INSERT INTO batch_allocations "
+                "  (batch_id, sale_item_id, quantity, created_at, pharmacy_id) "
+                "VALUES (:b, :s, :q, :t, :p)"),
+                {"b": batch["id"], "s": line_id, "q": take,
+                 "t": datetime.now(), "p": tenancy.current_pharmacy_id()})
             batch["left"] -= take
             want -= take
             made["batch allocations"] += 1
@@ -1424,10 +1471,11 @@ def _ledger(db: Session) -> dict[str, int]:
     # claims sat outstanding. The books said nobody owed the pharmacy anything
     # while the claims screen said otherwise, and both were reading the same
     # database.
+    scope, args = _only_here()
     marked = db.execute(text(
         "UPDATE sales SET payment_method = 'medical_aid' "
         " WHERE payment_method <> 'medical_aid' "
-        "   AND id IN (SELECT sale_id FROM claims)")).rowcount
+        "   AND id IN (SELECT sale_id FROM claims)" + scope), args).rowcount
     if marked:
         db.commit()
         made["sales billed to a scheme"] = marked
@@ -1449,7 +1497,8 @@ def _ledger(db: Session) -> dict[str, int]:
         "SELECT DATE(created_at) AS d, "
         "       SUM(total) AS gross, "
         "       SUM(CASE WHEN payment_method = 'medical_aid' THEN total ELSE 0 END) AS aid "
-        "  FROM sales GROUP BY DATE(created_at) ORDER BY d")).mappings().all()
+        "  FROM sales WHERE 1 = 1" + scope
+        + " GROUP BY DATE(created_at) ORDER BY d"), args).mappings().all()
 
     for row in rows:
         gross = round(float(row["gross"] or 0.0), 2)
@@ -1513,7 +1562,7 @@ def _ledger(db: Session) -> dict[str, int]:
                       .filter(JournalEntry.source == "banking").all()}
     weeks = db.execute(text(
         "SELECT MIN(DATE(created_at)) AS start, MAX(DATE(created_at)) AS finish "
-        "  FROM sales")).mappings().first()
+        "  FROM sales WHERE 1 = 1" + scope), args).mappings().first()
     if weeks and weeks["start"]:
         start = weeks["start"] if isinstance(weeks["start"], date) else date.fromisoformat(str(weeks["start"]))
         finish = weeks["finish"] if isinstance(weeks["finish"], date) else date.fromisoformat(str(weeks["finish"]))
@@ -1526,8 +1575,9 @@ def _ledger(db: Session) -> dict[str, int]:
             week = db.execute(text(
                 "SELECT COALESCE(SUM(total), 0) AS t FROM sales "
                 " WHERE payment_method <> 'medical_aid' "
-                "   AND DATE(created_at) > :from_day AND DATE(created_at) <= :to_day"),
-                {"from_day": day - timedelta(days=7), "to_day": day}).scalar()
+                "   AND DATE(created_at) > :from_day AND DATE(created_at) <= :to_day"
+                + scope),
+                {"from_day": day - timedelta(days=7), "to_day": day, **args}).scalar()
             # A float of the week's takings, kept back to open the till on
             # Monday. Banking every last cent is not what anybody does.
             amount = round(float(week or 0.0) * RNG.uniform(0.82, 0.93), 2)
@@ -2391,6 +2441,28 @@ def run_if_thin(db: Session, *, days: int = 60) -> dict[str, int]:
     made.update(_laybys(db, patients, products, cashiers))
     made.update(_shifts(db, cashiers, days))
     made.update(_crm(db, cashiers))
+
+    # THE BOOKS, LAST, BECAUSE THEY READ WHAT EVERY STAGE ABOVE WROTE.
+    #
+    # Missing here until now, and only the development CLI called it. So the
+    # demonstration tenant had a fortnight of trade and no ledger: a prospect
+    # who opened General Ledger found an empty trial balance, blank statements,
+    # a blank cash flow and a banner saying two hundred settled sales had not
+    # reached the ledger. Every financial screen in the product showed nothing,
+    # to exactly the audience being asked to buy it.
+    #
+    # It could not simply be called: `_ledger` summed `FROM sales` in raw SQL
+    # with no tenant predicate, so wiring it up as it stood would have posted
+    # every other pharmacy's daily takings into the demonstration ledger. It is
+    # scoped now; see `_only_here`.
+    try:
+        made.update(_ledger(db))
+    except Exception:                              # noqa: BLE001
+        # A tenant with trade and no books is worth having; a sign-up that
+        # fails because the books would not write is not. The stages above are
+        # already committed, and `_ledger` is idempotent, so a later run
+        # finishes the job rather than doubling it.
+        log.exception("Seeding wrote the trade but not the books.")
     return made
 
 

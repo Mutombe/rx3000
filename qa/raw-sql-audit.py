@@ -30,7 +30,16 @@ TRUSTED = {
     "migrate.py":            "schema migrations, run at startup before serving",
     "tenancy_backfill.py":   "stamps existing rows with their pharmacy, at startup",
     "database.py":           "connection setup; touches no tenant table",
-    "realseed.py":           "seeding, run deliberately and never from a request",
+    # realseed.py WAS here, justified as "run deliberately and never from a
+    # request". That was true when it was written and stopped being true the
+    # day self-service demonstrations arrived: POST /api/auth/demo seeds a new
+    # pharmacy, from the public internet, on the database that holds paying
+    # customers. The exemption outlived its reason and nothing said so, which
+    # is how the seeder came to sum `FROM sales` across every tenant and stand
+    # ready to post one pharmacy's takings into another's ledger.
+    #
+    # An exemption is a claim about how code is reached. When the ways in
+    # change, the claim has to be re-earned rather than inherited.
     "backup.py":             "whole-database backup, behind the platform guard",
     "backup_verify.py":      "checks a backup file, behind the platform guard",
 }
