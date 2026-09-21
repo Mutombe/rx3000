@@ -10,7 +10,7 @@
  *  chasing, and one everybody has replied to needs deciding.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "@phosphor-icons/react";
+import { Plus, Robot } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
@@ -18,6 +18,7 @@ import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
+import RfqAuto from "./RfqAuto";
 
 interface RfqRow {
   id: number;
@@ -30,6 +31,9 @@ interface RfqRow {
   asked: number;
   answered: number;
   waiting_on: number;
+  /** Raised by the nightly job rather than by a person. Shown, because a
+   *  draft nobody remembers creating is a draft nobody trusts. */
+  raised_automatically: boolean;
 }
 
 interface SupplierLite { id: number; name: string; email: string }
@@ -38,6 +42,7 @@ export default function Rfqs() {
   const toast = useToast();
   const [rows, setRows] = useState<RfqRow[] | null>(null);
   const [raising, setRaising] = useState(false);
+  const [auto, setAuto] = useState(false);
 
   const load = useCallback(() => {
     api.get<{ rfqs: RfqRow[] }>("/api/rfqs")
@@ -54,6 +59,9 @@ export default function Rfqs() {
           <div className="sub">Ask several wholesalers, compare, then buy</div>
         </div>
         <div className="page-actions">
+          <button className="btn secondary" onClick={() => setAuto(true)}>
+            <Robot size={14} /> Asking by itself
+          </button>
           <button className="btn primary" onClick={() => setRaising(true)}>
             <Plus size={14} weight="bold" /> Ask for prices
           </button>
@@ -87,6 +95,13 @@ export default function Rfqs() {
                     <tr key={r.id}>
                       <td>
                         <EntityLink to={`/rfqs/${r.id}`}>{r.reference}</EntityLink>
+                        {r.raised_automatically && (
+                          <span className="badge muted" title={
+                            "Raised by the nightly job because these lines had "
+                            + "run out. Nothing was sent to any supplier."}>
+                            raised for you
+                          </span>
+                        )}
                         {r.notes && <div className="muted small wrap">{r.notes}</div>}
                       </td>
                       <td><span className="badge muted">{r.status}</span></td>
@@ -121,6 +136,11 @@ export default function Rfqs() {
       {raising && (
         <NewRfq onClose={() => setRaising(false)}
                 onRaised={() => { setRaising(false); load(); }} />
+      )}
+
+      {auto && (
+        <RfqAuto onClose={() => setAuto(false)}
+                 onRaised={() => { setAuto(false); load(); }} />
       )}
     </>
   );
@@ -187,7 +207,7 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
 
         <div className="rfq-new-grid">
           <div>
-            <label className="lbl">What to ask about</label>
+            <label className="field-label">What to ask about</label>
             <div className="rfq-new-list">
               {low.length === 0 && (
                 <p className="muted small">Nothing is at its reorder level.</p>
@@ -204,7 +224,7 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
           </div>
 
           <div>
-            <label className="lbl">Who to ask</label>
+            <label className="field-label">Who to ask</label>
             <div className="rfq-new-list">
               {suppliers.map((s) => (
                 <label key={s.id} className="rfq-new-line">

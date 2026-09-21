@@ -13,7 +13,7 @@ from .. import auth
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Pharmacy, Rfq, RfqSupplier, User
-from ..services import portal_tokens
+from ..services import config, portal_tokens, rfq_auto
 from ..services import rfq as rfq_svc
 from ..tenancy import current_pharmacy_id
 
@@ -45,6 +45,7 @@ def _shape(db: Session, row: Rfq) -> dict:
         "created_at": row.created_at,
         "sent_at": row.sent_at,
         "line_count": len(row.lines),
+        "raised_automatically": bool(row.raised_automatically),
         "asked": len(row.invited),
         "answered": answered,
         # The one figure that says whether this is worth chasing.
@@ -87,6 +88,74 @@ def create_rfq(body: dict = Body(default={}), db: Session = Depends(get_db),
     db.refresh(row)
     return {**_shape(db, row),
             "message": f"{row.reference} raised. Nothing has been asked yet."}
+
+
+@router.get("/auto")
+def auto_settings(db: Session = Depends(get_db)):
+    """What would be asked about this morning, and whether it happens by itself.
+
+    Declared above /{rfq_id} deliberately: FastAPI matches in declaration
+    order and this would otherwise be read as a request numbered "auto".
+    """
+    rows = rfq_auto.candidates(db)
+    return {
+        "trigger": rfq_auto.trigger(db),
+        "choices": list(rfq_auto.TRIGGERS),
+        "waiting": [
+            {"product_id": p.id,
+             "product": f"{p.name} {p.strength or ''}".strip(),
+             "on_hand": p.quantity_on_hand or 0,
+             "reorder_level": p.reorder_level or 0,
+             "wanted": rfq_auto.wanted(p)}
+            for p in rows
+        ],
+        "most_lines": rfq_auto.MOST_LINES,
+        # Said plainly, because "automatic" makes people assume the worst.
+        "note": ("Raised as a draft every morning at a quarter past seven. "
+                 "Nothing is ever emailed to a supplier by itself."),
+    }
+
+
+@router.post("/auto")
+def set_auto(body: dict = Body(default={}), db: Session = Depends(get_db),
+             _may=Depends(auth.requires("stock.receive"))):
+    """Choose what gets asked about by itself."""
+    want = str(body.get("trigger") or "").strip().lower()
+    if want not in rfq_auto.TRIGGERS:
+        raise HTTPException(
+            400, "Choose one of: " + ", ".join(rfq_auto.TRIGGERS) + ".")
+    config.put(db, rfq_auto.SETTING, want)
+    db.commit()
+    said = {
+        "off": "Nothing will be raised automatically. Ask for prices by hand.",
+        "out_of_stock": "A draft request will be raised each morning for "
+                        "anything that has run out.",
+        "reorder": "A draft request will be raised each morning for anything "
+                   "at or below its reorder level.",
+    }[want]
+    return {"trigger": want, "message": said}
+
+
+@router.post("/auto/run")
+def run_auto_now(db: Session = Depends(get_db),
+                 _may=Depends(auth.requires("stock.receive"))):
+    """Raise it now rather than waiting for the morning.
+
+    A line that runs out at eleven should not have to wait until tomorrow to
+    be asked about, and a buyer who has just turned this on wants to see what
+    it does before trusting it overnight.
+    """
+    row = rfq_auto.raise_one(db)
+    if row is None:
+        return {"raised": False,
+                "message": ("Nothing has run out that is not already on order "
+                            "or already out for quotation.")}
+    db.commit()
+    db.refresh(row)
+    return {"raised": True, "id": row.id, "reference": row.reference,
+            "message": (f"{row.reference} raised with {len(row.lines)} line(s), "
+                        f"asking {len(row.invited)} supplier(s). Check it, "
+                        "then send it.")}
 
 
 @router.get("/{rfq_id}")

@@ -1402,6 +1402,11 @@ class Rfq(Base, TenantMixin):
     __tablename__ = "rfqs"
     id = Column(Integer, primary_key=True)
     reference = Column(String(30), nullable=False, index=True)
+    #: True when the nightly job raised it rather than a person. Shown on
+    #: the screen, because a draft nobody remembers creating is a draft
+    #: nobody trusts, and the answer to "who asked for this" is "nobody, a
+    #: line ran out".
+    raised_automatically = Column(Boolean, default=False)
     #: draft | sent | closed | cancelled
     status = Column(String(20), default="draft", index=True)
     notes = Column(Text, default="")

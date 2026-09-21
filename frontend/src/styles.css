@@ -12350,6 +12350,28 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .rfq-answer .dt input[type="checkbox"] { margin: 0; }
 .rfq-answer .dt tfoot th { font-variant-numeric: tabular-nums; }
 
+/* What gets asked about by itself. The preview of what WOULD be asked sits
+   under the choice, because "automatic" is a word that makes people assume
+   the worst and a buyer who cannot see what a setting does leaves it alone. */
+.rfq-auto { max-width: 42rem; }
+.rfq-auto-choices { display: grid; gap: var(--s2); margin-bottom: var(--s4); }
+.rfq-auto-choice {
+  display: flex; align-items: flex-start; gap: var(--s3);
+  padding: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); cursor: pointer;
+}
+.rfq-auto-choice.on { border-color: var(--accent); background: var(--accent-soft); }
+.rfq-auto-choice input[type="radio"] { margin-top: 3px; flex: 0 0 auto; }
+.rfq-auto-choice > span { display: flex; flex-direction: column; gap: 2px; }
+/* The list scrolls rather than pushing the button that acts on it off the
+   bottom of a twenty five line request. */
+.rfq-auto-list { max-height: 32vh; overflow-y: auto; }
+/* The medicine wraps rather than truncating. "Methylphenidate 1..." is not
+   something anybody can check a quantity against, and a buyer reading this
+   list is deciding whether to let it be sent. */
+.rfq-auto-list td:first-child { white-space: normal; }
+
 /* Adding a wholesaler to a request already out: the ones who actually supply
    these lines first, everybody else under them. */
 .rfq-invite { max-width: 34rem; }
@@ -12379,7 +12401,24 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s2); min-height: 36px; padding: 2px 4px;
 }
 .rfq-new-line input[type="number"] { width: 7ch; text-align: right; }
-.lbl {
+/* A heading over a group of controls.
+ *
+ * THIS WAS CALLED .lbl AND WORE A DISPENSING STICKER
+ *
+ * `.lbl` was already taken, by the 58mm x 42mm thermal label a patient takes
+ * home (see the block near the print styles). Two unrelated components
+ * answering to one class name is not a draw: the later rule wins only on the
+ * properties it happens to mention, and everything it leaves out is supplied
+ * by the other one. So these headings kept the sticker's width, minimum
+ * height, padding, white fill and border, and rendered as an empty bordered
+ * box 219px wide and 159px tall with three words at the top of it. On the
+ * quotation screens that had already shipped.
+ *
+ * Renamed rather than patched with the missing properties, because the next
+ * person to add a property to the sticker would break these again and have no
+ * way of knowing.
+ */
+.field-label {
   display: block; font-size: var(--t-xs); text-transform: uppercase;
   letter-spacing: .08em; color: var(--ink-soft); margin-bottom: var(--s1);
 }

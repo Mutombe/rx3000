@@ -101,7 +101,7 @@ export default function InviteSupplier({ rfqId, already, onClose, onInvited }: {
 
         {newOnes.length > 0 && (
           <>
-            <label className="lbl">Who has supplied these lines before</label>
+            <label className="field-label">Who has supplied these lines before</label>
             <div className="rfq-invite-list">
               {newOnes.map((s) => (
                 <label key={s.supplier_id} className="rfq-invite-row">
@@ -121,7 +121,7 @@ export default function InviteSupplier({ rfqId, already, onClose, onInvited }: {
           </>
         )}
 
-        <label className="lbl">
+        <label className="field-label">
           {newOnes.length > 0 ? "Everybody else" : "Suppliers"}
         </label>
         <div className="rfq-invite-list">

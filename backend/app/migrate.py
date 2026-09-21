@@ -317,6 +317,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # means every existing row prices and stocks exactly as it did before
         # this column arrived, so the migration alone changes nothing.
         "units_per_pack": "INTEGER DEFAULT 1"},
+    "rfqs": {
+        # Whether the nightly job raised it or a person did. 0 on every
+        # existing row, which is what they all were.
+        "raised_automatically": "BOOLEAN DEFAULT 0",
+    },
     "rfq_suppliers": {
         # WHO ACTUALLY TYPED THE PRICE.
         #

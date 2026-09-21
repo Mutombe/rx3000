@@ -66,6 +66,29 @@ def whole(db: Session, key: str, default: int) -> int:
     return int(number(db, key, default))
 
 
+def put(db: Session, key: str, value: str) -> str:
+    """Write a setting, for a choice that does not belong on the settings screen.
+
+    Most settings are declared in `settings_router` and edited there. A few
+    are not, because the choice only makes sense beside something else: what
+    to ask wholesalers about automatically is one, and it needs the list of
+    what WOULD be asked next to it, which a row in a generic settings table
+    cannot show.
+
+    Does not commit. The caller owns the transaction, because this is nearly
+    always one part of a change that has other parts.
+    """
+    from datetime import datetime
+
+    row = db.query(Setting).filter(Setting.key == key).first()
+    if row:
+        row.value = value
+        row.updated_at = datetime.utcnow()
+    else:
+        db.add(Setting(key=key, value=value, updated_at=datetime.utcnow()))
+    return value
+
+
 def flag(db: Session, key: str, default: bool = False) -> bool:
     """A yes or no, in the several shapes a screen might have written one."""
     raw = text(db, key, "").lower()

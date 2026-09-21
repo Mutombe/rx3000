@@ -195,6 +195,36 @@ def sweep_the_shelves() -> str:
         db.close()
 
 
+def ask_around() -> str:
+    """Put this morning's finished lines out for quotation, as drafts.
+
+    Never sends. See services/rfq_auto for why a machine emailing
+    wholesalers unattended is one bad night's data away from costing the
+    pharmacy the thing it cannot buy back, which is a supplier's willingness
+    to answer the next request.
+
+    Unlike the shelf sweep this runs PER PHARMACY rather than unscoped,
+    because it writes rows that belong to one shop and takes a reference
+    number that is issued per shop.
+    """
+    from ..models import Pharmacy
+    from ..tenancy import unscoped
+    from . import rfq_auto
+
+    db = job_session()
+    try:
+        with unscoped():
+            shops = db.query(Pharmacy).all()
+        result = rfq_auto.run(db, shops)
+        return (f"{result['raised']} request(s) raised, "
+                f"{result['nothing_to_ask']} pharmacy(ies) had nothing to ask")
+    except Exception as exc:                                   # noqa: BLE001
+        log.exception("The automatic quotation run did not finish")
+        return f"automatic quotations failed: {exc}"
+    finally:
+        db.close()
+
+
 def start() -> None:
     scheduler.add_job(queue_repeat_reminders, "cron", hour=7, minute=0, id="repeats")
     scheduler.add_job(queue_birthday_messages, "cron", hour=7, minute=5, id="birthdays")
@@ -204,6 +234,10 @@ def start() -> None:
     # whoever unlocks the door finds the morning's findings already on the
     # screen rather than having to go looking for them.
     scheduler.add_job(sweep_the_shelves, "cron", hour=7, minute=10, id="stock-watch")
+    # A quarter past, after the sweep has established what has run out, so
+    # the request is raised against this morning's shelves rather than
+    # yesterday's. Drafts only: nothing is emailed by a machine.
+    scheduler.add_job(ask_around, "cron", hour=7, minute=15, id="auto-rfq")
     scheduler.start()
     log.info("Scheduler started")
 
