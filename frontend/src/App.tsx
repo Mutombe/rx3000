@@ -19,6 +19,7 @@ const BatchDetail = lazy(() => import("./pages/BatchDetail"));
 const MovementDetail = lazy(() => import("./pages/MovementDetail"));
 const GoodsReceiptDetail = lazy(() => import("./pages/GoodsReceiptDetail"));
 const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
+const StockTakeDetail = lazy(() => import("./pages/StockTakeDetail"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -202,6 +203,9 @@ export default function App() {
                     return could be listed and never opened. */}
                 <Route path="/deliveries/:id" element={<GoodsReceiptDetail />} />
                 <Route path="/returns/:id" element={<SupplierReturnDetail />} />
+                {/* Past counts were unreachable: the screen loaded the open
+                    one and no endpoint listed the rest. */}
+                <Route path="/stock-takes/:id" element={<StockTakeDetail />} />
                 <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
                 <Route path="/staff/:id" element={<StaffDetail />} />
                 <Route path="/prescribers/:id" element={<PrescriberDetail />} />

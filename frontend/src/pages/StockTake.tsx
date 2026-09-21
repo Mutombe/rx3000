@@ -21,6 +21,19 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import { useScanFeed } from "../components/ScannerHub";
 import { Product } from "../types";
+
+/** One count on file, as the history list needs it. */
+interface PastTake {
+  id: number;
+  reference: string;
+  status: string;
+  closed_at: string | null;
+  counted_lines: number;
+  variance_units: number;
+  variance_value: number;
+  over_units: number;
+  short_units: number;
+}
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
 
@@ -56,6 +69,14 @@ interface CountReply {
 
 export default function StockTake() {
   const toast = useToast();
+  /** Counts already closed. Null while loading, so the panel can hold its
+   *  shape rather than flashing an empty state at somebody. */
+  const [past, setPast] = useState<PastTake[] | null>(null);
+  useEffect(() => {
+    api.get<{ items: PastTake[] }>("/api/stock-takes?page=1&per_page=25")
+      .then((r) => setPast(r.items))
+      .catch((e) => toast.error(errorText(e, "The count history could not be read.")));
+  }, []);
   useScanFeed("Stock count", (code) => void fromPhone(code));
   const confirm = useConfirm();
   const { guarded, prompt } = useStepUp();
@@ -486,6 +507,72 @@ export default function StockTake() {
           </div>
         </>
       )}
+
+      {/* EVERY COUNT EVER DONE, WHICH WAS UNREACHABLE.
+          The screen loaded the count currently open and showed nothing else,
+          because no endpoint listed them. So every completed count — the
+          variances found, what they were worth, when they closed — sat on the
+          database with no way to it. A variance is the start of an insurance
+          claim, a write-off, or a conversation with somebody about missing
+          stock, and it is the record a pharmacy is most likely to be asked
+          for months later. */}
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <h3>Counts already done</h3>
+            <span className="muted small">
+              What each one found, and what it was worth.
+            </span>
+          </div>
+        </div>
+        {past === null ? (
+          <TableSkeleton cols={5} rows={3} />
+        ) : past.length === 0 ? (
+          <div className="empty">
+            <b>No counts have been closed yet.</b>
+            <p>Once a count is closed it stays here with what it found.</p>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="dt">
+              <thead>
+                <tr>
+                  <th>Reference</th><th>Status</th><th>Closed</th>
+                  <th className="num">Lines</th>
+                  <th className="num">Over</th>
+                  <th className="num">Short</th>
+                  <th className="num">Worth</th>
+                </tr>
+              </thead>
+              <tbody>
+                {past.map((t) => (
+                  <tr key={t.id}>
+                    <td>
+                      <EntityLink to={`/stock-takes/${t.id}`}>{t.reference}</EntityLink>
+                    </td>
+                    <td><span className="badge muted">{t.status}</span></td>
+                    <td className="small">
+                      {t.closed_at ? fmtDateTime(t.closed_at)
+                                   : <span className="muted">still open</span>}
+                    </td>
+                    <td className="num">{t.counted_lines}</td>
+                    {/* Over and short kept apart. A count 40 over and 40 short
+                        nets to nothing and is not a clean count, it is two
+                        errors. */}
+                    <td className="num">{t.over_units || <span className="muted">—</span>}</td>
+                    <td className="num">{t.short_units || <span className="muted">—</span>}</td>
+                    <td className="num">
+                      <span className={t.variance_value < 0 ? "neg" : undefined}>
+                        {money(t.variance_value)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </>
   );
 }

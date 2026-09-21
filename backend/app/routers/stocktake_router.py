@@ -33,7 +33,7 @@ from ..auth import get_current_user
 from ..database import get_db
 from ..models import Product, StockTake, StockTakeLine, User
 from ..services import branches as branch_svc
-from ..services import bins, config, stepup
+from ..services import bins, config, paging, stepup
 
 router = APIRouter(prefix="/api/stock-takes", tags=["stock take"],
                    dependencies=[Depends(get_current_user)])
@@ -178,6 +178,33 @@ def count_sheet(take_id: int, db: Session = Depends(get_db)):
         "counted_lines": done,
         "outstanding": len(rows) - done,
     }
+
+
+@router.get("")
+def list_takes(status: str = "", page: int = 1,
+               per_page: int = paging.DEFAULT_PER_PAGE,
+               db: Session = Depends(get_db)):
+    """Every count on file, newest first.
+
+    THIS DID NOT EXIST, AND SO NEITHER DID THE HISTORY
+
+    There was an endpoint for the count currently open and an endpoint for one
+    named count, and nothing that listed them. The screen therefore loaded the
+    open one and showed nothing else, so every count ever completed —  the
+    variances found, what they were worth, who closed them — was on the
+    database and unreachable from the product.
+
+    A stock take is the one record a pharmacy is most likely to be asked to
+    produce months later: a variance is the start of an insurance claim, a
+    write-off, or a conversation with somebody about missing stock. It has to
+    be findable.
+    """
+    query = db.query(StockTake)
+    if status:
+        query = query.filter(StockTake.status == status)
+    result = paging.page(query.order_by(StockTake.created_at.desc()),
+                         page=page, per_page=per_page)
+    return result.envelope(lambda t: _out(db, t))
 
 
 @router.get("/open")
