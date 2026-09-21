@@ -20,6 +20,31 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 _DAMAGED = re.compile(r"[\s,]|^\d+\.\d+$")
 
 
+#: What a NULL becomes, per declared type, where the type has one
+#: unambiguous empty value.
+#:
+#: Extended from `str` alone after the same trap took down two more
+#: screens. A product page 500'd because 970 of one customer's 2,631
+#: batches have no `received_at`; the movements list was one NULL away
+#: from going the same way in four separate fields. A sweep of the
+#: schemas found 161 required fields sitting over nullable columns, which
+#: is not 161 mistakes — it is one mistake made structurally, because
+#: `Column(Integer, default=0)` reads as "always set" and the default
+#: applies to an ORM insert and to nothing else. Anything that arrived by
+#: import, by migration or by raw SQL carries NULL quite legitimately.
+#:
+#: A count that is NULL is nought, a flag that is NULL is false, an amount
+#: that is NULL is zero, and a text field that is NULL is empty. Each of
+#: those is what the column's own default says a new row would hold, so
+#: the answer is the same one the database would have given.
+#:
+#: Dates are deliberately NOT here. There is no empty date: nought would
+#: be 1970 and today would be a lie, and a screen showing either is worse
+#: than one saying nothing. Those fields are declared Optional where the
+#: column allows NULL, and a reader must handle "not recorded".
+EMPTY_FOR = {str: "", int: 0, float: 0.0, bool: False}
+
+
 class ORM(BaseModel):
     """Base for anything read out of the database.
 
@@ -49,15 +74,23 @@ class ORM(BaseModel):
     # anything on it, and that means a getattr on every field — including
     # relationships, which would fire a lazy load per row and turn a fixed 500
     # into an N+1. This sees one value at a time and touches nothing else.
+    # Per field rather than per model, deliberately. A model-level 'before'
+    # validator would have to flatten the ORM instance into a dict to override
+    # anything on it, and that means a getattr on every field — including
+    # relationships, which would fire a lazy load per row and turn a fixed 500
+    # into an N+1. This sees one value at a time and touches nothing else.
     @field_validator("*", mode="before")
     @classmethod
-    def _null_text_is_empty(cls, v, info):
+    def _null_scalar_is_empty(cls, v, info):
         if v is not None:
             return v
         field = cls.model_fields.get(info.field_name)
-        # Only bare `str`. Optional[str] means "None is meaningful here" and an
-        # int or a date must keep failing loudly.
-        return "" if field is not None and field.annotation is str else v
+        if field is None:
+            return v
+        # Only a bare scalar. `Optional[int]` means "None is meaningful here"
+        # and must be left alone, and anything else — a date, a nested model,
+        # a list — must keep failing loudly rather than being invented.
+        return EMPTY_FOR.get(field.annotation, v)
 
 
 # ---------- auth ----------
