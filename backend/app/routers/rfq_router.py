@@ -13,6 +13,7 @@ from .. import auth
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import Pharmacy, Rfq, RfqSupplier, User
+from ..services import portal_tokens
 from ..services import rfq as rfq_svc
 from ..tenancy import current_pharmacy_id
 
@@ -123,6 +124,36 @@ def send_rfq(rfq_id: int, db: Session = Depends(get_db),
         raise HTTPException(400, str(exc)) from exc
     db.commit()
     return said
+
+
+@router.get("/{rfq_id}/suppliers/{invited_id}/link")
+def supplier_link(rfq_id: int, invited_id: int, db: Session = Depends(get_db)):
+    """The wholesaler's own quote link, for sending by hand.
+
+    The email carries it already. This is for the supplier who says they never
+    received it, or who wants it on WhatsApp instead, which in Zimbabwe is
+    most of them.
+    """
+    row = _found(rfq_id, db)
+    invited = db.get(RfqSupplier, invited_id)
+    if invited is None or invited.rfq_id != row.id:
+        raise HTTPException(404, "That supplier was not asked for this request.")
+    link = rfq_svc.quote_link(db, invited)
+    who = invited.supplier.name if invited.supplier else "the supplier"
+    return {
+        "link": link,
+        "supplier": who,
+        "send_to": (invited.supplier.email or "") if invited.supplier else "",
+        "expires_in_days": portal_tokens.DEFAULT_TTL // 86400,
+        # Written to be sent as it stands. A pharmacy that has to compose the
+        # message itself sends a bare URL with no explanation.
+        "share_text": (
+            f"Good day. {_pharmacy_name(db) or 'We'} would like your best "
+            f"price on {len(row.lines)} item(s), reference {row.reference}. "
+            f"You can enter them here: {link}"),
+        "message": f"Link for {who} created. It lasts "
+                   f"{portal_tokens.DEFAULT_TTL // 86400} days.",
+    }
 
 
 @router.post("/{rfq_id}/answers/{invited_id}")

@@ -33,7 +33,13 @@ from sqlalchemy.orm import Session
 from .. import helpers
 from ..models import (Product, PurchaseOrder, PurchaseOrderItem, Rfq, RfqLine,
                       RfqQuote, RfqSupplier, Supplier, User)
-from . import messaging, sourcing
+from . import config, messaging, portal_tokens, sourcing
+
+
+#: Where a supplier's quote link points. The application's own host, because
+#: that is where `/quote/` exists; see `quote_link` for why the prettier
+#: rx5000.com address is a setting rather than the default.
+DEFAULT_PORTAL_BASE = "https://rx3000-app.onrender.com"
 
 
 class RfqError(Exception):
@@ -123,7 +129,7 @@ def document(db: Session, rfq: Rfq, *, pharmacy_name: str = "") -> str:
         if strength and strength.lower() not in name.lower():
             name = f"{name} {strength}"
         code = ((product.stock_code or product.barcode or "") if product else "")
-        rows.append(f"{line.quantity:>6}  {code or '—':<14}  {name[:46]}")
+        rows.append(f"{line.quantity:>6}  {code or '':<14}  {name[:46]}")
 
     when = (f"Please reply by {rfq.closes_at:%d %B %Y}."
             if rfq.closes_at else "Please reply at your earliest convenience.")
@@ -142,6 +148,38 @@ def document(db: Session, rfq: Rfq, *, pharmacy_name: str = "") -> str:
         when,
         "Please include your lead time in working days for each line.",
     ])
+
+
+def quote_link(db: Session, invited: RfqSupplier) -> str:
+    """The address a wholesaler fills their own prices in at.
+
+    A LINK, NOT AN ACCOUNT
+
+    Nobody at a wholesaler is going to create an account to quote a pharmacy
+    for eight boxes of amoxicillin. Asking them to is how a supplier portal
+    ends up unused and the prices go on being read down a telephone. So the
+    link is the credential, exactly as it already is for a patient checking a
+    repeat: signed with the application secret, scoped to this one request and
+    this one supplier, and expiring.
+
+    It is also what removes the last transcription step. A price typed by the
+    person selling it needs nobody to write it down afterwards, and "who
+    recorded this" stops being a question anybody has to ask.
+
+    WHY THE DEFAULT IS THE APP'S OWN ADDRESS AND NOT THE PRETTY ONE
+
+    `rx5000.com` is the marketing site; the application is served from its own
+    host, and `/quote/` only exists on the application. The nicer address
+    needs a redirect rule on the site, exactly as `/scanner` did. Until that
+    rule is in place, defaulting to the pretty address would put a link in a
+    wholesaler's email that opens a brochure, and a supplier who clicks a dead
+    link does not click a second one. So the default is the address that
+    works, and `portal.base_url` is there to make it the pretty one the moment
+    the rule exists.
+    """
+    token = portal_tokens.issue(kind="rfq", subject_id=invited.id)
+    base = config.text(db, "portal.base_url", DEFAULT_PORTAL_BASE).rstrip("/")
+    return f"{base}/quote/{token}"
 
 
 def send(db: Session, rfq: Rfq, *, pharmacy_name: str = "") -> dict:
@@ -166,7 +204,17 @@ def send(db: Session, rfq: Rfq, *, pharmacy_name: str = "") -> dict:
             # cannot ring a list they cannot see.
             skipped.append(supplier.name if supplier else f"#{invited.supplier_id}")
             continue
-        ok, _how = messaging.send_email(address, subject, body)
+        # Their own link, so they can answer by typing rather than by
+        # telephoning somebody who then types it for them.
+        link = quote_link(db, invited)
+        ok, _how = messaging.send_email(
+            address, subject,
+            "\n".join([
+                body, "",
+                "You can enter your prices here, which saves us both a "
+                "telephone call:",
+                link, "",
+            ]))
         if not ok:
             skipped.append(f"{supplier.name} ({address})")
             continue
@@ -195,15 +243,18 @@ def send(db: Session, rfq: Rfq, *, pharmacy_name: str = "") -> dict:
 
 def record(db: Session, invited: RfqSupplier, *, answers: list[dict],
            user: User | None = None, declined: bool = False,
-           note: str = "") -> dict:
+           note: str = "", by_supplier: bool = False) -> dict:
     """Write down what a wholesaler said.
 
-    Entered by staff today, because a supplier cannot sign in yet. Who wrote
-    it down is kept, since a price nobody can attribute is a price nobody can
-    query.
+    Either the supplier typed it into their own link, or somebody here wrote
+    down what they were told on the telephone. Both are kept, and which one it
+    was is kept too: a price nobody can attribute is a price nobody can query,
+    and a price the seller typed themselves is the only one with nothing
+    between the quote and the record.
     """
     invited.responded_at = datetime.utcnow()
-    invited.recorded_by_id = getattr(user, "id", None)
+    invited.self_quoted = bool(by_supplier)
+    invited.recorded_by_id = None if by_supplier else getattr(user, "id", None)
     invited.declined = bool(declined)
     invited.note = (note or "").strip()[:400]
 
@@ -234,6 +285,71 @@ def record(db: Session, invited: RfqSupplier, *, answers: list[dict],
                        f"{invited.supplier.name if invited.supplier else 'that supplier'}."}
 
 
+# ------------------------------------------------------------ their own view
+
+def portal_view(db: Session, invited: RfqSupplier, *,
+                pharmacy_name: str = "") -> dict:
+    """What one wholesaler sees on their own link.
+
+    WHAT IS DELIBERATELY NOT HERE
+
+    Not one other supplier's name, and not one other supplier's price. A
+    quotation screen that shows a wholesaler what the others have bid is not a
+    quotation, it is an auction the pharmacy did not mean to run, and the
+    prices it produces are worse for everybody on the second round. Each link
+    shows this supplier's own lines, their own answers, and nothing else.
+
+    Their previous answer comes back filled in, because a supplier correcting
+    one price should not have to retype the other eleven, and a blank form on
+    a second visit is how a corrected quote loses the lines nobody changed.
+    """
+    rfq = invited.rfq
+    mine = {q.rfq_line_id: q for q in invited.quotes}
+    lines = []
+    for line in rfq.lines:
+        product = line.product
+        name = (product.name if product else f"#{line.product_id}")
+        strength = (product.strength or "") if product else ""
+        if strength and strength.lower() not in name.lower():
+            name = f"{name} {strength}"
+        quote = mine.get(line.id)
+        lines.append({
+            "rfq_line_id": line.id,
+            "product": name,
+            # Their own code where the pharmacy has one on file, because a
+            # wholesaler matches on the pack, not on our name for it.
+            "code": ((product.stock_code or product.barcode or "")
+                     if product else ""),
+            "pack": (product.pack_size if product else "") or "",
+            "quantity": line.quantity,
+            "available": (bool(quote.available) if quote else True),
+            "unit_price": (round(quote.unit_price, 4)
+                           if quote and quote.unit_price else None),
+            "lead_days": quote.lead_days if quote else None,
+            "note": (quote.note or "") if quote else "",
+        })
+
+    closed = rfq.status in ("closed", "cancelled")
+    return {
+        "reference": rfq.reference,
+        "pharmacy": pharmacy_name,
+        "supplier": invited.supplier.name if invited.supplier else "",
+        "notes": rfq.notes or "",
+        "closes_at": rfq.closes_at,
+        "lines": lines,
+        "answered_at": invited.responded_at,
+        "declined": bool(invited.declined),
+        "their_note": invited.note or "",
+        # Said rather than implied. A form that silently refuses to save is
+        # how a supplier concludes the link is broken and telephones instead.
+        "closed": closed,
+        "closed_because": (
+            f"{rfq.reference} has already been decided, so it can no longer "
+            "be answered here. Please ring the pharmacy."
+            if closed else ""),
+    }
+
+
 # --------------------------------------------------------------- comparing
 
 def compare(db: Session, rfq: Rfq) -> dict:
@@ -249,9 +365,15 @@ def compare(db: Session, rfq: Rfq) -> dict:
             "supplier_id": i.supplier_id,
             "supplier": i.supplier.name if i.supplier else "",
             "sent_at": i.sent_at,
+            "opened_at": i.opened_at,
             "responded_at": i.responded_at,
             "declined": bool(i.declined),
             "note": i.note or "",
+            # Where the figure came from, shown rather than assumed. See
+            # `record` for why this is not inferred from `recorded_by_id`.
+            "self_quoted": bool(i.self_quoted),
+            "recorded_by": (i.recorded_by.full_name
+                            if getattr(i, "recorded_by", None) else ""),
         }
 
     lines = []

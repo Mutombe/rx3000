@@ -24,13 +24,16 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Check, PaperPlaneTilt } from "@phosphor-icons/react";
+import { ArrowLeft, Check, PaperPlaneTilt, Plus, Prohibit } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import InviteSupplier from "./RfqInvite";
+import SupplierCard from "./RfqSuppliers";
 
 interface Answer {
   rfq_supplier_id: number;
@@ -60,9 +63,14 @@ interface Invited {
   supplier_id: number;
   supplier: string;
   sent_at: string | null;
+  opened_at: string | null;
   responded_at: string | null;
   declined: boolean;
   note: string;
+  /** True when the wholesaler typed it into their own link. See the note on
+   *  provenance below: this is not the same as an empty `recorded_by`. */
+  self_quoted: boolean;
+  recorded_by: string;
 }
 
 interface Detail {
@@ -87,7 +95,9 @@ export default function RfqDetail() {
   /** Which supplier is chosen for each line, keyed by line. */
   const [picks, setPicks] = useState<Record<number, number>>({});
   const [showDoc, setShowDoc] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const load = useCallback(() => {
     api.get<Detail>(`/api/rfqs/${id}`)
@@ -117,6 +127,27 @@ export default function RfqDetail() {
       load();
     } catch (e) {
       toast.error(errorText(e, "Those choices could not be turned into orders."));
+    }
+  }
+
+  /** Abandon the request. Needs confirming because the wholesalers who were
+   *  asked are not told, and somebody will ring about it next week. */
+  async function cancel() {
+    const sure = await confirm({
+      title: `Cancel ${row?.reference}?`,
+      body: "The suppliers who were asked are not told. Anyone who opens their "
+        + "link afterwards finds it closed, so ring the ones whose goodwill "
+        + "you want to keep.",
+      confirmLabel: "Cancel the request",
+      destructive: true,
+    });
+    if (!sure) return;
+    try {
+      const done = await api.post<{ message: string }>(`/api/rfqs/${id}/cancel`);
+      toast.ok(done.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That request could not be cancelled."));
     }
   }
 
@@ -154,18 +185,39 @@ export default function RfqDetail() {
       loading={!row && !error}
       error={error}
       actions={
-        <Link to="/rfqs" className="btn secondary">
-          <ArrowLeft size={13} weight="bold" /> Quotes
-        </Link>
+        <>
+          {/* Abandoning is an action on the whole request, so it belongs
+              here rather than buried among the per-supplier buttons. */}
+          {row && row.status !== "closed" && row.status !== "cancelled" && (
+            <button type="button" className="btn secondary" onClick={cancel}>
+              <Prohibit size={13} /> Cancel this request
+            </button>
+          )}
+          <Link to="/rfqs" className="btn secondary">
+            <ArrowLeft size={13} weight="bold" /> Quotes
+          </Link>
+        </>
       }
       facts={row ? [
-        // "Everybody has replied" was said when nobody had been asked:
-        // `waiting_on` counts suppliers who were SENT and have not answered,
-        // and on a draft that list is empty for the opposite reason.
+        // READ OFF THE FACTS, NOT OFF THE STATUS.
+        //
+        // Twice now this line has said something untrue by reasoning from
+        // the wrong thing. First "everybody has replied" when nobody had
+        // been asked, because `waiting_on` counts suppliers who were SENT
+        // and is empty on a draft for the opposite reason. Then "nobody has
+        // been asked yet" beside "1 of 1", because a draft can carry an
+        // answer: a wholesaler with a link can fill it in, and staff can
+        // write down a telephone call, both before the request is sent.
+        //
+        // So the order below is answered, then outstanding, then nobody
+        // invited, then not sent — each one checked against the count it
+        // actually describes.
         { label: "Answered", value: `${row.answered} of ${row.asked}`,
-          hint: row.status === "draft" ? "nobody has been asked yet"
+          hint: row.asked === 0 ? "nobody has been invited yet"
             : row.waiting_on.length ? `waiting on ${row.waiting_on.join(", ")}`
-            : row.answered ? "everybody has replied"
+            : row.answered === row.asked ? "everybody has replied"
+            : row.answered ? `${row.asked - row.answered} still to reply`
+            : row.status === "draft" ? "nobody has been asked yet"
             : "nobody has replied yet" },
         { label: "Status", value: row.status },
         { label: "Closes", value: row.closes_at ? fmtDate(row.closes_at) : "no date",
@@ -178,15 +230,44 @@ export default function RfqDetail() {
     >
       {row && (
         <>
+          {/* A draft that already carries an answer has plainly been asked
+              about, by telephone or by a link sent by hand, so it does not
+              get told that nothing has been asked. Same rule as the fact
+              above it: read the counts, not the status. */}
           {row.status === "draft" && (
             <div className="alert">
-              Nothing has been asked yet.{" "}
+              {row.answered
+                ? `Nothing has been emailed yet, though ${row.answered} of `
+                  + `${row.asked} have already answered. `
+                : "Nothing has been asked yet. "}
               <button type="button" className="btn-link"
                       onClick={() => setShowDoc(true)}>
                 See what will be sent
               </button>
             </div>
           )}
+
+          {/* WHO HAS ANSWERED, AND HOW TO CHASE THEM.
+              Above the grid rather than in its column headings, because
+              chasing a wholesaler is a different job from comparing prices
+              and wants room for the two things it needs: their own link, and
+              somewhere to type what they said on the telephone. */}
+          <Panel title="Who was asked" count={row.suppliers.length}
+                 empty="Nobody has been invited to quote."
+                 aside={row.status !== "closed" && row.status !== "cancelled" ? (
+                   <button type="button" className="btn secondary small"
+                           onClick={() => setInviting(true)}>
+                     <Plus size={13} weight="bold" /> Ask another supplier
+                   </button>
+                 ) : undefined}>
+            <div className="rfq-who">
+              {row.suppliers.map((s) => (
+                <SupplierCard key={s.rfq_supplier_id} rfqId={id!} invited={s}
+                              lines={row.lines} closed={row.status === "closed"}
+                              onRecorded={load} />
+              ))}
+            </div>
+          </Panel>
 
           <Panel
             title="What each wholesaler said"
@@ -293,6 +374,12 @@ export default function RfqDetail() {
                 Raise the orders
               </BusyButton>
             </div>
+          )}
+
+          {inviting && (
+            <InviteSupplier rfqId={id!} already={row.suppliers.map((s) => s.supplier_id)}
+                            onClose={() => setInviting(false)}
+                            onInvited={() => { setInviting(false); load(); }} />
           )}
 
           {showDoc && (

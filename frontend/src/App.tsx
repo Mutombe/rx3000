@@ -57,6 +57,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 // tablets are ready must not download a point-of-sale system to find out.
 const PatientPortal = lazy(() => import("./portal/PatientPortal"));
 const DoctorPortal = lazy(() => import("./portal/DoctorPortal"));
+const SupplierQuote = lazy(() => import("./portal/SupplierQuote"));
 const PhoneScanner = lazy(() => import("./pages/PhoneScanner"));
 const Accounts = lazy(() => import("./pages/Accounts"));
 const Admin = lazy(() => import("./pages/Admin"));
@@ -156,6 +157,14 @@ export default function App() {
       <Route
         path="/portal/doctor/:token"
         element={<Suspense fallback={null}><DoctorPortal /></Suspense>}
+      />
+      {/* A wholesaler quoting from a link in an email. Public for the same
+          reason the patient's is, and at the short address on purpose: this
+          one is pasted into emails and read off screens by people who have
+          never heard of us, and /quote/ is what it is. */}
+      <Route
+        path="/quote/:token"
+        element={<Suspense fallback={null}><SupplierQuote /></Suspense>}
       />
       {/* A phone borrowed as a scanner. Public for the same reason the portal
           is: nobody signs in here. The pairing code shown on the counter's

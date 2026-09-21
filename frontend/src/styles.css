@@ -12273,6 +12273,68 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s4); flex-wrap: wrap;
 }
 
+/* --------------------------------------------------- who was asked, and how
+
+   Above the comparison grid, because chasing a wholesaler is a different job
+   from comparing prices: it needs their link and somewhere to type what they
+   said on the telephone, neither of which fits in a column heading. */
+.rfq-who {
+  display: grid; gap: var(--s3);
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+}
+.rfq-who-card {
+  display: flex; flex-direction: column; gap: var(--s1);
+  padding: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.rfq-who-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s2); flex-wrap: wrap;
+}
+/* What the supplier themselves wrote, marked as theirs rather than run in
+   with our own notes about them. */
+.rfq-who-note {
+  padding-left: var(--s2);
+  border-left: 2px solid var(--line);
+}
+.rfq-who-acts {
+  display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: auto;
+  padding-top: var(--s2);
+}
+.rfq-who-acts .btn { flex: 1 1 auto; justify-content: center; }
+
+/* Writing down a telephone answer. Wide, because it is a price, a lead time
+   and a cannot-supply tick per line and all three want to be visible at once. */
+.rfq-answer { max-width: 56rem; }
+/* The medicine name takes whatever the numbers do not, and wraps rather than
+   truncating: "Albendazole 40..." is not a medicine anybody can price. */
+.rfq-answer .dt td:first-child { white-space: normal; min-width: 14rem; }
+/* 9ch, not 8. At 8 the "days" placeholder and a four figure price both lost
+   their last character, which is the same bug that printed "not se" into the
+   Pastel box and "not sai" into this very column on the first attempt. */
+.rfq-answer .dt input.st-control {
+  width: 9ch; text-align: right; font-variant-numeric: tabular-nums;
+}
+.rfq-answer .dt input[type="checkbox"] { margin: 0; }
+.rfq-answer .dt tfoot th { font-variant-numeric: tabular-nums; }
+
+/* Adding a wholesaler to a request already out: the ones who actually supply
+   these lines first, everybody else under them. */
+.rfq-invite { max-width: 34rem; }
+.rfq-invite-list {
+  max-height: 30vh; overflow-y: auto; margin-bottom: var(--s3);
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  padding: var(--s2);
+}
+.rfq-invite-row {
+  display: flex; align-items: flex-start; gap: var(--s2);
+  min-height: 40px; padding: var(--s1) var(--s1);
+  cursor: pointer;
+}
+.rfq-invite-row input[type="checkbox"] { margin-top: 3px; flex: 0 0 auto; }
+.rfq-invite-row > span { display: flex; flex-direction: column; gap: 1px; }
+
 /* Raising a request: what to ask about on the left, who to ask on the right. */
 .rfq-new { max-width: 52rem; }
 .rfq-new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s4); }

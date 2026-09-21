@@ -192,6 +192,7 @@
   border-color: var(--pp-bad);
 }
 .pp .pp-alert-warn { background: var(--pp-warn-bg); color: var(--pp-warn); }
+.pp .pp-alert-ok { background: var(--pp-ok-bg); color: var(--pp-ok); }
 
 /* ---------- tabs ---------- */
 .pp .pp-tabs {
@@ -332,6 +333,99 @@
   letter-spacing: 0; cursor: pointer;
 }
 .pp button:disabled { opacity: 0.4; cursor: default; }
+
+/* -------------------------------------------------- the wholesaler's quote
+   A supplier filling in prices from a link in an email, on whatever is to
+   hand. The layout is a row per line: what is wanted on the left, the three
+   things they have to type on the right, and the extended total beside the
+   price that produced it.
+
+   Every property is declared here for the reason stated at the top of this
+   file: these are routes inside the staff application, so the staff sheet is
+   loaded and claims anything this one does not. */
+.pp .sq-intro { margin: 0 0 14px; }
+
+.pp .sq-line {
+  display: grid; gap: 10px 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  padding: 14px 0; border-bottom: 1px solid var(--pp-line);
+}
+.pp .sq-line:last-child { border-bottom: 0; padding-bottom: 0; }
+/* A line they cannot supply recedes rather than disappearing: it is still an
+   answer, and the tick that made it is still there to be unticked. */
+.pp .sq-line.is-out .sq-what,
+.pp .sq-line.is-out .sq-fields { opacity: 0.5; }
+
+.pp .sq-what b {
+  display: block; font-size: 1rem; font-weight: 600; color: var(--pp-ink);
+}
+.pp .sq-what .pp-muted { margin-top: 3px; font-size: 0.85rem; }
+
+.pp .sq-fields {
+  display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
+}
+.pp .sq-fields label { margin-bottom: 0; font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--pp-faint); }
+.pp .sq-price { width: 8.5rem; }
+.pp .sq-lead { width: 6rem; }
+.pp .sq-fields input {
+  /* Tabular figures and right alignment: a column of prices somebody is
+     checking for a misplaced decimal point wants its points in a line. */
+  text-align: right; font-variant-numeric: tabular-nums;
+  min-height: 46px; padding: 10px 12px;
+}
+.pp .sq-fields input:disabled {
+  background: var(--pp-canvas); color: var(--pp-faint);
+}
+
+.pp .sq-total {
+  min-width: 7rem; padding: 6px 0 8px; text-align: right;
+}
+.pp .sq-total-label {
+  display: block; font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--pp-faint);
+}
+.pp .sq-total b {
+  display: block; margin-top: 4px; font-size: 1.05rem; font-weight: 650;
+  color: var(--pp-ink); font-variant-numeric: tabular-nums;
+}
+
+/* The checkbox is the one control on this page that must NOT be full width,
+   which is what the staff sheet and the rule above would both give it. */
+.pp .sq-out {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; gap: 9px;
+  margin: 0; font-size: 0.88rem; font-weight: 500; color: var(--pp-mid);
+  cursor: pointer;
+}
+.pp .sq-out input[type="checkbox"] {
+  width: 20px; height: 20px; min-height: 0; margin: 0; padding: 0;
+  flex: 0 0 auto; accent-color: var(--pp-brand);
+}
+
+.pp .sq-foot { display: grid; gap: 12px; }
+.pp .sq-tally {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+}
+.pp .sq-tally .pp-muted { margin: 0; text-align: right; }
+
+/* A label a screen reader reads and a sighted person does not need, because
+   the heading above the box already says it. */
+.pp .sr-only-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  /* On a phone the row stacks and the fields go full width, because a
+     8.5rem price box beside a 6rem lead box does not fit a thumb. */
+  .pp .sq-line { grid-template-columns: 1fr; }
+  .pp .sq-fields { gap: 10px; }
+  .pp .sq-price, .pp .sq-lead { flex: 1 1 8rem; width: auto; }
+  .pp .sq-total { flex: 1 1 100%; text-align: left; }
+}
 
 /* A secondary action, "add another medicine", which must not look like the
    one that sends the script. */

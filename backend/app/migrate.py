@@ -317,6 +317,23 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # means every existing row prices and stocks exactly as it did before
         # this column arrived, so the migration alone changes nothing.
         "units_per_pack": "INTEGER DEFAULT 1"},
+    "rfq_suppliers": {
+        # WHO ACTUALLY TYPED THE PRICE.
+        #
+        # `recorded_by_id` answers which member of staff wrote down what they
+        # were told on the telephone. It cannot answer the more useful
+        # question, because a NULL there means both "the supplier entered it
+        # themselves" and "we do not know". Those are opposite levels of
+        # confidence in a figure somebody is about to spend money on, so they
+        # get their own column. 0 on every existing row, which is what they
+        # all were: every quote on file was transcribed by somebody here.
+        "self_quoted": "BOOLEAN DEFAULT 0",
+        # When their own link was last opened, so "asked, no reply yet" can
+        # tell a wholesaler who never saw it from one who read it and is
+        # thinking about it. The first needs re-sending; the second needs
+        # ringing.
+        "opened_at": "TIMESTAMP",
+    },
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},
     "dispensings": {

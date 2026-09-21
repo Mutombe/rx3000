@@ -28,8 +28,10 @@ from sqlalchemy.orm import Session
 
 from .. import auth, tenancy
 from ..database import get_db
-from ..models import Doctor, Patient, Prescription, PrescriptionItem, Product, Sale, User
+from ..models import (Doctor, Patient, Pharmacy, Prescription, PrescriptionItem,
+                      Product, RfqSupplier, Sale, User)
 from ..services import patient_portal, portal_tokens
+from ..services import rfq as rfq_svc
 
 # Unauthenticated by design: the link or the prescriber login is the credential.
 router = APIRouter(prefix="/api/portal", tags=["portals"])
@@ -222,6 +224,95 @@ def preview_as_patient(patient_id: int, db: Session = Depends(get_db)):
         "code": patient.portal_code or "",
         "note": ("This is what the patient sees. Nothing here is a live "
                  "portal session. It is their record, read through your own."),
+    }
+
+
+# ------------------------------------------------------------ supplier portal
+def _invited_from(token: str, db: Session) -> RfqSupplier:
+    """The wholesaler a signed link names, and their pharmacy put in force.
+
+    Same shape as `_patient_from`, and for the same reason: a portal request
+    carries no session, so no pharmacy is in force, so the ordinary tenant
+    filter matches nothing and every link would answer "no longer available".
+    The token is the authority — signed, naming one supplier on one request,
+    and expiring — so the row is read unscoped, deliberately and only here,
+    and the pharmacy is then set so everything read afterwards belongs to the
+    shop that sent the request and cannot reach another tenant's data.
+    """
+    try:
+        rid = portal_tokens.read(token, expect="rfq")
+    except portal_tokens.TokenError as e:
+        raise HTTPException(401, str(e))
+
+    with tenancy.unscoped():
+        invited = db.get(RfqSupplier, rid)
+    if not invited:
+        raise HTTPException(404, "This request is no longer available.")
+    if invited.pharmacy_id:
+        tenancy.set_current_pharmacy(invited.pharmacy_id)
+        tenancy.stamp(db)
+    return invited
+
+
+def _asking_pharmacy(db: Session) -> str:
+    pid = tenancy.current_pharmacy_id()
+    row = db.get(Pharmacy, pid) if pid else None
+    return (row.trading_name or row.name) if row else ""
+
+
+@router.get("/quote/{token}")
+def quote_form(token: str, db: Session = Depends(get_db)):
+    """What a wholesaler sees when they open the link in the email.
+
+    No sign-in, because nobody at a wholesaler will create an account to quote
+    a pharmacy for eight boxes of amoxicillin, and asking them to is how a
+    supplier portal ends up unused and the prices go on being read down a
+    telephone.
+    """
+    invited = _invited_from(token, db)
+    # Opened is not answered, and the difference is worth keeping: a
+    # wholesaler who never saw the request needs it re-sending, one who read
+    # it and went quiet needs ringing. Those are different phone calls.
+    if invited.opened_at is None:
+        invited.opened_at = datetime.utcnow()
+        db.commit()
+    return rfq_svc.portal_view(db, invited,
+                               pharmacy_name=_asking_pharmacy(db))
+
+
+@router.post("/quote/{token}")
+def submit_quote(token: str, body: dict = Body(default={}),
+                 db: Session = Depends(get_db)):
+    """The wholesaler's own prices, typed by the wholesaler.
+
+    This is the whole point of the portal: a price entered by the person
+    selling it needs nobody here to write it down afterwards, so "who recorded
+    this" stops being a question anybody has to ask.
+
+    It stays editable until the request is decided. A supplier who spots a
+    mistyped price an hour later can correct it, and the alternative is a
+    telephone call that puts a transcription step back in.
+    """
+    invited = _invited_from(token, db)
+    view = rfq_svc.portal_view(db, invited)
+    if view["closed"]:
+        raise HTTPException(409, view["closed_because"])
+
+    said = rfq_svc.record(
+        db, invited,
+        answers=body.get("answers") or [],
+        declined=bool(body.get("declined")),
+        note=str(body.get("note") or ""),
+        by_supplier=True)
+    db.commit()
+    return {
+        **said,
+        "answered_at": invited.responded_at,
+        "message": (
+            "Thank you. The pharmacy has been told you cannot supply this one."
+            if invited.declined else
+            f"Thank you. Your prices for {invited.rfq.reference} have "
+            "reached the pharmacy."),
     }
 
 

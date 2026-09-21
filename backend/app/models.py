@@ -1445,11 +1445,20 @@ class RfqSupplier(Base, TenantMixin):
     #: themselves, somebody at the pharmacy writes down what they were told,
     #: and it matters who.
     recorded_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    #: True when the wholesaler typed it into their own link rather than
+    #: reading it down the telephone to somebody here. A separate column
+    #: because a null `recorded_by_id` cannot tell "they entered it" from "we
+    #: do not know who did", and those are opposite levels of confidence.
+    self_quoted = Column(Boolean, default=False)
+    #: When their link was last opened. Separates a wholesaler who never saw
+    #: the request from one who read it and has not answered.
+    opened_at = Column(DateTime, nullable=True)
     declined = Column(Boolean, default=False)
     note = Column(Text, default="")
 
     rfq = relationship("Rfq", back_populates="invited")
     supplier = relationship("Supplier")
+    recorded_by = relationship("User", foreign_keys=[recorded_by_id])
     quotes = relationship("RfqQuote", back_populates="invited",
                           cascade="all, delete-orphan")
 
