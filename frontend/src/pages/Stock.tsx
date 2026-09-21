@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
+import { useSession } from "../session";
 import { useConfirm } from "../components/Confirm";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import StockUpload from "../components/StockUpload";
@@ -19,6 +20,7 @@ import { ScanBar, ScanResult } from "../components/Scanner";
 import { useScanFeed } from "../components/ScannerHub";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
+import { useNavigate } from "react-router-dom";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
@@ -48,6 +50,48 @@ const EMPTY = {
   // read by reports and by the stock-take sheet, and neither had a field on this
   // form, so they were NULL on all 545 products.
   bin_location: "", bin_location_2: "", bin_location_3: "", manufacturer: "",
+};
+
+/** The stock reports each tab's question actually leads to.
+ *
+ *  Keys are the registry's own, so a typo is a report that does not open
+ *  rather than a wrong one that does. Every key here is registered in
+ *  `services/reports/definitions.py`.
+ */
+const REPORTS_FOR: Record<string, { value: string; label: string }[]> = {
+  products: [
+    { value: "stock_valuation", label: "What the shelves are worth" },
+    { value: "reorder_suggestions", label: "What to reorder" },
+    { value: "dead_stock", label: "Stock that is not moving" },
+    { value: "negative_stock", label: "Stock exceptions" },
+    { value: "uncosted_products", label: "Lines with no cost" },
+    { value: "markup", label: "Markup by line" },
+  ],
+  batches: [
+    { value: "expiring_stock", label: "What is about to expire" },
+    { value: "expired_stock", label: "What has already expired" },
+    { value: "stock_valuation", label: "What the shelves are worth" },
+  ],
+  movements: [
+    { value: "stock_movements", label: "Every movement" },
+    { value: "stock_write_offs", label: "What was written off" },
+    { value: "write_off_reasons", label: "Why it was written off" },
+    { value: "fast_movers", label: "Fast movers" },
+    { value: "slow_movers", label: "Slow movers" },
+  ],
+  bins: [
+    { value: "bin_locations", label: "Where everything is kept" },
+    { value: "stock_take_variance", label: "What the last counts found" },
+  ],
+  deliveries: [
+    { value: "stock_on_order", label: "What is on order" },
+    { value: "goods_received_not_invoiced", label: "Delivered and not billed" },
+    { value: "purchases_by_supplier", label: "Purchases by supplier" },
+  ],
+  returns: [
+    { value: "stock_write_offs", label: "What was written off" },
+    { value: "supplier_price_variance", label: "Supplier price variance" },
+  ],
 };
 
 export default function Stock() {
@@ -139,6 +183,39 @@ export default function Stock() {
   const [adjBatch, setAdjBatch] = useState("");
   const [adjExpiry, setAdjExpiry] = useState("");
   const toast = useToast();
+
+  /** Retire a line: out of every picker, history kept.
+   *
+   *  Deactivated rather than deleted, because a sale line, a batch, a movement
+   *  and a controlled-register entry all point at it, and an auditor asking
+   *  what was dispensed last March is entitled to a name rather than a
+   *  dangling id. The server says so too; this only has to ask.
+   */
+  async function retire(p: Product) {
+    const onHand = p.quantity_on_hand || 0;
+    const ok = await confirm({
+      title: `Retire ${p.name}?`,
+      body: "It comes out of every picker and every reorder list. Everything "
+          + "already dispensed against it stays readable, because it has to be."
+          + (onHand
+              ? ` There are still ${onHand} unit(s) on hand — write them off or `
+                + "transfer them, or the next count will find them."
+              : ""),
+      confirmLabel: "Retire it",
+    });
+    if (!ok) return;
+    try {
+      const said = await api.delete<{ message: string; warning?: string }>(
+        `/api/products/${p.id}`);
+      toast.ok(said.message);
+      // The server says what is still on the shelf. Passed on rather than
+      // swallowed: it is the one thing that turns into a variance later.
+      if (said.warning) toast.error(said.warning);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That line could not be retired."));
+    }
+  }
   /* The reason list, from the endpoint that publishes it, so the chips a
      person filters by and the codes the server stores cannot drift apart. */
   const [reasons, setReasons] = useState<{ code: string; label: string }[]>([]);
@@ -151,7 +228,10 @@ export default function Stock() {
       });
   }, []);
   useScanFeed("Inventory", (code) => void fromPhone(code), !adjusting);
+  const navigate = useNavigate();
   const confirm = useConfirm();
+  const session = useSession();
+  const mayRetire = session.can("stock.deactivate");
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [moveFilters, setMoveFilters] = useState<FilterState>(emptyFilters);
 
@@ -232,6 +312,17 @@ export default function Stock() {
         <span style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
           <IconButton action="edit" onClick={() => openEdit(p)} />
           <IconButton action="adjust" onClick={() => setAdjusting(p)} />
+          {/* RETIRING A LINE, WHICH HAD NO CONTROL AT ALL.
+              The endpoint has required `stock.deactivate` since the catalogue
+              gates were added and no screen ever called it, so a discontinued
+              medicine stayed in every picker and every reorder list for ever.
+              Offered only to somebody who may actually do it, because a
+              disabled button that never explains itself is worse than no
+              button. */}
+          {mayRetire && p.active !== false && (
+            <IconButton action="delete" title="Retire this line"
+                        onClick={() => void retire(p)} />
+          )}
         </span>
       ) },
   ];
@@ -413,6 +504,23 @@ export default function Stock() {
           <div className="sub">Products, quantities, movements and reorder levels</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          {/* THE REPORTS, FROM WHERE THE QUESTION IS ASKED.
+              There are twenty six stock reports and every one of them was
+              reachable only through a nav item labelled "Analytics", gated on
+              a money capability, with no link from this page at all. So they
+              existed and could not be found, which for a user is the same as
+              not existing.
+
+              Offered per tab, because the report that answers "what is about
+              to expire" is not the one that answers "where did this go", and
+              a list of twenty six is its own kind of hiding. */}
+          <Select
+            value=""
+            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
+            ariaLabel="Stock reports"
+            placeholder="Reports…"
+            options={REPORTS_FOR[tab] ?? REPORTS_FOR.products}
+          />
           <ExportButton dataset={tab === "batches" ? "batches" : "products"}
                         label={tab === "batches" ? "Batches as a spreadsheet"
                                                  : "Catalogue as a spreadsheet"} />

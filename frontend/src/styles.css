@@ -12144,3 +12144,21 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    for somebody who does not want to leave the list. */
 .gr-peek { display: block; margin-top: 2px; color: var(--ink-soft); }
 .gr-peek:hover { color: var(--ink); }
+
+/* What THIS branch reorders a line at, typed where the figure is read. Narrow
+   and quiet: most branches take the group's number, and a column of boxed
+   inputs down a page reads as a column of errors. The placeholder shows the
+   group's figure, so an empty box says what it inherits rather than nothing. */
+.bd-level {
+  width: 7ch;
+  padding: 2px 6px;
+  text-align: right;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom-color: var(--line);
+  border-radius: var(--r-xs);
+}
+.bd-level::placeholder { color: var(--ink-faint); }
+.bd-level:hover:not(:disabled) { border-color: var(--line); }
+.bd-level:focus { background: var(--surface); border-color: var(--accent); }
+.bd-level:disabled { opacity: .5; }

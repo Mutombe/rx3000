@@ -98,6 +98,28 @@ function standing(d: Doc): { label: string; tone: string } {
 export default function BranchDetail() {
   const { id } = useParams();
   const toast = useToast();
+  /** Which line is being written, so its box holds still while it saves. */
+  const [savingLevel, setSavingLevel] = useState<number | null>(null);
+
+  /** Set or clear what THIS branch reorders a line at.
+   *
+   *  Null clears the override. The server says which way it went, and its
+   *  sentence is shown rather than a made-up one, because "back to the
+   *  group's figures" and "keeps its own" are different facts.
+   */
+  async function setLevel(productId: number, value: number | null) {
+    setSavingLevel(productId);
+    try {
+      const said = await api.put<{ message: string }>(
+        `/api/branches/${id}/levels/${productId}`, { reorder_level: value });
+      toast.ok(said.message);
+      await load();
+    } catch (e) {
+      toast.error(errorText(e, "That level could not be set."));
+    } finally {
+      setSavingLevel(null);
+    }
+  }
   const [branch, setBranch] = useState<Branch | null>(null);
   const [register, setRegister] = useState<Register | null>(null);
   const [shelf, setShelf] = useState<Shelf | null>(null);
@@ -310,8 +332,32 @@ export default function BranchDetail() {
                       )}
                     </td>
                     <td className="num">{row.here}</td>
+                    {/* SET HERE, WHERE IT IS READ.
+                        `PUT /branches/:id/levels/:product` has existed since
+                        branches could depart from the group and no screen ever
+                        called it, so this figure could be seen and never
+                        changed: a shop that needed a different level had to
+                        ask a developer. Emptying the box clears the override
+                        and the group's figure takes over again, which is how a
+                        branch goes back without having to know what that
+                        figure is. */}
                     <td className="num">
-                      {row.reorder_level}
+                      <input
+                        type="number" min={0} className="bd-level"
+                        key={`${row.product_id}-${row.reorder_level}`}
+                        defaultValue={row.own_level ? row.reorder_level : ""}
+                        placeholder={String(row.group_level ?? row.reorder_level)}
+                        title="What THIS branch reorders at. Empty takes the group's figure."
+                        disabled={savingLevel === row.product_id}
+                        onClick={(e) => e.stopPropagation()}
+                        onBlur={(e) => {
+                          const raw = e.target.value.trim();
+                          const next = raw === "" ? null : Number(raw);
+                          const now = row.own_level ? row.reorder_level : null;
+                          if ((next ?? null) === (now ?? null)) return;
+                          void setLevel(row.product_id, next);
+                        }}
+                      />
                       {/* Said out loud when this shop has set its own. Two
                           branches showing different levels for one medicine
                           reads as a fault until you know it was a decision. */}
