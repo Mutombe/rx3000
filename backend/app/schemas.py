@@ -420,7 +420,17 @@ class BatchOut(ORM):
     quantity_remaining: int
     unit_cost: float
     reference: str
-    received_at: datetime
+    # Optional because the COLUMN is optional. `received_at` carries
+    # `default=datetime.utcnow`, which a reader takes for "always set" and
+    # which only applies to an ORM insert: a batch that arrived through an
+    # opening-stock import or a raw insert has NULL there quite legitimately.
+    #
+    # Declared as required, one such batch made the whole product page 500.
+    # Not the batch, not the batches panel — the page, because a response
+    # model that fails to serialise fails the entire response. A product a
+    # pharmacy could not open, and a generic "something went wrong at our
+    # end" that named nothing.
+    received_at: Optional[datetime] = None
     product: Optional[ProductOut] = None
 
 
