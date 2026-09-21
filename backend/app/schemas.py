@@ -1212,6 +1212,7 @@ class ShiftOut(ORM):
 # ---------- audit ----------
 class AuditLogOut(ORM):
     id: int
+    user_id: Optional[int] = None
     username: str
     action: str
     path: str
@@ -1219,6 +1220,20 @@ class AuditLogOut(ORM):
     status_code: int
     ip_address: str
     created_at: datetime
+
+    # WHO WAS REALLY DOING THIS.
+    #
+    # The model has carried this since impersonation was built, with a comment
+    # saying an impersonated action "has to name both people or the audit log
+    # is actively misleading, which is worse than not having one". It was not
+    # in this response, so the log was exactly that: a row written while head
+    # office was signed in as a branch cashier is indistinguishable from one
+    # that cashier wrote themselves.
+    #
+    # That is the single worst thing an audit log can get wrong, because the
+    # whole point of it is answering "who did this" when somebody disputes it.
+    acted_as_id: Optional[int] = None
+    acted_as: str = ""
 
 
 # ---------- admin: price import & backups ----------

@@ -3,7 +3,7 @@ import csv
 import io
 import shutil
 import sqlite3
-from datetime import datetime
+from datetime import date, datetime, time
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -267,6 +267,12 @@ def price_import(
 @router.get("/audit/paged")
 def audit_log_paged(
     username: str = "",
+    action: str = "",
+    path: str = "",
+    failed_only: bool = False,
+    impersonated_only: bool = False,
+    date_from: date | None = None,
+    date_to: date | None = None,
     page: int = 1,
     per_page: int = paging.DEFAULT_PER_PAGE,
     db: Session = Depends(get_db),
@@ -283,11 +289,76 @@ def audit_log_paged(
     query = db.query(AuditLog)
     if username:
         query = query.filter(AuditLog.username.ilike(f"%{username}%"))
+    # FILTERS THE ONE SCREEN THAT IS READ UNDER PRESSURE.
+    #
+    # A username box was the whole of it. The audit log is reached when
+    # something has gone wrong or a transaction is disputed, and the question
+    # is almost never "everything this person ever did" — it is "what happened
+    # on the afternoon of the twelfth", or "who touched this record", or "what
+    # failed". None of those could be asked.
+    if action:
+        query = query.filter(AuditLog.action == action.upper())
+    if path:
+        query = query.filter(AuditLog.path.ilike(f"%{path.strip()}%"))
+    if failed_only:
+        # Anything the server refused or broke on. The interesting rows when
+        # somebody is asking why an action did not take effect.
+        query = query.filter(AuditLog.status_code >= 400)
+    if impersonated_only:
+        query = query.filter(AuditLog.acted_as_id.isnot(None))
+    if date_from:
+        query = query.filter(AuditLog.created_at >= date_from)
+    if date_to:
+        # Through the end of that day. Off by one here loses an afternoon and
+        # reads as an afternoon in which nothing happened.
+        query = query.filter(
+            AuditLog.created_at < datetime.combine(date_to, time.max))
     result = paging.page(query.order_by(AuditLog.created_at.desc()),
                          page=page, per_page=per_page)
     return result.envelope(
         lambda x: schemas.AuditLogOut.model_validate(x, from_attributes=True).model_dump()
     )
+
+
+@router.get("/audit/{entry_id}")
+def audit_entry(entry_id: int, db: Session = Depends(get_db),
+                _: User = Depends(require_role("admin", "pharmacist"))):
+    """One entry, with what surrounded it.
+
+    An audit row on its own rarely answers anything. "Who voided this sale" is
+    followed immediately by "and what else were they doing at the time", and
+    that was a question the screen could not ask: the rows were not even
+    clickable.
+
+    So the entry comes with the twenty either side from the same person, in
+    time order. A void at two in the morning means one thing alone and quite
+    another surrounded by nine other voids.
+    """
+    row = db.get(AuditLog, entry_id)
+    if row is None:
+        raise HTTPException(404, "That audit entry no longer exists.")
+
+    def near(newer: bool):
+        q = db.query(AuditLog).filter(AuditLog.username == row.username)
+        q = (q.filter(AuditLog.id > row.id).order_by(AuditLog.id.asc())
+             if newer else
+             q.filter(AuditLog.id < row.id).order_by(AuditLog.id.desc()))
+        return [schemas.AuditLogOut.model_validate(x, from_attributes=True).model_dump()
+                for x in q.limit(10).all()]
+
+    said = (f"{row.username or 'somebody'} sent {row.action} {row.path}")
+    if row.acted_as:
+        said = (f"{row.username} acting as {row.acted_as} sent "
+                f"{row.action} {row.path}")
+    if (row.status_code or 0) >= 400:
+        said += f", and the server refused it with {row.status_code}"
+
+    return {
+        **schemas.AuditLogOut.model_validate(row, from_attributes=True).model_dump(),
+        "says": said + ".",
+        "before": list(reversed(near(False))),
+        "after": near(True),
+    }
 
 
 # ---------- backups ----------

@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { Trash } from "@phosphor-icons/react";
 import { useToast } from "../components/Toast";
 import FileDrop from "../components/FileDrop";
@@ -123,6 +123,24 @@ export default function Admin() {
   });
   const [submitted, setSubmitted] = useState<Submitted[]>([]);
   const [auditUser, setAuditUser] = useState("");
+  const [auditPath, setAuditPath] = useState("");
+  const [auditFrom, setAuditFrom] = useState("");
+  const [auditTo, setAuditTo] = useState("");
+  const [auditFailed, setAuditFailed] = useState(false);
+  const [auditActedAs, setAuditActedAs] = useState(false);
+  /** Every audit filter as a query string, so they narrow the whole log on
+   *  the server rather than the page already fetched. */
+  const auditQuery = useMemo(() => {
+    const q = new URLSearchParams();
+    if (auditUser.trim()) q.set("username", auditUser.trim());
+    if (auditPath.trim()) q.set("path", auditPath.trim());
+    if (auditFrom) q.set("date_from", auditFrom);
+    if (auditTo) q.set("date_to", auditTo);
+    if (auditFailed) q.set("failed_only", "true");
+    if (auditActedAs) q.set("impersonated_only", "true");
+    const out = q.toString();
+    return out ? `&${out}` : "";
+  }, [auditUser, auditPath, auditFrom, auditTo, auditFailed, auditActedAs]);
   const [backups, setBackups] = useState<Backup[]>([]);
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -186,7 +204,7 @@ export default function Admin() {
     let live = true;
     job?.finally(() => { if (live) setTabLoading(false); });
     return () => { live = false; };
-  }, [tab, auditUser, auditPage, auditSize, txnPage, txnKind, noticePage, noticeActive,
+  }, [tab, auditQuery, auditPage, auditSize, txnPage, txnKind, noticePage, noticeActive,
       grantFilter]);
   async function acceptScript(id: number) {
     try {
@@ -255,7 +273,7 @@ export default function Admin() {
   }
 
   // A narrowed username filter can leave you past the end of a smaller set.
-  useEffect(() => setAuditPage(1), [auditUser]);
+  useEffect(() => setAuditPage(1), [auditQuery]);
 
   /** Named rather than inline in the effect, so retiring a notice can reload
    *  the list it just changed. */
@@ -363,8 +381,8 @@ export default function Admin() {
   function loadAudit() {
     return api
       .get<Paged<AuditEntry>>(
-        `/api/admin/audit/paged?username=${encodeURIComponent(auditUser)}` +
-        `&page=${auditPage}&per_page=${auditSize}`,
+        `/api/admin/audit/paged?page=${auditPage}&per_page=${auditSize}`
+        + auditQuery,
       )
       .then((r) => {
         setAudit(r.items);
@@ -1098,21 +1116,55 @@ export default function Admin() {
 
       {tab === "audit" && (
         <div className="card">
+          {/* FILTERS ON THE ONE SCREEN READ UNDER PRESSURE.
+              A username box was the whole of it. The audit log is reached
+              when something has gone wrong or a transaction is disputed, and
+              the question is almost never "everything this person ever did" —
+              it is "what happened on the afternoon of the twelfth", "who
+              touched this record", or "what failed". None could be asked. */}
           <div className="toolbar">
             <input type="search" placeholder="Filter by username…" value={auditUser}
               onChange={(e) => setAuditUser(e.target.value)} />
+            <input type="search" placeholder="Endpoint contains…" value={auditPath}
+              onChange={(e) => setAuditPath(e.target.value)} />
+            <label className="st-control">
+              <span>From</span>
+              <input type="date" value={auditFrom}
+                     onChange={(e) => setAuditFrom(e.target.value)} />
+            </label>
+            <label className="st-control">
+              <span>To</span>
+              <input type="date" value={auditTo}
+                     onChange={(e) => setAuditTo(e.target.value)} />
+            </label>
+            <Checkbox checked={auditFailed} onChange={setAuditFailed}>
+              Only refused
+            </Checkbox>
+            <Checkbox checked={auditActedAs} onChange={setAuditActedAs}>
+              Only acting as somebody
+            </Checkbox>
           </div>
           {/* The audit log is the slowest thing on this screen and the one
               somebody opens with a question. An empty frame reads as "nothing
               was recorded", which is the opposite of what it means. */}
           {audit.length === 0 && <TableSkeleton cols={6} rows={6} />}
           <table>
-            <thead><tr><th>When</th><th>User</th><th>Action</th><th>Endpoint</th><th>Status</th><th>IP</th></tr></thead>
+            <thead><tr><th>When</th><th>User</th><th>Action</th><th>Endpoint</th><th>Status</th><th>IP</th><th className="actions" /></tr></thead>
             <tbody>
               {audit.map((a) => (
                 <tr key={a.id}>
                   <td>{fmtDateTime(a.created_at)}</td>
-                  <td><b>{a.username || "—"}</b></td>
+                  <td>
+                    <b>{a.username || "—"}</b>
+                    {/* Who was REALLY doing it. Without this the trail says a
+                        cashier in Bulawayo voided a sale at two in the morning
+                        when it was somebody at head office. */}
+                    {a.acted_as && (
+                      <div className="muted small">
+                        acting as <b>{a.acted_as}</b>
+                      </div>
+                    )}
+                  </td>
                   <td>{a.summary}</td>
                   <td className="mono muted">{a.action} {a.path}</td>
                   <td>
@@ -1121,6 +1173,9 @@ export default function Admin() {
                     </span>
                   </td>
                   <td className="mono muted">{a.ip_address}</td>
+                  <td className="actions">
+                    <Link className="btn-link small" to={`/audit/${a.id}`}>Open</Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

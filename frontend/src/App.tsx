@@ -20,6 +20,7 @@ const MovementDetail = lazy(() => import("./pages/MovementDetail"));
 const GoodsReceiptDetail = lazy(() => import("./pages/GoodsReceiptDetail"));
 const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
 const StockTakeDetail = lazy(() => import("./pages/StockTakeDetail"));
+const AuditDetail = lazy(() => import("./pages/AuditDetail"));
 const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
 const StaffDetail = lazy(() => import("./pages/StaffDetail"));
 const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
@@ -206,6 +207,9 @@ export default function App() {
                 {/* Past counts were unreachable: the screen loaded the open
                     one and no endpoint listed the rest. */}
                 <Route path="/stock-takes/:id" element={<StockTakeDetail />} />
+                {/* Audit rows were not even clickable, and there was no
+                    endpoint behind them. */}
+                <Route path="/audit/:id" element={<AuditDetail />} />
                 <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
                 <Route path="/staff/:id" element={<StaffDetail />} />
                 <Route path="/prescribers/:id" element={<PrescriberDetail />} />

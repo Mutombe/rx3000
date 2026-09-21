@@ -313,6 +313,7 @@ export interface Shift {
 
 export interface AuditEntry {
   id: number;
+  user_id?: number | null;
   username: string;
   action: string;
   path: string;
@@ -320,6 +321,11 @@ export interface AuditEntry {
   status_code: number;
   ip_address: string;
   created_at: string;
+  /** Who was REALLY doing it, when head office signed in as somebody else.
+   *  Recorded since impersonation was built and shown nowhere, which made
+   *  the trail actively misleading rather than merely incomplete. */
+  acted_as_id?: number | null;
+  acted_as?: string;
 }
 
 export interface PriceImportLine {
