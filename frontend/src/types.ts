@@ -267,6 +267,13 @@ export interface PurchaseOrder {
   sent_at?: string | null;
   sent_by_id?: number | null;
   sent_to?: string;
+  /** Who raised it, and who signed it off. The control is that they differ.
+   *  `approved_value` is what it was worth at approval: an order that has
+   *  grown since is not the order that was approved. */
+  created_by_id?: number | null;
+  approved_by_id?: number | null;
+  approved_at?: string | null;
+  approved_value?: number;
 }
 
 export interface RegisterEntry {

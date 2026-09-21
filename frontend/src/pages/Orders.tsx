@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useCallback, Fragment, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { api, fmtDateTime, money, errorText  } from "../api";
@@ -12,9 +12,16 @@ import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import ReceiveDelivery from "../components/ReceiveDelivery";
 
-type Tab = "orders" | "low";
+type Tab = "orders" | "low" | "approve";
 
 interface Orphan { product_id: number; product: string; quantity: number }
+
+interface Approvals {
+  /** Below zero means this pharmacy has not asked for approvals at all. */
+  threshold: number;
+  count: number;
+  orders: (PurchaseOrder & { value: number })[];
+}
 
 interface Suggested {
   orders: PurchaseOrder[];
@@ -36,6 +43,31 @@ export default function Orders() {
   const [busy, setBusy] = useState(false);
   /** Low lines with nobody to buy them from, after the last sweep. */
   const [orphans, setOrphans] = useState<Orphan[]>([]);
+  /** Orders over the pharmacy's threshold that nobody has signed off. */
+  const [approvals, setApprovals] = useState<Approvals | null>(null);
+
+  const loadApprovals = useCallback(() => {
+    api.get<Approvals>("/api/orders/awaiting-approval")
+      .then(setApprovals)
+      .catch(() => {
+        // Deliberately silent: where a pharmacy has not asked for approvals
+        // this is simply empty, and the rest of the page is unaffected.
+      });
+  }, []);
+  useEffect(loadApprovals, [loadApprovals]);
+
+  /** Sign one off. The server refuses if you raised it yourself, which is
+   *  the whole of the control, and says so. */
+  async function approve(order: PurchaseOrder) {
+    try {
+      const said = await api.post<{ message: string }>(`/api/orders/${order.id}/approve`);
+      toast.ok(said.message);
+      loadApprovals();
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That order could not be approved."));
+    }
+  }
   const [raising, setRaising] = useState(false);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
 
@@ -43,6 +75,15 @@ export default function Orders() {
     { key: "orders", label: "Purchase orders", count: orders.length },
     { key: "low", label: "Reorder needs", count: lowStock.length,
       hint: "Products at or below their reorder level" },
+    /* THE QUEUE. Without one, approval is a thing somebody discovers at the
+       moment they try to send — the worst time, and usually the wrong
+       person. Hidden entirely where the pharmacy has not asked for
+       approvals, because an empty tab that can never fill is clutter. */
+    ...(approvals && approvals.threshold >= 0
+      ? [{ key: "approve" as Tab, label: "Waiting for approval",
+           count: approvals.count,
+           hint: `Orders worth more than ${money(approvals.threshold)}` }]
+      : []),
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "orders");
 
@@ -197,6 +238,56 @@ export default function Orders() {
         </Refreshable>
           {!loading && orders.length === 0 && (
             <div className="empty">No purchase orders yet, generate them from reorder levels.</div>
+          )}
+        </div>
+      )}
+
+      {tab === "approve" && (
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <h3>Waiting for a second signature</h3>
+              <span className="muted small">
+                This pharmacy asks somebody else to sign off an order worth
+                more than {money(approvals?.threshold ?? 0)}. You cannot
+                approve one you raised yourself.
+              </span>
+            </div>
+          </div>
+          {(approvals?.orders.length ?? 0) === 0 ? (
+            <div className="empty">
+              <b>Nothing is waiting.</b>
+              <p>Orders under the threshold go straight out.</p>
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="dt">
+                <thead>
+                  <tr>
+                    <th>Order</th><th>Supplier</th><th>Raised</th>
+                    <th className="num">Worth</th><th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {approvals!.orders.map((o) => (
+                    <tr key={o.id}>
+                      <td>
+                        <EntityLink to={`/orders/${o.id}`}>{o.order_number}</EntityLink>
+                      </td>
+                      <td>{o.supplier?.name ?? <span className="muted">none</span>}</td>
+                      <td className="small">{fmtDateTime(o.created_at)}</td>
+                      <td className="num"><b>{money(o.value)}</b></td>
+                      <td className="actions">
+                        <BusyButton className="small" busyLabel="Approving…"
+                                    onClick={() => approve(o)}>
+                          Approve
+                        </BusyButton>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

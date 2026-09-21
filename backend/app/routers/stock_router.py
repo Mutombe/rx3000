@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 from .. import auth, helpers, schemas
 from ..auth import get_current_user, require_role
 from ..database import get_db
-from ..services import bins, order_send, sold, sourcing, spreadsheet, stock_watch, paging, price_history
+from ..services import bins, order_approval, order_send, sold, sourcing, spreadsheet, stock_watch, paging, price_history
 from ..services import (config, levels, quarantine, stepup, stock_reasons,
                         supplier_returns, valuation)
 from ..services import permissions
@@ -1031,6 +1031,30 @@ def list_orders_paged(
     )
 
 
+# DECLARED BEFORE /orders/{order_id}, AND IT HAS TO BE.
+#
+# FastAPI matches routes in declaration order, so with the parameterised one
+# first this path is read as an order id, fails to parse as an integer, and
+# answers 422 — a queue that exists and cannot be reached.
+@router.get("/orders/awaiting-approval")
+def orders_awaiting_approval(db: Session = Depends(get_db),
+                             _: User = Depends(get_current_user)):
+    """Draft orders over the threshold that nobody has signed off.
+
+    The queue. Without one, approval is a thing somebody discovers at the
+    moment they try to send — the worst time, and usually the wrong person.
+    """
+    rows = order_approval.awaiting(db)
+    return {
+        "threshold": order_approval.threshold(db),
+        "orders": [{
+            **schemas.POOut.model_validate(o, from_attributes=True).model_dump(),
+            "value": order_approval.value_of(o),
+        } for o in rows],
+        "count": len(rows),
+    }
+
+
 @router.get("/orders/{order_id}", response_model=schemas.POOut)
 def get_order(order_id: int, db: Session = Depends(get_db)):
     order = db.get(PurchaseOrder, order_id)
@@ -1040,13 +1064,17 @@ def get_order(order_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/orders", response_model=schemas.POOut)
-def create_order(body: schemas.POCreate, db: Session = Depends(get_db)):
+def create_order(body: schemas.POCreate, db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
     if not body.items:
         raise HTTPException(status_code=400, detail="Order needs at least one line")
     order = PurchaseOrder(
         order_number=helpers.next_number(db, PurchaseOrder, "PO", "order_number"),
         supplier_id=body.supplier_id,
         notes=body.notes,
+        # Who decided to spend this. Without it, "the raiser may not approve
+        # their own order" has nothing to compare against.
+        created_by_id=user.id,
     )
     db.add(order)
     db.flush()
@@ -1066,7 +1094,8 @@ def create_order(body: schemas.POCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/orders/suggest")
-def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db)):
+def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db),
+                   user: User = Depends(get_current_user)):
     """Draft orders for everything at or below its reorder level.
 
     THE ARBITRARY SUPPLIER, WHICH WAS A REAL ORDER TO A REAL WHOLESALER
@@ -1129,6 +1158,7 @@ def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db)):
             order_number=helpers.next_number(db, PurchaseOrder, "PO", "order_number"),
             supplier_id=supplier_id,
             notes="Suggested from reorder levels",
+            created_by_id=user.id,
         )
         db.add(order)
         db.flush()
@@ -1158,6 +1188,24 @@ def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db)):
             if created or unassigned else
             "Nothing is at its reorder level."),
     }
+
+
+@router.post("/orders/{order_id}/approve")
+def approve_order(order_id: int, db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user),
+                  _may=Depends(auth.requires("stock.approve"))):
+    """Sign an order off so it can be sent."""
+    order = db.get(PurchaseOrder, order_id)
+    if not order:
+        raise HTTPException(404, "Order not found")
+    try:
+        said = order_approval.approve(db, order, user=user)
+    except order_approval.CannotApprove as exc:
+        raise HTTPException(409, str(exc)) from exc
+    db.commit()
+    db.refresh(order)
+    return {**said,
+            "order": schemas.POOut.model_validate(order, from_attributes=True).model_dump()}
 
 
 @router.get("/orders/{order_id}/document")
@@ -1192,6 +1240,12 @@ def send_order(order_id: int, db: Session = Depends(get_db),
     if order.status not in ("draft", "sent"):
         raise HTTPException(
             409, f"{order.order_number} is {order.status} and cannot be sent.")
+    # The second signature, where this pharmacy has asked for one. Checked
+    # here rather than on the button, because a control that lives in the
+    # screen is not a control.
+    refused = order_approval.why_refused(db, order)
+    if refused:
+        raise HTTPException(409, refused)
     try:
         said = order_send.send(db, order, user=user,
                                pharmacy_name=_pharmacy_name(db))

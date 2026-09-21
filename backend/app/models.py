@@ -1353,6 +1353,24 @@ class PurchaseOrder(Base, TenantMixin):
     sent_at = Column(DateTime, nullable=True)
     sent_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     sent_to = Column(String(200), default="")
+
+    #: Who raised it, and who signed it off.
+    #:
+    #: No purchase order needed a second person, at any value. A pharmacy can
+    #: commit thousands of dollars to a wholesaler on one login, and the only
+    #: place that shows up is a bank statement six weeks later. Both the
+    #: raiser and the approver are kept because the interesting control is
+    #: that they are different people.
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    #: The order's value at the moment it was approved.
+    #:
+    #: Without it, approving a small order and then adding lines to it is a
+    #: way to get anything signed off: the approval stays attached and the
+    #: order grows underneath it. Compared on send, and a changed value means
+    #: the approval no longer covers what is about to be bought.
+    approved_value = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.utcnow)
     received_at = Column(DateTime, nullable=True)
     notes = Column(Text, default="")

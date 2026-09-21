@@ -40,6 +40,18 @@ export default function OrderDetail() {
     }
   }
 
+  /** Sign it off. Refused by the server if you raised it yourself, which is
+   *  the whole of the control. */
+  async function approve() {
+    try {
+      const said = await api.post<{ message: string }>(`/api/orders/${id}/approve`);
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That order could not be approved."));
+    }
+  }
+
   async function preview() {
     try {
       const said = await api.get<{ document: string }>(`/api/orders/${id}/document`);
@@ -137,10 +149,27 @@ export default function OrderDetail() {
               and one somebody had clicked a button on looked identical. */}
           {order.status === "draft" && (
             <>
+              {/* WHY IT CANNOT GO YET, SAID OUT LOUD.
+                  A disabled button that does not explain itself is how a
+                  person decides the software is broken and telephones the
+                  order through instead — which defeats the control entirely.
+                  So Send stays enabled and the server answers with the
+                  reason, and the reason is shown as written. */}
+              {order.approved_at && (
+                <span className="badge ok">
+                  Approved {fmtDateTime(order.approved_at)}
+                </span>
+              )}
               <BusyButton className="small" onClick={sendToSupplier}
                           busyLabel="Sending…">
                 Send to supplier
               </BusyButton>
+              {!order.approved_at && (
+                <BusyButton className="secondary small" onClick={approve}
+                            busyLabel="Approving…">
+                  Approve it
+                </BusyButton>
+              )}
               <button type="button" className="btn-link small"
                       onClick={() => void preview()}>
                 See what will be sent

@@ -1141,6 +1141,11 @@ class POOut(ORM):
     sent_at: Optional[datetime] = None
     sent_by_id: Optional[int] = None
     sent_to: str = ""
+    #: Who raised it and who signed it off. The control is that they differ.
+    created_by_id: Optional[int] = None
+    approved_by_id: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    approved_value: float = 0.0
     #: Lines invoiced above the published maximum, noticed as they were booked
     #: in. Declared here because a response_model silently DROPS what it does
     #: not name, and this exact mistake has already cost this codebase a

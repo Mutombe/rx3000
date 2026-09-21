@@ -282,6 +282,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "sent_at": "TIMESTAMP",
         "sent_by_id": "INTEGER",
         "sent_to": "VARCHAR(200)",
+        # A second signature, which no order has ever needed at any value.
+        "created_by_id": "INTEGER",
+        "approved_by_id": "INTEGER",
+        "approved_at": "TIMESTAMP",
+        "approved_value": "FLOAT DEFAULT 0",
     },
     "products": {
         "category_id": "INTEGER",
