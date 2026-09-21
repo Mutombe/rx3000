@@ -16,7 +16,7 @@ import ExportButton from "../components/ExportButton";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
 import { Paged } from "../components/Pagination";
 import { ScanBar, ScanResult } from "../components/Scanner";
-import PairedScanner from "../components/PairedScanner";
+import { useScanFeed } from "../components/ScannerHub";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
@@ -139,6 +139,7 @@ export default function Stock() {
   const [adjBatch, setAdjBatch] = useState("");
   const [adjExpiry, setAdjExpiry] = useState("");
   const toast = useToast();
+  useScanFeed("Inventory", (code) => void fromPhone(code), !adjusting);
   const confirm = useConfirm();
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [moveFilters, setMoveFilters] = useState<FilterState>(emptyFilters);
@@ -411,7 +412,6 @@ export default function Stock() {
               a cable at the till, so without this the only way to look
               something up while standing in front of it was to carry the box
               back to the machine. */}
-          <PairedScanner station="Stock" onScan={(code) => void fromPhone(code)} />
         </div>
       )}
 

@@ -19,7 +19,7 @@ import { api, errorText, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
-import PairedScanner from "../components/PairedScanner";
+import { useScanFeed } from "../components/ScannerHub";
 import { Product } from "../types";
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
@@ -56,6 +56,7 @@ interface CountReply {
 
 export default function StockTake() {
   const toast = useToast();
+  useScanFeed("Stock count", (code) => void fromPhone(code));
   const confirm = useConfirm();
   const { guarded, prompt } = useStepUp();
 
@@ -411,11 +412,7 @@ export default function StockTake() {
                     till, and that is not how a stock count is done. The phone
                     goes to the shelf. */}
                 <div className="field">
-                  <div className="st-find-head">
-                    <label htmlFor="st-find">Find the product</label>
-                    <PairedScanner station="Stock count"
-                                   onScan={(code) => void fromPhone(code)} />
-                  </div>
+                  <label htmlFor="st-find">Find the product</label>
                   <input
                     id="st-find" value={query} autoFocus
                     onChange={(e) => setQuery(e.target.value)}

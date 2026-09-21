@@ -15,7 +15,7 @@
 import { useCallback, useRef, useState } from "react";
 import { api, errorText  } from "../api";
 import { ScanBar, ScanResult } from "./Scanner";
-import PairedScanner from "./PairedScanner";
+import { useScanFeed } from "./ScannerHub";
 import { useToast } from "./Toast";
 
 interface Props {
@@ -62,6 +62,10 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
       toast.error(errorText(e, "That pack could not be read."));
     }
   }, [pending, orderId]);
+
+  // Disabled while a pack is waiting to be confirmed: the dialog owns the
+  // flow, and a second pack arriving on top would lose the first.
+  useScanFeed(`Delivery ${orderNumber}`, (code) => void fromPhone(code), !pending);
 
   const onResolved = useCallback((r: ScanResult) => {
     if (!r.found || !r.product) return;   // ScanBar has already said so
@@ -123,12 +127,6 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
             the pack carries a GS1 code, the batch and expiry are read from it.
           </p>
         </div>
-        {/* A phone borrowed for the back door, which is the single best
-            reason this feature exists and the one place it was not offered.
-            Booking in a delivery happens standing over boxes, away from the
-            machine, and a counter scanner on a cable does not reach. */}
-        <PairedScanner station={`Delivery ${orderNumber}`}
-                       onScan={(code) => void fromPhone(code)} />
       </div>
 
       <ScanBar

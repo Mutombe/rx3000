@@ -4,7 +4,7 @@ import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute, Refused } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
-import PairedScanner from "../components/PairedScanner";
+import { useScanFeed } from "../components/ScannerHub";
 import { useConnection } from "../components/Connection";
 import * as queue from "../offline/queue";
 import * as deviceAgent from "../deviceAgent";
@@ -87,6 +87,8 @@ export default function POS() {
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
+  // Scans from whichever scanner this workstation has, phone or wedge.
+  useScanFeed("Till", (code) => void fromPhone(code));
   const doing = useDoing();
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   /** The sale a cashier is taking part of, if any. */
@@ -1142,7 +1144,6 @@ export default function POS() {
                   — the counter most likely to have no scanner plugged into
                   it — with no way to borrow one. It produces the same event
                   the ScanBar below does and hands it to the same place. */}
-              <PairedScanner station="Till" onScan={(code) => void fromPhone(code)} />
             </div>
             <ScanBar
               context="pos"

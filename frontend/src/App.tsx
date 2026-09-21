@@ -34,6 +34,7 @@ import { ToastProvider } from "./components/Toast";
 import { DoingProvider } from "./components/Doing";
 import { ConfirmProvider } from "./components/Confirm";
 import { ConnectionProvider, RequiresConnection } from "./components/Connection";
+import { ScannerProvider } from "./components/ScannerHub";
 import { SessionProvider } from "./session";
 
 /* Every page is split out of the initial bundle. A till on a mobile
@@ -130,6 +131,7 @@ export default function App() {
     <DoingProvider>
     <ConfirmProvider>
     <ConnectionProvider>
+      <ScannerProvider>
     <Routes>
       <Route path="/login" element={<Login />} />
       {/* Public, because the person reading either of these has no account yet.
@@ -268,6 +270,7 @@ export default function App() {
         }
       />
     </Routes>
+      </ScannerProvider>
     </ConnectionProvider>
     </ConfirmProvider>
     </DoingProvider>

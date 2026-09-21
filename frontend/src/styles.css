@@ -12051,3 +12051,90 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   letter-spacing: normal;
   font-weight: 400;
 }
+
+/* ------------------------------------- the workstation's scanner, in the bar
+
+   An icon, not a sentence. It replaced a green pill reading "Phone scanning
+   for Dispensing  Stop" that held about a fifth of the dispensing toolbar
+   permanently, to restate a fact nobody needed restating. */
+.sc-chip { position: relative; display: inline-flex; }
+.sc-chip-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px;
+  border: 1px solid transparent; border-radius: 50%;
+  background: transparent; color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.sc-chip-btn:hover:not(:disabled) { background: var(--surface-sunk); color: var(--ink); }
+/* The glyph is a flex item, and flex items shrink. Without this it computed
+   to zero width inside the 32px circle: the svg was in the DOM, the right
+   colour, the right path, and nought pixels across — a control that looked
+   like an empty ring with a dot beside it. Only looking at it catches that. */
+.sc-chip-btn svg { flex: 0 0 auto; }
+.sc-chip-btn:disabled { opacity: .5; cursor: default; }
+.sc-chip-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Live: filled, in the "this is on" green every device in a pharmacy uses,
+   with a slow pulse. The words are in the tooltip and the popover. */
+ /* Tinted as well as coloured. --ok is a dark green that reads as near black
+   at seventeen pixels, so the glyph alone was not a signal anybody would
+   notice across a counter. The soft ground is what makes it read as ON at a
+   glance, which is the entire job of this control. */
+.sc-chip-btn.is-live {
+  color: var(--ok); background: var(--ok-soft); border-color: var(--ok-soft);
+}
+.sc-chip-btn.is-live:hover:not(:disabled) { color: var(--ok); background: var(--ok-soft); }
+.sc-chip-btn.is-waiting {
+  color: var(--warn); background: var(--warn-soft, transparent);
+}
+.sc-pulse, .sc-wait {
+  position: absolute; top: 2px; right: 2px;
+  width: 8px; height: 8px; border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+.sc-pulse { background: var(--ok, #1e8c50); animation: sc-beat 2s ease-in-out infinite; }
+.sc-wait { background: var(--warn, #b26a00); animation: sc-beat 1s ease-in-out infinite; }
+@keyframes sc-beat {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .45; transform: scale(.78); }
+}
+/* Somebody who has asked their system not to animate things gets a steady
+   dot. The colour and the fill still carry the state. */
+@media (prefers-reduced-motion: reduce) {
+  .sc-pulse, .sc-wait { animation: none; }
+}
+
+.sc-pop {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 60;
+  width: 17rem; max-width: calc(100vw - 32px);
+  padding: var(--s3);
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--e3, 0 10px 30px rgba(0,0,0,.18));
+}
+.sc-pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--s2);
+}
+.sc-pop-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+}
+.sc-pop-x:hover { background: var(--surface-sunk); color: var(--ink); }
+.sc-pop p { margin: 0 0 var(--s2); }
+/* White ground and real quiet zones whatever the theme: a camera reading a
+   screen needs the contrast, and a QR on a dark panel does not decode. */
+.sc-pop-symbol {
+  background: #ffffff; padding: 10px; border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}
+.sc-pop-symbol svg { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+.sc-pop-code {
+  margin: var(--s2) 0 0; text-align: center;
+  font-size: var(--t-lg); font-weight: 600; letter-spacing: 0.22em;
+  font-variant-numeric: tabular-nums;
+}
+.sc-pop-or { text-align: center; }
+.sc-pop-go { width: 100%; justify-content: center; }

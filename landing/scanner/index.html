@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RX5000 Scanner</title>
+<meta name="robots" content="noindex">
+<!--
+  rx5000.com/scanner, which is the address somebody types on a phone at a
+  counter.
+
+  WHY THIS FILE EXISTS
+
+  The marketing site and the application are two separate deployments. The
+  site answers rx5000.com and serves its index.html for every path it does
+  not recognise, so a member of staff typing rx5000.com/scanner on their
+  phone got the home page, decided the feature did not work, and went back
+  to the counter. It is the first thing anybody is asked to type, so it is a
+  bad first thing to get wrong.
+
+  This bounces to the application, which is where the scanner lives.
+
+  THE BETTER FIX, WHICH NEEDS THE HOSTING DASHBOARD RATHER THAN THIS REPO
+
+  A rewrite rule on the static site — /scanner/* proxied to the application
+  — would keep the address in the bar and cost one line of configuration.
+  That cannot be committed here, so this ships the working version now and
+  the address changes in front of the user, which is honest but not elegant.
+
+  The redirect is written in the markup as well as in script: a phone with
+  scripting blocked still gets a link rather than a blank page.
+-->
+<meta http-equiv="refresh" content="0; url=https://rx3000-app.onrender.com/scanner">
+<link rel="canonical" href="https://rx3000-app.onrender.com/scanner">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100svh;
+    display: grid; place-items: center;
+    padding: 24px;
+    font: 500 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #faf9f7; color: #1b1b22;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #141419; color: #f2f1ef; }
+    a.go { background: #f2f1ef; color: #141419; }
+  }
+  .card { max-width: 22rem; text-align: center; }
+  h1 { font-size: 1.15rem; margin: 0 0 8px; }
+  p { margin: 0 0 20px; opacity: .72; font-weight: 400; }
+  a.go {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-height: 48px; padding: 0 24px;
+    border-radius: 999px; text-decoration: none;
+    background: #1b1b22; color: #ffffff; font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Opening the scanner</h1>
+    <p>Taking you to the RX5000 scanner. If nothing happens, tap below.</p>
+    <a class="go" href="https://rx3000-app.onrender.com/scanner">Open the scanner</a>
+  </div>
+  <script>
+    // Replace rather than assign, so the back button returns to whatever the
+    // person was doing instead of bouncing them forward again.
+    location.replace("https://rx3000-app.onrender.com/scanner");
+  </script>
+</body>
+</html>

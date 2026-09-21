@@ -60,6 +60,7 @@ import { shortCount, useNavCounts } from "../hooks/useNavCounts";
 import { useRailWidth } from "../hooks/useRailWidth";
 import { useSession } from "../session";
 import DemoBar from "./DemoBar";
+import ScannerChip from "./ScannerChip";
 import ThemeToggle from "./ThemeToggle";
 import Tooltips from "./Tooltips";
 import TillLock from "./TillLock";
@@ -634,6 +635,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             }
             return null;
           })()}
+          {/* What this machine can scan with. A workstation fact, so it
+              sits with the other workstation facts rather than on five
+              separate toolbars. */}
+          <ScannerChip />
           <ThemeToggle />
           <span className="topbar-sep" aria-hidden="true" />
           <div className="topbar-right" ref={menuRef}>
