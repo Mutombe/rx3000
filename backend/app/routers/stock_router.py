@@ -1065,35 +1065,70 @@ def create_order(body: schemas.POCreate, db: Session = Depends(get_db)):
     return order
 
 
-@router.post("/orders/suggest", response_model=list[schemas.POOut])
-def suggest_orders(db: Session = Depends(get_db)):
-    """Auto-generate draft POs (one per supplier) for everything at/below reorder level."""
+@router.post("/orders/suggest")
+def suggest_orders(branch_id: int | None = None, db: Session = Depends(get_db)):
+    """Draft orders for everything at or below its reorder level.
+
+    THE ARBITRARY SUPPLIER, WHICH WAS A REAL ORDER TO A REAL WHOLESALER
+
+    A product with no supplier on it used to fall to `db.query(Supplier).first()`
+    — whichever row came back first. That is not a default, it is a coin toss
+    that produces a purchase order addressed to a company that does not sell
+    the item. Nothing said it had happened.
+
+    Now the buying record decides. `sourcing` already works out who actually
+    delivers this line and what they last charged, from the orders that have
+    been placed; it simply was never consulted by the code that places them.
+    Where even that is silent — a line nobody has ever bought — it is reported
+    as needing a supplier rather than guessed at. An order nobody can fill is
+    worse than a line on a list.
+
+    BRANCH LEVELS ARE HONOURED
+
+    `levels` resolves what a branch wants of a line over what the group wants,
+    and this swept `Product` directly, so a branch that had deliberately set
+    its own figures was ordered for as though it had not.
+    """
     low = (
         db.query(Product)
-        .filter(Product.active, Product.quantity_on_hand <= Product.reorder_level, Product.category != "airtime")
+        .filter(Product.active, Product.category != "airtime")
         .all()
     )
 
-    # Work out what to order per product first. A product with no reorder quantity
-    # and no shortfall to make up yields nothing — ordering it would create a
-    # zero-quantity line that can never be received.
-    by_supplier: dict[int | None, list[tuple[Product, int]]] = {}
+    by_supplier: dict[int, list[tuple[Product, int]]] = {}
+    unassigned: list[dict] = []
     for product in low:
-        qty = max(product.reorder_quantity, product.reorder_level - product.quantity_on_hand)
+        # What THIS branch wants, falling back to the group's.
+        want = levels.for_product(db, product, branch_id) if branch_id else {
+            f: getattr(product, f, 0) or 0 for f in levels.FIELDS}
+        on_hand = product.quantity_on_hand or 0
+        if on_hand > (want.get("reorder_level") or 0):
+            continue
+        # A product with no reorder quantity and no shortfall to make up yields
+        # nothing: ordering it would create a zero line that cannot be received.
+        qty = max(want.get("reorder_quantity") or 0,
+                  (want.get("reorder_level") or 0) - on_hand)
         if qty <= 0:
             continue
-        by_supplier.setdefault(product.supplier_id, []).append((product, qty))
+
+        sid = product.supplier_id
+        if not sid:
+            # Who has actually supplied this line before, cheapest among those
+            # who deliver what they promised.
+            advice = sourcing.for_product(db, product.id).get("advice") or {}
+            sid = advice.get("supplier_id")
+        if not sid:
+            unassigned.append({"product_id": product.id, "product": product.name,
+                               "quantity": qty})
+            continue
+        by_supplier.setdefault(sid, []).append((product, qty))
 
     created = []
-    default_supplier = db.query(Supplier).first()
     for supplier_id, lines in by_supplier.items():
-        sid = supplier_id or (default_supplier.id if default_supplier else None)
-        if sid is None:
-            continue
         order = PurchaseOrder(
             order_number=helpers.next_number(db, PurchaseOrder, "PO", "order_number"),
-            supplier_id=sid,
-            notes="Auto-generated from reorder levels",
+            supplier_id=supplier_id,
+            notes="Suggested from reorder levels",
         )
         db.add(order)
         db.flush()
@@ -1108,7 +1143,36 @@ def suggest_orders(db: Session = Depends(get_db)):
     db.commit()
     for order in created:
         db.refresh(order)
-    return created
+
+    return {
+        "orders": [schemas.POOut.model_validate(o, from_attributes=True).model_dump()
+                   for o in created],
+        # Named rather than silently dropped. These are the lines somebody has
+        # to make a decision about, and they are the whole reason the old
+        # version reached for an arbitrary supplier.
+        "needs_a_supplier": unassigned,
+        "message": (
+            f"{len(created)} draft order(s) raised."
+            + (f" {len(unassigned)} line(s) are low and have no supplier on "
+               "record, so nothing was ordered for them." if unassigned else "")
+            if created or unassigned else
+            "Nothing is at its reorder level."),
+    }
+
+
+#: What a purchase order may become, from where it is.
+#:
+#: Received and cancelled are terminal on purpose. Goods that have been booked
+#: in have moved stock, written a goods receipt and posted to the ledger, and
+#: "undo" for that is a supplier return, not an edit to a status field.
+ORDER_FLOW: dict[str, set[str]] = {
+    "draft": {"sent", "received", "cancelled"},
+    # Received directly from draft is allowed: a van turns up against an order
+    # somebody never formally sent, which is ordinary and not worth blocking.
+    "sent": {"received", "cancelled"},
+    "received": set(),
+    "cancelled": set(),
+}
 
 
 @router.post("/orders/{order_id}/status", response_model=schemas.POOut)
@@ -1123,8 +1187,28 @@ def set_order_status(
     order = db.get(PurchaseOrder, order_id)
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    if status not in ("draft", "sent", "received", "cancelled"):
-        raise HTTPException(status_code=400, detail="Invalid status")
+    if status not in ORDER_FLOW:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{status}' is not an order status. Use one of: "
+                   + ", ".join(ORDER_FLOW) + ".")
+    # A STATE MACHINE, NOT A SETTER.
+    #
+    # This validated that the word was one of four and nothing else, so any
+    # status could become any other: a received order could be walked back to
+    # draft while its stock stayed on the shelf, and a cancelled one could be
+    # marked received and book goods in against an order nobody placed. The
+    # figures would not disagree loudly — they would just be wrong.
+    allowed = ORDER_FLOW[order.status or "draft"]
+    if status != order.status and status not in allowed:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"{order.order_number} is {order.status}, and a "
+                    f"{order.status} order cannot become {status}. "
+                    + (f"From here it can only be {' or '.join(sorted(allowed))}."
+                       if allowed else
+                       "It has reached the end of its life; raise a new order "
+                       "or a supplier return.")))
     sep_breaches: list[dict] = []
     grv_number = ""
     if status == "received" and order.status != "received":

@@ -12212,3 +12212,16 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Low lines a reorder sweep could not order, because nobody is on record as
+   selling them. Laid out across rather than down: it is a list to work
+   through, and one per line pushes the table that follows off the screen. */
+.ord-orphans {
+  list-style: none;
+  margin: var(--s2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1) var(--s3);
+}
+.ord-orphans li { white-space: nowrap; }

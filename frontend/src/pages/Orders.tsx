@@ -14,6 +14,14 @@ import ReceiveDelivery from "../components/ReceiveDelivery";
 
 type Tab = "orders" | "low";
 
+interface Orphan { product_id: number; product: string; quantity: number }
+
+interface Suggested {
+  orders: PurchaseOrder[];
+  needs_a_supplier: Orphan[];
+  message: string;
+}
+
 export default function Orders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +34,8 @@ export default function Orders() {
   const [expanded, setExpanded] = useState<number | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  /** Low lines with nobody to buy them from, after the last sweep. */
+  const [orphans, setOrphans] = useState<Orphan[]>([]);
   const [raising, setRaising] = useState(false);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
 
@@ -55,8 +65,16 @@ export default function Orders() {
   async function generate() {
     setBusy(true);
     try {
-      const created = await api.post<PurchaseOrder[]>("/api/orders/suggest");
-      toast.ok(created.length ? `Created ${created.length} draft order(s) from reorder levels.` : "Nothing at reorder level, no orders needed.");
+      const said = await api.post<Suggested>("/api/orders/suggest");
+      toast.ok(said.message);
+      // WHAT COULD NOT BE ORDERED, NAMED.
+      //
+      // A line that is low and has nobody on record used to be ordered from
+      // whichever supplier the database returned first — a real order to a
+      // real wholesaler who does not sell it. It is refused now, which is
+      // right, and refusing silently would be its own kind of wrong: these
+      // are exactly the lines somebody has to make a decision about.
+      setOrphans(said.needs_a_supplier ?? []);
       load();
     } catch (e: any) {
       toast.error(errorText(e));
@@ -173,6 +191,24 @@ export default function Orders() {
 
       {tab === "low" && (
         <div className="card">
+          {/* Named after a sweep, because these are the decisions it could
+              not make. Shown here rather than in a toast that disappears:
+              acting on them means finding a supplier for each line. */}
+          {orphans.length > 0 && (
+            <div className="alert warn">
+              <b>{orphans.length} line(s) are low and have no supplier on
+              record</b>, so nothing was ordered for them. Set a supplier on
+              each, or raise an order by hand.
+              <ul className="ord-orphans">
+                {orphans.map((o) => (
+                  <li key={o.product_id}>
+                    <EntityLink to={`/products/${o.product_id}`}>{o.product}</EntityLink>
+                    <span className="muted"> needs {o.quantity}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <table>
             <thead><tr><th>Product</th><th className="num">On hand</th><th className="num">Reorder level</th><th className="num">Suggested qty</th></tr></thead>
             <tbody>
