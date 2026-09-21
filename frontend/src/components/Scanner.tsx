@@ -36,6 +36,7 @@ import React, {
 import { api, errorText  } from "../api";
 import * as catalogue from "../offline/catalogue";
 import { useConnection } from "./Connection";
+import { Flashlight } from "@phosphor-icons/react";
 import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 
@@ -288,8 +289,53 @@ function getDetector(): Promise<any> {
   return detectorPromise;
 }
 
+/** A short, clean beep, synthesised rather than fetched.
+ *
+ *  Every handheld scanner in every shop beeps, and people trust the beep more
+ *  than the screen: it says "that one counted" without anybody looking up from
+ *  the goods. A phone pretending to be a scanner that stays silent feels
+ *  broken even when it is working perfectly.
+ *
+ *  Synthesised with an oscillator because an audio file would be a network
+ *  request at the exact moment the operator needs the answer, and a pharmacy
+ *  on a bad connection would get silence. This needs nothing and works
+ *  offline. Created lazily and reused: browsers refuse an AudioContext until
+ *  a gesture has happened, and the first tap is that gesture.
+ */
+let toneBox: AudioContext | null = null;
+export function beep(ok = true): void {
+  try {
+    const Ctor = window.AudioContext
+      ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    toneBox = toneBox ?? new Ctor();
+    if (toneBox.state === "suspended") void toneBox.resume();
+    const at = toneBox.currentTime;
+    const osc = toneBox.createOscillator();
+    const gain = toneBox.createGain();
+    // A clean high tone for a hit, a lower double for a refusal: the two have
+    // to be told apart across a room without looking.
+    osc.type = "square";
+    osc.frequency.setValueAtTime(ok ? 2_000 : 380, at);
+    // Shaped rather than switched. A square wave started and stopped at full
+    // gain clicks, and a click among a hundred scans becomes grating.
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.16, at + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + (ok ? 0.09 : 0.22));
+    osc.connect(gain).connect(toneBox.destination);
+    osc.start(at);
+    osc.stop(at + (ok ? 0.1 : 0.24));
+  } catch {
+    // No audio on this device, or the browser has not had its gesture yet.
+    // The flash and the buzz still say the same thing.
+  }
+}
+
 interface CameraProps {
-  onScan: (code: string) => void;
+  /** The decoded string, and the symbology it was read from where the
+   *  decoder reported one. The second argument is optional so every existing
+   *  caller keeps working unchanged. */
+  onScan: (code: string, format?: string) => void;
   onClose: () => void;
   /** Keep the viewfinder open and keep reading. The default, for a basket. */
   continuous?: boolean;
@@ -313,6 +359,13 @@ export function ScanCamera({
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [flash, setFlash] = useState(false);
+  /** The camera's own lamp. A back shelf, a stock room and a delivery bay at
+   *  six in the morning are all darker than a barcode decoder likes, and the
+   *  phone is already holding a light. Offered only where the device admits
+   *  to having one, because a dead button is worse than no button. */
+  const [lamp, setLamp] = useState(false);
+  const [hasLamp, setHasLamp] = useState(false);
+  const track = useRef<MediaStreamTrack | null>(null);
   const stopped = useRef(false);
   const lastHit = useRef<{ code: string; at: number }>({ code: "", at: 0 });
   const onScanRef = useRef(onScan);
@@ -360,6 +413,19 @@ export function ScanCamera({
         await video.play();
         setReady(true);
 
+        // Whether this camera has a lamp at all. Asked of the track rather
+        // than assumed from the platform: plenty of phones report no torch,
+        // every laptop does, and offering a switch that does nothing is worse
+        // than not offering one.
+        const [feed] = stream.getVideoTracks();
+        track.current = feed ?? null;
+        try {
+          const able = feed?.getCapabilities?.() as { torch?: boolean } | undefined;
+          setHasLamp(Boolean(able?.torch));
+        } catch {
+          setHasLamp(false);
+        }
+
         const detector = await getDetector();
 
         const tick = async () => {
@@ -367,6 +433,7 @@ export function ScanCamera({
           try {
             const found = await detector.detect(video);
             const value = found?.[0]?.rawValue as string | undefined;
+            const symbology = found?.[0]?.format as string | undefined;
             if (value) {
               const now = Date.now();
               // A pack held in front of a lens decodes many times a second and
@@ -374,10 +441,14 @@ export function ScanCamera({
               const repeat = lastHit.current.code === value && now - lastHit.current.at < 1800;
               if (!repeat) {
                 lastHit.current = { code: value, at: now };
+                // Three channels at once, because a shop is loud, a pocket is
+                // deaf and a screen is not being looked at: a beep, a buzz and
+                // a flash. Any one of them is enough to know it counted.
                 navigator.vibrate?.(60);
+                beep(true);
                 setFlash(true);
                 window.setTimeout(() => setFlash(false), 220);
-                onScanRef.current(value);
+                onScanRef.current(value, symbology);
                 if (!continuous) { stopped.current = true; return; }
               }
             }
@@ -403,6 +474,7 @@ export function ScanCamera({
     start();
     return () => {
       stopped.current = true;
+      track.current = null;
       window.clearTimeout(timer);
       // Releasing every track is what turns the camera light off. Skip it and
       // the light stays on after the sheet closes, which people read — quite
@@ -411,13 +483,40 @@ export function ScanCamera({
     };
   }, [continuous]);
 
+  /** Turn the camera's lamp on or off. */
+  async function toggleLamp() {
+    const feed = track.current;
+    if (!feed) return;
+    const want = !lamp;
+    try {
+      await feed.applyConstraints(
+        { advanced: [{ torch: want }] } as unknown as MediaTrackConstraints);
+      setLamp(want);
+    } catch {
+      // Some devices claim the capability and then refuse it. Say so by
+      // withdrawing the control rather than leaving a switch that lies.
+      setHasLamp(false);
+    }
+  }
+
   return (
     <div className="scan-sheet" role="dialog" aria-modal="true" aria-label={title}>
       <div className="scan-sheet-head">
         <span>{title}</span>
-        <button className="btn ghost" onClick={onClose} aria-label="Close the scanner">
-          Done
-        </button>
+        <div className="scan-sheet-tools">
+          {hasLamp && !error && (
+            <button type="button"
+                    className={"scan-tool" + (lamp ? " is-on" : "")}
+                    onClick={toggleLamp}
+                    aria-pressed={lamp}
+                    aria-label={lamp ? "Turn the light off" : "Turn the light on"}>
+              <Flashlight size={22} weight={lamp ? "fill" : "regular"} />
+            </button>
+          )}
+          <button className="btn ghost" onClick={onClose} aria-label="Close the scanner">
+            Done
+          </button>
+        </div>
       </div>
 
       <div className={"scan-stage" + (flash ? " is-hit" : "")}>

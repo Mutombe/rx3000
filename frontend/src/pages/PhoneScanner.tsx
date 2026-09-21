@@ -31,7 +31,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { ApiError, apiBase, errorText } from "../api";
-import { ScanCamera, cameraSupported } from "../components/Scanner";
+import { Check, Copy, Keyboard, Warning } from "@phosphor-icons/react";
+import { ScanCamera, beep, cameraSupported } from "../components/Scanner";
 import { readStored, writeStored } from "../storage";
 
 /** This phone's own client.
@@ -88,6 +89,43 @@ const PAIRING_SHAPE = /^[ACDEFGHJKLMNPQRTUVWXY2345679]{6}$/;
 
 interface Pairing { token: string; station: string; id: number }
 
+/** One scan this phone has taken, and what became of it. */
+interface Shot {
+  code: string;
+  /** The symbology the camera read it from, where it reported one. */
+  format: string;
+  at: number;
+  state: "sent" | "failed";
+  why?: string;
+}
+
+/** The decoder's format names, said the way the label says them.
+ *
+ *  It reports `code_128` and `ean_13`. A dispenser reading a screen at the
+ *  shelf should see the name printed in every pharmacy catalogue, not an
+ *  enum.
+ */
+const SYMBOL_NAMES: Record<string, string> = {
+  code_128: "Code 128",
+  code_39: "Code 39",
+  code_93: "Code 93",
+  codabar: "Codabar",
+  ean_13: "EAN-13",
+  ean_8: "EAN-8",
+  upc_a: "UPC-A",
+  upc_e: "UPC-E",
+  itf: "ITF",
+  qr_code: "QR",
+  data_matrix: "Data Matrix",
+  aztec: "Aztec",
+  pdf417: "PDF417",
+};
+
+function symbolName(raw: string): string {
+  if (!raw) return "";
+  return SYMBOL_NAMES[raw] ?? raw.replace(/_/g, " ").toUpperCase();
+}
+
 export default function PhoneScanner() {
   const [pairing, setPairing] = useState<Pairing | null>(() => {
     try {
@@ -95,12 +133,26 @@ export default function PhoneScanner() {
       return raw ? (JSON.parse(raw) as Pairing) : null;
     } catch { return null; }
   });
-  const [sent, setSent] = useState(0);
-  const [last, setLast] = useState("");
+  /** What this phone has sent this session, newest first.
+   *
+   *  A running total alone answers "did that count" and nothing else. When a
+   *  scan goes astray — a torn label read as the wrong digits, a pack scanned
+   *  twice, a pairing that lapsed mid-shift — the question is always "what did
+   *  it actually send", and a number cannot answer it. So each one is kept
+   *  with what it read, what symbol it read it from, and whether it arrived.
+   *
+   *  Kept in memory only, and deliberately. These are script numbers and pack
+   *  codes; writing a patient's prescription number into a file on somebody's
+   *  own phone is a leak with no upside, because the counter already has every
+   *  one of them and is where they belong.
+   */
+  const [shots, setShots] = useState<Shot[]>([]);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   /** The code somebody read off the counter screen and typed. */
   const [typed, setTyped] = useState("");
+  /** Which code was last copied, so the button can confirm it. */
+  const [copied, setCopied] = useState("");
   /** Whether the viewfinder is up. `ScanCamera` is a full screen sheet with
    *  its own Done button, so closing it has to land somewhere rather than
    *  unpairing: an accidental tap should not cost somebody the pairing and a
@@ -114,8 +166,8 @@ export default function PhoneScanner() {
   const forget = useCallback(() => {
     writeStored(HELD, null);
     setPairing(null);
-    setSent(0);
-    setLast("");
+    setShots([]);
+    recent.current.clear();
   }, []);
 
   // Check the pairing is still live when the page opens. A phone left in a
@@ -172,7 +224,7 @@ export default function PhoneScanner() {
     }
   }
 
-  async function send(code: string) {
+  async function send(code: string, format = "") {
     if (!pairing) return;
     const now = Date.now();
     const when = recent.current.get(code);
@@ -182,16 +234,38 @@ export default function PhoneScanner() {
     setProblem("");
     try {
       await ask("/api/scanner/scan", { code }, pairing.token);
-      setSent((n) => n + 1);
-      setLast(code);
-      if (navigator.vibrate) navigator.vibrate(60);
+      setShots((all) =>
+        [{ code, format, at: now, state: "sent" as const }, ...all].slice(0, 50));
     } catch (e) {
       const said = errorText(e, "That scan did not reach the counter.");
       setProblem(said);
+      // Kept in the list as a failure rather than dropped. A scan that
+      // vanished silently is the thing this whole screen exists to prevent,
+      // and "it said it sent forty and the counter has thirty-nine" is not a
+      // conversation anybody can have without a list.
+      setShots((all) =>
+        [{ code, format, at: now, state: "failed" as const, why: said }, ...all].slice(0, 50));
+      // A double buzz and a low tone: the operator is looking at the goods,
+      // not at the screen, and needs to know this one did not count.
+      if (navigator.vibrate) navigator.vibrate([70, 60, 70]);
+      beep(false);
       // The pairing is the only thing that can be wrong in a way the person
       // holding the phone can fix, so it is said plainly rather than left as
       // a failed scan they will repeat.
       if (/paired/i.test(said)) forget();
+    }
+  }
+
+  /** Copy a code out, for the one case where somebody has to read it to a
+   *  colleague or paste it into a message. */
+  async function copy(code: string) {
+    try {
+      await navigator.clipboard?.writeText(code);
+      setCopied(code);
+      window.setTimeout(() => setCopied((c) => (c === code ? "" : c)), 1400);
+    } catch {
+      // Clipboard access is refused on some phones inside an iframe. The code
+      // is on screen and can be read; nothing is lost worth interrupting for.
     }
   }
 
@@ -250,9 +324,19 @@ export default function PhoneScanner() {
     );
   }
 
-  /** What it sent, and nothing about what it was. A person needs to know the
-   *  scan registered; they do not need this phone telling them whose
-   *  prescription it is. */
+  const sent = shots.filter((s) => s.state === "sent").length;
+
+  /** What it sent, and what became of each one.
+   *
+   *  The count stays the headline because that is what somebody glances at
+   *  between packs. The list is underneath for the moment the count and the
+   *  counter disagree.
+   *
+   *  What is deliberately NOT here: what the code meant. The counter knows
+   *  that it is Mrs Chirenje's amoxicillin; this phone does not need to, and
+   *  a phone that displays patients' medicines is a phone that shows them to
+   *  whoever is standing next to it.
+   */
   const tally = (
     <>
       <div className="ph-count">
@@ -261,8 +345,42 @@ export default function PhoneScanner() {
           scan{sent === 1 ? "" : "s"} sent to {pairing.station || "the counter"}
         </span>
       </div>
-      {last && <p className="muted small ph-last">Last: {last}</p>}
-      {problem && <p className="alert error">{problem}</p>}
+
+      {problem && <p className="alert error ph-problem">{problem}</p>}
+
+      {shots.length > 0 && (
+        <ul className="ph-shots">
+          {shots.slice(0, 8).map((s) => (
+            <li key={`${s.at}-${s.code}`}
+                className={s.state === "failed" ? "is-failed" : undefined}>
+              <span className="ph-shot-mark" aria-hidden="true">
+                {s.state === "sent"
+                  ? <Check size={18} weight="bold" />
+                  : <Warning size={18} weight="fill" />}
+              </span>
+              <span className="ph-shot-body">
+                <span className="ph-shot-code mono">{s.code}</span>
+                <span className="ph-shot-meta">
+                  {s.format && <span className="ph-chip">{symbolName(s.format)}</span>}
+                  {s.state === "failed"
+                    ? <span className="ph-shot-why">{s.why}</span>
+                    : <span className="ph-shot-why">
+                        {new Date(s.at).toLocaleTimeString([], {
+                          hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                      </span>}
+                </span>
+              </span>
+              <button type="button" className="ph-shot-copy"
+                      onClick={() => void copy(s.code)}
+                      aria-label={`Copy ${s.code}`}>
+                {copied === s.code
+                  ? <Check size={18} weight="bold" />
+                  : <Copy size={18} />}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </>
   );
 
@@ -271,10 +389,36 @@ export default function PhoneScanner() {
       <ScanCamera
         continuous
         title={`Scanning for ${pairing.station || "the counter"}`}
-        onScan={(code) => void send(code)}
+        onScan={(code, format) => void send(code, format)}
         onClose={() => setScanning(false)}
       >
         {tally}
+        {/* A LABEL THE CAMERA WILL NOT READ.
+            Torn, creased, under shrink wrap, or printed by a ribbon that ran
+            out half way: a pharmacy is full of barcodes that no longer scan,
+            and the number under the bars is always still legible. Without
+            this the only way past one was to walk it to the counter. */}
+        <form className="ph-typed ph-typed-inline" onSubmit={(e) => {
+          e.preventDefault();
+          const value = typed.trim();
+          if (!value) return;
+          setTyped("");
+          void send(value, "");
+        }}>
+          <label htmlFor="ph-by-hand">
+            <Keyboard size={16} /> or type the number under the bars
+          </label>
+          <div className="ph-typed-row">
+            <input id="ph-by-hand" value={typed} inputMode="text"
+                   autoCapitalize="characters" autoCorrect="off"
+                   spellCheck={false} placeholder="e.g. RX260900015"
+                   onChange={(e) => setTyped(e.target.value.toUpperCase())} />
+            <button type="submit" className="btn primary"
+                    disabled={!typed.trim()}>
+              Send
+            </button>
+          </div>
+        </form>
       </ScanCamera>
     );
   }

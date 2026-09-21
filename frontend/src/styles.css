@@ -11942,3 +11942,112 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   margin-bottom: var(--s1);
 }
 .st-find-head label { margin: 0; }
+
+/* ---------------------------------------------- the phone used as a scanner
+
+   Sized to Material's metrics rather than this application's desktop scale.
+   The rest of the product is operated with a mouse at a counter; this one
+   screen is held in one hand, often with a box in the other, sometimes in a
+   cold room. So: 48px minimum touch targets, an 8px spacing grid, and type
+   that survives arm's length. Icons stay Phosphor, which is the house family
+   throughout — two icon sets in one product reads as two products. */
+
+/* The camera's own lamp, in the sheet header beside Done. 48px square: this
+   gets pressed with a thumb while the other hand holds a pack. */
+.scan-sheet-tools { display: flex; align-items: center; gap: 8px; }
+.scan-tool {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 48px; height: 48px;
+  border: 0; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12); color: #ffffff;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.scan-tool:hover { background: rgba(255, 255, 255, 0.2); }
+.scan-tool.is-on { background: #ffd54f; color: #201c00; }
+.scan-tool:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+
+/* What has been sent, under the lens. */
+.ph-problem { margin: 8px 0 0; }
+
+.ph-shots {
+  list-style: none; margin: 8px 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 34vh; overflow-y: auto;
+}
+.ph-shots li {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 48px; padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+}
+.ph-shots li.is-failed {
+  background: var(--danger-soft, rgba(190, 40, 40, 0.1));
+}
+.ph-shot-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--ok-soft, rgba(30, 140, 80, 0.16));
+  color: var(--ok, #1e8c50);
+}
+.is-failed .ph-shot-mark {
+  background: transparent; color: var(--danger, #be2828);
+}
+/* min-width:0 so a long code truncates instead of pushing the copy button
+   off the edge of a narrow phone. */
+.ph-shot-body { flex: 1 1 auto; min-width: 0; }
+.ph-shot-code {
+  display: block; font-size: var(--t-md); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ph-shot-meta {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 2px; min-width: 0;
+}
+.ph-shot-why {
+  font-size: var(--t-xs); color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.is-failed .ph-shot-why { color: var(--danger, #be2828); }
+/* The symbology, as a chip. It answers "why did that read as the wrong
+   thing" — a pack carrying both an EAN and a Code 128 is common. */
+.ph-chip {
+  flex: 0 0 auto;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.02em;
+  background: var(--accent-soft, rgba(20, 20, 26, 0.08));
+  color: var(--ink-soft);
+}
+.ph-shot-copy {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border: 0; border-radius: 50%;
+  background: transparent; color: var(--ink-soft); cursor: pointer;
+}
+.ph-shot-copy:hover { background: var(--surface); color: var(--ink); }
+
+/* Typing a number in, inside the viewfinder sheet. */
+.ph-typed-inline { margin-top: 12px; }
+.ph-typed-inline label {
+  display: flex; align-items: center; gap: 6px;
+}
+.ph-typed-row input { min-height: 48px; }
+.ph-typed-row .btn { min-height: 48px; padding-inline: 20px; }
+
+/* The by-hand field takes ordinary type, not the pairing code's treatment.
+   A six character code earns wide tracking and centring; a thirteen digit
+   barcode at 0.22em runs out of phone, and the placeholder rendered as
+   "E.G. RX260900015" in shouting caps. */
+.ph-typed-inline .ph-typed-row input {
+  font-size: var(--t-md);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-align: left;
+}
+.ph-typed-inline .ph-typed-row input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
