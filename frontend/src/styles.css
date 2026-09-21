@@ -12162,3 +12162,38 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .bd-level:hover:not(:disabled) { border-color: var(--line); }
 .bd-level:focus { background: var(--surface); border-color: var(--accent); }
 .bd-level:disabled { opacity: .5; }
+
+/* A bin card, with its own relabel control beneath it. The card itself is a
+   button that opens the shelf, so the second action cannot nest inside it. */
+.bins-card-wrap { display: flex; flex-direction: column; }
+.bins-card-wrap .bins-card { flex: 1 1 auto; }
+.bins-card-edit {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 0;
+  color: var(--ink-soft);
+}
+.bins-card-edit:hover { color: var(--ink); }
+/* Which of the three places a move sets. Narrow: it sits in a row with the
+   bin name and the reason, and a wide select pushes them onto two lines. */
+.bins-move-slot { width: 13ch; }
+
+/* The stock reports picker in the Inventory header. Sized and heighted
+   explicitly so it sits on the line with the buttons beside it rather than
+   stretching to the header's full height, which is what happened when this
+   was the app's own combobox. */
+.stock-reports-pick {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 13rem;
+  height: var(--control);
+  padding: 0 var(--s2);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  font-size: var(--t-base);
+  cursor: pointer;
+}
+.stock-reports-pick:hover { border-color: var(--ink-faint); }
+.stock-reports-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

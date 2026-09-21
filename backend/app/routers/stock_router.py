@@ -1711,6 +1711,105 @@ def stock_reason_list():
     return {"reasons": stock_reasons.catalogue()}
 
 
+@router.post("/stock/bins/rename")
+def rename_bin(body: dict = Body(...), db: Session = Depends(get_db),
+               user: User = Depends(get_current_user),
+               _may=Depends(auth.requires("stock.adjust"))):
+    """Rename a shelf, merge two, or empty one. They are the same act.
+
+    A BIN IS NOT A RECORD, WHICH IS WHY THIS IS ONE ENDPOINT
+
+    There is no bin table. A bin is whatever somebody typed into a product's
+    location field, so "renaming B12 to B14" means moving every line in B12 to
+    B14, and if B14 already exists that is a merge. Emptying a shelf is the
+    same loop with nothing to move to. Three names for one operation, and
+    pretending otherwise would mean three endpoints that could disagree.
+
+    WHY IT HAD TO EXIST
+
+    A shelf gets relabelled, two shelves become one, a fixture is taken out.
+    None of that could be recorded: the only way to change a bin was to open
+    the directory, tick every line on the shelf by hand and retype the name.
+    A hundred-line shelf is a hundred ticks and a mistake, so it does not get
+    done, and the bin map drifts away from the room it describes — at which
+    point nobody trusts it and everybody walks the aisle instead.
+
+    It also answers the "spelt N ways" badge the directory has always shown
+    and never offered to fix.
+    """
+    was = bins.normalise(body.get("from") or "")
+    now = bins.normalise(body.get("to") or "")
+    reason = str(body.get("reason") or "").strip()
+    slot = int(body.get("slot") or 0)
+    if slot not in (0, 1, 2, 3):
+        raise HTTPException(400, "A product has up to three bins: 1, 2 or 3.")
+    if not was:
+        raise HTTPException(400, "Say which shelf is being changed.")
+    if not now and not body.get("clear"):
+        raise HTTPException(
+            400, "Give the new name, or tick clear to empty the shelf and put "
+                 "its lines back among the unplaced.")
+    if was.upper() == now.upper():
+        raise HTTPException(400, f"{was} is already called that.")
+
+    # WHETHER THIS IS A MERGE IS DECIDED BEFORE ANYTHING MOVES.
+    #
+    # Asked afterwards it cannot be answered: `contents` counts only active
+    # lines and the move touches every line, so a straight rename came back
+    # reporting fewer on the shelf than it had just put there and called a
+    # merge a rename. Counted first, the question is simply "did that shelf
+    # already hold something".
+    def _holding(name: str) -> int:
+        if not name:
+            return 0
+        folded = name.upper()
+        return (db.query(Product)
+                .filter(or_(*[func.upper(func.trim(getattr(Product, _bin_field(n))))
+                              == folded for n in (1, 2, 3)]))
+                .count())
+
+    already = _holding(now)
+
+    # Every slot unless one was named. A shelf relabelled in the room is
+    # relabelled for every line kept there, whichever of its three places
+    # that happens to be.
+    slots = (slot,) if slot else (1, 2, 3)
+    moved = 0
+    touched: set[int] = set()
+    for which in slots:
+        field = _bin_field(which)
+        column = getattr(Product, field)
+        for product in db.query(Product).filter(
+                func.upper(func.trim(column)) == was.upper()).all():
+            before = getattr(product, field)
+            setattr(product, field, now)
+            if bins.record(db, product, before, user=user, source="rename",
+                           reason=reason or f"shelf {was} became {now or 'nothing'}",
+                           slot=which):
+                moved += 1
+                touched.add(product.id)
+    db.commit()
+
+    if not moved:
+        raise HTTPException(404, f"Nothing is kept in {was}.")
+    # Said as what it was, not as what was asked for. Merging into a shelf that
+    # already held stock is a different fact from renaming an empty one, and
+    # the person doing it should be told which happened.
+    return {
+        "moved": moved,
+        "products": len(touched),
+        "from": was, "to": now,
+        "merged": bool(now and already),
+        "message": (
+            f"{was} emptied. {moved} line(s) are now unplaced."
+            if not now else
+            f"{was} merged into {now}, which already held {already} line(s) "
+            f"and now holds {already + moved}."
+            if already else
+            f"{was} is now called {now}. {moved} line(s) moved."),
+    }
+
+
 # ---------- quarantine: owned, on a shelf, and not allowed out ----------
 @router.get("/stock/quarantine")
 def quarantined_stock(limit: int = 300, db: Session = Depends(get_db)):

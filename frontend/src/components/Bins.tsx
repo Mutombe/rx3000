@@ -25,6 +25,8 @@ import { api, errorText, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink } from "./Filters";
 import { useToast } from "./Toast";
+import BusyButton from "./BusyButton";
+import Checkbox from "./Checkbox";
 
 interface Bin {
   bin: string;
@@ -72,6 +74,15 @@ export default function Bins() {
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [target, setTarget] = useState("");
   const [why, setWhy] = useState("");
+  /** WHICH OF THE THREE PLACES A LINE IS KEPT.
+   *
+   *  The endpoint has taken a slot since a line could be kept in three
+   *  places, and this screen never sent one — so every move wrote the primary
+   *  bin. A line kept in the dispensary AND the back store could only have
+   *  its second place set on the product form, and moving it "to bin 14" here
+   *  silently overwrote the dispensary one. */
+  const [slot, setSlot] = useState(1);
+  const [renaming, setRenaming] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -132,7 +143,7 @@ export default function Bins() {
     try {
       const r = await api.post<{ moved: number; message: string }>(
         "/api/stock/bins/move",
-        { product_ids: ids, bin: where, clear, reason: why.trim() });
+        { product_ids: ids, bin: where, clear, reason: why.trim(), slot });
       toast.ok(r.message);
       load();
     } catch (e) {
@@ -181,6 +192,13 @@ export default function Bins() {
             <input value={target} onChange={(e) => setTarget(e.target.value)}
                    placeholder="Move to bin" maxLength={20}
                    className="bins-move-bin" />
+            <select className="bins-move-slot" value={slot}
+                    aria-label="Which of the three places this sets"
+                    onChange={(e) => setSlot(Number(e.target.value))}>
+              <option value={1}>Main shelf</option>
+              <option value={2}>Second place</option>
+              <option value={3}>Third place</option>
+            </select>
             <input value={why} onChange={(e) => setWhy(e.target.value)}
                    placeholder="Why, if there is a reason" maxLength={200}
                    className="bins-move-why" />
@@ -296,7 +314,8 @@ export default function Bins() {
                                             widths={["10ch", "10ch", "12ch", "14ch"]} />}>
         <div className="bins-grid">
           {shown.map((b) => (
-            <button type="button" key={b.bin} className="bins-card"
+            <div key={b.bin} className="bins-card-wrap">
+            <button type="button" className="bins-card"
                     onClick={() => openShelf(b.bin)}>
               <span className="bins-card-name">Bin {b.bin}</span>
               <span className="bins-card-lines">
@@ -320,9 +339,111 @@ export default function Bins() {
                 </span>
               )}
             </button>
+            {/* RELABEL, MERGE OR EMPTY A SHELF.
+                None of this existed. A shelf gets relabelled, two shelves
+                become one, a fixture is taken out — and the only way to
+                record any of it was to open the shelf, tick every line by
+                hand and retype the name. A hundred-line shelf is a hundred
+                ticks and a mistake, so it does not get done and the bin map
+                drifts away from the room it describes.
+
+                It is also the answer to the "Spelt N ways" badge, which this
+                screen has always shown and never offered to fix. */}
+            <button type="button" className="btn-link small bins-card-edit"
+                    onClick={() => setRenaming(b.bin)}>
+              Rename or merge
+            </button>
+            </div>
           ))}
         </div>
       </Refreshable>
+
+      {renaming !== null && (
+        <RenameBin
+          bin={renaming}
+          onClose={() => setRenaming(null)}
+          onDone={() => { setRenaming(null); load(); }}
+        />
+      )}
     </>
+  );
+}
+
+/** Relabel a shelf, merge it into another, or empty it.
+ *
+ *  All three are the same act, because a bin is not a record: it is whatever
+ *  somebody typed into a product's location, so "rename B12 to B14" means
+ *  moving every line in B12 to B14, and if B14 already exists that is a
+ *  merge. The server decides which of the three it turned out to be and says
+ *  so, rather than this screen guessing from what was typed.
+ */
+function RenameBin({ bin, onClose, onDone }: {
+  bin: string;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const toast = useToast();
+  const [to, setTo] = useState("");
+  const [why, setWhy] = useState("");
+  const [clear, setClear] = useState(false);
+
+  async function go() {
+    try {
+      const r = await api.post<{ message: string; merged: boolean }>(
+        "/api/stock/bins/rename",
+        { from: bin, to: clear ? "" : to.trim(), clear, reason: why.trim() });
+      toast.ok(r.message);
+      onDone();
+    } catch (e) {
+      toast.error(errorText(e, "That shelf could not be changed."));
+    }
+  }
+
+  const ready = clear || to.trim().length > 0;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h2>Bin {bin}</h2>
+        <p className="muted">
+          Every line kept here moves, in whichever of its three places this
+          shelf is. If the new name already exists the two shelves become one.
+        </p>
+
+        <div className="field">
+          <label htmlFor="bin-to">New name</label>
+          <input id="bin-to" value={to} autoFocus maxLength={20}
+                 disabled={clear}
+                 onChange={(e) => setTo(e.target.value)}
+                 placeholder="e.g. B14" />
+          <span className="hint">
+            Type an existing shelf to merge this one into it.
+          </span>
+        </div>
+
+        {/* Emptying is a real thing — a fixture is taken out — and it is also
+            what an empty form field looks like, so it is asked for rather
+            than defaulted into. */}
+        <Checkbox checked={clear} onChange={setClear}
+                  hint="The lines go back among the unplaced. Nothing is deleted.">
+          Empty this shelf instead
+        </Checkbox>
+
+        <div className="field">
+          <label htmlFor="bin-why">Why <span className="muted">optional</span></label>
+          <input id="bin-why" value={why} maxLength={200}
+                 onChange={(e) => setWhy(e.target.value)}
+                 placeholder="e.g. shelving replaced" />
+        </div>
+
+        <div className="modal-foot">
+          <button className="btn secondary" onClick={onClose}>Cancel</button>
+          <BusyButton className="btn primary" onClick={go} disabled={!ready}
+                      busyLabel="Moving…">
+            {clear ? "Empty it" : "Move them"}
+          </BusyButton>
+        </div>
+      </div>
+    </div>
   );
 }

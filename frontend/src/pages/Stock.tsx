@@ -503,7 +503,7 @@ export default function Stock() {
           <h1>Inventory</h1>
           <div className="sub">Products, quantities, movements and reorder levels</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* THE REPORTS, FROM WHERE THE QUESTION IS ASKED.
               There are twenty six stock reports and every one of them was
               reachable only through a nav item labelled "Analytics", gated on
@@ -514,13 +514,28 @@ export default function Stock() {
               Offered per tab, because the report that answers "what is about
               to expire" is not the one that answers "where did this go", and
               a list of twenty six is its own kind of hiding. */}
-          <Select
+          {/* A NATIVE SELECT, DELIBERATELY.
+              The app's own combobox rendered here as a 208x224 empty panel:
+              its fixed height loses to something in this header's cascade,
+              and no other screen puts one in a page head so nobody had met
+              it. Chasing that down is worth doing once; shipping a control
+              that cannot be stretched into a wall is worth doing now. A
+              native select is also the better answer for a jump menu — it
+              opens with the keyboard and behaves like the device it is on. */}
+          <select
+            className="stock-reports-pick"
+            aria-label="Stock reports"
             value=""
-            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
-            ariaLabel="Stock reports"
-            placeholder="Reports…"
-            options={REPORTS_FOR[tab] ?? REPORTS_FOR.products}
-          />
+            onChange={(e) => {
+              const key = e.target.value;
+              if (key) navigate(`/reports?report=${key}`);
+            }}
+          >
+            <option value="">Reports…</option>
+            {(REPORTS_FOR[tab] ?? REPORTS_FOR.products).map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
           <ExportButton dataset={tab === "batches" ? "batches" : "products"}
                         label={tab === "batches" ? "Batches as a spreadsheet"
                                                  : "Catalogue as a spreadsheet"} />
