@@ -16,9 +16,9 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Warning } from "@phosphor-icons/react";
+import { Warning } from "@phosphor-icons/react";
 
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import MatchToBill, { Candidate } from "../components/MatchToBill";
@@ -137,10 +137,15 @@ export default function GoodsReceiptDetail() {
   const itemRows = (items: Item[]) => items.map((i, n) => (
     <tr key={`${i.product_id}-${i.batch}-${n}`}>
       <td>
-        <EntityLink to={`/products/${i.product_id}`}>{i.product || "—"}</EntityLink>
+        <EntityLink to={`/products/${i.product_id}`}>{i.product || "unnamed"}</EntityLink>
       </td>
       <td className="mono small">{i.batch || <span className="muted">none</span>}</td>
-      <td className="small">{i.expiry || <span className="muted">not given</span>}</td>
+      <td className="small">
+        {/* Said the way every other date in the product is said. It was
+            printed straight from the database as 2027-01-10, which is the
+            one date format nobody in the pharmacy writes. */}
+        {i.expiry ? fmtDate(i.expiry) : <span className="muted">not given</span>}
+      </td>
       <td className="num">{i.quantity}</td>
       <td className="num">{money(i.unit_cost)}</td>
       <td className="num">{money(i.line_total)}</td>
@@ -180,14 +185,15 @@ export default function GoodsReceiptDetail() {
               The order
             </Link>
           ) : null}
+          {/* No "back to Deliveries" button here. The breadcrumb already
+              renders one from the last linked step in the trail, and with
+              the tab now named in that trail it points at the right place.
+              Two identical back links in one header is one too many. */}
           {row?.supplier_id ? (
             <Link to={`/suppliers/${row.supplier_id}`} className="btn secondary">
               The supplier
             </Link>
           ) : null}
-          <Link to="/stock?tab=deliveries" className="btn secondary">
-            <ArrowLeft size={13} weight="bold" /> Deliveries
-          </Link>
         </>
       }
       facts={row ? [

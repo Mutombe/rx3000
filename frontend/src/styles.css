@@ -3934,6 +3934,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .col-said  { width: 16rem; }   /* a short sentence: a reason, a description */
 .col-code  { width: 7rem; }    /* a short branch or account code */
 .col-city  { width: 8.5rem; }  /* a town name */
+.col-count { width: 5.5rem; }  /* a plain count: packs, units, lines */
 
 .pay-supplier { width: 19rem; }
 
@@ -11847,6 +11848,14 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* On its own line: after a sentence that runs two lines, an instruction
    tucked onto the end of the second is not read as the thing to press. */
 .sr-owed-do { display: block; margin-top: 2px; font-size: 12px; }
+
+/* A wholesaler's registered name is a sentence, not a token.
+   "UPD (United Pharmaceutical Distributors)" truncated to "UPD (United
+   Pharmaceuti…" on every row of both tables, so the one column somebody
+   reads to tell two deliveries apart was the one they could not read. It
+   wraps instead: a taller row costs nothing, and a name cut mid word looks
+   like a rendering fault. */
+.gr-table td:nth-child(2), .gr-table td:nth-child(3) { white-space: normal; }
 
 .sr-say { margin: 0 0 var(--s3); max-width: 74ch; }
 .sr-detail td { background: var(--surface-sunk); }

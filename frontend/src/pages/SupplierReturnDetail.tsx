@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Warning } from "@phosphor-icons/react";
+import { Warning } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -175,14 +175,12 @@ export default function SupplierReturnDetail() {
               Call it off
             </button>
           )}
+          {/* The breadcrumb renders the back link from the trail. */}
           {row?.supplier_id ? (
             <Link to={`/suppliers/${row.supplier_id}`} className="btn secondary">
               The supplier
             </Link>
           ) : null}
-          <Link to="/stock?tab=returns" className="btn secondary">
-            <ArrowLeft size={13} weight="bold" /> Returns
-          </Link>
         </>
       }
       facts={row ? [
@@ -282,7 +280,7 @@ export default function SupplierReturnDetail() {
                         {l.batch || <span className="muted">none</span>}
                       </td>
                       <td className="small">
-                        {l.expiry || <span className="muted">no expiry</span>}
+                        {l.expiry ? fmtDate(l.expiry) : <span className="muted">no expiry</span>}
                       </td>
                       <td className="mono small">
                         {/* An absent delivery arrives as an empty object, not

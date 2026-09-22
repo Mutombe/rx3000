@@ -268,15 +268,23 @@ export default function GoodsReceipts() {
                    skeleton={<TableSkeleton cols={6} rows={5}
                                             widths={["14ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
         <div className="dt-scroll">
-          <table className="dt dt-wide">
+          {/* WIDTHS THAT ADD UP TO THE SCREEN.
+              Declared on the header, because a fixed layout sizes from the
+              first row alone. Only the columns with a known shape are given
+              one: a date, an order number, a count and a money figure. The
+              supplier and the paperwork share what is left, because those
+              are the two that hold a sentence rather than a token, and a
+              sixth width would be the one that pushed the action button off
+              the right of the screen. */}
+          <table className="dt gr-table">
             <thead>
               <tr>
                 <th className="col-when">Delivery</th>
-                <th className="col-name">Supplier</th>
+                <th>Supplier</th>
                 <th className="col-code">Against</th>
-                <th className="num">Packs</th>
+                <th className="num col-count">Packs</th>
                 <th className="num col-money">At cost</th>
-                <th className="col-med">Paperwork</th>
+                <th>Paperwork</th>
                 <th className="actions" />
               </tr>
             </thead>

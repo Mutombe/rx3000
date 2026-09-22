@@ -278,14 +278,21 @@ export default function SupplierReturns() {
                    skeleton={<TableSkeleton cols={6} rows={5}
                                             widths={["12ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
         <div className="dt-scroll">
-          <table className="dt dt-wide">
+          {/* Only the columns with a known shape carry a width; the supplier
+              and the reason share what is left. See the note on the
+              deliveries table: a width on every column adds up to more than
+              the screen and pushes the action buttons off it. */}
+          <table className="dt gr-table">
             <thead>
               <tr>
                 <th className="col-when">Reference</th>
-                <th className="col-name">Supplier</th>
-                <th className="col-said">Why</th>
+                <th>Supplier</th>
+                <th>Why</th>
                 <th className="num col-money">Value</th>
-                <th className="col-code">Standing</th>
+                {/* Undeclared: the badge says "gone, credit owed" and a code
+                    width cut it to "gone, credit owe". A state that cannot be
+                    read in full is a state nobody trusts. */}
+                <th>Standing</th>
                 <th className="actions" />
               </tr>
             </thead>
@@ -338,8 +345,13 @@ export default function SupplierReturns() {
                           Cancel
                         </button>
                       )}
+                      {/* Bordered, not ghost. A ghost button alone in a cell
+                          has no chrome at all, so the only thing to do on a
+                          row owed money read as a line of text and nobody
+                          pressed it. Ghost is for the quiet half of a pair,
+                          which is what Cancel is beside Approve. */}
                       {r.status === "approved" && mayRaise && (
-                        <button type="button" className="btn small ghost"
+                        <button type="button" className="btn small secondary"
                                 onClick={() => credit(r)}>
                           Credit received
                         </button>
