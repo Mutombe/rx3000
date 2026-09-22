@@ -3,6 +3,7 @@ import { useAsk } from "../components/Confirm";
 import { DetailSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import RecordPage from "../components/RecordPage";
+import { EntityLink } from "../components/Filters";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";

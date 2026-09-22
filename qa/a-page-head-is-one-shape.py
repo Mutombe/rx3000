@@ -50,12 +50,23 @@ def check(said, ok, detail=""):
 
 
 def head_of(text: str) -> str | None:
-    m = re.search(r'className="page-head', text)
+    """The header block, bounded by its OWN indentation.
+
+    An earlier version looked for the first `\\n      </div>` at six spaces.
+    Dispensing opens its header at eight, so the block ran past the header and
+    swallowed the card beneath it: the guard then reported a paragraph in an
+    empty state as a malformed subtitle. A regex that guesses the indentation
+    of the thing it is measuring reports faults that are not there, and a
+    guard that cries wolf is one nobody reads.
+    """
+    m = re.search(r'^([ \t]*)<(?:div|header) className=\{?[`"]page-head',
+                  text, re.M)
     if not m:
         return None
+    indent = m.group(1)
     rest = text[m.start():]
-    end = re.search(r"\n      </(?:div|header)>\n", rest)
-    return rest[:end.end()] if end else rest[:4000]
+    end = re.search(rf"\n{indent}</(?:div|header)>\n", rest)
+    return rest[: end.end()] if end else rest[:4000]
 
 
 print("\n  every page header is one shape\n")

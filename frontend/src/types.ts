@@ -73,6 +73,10 @@ export interface Product {
   name: string;
   nappi_code: string;
   barcode: string;
+  /** The pharmacy's own code for the line, as it appears on a wholesaler's
+   *  order. The API has always sent it; the type did not declare it, so a
+   *  screen reading it did not compile. */
+  stock_code?: string;
   category: string;
   schedule: number;
   dosage_form: string;
