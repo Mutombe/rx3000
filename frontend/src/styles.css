@@ -4107,6 +4107,50 @@ td.lb-actions {
 
 /* A search box that belongs to a page rather than to a table. */
 .page-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+
+/* ---------- THE HEADER EVERY RECORD PAGE SHARES ----------
+   Measured across four detail pages before this existed: header heights of
+   76, 93, 93 and 142px, two with no record type above the name, two with the
+   breadcrumb ending "This record" rather than naming it, and two whose
+   actions were not grouped, so `.page-head`'s space-between scattered them
+   across the width. Four pages, four headers.
+
+   The shape is fixed here so a page is only the part that differs:
+   identifiers left, actions right, one left edge, actions aligned to the top
+   of the name rather than the bottom of whatever the left column grew into. */
+.rp-head { align-items: flex-start; }
+.rp-ident { min-width: 0; flex: 1 1 26rem; }
+/* Aligned with the name, not the last line of the identifiers. Bottom
+   alignment put the buttons level with the fifth row of metadata on a
+   patient and level with the title on an order, which is the same header
+   looking like two. */
+.rp-head > .page-actions { padding-top: 1.55rem; }
+
+/* IDENTIFIERS, LABELLED.
+   These were a single grey line with dots between the values, so nothing
+   said which number was the profile number and the eye had to parse the
+   format of each one to find out. */
+.rp-meta {
+  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
+  margin: var(--s3) 0 0;
+}
+.rp-meta > div { min-width: 0; }
+.rp-meta dt {
+  font-size: .62rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-faint); margin: 0 0 2px;
+}
+.rp-meta dd {
+  margin: 0; font-size: var(--t-base); color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+/* The face comes from `.mono` itself; this only wins back the size, because
+   `.rp-meta dd` is the more specific selector and would otherwise keep it. */
+.rp-meta dd.mono { font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  /* The buttons lead on a phone, where the header is most of the screen. */
+  .rp-head > .page-actions { padding-top: var(--s3); }
+}
 .page-search { min-width: 16rem; max-width: 22rem; }
 @media (max-width: 640px) { .page-search { min-width: 0; width: 100%; } }
 

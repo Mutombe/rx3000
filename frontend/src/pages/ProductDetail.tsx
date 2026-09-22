@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import { EntityLink } from "../components/Filters";
 import ProductDispensings from "../components/ProductDispensings";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import Variants from "../components/Variants";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
@@ -10,10 +10,9 @@ import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
-import { Avatar, Highlights } from "../components/record";
+import { Highlights } from "../components/record";
 import { PriceChange, Product, ProductDetail as Detail, PurchaseLine,
          StockBatch, StockMovement } from "../types";
-import { ArrowLeft } from "@phosphor-icons/react";
 import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
 import AdjustStock from "../components/AdjustStock";
@@ -124,7 +123,7 @@ export default function ProductDetail() {
       </div>
     );
   if (!data) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Stock", to: "/stock" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Stock", to: "/stock" }, { label: "Loading" }]}
         eyebrow="Product"
         tabs={["Batches on hand", "Movement history"]}
         cards={1}
@@ -213,37 +212,54 @@ export default function ProductDetail() {
   ];
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Stock", to: "/stock" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={p.name} last="" size={44} />
-          <div>
-            <div className="eyebrow">Product</div>
-            <h1>{p.name} {p.strength}</h1>
-            <div className="sub">
-              {p.dosage_form || "—"} · {p.category}
-              {p.schedule > 0 && <> · <span className="badge sched">S{p.schedule}</span></>}
-            </div>
-            {/* The department, where it is set and not merely displayed. An
-                unfiled product is the commonest reason a stock report shows a
-                large "uncategorised" line nobody can explain. */}
-            <div className="pd-department">
-              <span className="muted small">Department</span>
-              <Select
-                value={p.category_id == null ? "" : String(p.category_id)}
-                onChange={file}
-                disabled={filing}
-                ariaLabel="Department"
-                options={[{ value: "", label: "Not filed" },
-                          ...departments.map((d) => ({
-                            value: String(d.id), label: d.name }))]}
-              />
-            </div>
-          </div>
-        </div>
-        <Link to="/stock" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Inventory</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Inventory", to: "/stock" },
+              { label: `${p.name}${p.strength ? ` ${p.strength}` : ""}` }]}
+      eyebrow="Product"
+      title={`${p.name}${p.strength ? ` ${p.strength}` : ""}`}
+      /* NO AVATAR. It was an initial in a coloured circle beside the name of
+         a box of tablets, which is the device this design uses for people.
+         It also indented the title 58px further in than the breadcrumb above
+         it and the card below it, so nothing on the page shared a left edge. */
+      subtitle={
+        <>
+          {p.dosage_form || "form not recorded"} · {p.category.replace(/_/g, " ")}
+          {p.schedule > 0 && <> · <span className="badge sched">S{p.schedule}</span></>}
+        </>
+      }
+      /* The numbers somebody reads this header out loud from: a code down the
+         telephone to a wholesaler, a barcode checked against a box. */
+      meta={[
+        ...(p.stock_code
+          ? [{ label: "Stock code", value: p.stock_code, mono: true }] : []),
+        ...(p.nappi_code
+          ? [{ label: "AHFoZ code", value: p.nappi_code, mono: true }] : []),
+        ...(p.barcode
+          ? [{ label: "Barcode", value: p.barcode, mono: true }] : []),
+        { label: "Pack size", value: p.pack_size || "not recorded" },
+        { label: "Department",
+          value: departments.find((d) => d.id === p.category_id)?.name
+            ?? <span className="muted">not filed</span> },
+      ]}
+      /* THE DEPARTMENT DROPDOWN IS NOT HERE ANY MORE.
+         A form control sitting inside the title block is the one thing a
+         header should never hold: it made the header 142px tall against 93
+         on every other record page, and put an editable field where the eye
+         goes to read the name. It sets the department from the details card
+         below, where the rest of the record is edited; the header states the
+         department as a fact like the others. */
+      actions={
+        <>
+          <Link to={`/stock-take?product=${p.id}`} className="btn secondary">
+            Count it
+          </Link>
+          <Link to={`/stock?tab=movements&product=${p.id}`} className="btn secondary">
+            Its movements
+          </Link>
+        </>
+      }
+    >
 
       <div className="card record-hero">
         {/* THE FIGURES A BUYER DECIDES ON.
@@ -258,7 +274,8 @@ export default function ProductDetail() {
               : `${shelf.units} across every branch` },
           { label: "Packs", value: String(shelf.packs),
             hint: shelf.per_pack > 1 ? `${shelf.per_pack} units to a pack` : "one unit a pack" },
-          { label: "Days of cover", value: shelf.days_cover === null ? "—" : String(shelf.days_cover),
+          { label: "Days of cover",
+            value: shelf.days_cover === null ? "not known" : String(shelf.days_cover),
             hint: shelf.a_day > 0 ? `${shelf.a_day} a day over 90 days` : "nothing has gone out" },
           { label: "Average cost", value: money(shelf.avg_cost),
             hint: "weighted over the stock on the shelf" },
@@ -328,14 +345,37 @@ export default function ProductDetail() {
             </span>
           )}
         </div>
+        {/* The codes that were here are in the header now, where somebody
+            reading one down a telephone looks first. Repeating them would be
+            two places to check and one to forget to update. */}
         <dl className="detail-fields" style={{ marginTop: 14 }}>
-          <div><dt>AHFoZ code</dt><dd className="mono">{p.nappi_code || "—"}</dd></div>
-          <div><dt>Barcode</dt><dd className="mono">{p.barcode || "—"}</dd></div>
-          <div><dt>Pack size</dt><dd>{p.pack_size || "—"}</dd></div>
+          {/* MOVED OUT OF THE PAGE HEADER.
+              A dropdown inside the title block made that header 142px tall
+              against 93 on every other record page, and put an editable
+              field where the eye goes to read the name. It belongs with the
+              rest of the record, which is edited here. An unfiled product is
+              the commonest reason a stock report shows a large
+              "uncategorised" line nobody can explain. */}
+          <div>
+            <dt>Department</dt>
+            <dd>
+              <Select
+                value={p.category_id == null ? "" : String(p.category_id)}
+                onChange={file}
+                disabled={filing}
+                ariaLabel="Department"
+                options={[{ value: "", label: "Not filed" },
+                          ...departments.map((d) => ({
+                            value: String(d.id), label: d.name }))]}
+              />
+            </dd>
+          </div>
           <div>
             <dt>Bin</dt>
             <dd>
-              {p.bin_location || "—"}
+              {p.bin_location
+                ? <EntityLink to={`/bins/${p.bin_location}`}>{p.bin_location}</EntityLink>
+                : <span className="muted">no shelf</span>}
               {/* Where else it is kept. The stock is valued at the first,
                   so the others are places to walk rather than piles to
                   price. */}
@@ -358,8 +398,10 @@ export default function ProductDetail() {
               )}
             </dd>
           </div>
-          <div><dt>Ingredient</dt><dd>{p.active_ingredient || "—"}</dd></div>
-          <div><dt>Manufacturer</dt><dd>{p.manufacturer || "—"}</dd></div>
+          <div><dt>Ingredient</dt><dd>{p.active_ingredient
+            || <span className="muted">not recorded</span>}</dd></div>
+          <div><dt>Manufacturer</dt><dd>{p.manufacturer
+            || <span className="muted">not recorded</span>}</dd></div>
           <div><dt>Reorder quantity</dt><dd>{p.reorder_quantity}</dd></div>
         </dl>
         {/* The rest of the family: other products holding the same molecule. */}
@@ -391,6 +433,9 @@ export default function ProductDetail() {
           columns={batchCols}
           rows={data.batches}
           rowKey={(b) => b.id}
+          /* The lot record: what came in on it, what is left, and where it
+             went. Named on this row and unreachable from it. */
+          rowHref={(b) => `/batches/${b.id}`}
           totals
           initialSort={{ key: "expiry_date", dir: "asc" }}
           empty="No stock on hand, nothing has been received for this product"
@@ -501,6 +546,7 @@ export default function ProductDetail() {
             columns={buyCols}
             rows={data.buying ?? []}
             rowKey={(r) => r.order_id}
+            rowHref={(r) => `/orders/${r.order_id}`}
             initialSort={{ key: "at", dir: "desc" }}
             empty="This line has never been ordered through the system"
           />
@@ -512,10 +558,14 @@ export default function ProductDetail() {
           columns={moveCols}
           rows={data.movements}
           rowKey={(m) => m.id}
+          /* A movement listed here led nowhere, so the one question it
+             raises, "what was that and who did it", had to be answered by
+             going to Inventory and finding the same row again. */
+          rowHref={(m) => `/movements/${m.id}`}
           initialSort={{ key: "created_at", dir: "desc" }}
           empty="No stock movements recorded"
         />
       )}
-    </>
+    </RecordPage>
   );
 }

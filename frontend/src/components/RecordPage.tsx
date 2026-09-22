@@ -26,14 +26,41 @@ export interface Fact {
   tone?: string;
 }
 
+/** An identifier: what this record IS, as against how it is doing.
+ *
+ *  WHY THIS IS NOT `facts`, AND NOT THE SUBTITLE
+ *
+ *  A patient's header read "PT260900073 · DOB 03 Mar, 1979 · 07719116611 ·
+ *  AHSS Zimbabwe #HD-1166 · 0 loyalty pts": five different kinds of fact run
+ *  together in one grey line with dots between them, which is a sentence to
+ *  be read rather than a set of fields to be scanned. Nothing said which
+ *  number was the profile number, so the eye had to parse the format of each
+ *  one to find out.
+ *
+ *  These are not `facts` either. Facts are the figures a record is judged by
+ *  and they get the big strip; an identifier is how somebody finds or quotes
+ *  the record, and it belongs with the name.
+ */
+export interface Meta {
+  label: string;
+  value: ReactNode;
+  /** A code, an account number, a barcode: set in the monospace face so the
+   *  digits line up and a transposed pair is visible. */
+  mono?: boolean;
+}
+
 export default function RecordPage({
-  trail, eyebrow, title, subtitle, facts, error, loading, actions, children,
+  trail, eyebrow, title, subtitle, meta, facts, error, loading, actions,
+  children,
 }: {
   trail: Crumb[];
   /** What kind of thing this is — "Supplier", "Claim", "Batch". */
   eyebrow: string;
   title: ReactNode;
   subtitle?: ReactNode;
+  /** How this record is identified and quoted. Four or five at most: past
+   *  that it stops being a header and becomes the record. */
+  meta?: Meta[];
   /** The handful of numbers worth reading before anything else. */
   facts?: Fact[];
   error?: string;
@@ -59,13 +86,29 @@ export default function RecordPage({
   return (
     <>
       <Breadcrumbs trail={trail} />
-      <div className="page-head">
-        <div>
+      <div className="page-head rp-head">
+        {/* ONE LEFT EDGE.
+            The breadcrumb, the record type, the name, the identifiers and
+            every card below all start at the same pixel. A product page put
+            an avatar beside the title, which indented the name 58px further
+            in than the trail above it and the card beneath it, and nothing
+            on the screen lined up with anything else. */}
+        <div className="rp-ident">
           {/* The record type, in its family colour. The word above a record
               page is where somebody confirms what they are looking at. */}
           <div className={`eyebrow ${labelTone(eyebrow)}`.trim()}>{eyebrow}</div>
           <h1>{title}</h1>
           {subtitle && <div className="sub">{subtitle}</div>}
+          {meta && meta.length > 0 && (
+            <dl className="rp-meta">
+              {meta.map((m) => (
+                <div key={m.label}>
+                  <dt>{m.label}</dt>
+                  <dd className={m.mono ? "mono" : undefined}>{m.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
         </div>
         {/* GROUPED, NOT SPREAD.
             `.page-head` lays its children out with space between them, so a

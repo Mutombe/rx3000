@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import BusyButton from "../components/BusyButton";
 import TermSelect from "../components/TermSelect";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { printDocument } from "../document";
@@ -79,7 +79,7 @@ export default function PatientDetail() {
   }, [id]);
 
   if (!patient) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "Loading" }]}
         eyebrow="Patient"
         tabs={["Prescriptions", "Dispensing history", "Purchases", "Tax statement"]}
         cards={3}
@@ -227,15 +227,58 @@ export default function PatientDetail() {
   }
 
   return (
-    <>
-      <Breadcrumbs
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "This record" }]}
-        actions={
-          <button className="ghost small" onClick={sendPortalLink}>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Patients", to: "/patients" },
+              { label: `${patient.first_name} ${patient.last_name}` }]}
+      eyebrow="Patient"
+      title={`${patient.first_name} ${patient.last_name}`}
+      /* WAS ONE GREY LINE WITH DOTS BETWEEN FIVE DIFFERENT KINDS OF FACT.
+         "PT260900073 · DOB 03 Mar, 1979 · 07719116611 · AHSS Zimbabwe
+         #HD-1166 · 0 loyalty pts" is a sentence to be read, not a set of
+         fields to be scanned: nothing said which number was the profile
+         number, so the eye had to parse the format of each one to find out.
+         A counter assistant reads this header to quote a number down a
+         telephone. */
+      meta={[
+        ...(patient.profile_number
+          ? [{ label: "Profile", value: patient.profile_number, mono: true }]
+          : []),
+        ...(patient.id_number
+          ? [{ label: "ID number", value: patient.id_number, mono: true }]
+          : []),
+        { label: "Date of birth", value: fmtDate(patient.date_of_birth) },
+        { label: "Phone",
+          value: patient.phone
+            ? <a href={`tel:${patient.phone}`}>{patient.phone}</a>
+            : <span className="muted">not on file</span> },
+        // Plain text: there is no scheme record to open. Every other kind on
+        // this header has a page behind it, and inventing a link that goes
+        // nowhere is worse than a name that does not pretend to be one.
+        { label: "Medical aid",
+          value: patient.medical_aid
+            ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
+            : <span className="muted">private patient</span> },
+        { label: "Loyalty", value: `${patient.loyalty_points} pts` },
+      ]}
+      actions={
+        <>
+          {/* The patient travels with the link. This was a bare `/dispense`,
+              so pressing it from somebody's record opened an empty dispensary
+              and the first thing you did was search for the person you had
+              just been reading about. */}
+          <Link to={`/dispense?patient=${patient.id}`} className="btn primary">
+            New script
+          </Link>
+          <button className="btn secondary" onClick={viewAsPatient}>
+            See it as they do
+          </button>
+          <button className="btn secondary" onClick={sendPortalLink}>
             Send portal link
           </button>
-        }
-      />
+        </>
+      }
+    >
       {/* Registered although they matched somebody already on file. Said on the
           record itself, so whoever next opens either one can check, and a merge
           review has somewhere to start. */}
@@ -248,26 +291,6 @@ export default function PatientDetail() {
           </span>
         </div>
       )}
-      <div className="page-head">
-        <div>
-          <h1>{patient.first_name} {patient.last_name}</h1>
-          <div className="sub">
-            {patient.profile_number && <><span className="mono">{patient.profile_number}</span> · </>}
-            {patient.id_number && <>ID {patient.id_number} · </>}
-            DOB {fmtDate(patient.date_of_birth)} · {patient.phone || "no phone"} ·{" "}
-            {patient.medical_aid ? `${patient.medical_aid.name} #${patient.medical_aid_number}` : "Private patient"} ·{" "}
-            <b>{patient.loyalty_points} loyalty pts</b>
-          </div>
-        </div>
-        {/* The patient travels with the link. This was a bare `/dispense`,
-            so pressing it from somebody's record opened an empty dispensary
-            and the first thing you did was search for the person you had just
-            been reading about. */}
-        <Link to={`/dispense?patient=${patient.id}`} className="btn">New Script</Link>
-        <button className="btn secondary" onClick={viewAsPatient}>
-          See it as they do
-        </button>
-      </div>
 
       {/* The banner is where anybody looks for this, so it is also where it is
           changed. Editing a patient's allergies used to be possible only from a
@@ -618,6 +641,6 @@ export default function PatientDetail() {
         <PatientPortalPreview record={asPatient}
           onClose={() => setAsPatient(null)} />
       )}
-    </>
+    </RecordPage>
   );
 }
