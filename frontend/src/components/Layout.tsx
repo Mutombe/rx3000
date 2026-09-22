@@ -688,23 +688,34 @@ export default function Layout({ children }: { children: ReactNode }) {
         </header>
 
         {staleApi && (
-          // Deliberately not dismissible and deliberately plain. The alternative
-          // is somebody spending an hour on a 404 for an endpoint that exists.
+          // WRITTEN FOR WHOEVER IS READING IT, WHICH IS NOT A DEVELOPER.
+          //
+          // It used to open "The server is running older code than is on
+          // disk" and close "Restart the API", with a sentence about
+          // endpoints answering 404 in between. A pharmacy owner read that
+          // and learned nothing they could act on: they cannot restart an
+          // API and do not know what one is. All it told them was that
+          // something was wrong with the software they had paid for.
+          //
+          // So the first line now says what it means for them, and the
+          // detail that identifies the fault is kept, underneath, for
+          // whoever can act on it. Still not dismissible: the alternative is
+          // an afternoon lost to a screen that half works.
           <div className="stale-api" role="status">
-            <b>The server is running older code than is on disk.</b>{" "}
-            {staleApi.started && staleApi.written ? (
-              <>
-                It started {fmtDateTime(staleApi.started)} and the code was last
-                changed {fmtDateTime(staleApi.written)}, so endpoints added since
-                then will answer 404.
-              </>
-            ) : (
-              <>
-                It is old enough that it cannot report its own version, so it is
-                missing endpoints this screen calls.
-              </>
-            )}{" "}
-            Restart the API.
+            <b>Some of this system is out of date.</b>{" "}
+            Most of it works normally. A few screens may not load, or may say
+            something has gone wrong when it has not. Nothing you do can
+            damage anything, and no data is at risk.{" "}
+            <span className="stale-who">
+              Whoever looks after this installation needs to restart the
+              server to put it right.
+            </span>
+            {staleApi.started && staleApi.written && (
+              <span className="stale-detail">
+                The server started {fmtDateTime(staleApi.started)} and the
+                software was last updated {fmtDateTime(staleApi.written)}.
+              </span>
+            )}
           </div>
         )}
 

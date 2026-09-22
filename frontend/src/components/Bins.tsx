@@ -21,6 +21,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { Link } from "react-router-dom";
+
 import { api, errorText, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink } from "./Filters";
@@ -315,8 +317,13 @@ export default function Bins() {
         <div className="bins-grid">
           {shown.map((b) => (
             <div key={b.bin} className="bins-card-wrap">
-            <button type="button" className="bins-card"
-                    onClick={() => openShelf(b.bin)}>
+            {/* A LINK, NOT A DRAWER.
+                Opening the shelf under the grid meant the address bar still
+                said Inventory: "check bin A14" could not be sent to anybody,
+                the browser's back button did nothing, and a panel had
+                nowhere to put the actions somebody standing at the shelf
+                actually wants. */}
+            <Link to={`/bins/${encodeURIComponent(b.bin)}`} className="bins-card">
               <span className="bins-card-name">Bin {b.bin}</span>
               <span className="bins-card-lines">
                 {b.lines.toLocaleString()} line{b.lines === 1 ? "" : "s"}
@@ -338,7 +345,7 @@ export default function Bins() {
                   Spelt {b.spellings.length} ways
                 </span>
               )}
-            </button>
+            </Link>
             {/* RELABEL, MERGE OR EMPTY A SHELF.
                 None of this existed. A shelf gets relabelled, two shelves
                 become one, a fixture is taken out — and the only way to

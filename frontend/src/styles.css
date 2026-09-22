@@ -4058,13 +4058,33 @@ td.lb-actions {
 
 /* The API is behind the code. Not dismissible: the alternative is an hour spent
    on a 404 for an endpoint that exists. */
+/* The line that says who fixes it, and the line that identifies the fault.
+   Both belong in this banner and neither belongs in the first sentence: one
+   is for the person reading it, the other is for the person they ring. */
+.stale-who { display: block; margin-top: var(--s1); font-weight: 600; }
+.stale-detail {
+  display: block; margin-top: var(--s1);
+  font-size: var(--t-xs); opacity: .75;
+  font-variant-numeric: tabular-nums;
+}
+
 .stale-api {
   padding: var(--s2) var(--s8);
   background: var(--warn-soft); color: var(--warn);
   border-bottom: 1px solid var(--warn-line);
   font-size: .84rem;
 }
-@media (max-width: 640px) { .stale-api { padding: var(--s2) var(--s4); } }
+@media (max-width: 640px) { /* The line that says who fixes it, and the line that identifies the fault.
+   Both belong in this banner and neither belongs in the first sentence: one
+   is for the person reading it, the other is for the person they ring. */
+.stale-who { display: block; margin-top: var(--s1); font-weight: 600; }
+.stale-detail {
+  display: block; margin-top: var(--s1);
+  font-size: var(--t-xs); opacity: .75;
+  font-variant-numeric: tabular-nums;
+}
+
+.stale-api { padding: var(--s2) var(--s4); } }
 
 /* A chosen option has to look chosen from across a counter. The previous
    treatment, white on near-white with a hairline border, was invisible in a
@@ -12409,6 +12429,45 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--s4); flex-wrap: wrap;
 }
+
+/* Batches and expiry: what to look at on the left, what to do on the right.
+   Wraps to two rows on a laptop rather than pushing the actions off the
+   edge, which is where they were before there were any. */
+.batch-tools {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s3); flex-wrap: wrap; width: 100%;
+}
+.batch-acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
+
+/* A two-state choice named on both sides. "Not ticked" does not say
+   "everything on hand" to anybody reading quickly. */
+.seg {
+  display: inline-flex; padding: 3px; gap: 2px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+}
+.seg button {
+  height: var(--control-sm); padding: 0 var(--s3);
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft);
+  font-size: var(--t-sm); font-weight: 500; white-space: nowrap;
+}
+.seg button:hover { color: var(--ink); }
+.seg button.on {
+  background: var(--surface); color: var(--ink); font-weight: 600;
+  border-color: var(--line); box-shadow: var(--e1);
+}
+
+/* One shelf, read standing in front of it. The line is the column somebody
+   is matching against a box in their hand, so it takes the room and wraps
+   rather than stopping mid-word. */
+.bin-table td:first-child + td { white-space: normal; }
+.bin-table .bulk-tick { width: 3rem; }
+.bin-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+.bin-foot-acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
 /* The delivery record in a table cell: a badge and one line under it. */
 .sup-record { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }

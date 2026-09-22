@@ -72,6 +72,7 @@ const DealDetail = lazy(() => import("./pages/DealDetail"));
 const DeferredClaims = lazy(() => import("./pages/DeferredClaims"));
 const Scorecard = lazy(() => import("./pages/Scorecard"));
 const BranchPerformance = lazy(() => import("./pages/BranchPerformance"));
+const BinDetail = lazy(() => import("./pages/BinDetail"));
 const StockCategories = lazy(() => import("./pages/StockCategories"));
 const Pharmacies = lazy(() => import("./pages/Pharmacies"));
 const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
@@ -253,6 +254,9 @@ export default function App() {
                 <Route path="/scorecard" element={<Scorecard />} />
                 <Route path="/branches/:id" element={<BranchDetail />} />
                 <Route path="/branches/:id/performance" element={<BranchPerformance />} />
+                {/* A shelf is a place somebody walks to, so it gets an
+                    address that can be sent to them. */}
+                <Route path="/bins/:bin" element={<BinDetail />} />
                 <Route path="/stock-categories" element={<StockCategories />} />
                 <Route path="/pharmacies" element={<Pharmacies />} />
                 <Route path="/remittances/:id" element={<RemittanceDetail />} />

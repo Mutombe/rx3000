@@ -67,7 +67,13 @@ export default function RecordPage({
           <h1>{title}</h1>
           {subtitle && <div className="sub">{subtitle}</div>}
         </div>
-        {actions}
+        {/* GROUPED, NOT SPREAD.
+            `.page-head` lays its children out with space between them, so a
+            page passing three actions got them scattered across the width
+            with the first one stranded in the middle of the header. Wrapped
+            here rather than in each caller, because every record page wants
+            the same thing and none of them should have to know this. */}
+        {actions && <div className="page-actions">{actions}</div>}
       </div>
       {facts && facts.length > 0 && <Highlights items={facts} />}
       {children}

@@ -20,7 +20,8 @@ import { ScanBar, ScanResult } from "../components/Scanner";
 import { useScanFeed } from "../components/ScannerHub";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { Clock, Prohibit, Warning } from "@phosphor-icons/react";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 
@@ -563,7 +564,44 @@ export default function Stock() {
               : undefined
           }
           toolbar={
-            <Checkbox checked={expiringOnly} onChange={setExpiringOnly}>Expiring within 90 days only</Checkbox>
+            /* WHAT TO LOOK AT, AND WHAT TO DO ABOUT IT.
+               A lone tick box saying "expiring within 90 days only" is a
+               filter and not a screen: somebody looking at short-dated
+               stock wants to narrow it, then act on it, and every way of
+               acting was one row at a time or on another screen entirely.
+
+               The two states are named rather than left as on and off,
+               because "not ticked" does not say "everything on hand" to
+               anybody reading it quickly. */
+            <div className="batch-tools">
+              <div className="seg" role="group" aria-label="Which batches">
+                <button type="button"
+                        className={expiringOnly ? "" : "on"}
+                        onClick={() => setExpiringOnly(false)}>
+                  Everything on hand
+                </button>
+                <button type="button"
+                        className={expiringOnly ? "on" : ""}
+                        onClick={() => setExpiringOnly(true)}>
+                  Short dated, 90 days
+                </button>
+              </div>
+              <div className="batch-acts">
+                {/* Both of these existed and neither could be reached from
+                    the screen they belong to. */}
+                <Link className="btn secondary small"
+                      to="/reports?report=expiring_stock">
+                  <Clock size={13} /> What is about to expire
+                </Link>
+                <Link className="btn secondary small"
+                      to="/reports?report=expired_stock">
+                  <Warning size={13} /> What has already expired
+                </Link>
+                <Link className="btn secondary small" to="/stock?tab=quarantine">
+                  <Prohibit size={13} /> Held stock
+                </Link>
+              </div>
+            </div>
           }
         />
       )}
