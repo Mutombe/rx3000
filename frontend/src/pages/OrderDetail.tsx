@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { Link, useParams } from "react-router-dom";
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
@@ -95,6 +95,22 @@ export default function OrderDetail() {
         ? <EntityLink to={`/products/${i.product.id}`}>{i.product.name} {i.product.strength}</EntityLink>
         : <span className="muted">—</span>) },
     { key: "quantity_ordered", header: "Ordered", align: "right", sortable: true, total: (i) => i.quantity_ordered },
+    // Between Ordered and Received on purpose: it is the middle fact in the
+    // life of a line, and the person receiving a delivery wants to know what
+    // was promised before they count what turned up.
+    { key: "quantity_confirmed", header: "Coming", align: "right",
+      value: (i) => i.quantity_confirmed ?? -1,
+      render: (i) => {
+        // Null is "they have not said", which is a different answer from
+        // nought and must not be shown as one.
+        if (i.quantity_confirmed == null) {
+          return <span className="muted">not said</span>;
+        }
+        const short = i.quantity_confirmed < i.quantity_ordered;
+        return short
+          ? <span className="badge warn">{i.quantity_confirmed}</span>
+          : <span>{i.quantity_confirmed}</span>;
+      } },
     { key: "quantity_received", header: "Received", align: "right", sortable: true, total: (i) => i.quantity_received },
     { key: "outstanding", header: "Outstanding", align: "right",
       value: (i) => i.quantity_ordered - i.quantity_received,
@@ -141,6 +157,24 @@ export default function OrderDetail() {
             hint: value ? `${Math.round((receivedValue / value) * 100)}% of order` : "—" },
           { label: "Outstanding units", value: String(outstanding),
             hint: outstanding ? "still to be delivered" : "fully delivered" },
+          // WHAT THE WHOLESALER SAID, ON THE ORDER ITSELF.
+          //
+          // It was only on the supplier's page, which meant somebody looking
+          // at this order had to go via the supplier to find out whether it
+          // had even been confirmed. This is the question they opened the
+          // order to answer.
+          { label: "They said",
+            value: order.acknowledged_at
+              ? (order.promised_date ? fmtDate(order.promised_date) : "confirmed")
+              : order.status === "sent" ? "no answer yet" : "not asked",
+            hint: order.acknowledged_at
+              ? (order.promised_date
+                  ? `confirmed ${fmtDate(order.acknowledged_at)}`
+                  : "confirmed, no date given")
+              : order.status === "sent"
+                ? "send them their portal link"
+                : "not sent to them yet",
+            tone: order.acknowledged_at ? "ok" : undefined },
           { label: "Status", value: order.status, hint: order.notes || "—" },
         ]} />
         <div className="record-exit">

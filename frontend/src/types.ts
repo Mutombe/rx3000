@@ -246,6 +246,10 @@ export interface POItem {
   product_id: number;
   quantity_ordered: number;
   quantity_received: number;
+  /** What the wholesaler says they will actually send, from their own
+   *  portal. Null means they have not said, which is not the same as nought:
+   *  an unanswered line is not a refused one. */
+  quantity_confirmed?: number | null;
   unit_cost: number;
   product?: Product;
 }
@@ -273,6 +277,11 @@ export interface PurchaseOrder {
   created_by_id?: number | null;
   approved_by_id?: number | null;
   approved_at?: string | null;
+  /** What the wholesaler said back on their own link: that they have it,
+   *  when it is coming, and anything they needed to add. */
+  acknowledged_at?: string | null;
+  promised_date?: string | null;
+  supplier_note?: string;
   approved_value?: number;
 }
 

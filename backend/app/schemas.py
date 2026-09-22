@@ -1120,6 +1120,13 @@ class POItemOut(ORM):
     product_id: int
     quantity_ordered: int
     quantity_received: int
+    #: What the wholesaler says they will actually send, from their own
+    #: portal. Optional and NOT coerced to nought: a line they have not
+    #: answered is a different fact from one they have refused, and the
+    #: receiving screen needs to tell them apart. Declared here because a
+    #: response_model silently drops what it does not name, which would have
+    #: made the whole supplier acknowledgement invisible to staff.
+    quantity_confirmed: Optional[int] = None
     unit_cost: float
     product: Optional[ProductOut] = None
 
@@ -1146,6 +1153,12 @@ class POOut(ORM):
     approved_by_id: Optional[int] = None
     approved_at: Optional[datetime] = None
     approved_value: float = 0.0
+    #: What the wholesaler said back on their own link: that they have the
+    #: order, when it is coming, and anything they needed to add. Same
+    #: reason for being declared: undeclared is invisible.
+    acknowledged_at: Optional[datetime] = None
+    promised_date: Optional[date] = None
+    supplier_note: str = ""
     #: Lines invoiced above the published maximum, noticed as they were booked
     #: in. Declared here because a response_model silently DROPS what it does
     #: not name, and this exact mistake has already cost this codebase a

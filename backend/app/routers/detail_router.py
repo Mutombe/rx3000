@@ -150,13 +150,6 @@ def supplier(supplier_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/suppliers/{supplier_id}/record")
-def supplier_performance(supplier_id: int, db: Session = Depends(get_db)):
-    """Just the behaviour, for anything that wants it without the ledger."""
-    return supplier_record.card(db, _found(db.get(Supplier, supplier_id),
-                                           "supplier"))
-
-
 # --------------------------------------------------------------------- claim
 
 @router.get("/claims/{claim_id}")
