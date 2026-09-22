@@ -1585,9 +1585,49 @@ label {
 .dt-filters { margin-bottom: var(--s4); }
 .toolbar .dt-filters, .dt-tools .dt-filters, .card-head .dt-filters { margin-bottom: 0; }
 .dt-tools { display: flex; align-items: center; gap: 10px; }
-.dt-count { font-size: 12px; white-space: nowrap; }
+/* A result, not a control. It sat hard against the last filter as
+   though it were part of it. */
+.dt-count { font-size: 12px; white-space: nowrap; margin-left: var(--s3); }
 /* inputs default to full width in this design system — inside a filter bar
    they must size to their content or the toolbar breaks onto several rows */
+/* A yes-or-no filter, shaped like the dropdowns beside it.
+ *
+ * It was a bare tick box in a row of styled controls, so the one filter that
+ * is not a list looked unfinished, and the record count sat hard against it
+ * as though it were part of the same thing. Same height, same radius, same
+ * border as its neighbours: a peer, not an afterthought. */
+.filter-toggle {
+  height: var(--control); padding: 0 var(--s3);
+  display: inline-flex; align-items: center; gap: var(--s2);
+  background: var(--surface); color: var(--ink-mid);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  font-size: var(--t-sm); font-weight: 500; white-space: nowrap;
+  cursor: pointer;
+}
+.filter-toggle:hover { border-color: var(--ink-faint); color: var(--ink); }
+/* The box, drawn as a real element with the product's own tick inside it
+   rather than as two CSS gradients pretending to be one. The gradient
+   version worked and was a smudge at 15px, which is the size it is always
+   seen at. */
+.filter-tick {
+  width: 15px; height: 15px; flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--line-strong); border-radius: 4px;
+  background: var(--surface); color: transparent;
+}
+/* On: the box fills and the whole control tints, so a filter that is doing
+   something is visible from across the room rather than by reading it. */
+.filter-toggle.on {
+  background: var(--accent-soft); color: var(--ink);
+  border-color: var(--ink-faint); font-weight: 600;
+}
+.filter-toggle.on .filter-tick {
+  background: var(--ink); border-color: var(--ink); color: var(--surface);
+}
+/* The way out of a filtered view, marked as the one control that undoes the
+   others rather than another of them. */
+.filter-clear { margin-left: var(--s1); font-weight: 600; }
+
 .dt-filters input, .dt-filters select { padding: 7px 14px; font-size: 13px; width: auto; }
 .dt-filters select { max-width: 190px; }
 .dt-filters input[type="checkbox"] { padding: 0; }

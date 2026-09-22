@@ -26,7 +26,7 @@ import { ArrowClockwise, Check, ShoppingCart, Warning } from "@phosphor-icons/re
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
-import { EntityLink } from "./Filters";
+import { EntityLink, FilterToggle } from "./Filters";
 import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
@@ -173,11 +173,10 @@ export default function StockWatch() {
           </p>
         </div>
         <div className="sw-acts">
-          <label className="sw-only">
-            <input type="checkbox" checked={unseenOnly}
-                   onChange={(e) => setUnseenOnly(e.target.checked)} />
+          <FilterToggle checked={unseenOnly} onChange={setUnseenOnly}
+                        hint="Hide findings somebody has already looked at">
             Only what nobody has read
-          </label>
+          </FilterToggle>
           <button type="button" className="btn secondary"
                   onClick={readAll}
                   disabled={!shown.some((a) => !a.seen)}>

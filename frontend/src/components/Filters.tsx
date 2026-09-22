@@ -1,5 +1,6 @@
 /** Multi-dimensional filter controls and cross-entity hyperlinks. */
 import { ReactNode } from "react";
+import { Check } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import Select from "./Select";
 import { toneClass } from "../entityTone";
@@ -50,13 +51,55 @@ export function applyFilters<T>(rows: T[], f: FilterState, opts: {
   });
 }
 
-export function FilterBar({ value, onChange, placeholder, showDates, dimensions, children }: {
+/** A yes-or-no filter, shaped like the controls beside it.
+ *
+ *  It was a bare `<Checkbox>` dropped into a row of styled dropdowns, so the
+ *  one filter that is not a list looked like it had been left unfinished.
+ *  Worse, a tick box states one side of the choice and leaves the reader to
+ *  work out the other: "Low stock only" unticked does not say "everything",
+ *  it says nothing at all.
+ *
+ *  `aria-pressed` rather than a checkbox role, because that is what it is: a
+ *  control with an on state, in a toolbar.
+ */
+export function FilterToggle({ checked, onChange, children, hint }: {
+  checked: boolean;
+  onChange: (on: boolean) => void;
+  children: ReactNode;
+  /** What it means when it is on, for the people who hover. */
+  hint?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`filter-toggle${checked ? " on" : ""}`}
+      aria-pressed={checked}
+      title={hint}
+      onClick={() => onChange(!checked)}
+    >
+      <span className="filter-tick" aria-hidden>
+        {checked && <Check size={11} weight="bold" />}
+      </span>
+      {children}
+    </button>
+  );
+}
+
+export function FilterBar({ value, onChange, placeholder, showDates, dimensions, extras, children }: {
   value: FilterState;
   onChange: (next: FilterState) => void;
   placeholder?: string;
   showDates?: boolean;
   /** Each dimension becomes its own select — combine freely. */
   dimensions?: { key: string; label: string; options: [string, string][] }[];
+  /** Filters this bar does not own, so that Clear tells the truth.
+   *
+   *  The button used to test only the search, the dates and the dimensions.
+   *  A screen with its own toggle beside them — "Low stock only", "Expiring
+   *  within 90 days" — could be filtering hard with no Clear offered at all,
+   *  and pressing Clear when it did appear left that toggle on. A control
+   *  that says it clears the filters has to clear the filters. */
+  extras?: { active: boolean; clear: () => void };
   children?: ReactNode;
 }) {
   const set = (patch: Partial<FilterState>) => onChange({ ...value, ...patch });
@@ -93,8 +136,11 @@ export function FilterBar({ value, onChange, placeholder, showDates, dimensions,
         </span>
       ))}
       {children}
-      {hasAnyFilter(value) && (
-        <button className="ghost small" onClick={() => onChange(emptyFilters)}>Clear</button>
+      {(hasAnyFilter(value) || extras?.active) && (
+        <button className="ghost small filter-clear"
+                onClick={() => { onChange(emptyFilters); extras?.clear(); }}>
+          Clear
+        </button>
       )}
     </>
   );

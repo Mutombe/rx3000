@@ -25,7 +25,7 @@ import { Plus, Warning } from "@phosphor-icons/react";
 import { api, errorText } from "../api";
 import { useConfirm } from "../components/Confirm";
 import Checkbox from "../components/Checkbox";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, FilterToggle } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import BusyButton from "../components/BusyButton";
@@ -141,9 +141,10 @@ export default function Suppliers() {
         <div className="toolbar">
           <input type="search" value={q} placeholder="Name, contact, phone or account…"
                  onChange={(e) => setQ(e.target.value)} />
-          <Checkbox checked={showRetired} onChange={setShowRetired}>
+          <FilterToggle checked={showRetired} onChange={setShowRetired}
+                        hint="Include wholesalers this pharmacy no longer buys from">
             Show retired
-          </Checkbox>
+          </FilterToggle>
         </div>
 
         <Refreshable loading={list.loading} hasData={list.items.length > 0}

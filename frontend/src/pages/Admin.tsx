@@ -17,6 +17,7 @@ import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import PaymentInstruments from "../components/PaymentInstruments";
 import { useConfirm } from "../components/Confirm";
 import { TabStrip } from "../components/PageTabs";
+import { FilterToggle } from "../components/Filters";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -922,7 +923,10 @@ export default function Admin() {
       {tab === "notices" && (
         <div className="card">
           <div className="toolbar">
-            <Checkbox checked={noticeActive} onChange={setNoticeActive}>Active only</Checkbox>
+            <FilterToggle checked={noticeActive} onChange={setNoticeActive}
+                          hint="Hide notices that have finished">
+              Active only
+            </FilterToggle>
             <button className="btn primary small" style={{ marginLeft: "auto" }}
                     onClick={() => setRaising((v) => !v)}>
               {raising ? "Cancel" : "Raise a notice"}
@@ -1138,12 +1142,16 @@ export default function Admin() {
               <input type="date" value={auditTo}
                      onChange={(e) => setAuditTo(e.target.value)} />
             </label>
-            <Checkbox checked={auditFailed} onChange={setAuditFailed}>
+            {/* Filters, so they are shaped like the controls beside them
+                rather than like the tick boxes on a form. */}
+            <FilterToggle checked={auditFailed} onChange={setAuditFailed}
+                          hint="Only entries the system refused">
               Only refused
-            </Checkbox>
-            <Checkbox checked={auditActedAs} onChange={setAuditActedAs}>
+            </FilterToggle>
+            <FilterToggle checked={auditActedAs} onChange={setAuditActedAs}
+                          hint="Only where somebody was acting on another person's behalf">
               Only acting as somebody
-            </Checkbox>
+            </FilterToggle>
           </div>
           {/* The audit log is the slowest thing on this screen and the one
               somebody opens with a question. An empty frame reads as "nothing

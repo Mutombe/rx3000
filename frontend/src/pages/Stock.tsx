@@ -11,7 +11,7 @@ import Quarantine from "../components/Quarantine";
 import SupplierReturns from "../components/SupplierReturns";
 import GoodsReceipts from "../components/GoodsReceipts";
 import DataTable, { Column } from "../components/DataTable";
-import { applyFilters, emptyFilters, FilterBar, FilterState } from "../components/Filters";
+import { applyFilters, emptyFilters, FilterBar, FilterState, FilterToggle } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ExportButton from "../components/ExportButton";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
@@ -648,8 +648,17 @@ export default function Stock() {
                   { key: "schedule", label: "Schedule",
                     options: [0, 1, 2, 3, 4, 5, 6].map((n) => [String(n), `S${n}`] as [string, string]) },
                 ]}
-              />
-              <Checkbox checked={lowOnly} onChange={setLowOnly}>Low stock only</Checkbox>
+                // So Clear clears this too. It used to leave it on, and a
+                // screen still filtered to the low-stock lines after
+                // somebody had pressed the button that says it clears the
+                // filters is a screen that has lied to them.
+                extras={{ active: lowOnly, clear: () => setLowOnly(false) }}
+              >
+                <FilterToggle checked={lowOnly} onChange={setLowOnly}
+                              hint="Only lines at or below their reorder level">
+                  Low stock only
+                </FilterToggle>
+              </FilterBar>
             </>
           }
         />
