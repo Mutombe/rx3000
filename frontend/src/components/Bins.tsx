@@ -300,7 +300,10 @@ export default function Bins() {
 
       {/* The number this screen exists for, stated rather than filtered to. */}
       {dir && dir.unbinned > 0 && (
-        <button type="button" className="bins-loose" onClick={() => openShelf("?")}>
+        // READING THE NUMBER IS NOT THE JOB.
+        // It opened a drawer listing them, and the job is putting them on
+        // shelves, which a drawer had no room to do.
+        <Link to="/bins/unassigned" className="bins-loose">
           <span className="bins-loose-n">{dir.unbinned.toLocaleString()}</span>
           <span>
             line{dir.unbinned === 1 ? "" : "s"} have stock on hand and no bin,
@@ -308,7 +311,8 @@ export default function Bins() {
             {dir.unbinned_units === 1 ? "" : "s"} in all. Stock nobody can be
             {" "}sent to fetch is stock that gets ordered twice.
           </span>
-        </button>
+          <span className="bins-loose-go">Put them on shelves</span>
+        </Link>
       )}
 
       <Refreshable loading={loading} hasData={shown.length > 0}
@@ -328,8 +332,14 @@ export default function Bins() {
               <span className="bins-card-lines">
                 {b.lines.toLocaleString()} line{b.lines === 1 ? "" : "s"}
               </span>
-              <span className="bins-card-units">
-                {b.units.toLocaleString()} unit{b.units === 1 ? "" : "s"}
+              {/* Less than nothing on a shelf is a record that is wrong,
+                  not a quantity. Printing "-55 units" passes it off as a
+                  reading and the count that needs correcting is the one
+                  nobody notices. */}
+              <span className={`bins-card-units${b.units < 0 ? " is-wrong" : ""}`}>
+                {b.units < 0
+                  ? `${Math.abs(b.units).toLocaleString()} over-issued`
+                  : `${b.units.toLocaleString()} unit${b.units === 1 ? "" : "s"}`}
               </span>
               <span className="bins-card-value">{money(b.value)}</span>
               {/* Two spellings of one bin means two shelf labels, or a typing

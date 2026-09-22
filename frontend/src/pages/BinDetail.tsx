@@ -28,6 +28,7 @@ import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { Units } from "./BinsUnassigned";
 import { useToast } from "../components/Toast";
 
 interface Line {
@@ -146,8 +147,15 @@ export default function BinDetail() {
       facts={data ? [
         { label: "Lines", value: data.lines.length,
           hint: data.lines.length ? "on this shelf" : "nothing is kept here" },
-        { label: "Units", value: data.units.toLocaleString(),
-          hint: "counted on hand" },
+        // A shelf whose counts add up to less than nothing is not a shelf
+        // holding a negative number of boxes; it is a record that is wrong.
+        { label: "Units", value: data.units < 0
+            ? `${Math.abs(data.units).toLocaleString()} over-issued`
+            : data.units.toLocaleString(),
+          hint: data.units < 0
+            ? "more has gone out than was booked in, so this needs counting"
+            : "counted on hand",
+          tone: data.units < 0 ? "bad" : undefined },
         // Only the lines whose MAIN shelf this is. Said out loud, because a
         // bin total that claimed a line kept in two places would make the
         // directory add up to more than the pharmacy owns.
@@ -216,11 +224,7 @@ export default function BinDetail() {
                       <td className="mono small">
                         {l.stock_code || <span className="muted">none</span>}
                       </td>
-                      <td className="num">
-                        {l.empty
-                          ? <span className="badge bad">nothing</span>
-                          : l.on_hand.toLocaleString()}
-                      </td>
+                      <td className="num"><Units n={l.on_hand} /></td>
                       <td className="num">{l.reorder_level}</td>
                       <td className="num">
                         {l.primary ? money(l.value)

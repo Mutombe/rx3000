@@ -20,15 +20,25 @@
  *  Seen dims the row and keeps it; the finding leaves the list when it stops
  *  being true, which the sweep decides, not the reader.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowClockwise, Check, Warning } from "@phosphor-icons/react";
+import { ArrowClockwise, Check, ShoppingCart, Warning } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { EntityLink } from "./Filters";
 import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
+import { useConfirm } from "./Confirm";
+
+/** The four things the morning sweep can find, worst first. Labelled the
+ *  way a person would say them rather than the way they are stored. */
+const KINDS: [string, string][] = [
+  ["expired", "Expired"],
+  ["out_of_stock", "Out of stock"],
+  ["expiring", "Expiring soon"],
+  ["below_reorder", "Running low"],
+];
 
 interface Alert {
   id: number;
@@ -50,9 +60,11 @@ const TONE: Record<number, string> = { 3: "danger", 2: "warn", 1: "muted" };
 
 export default function StockWatch() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [items, setItems] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
   const [unseenOnly, setUnseenOnly] = useState(false);
+  const [kind, setKind] = useState("all");
 
   const load = useCallback(() => {
     setLoading(true);
@@ -92,8 +104,58 @@ export default function StockWatch() {
     }
   }
 
-  const worth = items.reduce((sum, a) => sum + a.worth, 0);
-  const urgent = items.filter((a) => a.urgency >= 3).length;
+  // WHAT KIND OF FINDING, AND HOW MANY OF EACH.
+  //
+  // Two hundred findings of four different kinds in one list is a list
+  // nobody works: expired stock, an empty shelf and a line near its reorder
+  // level are three different jobs done by three different people at three
+  // different times. Counted here rather than asked of the server, because
+  // the whole standing list is already in hand and a round trip to filter
+  // two hundred rows somebody is looking at is a round trip for nothing.
+  const kinds = useMemo(() => {
+    const seen = new Map<string, number>();
+    for (const a of items) seen.set(a.kind, (seen.get(a.kind) ?? 0) + 1);
+    return seen;
+  }, [items]);
+
+  const shown = useMemo(
+    () => (kind === "all" ? items : items.filter((a) => a.kind === kind)),
+    [items, kind]);
+
+  const worth = shown.reduce((sum, a) => sum + a.worth, 0);
+  const urgent = shown.filter((a) => a.urgency >= 3).length;
+
+  /** Say "I have read all of these" in one go.
+   *
+   *  A list of two hundred acknowledged one row at a time is a list nobody
+   *  acknowledges, so the unread count stops meaning anything and the
+   *  filter built on it stops being useful. */
+  async function readAll() {
+    const unread = shown.filter((a) => !a.seen);
+    if (!unread.length) return;
+    const ok = await confirm({
+      title: `Mark ${unread.length} finding(s) as read?`,
+      body: "They stay on the list. Marking one read says somebody has seen "
+          + "it, not that it has been dealt with: a finding disappears when "
+          + "it stops being true, which the morning sweep decides.",
+      confirmLabel: "Mark them read",
+    });
+    if (!ok) return;
+    setItems((all) => all.map((x) =>
+      unread.some((u) => u.id === x.id) ? { ...x, seen: true } : x));
+    let failed = 0;
+    for (const a of unread) {
+      try { await api.post(`/api/stock/alerts/${a.id}/seen`, {}); }
+      catch { failed += 1; }
+    }
+    if (failed) {
+      toast.error(`${failed} of them could not be marked. The list will say `
+                  + "which when it reloads.");
+      load();
+    } else {
+      toast.ok(`${unread.length} marked as read.`);
+    }
+  }
 
   return (
     <>
@@ -116,6 +178,14 @@ export default function StockWatch() {
                    onChange={(e) => setUnseenOnly(e.target.checked)} />
             Only what nobody has read
           </label>
+          <button type="button" className="btn secondary"
+                  onClick={readAll}
+                  disabled={!shown.some((a) => !a.seen)}>
+            <Check size={13} /> Mark these read
+          </button>
+          <Link className="btn secondary" to="/orders">
+            <ShoppingCart size={13} /> Order what is short
+          </Link>
           <BusyButton className="btn secondary" onClick={lookNow}
                       icon={ArrowClockwise} busyLabel="Looking…">
             Look now
@@ -123,9 +193,31 @@ export default function StockWatch() {
         </div>
       </div>
 
+      {/* NARROWED BY THE JOB, NOT BY A SEARCH BOX.
+          Expired stock, an empty shelf and a line near its reorder level are
+          three different jobs done by different people at different times,
+          and a single list of two hundred is one nobody works down. Each
+          carries its own count, so the choice is made knowing what is
+          behind it. */}
+      {items.length > 0 && (
+        <div className="seg sw-kinds" role="group" aria-label="Which findings">
+          <button type="button" className={kind === "all" ? "on" : ""}
+                  onClick={() => setKind("all")}>
+            Everything <span className="tab-count">{items.length}</span>
+          </button>
+          {KINDS.filter(([key]) => kinds.get(key)).map(([key, label]) => (
+            <button key={key} type="button"
+                    className={kind === key ? "on" : ""}
+                    onClick={() => setKind(key)}>
+              {label} <span className="tab-count">{kinds.get(key)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <Refreshable
         loading={loading}
-        hasData={items.length > 0}
+        hasData={shown.length > 0}
         skeleton={<TableSkeleton cols={5} rows={8}
                                  widths={["26ch", "30ch", "10ch", "12ch", "8ch"]} />}
       >
@@ -157,7 +249,7 @@ export default function StockWatch() {
               </tr>
             </thead>
             <tbody>
-              {items.map((a) => (
+              {shown.map((a) => (
                 <tr key={a.id} className={a.seen ? "row-muted" : undefined}>
                   <td className="sw-what">
                     <span className={`badge ${TONE[a.urgency] ?? "muted"}`}>

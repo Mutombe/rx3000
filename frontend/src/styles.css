@@ -12430,6 +12430,36 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s4); flex-wrap: wrap;
 }
 
+/* The findings, narrowed by the job. Scrolls on a narrow screen rather than
+   wrapping into a second row of chips, which reads as two groups. */
+.sw-kinds {
+  margin-bottom: var(--s4); max-width: 100%;
+  overflow-x: auto; scrollbar-width: thin;
+}
+.sw-kinds button { flex: 0 0 auto; }
+
+/* Putting stock on shelves in bulk: the search and the choose-all sit with
+   the list, the shelf box sits with the button that uses it. */
+.ub-tools { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.ub-tools input { width: 12rem; }
+.ub-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+.ub-foot-acts { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+.ub-foot-acts input { width: 11rem; }
+
+/* A shelf whose counts add up to less than nothing. */
+.bins-card-units.is-wrong { color: var(--danger); font-weight: 600; }
+
+/* The way out of the unplaced slab, so it reads as somewhere to go rather
+   than a statistic. */
+.bins-loose { text-decoration: none; }
+.bins-loose-go {
+  display: block; margin-top: var(--s2);
+  font-weight: 600; color: var(--accent);
+}
+
 /* Batches and expiry: what to look at on the left, what to do on the right.
    Wraps to two rows on a laptop rather than pushing the actions off the
    edge, which is where they were before there were any. */
