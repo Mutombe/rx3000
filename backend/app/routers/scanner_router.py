@@ -144,8 +144,13 @@ async def stream(link_id: int, request: Request,
                     for row in rows:
                         seen = row.id
                         row.delivered_at = datetime.utcnow()
+                        # `source` travels with the code. The station is
+                        # where it is decided whether a reading may act on
+                        # its own, and it cannot tell from the digits how
+                        # they were read.
                         yield ("event: scan\ndata: "
-                               + json.dumps({"id": row.id, "code": row.code})
+                               + json.dumps({"id": row.id, "code": row.code,
+                                             "source": row.source or "barcode"})
                                + "\n\n")
                     db.commit()
                 else:
@@ -241,8 +246,9 @@ def scan(body: dict = Body(...), db: Session = Depends(get_db),
     knows whether this is a dispensing or a delivery and has a pharmacist in
     front of it.
     """
-    row = scanner_link.push(db, link, str(body.get("code") or ""))
-    return {"ok": True, "id": row.id,
+    row = scanner_link.push(db, link, str(body.get("code") or ""),
+                            source=body.get("source"))
+    return {"ok": True, "id": row.id, "source": row.source,
             "station": link.station or "the counter",
             "message": "Sent."}
 

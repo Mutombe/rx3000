@@ -4236,6 +4236,16 @@ class ScannerScan(Base, TenantMixin):
     #: The raw string off the camera. Resolved by the desktop, not here: the
     #: phone is an input device and the screen is what knows the context.
     code = Column(String(200), nullable=False)
+    #: How the phone read it: "barcode" off the bars, or "ocr" off the printed
+    #: digits on a pack whose bars are missing, faded or were never there.
+    #:
+    #: Carried all the way to the station rather than dropped here, because it
+    #: decides whether the reading may act on its own. A decoder either
+    #: decodes or stays silent; the camera reading digits misreads
+    #: confidently, and a station that cannot tell the two apart has to treat
+    #: both as gospel or neither. Defaults to "barcode", which is what every
+    #: scan sent before this column existed was.
+    source = Column(String(12), default="barcode")
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     #: Set when a desktop stream has handed it over. Kept rather than deleted,
     #: so "the phone says it sent it and nothing happened" has an answer.

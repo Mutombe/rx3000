@@ -49,14 +49,14 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
    *  the GS1 batch and expiry are read off the carton exactly as they are
    *  when the scan comes from the counter.
    */
-  const fromPhone = useCallback(async (code: string) => {
+  const fromPhone = useCallback(async (code: string, source?: string) => {
     // The confirm dialog owns the flow once something is waiting; a second
     // pack arriving on top of it would lose the first, the same reason the
     // scan box below is disabled while `pending` is set.
     if (pending) return;
     try {
       const r = await api.post<ScanResult>(
-        "/api/scan", { code, context: "receive", order_id: orderId });
+        "/api/scan", { code, context: "receive", order_id: orderId, source });
       onResolved(r);
     } catch (e) {
       toast.error(errorText(e, "That pack could not be read."));
@@ -65,7 +65,8 @@ export default function ReceiveByScan({ orderId, orderNumber, onReceived }: Prop
 
   // Disabled while a pack is waiting to be confirmed: the dialog owns the
   // flow, and a second pack arriving on top would lose the first.
-  useScanFeed(`Delivery ${orderNumber}`, (code) => void fromPhone(code), !pending);
+  useScanFeed(`Delivery ${orderNumber}`,
+              (code, _format, source) => void fromPhone(code, source), !pending);
 
   const onResolved = useCallback((r: ScanResult) => {
     if (!r.found || !r.product) return;   // ScanBar has already said so

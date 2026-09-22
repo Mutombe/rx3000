@@ -176,12 +176,39 @@ def holder(db: Session, token: str) -> ScannerLink:
     return link
 
 
-def push(db: Session, link: ScannerLink, code: str) -> ScannerScan:
+#: How a phone can have read a code.
+SOURCES = ("barcode", "ocr")
+
+
+def _how(source: str | None) -> str:
+    """Which reading this was, erring towards asking a person.
+
+    Two different cases, and treating them the same is a hole:
+
+    * Nothing supplied at all is a phone that predates this column, and every
+      one of those was a barcode decoder. "barcode".
+
+    * Something supplied that is not a source we know is a client we do not
+      understand, and the safe reading of an unknown is the one that gets
+      confirmed rather than the one that acts on its own. "ocr".
+
+    The first version had both fall back to "barcode" and a comment calling
+    it conservative, which it was not: it meant a typo in a client could
+    quietly buy itself past the confirmation step.
+    """
+    if source is None or source == "":
+        return "barcode"
+    return source if source in SOURCES else "ocr"
+
+
+def push(db: Session, link: ScannerLink, code: str,
+         source: str | None = None) -> ScannerScan:
     """A phone sends what it read. It is told nothing about what it was."""
     text = (code or "").strip()
     if not text:
         raise HTTPException(400, "Nothing was scanned.")
-    row = ScannerScan(link_id=link.id, code=text[:200],
+    how = _how(source)
+    row = ScannerScan(link_id=link.id, code=text[:200], source=how,
                       pharmacy_id=link.pharmacy_id)
     db.add(row)
     link.last_seen_at = datetime.utcnow()

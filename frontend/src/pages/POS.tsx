@@ -88,7 +88,7 @@ export default function POS() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
   const toast = useToast();
   // Scans from whichever scanner this workstation has, phone or wedge.
-  useScanFeed("Till", (code) => void fromPhone(code));
+  useScanFeed("Till", (code, _format, source) => void fromPhone(code, source));
   const doing = useDoing();
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   /** The sale a cashier is taking part of, if any. */
@@ -230,11 +230,11 @@ export default function POS() {
    *  same endpoint with the same context, and handed to the same function —
    *  which is why nothing downstream needs to know a phone was involved.
    */
-  async function fromPhone(code: string) {
+  async function fromPhone(code: string, source?: string) {
     setScan("");
     try {
       const result = await api.post<ScanResult>(
-        "/api/scan", { code, context: "pos" });
+        "/api/scan", { code, context: "pos", source });
       onScanned(result);
     } catch (e) {
       // Said out loud. A scan that vanishes is the complaint this whole

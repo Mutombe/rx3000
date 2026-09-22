@@ -363,6 +363,11 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # ringing.
         "opened_at": "TIMESTAMP",
     },
+    "scanner_scans": {
+        # How the phone read it. Every row written before this column
+        # existed came off a barcode decoder, which is what the default says.
+        "source": "VARCHAR(12) DEFAULT 'barcode'",
+    },
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},
     "dispensings": {

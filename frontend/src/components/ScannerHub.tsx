@@ -53,7 +53,10 @@ interface Listener {
   id: number;
   /** What this screen calls itself, for the indicator to name. */
   station: string;
-  handler: (code: string, format?: string) => void;
+  /** `source` is how the code was read: a decoder off the bars, or the
+   *  camera off the printed digits. It decides whether the reading may act
+   *  on its own, so it must not be dropped on the way through here. */
+  handler: (code: string, format?: string, source?: string) => void;
   enabled: boolean;
 }
 
@@ -91,10 +94,11 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, []);
 
-  const deliver = useCallback((code: string, format?: string) => {
+  const deliver = useCallback((code: string, format?: string,
+                               source?: string) => {
     const who = topMost();
     if (who) {
-      who.handler(code, format);
+      who.handler(code, format, source);
       return;
     }
     // Nothing is listening. Said rather than dropped: a scan that disappears
@@ -129,7 +133,9 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
   // nothing at the till or in the stock room. Listening at the workstation
   // means it reaches whatever is on screen, which is what the hardware
   // already does and what everybody expects of it.
-  useWedgeScanner({ onScan: (code) => deliver(code, "wedge") });
+  // A USB laser on the counter is a decoder: it either reads the bars or
+  // does nothing at all.
+  useWedgeScanner({ onScan: (code) => deliver(code, "wedge", "barcode") });
 
   /** Ask for a code to show. */
   const offer = useCallback(async () => {
@@ -236,8 +242,15 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
             if (kind === "closed") { setLive(false); setLink(null); writeStored(HELD, null); }
             if (kind === "scan") {
               try {
-                const said = JSON.parse(data) as { code?: string };
-                if (said.code) deliverRef.current(said.code, "phone");
+                const said = JSON.parse(data) as
+                  { code?: string; source?: string };
+                // The source travels with the code. A phone that read the
+                // printed digits rather than the bars says so, and a station
+                // that loses that has to treat a guess as a decode.
+                if (said.code) {
+                  deliverRef.current(said.code, "phone",
+                                     said.source || "barcode");
+                }
               } catch { /* a frame we cannot read is not worth a crash */ }
             }
           }
@@ -269,7 +282,7 @@ export function useScannerHub(): Hub | null {
  */
 export function useScanFeed(
   station: string,
-  handler: (code: string, format?: string) => void,
+  handler: (code: string, format?: string, source?: string) => void,
   enabled = true,
 ): void {
   const hub = useScannerHub();

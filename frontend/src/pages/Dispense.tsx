@@ -25,6 +25,7 @@ import { usePharmacy } from "../hooks/usePharmacy";
 import { ScanCamera, cameraSupported, useWedgeScanner } from "../components/Scanner";
 import AttachBarcode from "../components/AttachBarcode";
 import { CANCELLED, useStepUp } from "../components/StepUp";
+import { useConfirm } from "../components/Confirm";
 import { useScanFeed } from "../components/ScannerHub";
 import LotPicker, { LotChoice, ROTATION } from "../components/LotPicker";
 import SchemeCodeField, { NoCodeMark, useSchemeCodes } from "../components/SchemeCode";
@@ -450,6 +451,7 @@ export default function Dispense() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const toast = useToast();
+  const askConfirm = useConfirm();
 
   // shared patient picker
   const [patientQ, setPatientQ] = useState("");
@@ -1061,7 +1063,7 @@ export default function Dispense() {
   // when it is ready, and takes whatever arrives from either.
   useScanFeed(
     "Dispensing",
-    (code) => { setProductQ(""); void scanPack(code); },
+    (code, _format, source) => { setProductQ(""); void scanPack(code, source); },
     finishing === null && !cameraOpen && !cancelTarget && !holding
       && !mixing && !newPatient && !altering,
   );
@@ -1163,12 +1165,29 @@ export default function Dispense() {
    *  the check exists to catch. While capturing a new script it is the quicker
    *  way to find the medicine, and the line starts out checked — it is that
    *  pack. An expired GS1 pack is refused either way. */
-  async function scanPack(code: string) {
+  async function scanPack(code: string, source?: string) {
     try {
       const res = await api.post<any>("/api/scan", {
-        code, context: "dispense",
+        code, context: "dispense", source,
         prescription_id: fromRx && !fromRx.draft ? fromRx.id : null,
       });
+      // A NUMBER THE CAMERA GUESSED AT, AT A DISPENSING BENCH.
+      //
+      // The phone already made the person holding the pack agree to the
+      // digits. This is the second look, and it is a different one: not "are
+      // these the right digits" but "is this the right medicine". The
+      // server decides that a dispensing context needs it; this screen only
+      // has to ask.
+      if (res.confirm?.needed && res.confirm.level === "name" && res.product) {
+        const sure = await askConfirm({
+          title: "Is this the pack in your hand?",
+          body: `${res.product.name} ${res.product.strength || ""}`.trim()
+                + ". " + res.confirm.why,
+          confirmLabel: "Yes, that is the pack",
+          destructive: !res.confirm.verified,
+        });
+        if (!sure) return;
+      }
       // A SCRIPT, NOT A PACK.
       //
       // The label this pharmacy printed carries a Code 128 of the script

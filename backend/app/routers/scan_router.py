@@ -41,6 +41,18 @@ class ScanIn(BaseModel):
     code: str = Field(..., min_length=1, max_length=200)
     # Where the scan happened. Shapes the extras, not the lookup.
     context: str = "pos"          # pos | stock | receive | dispense
+    # HOW THE CODE WAS READ, WHICH DECIDES HOW FAR IT IS TRUSTED.
+    #
+    # "barcode" is a decoder reading bars: it either decodes or stays silent,
+    # so a result is as good as the print. "ocr" is the camera reading the
+    # printed digits, for the many packs that carry a number and no bars, and
+    # it fails in the opposite way — it misreads CONFIDENTLY, handing back a
+    # clean-looking number for the wrong article. "typed" is a person at a
+    # keyboard, who can see what they entered.
+    #
+    # The lookup is identical for all three. What differs is whether the
+    # answer may be acted on without somebody agreeing to it first.
+    source: str = "barcode"       # barcode | ocr | typed
     branch_id: int | None = None
     order_id: int | None = None   # receiving against a specific purchase order
     # Dispensing against a saved script: the pack is checked against its lines.
@@ -69,6 +81,65 @@ def _product_brief(db: Session, p: Product, branch_id: int | None) -> dict:
         "nappi_code": p.nappi_code,
         "quantity_on_hand": (
             branch_svc.on_hand(db, p.id, branch_id) if branch_id else p.quantity_on_hand
+        ),
+    }
+
+
+def _confirmation(body: "ScanIn", scan, product: dict | None) -> dict:
+    """Whether somebody has to agree to this reading before it acts.
+
+    WHY OCR IS NOT TREATED LIKE A BARCODE
+
+    A decoder reading bars either decodes or stays silent, so what comes back
+    is as good as the print. The camera reading printed digits fails the other
+    way round: it misreads confidently, and hands back a clean-looking number
+    for a different article. In stock that is a miscount. At a dispensing
+    bench it is the wrong medicine.
+
+    WHAT CATCHES A MISREAD
+
+    The check digit. EAN-13, UPC-A and ITF-14 all carry a mod-10 digit over
+    the rest of the number, so a single misread fails it about nine times in
+    ten and the common transpositions fail it always.
+
+    And this is where `valid_gtin` has to be read the other way round from
+    everywhere else in this system. Its own docstring says it is for
+    classifying and never for rejecting, which is right for bars: a pharmacy's
+    repack and compounding labels are routinely not valid GTINs and refusing
+    them would break a working counter. For a number the camera guessed at, it
+    is the only thing standing between a misread and the wrong pack. So a
+    failed checksum is tolerated from the bars and never waved through from
+    the camera.
+
+    NOTHING READ BY CAMERA COMMITS ON ITS OWN
+
+    Even a number whose checksum agrees is shown before it acts, because the
+    person holding the pack can see in one glance what no checksum can: that
+    the name on the screen is the name in their hand.
+    """
+    if body.source != "ocr":
+        return {"needed": False, "level": "none", "why": "", "verified": True}
+
+    verified = bc.valid_gtin(scan.code)
+    dispensing = body.context == "dispense"
+    return {
+        "needed": True,
+        # "name" asks the operator to check the product name against the pack
+        # as well as the digits. Dispensing gets it because that is where a
+        # misread reaches a patient rather than a shelf.
+        "level": "name" if dispensing else "tap",
+        "verified": verified,
+        "code": scan.code,
+        "product": (product or {}).get("name", ""),
+        "why": (
+            "Read from the printed number rather than the bars. "
+            + ("The check digit agrees, so the number itself is almost "
+               "certainly right."
+               if verified else
+               "This number carries no check digit that agrees, so nothing "
+               "can vouch for it but your eyes.")
+            + (" Check the name against the pack in your hand before you "
+               "accept it." if dispensing else " Check it before accepting.")
         ),
     }
 
@@ -177,6 +248,11 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
         "prescription": None,
         "suggestions": [],
         "warnings": warnings,
+        # DECLARED ON EVERY PATH, not only where a product was found. A
+        # caller that has to test whether the key exists before trusting it
+        # will one day forget to, and the path it forgets on is the one where
+        # nothing matched and somebody is about to pick from a list.
+        "confirm": _confirmation(body, scan, None),
     }
 
     if not product:
@@ -224,6 +300,7 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
     # so a correct scan never shows a warning.
     out["warnings"] = [w for w in warnings if "check digit" not in w]
     out["product"] = _product_brief(db, product, branch_id)
+    out["confirm"] = _confirmation(body, scan, out["product"])
 
     if body.context == "pos":
         # The till needs to know it can actually sell this, before the operator

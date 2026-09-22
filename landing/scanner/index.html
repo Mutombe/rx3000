@@ -106,6 +106,16 @@
       linear-gradient(var(--accent),var(--accent)) 100% 100%/28px 3px no-repeat,
       linear-gradient(var(--accent),var(--accent)) 100% 100%/3px 28px no-repeat;
     opacity: .85;
+    transition: inset .18s ease;
+  }
+  /* READING THE NUMBER instead of the bars: a wide, short guide, because a
+     number strip is a line of text and a square box invites the operator to
+     frame the whole pack, which is the surest way to read its artwork. */
+  .stage.digits .reticle { inset: 41% 8%; border-radius: 8px; }
+  .stage.digits .reticle::after {
+    content: "Line the number up inside";
+    position: absolute; left: 0; right: 0; bottom: -28px;
+    text-align: center; font-size: 12px; color: var(--dim);
   }
   .stage.hit::after {
     content: ""; position: absolute; inset: 0;
@@ -113,6 +123,29 @@
     animation: flash 220ms ease-out forwards;
   }
   @keyframes flash { to { opacity: 0; } }
+  /* What the camera read off a printed number, waiting to be agreed to.
+     Deliberately large: the whole protection here is that a person looks at
+     it, and a number set in the same size as everything else is a number
+     nobody reads. */
+  .read {
+    display: grid; gap: 8px; padding: 14px 16px; margin: 12px 0;
+    border-radius: 14px; border: 1px solid var(--line);
+    background: var(--card);
+  }
+  .read.unsure { border-color: #8a5a12; }
+  .read-cap {
+    font-size: 11px; font-weight: 700; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .read-code {
+    font-size: 30px; font-weight: 700; letter-spacing: .12em;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .read-why { font-size: 13px; color: var(--dim); line-height: 1.45; }
+  .read-acts { display: flex; gap: 8px; margin-top: 4px; }
+  .read-acts .go, .read-acts .quiet { flex: 1 1 auto; min-height: 48px; }
+  .chip.warn { border-color: #8a5a12; color: #e3b45c; }
+
   .over {
     position: absolute; inset: 0; display: grid; place-items: center;
     padding: 24px; text-align: center; color: var(--ink-soft);
@@ -186,6 +219,10 @@
     <div class="tools">
       <button class="tool" id="lamp" hidden aria-pressed="false" aria-label="Turn the light on">
         <svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M176,32H80A16,16,0,0,0,64,48V80a15.87,15.87,0,0,0,4.69,11.31L96,118.63V224a16,16,0,0,0,16,16h32a16,16,0,0,0,16-16V118.63l27.31-27.32A15.87,15.87,0,0,0,192,80V48A16,16,0,0,0,176,32Zm0,48-32,32V224H112V112L80,80V48h96Z"/></svg>
+      </button>
+      <button class="tool" id="ocr" aria-pressed="false"
+              aria-label="Read the printed number instead of the bars">
+        <svg width="22" height="22" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M136,32V216a8,8,0,0,1-16,0V32a8,8,0,0,1,16,0ZM72,80a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,72,80Zm-40,0a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,32,80Zm152,0a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,184,80Zm40,0a8,8,0,0,0-8,8v80a8,8,0,0,0,16,0V88A8,8,0,0,0,224,80Z"/></svg>
       </button>
     </div>
   </header>
@@ -349,6 +386,13 @@ async function startCamera() {
 
   const detector = await getDetector();
   const tick = async () => {
+    // READING THE NUMBER TAKES THE WHOLE LOOP WHILE IT IS ON.
+    //
+    // Not run alongside the decoder: a pack held under a wide guide will
+    // sometimes decode a neighbouring barcode on the same box, and a reading
+    // the operator did not ask for arriving while they are lining up a
+    // number is worse than no reading at all.
+    if (readingDigits) { await tickDigits(); return; }
     try {
       const found = await detector.detect(video);
       const value = found?.[0]?.rawValue;
@@ -374,10 +418,114 @@ async function startCamera() {
   tick();
 }
 
+/* ------------------------------------------- reading the number, not the bars
+
+   For the many packs that carry the article number printed and no bars: a
+   local repack, a pharmacy's own label, a blister whose foil has worn. The
+   digits are the same data, so they reach the same product.
+
+   Nothing here is ever sent as a barcode. A decoder either decodes or stays
+   silent; this misreads confidently, so everything it produces is labelled
+   `ocr` and the station at the other end will not act on it until somebody
+   has agreed to it. See landing/scanner/digits.js. */
+let readingDigits = false;
+let digits = null;          // the module, once somebody has asked for it
+let reading = false;        // a read in flight, so frames do not stack up
+let offered = null;         // what it last read, waiting to be accepted
+let seen = null;            // an unverified reading, waiting for a second opinion
+
+/** The guide box, as a fraction of the frame. Matches `.stage.digits
+ *  .reticle` in the stylesheet: the recogniser must be handed the same
+ *  rectangle the operator is lining the pack up inside, or it reads the
+ *  artwork around it. */
+const GUIDE = { x: 0.08, y: 0.41, w: 0.84, h: 0.18 };
+
+async function tickDigits() {
+  if (reading) { setTimeout(tick, 200); return; }
+  reading = true;
+  try {
+    const got = await digits.readOnce($("video"), GUIDE, say);
+    if (got && got.usable && got.code !== offered?.code) {
+      // A READING THAT VERIFIES IS WORTH MORE THAN A FAST ONE.
+      //
+      // Offering whatever the first frame returned meant a misread on a bad
+      // frame went in front of the operator as readily as a good one, and
+      // the whole burden of catching it fell on them noticing. A check digit
+      // that agrees is near-conclusive, so that is offered at once. Anything
+      // else has to be read the SAME WAY TWICE, from two separate frames of
+      // a hand-held camera, before it is put up at all: agreement between
+      // two independent looks is the only evidence available when the number
+      // carries nothing to check it against.
+      if (got.verified) {
+        seen = null;
+        offered = got;
+        navigator.vibrate?.(40);
+        draw();
+      } else if (seen && seen === got.code) {
+        seen = null;
+        offered = got;
+        navigator.vibrate?.(40);
+        draw();
+      } else {
+        seen = got.code;
+        say("Hold it steady…");
+      }
+    }
+  } catch (e) {
+    problem = e.message;
+    stopDigits();
+    draw();
+  } finally {
+    reading = false;
+  }
+  setTimeout(tick, 260);
+}
+
+function say(text) {
+  const over = $("over");
+  if (over && readingDigits) { over.hidden = false; over.textContent = text; }
+}
+
+async function startDigits() {
+  try {
+    say("Getting the number reader ready…");
+    digits = digits || await import("./digits.js");
+    readingDigits = true;
+    offered = null;
+    $("stage").classList.add("digits");
+    $("ocr").setAttribute("aria-pressed", "true");
+    $("ocr").classList.add("on");
+    $("title").textContent = "Line up the printed number";
+    say("Hold the number inside the box");
+    draw();
+  } catch {
+    // The reader is a convenience on top of a fallback. If it will not come
+    // down the line, the box for typing the number is already on this screen
+    // and says so.
+    problem = "The number reader could not be downloaded. Type the number "
+            + "instead, using the box below.";
+    readingDigits = false;
+    draw();
+  }
+}
+
+function stopDigits() {
+  readingDigits = false;
+  offered = null;
+  $("stage").classList.remove("digits");
+  $("ocr").setAttribute("aria-pressed", "false");
+  $("ocr").classList.remove("on");
+  $("title").textContent = pairing ? "Ready" : "Point this at the counter";
+  const over = $("over");
+  if (over) over.hidden = true;
+  digits?.release?.();
+  draw();
+}
+
 /* -------------------------------------------------------------- the flow */
-function onScan(value, format) {
+function onScan(value, format, source) {
   if (!pairing) { void claim(value); return; }
-  void send(value, format);
+  void send(value, format, source);
 }
 
 async function claim(raw) {
@@ -412,12 +560,17 @@ async function claim(raw) {
   draw();
 }
 
-async function send(code, format) {
+async function send(code, format, source) {
   problem = "";
   const at = Date.now();
   try {
-    await ask("/api/scanner/scan", { code }, pairing.token);
-    shots = [{ code, format, at, ok: true }, ...shots].slice(0, 50);
+    // `source` travels with the code so the station knows whether it may act
+    // on its own. Omitted for a decoded barcode, which is what every scan
+    // before this existed was, and what the server assumes when it is absent.
+    await ask("/api/scanner/scan",
+              source && source !== "barcode" ? { code, source } : { code },
+              pairing.token);
+    shots = [{ code, format, at, ok: true, source }, ...shots].slice(0, 50);
   } catch (e) {
     // Kept as a failure rather than dropped: "it said forty and the counter
     // has thirty-nine" is not a conversation anybody can have without a list.
@@ -482,7 +635,9 @@ function draw() {
       <span class="body">
         <span class="code">${esc(s.code)}</span>
         <span class="meta">
-          ${s.format ? `<span class="chip">${esc(NAMES[s.format] || s.format)}</span>` : ""}
+          ${s.source === "ocr"
+            ? `<span class="chip warn">printed number</span>`
+            : s.format ? `<span class="chip">${esc(NAMES[s.format] || s.format)}</span>` : ""}
           <span class="why">${s.ok
             ? esc(new Date(s.at).toLocaleTimeString())
             : esc(s.why || "did not arrive")}</span>
@@ -496,6 +651,18 @@ function draw() {
       <span>scan${sent === 1 ? "" : "s"} sent to ${esc(pairing.station || "the counter")}</span>
     </div>
     ${alert}
+    ${offered ? `
+      <div class="read ${offered.verified ? "ok" : "unsure"}">
+        <span class="read-cap">Read from the printed number</span>
+        <b class="read-code">${esc(offered.code)}</b>
+        <span class="read-why">${offered.verified
+          ? "The check digit agrees, so the number itself is almost certainly right. Check it against the pack."
+          : "Nothing can vouch for this number, so check every digit against the pack before you send it."}</span>
+        <div class="read-acts">
+          <button class="quiet" id="dropread" type="button">Try again</button>
+          <button class="go" id="takeread" type="button">Send this number</button>
+        </div>
+      </div>` : ""}
     ${shots.length ? `<ul class="shots">${list}</ul>` : ""}
     <form id="handform">
       <label class="lbl" for="hand">or type the number under the bars</label>
@@ -506,6 +673,31 @@ function draw() {
       </div>
     </form>
     <button class="quiet" id="unpair">Stop using this phone as a scanner</button>`;
+
+  const ocrBtn = $("ocr");
+  if (ocrBtn) {
+    ocrBtn.onclick = () => (readingDigits ? stopDigits() : void startDigits());
+  }
+
+  // NOTHING THE CAMERA READ GOES WITHOUT SOMEBODY AGREEING TO IT.
+  //
+  // A decoded barcode is sent the instant it decodes, because the decoder
+  // either read it or did not. This is the other kind: it is shown, large,
+  // with whether its check digit agrees, and it is sent when the person
+  // holding the pack says it is right.
+  const takeBtn = $("takeread");
+  if (takeBtn) {
+    takeBtn.onclick = () => {
+      const got = offered;
+      if (!got) return;
+      offered = null;
+      beep(true);
+      onScan(got.code, "printed-number", "ocr");
+      stopDigits();
+    };
+  }
+  const dropBtn = $("dropread");
+  if (dropBtn) { dropBtn.onclick = () => { offered = null; draw(); }; }
 
   $("handform").addEventListener("submit", (e) => {
     e.preventDefault();
