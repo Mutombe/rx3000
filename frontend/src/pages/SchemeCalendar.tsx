@@ -168,13 +168,19 @@ export default function SchemeCalendar() {
           </div>
         </div>
         <div className="page-actions">
-          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
           <button className="btn secondary" onClick={load}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
             Refresh
           </button>
         </div>
       </div>
+
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
 
       {failed && <div className="alert error">{failed}</div>}
 

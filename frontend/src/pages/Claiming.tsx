@@ -396,12 +396,18 @@ export default function Claiming() {
           </div>
         </div>
         <div className="page-actions">
-          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
           {/* A pharmacy reconciles what a funder paid against what was claimed
               in Excel, whatever the software offers. */}
           <ExportButton dataset="claims" label="Claims as a spreadsheet" />
         </div>
       </div>
+
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
 
       <TabStrip>
         <button className={tab === "batches" ? "active" : ""} onClick={() => setTab("batches")}>

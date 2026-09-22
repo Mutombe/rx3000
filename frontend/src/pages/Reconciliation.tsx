@@ -57,14 +57,18 @@ export default function Reconciliation() {
       <header className="page-head">
         <div>
           <h1>Reconciliation</h1>
-          <p className="muted">
+          <div className="sub">
             {data?.headline ?? "Two records of one thing, and the difference."}
-          </p>
-        </div>
-        <div className="page-actions">
-          <SectionNav tabs={RECON_TABS} end="/reconciliation" />
+          </div>
         </div>
       </header>
+
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={RECON_TABS} end="/reconciliation" />
 
       <Refreshable loading={loading} hasData={!!data}
         skeleton={<TableSkeleton cols={4} rows={5} />}>

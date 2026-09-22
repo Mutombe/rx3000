@@ -102,13 +102,13 @@ export default function Drivers() {
       <header className="page-head">
         <div>
           <h1>Drivers</h1>
-          <p className="muted">
+          <div className="sub">
             {rows.length
               ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
                 + (road?.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
                 + (holding ? `, ${money(holding)} of shop money being carried` : "")
               : "Nobody is set up to deliver yet."}
-          </p>
+          </div>
         </div>
         <div className="page-actions">
           <button className="btn" onClick={() => setAdding(true)}>

@@ -97,10 +97,10 @@ export default function System() {
           {/* Two versions, because they are two different things and the page
               was reporting neither: the server is shared by every till and by
               anybody in a browser, and this till is what an update changes. */}
-          <p className="muted">
+          <div className="sub">
             {update.installed && <>This till <b>{update.installed}</b> &middot; </>}
             {info ? `server ${info.version} (build ${info.build}) · ${info.station_id}` : ""}
-          </p>
+          </div>
         </div>
       </header>
 

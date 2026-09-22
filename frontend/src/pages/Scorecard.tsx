@@ -97,7 +97,11 @@ export default function Scorecard() {
           <h1>Branch scorecard</h1>
           <div className="sub">Which shop is working, and which is quietly not</div>
         </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {/* The standard group, not an inline style. Five pages each had their
+            own idea of how a header's actions are spaced, which is five
+            places to change when the answer moves and one of them always
+            gets missed. */}
+        <div className="page-actions">
           <Select value={days} onChange={setDays} options={WINDOWS} />
           <button className="btn secondary" onClick={load}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh

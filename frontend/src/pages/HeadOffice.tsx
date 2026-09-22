@@ -195,9 +195,9 @@ export default function HeadOffice() {
       <header className="page-head">
         <div>
           <h1>Head office</h1>
-          <p className="muted">
+          <div className="sub">
             {estate?.headline ?? "The estate, and the controls above it."}
-          </p>
+          </div>
         </div>
       </header>
 

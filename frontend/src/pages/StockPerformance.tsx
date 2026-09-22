@@ -109,10 +109,10 @@ export default function StockPerformance() {
       <header className="page-head">
         <div>
           <h1>Stock performance</h1>
-          <p className="muted">
+          <div className="sub">
             {report?.headline ?? "What moves, what it earns, and how long the "
               + "shelf lasts."}
-          </p>
+          </div>
         </div>
         <div className="page-actions">
           <Select value={String(days)} onChange={(v) => setDays(Number(v))}

@@ -209,7 +209,7 @@ export default function Deliveries() {
       <header className="page-head">
         <div>
           <h1>Deliveries</h1>
-          <p className="muted">{headline}</p>
+          <div className="sub">{headline}</div>
         </div>
         {/* Deliveries only ever arrived here already made. The request usually
             arrives by telephone, and the endpoint to raise one has existed

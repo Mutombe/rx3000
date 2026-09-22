@@ -171,7 +171,7 @@ export default function ToFollows() {
       <header className="page-head">
         <div>
           <h1>To follows</h1>
-          <p className="muted">{headline}</p>
+          <div className="sub">{headline}</div>
         </div>
         <div className="page-actions">
           {/* Most of these are raised by a dispensing that came up short. This

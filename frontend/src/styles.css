@@ -4108,6 +4108,19 @@ td.lb-actions {
 /* A search box that belongs to a page rather than to a table. */
 .page-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
 
+/* ONE SIZE OF BUTTON IN A PAGE'S ACTION GROUP.
+   ExportButton defaults to `small`, which is right in a card head and wrong
+   beside a full-height primary. Measured across the list pages: three of the
+   four with two or more header buttons put a 30px button next to a 38px one,
+   so "Owe something" and "Spreadsheet" sat at different heights and neither
+   baseline lined up with the title. Fixed in the one place that knows the
+   context rather than at twenty call sites, none of which should have to
+   know what they are standing next to. */
+.page-actions .btn.small, .page-actions button.small,
+.page-actions .btn.sm, .page-actions button.sm {
+  height: var(--control); padding: 0 var(--s4); font-size: var(--t-base);
+}
+
 /* ---------- THE HEADER EVERY RECORD PAGE SHARES ----------
    Measured across four detail pages before this existed: header heights of
    76, 93, 93 and 142px, two with no record type above the name, two with the

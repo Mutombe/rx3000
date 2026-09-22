@@ -3316,8 +3316,8 @@ export default function Dispense() {
             Prescription, over-the-counter, or dangerous drugs. That is a
             setting, not a fault: whoever administers this pharmacy can add one
             on the role matrix, or grant it to you by name.
-          </p>
-          <p className="muted">
+          </div>
+          <div className="sub">
             If you came here to serve somebody at the counter, the till is on
             the Point of Sale screen.
           </p>

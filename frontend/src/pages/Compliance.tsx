@@ -202,15 +202,19 @@ export default function Compliance() {
       <header className="page-head">
         <div>
           <h1>Licences &amp; compliance</h1>
-          <p className="muted">
+          <div className="sub">
             {overview?.headline
               ?? "What each branch must hold to trade, and when it expires."}
-          </p>
-        </div>
-        <div className="page-actions">
-          <SectionNav tabs={BRANCH_TABS} end="/compliance" />
+          </div>
         </div>
       </header>
+
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={BRANCH_TABS} end="/compliance" />
 
       <Refreshable loading={loading} hasData={!!overview}
         skeleton={<TableSkeleton cols={5} rows={4} />}>

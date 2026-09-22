@@ -264,7 +264,6 @@ export default function Branches() {
           </div>
         </div>
         <div className="page-actions">
-          <SectionNav tabs={BRANCH_TABS} end="/branches" />
           <button className="btn primary" onClick={() => {
             setMoving(true);
             setFromId(branches?.find((b) => b.is_default)?.id ?? "");
@@ -273,6 +272,13 @@ export default function Branches() {
           </button>
         </div>
       </div>
+
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={BRANCH_TABS} end="/branches" />
 
       {transit.length > 0 && (
         <div className="card">

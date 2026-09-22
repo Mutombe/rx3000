@@ -112,10 +112,10 @@ export default function Seasons() {
       <header className="page-head">
         <div>
           <h1>Basket &amp; seasons</h1>
-          <p className="muted">
+          <div className="sub">
             What a repeat patient is worth beyond the line, and what to have on
             the shelf before the month that sells it.
-          </p>
+          </div>
         </div>
         {tab === "basket" && (
           <div className="page-actions">

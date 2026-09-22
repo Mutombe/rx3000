@@ -90,7 +90,11 @@ export default function Reminders() {
           <h1>Patient Adherence</h1>
           <div className="sub">SMS &amp; email for repeat prescriptions, birthdays and free-type messages</div>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        {/* The standard group, not an inline style. Five pages each had their
+            own idea of how a header's actions are spaced, which is five
+            places to change when the answer moves and one of them always
+            gets missed. */}
+        <div className="page-actions">
           {/* The glyph was a literal ⟳ in the label. It is an icon now, and it
               turns while the jobs are actually running. */}
           <BusyButton className="btn secondary" onClick={runJobs}

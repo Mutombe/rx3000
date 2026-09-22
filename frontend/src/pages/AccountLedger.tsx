@@ -59,13 +59,13 @@ export default function AccountLedger() {
           <h1>
             <span className="mono">{view?.code ?? code}</span> {view?.name ?? ""}
           </h1>
-          <p className="muted">
+          <div className="sub">
             {view
               ? `${view.type}${view.subledger ? ` · ${view.subledger} control` : ""} · ` +
                 `${view.line_count} movement${view.line_count === 1 ? "" : "s"} · ` +
                 `balance ${money(view.balance)}`
               : ""}
-          </p>
+          </div>
         </div>
       </header>
 

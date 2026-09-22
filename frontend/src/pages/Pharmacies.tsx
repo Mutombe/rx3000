@@ -173,7 +173,11 @@ export default function Pharmacies() {
           <h1>Pharmacies</h1>
           <div className="sub">Every business on this deployment, and who belongs to which</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        {/* The standard group, not an inline style. Five pages each had their
+            own idea of how a header's actions are spaced, which is five
+            places to change when the answer moves and one of them always
+            gets missed. */}
+        <div className="page-actions">
           <button className="btn secondary" onClick={load}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
           </button>

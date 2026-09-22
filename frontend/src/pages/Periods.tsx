@@ -151,11 +151,11 @@ export default function Periods() {
       <header className="page-head">
         <div>
           <h1>Trading periods</h1>
-          <p className="muted">
+          <div className="sub">
             {current
               ? `Currently trading in ${current.name}. ${current.live?.transactions ?? 0} transactions, ${money(current.live?.sales)}.`
               : ""}
-          </p>
+          </div>
         </div>
       </header>
 

@@ -314,20 +314,34 @@ export default function Authorisations() {
           </div>
         </div>
         <div className="page-actions">
-          <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
-          <input
-            className="page-search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search reference, number or item"
-          />
           <button className="btn primary" onClick={() => setAsking(true)}>
             Request an authorisation
           </button>
         </div>
       </div>
 
+      {/* The family this page belongs to. It used to sit in the
+          page's action slot beside a primary button, and on Authorisations
+          beside a search box as well, so three different kinds of control
+          shared one corner and wrapped the header to 176px against 76 on an
+          ordinary page. Navigation is not an action. */}
+      <SectionNav tabs={CLAIMING_TABS} end="/claiming" />
+
       <div className="card">
+        {/* WITH THE TABLE IT NARROWS, NOT IN THE PAGE'S ACTION SLOT.
+            A search box sat top right between a tab strip and a primary
+            button: three unrelated kinds of control in one corner, which
+            wrapped the header onto three rows and put the filter furthest
+            from the rows it filters. */}
+        <div className="dt-filters">
+          <input
+            type="search"
+            className="filter-search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search reference, number or item"
+          />
+        </div>
         {list.loading && rows.length === 0
           ? <TableSkeleton cols={6} rows={6} /> : rows.length === 0 ? (
           <div className="empty">No authorisations yet.</div>

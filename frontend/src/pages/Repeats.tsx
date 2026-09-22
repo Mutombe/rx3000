@@ -310,14 +310,14 @@ export default function Repeats() {
       <header className="page-head">
         <div>
           <h1>Repeats</h1>
-          <p className="muted">
+          <div className="sub">
             {due
               ? due.count
                 ? `${due.count} due within ${horizon} days` +
                   (due.overdue ? `, ${due.overdue} already overdue.` : ".")
                 : "Nobody is due."
               : ""}
-          </p>
+          </div>
         </div>
       </header>
 

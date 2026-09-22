@@ -166,13 +166,13 @@ export default function Ledger() {
       <header className="page-head">
         <div>
           <h1>General ledger</h1>
-          <p className="muted">
+          <div className="sub">
             {tb
               ? tb.balanced
                 ? `Balanced. ${money(tb.total_debit)} debits against ${money(tb.total_credit)} credits.`
                 : tb.message
               : ""}
-          </p>
+          </div>
         </div>
         <div className="page-actions">
           {/* Almost everything here is posted by something else, and that is

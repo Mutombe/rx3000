@@ -235,7 +235,7 @@ export default function Profile() {
       <header className="page-head">
         <div>
           <h1>Profile</h1>
-          <p className="muted">Your account and the pharmacy you are signed in to.</p>
+          <div className="sub">Your account and the pharmacy you are signed in to.</div>
         </div>
       </header>
 
