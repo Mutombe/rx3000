@@ -14,11 +14,15 @@
  *  created, what would change and from what, and — the part that matters —
  *  every row that will not load with the reason in a sentence.
  */
-import { useState } from "react";
-import { CheckCircle, UploadSimple, Warning } from "@phosphor-icons/react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  CheckCircle, DownloadSimple, UploadSimple, Warning,
+} from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import FileDrop from "./FileDrop";
+import { FilterToggle } from "./Filters";
 import { useToast } from "./Toast";
 
 interface Line {
@@ -53,6 +57,30 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
   // sits still for that long reads as one that did not accept the file.
   const [reading, setReading] = useState(false);
   const toast = useToast();
+  /** Which rows of the preview to show. "Will not load" is the one somebody
+   *  actually wants alone: four hundred rows are listed and twelve are the
+   *  reason they are still reading. */
+  const [only, setOnly] = useState<string>("");
+  const [q, setQ] = useState("");
+
+  /** The example file, fetched rather than linked: a plain href cannot carry
+   *  the Authorization header, and the usual workaround writes the token into
+   *  every access log it passes through. Same reasoning as ExportButton. */
+  async function getExample() {
+    try {
+      const file = await api.blob("/api/stock/upload/example");
+      const url = URL.createObjectURL(file.body);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.filename || "rx5000-stock-upload-example.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      toast.error(errorText(e, "The example file could not be fetched."));
+    }
+  }
 
   async function preview(text: string, fileName: string) {
     setCsv(text);
@@ -84,6 +112,22 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
 
   const willWrite = (result?.create ?? 0) + (result?.update ?? 0) > 0;
 
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (result?.lines ?? []).filter((l) =>
+      (!only || l.action === only)
+      && (!needle
+          || l.name.toLowerCase().includes(needle)
+          || l.key.toLowerCase().includes(needle)
+          || String(l.row) === needle));
+  }, [result, only, q]);
+
+  /** A tile presses to show its own rows, and presses again to show them all. */
+  function pick(action: string) {
+    setOnly((was) => (was === action ? "" : action));
+    setQ("");
+  }
+
   return (
     <div className="card">
       <div className="card-head">
@@ -95,6 +139,15 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
             do.
           </span>
         </div>
+        {/* THE COMMONEST WAY THIS FAILED WAS NOT KNOWING WHAT TO SEND.
+            The columns were named in a hint under the drop zone and the rest
+            was guesswork, so a pharmacy's first file was usually refused and
+            the second was a phone call. The example is generated from the
+            same map that reads a file, so it cannot drift away from what the
+            parser accepts. */}
+        <button type="button" className="btn secondary" onClick={getExample}>
+          <DownloadSimple size={14} weight="bold" /> Example file
+        </button>
       </div>
 
       <FileDrop
@@ -142,24 +195,73 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
 
       {result && (
         <>
+          {/* THREE OF THESE ARE CONTROLS AND TWO ARE READINGS.
+              All five were divs carrying .wl-stat, which sets a pointer
+              cursor and a hover state because every tile filters on the queue
+              it came from. Here the row count and the unit total have nothing
+              to narrow to, so they looked clickable and were not. The three
+              that answer "show me those rows" are buttons. */}
           <div className="wc-bands" style={{ marginTop: 14 }}>
-            <div className="wl-stat">
-              <b>{result.rows}</b><span>rows in {name || "the file"}</span>
-            </div>
-            <div className="wl-stat">
-              <b className="tone-ok">{result.create}</b><span>New products</span>
-            </div>
-            <div className="wl-stat">
-              <b>{result.update}</b><span>To change</span>
-            </div>
-            <div className={`wl-stat${result.refuse ? " wc-abandoned" : ""}`}>
+            <button type="button"
+                    className={`wl-stat rc-pick${only ? "" : " is-on"}`}
+                    aria-pressed={!only}
+                    onClick={() => pick("")}>
+              <b>{result.rows}</b>
+              <span>
+                rows in {name || "the file"}
+                <em className="rc-pick-do">
+                  {only ? "show all of them" : "showing all of them"}
+                </em>
+              </span>
+            </button>
+            <button type="button"
+                    className={`wl-stat rc-pick${only === "create" ? " is-on" : ""}`}
+                    aria-pressed={only === "create"} disabled={!result.create}
+                    onClick={() => pick("create")}>
+              <b className="tone-ok">{result.create}</b>
+              <span>
+                New products
+                {result.create > 0 && (
+                  <em className="rc-pick-do">
+                    {only === "create" ? "showing only these" : "show only these"}
+                  </em>
+                )}
+              </span>
+            </button>
+            <button type="button"
+                    className={`wl-stat rc-pick${only === "update" ? " is-on" : ""}`}
+                    aria-pressed={only === "update"} disabled={!result.update}
+                    onClick={() => pick("update")}>
+              <b>{result.update}</b>
+              <span>
+                To change
+                {result.update > 0 && (
+                  <em className="rc-pick-do">
+                    {only === "update" ? "showing only these" : "show only these"}
+                  </em>
+                )}
+              </span>
+            </button>
+            {/* The one anybody came here to look at. */}
+            <button type="button"
+                    className={`wl-stat rc-pick${result.refuse ? " wc-abandoned" : ""}`
+                               + `${only === "refuse" ? " is-on" : ""}`}
+                    aria-pressed={only === "refuse"} disabled={!result.refuse}
+                    onClick={() => pick("refuse")}>
               <b className={result.refuse ? "tone-danger" : undefined}>
                 {result.refuse}
               </b>
-              <span>Will not load</span>
-            </div>
+              <span>
+                Will not load
+                {result.refuse > 0 && (
+                  <em className="rc-pick-do">
+                    {only === "refuse" ? "showing only these" : "show me which"}
+                  </em>
+                )}
+              </span>
+            </button>
             {result.units > 0 && (
-              <div className="wl-stat">
+              <div className="wl-stat rc-read">
                 <b>{result.units.toLocaleString()}</b><span>Units to receive</span>
               </div>
             )}
@@ -202,22 +304,50 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
             )}
           </p>
 
+          {/* Four hundred rows listed and no way to find one. Somebody is
+              usually looking for a line they know the name of, or checking
+              what happened to row 2,317 that the file's own author asked
+              about. */}
+          <div className="dt-filters">
+            <input type="search" className="filter-search" value={q}
+                   placeholder="Find a line by name, code or row number…"
+                   onChange={(e) => setQ(e.target.value)} />
+            <FilterToggle checked={only === "refuse"}
+                          onChange={(on) => setOnly(on ? "refuse" : "")}
+                          hint="Only the rows that will not load">
+              Will not load
+            </FilterToggle>
+            {(q || only) && (
+              <button className="ghost small filter-clear"
+                      onClick={() => { setQ(""); setOnly(""); }}>
+                Clear
+              </button>
+            )}
+            <span className="dt-count muted">
+              {shown.length} of {result.lines.length}
+            </span>
+          </div>
+
           <div className="dt-scroll">
-            <table className="dt">
+            <table className="dt su-table">
               <thead>
                 <tr>
-                  <th style={{ width: "4rem" }}>Row</th>
+                  <th className="col-row">Row</th>
                   <th>Product</th>
-                  <th style={{ width: "8rem" }}>What happens</th>
-                  <th className="num">Cost</th>
-                  <th className="num">Price</th>
-                  <th className="num">Qty</th>
-                  <th>Batch</th>
+                  {/* col-code (7rem) cut the heading itself: a column has to be as
+                      wide as the question it asks. */}
+                  <th className="col-city">What happens</th>
+                  <th className="num col-money">Cost</th>
+                  <th className="num col-money">Price</th>
+                  <th className="num col-count">Qty</th>
+                  {/* Carries the expiry under the lot number, and "exp 30 Jun, 2028"
+                      is wider than the lot is. */}
+                  <th className="col-city">Batch</th>
                   <th>Why not</th>
                 </tr>
               </thead>
               <tbody>
-                {result.lines.map((l) => (
+                {shown.map((l) => (
                   <tr key={l.row}
                       className={l.action === "refuse" ? "row-danger"
                         : l.action === "create" ? "row-ok" : undefined}>
@@ -238,21 +368,23 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
                         ? <>{l.changes.cost[0] !== null
                               && <s className="muted">{money(l.changes.cost[0])}</s>}{" "}
                             {money(l.changes.cost[1])}</>
-                        : <span className="muted">—</span>}
+                        : <span className="muted">unchanged</span>}
                     </td>
                     <td className="num">
                       {l.changes.price
                         ? <>{l.changes.price[0] !== null
                               && <s className="muted">{money(l.changes.price[0])}</s>}{" "}
                             {money(l.changes.price[1])}</>
-                        : <span className="muted">—</span>}
+                        : <span className="muted">unchanged</span>}
                     </td>
                     <td className="num">
+                      {/* A catalogue line carries no quantity, which is not
+                          a gap in the file. */}
                       {l.quantity ? l.quantity.toLocaleString()
-                        : <span className="muted">—</span>}
+                        : <span className="muted">none</span>}
                     </td>
                     <td className="mono small">
-                      {l.batch || <span className="muted">—</span>}
+                      {l.batch || <span className="muted">none</span>}
                       {l.expiry && (
                         <div className="muted">exp {fmtDate(l.expiry)}</div>
                       )}
@@ -270,10 +402,32 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
           )}
 
           {result.applied ? (
-            <p className="alert ok">
-              <CheckCircle size={16} weight="fill" />
-              <span>{result.message}</span>
-            </p>
+            <>
+              <p className="alert ok">
+                <CheckCircle size={16} weight="fill" />
+                <span>{result.message}</span>
+              </p>
+              {/* WHERE THE STOCK WENT.
+                  The screen said "247 products created, 1,880 units received"
+                  and ended there, so the one question straight afterwards,
+                  "did that land the way I meant", had no answer on it. These
+                  are the three screens that hold what the file just made. */}
+              <div className="su-after">
+                <Link to="/stock?tab=products" className="btn secondary">
+                  See the products
+                </Link>
+                {(result.batches ?? 0) > 0 && (
+                  <Link to="/stock?tab=batches" className="btn secondary">
+                    The batches it created
+                  </Link>
+                )}
+                {(result.batches ?? 0) > 0 && (
+                  <Link to="/stock?tab=movements" className="btn secondary">
+                    The stock it received
+                  </Link>
+                )}
+              </div>
+            </>
           ) : (
             <>
               {result.refuse > 0 && (

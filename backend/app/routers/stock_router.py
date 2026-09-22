@@ -601,6 +601,31 @@ def update_product(product_id: int, body: schemas.ProductBase,
 
 
 # ---------- movements / adjustments ----------
+@router.get("/stock/upload/example")
+def stock_upload_example(
+        user: User = Depends(require_role("admin", "pharmacist", "manager"))):
+    """A file that loads, for somebody who has not sent one before.
+
+    Declared before the POST beside it for readability only; the two differ by
+    method, so order does not decide which one answers.
+
+    The commonest way this feature failed was that nobody knew what to put in
+    the file: the screen named a few columns in a hint and left the rest to be
+    guessed, so a first attempt was usually a refusal and a second was a phone
+    call. The headings come from the same module that reads a file, so the
+    example cannot drift away from what the parser accepts.
+    """
+    from fastapi.responses import Response
+    from ..services import stock_upload as up
+
+    return Response(
+        content=up.example_csv(),
+        media_type="text/csv",
+        headers={"Content-Disposition":
+                 'attachment; filename="rx5000-stock-upload-example.csv"'},
+    )
+
+
 @router.post("/stock/upload")
 def stock_upload(csv_text: str = Body(..., embed=True),
                  apply: bool = Body(default=False, embed=True),

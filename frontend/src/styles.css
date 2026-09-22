@@ -3935,6 +3935,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .col-code  { width: 7rem; }    /* a short branch or account code */
 .col-city  { width: 8.5rem; }  /* a town name */
 .col-count { width: 5.5rem; }  /* a plain count: packs, units, lines */
+.col-row   { width: 4.5rem; }  /* a row number in an uploaded file */
 
 .pay-supplier { width: 19rem; }
 
@@ -11883,6 +11884,18 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    so it wraps rather than clipping, as the supplier column does on the
    delivery tables. A name cut mid word reads as a rendering fault. */
 .rc-table td:first-child { white-space: normal; }
+
+/* UPLOAD PREVIEW: the two columns that hold a sentence.
+   The product as the file spells it, and the reason a row will not load.
+   Both are prose and both were clipping to one line, which on the refusal
+   column meant the sentence explaining the refusal was the thing cut off. */
+.su-table td:nth-child(2), .su-table td:last-child { white-space: normal; }
+/* A disabled tile is a count of nothing. It stays legible and stops
+   pretending: no pointer, no hover, and it cannot be pressed. */
+.wl-stat:disabled { cursor: default; opacity: 1; }
+.wl-stat:disabled:hover { background: var(--surface-sunk); border-color: var(--line); }
+/* Where the stock went, after a file has loaded. */
+.su-after { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
 
 /* A wholesaler's registered name is a sentence, not a token.
    "UPD (United Pharmaceutical Distributors)" truncated to "UPD (United

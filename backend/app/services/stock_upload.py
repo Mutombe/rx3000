@@ -447,3 +447,77 @@ def apply(db: Session, rows: list[dict], mapping: dict[str, str], lines: list[Li
     db.commit()
     return {"created": created, "updated": updated,
             "batches": received, "units": units}
+
+
+# ---------------------------------------------------------------------------
+# AN EXAMPLE FILE, BUILT FROM THE SAME MAP THAT READS ONE
+#
+# The commonest way an upload fails is that nobody knows what to put in the
+# file. The screen listed a few column names in a hint and left the rest to be
+# guessed, so a pharmacy's first attempt is usually a refusal and its second is
+# a phone call.
+#
+# Generated here rather than written out on the screen that offers it, because
+# a second copy of the column names is how the two drift until the example
+# stops being an example. Every heading below is asserted against ALIASES by
+# `qa/an-example-file-loads.py`, so a rename that orphans one fails the build
+# rather than quietly shipping a template the parser ignores.
+# ---------------------------------------------------------------------------
+
+#: The heading to show for each thing the parser understands, in the order a
+#: pharmacist reads them: what it is, then what it costs, then what arrived.
+#:
+#: NOTHING HERE MAY MATCH A REAL PRODUCT.
+#:
+#: The first draft carried a plausible barcode and the NAPPI code 702114, and
+#: previewing it against this database came back "update Ibuprofen 400mg": the
+#: code was a real one, so an example file downloaded, half filled in and sent
+#: would have quietly rewritten the cost and price of a line already on the
+#: shelf. An identifier in a template has to be one that cannot match, which
+#: is why the code column is obviously an example and the barcode and NAPPI
+#: columns are headings with nothing under them.
+#:
+#: The name also carries no strength. `strength` is its own column and the
+#: planner joins the two, so "Paracetamol 500mg" with 500mg beside it became
+#: the product "Paracetamol 500mg 500mg".
+EXAMPLE_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    # (heading, first example row, second example row)
+    ("stock_code",    "EXAMPLE-001",   "EXAMPLE-002"),
+    ("name",          "Paracetamol",   "Amoxicillin"),
+    ("strength",      "500mg",         "250mg"),
+    ("dosage_form",   "Tablet",        "Capsule"),
+    ("pack_size",     "100",           "21"),
+    ("barcode",       "",              ""),
+    ("nappi_code",    "",              ""),
+    ("schedule",      "2",             "4"),
+    ("cost",          "3.40",          "5.10"),
+    ("price",         "5.95",          "8.75"),
+    ("reorder_level", "40",            "20"),
+    ("quantity",      "120",           ""),
+    ("batch",         "B2291",         ""),
+    ("expiry",        "2028-06-30",    ""),
+    ("supplier",      "UPD",           ""),
+    ("bin_location",  "A14",           "B03"),
+)
+
+
+def example_csv() -> str:
+    """A file that loads, for somebody who has not sent one before.
+
+    Two rows rather than one: a single row reads as a form to fill in, and the
+    second shows that the receiving columns may be left empty on a line that is
+    only a catalogue entry.
+
+    The quantity, batch and expiry columns are what turn a catalogue into a
+    delivery. They are included because leaving them out of the example is how
+    a pharmacy loads four thousand products with no stock against any of them
+    and has to do it again.
+    """
+    import io, csv as _csv
+
+    out = io.StringIO()
+    writer = _csv.writer(out, lineterminator="\n")
+    writer.writerow([c[0] for c in EXAMPLE_COLUMNS])
+    writer.writerow([c[1] for c in EXAMPLE_COLUMNS])
+    writer.writerow([c[2] for c in EXAMPLE_COLUMNS])
+    return out.getvalue()
