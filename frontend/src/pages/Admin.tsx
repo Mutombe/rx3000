@@ -16,6 +16,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import PaymentInstruments from "../components/PaymentInstruments";
 import { useConfirm } from "../components/Confirm";
+import { TabStrip } from "../components/PageTabs";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -461,11 +462,11 @@ export default function Admin() {
         </div>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         {TABS.map(([t, label]) => (
           <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{label}</button>
         ))}
-      </div>
+      </TabStrip>
 
       {tab === "automation" && (
         <>

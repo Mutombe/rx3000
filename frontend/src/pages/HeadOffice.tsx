@@ -28,7 +28,7 @@ import "leaflet/dist/leaflet.css";
 import { Snowflake, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import BusyButton from "../components/BusyButton";
-import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import PageTabs, { TabDef, TabStrip, usePageTabs } from "../components/PageTabs";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { CANCELLED, useStepUp } from "../components/StepUp";
@@ -439,7 +439,7 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
 
   return (
     <>
-      <div className="pill-tabs">
+      <TabStrip>
         {branches.map((b) => (
           <button key={b.branch_id}
             className={open === b.branch_id ? "active" : ""}
@@ -447,7 +447,7 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
             {b.branch}{b.frozen ? " · frozen" : ""}
           </button>
         ))}
-      </div>
+      </TabStrip>
       {!people ? <TableSkeleton cols={5} rows={6} rowHeight={62} />
        : !people.people.length ? (
         /* A branch with nobody in it drew a header and then nothing, which

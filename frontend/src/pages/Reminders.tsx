@@ -9,6 +9,7 @@ import { ArrowsClockwise } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import { TabStrip } from "../components/PageTabs";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -100,11 +101,11 @@ export default function Reminders() {
         </div>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         {[["", "All"], ["repeat", "Repeat reminders"], ["birthday", "Birthdays"], ["custom", "Free-type"]].map(([v, l]) => (
           <button key={v} className={typeFilter === v ? "active" : ""} onClick={() => setTypeFilter(v)}>{l}</button>
         ))}
-      </div>
+      </TabStrip>
 
       <div className="card">
         <Refreshable

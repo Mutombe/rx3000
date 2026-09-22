@@ -1197,11 +1197,77 @@ label {
   font-size: 10.5px; font-style: normal; color: var(--ink-soft);
 }
 /* Segmented control: one bordered group, not a row of floating pills. */
+/* The findings table divides its width by what each column holds rather than
+   into five equal shares. See the note beside the colgroup in StockWatch. */
+.sw-col-med   { width: 22ch; }
+.sw-col-worth { width: 11ch; }
+.sw-col-since { width: 13ch; }
+/* Enough for "Deal with it" and a tick and "Read" side by side, which is
+   what the cell holds when a finding has not been read yet. */
+.sw-col-acts  { width: 15rem; }
+/* The finding wraps rather than being cut: it is a sentence about what is
+   wrong, and half a sentence is not a shorter warning, it is a puzzle. */
+.sw-table td.sw-what { white-space: normal; }
+.sw-table td.actions { white-space: nowrap; }
+
+@media (max-width: 70rem) {
+  /* Narrow enough that the columns would fight: the table keeps its width
+     and the wrapper scrolls, which the wrapper already does. */
+  .sw-table { min-width: 54rem; }
+}
+
+/* ONE LINE, ALWAYS, AND IT SCROLLS.
+ *
+ * These wrapped. Inventory carries ten tabs needing 1301px of strip, and a
+ * laptop gives it 1044 at 1366 wide and 1214 at 1536, so both wrapped to two
+ * rows and the last three tabs sat on a line of their own. Only above about
+ * 1900px did it fit, which is a desktop in an office and not the machine in
+ * a dispensary.
+ *
+ * Scrolling rather than a three-dot menu, which was the other candidate. A
+ * kebab puts whichever tabs happen to overflow into a second-class place
+ * that depends on the window width, so the same tab is visible on one
+ * machine and hidden on the next, and nobody can be told where anything is.
+ * Every tab stays reachable by the same gesture here, and which ones are
+ * off-screen is a fact about the scroll position rather than about the
+ * software.
+ *
+ * `scroll-padding-inline` leaves room so a tab scrolled into view by the
+ * script below does not land flush against the fading edge. */
 .pill-tabs {
-  display: inline-flex; flex-wrap: wrap; gap: 2px; margin-bottom: var(--s5);
+  display: flex; flex-wrap: nowrap; gap: 2px; margin-bottom: var(--s5);
   padding: 3px; background: var(--surface-sunk);
   border: 1px solid var(--line); border-radius: var(--r-md);
+  max-width: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-padding-inline: var(--s5);
+  /* A thin bar rather than none: the whole problem with a scroller is that
+     nothing tells you it scrolls, and the fade below only helps if you have
+     already guessed. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  overscroll-behavior-x: contain;
 }
+.pill-tabs::-webkit-scrollbar { height: 6px; }
+.pill-tabs::-webkit-scrollbar-track { background: transparent; }
+.pill-tabs::-webkit-scrollbar-thumb {
+  background: var(--line-strong); border-radius: 999px;
+}
+/* A tab must keep its own width; a flex row will otherwise squeeze them all
+   to fit and the labels clip instead of scrolling. */
+.pill-tabs button { flex: 0 0 auto; white-space: nowrap; }
+
+/* The fade that says there is more. Wrapped around the strip rather than on
+   it, because a background gradient on a scrolling box scrolls with it. */
+.pill-tabs-wrap { position: relative; min-width: 0; }
+.pill-tabs-wrap::after {
+  content: ""; position: absolute; top: 0; bottom: var(--s5); right: 0;
+  width: 34px; pointer-events: none; opacity: 0;
+  transition: opacity .15s ease;
+  background: linear-gradient(to right, transparent, var(--surface-sunk));
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+.pill-tabs-wrap.more::after { opacity: 1; }
 .pill-tabs button {
   background: transparent; color: var(--ink-soft);
   border: 1px solid transparent; border-radius: var(--r-sm);

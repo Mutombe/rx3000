@@ -7,6 +7,7 @@ import { letterhead } from "../letterhead";
 import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../components/charts";
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 import { TableSkeleton } from "../components/Skeleton";
+import { TabStrip } from "../components/PageTabs";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
 
@@ -240,11 +241,11 @@ export default function CrmReports() {
         <button className="secondary" onClick={printTab}>Print report</button>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         {TABS.map(([t, label]) => (
           <button key={t} className={tab === t ? "active" : ""} onClick={() => setTab(t)}>{label}</button>
         ))}
-      </div>
+      </TabStrip>
 
       {tab === "forecast" && (
         <>

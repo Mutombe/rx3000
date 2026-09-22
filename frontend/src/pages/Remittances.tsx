@@ -30,6 +30,7 @@ import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
 import { CloudArrowDown } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
+import { TabStrip } from "../components/PageTabs";
 type Tab = "outstanding" | "advices" | "import";
 
 interface Line {
@@ -234,7 +235,7 @@ export default function Remittances() {
         </div>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         <button className={tab === "outstanding" ? "active" : ""}
           onClick={() => setTab("outstanding")}>
           Money in the air{open ? ` (${open.outstanding_count})` : ""}
@@ -245,7 +246,7 @@ export default function Remittances() {
         <button className={tab === "import" ? "active" : ""} onClick={() => setTab("import")}>
           Import
         </button>
-      </div>
+      </TabStrip>
 
       {tab === "outstanding" && (
         <div className="card">

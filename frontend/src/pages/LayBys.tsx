@@ -24,6 +24,7 @@ import { Patient, Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { EntityLink } from "../components/Filters";
+import { TabStrip } from "../components/PageTabs";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -217,13 +218,13 @@ export default function LayBys() {
         </button>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         {(["open", "completed", "cancelled"] as Status[]).map((s) => (
           <button key={s} className={status === s ? "active" : ""} onClick={() => setStatus(s)}>
             {s[0].toUpperCase() + s.slice(1)}
           </button>
         ))}
-      </div>
+      </TabStrip>
 
       <div className="card">
         {!list ? <TableSkeleton cols={8} rows={8} rowHeight={56} /> : list.laybys.length === 0 ? (

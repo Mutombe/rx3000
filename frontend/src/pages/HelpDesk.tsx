@@ -11,6 +11,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
+import { TabStrip } from "../components/PageTabs";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -213,12 +214,12 @@ export default function HelpDesk() {
         </div>
       )}
 
-      <div className="pill-tabs">
+      <TabStrip>
         {[["open", "Open"], ["breached", "SLA breached"], ["pending", "Pending"],
           ["resolved", "Resolved"], ["", "All"]].map(([v, l]) => (
           <button key={v} className={filter === v ? "active" : ""} onClick={() => setFilter(v)}>{l}</button>
         ))}
-      </div>
+      </TabStrip>
 
       <DataTable
           loading={loading}

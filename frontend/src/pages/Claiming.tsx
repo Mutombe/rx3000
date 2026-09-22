@@ -31,6 +31,7 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
+import { TabStrip } from "../components/PageTabs";
 
 type Tab = "batches" | "models" | "formularies";
 
@@ -402,7 +403,7 @@ export default function Claiming() {
         </div>
       </div>
 
-      <div className="pill-tabs">
+      <TabStrip>
         <button className={tab === "batches" ? "active" : ""} onClick={() => setTab("batches")}>
           Batches{open.length ? ` (${open.length} open)` : ""}
         </button>
@@ -413,7 +414,7 @@ export default function Claiming() {
                 onClick={() => setTab("formularies")}>
           Formularies{formularies.length ? ` (${formularies.length})` : ""}
         </button>
-      </div>
+      </TabStrip>
 
       {tab === "batches" && (
         <>

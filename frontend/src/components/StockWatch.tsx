@@ -130,7 +130,23 @@ export default function StockWatch() {
                                  widths={["26ch", "30ch", "10ch", "12ch", "8ch"]} />}
       >
         <div className="dt-scroll">
-          <table className="dt">
+          <table className="dt sw-table">
+            {/* WIDTHS, BECAUSE THE TABLE IS LAID OUT FIXED.
+                Without them a fixed layout divides the width equally, and
+                five equal columns at 1366 gave every one of them 217px: the
+                finding needed 491 and was cut off mid-word, the two buttons
+                needed 201 and lost the second one, while a money figure and
+                a date sat in 217px each with room to spare.
+
+                The finding takes what is left over, which is the column
+                somebody actually reads. */}
+            <colgroup>
+              <col />
+              <col className="sw-col-med" />
+              <col className="sw-col-worth" />
+              <col className="sw-col-since" />
+              <col className="sw-col-acts" />
+            </colgroup>
             <thead>
               <tr>
                 <th>What</th>
