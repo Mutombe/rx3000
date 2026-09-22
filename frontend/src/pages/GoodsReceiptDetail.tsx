@@ -21,6 +21,10 @@ import { ArrowLeft, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import MatchToBill, { Candidate } from "../components/MatchToBill";
+import { useAsk } from "../components/Confirm";
+import { useToast } from "../components/Toast";
+import { useCan } from "../session";
 
 interface Item {
   product_id: number;
@@ -59,6 +63,14 @@ export default function GoodsReceiptDetail() {
   const { id } = useParams();
   const [row, setRow] = useState<Receipt | null>(null);
   const [error, setError] = useState("");
+  const [matching, setMatching] = useState(false);
+  const toast = useToast();
+  const ask = useAsk();
+  const mayReceive = useCan("stock.receive");
+
+  function reload(rid: number) {
+    api.get<Receipt>(`/api/goods-receipts/${rid}`).then(setRow).catch(() => {});
+  }
 
   useEffect(() => {
     setRow(null);
@@ -67,6 +79,57 @@ export default function GoodsReceiptDetail() {
       .then(setRow)
       .catch((e) => setError(errorText(e, "That delivery could not be loaded.")));
   }, [id]);
+
+  /* THE FACTS AT THE TOP NAME TWO PROBLEMS: "still open" and "unbilled
+     goods". Until now the page stated both and did nothing about either, so
+     the fix was always back on the list. Both are now decided here. */
+
+  async function sign() {
+    if (!row) return;
+    const { ok, value } = await ask({
+      title: `Sign for ${row.grv_number}`,
+      body: <>
+        {row.packs.toLocaleString()} pack{row.packs === 1 ? "" : "s"} from{" "}
+        {row.supplier || "the supplier"}, {money(row.goods_total)} at cost. The
+        goods are already on the shelf; this finishes the paperwork. Enter the
+        number on the invoice if it came with the van.
+      </>,
+      field: "Invoice number",
+      placeholder: "leave empty if it follows later",
+      maxLength: 40,
+      confirmLabel: "Sign for it",
+    });
+    if (!ok) return;
+
+    const was = { status: row.status, invoice_number: row.invoice_number };
+    setRow((r) => r ? { ...r, status: "received",
+                        invoice_number: value.trim() || r.invoice_number } : r);
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/goods-receipts/${row.id}/close`, { invoice_number: value.trim() });
+      toast.ok(said.message);
+      reload(row.id);
+    } catch (e) {
+      setRow((r) => r ? { ...r, ...was } : r);
+      toast.error(errorText(e, "That delivery could not be signed for."));
+    }
+  }
+
+  async function putOn(invoice: Candidate | null) {
+    if (!row) return;
+    const was = row.invoice_number;
+    setRow((r) => r ? { ...r, invoice_number: invoice?.invoice_number ?? "" } : r);
+    setMatching(false);
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/goods-receipts/${row.id}/match`, { invoice_id: invoice?.id ?? null });
+      toast.ok(said.message);
+      reload(row.id);
+    } catch (e) {
+      setRow((r) => r ? { ...r, invoice_number: was } : r);
+      toast.error(errorText(e, "That delivery could not be matched."));
+    }
+  }
 
   const damaged = row?.items.filter((i) => i.condition === "damaged") ?? [];
   const good = row?.items.filter((i) => i.condition !== "damaged") ?? [];
@@ -88,7 +151,8 @@ export default function GoodsReceiptDetail() {
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Inventory", to: "/stock" },
-              { label: "This delivery" }]}
+              { label: "Deliveries", to: "/stock?tab=deliveries" },
+              { label: row ? row.grv_number : "This delivery" }]}
       eyebrow="Delivery"
       title={row ? row.grv_number : "Delivery"}
       subtitle={row
@@ -98,9 +162,33 @@ export default function GoodsReceiptDetail() {
       loading={!row && !error}
       error={error}
       actions={
-        <Link to="/stock" className="btn secondary">
-          <ArrowLeft size={13} weight="bold" /> Deliveries
-        </Link>
+        <>
+          {row?.status === "open" && mayReceive && (
+            <button type="button" className="btn primary" onClick={() => void sign()}>
+              Sign for it
+            </button>
+          )}
+          {row?.status === "received" && mayReceive && (
+            <button type="button"
+                    className={row.invoice_number ? "btn secondary" : "btn primary"}
+                    onClick={() => setMatching(true)}>
+              {row.invoice_number ? "Change the bill" : "Put it on a bill"}
+            </button>
+          )}
+          {row?.order_id ? (
+            <Link to={`/orders/${row.order_id}`} className="btn secondary">
+              The order
+            </Link>
+          ) : null}
+          {row?.supplier_id ? (
+            <Link to={`/suppliers/${row.supplier_id}`} className="btn secondary">
+              The supplier
+            </Link>
+          ) : null}
+          <Link to="/stock?tab=deliveries" className="btn secondary">
+            <ArrowLeft size={13} weight="bold" /> Deliveries
+          </Link>
+        </>
       }
       facts={row ? [
         { label: "Goods", value: money(row.goods_total),
@@ -115,6 +203,10 @@ export default function GoodsReceiptDetail() {
           hint: row.received_at ? fmtDateTime(row.received_at) : "" },
       ] : []}
     >
+      {row && matching && (
+        <MatchToBill delivery={row} onClose={() => setMatching(false)}
+                     onMatched={(inv) => void putOn(inv)} />
+      )}
       {row && (
         <>
           {row.status === "open" && (

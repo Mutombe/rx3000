@@ -20,11 +20,14 @@
  *  timetable and often weeks later, which is exactly why it is a separate
  *  state rather than something assumed at approval.
  */
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
-import { EntityLink } from "./Filters";
+import {
+  applyFilters, emptyFilters, EntityLink, FilterBar, FilterState, FilterToggle,
+} from "./Filters";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
 import { useAsk } from "./Confirm";
@@ -35,7 +38,7 @@ interface Line {
 }
 interface Ret {
   id: number; reference: string; supplier: string; supplier_id: number;
-  status: string; why: string; notes: string; total: number;
+  status: string; why: string; reason_code: string; notes: string; total: number;
   credit_note: string; credited_at: string;
   raised_by: string; approved_by: string; approved_at: string;
   created_at: string; lines: Line[];
@@ -61,6 +64,9 @@ export default function SupplierReturns() {
   const mayApprove = useCan("stock.write_off");
   const mayRaise = useCan("stock.adjust");
   const ask = useAsk();
+  const [filters, setFilters] = useState<FilterState>(emptyFilters);
+  /** The one subset worth its own control: goods gone back and not paid for. */
+  const [owedOnly, setOwedOnly] = useState(false);
 
   /** Move a row's standing on the screen, before the server has agreed.
    *
@@ -86,6 +92,45 @@ export default function SupplierReturns() {
   }, [toast]);
 
   useEffect(load, [load]);
+
+  /** Only the wholesalers something has actually gone back to. */
+  const whoTook = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const r of rows) if (r.supplier_id) seen.set(r.supplier_id, r.supplier);
+    return [...seen.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => [String(id), name] as [string, string]);
+  }, [rows]);
+
+  /** The reasons on file, said the way the rows say them. A fixed list would
+   *  offer reasons this pharmacy has never used and miss ones it has. */
+  const whyList = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const r of rows) if (r.reason_code) seen.set(r.reason_code, r.why || r.reason_code);
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([code, said]) => [code, said] as [string, string]);
+  }, [rows]);
+
+  const shown = useMemo(() => {
+    let some = applyFilters(rows, filters, {
+      search: (r) => [r.reference, r.supplier, r.why, r.credit_note,
+                      r.notes, r.raised_by],
+      date: (r) => r.created_at,
+      dims: {
+        status: (r) => r.status,
+        supplier: (r) => String(r.supplier_id ?? ""),
+        why: (r) => r.reason_code,
+      },
+    });
+    if (owedOnly) some = some.filter((r) => r.status === "approved" && !r.credit_note);
+    return some;
+  }, [rows, filters, owedOnly]);
+
+  /** The band at the top is the filter it describes. */
+  function only(patch: { owed?: boolean }) {
+    setOwedOnly(Boolean(patch.owed));
+    setFilters(emptyFilters);
+  }
 
   async function act(r: Ret, what: "approve" | "cancel", label: string) {
     const was = r.status;
@@ -147,20 +192,34 @@ export default function SupplierReturns() {
     <>
       {/* The money nobody is chasing, stated before anything else. */}
       {owed.count > 0 && (
-        <div className="sr-owed">
+        <button type="button" className="sr-owed sr-owed-act"
+                aria-pressed={owedOnly}
+                onClick={() => owedOnly ? only({}) : only({ owed: true })}>
           <span className="sr-owed-n">{money(owed.total)}</span>
           <span>
             owed across {owed.count} approved return
             {owed.count === 1 ? "" : "s"} with no credit note against
             {owed.count === 1 ? " it" : " them"}. These are goods the pharmacy
             has given back and has not been paid for.
+            <b className="sr-owed-do">
+              {owedOnly ? "Showing them. Press to show everything."
+                        : "Show me what is owed"}
+            </b>
           </span>
-        </div>
+        </button>
       )}
 
-      {rows.length > 0 && (
+      {/* Where a return STARTS, offered on the screen that lists them.
+          The empty state explained that returns begin at Held stock and then
+          left somebody to find it, which on a screen that already has rows
+          it never said at all. */}
+      {mayRaise && rows.length > 0 && (
         <p className="muted small sr-say">
-          {rows.length} return{rows.length === 1 ? "" : "s"} on file.
+          {rows.length} return{rows.length === 1 ? "" : "s"} on file.{" "}
+          <Link to="/stock?tab=quarantine" className="btn-link">
+            Send something back
+          </Link>{" "}
+          from held stock, where the damaged, expired and recalled lots wait.
         </p>
       )}
 
@@ -182,23 +241,56 @@ export default function SupplierReturns() {
           </p>
         </div>
       ) : (
+      <>
+      <div className="dt-filters">
+        <FilterBar
+          value={filters}
+          onChange={setFilters}
+          placeholder="Reference, supplier, reason or credit note…"
+          showDates
+          dimensions={[
+            // Named by what the state MEANS, the same words the badge uses.
+            // "Approved" on a dropdown and "gone, credit owed" on the row is
+            // one state spelled two ways on one screen.
+            { key: "status", label: "Standing",
+              options: [["raised", "Held, not yet gone"],
+                        ["approved", "Gone, credit owed"],
+                        ["credited", "Settled"],
+                        ["cancelled", "Called off"]] },
+            ...(whoTook.length > 1
+              ? [{ key: "supplier", label: "Supplier", options: whoTook }]
+              : []),
+            ...(whyList.length > 1
+              ? [{ key: "why", label: "Reason", options: whyList }]
+              : []),
+          ]}
+          extras={{ active: owedOnly, clear: () => setOwedOnly(false) }}
+        >
+          <FilterToggle checked={owedOnly} onChange={setOwedOnly}
+                        hint="Approved returns with no credit note recorded">
+            Credit owed
+          </FilterToggle>
+          <span className="dt-count muted">{shown.length} of {rows.length}</span>
+        </FilterBar>
+      </div>
+
       <Refreshable loading={loading} hasData={rows.length > 0}
                    skeleton={<TableSkeleton cols={6} rows={5}
                                             widths={["12ch", "20ch", "12ch", "10ch", "12ch", "10ch"]} />}>
         <div className="dt-scroll">
-          <table className="dt">
+          <table className="dt dt-wide">
             <thead>
               <tr>
-                <th>Reference</th>
-                <th>Supplier</th>
-                <th>Why</th>
-                <th className="num">Value</th>
-                <th>Standing</th>
+                <th className="col-when">Reference</th>
+                <th className="col-name">Supplier</th>
+                <th className="col-said">Why</th>
+                <th className="num col-money">Value</th>
+                <th className="col-code">Standing</th>
                 <th className="actions" />
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 // Keyed on the fragment, not on the first row inside it: a
                 // bare <> in a map gives React nothing to track, so it
                 // rebuilds both rows on every change and loses the open
@@ -216,7 +308,13 @@ export default function SupplierReturns() {
                       </button>
                       <div className="muted small">{fmtDate(r.created_at)}</div>
                     </td>
-                    <td>{r.supplier}</td>
+                    {/* A credit that never arrives is a conversation with
+                        this wholesaler, so the wholesaler is one click away. */}
+                    <td>
+                      <EntityLink kind="supplier" id={r.supplier_id}>
+                        {r.supplier}
+                      </EntityLink>
+                    </td>
                     <td>{r.why}</td>
                     <td className="num">{money(r.total)}</td>
                     <td>
@@ -254,7 +352,9 @@ export default function SupplierReturns() {
                         <ul>
                           {r.lines.map((l, i) => (
                             <li key={i}>
-                              <b>{l.product}</b>
+                              <EntityLink kind="product" id={l.product_id}>
+                                <b>{l.product}</b>
+                              </EntityLink>
                               <span className="muted">
                                 {" · "}batch {l.batch || "unnamed"}
                                 {l.expiry ? ` · expires ${fmtDate(l.expiry)}` : ""}
@@ -278,7 +378,21 @@ export default function SupplierReturns() {
             </tbody>
           </table>
         </div>
+        {shown.length === 0 && rows.length > 0 && (
+          <div className="empty">
+            <b>No return matches that</b>
+            <p>
+              {rows.length} return{rows.length === 1 ? " is" : "s are"} on file.
+              Widen the search or clear the filters to see them.
+            </p>
+            <button type="button" className="btn secondary"
+                    onClick={() => only({})}>
+              Show every return
+            </button>
+          </div>
+        )}
       </Refreshable>
+      </>
       )}
     </>
   );

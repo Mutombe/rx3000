@@ -17,6 +17,9 @@ import { ArrowLeft, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import { useAsk } from "../components/Confirm";
+import { useToast } from "../components/Toast";
+import { useCan } from "../session";
 
 /** The delivery a returned line came off.
  *
@@ -67,6 +70,10 @@ export default function SupplierReturnDetail() {
   const { id } = useParams();
   const [row, setRow] = useState<Return | null>(null);
   const [error, setError] = useState("");
+  const toast = useToast();
+  const ask = useAsk();
+  const mayApprove = useCan("stock.write_off");
+  const mayRaise = useCan("stock.adjust");
 
   useEffect(() => {
     setRow(null);
@@ -78,11 +85,67 @@ export default function SupplierReturnDetail() {
 
   const credited = Boolean(row?.credit_note);
 
+  /* THE PAGE THAT NAMES THE PROBLEM IS THE PAGE THAT FIXES IT.
+     This screen said "$423.60 has gone back and nothing has come for it" and
+     offered no way to record the credit when it did: somebody had to read it
+     here, go back to the list and find the row again. The same three
+     decisions the list offers are offered here, on the record itself. */
+
+  /** Move the badge before the server has agreed. The refusal is real and
+   *  handled: approving re-checks the stock is still there, and it may not be. */
+  function stand(status: string, extra: Partial<Return> = {}) {
+    setRow((r) => r ? { ...r, status, ...extra } : r);
+  }
+
+  async function act(what: "approve" | "cancel", label: string) {
+    if (!row) return;
+    const was = row.status;
+    stand(what === "approve" ? "approved" : "cancelled");
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/supplier-returns/${row.id}/${what}`, {});
+      toast.ok(said.message);
+      api.get<Return>(`/api/supplier-returns/${row.id}`).then(setRow).catch(() => {});
+    } catch (e) {
+      stand(was);
+      toast.error(errorText(e, `That return could not be ${label}.`));
+    }
+  }
+
+  async function credit() {
+    if (!row) return;
+    const { ok, value } = await ask({
+      title: `Credit note for ${row.reference}`,
+      body: <>Enter the number {row.supplier || "the supplier"} put on the
+            credit. {money(row.total)} stops being owed once this is
+            recorded.</>,
+      field: "Credit note number",
+      placeholder: "as it appears on the supplier's document",
+      required: true,
+      maxLength: 40,
+      confirmLabel: "Record the credit",
+    });
+    if (!ok || !value.trim()) return;
+
+    const was = { status: row.status, credit_note: row.credit_note };
+    stand("credited", { credit_note: value.trim() });
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/supplier-returns/${row.id}/credit`, { credit_note: value.trim() });
+      toast.ok(said.message);
+      api.get<Return>(`/api/supplier-returns/${row.id}`).then(setRow).catch(() => {});
+    } catch (e) {
+      stand(was.status, { credit_note: was.credit_note });
+      toast.error(errorText(e, "That credit could not be recorded."));
+    }
+  }
+
   return (
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Inventory", to: "/stock" },
-              { label: "This return" }]}
+              { label: "Supplier returns", to: "/stock?tab=returns" },
+              { label: row ? row.reference : "This return" }]}
       eyebrow="Return to supplier"
       title={row ? row.reference : "Return"}
       subtitle={row
@@ -92,9 +155,35 @@ export default function SupplierReturnDetail() {
       loading={!row && !error}
       error={error}
       actions={
-        <Link to="/stock" className="btn secondary">
-          <ArrowLeft size={13} weight="bold" /> Returns
-        </Link>
+        <>
+          {/* Led by the decision this return is actually waiting on, so the
+              one thing to do is the first thing in reach. */}
+          {row?.status === "raised" && mayApprove && (
+            <button type="button" className="btn primary"
+                    onClick={() => void act("approve", "approved")}>
+              Approve, the goods leave
+            </button>
+          )}
+          {row?.status === "approved" && !credited && mayRaise && (
+            <button type="button" className="btn primary" onClick={() => void credit()}>
+              Credit received
+            </button>
+          )}
+          {row?.status === "raised" && mayRaise && (
+            <button type="button" className="btn secondary"
+                    onClick={() => void act("cancel", "cancelled")}>
+              Call it off
+            </button>
+          )}
+          {row?.supplier_id ? (
+            <Link to={`/suppliers/${row.supplier_id}`} className="btn secondary">
+              The supplier
+            </Link>
+          ) : null}
+          <Link to="/stock?tab=returns" className="btn secondary">
+            <ArrowLeft size={13} weight="bold" /> Returns
+          </Link>
+        </>
       }
       facts={row ? [
         { label: "Value", value: money(row.total),
@@ -193,10 +282,14 @@ export default function SupplierReturnDetail() {
                         {l.batch || <span className="muted">none</span>}
                       </td>
                       <td className="small">
-                        {l.expiry || <span className="muted">—</span>}
+                        {l.expiry || <span className="muted">no expiry</span>}
                       </td>
                       <td className="mono small">
-                        {l.grv
+                        {/* An absent delivery arrives as an empty object, not
+                            as null, so a plain truth test passed and the link
+                            rendered as /deliveries/undefined. It is the id
+                            that decides whether there is one. */}
+                        {l.grv?.id
                           ? <>
                               <EntityLink to={`/deliveries/${l.grv.id}`}>
                                 {l.grv.grv_number}
