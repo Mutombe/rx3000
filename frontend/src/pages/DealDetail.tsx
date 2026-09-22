@@ -2,11 +2,11 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAsk } from "../components/Confirm";
 import { DetailSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
-import { Avatar, Highlights, Path } from "../components/record";
+import { Highlights, Path } from "../components/record";
 import { Deal, Product, Quote, TimelineEntry } from "../types";
 import IconButton from "../components/IconButton";
 import {
@@ -175,7 +175,7 @@ export default function DealDetail() {
   }
 
   if (!deal) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Pipeline", to: "/pipeline" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Pipeline", to: "/pipeline" }, { label: "Loading" }]}
         eyebrow="Opportunity"
         tabs={["Line items", "Quotations", "Activity"]}
         cards={3}
@@ -183,24 +183,28 @@ export default function DealDetail() {
       />;
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Pipeline", to: "/pipeline" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={deal.company?.name ?? deal.title} last="" size={44}
-            label={deal.company?.name ?? "No account"} />
-          <div>
-            <div className="eyebrow">Opportunity</div>
-            <h1>{deal.title}</h1>
-            <div className="sub">
-              {deal.company?.name ?? "No account"}
-              {deal.contact && ` · ${deal.contact.first_name} ${deal.contact.last_name}`}
-              {" · "}owner {deal.owner?.full_name ?? "unassigned"}
-            </div>
-          </div>
-        </div>
-        <Link to="/pipeline" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Opportunities</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Pipeline", to: "/pipeline" },
+              { label: deal.title }]}
+      eyebrow="Opportunity"
+      title={deal.title}
+      meta={[
+        { label: "Account",
+          value: deal.company
+            ? <EntityLink to={`/accounts/${deal.company.id}`}>
+                {deal.company.name}
+              </EntityLink>
+            : <span className="muted">none</span> },
+        ...(deal.contact
+          ? [{ label: "Contact",
+               value: `${deal.contact.first_name} ${deal.contact.last_name}` }]
+          : []),
+        { label: "Owner",
+          value: deal.owner?.full_name
+            ?? <span className="muted">unassigned</span> },
+      ]}
+    >
 
       <div className="card record-hero">
         <Path stages={PATH_STAGES} current={deal.stage} lostKey="lost" onPick={moveStage} />
@@ -367,6 +371,6 @@ export default function DealDetail() {
           </div>
         </>
       )}
-    </>
+    </RecordPage>
   );
 }

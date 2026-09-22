@@ -1,3 +1,4 @@
+import RecordPage from "../components/RecordPage";
 /** One driver: what they are carrying, what they have carried, and their record.
  *
  *  The page a name in a delivery list should open onto, and did not — a driver
@@ -111,21 +112,25 @@ export default function DriverDetail() {
   if (!driver) return <div className="page"><div className="empty">Driver not found.</div></div>;
 
   return (
-    <div className="page">
-      <header className="page-head">
-        <div>
-          <a href="/drivers" className="back-link">
-            <ArrowLeft size={14} weight="bold" /> Drivers
-          </a>
-          <h1>{driver.full_name}</h1>
-          <p className="muted">
-            {VEHICLE[driver.vehicle_type] || driver.vehicle_type}
-            {driver.vehicle_registration && ` · ${driver.vehicle_registration}`}
-            {driver.branch && ` · ${driver.branch}`}
-            {!driver.active && " · retired"}
-          </p>
-        </div>
-        <div className="page-actions">
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Drivers", to: "/drivers" },
+              { label: driver.full_name }]}
+      eyebrow="Driver"
+      title={driver.full_name}
+      meta={[
+        { label: "Vehicle",
+          value: VEHICLE[driver.vehicle_type] || driver.vehicle_type },
+        ...(driver.vehicle_registration
+          ? [{ label: "Registration", value: driver.vehicle_registration,
+               mono: true }] : []),
+        ...(driver.branch ? [{ label: "Branch", value: driver.branch }] : []),
+        { label: "Standing",
+          value: driver.active
+            ? <span className="badge ok">on the road</span>
+            : <span className="badge muted">retired</span> },
+      ]}
+      actions={<>
           {driver.cash_holding > 0 && (
             <button className="btn primary" onClick={() => setHandingIn(true)}>
               Hand in {money(driver.cash_holding)}
@@ -134,8 +139,8 @@ export default function DriverDetail() {
           <button className="btn" onClick={() => setEditing(true)}>
             <PencilSimple size={14} weight="bold" /> Edit
           </button>
-        </div>
-      </header>
+        </>}
+    >
 
       {/* Anything that should stop a round leaving, said before the numbers.
           Both of these are refused at dispatch as well. A warning nothing
@@ -364,6 +369,6 @@ export default function DriverDetail() {
           </div>
         </div>
       )}
-    </div>
+    </RecordPage>
   );
 }

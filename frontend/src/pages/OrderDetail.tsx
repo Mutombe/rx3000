@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { useToast } from "../components/Toast";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
-import { Avatar, Highlights, Path } from "../components/record";
+import { Highlights, Path } from "../components/record";
 import ReceiveByScan from "../components/ReceiveByScan";
 import { POItem, PurchaseOrder } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
@@ -78,7 +78,7 @@ export default function OrderDetail() {
       </div>
     );
   if (!order) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Purchase orders", to: "/orders" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Purchase orders", to: "/orders" }, { label: "Loading" }]}
         eyebrow="Purchase order"
         cards={1}
         table={5}
@@ -133,21 +133,29 @@ export default function OrderDetail() {
   }
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Purchase orders", to: "/orders" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={order.supplier?.name ?? "PO"} last="" size={44} />
-          <div>
-            <div className="eyebrow">Purchase order</div>
-            <h1 className="mono">{order.order_number}</h1>
-            <div className="sub">
-              {order.supplier?.name ?? "No supplier"} · raised {fmtDateTime(order.created_at)}
-            </div>
-          </div>
-        </div>
-        <Link to="/orders" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Procurement</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Purchase orders", to: "/orders" },
+              { label: order.order_number }]}
+      eyebrow="Purchase order"
+      /* No avatar. An initial in a coloured circle is how this design shows
+         a person; a purchase order is not one, and it broke the left edge
+         the trail and the cards below it share. */
+      title={<span className="mono">{order.order_number}</span>}
+      meta={[
+        { label: "Supplier",
+          value: order.supplier
+            ? <EntityLink kind="supplier" id={order.supplier_id}>
+                {order.supplier.name}
+              </EntityLink>
+            : <span className="muted">none recorded</span> },
+        { label: "Raised", value: fmtDateTime(order.created_at) },
+        { label: "Lines", value: order.items.length },
+      ]}
+      actions={
+        <Link to="/rfqs" className="btn secondary">Quotes</Link>
+      }
+    >
 
       <div className="card record-hero">
         <Path stages={PATH_STAGES} current={order.status} lostKey="cancelled" />
@@ -261,6 +269,6 @@ export default function OrderDetail() {
         totals
         empty="This order has no lines"
       />
-    </>
+    </RecordPage>
   );
 }

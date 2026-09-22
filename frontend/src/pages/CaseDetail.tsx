@@ -1,11 +1,11 @@
 import { FormEvent, useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDateTime } from "../api";
 import DraftEditor from "../components/DraftEditor";
 import { EntityLink } from "../components/Filters";
-import { Avatar, Highlights, Path } from "../components/record";
+import { Highlights, Path } from "../components/record";
 import { Ticket, User } from "../types";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
@@ -86,28 +86,29 @@ export default function CaseDetail() {
       </div>
     );
   if (!ticket) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Help desk", to: "/helpdesk" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Help desk", to: "/helpdesk" }, { label: "Loading" }]}
         eyebrow="Case"
         cards={2}
       />;
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Help desk", to: "/helpdesk" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={ticket.subject} last="" size={44} />
-          <div>
-            <div className="eyebrow">Case {ticket.ticket_number}</div>
-            <h1>{ticket.subject}</h1>
-            <div className="sub">
-              opened {fmtDateTime(ticket.created_at)}
-              {ticket.company && <> · <EntityLink to={`/accounts/${ticket.company.id}`}>{ticket.company.name}</EntityLink></>}
-            </div>
-          </div>
-        </div>
-        <Link to="/helpdesk" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Cases</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Help desk", to: "/helpdesk" },
+              { label: ticket.ticket_number }]}
+      eyebrow="Case"
+      title={ticket.subject}
+      meta={[
+        { label: "Case number", value: ticket.ticket_number, mono: true },
+        { label: "Opened", value: fmtDateTime(ticket.created_at) },
+        { label: "Account",
+          value: ticket.company
+            ? <EntityLink to={`/accounts/${ticket.company.id}`}>
+                {ticket.company.name}
+              </EntityLink>
+            : <span className="muted">none</span> },
+      ]}
+    >
 
       <div className="card record-hero">
         <Path stages={PATH_STAGES} current={ticket.status} onPick={(s) => patch({ status: s })} />
@@ -185,6 +186,6 @@ export default function CaseDetail() {
           </div>
         </form>
       </div>
-    </>
+    </RecordPage>
   );
 }

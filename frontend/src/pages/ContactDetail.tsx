@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
-import { Avatar, Highlights } from "../components/record";
+import { Highlights } from "../components/record";
 import { Contact, Deal } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
 
@@ -32,7 +32,7 @@ export default function ContactDetail() {
       </div>
     );
   if (!contact) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "Loading" }]}
         eyebrow="Contact"
         cards={1}
         avatar
@@ -54,22 +54,23 @@ export default function ContactDetail() {
   const open = deals.filter((d) => !["won", "lost"].includes(d.stage));
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={contact.first_name} last={contact.last_name} size={44} />
-          <div>
-            <div className="eyebrow">Contact</div>
-            <h1>{contact.first_name} {contact.last_name}</h1>
-            <div className="sub">
-              {contact.job_title || "—"}
-              {contact.company && <> · <EntityLink to={`/accounts/${contact.company.id}`}>{contact.company.name}</EntityLink></>}
-            </div>
-          </div>
-        </div>
-        <Link to="/accounts?tab=contacts" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Contacts</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Accounts", to: "/accounts" },
+              { label: `${contact.first_name} ${contact.last_name}` }]}
+      eyebrow="Contact"
+      title={`${contact.first_name} ${contact.last_name}`}
+      meta={[
+        { label: "Job title",
+          value: contact.job_title || <span className="muted">not recorded</span> },
+        { label: "Account",
+          value: contact.company
+            ? <EntityLink to={`/accounts/${contact.company.id}`}>
+                {contact.company.name}
+              </EntityLink>
+            : <span className="muted">none</span> },
+      ]}
+    >
 
       <div className="card record-hero">
         <Highlights items={[
@@ -101,6 +102,6 @@ export default function ContactDetail() {
         initialSort={{ key: "value", dir: "desc" }}
         empty="No opportunities linked to this contact"
       />
-    </>
+    </RecordPage>
   );
 }

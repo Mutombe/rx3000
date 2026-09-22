@@ -1,3 +1,4 @@
+import RecordPage from "../components/RecordPage";
 /** One shop: who is accountable for it, what it may trade on, what is on its
  *  shelves.
  *
@@ -149,29 +150,30 @@ export default function BranchDetail() {
   const missing = register?.blocking ?? [];
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <Link to="/branches" className="back-link">
-            <ArrowLeft size={14} /> Branches
-          </Link>
-          <h1>
-            {branch?.name ?? "Branch"}
-            {branch?.is_default && <span className="badge ok bd-tag">Default</span>}
-            {branch && !branch.active && <span className="badge muted bd-tag">Closed</span>}
-            {branch?.frozen && <span className="badge danger bd-tag">Frozen</span>}
-          </h1>
-          <div className="sub">
-            {branch?.code}
-            {branch?.city ? ` · ${branch.city}` : ""}
-          </div>
-        </div>
-        <div className="bd-head-acts">
-          <Link className="btn secondary" to={`/branches/${id}/performance`}>
-            Performance
-          </Link>
-        </div>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Branches", to: "/branches" },
+              { label: branch?.name ?? "Branch" }]}
+      eyebrow="Branch"
+      title={
+        <>
+          {branch?.name ?? "Branch"}
+          {branch?.is_default && <span className="badge ok bd-tag">Default</span>}
+          {branch && !branch.active && <span className="badge muted bd-tag">Closed</span>}
+          {branch?.frozen && <span className="badge danger bd-tag">Frozen</span>}
+        </>
+      }
+      meta={[
+        ...(branch?.code
+          ? [{ label: "Code", value: branch.code, mono: true }] : []),
+        ...(branch?.city ? [{ label: "Town", value: branch.city }] : []),
+      ]}
+      actions={
+        <Link className="btn secondary" to={`/branches/${id}/performance`}>
+          Performance
+        </Link>
+      }
+    >
 
       {/* A frozen or closed shop explains itself here rather than leaving a
           badge to be interpreted. */}
@@ -380,6 +382,6 @@ export default function BranchDetail() {
           )}
         </Refreshable>
       </section>
-    </>
+    </RecordPage>
   );
 }

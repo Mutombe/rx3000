@@ -11,7 +11,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { EntityLink } from "../components/Filters";
 import { FormSkeleton, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -69,35 +69,31 @@ export default function JournalDetail() {
   const credits = entry.lines.reduce((n, l) => n + l.credit, 0);
 
   return (
-    <div className="page">
-      <Breadcrumbs
-        trail={[
-          { label: "Dashboard", to: "/" },
-          { label: "General ledger", to: "/ledger" },
-          { label: entry.reference },
-        ]}
-        actions={
-          entry.status === "posted" && (
-            <button className="btn danger sm" onClick={() => setReversing(true)}>
-              Reverse
-            </button>
-          )
-        }
-      />
-
-      <header className="page-head">
-        <div>
-          <h1 className="mono">{entry.reference}</h1>
-          <p className="muted">
-            {entry.description} · {fmtDate(entry.entry_date)} · period{" "}
-            <span className="mono">{entry.period_code}</span>
-            {entry.created_by && ` · posted by ${entry.created_by}`}
-          </p>
-        </div>
-        {entry.status !== "posted" && (
-          <span className="badge warn">{entry.status}</span>
-        )}
-      </header>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "General ledger", to: "/ledger" },
+              { label: entry.reference }]}
+      eyebrow="Journal"
+      title={<span className="mono">{entry.reference}</span>}
+      subtitle={entry.description}
+      meta={[
+        { label: "Entry date", value: fmtDate(entry.entry_date) },
+        { label: "Period", value: entry.period_code, mono: true },
+        { label: "Standing",
+          value: entry.status === "posted"
+            ? <span className="badge ok">posted</span>
+            : <span className="badge warn">{entry.status}</span> },
+        ...(entry.created_by
+          ? [{ label: "Posted by", value: entry.created_by }] : []),
+      ]}
+      actions={
+        entry.status === "posted" ? (
+          <button className="btn danger" onClick={() => setReversing(true)}>
+            Reverse
+          </button>
+        ) : undefined
+      }
+    >
 
       {/* The trail runs both ways: from the ledger back to what caused it. */}
       {entry.source === "sale" && entry.source_id && (
@@ -182,6 +178,6 @@ export default function JournalDetail() {
           </div>
         </div>
       )}
-    </div>
+    </RecordPage>
   );
 }

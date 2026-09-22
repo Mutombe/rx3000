@@ -24,7 +24,12 @@ export const ENTITY_ROUTES = {
   dispensing: (id: Id) => `/dispensings/${id}`,
   driver: (id: Id) => `/drivers/${id}`,
   invoice: (id: Id) => `/payables/invoices/${id}`,
-  journal: (id: Id) => `/ledger/journal/${id}`,
+  // `/ledger/entries/:id`, which is what App.tsx actually routes. It said
+  // `/ledger/journal/:id`, so every link to a journal fell through the router
+  // to the dashboard: no error, no missing page, just the wrong screen and a
+  // reader who assumes they misclicked. Guarded by
+  // qa/an-entity-link-has-somewhere-to-go.py.
+  journal: (id: Id) => `/ledger/entries/${id}`,
   layby: (id: Id) => `/laybys/${id}`,
   lead: (id: Id) => `/leads/${id}`,
   message: (id: Id) => `/messages/${id}`,

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, errorText, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
-import { Avatar, Highlights } from "../components/record";
+import { Highlights } from "../components/record";
 import { printReceipt } from "../print";
 import { Sale, SaleItem } from "../types";
 import { usePharmacy } from "../hooks/usePharmacy";
@@ -142,7 +142,7 @@ export default function SaleDetail() {
       </div>
     );
   if (!sale) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Point of sale", to: "/pos" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Point of sale", to: "/pos" }, { label: "Loading" }]}
         eyebrow="Sale"
         cards={1}
         table={4}
@@ -162,26 +162,24 @@ export default function SaleDetail() {
   const tender = sale.payment_method.replace("_", " ");
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Point of sale", to: "/pos" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={sale.sale_number} last="" size={44} />
-          <div>
-            <div className="eyebrow">Sale</div>
-            <h1 className="mono">{sale.sale_number}</h1>
-            <div className="sub">
-              {fmtDateTime(sale.created_at)} · {tender}
-              {sale.patient && <> · <EntityLink to={`/patients/${sale.patient_id}`}>
-                {sale.patient.first_name} {sale.patient.last_name}</EntityLink></>}
-            </div>
-          </div>
-        </div>
-        {/* The standard container, not an inline style. Six detail pages had
-            their own idea of how a header's actions are spaced, which is six
-            places to change when the answer moves and one of them always gets
-            missed. */}
-        <div className="page-actions">
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Point of sale", to: "/pos" },
+              { label: sale.sale_number }]}
+      eyebrow="Sale"
+      title={<span className="mono">{sale.sale_number}</span>}
+      meta={[
+        { label: "Taken", value: fmtDateTime(sale.created_at) },
+        { label: "Paid by", value: tender },
+        { label: "Customer",
+          value: sale.patient
+            ? <EntityLink to={`/patients/${sale.patient_id}`}>
+                {sale.patient.first_name} {sale.patient.last_name}
+              </EntityLink>
+            : <span className="muted">walk in</span> },
+      ]}
+      actions={
+        <>
           <button className="secondary" onClick={() => printReceipt(sale, pharmacy.name, pharmacy.regNo)}>🖨 Reprint</button>
           {sale.status === "pending" && !sale.transferred_at && (
             <button className="btn secondary" onClick={toAccount}>
@@ -206,8 +204,9 @@ export default function SaleDetail() {
             </button>
           )}
           <Link to="/pos" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Front Shop</Link>
-        </div>
-      </div>
+        </>
+      }
+    >
 
       {sale.transferred_at && (
         // A transferred sale is still `pending`, because it is still unpaid.
@@ -321,6 +320,6 @@ export default function SaleDetail() {
           onDone={load} />
       )}
       {prompt}
-    </>
+    </RecordPage>
   );
 }

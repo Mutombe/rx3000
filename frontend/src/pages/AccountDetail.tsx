@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
-import Breadcrumbs from "../components/Breadcrumbs";
+import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
-import { Avatar, Highlights } from "../components/record";
+import { Highlights } from "../components/record";
 import { CompanyOverview } from "../types";
 import { ArrowLeft } from "@phosphor-icons/react";
 
@@ -41,7 +41,7 @@ export default function AccountDetail() {
       </div>
     );
   if (!data) return <DetailSkeleton
-        trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "This record" }]}
+        trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "Loading" }]}
         eyebrow="Account"
         tabs={["Contacts", "Opportunities", "Cases"]}
         cards={1}
@@ -82,21 +82,18 @@ export default function AccountDetail() {
   ];
 
   return (
-    <>
-      <Breadcrumbs trail={[{ label: "Dashboard", to: "/" }, { label: "Accounts", to: "/accounts" }, { label: "This record" }]} />
-      <div className="page-head">
-        <div className="record-title">
-          <Avatar first={c.name} last="" size={44} />
-          <div>
-            <div className="eyebrow">Account</div>
-            <h1>{c.name}</h1>
-            <div className="sub">
-              {c.account_type.replace(/_/g, " ")} · owner {c.owner ?? "unassigned"}
-            </div>
-          </div>
-        </div>
-        <Link to="/accounts" className="btn secondary"><ArrowLeft size={13} weight="bold" /> Accounts</Link>
-      </div>
+    <RecordPage
+      trail={[{ label: "Dashboard", to: "/" },
+              { label: "Accounts", to: "/accounts" },
+              { label: c.name }]}
+      eyebrow="Account"
+      title={c.name}
+      meta={[
+        { label: "Type", value: c.account_type.replace(/_/g, " ") },
+        { label: "Owner",
+          value: c.owner ?? <span className="muted">unassigned</span> },
+      ]}
+    >
 
       <div className="card record-hero">
         <Highlights items={[
@@ -131,6 +128,6 @@ export default function AccountDetail() {
           rowHref={(t) => `/cases/${t.id}`} initialSort={{ key: "created_at", dir: "desc" }}
           empty="No cases logged for this account" />
       )}
-    </>
+    </RecordPage>
   );
 }
