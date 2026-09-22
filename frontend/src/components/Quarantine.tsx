@@ -139,14 +139,14 @@ export default function Quarantine() {
                    skeleton={<TableSkeleton cols={5} rows={6}
                                             widths={["30ch", "14ch", "10ch", "12ch", "12ch"]} />}>
         <div className="dt-scroll">
-          <table className="dt">
+          <table className="dt dt-wider">
             <thead>
               <tr>
                 <th>Medicine</th>
                 <th>Batch</th>
                 <th className="num">Units</th>
                 <th className="num">Value at cost</th>
-                <th>Why, and since</th>
+                <th className="col-why wrap-cell">Why, and since</th>
                 <th className="actions" />
               </tr>
             </thead>

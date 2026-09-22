@@ -160,15 +160,15 @@ export default function Suppliers() {
                   mostly empty, and the email clipped mid-word with no
                   ellipsis — which reads as a rendering fault rather than as
                   a long address. */}
-              <table className="dt sup-table">
+              <table className="dt sup-table dt-wide">
                 <thead>
                   <tr>
-                    <th>Supplier</th><th>Contact</th>
+                    <th className="sup-col-who">Supplier</th><th className="sup-col-contact">Contact</th>
                     {/* The column a buyer renewing terms argues from. It was
                         in the purchase orders all along and had no screen. */}
-                    <th>How they arrive</th>
-                    <th>Paid to</th>
-                    <th>Terms</th><th className="actions" />
+                    <th className="sup-col-arrive">How they arrive</th>
+                    <th className="sup-col-paid">Paid to</th>
+                    <th className="sup-col-terms">Terms</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

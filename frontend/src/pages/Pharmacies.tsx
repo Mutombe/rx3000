@@ -211,7 +211,7 @@ export default function Pharmacies() {
         <table className="dt dt-wide">
           <thead>
             <tr>
-              <th className="col-name">Pharmacy</th><th>City</th><th className="num">Branches</th>
+              <th className="col-who-two">Pharmacy</th><th>City</th><th className="num">Branches</th>
               <th className="num">People</th><th>Since</th><th>State</th>
               <th className="actions" />
             </tr>

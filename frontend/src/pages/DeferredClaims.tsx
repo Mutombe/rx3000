@@ -149,7 +149,7 @@ export default function DeferredClaims() {
             hasData={rows.length > 0}
             skeleton={<TableSkeleton cols={6} rows={5} />}
           >
-          <table className="dt">
+          <table className="dt dt-wider">
             <thead>
               <tr>
                 <th>Claim</th>
@@ -157,7 +157,7 @@ export default function DeferredClaims() {
                 <th>Patient</th>
                 <th>Scheme</th>
                 <th className="num">Value</th>
-                <th className="col-said">Why it is held</th>
+                <th className="col-why wrap-cell">Why it is held</th>
                 <th className="actions" />
               </tr>
             </thead>

@@ -473,12 +473,14 @@ export default function Claiming() {
           <div className="card">
             <h3>Batches</h3>
             <div className="cu-scroll">
-              <table>
+              <table className="dt dt-wider">
                 <thead>
                   <tr>
-                    <th>Batch</th><th className="col-name">Pay office</th><th className="col-range">Period</th><th>Status</th>
-                    <th className="num">Claims</th><th className="num">Claimed</th>
-                    <th className="num">Settled</th><th className="num">Short</th><th className="actions" />
+                    <th className="mono col-code">Batch</th><th className="col-name">Pay office</th><th className="col-range">Period</th><th className="col-code">Status</th>
+                    <th className="num">Claims</th>
+                    <th className="num col-money">Claimed</th>
+                    <th className="num col-money">Settled</th>
+                    <th className="num col-money">Short</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

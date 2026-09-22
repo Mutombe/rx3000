@@ -237,12 +237,13 @@ export default function LayBys() {
               </p>
             )}
             <div className="cu-scroll">
-              <table>
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th className="mono">Lay-by</th><th>Customer</th><th className="col-when">Raised</th><th className="col-when">Due</th>
-                    <th className="num">Total</th><th className="num">Paid</th>
-                    <th className="num">Balance</th><th className="actions" />
+                    <th className="mono col-code">Lay-by</th><th className="col-name">Customer</th><th className="col-when">Raised</th><th className="col-when">Due</th>
+                    <th className="num col-money">Total</th>
+                    <th className="num col-money">Paid</th>
+                    <th className="num col-money">Balance</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

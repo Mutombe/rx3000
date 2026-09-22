@@ -123,7 +123,17 @@ export default function Reminders() {
                 <td><EntityLink kind="patient" id={m.patient_id}><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></EntityLink></td>
                 <td><span className="badge muted">{m.message_type.replace("_", " ")}</span></td>
                 <td>{m.channel.toUpperCase()}</td>
-                <td style={{ maxWidth: 420 }}>{m.subject && <b>{m.subject}. </b>}{m.body}</td>
+                {/* The whole text of an SMS wants 871px and there is not
+                    871px. Cut at the cell edge it stopped mid-word, which
+                    reads as a broken screen rather than as a long message.
+                    Two lines, visibly shortened, and the whole of it on
+                    hover. */}
+                <td className="msg-cell">
+                  <div className="clamp-2"
+                       title={`${m.subject ? m.subject + ". " : ""}${m.body}`}>
+                    {m.subject && <b>{m.subject}. </b>}{m.body}
+                  </div>
+                </td>
                 <td>
                   <span className={`badge ${badge(m.status)}`}>{m.status}</span>
                   {m.detail && <div className="muted" style={{ fontSize: 11 }}>{m.detail}</div>}

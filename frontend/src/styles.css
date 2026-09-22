@@ -1480,14 +1480,26 @@ label {
 .console-list { padding: 14px 16px 8px; min-height: 320px; }
 .console-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .console-bar input[type="search"] { flex: 1; }
+/* A choice named on every side, rather than a tick box that names one of
+   them. "Not ticked" does not say "everything on hand" to anybody reading
+   quickly, so both states get words.
+ *
+ * This existed here already and a second copy of it was written eleven
+ * thousand lines further down before anybody looked. The two were near
+ * enough identical to be invisible, which is how `.lbl` and `.empty` went
+ * wrong too; qa/one-class-one-meaning.py caught this one the same day. The
+ * gap and the wrapping below came off that second copy and are the whole of
+ * what it contributed. */
 .seg {
   display: inline-flex; background: var(--surface-sunk); padding: 3px;
+  gap: 2px;
   border: 1px solid var(--line); border-radius: var(--r-md);
 }
 .seg button {
   background: transparent; color: var(--ink-soft); border: 1px solid transparent;
   height: var(--control-sm); padding: 0 var(--s3);
   font-size: var(--t-sm); border-radius: var(--r-sm);
+  font-weight: 500; white-space: nowrap; flex: 0 0 auto;
 }
 .seg button:hover { background: var(--surface); color: var(--ink); }
 .seg button.on { background: var(--surface); color: var(--ink); border-color: var(--line); box-shadow: var(--e1); }
@@ -12356,12 +12368,28 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    was the app's own combobox. */
 
 /* The supplier table. Contact holds a name, a number and an address and was
-   losing width to two columns that are mostly empty. */
+   losing width to two columns that are mostly empty.
+ *
+ * NAMED COLUMNS, NOT NUMBERED ONES.
+ *
+ * These were `nth-child(1)` through `(4)`, and a column was added to this
+ * table in the middle of them. Every width then applied to the column after
+ * the one it was written for: the delivery record took the width meant for
+ * the bank account, the bank account took the width meant for the terms, and
+ * the terms column was left with whatever the four of them had not claimed,
+ * which was nothing at all. It rendered nought pixels wide with 104px of
+ * text inside it.
+ *
+ * Nothing said so. The widths were valid, the selectors matched, and the
+ * only symptom was a column that had silently vanished. Numbering a table's
+ * columns in CSS makes adding one a change to every rule after it, and
+ * nobody remembers that. Naming them makes the two independent. */
 .sup-table { table-layout: fixed; width: 100%; }
-.sup-table th:nth-child(1), .sup-table td:nth-child(1) { width: 26%; }
-.sup-table th:nth-child(2), .sup-table td:nth-child(2) { width: 30%; }
-.sup-table th:nth-child(3), .sup-table td:nth-child(3) { width: 18%; }
-.sup-table th:nth-child(4), .sup-table td:nth-child(4) { width: 12%; }
+.sup-col-who     { width: 24%; }
+.sup-col-contact { width: 24%; }
+.sup-col-arrive  { width: 17%; }
+.sup-col-paid    { width: 15%; }
+.sup-col-terms   { width: 13%; }
 /* An address that stops mid-word reads as a fault. This one says it has been
    cut, and hovering gives the whole of it. */
 .sup-email {
@@ -12430,6 +12458,23 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s4); flex-wrap: wrap;
 }
 
+/* A message is a paragraph and gets the room a paragraph needs, then stops
+   after two lines with the rest on hover. */
+.msg-cell { white-space: normal; width: 34%; }
+
+/* A short sentence in a table: a reason, a description of a purchase. It
+   wraps rather than being cut, because half a reason is a puzzle rather
+   than a shorter reason. */
+.col-why { width: 21rem; white-space: normal; }
+/* A money column. "$4,586.65" wants 92px and an equal share kept giving it
+   59, so the figure a page exists to show was the thing it cut. */
+.col-money { width: 7.5rem; }
+/* A name with a second line under it: a registration number and a telephone
+   are together wider than the name they belong to, so the column is sized
+   for the line underneath rather than the one above. */
+.col-who-two { width: 19rem; }
+.dt td.wrap-cell, .dt th.wrap-cell { white-space: normal; }
+
 /* The findings, narrowed by the job. Scrolls on a narrow screen rather than
    wrapping into a second row of chips, which reads as two groups. */
 .sw-kinds {
@@ -12469,24 +12514,6 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 .batch-acts { display: flex; gap: var(--s2); flex-wrap: wrap; }
 
-/* A two-state choice named on both sides. "Not ticked" does not say
-   "everything on hand" to anybody reading quickly. */
-.seg {
-  display: inline-flex; padding: 3px; gap: 2px;
-  background: var(--surface-sunk);
-  border: 1px solid var(--line); border-radius: var(--r-md);
-}
-.seg button {
-  height: var(--control-sm); padding: 0 var(--s3);
-  border: 1px solid transparent; border-radius: var(--r-sm);
-  background: transparent; color: var(--ink-soft);
-  font-size: var(--t-sm); font-weight: 500; white-space: nowrap;
-}
-.seg button:hover { color: var(--ink); }
-.seg button.on {
-  background: var(--surface); color: var(--ink); font-weight: 600;
-  border-color: var(--line); box-shadow: var(--e1);
-}
 
 /* One shelf, read standing in front of it. The line is the column somebody
    is matching against a box in their hand, so it takes the room and wraps

@@ -217,8 +217,8 @@ export default function PettyCash() {
               <table>
                 <thead>
                   <tr>
-                    <th>When</th><th>Category</th><th>What for</th>
-                    <th className="num">Amount</th><th>Receipt</th><th>By</th>
+                    <th className="col-when">When</th><th>Category</th><th className="col-why wrap-cell">What for</th>
+                    <th className="num">Amount</th><th>Receipt</th><th className="col-name">By</th>
                   </tr>
                 </thead>
                 <tbody>
