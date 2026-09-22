@@ -157,7 +157,7 @@ export default function DeferredClaims() {
                 <th>Patient</th>
                 <th>Scheme</th>
                 <th className="num">Value</th>
-                <th>Why it is held</th>
+                <th className="col-said">Why it is held</th>
                 <th className="actions" />
               </tr>
             </thead>

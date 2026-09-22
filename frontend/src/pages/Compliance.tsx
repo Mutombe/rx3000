@@ -248,7 +248,7 @@ export default function Compliance() {
             </div>
 
             <div className="dt-scroll">
-              <table className="dt">
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
                     <th>Branch</th><th>Standing</th>
@@ -344,7 +344,7 @@ export default function Compliance() {
 
           {!register ? <TableSkeleton cols={5} rows={6} /> : (
             <div className="dt-scroll">
-              <table className="dt">
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
                     <th>Document</th><th>Standing</th><th>Reference</th>
@@ -442,7 +442,7 @@ export default function Compliance() {
                 about.
               </p>
               <div className="dt-scroll">
-                <table className="dt">
+                <table className="dt dt-wide">
                   <thead>
                     <tr><th>Document</th><th>Reference</th><th>Expired</th>
                       <th>Scan</th></tr>

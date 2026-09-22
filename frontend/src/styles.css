@@ -3840,6 +3840,80 @@ img { -webkit-user-drag: none; user-select: none; }
    which already supports a per-column width, and not to hand-written tables
    elsewhere, whose columns would be redistributed for no reason. */
 .dt { table-layout: fixed; width: 100%; }
+
+/* A TABLE WITH TOO MANY COLUMNS FOR THE CARD SCROLLS RATHER THAN STARVES.
+ *
+ * `.dt-scroll` was built so a wide table scrolls inside its card and the
+ * page never does. It could not: `.dt { width: 100% }` makes the table
+ * exactly as wide as the wrapper, so the wrapper has nothing to scroll and
+ * the column widths are divided among however many columns there are. Nine
+ * columns on a 1366 laptop got 103px each, and a timestamp needing 154px,
+ * a patient's name, a medicine and a reference were all cut off. The
+ * wrapper had been decorative on every screen that had one.
+ *
+ * The floor is declared per table rather than worked out from the content,
+ * and that is the point. Letting the table size itself was tried and
+ * measured: one 137-character product name took it from 1042px to 1488px,
+ * so the width of the table came to depend on which row happened to sort
+ * first. A table must look the same however its data is ordered, which is
+ * the reason it is laid out fixed in the first place.
+ *
+ * So: pick the floor from the columns, not from the rows. Below it the
+ * table scrolls inside its card; above it, it fills the card as before. */
+/* A wholesaler's full trading name, which is the longest value in any of
+   the creditor tables and the one nobody can do without: "UPD (United
+   Pharmaceutical Distributors)" wants 294px and an equal share gave it 107.
+   Declared on the header, because a fixed layout reads the header row and
+   ignores the body. */
+/* THREE KINDS OF COLUMN THAT KEEP BEING STARVED.
+ *
+ * A fixed layout divides the width equally between columns that do not say
+ * how much they want, so on a crowded table a name and a timestamp each got
+ * the same share as a two-digit count. These are what the sweep in
+ * qa/a-cell-is-not-cut-off.mjs found over and over: a person's name, a
+ * medicine, and a date carrying its month in words.
+ *
+ * Declared on the HEADER, because a fixed layout reads the header row. */
+.col-name  { width: 13rem; }   /* "Privilege Chimusoro" wants 144px */
+.col-med   { width: 15rem; }   /* "Cotrimoxazole 480mg" wants 169px */
+.col-when  { width: 11rem; }   /* "20 Aug, 2026" wants 111px */
+.col-stamp { width: 12.5rem; } /* "20 Sept, 2026, 08:41" wants 157px */
+.col-range { width: 15rem; }   /* "01 Sept, 2026 to 30 Sept, 2026" wants 223px */
+.col-said  { width: 16rem; }   /* a short sentence: a reason, a description */
+.col-code  { width: 7rem; }    /* a short branch or account code */
+.col-city  { width: 8.5rem; }  /* a town name */
+
+.pay-supplier { width: 19rem; }
+
+/* The two columns a repeat queue is actually read by. A combination name
+   like "Tenofovir/Lamivudine/Dolutegravir" wants 240px and an equal share
+   gave it 102, so the queue listed medicines nobody could identify. */
+.rp-who  { width: 12rem; }
+/* A date with a month name: "28 Jul, 2026" wants 119px. */
+.rp-due  { width: 8.5rem; }
+.rp-worth { width: 7.5rem; }
+.db-branch { width: 14rem; }
+.rp-left { width: 8.5rem; }
+.rp-what { width: 17rem; }
+
+/* A table that declares a floor needs whatever holds it to scroll.
+ *
+ * Where the markup already has `.dt-scroll` that is done. Where it does not
+ * — and most of these tables do not, which is why `.dt-scroll` had been
+ * decorative — the element directly around the table takes it on. Scoped
+ * with `:has` to exactly those parents, so no other card changes behaviour
+ * and no JSX has to be restructured to reach them.
+ *
+ * `max-width: 100%` matters: without it the parent grows to fit the table
+ * and the PAGE scrolls instead of the card, which is the failure the
+ * wrapper existed to prevent in the first place. */
+div:has(> .dt.dt-wide),
+div:has(> .dt.dt-wider),
+div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
+
+.dt.dt-wide   { min-width: 68rem; }
+.dt.dt-wider  { min-width: 78rem; }
+.dt.dt-widest { min-width: 94rem; }
 /* With fixed layout a cell can no longer be sized by its content, so every cell
    clips unless its column opts out.
 
@@ -6631,7 +6705,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .bulk-count { font-size: var(--t-sm); color: var(--ink-soft); white-space: nowrap; }
 .bulk-count b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .bulk-actions { display: flex; gap: var(--s2); flex-wrap: wrap; }
-.bulk-tick { width: 2.2rem; text-align: center; }
+.bulk-tick { width: 4rem; text-align: center; }
 .bulk-tick input { cursor: pointer; }
 @media (max-width: 640px) {
   /* On a phone it spans the width rather than floating in the middle, and the

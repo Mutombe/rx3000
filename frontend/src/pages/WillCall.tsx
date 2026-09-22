@@ -197,10 +197,10 @@ export default function WillCall() {
               <p className="muted wc-advice">{rows[0].action}</p>
             )}
             <div className="dt-scroll">
-              <table className="dt">
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th>Patient</th><th>Medicine</th><th className="num">Qty</th>
+                    <th className="col-name">Patient</th><th className="col-med">Medicine</th><th className="num">Qty</th>
                     <th>Bagged</th><th>Waiting</th><th className="actions" />
                   </tr>
                 </thead>

@@ -234,7 +234,7 @@ export default function Deliveries() {
           widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
       >
         <div className="dt-scroll">
-          <table className="dt">
+          <table className="dt dt-wider">
             <thead>
               <tr>
                 <SelectAll checked={picked.allChosen} onChange={picked.all} />

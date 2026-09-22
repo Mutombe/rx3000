@@ -209,15 +209,15 @@ export default function ToFollows() {
         }
       >
       <div className="dt-scroll">
-        <table className="dt">
+        <table className="dt dt-wider">
           <thead>
             <tr>
               <th>Reference</th>
-              <th>Patient</th>
-              <th>Medicine</th>
+              <th className="col-name">Patient</th>
+              <th className="col-med">Medicine</th>
               <th className="num">Owed</th>
               <th className="num">In stock</th>
-              <th>Promised</th>
+              <th className="col-when">Promised</th>
               <th className="actions" />
             </tr>
           </thead>

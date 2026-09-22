@@ -191,7 +191,14 @@ export default function DispensingHistory() {
                 // line on a real row.
                 secondLine={[1, 2, 6, 7]} />}
             >
-            <table className="dt">
+            {/* Nine columns do not fit a laptop card. Each was given 103px,
+                which cut the timestamp, the patient, the medicine, the
+                dispenser and the invoice number. It scrolls inside its own
+                card instead, and the floor is declared rather than taken
+                from the data so the table is the same width whichever row
+                sorts first. */}
+            <div className="dt-scroll">
+            <table className="dt dt-widest">
               <thead>
                 <tr>
                   <th>When</th><th>Script</th><th>Patient</th><th>Medicine</th>
@@ -287,6 +294,7 @@ export default function DispensingHistory() {
                 ))}
               </tbody>
             </table>
+            </div>
             {data && <Pagination meta={data} onPage={setPage} noun="dispensings" />}
             </Refreshable>
           </>

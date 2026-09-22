@@ -430,7 +430,7 @@ export default function Claiming() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Pay office</th><th className="num">Claims</th>
+                      <th className="col-name">Pay office</th><th className="num">Claims</th>
                       <th className="num">Value</th><th className="actions" />
                     </tr>
                   </thead>
@@ -476,7 +476,7 @@ export default function Claiming() {
               <table>
                 <thead>
                   <tr>
-                    <th>Batch</th><th>Pay office</th><th>Period</th><th>Status</th>
+                    <th>Batch</th><th className="col-name">Pay office</th><th className="col-range">Period</th><th>Status</th>
                     <th className="num">Claims</th><th className="num">Claimed</th>
                     <th className="num">Settled</th><th className="num">Short</th><th className="actions" />
                   </tr>
@@ -604,7 +604,7 @@ export default function Claiming() {
                 </p>
               </div>
             ) : (
-              <table className="dt">
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
                     <th>Formulary</th><th>What it does by default</th>
@@ -673,7 +673,7 @@ export default function Claiming() {
                     : "Every claim against this scheme will be refused."}
                 </div>
               ) : (
-                <table className="dt">
+                <table className="dt dt-wide">
                   <thead>
                     <tr>
                       <th>Product</th><th>Standing</th>

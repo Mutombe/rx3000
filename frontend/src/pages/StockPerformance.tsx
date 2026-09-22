@@ -169,7 +169,7 @@ export default function StockPerformance() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Line</th>
+                    <th className="col-med">Line</th>
                     <th className="num">Out</th>
                     <th className="num">A month</th>
                     <th className="num">On hand</th>
@@ -264,7 +264,7 @@ export default function StockPerformance() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Line</th><th>Department</th>
+                    <th className="col-med">Line</th><th>Department</th>
                     <th className="num">On hand</th>
                     <th className="num">Tied up</th>
                   </tr>

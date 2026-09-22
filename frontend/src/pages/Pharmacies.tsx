@@ -208,10 +208,10 @@ export default function Pharmacies() {
           skeleton={<TableSkeleton cols={7} rows={7} rowHeight={66}
                                    widths={["22ch", "14ch", "8ch", "10ch", "10ch"]} />}
         >
-        <table className="dt">
+        <table className="dt dt-wide">
           <thead>
             <tr>
-              <th>Pharmacy</th><th>City</th><th className="num">Branches</th>
+              <th className="col-name">Pharmacy</th><th>City</th><th className="num">Branches</th>
               <th className="num">People</th><th>Since</th><th>State</th>
               <th className="actions" />
             </tr>
@@ -346,7 +346,7 @@ export default function Pharmacies() {
             <p className="muted">
               {people.length} {people.length === 1 ? "person" : "people"} belong here.
             </p>
-            <table className="dt">
+            <table className="dt dt-wide">
               <thead>
                 <tr><th>Name</th><th>Username</th><th>Role</th><th>State</th></tr>
               </thead>

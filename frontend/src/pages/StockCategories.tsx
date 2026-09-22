@@ -139,10 +139,10 @@ export default function StockCategories() {
           skeleton={<TableSkeleton cols={7} rows={5}
             widths={["20ch", "8ch", "10ch", "10ch", "10ch", "14ch", "12ch"]} />}
         >
-        <table className="dt">
+        <table className="dt dt-wider">
           <thead>
             <tr>
-              <th>Department</th>
+              <th className="col-med">Department</th>
               <th className="num">Lines</th>
               <th className="num">With stock</th>
               <th className="num">At cost</th>
@@ -152,7 +152,7 @@ export default function StockCategories() {
                   telling at thirty; consignment stock nobody reorders is worth
                   knowing about at six months. */}
               <th className="num">Warn (days)</th>
-              <th>In the dispensary</th>
+              <th className="col-when">In the dispensary</th>
               <th className="actions" />
             </tr>
           </thead>

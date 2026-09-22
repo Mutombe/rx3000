@@ -308,7 +308,7 @@ export default function Fiscal() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>No.</th><th>Type</th><th>Filed</th>
+                    <th>No.</th><th>Type</th><th className="col-stamp">Filed</th>
                     <th className="num">Total</th><th className="num">VAT</th>
                     <th>Status</th><th className="actions" />
                   </tr>
@@ -378,7 +378,7 @@ export default function Fiscal() {
             <table>
               <thead>
                 <tr>
-                  <th>Day</th><th>Opened</th><th>Closed</th>
+                  <th>Day</th><th className="col-stamp">Opened</th><th className="col-stamp">Closed</th>
                   <th className="num">Receipts</th><th className="num">Sales</th>
                   <th className="num">VAT</th><th className="num">Credit notes</th>
                   <th>Z-report</th>

@@ -330,13 +330,13 @@ export default function Branches() {
             <table>
               <thead>
                 <tr>
-                  <th>Code</th><th>Branch</th><th>City</th>
-                  <th>Responsible pharmacist</th><th>Registration</th>
+                  <th className="col-code">Code</th><th className="col-name">Branch</th><th className="col-city">City</th>
+                  <th className="col-name">Responsible pharmacist</th><th className="col-name">Registration</th>
                   {/* Whether the shop may lawfully open. It was three sections
                       away under its own sidebar entry, so a manager reading
                       this table had no way to know that the branch on row two
                       has no premises licence on file. */}
-                  <th>Licences</th><th className="actions" />
+                  <th className="col-name">Licences</th><th className="actions" />
                 </tr>
               </thead>
               <tbody>

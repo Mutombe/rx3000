@@ -372,17 +372,21 @@ export default function Repeats() {
               widths={["18ch", "22ch", "10ch", "9ch", "9ch", "11ch", "9ch", "6ch"]} />}
           >
             <div className="dt-scroll">
-              <table className="dt">
+              {/* Eight columns on a laptop card gave each 102px. A patient's
+                  name wants 145 and "Tenofovir/Lamivudine/Dolutegravir"
+                  wants 240, and those two are what the queue is read by. */}
+              <table className="dt dt-wider">
                 <thead>
                   <tr>
                     <SelectAll checked={picked.allChosen} onChange={picked.all} />
-                    <th>Patient</th><th>Medicine</th><th>Due</th>
+                    <th className="rp-who">Patient</th>
+                    <th className="rp-what">Medicine</th><th className="rp-due">Due</th>
                     {/* The row already carried this figure and the table never
                         showed it. While the comment below said the question
                         being asked is "what is it worth". A queue without money
                         cannot be worked in the order that pays. */}
-                    <th className="num">Worth</th>
-                    <th className="num">Repeats left</th>
+                    <th className="num rp-worth">Worth</th>
+                    <th className="num rp-left">Repeats left</th>
                     <th className="num">In stock</th><th className="actions" /></tr>
                 </thead>
                 <tbody>
@@ -585,7 +589,7 @@ export default function Repeats() {
                   <thead>
                     <tr>
                       <th>Where it went</th><th className="num">Repeats</th>
-                      <th className="num">Worth</th>
+                      <th className="num rp-worth">Worth</th>
                       <th className="num">Share</th><th>What fixes it</th>
                     </tr>
                   </thead>
@@ -636,7 +640,7 @@ export default function Repeats() {
                   <tr>
                     <th>Week</th>
                     <th className="num">Repeats filled</th>
-                    <th className="num">Worth</th>
+                    <th className="num rp-worth">Worth</th>
                     <th className="num">Average</th>
                     <th />
                   </tr>
@@ -732,11 +736,12 @@ export default function Repeats() {
                 </span>
               </div>
               <div className="dt-scroll">
-                <table className="dt">
+                <table className="dt dt-wider">
                   <thead>
                     <tr>
-                      <th>Patient</th><th>Medicine</th><th>Due</th>
-                      <th className="num">Worth</th><th>State</th>
+                      <th className="rp-who">Patient</th>
+                    <th className="rp-what">Medicine</th><th className="rp-due">Due</th>
+                      <th className="num rp-worth">Worth</th><th>State</th>
                       <th className="actions" />
                     </tr>
                   </thead>

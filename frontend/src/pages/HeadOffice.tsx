@@ -243,7 +243,7 @@ export default function HeadOffice() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Branch</th><th className="num">Taken</th>
+                    <th className="col-name">Branch</th><th className="num">Taken</th>
                     <th className="num">Sales</th>
                     <th className="num">On the period before</th>
                     <th>Standing</th><th className="actions" />

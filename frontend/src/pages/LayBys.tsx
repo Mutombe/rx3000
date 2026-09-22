@@ -240,7 +240,7 @@ export default function LayBys() {
               <table>
                 <thead>
                   <tr>
-                    <th className="mono">Lay-by</th><th>Customer</th><th>Raised</th><th>Due</th>
+                    <th className="mono">Lay-by</th><th>Customer</th><th className="col-when">Raised</th><th className="col-when">Due</th>
                     <th className="num">Total</th><th className="num">Paid</th>
                     <th className="num">Balance</th><th className="actions" />
                   </tr>

@@ -333,10 +333,16 @@ export default function Payables() {
                 </p>
               </div>
             ) : (
-              <table className="dt">
+              /* A supplier name needs 294px and eight equal columns gave
+                 it 107, so whoever is owed the money was the one thing cut
+                 off. It scrolls in its card instead, with the floor
+                 declared rather than taken from whichever row sorts
+                 first. */
+              <div className="dt-scroll">
+              <table className="dt dt-wider">
                 <thead>
                   <tr>
-                    <th>Supplier</th>
+                    <th className="pay-supplier">Supplier</th>
                     {ageing.bands.map((b) => <th key={b} className="num">{b}</th>)}
                     <th className="num">Total</th>
                     <th className="actions" />
@@ -384,6 +390,7 @@ export default function Payables() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
 
@@ -414,7 +421,7 @@ export default function Payables() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Invoice</th><th>Supplier</th><th>Dated</th>
+                      <th>Invoice</th><th className="pay-supplier">Supplier</th><th>Dated</th>
                       <th>Status</th>
                       <th className="num">Total</th>
                       <th className="num">Outstanding</th>
@@ -466,7 +473,7 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Invoice</th><th>Supplier</th><th>Due</th>
+                    <th>Invoice</th><th className="pay-supplier">Supplier</th><th>Due</th>
                     <th className="num">Outstanding</th><th className="actions" />
                   </tr>
                 </thead>
@@ -524,7 +531,7 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Supplier</th><th>Paid</th><th>Reference</th>
+                    <th className="pay-supplier">Supplier</th><th>Paid</th><th>Reference</th>
                     <th className="num">Amount</th><th className="num">On account</th>
                     <th className="actions" />
                   </tr>
@@ -570,7 +577,7 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Order</th><th>Supplier</th><th>Received</th>
+                    <th>Order</th><th className="pay-supplier">Supplier</th><th>Received</th>
                     <th className="num">Value</th>
                   </tr>
                 </thead>

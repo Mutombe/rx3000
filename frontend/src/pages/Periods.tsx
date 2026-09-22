@@ -165,11 +165,11 @@ export default function Periods() {
           hasData={periods.length > 0}
           skeleton={<TableSkeleton cols={6} rows={5} />}
         >
-        <table className="dt">
+        <table className="dt dt-wider">
           <thead>
             <tr>
               <th>Period</th>
-              <th>Runs</th>
+              <th className="col-range">Runs</th>
               <th>Status</th>
               <th className="num">Signed off at</th>
               <th className="num">Transactions</th>

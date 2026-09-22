@@ -275,7 +275,10 @@ export default function Dashboard() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Branch</th>
+                      {/* The branch name is the link out of this row and was
+                          the one thing cut: "RX5000 Pharmacy Central" wants
+                          197px and an equal share of eight gave it 115. */}
+                      <th className="db-branch">Branch</th>
                       <th className="num">Taken</th>
                       <th className="num">Share</th>
                       <th className="num">Sales</th>

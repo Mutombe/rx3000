@@ -156,7 +156,7 @@ export default function Shifts() {
                 EcoCash and Omari settle separately, and so do the banks behind
                 a swipe. This is the same split as the teller sheet.
               </p>
-              <table className="dt">
+              <table className="dt dt-wide">
                 <thead>
                   <tr>
                     <th>Instrument</th><th>Currency</th>
