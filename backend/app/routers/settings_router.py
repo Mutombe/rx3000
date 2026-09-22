@@ -48,6 +48,17 @@ class Declared:
     unit: str = ""
 
 
+#: Settings this screen knows about but deliberately does not edit, because
+#: the choice only makes sense beside something else. `rfqs.auto` is one: it
+#: is a three-way choice shown next to the list of lines that WOULD be asked
+#: about, which a generic text box cannot do. Listed here so the screen stops
+#: calling them unrecognised and telling the pharmacy they are being ignored.
+ELSEWHERE: dict[str, str] = {
+    "rfqs.auto": "Quotes, under Asking by itself",
+    "portal.base_url": "set by whoever configures the public web address",
+}
+
+
 DECLARED: tuple[Declared, ...] = (
     # ---- the pharmacy itself
     Declared("company.trading_name", "Trading name", "text", "", "Pharmacy",
@@ -111,6 +122,27 @@ DECLARED: tuple[Declared, ...] = (
              "A transfer worth more than this is only requested, and somebody "
              "has to agree it before the stock leaves the shelf. Zero means "
              "none do, which is how transfers have always worked here."),
+    # THE TWO THAT GUARD THE MONEY GOING OUT.
+    #
+    # Both were read by code and declared nowhere, so the pharmacy could not
+    # set either of them: the only way to change one was for somebody to
+    # write to the settings table by hand. A control the owner cannot reach
+    # is not a control they have. See services/order_approval.
+    Declared("orders.approve_over", "Purchase order needing a second signature",
+             "money", "0", "Stock",
+             "An order worth more than this cannot be sent until somebody "
+             "else signs it off, and the person who raised it cannot be that "
+             "somebody. Zero turns it off, which is how ordering worked "
+             "before this existed. Set it at the figure you would want to be "
+             "told about, not at the figure you order every week."),
+    Declared("rfqs.approve_over", "Quotation award needing a second signature",
+             "money", "0", "Stock",
+             "Choosing which wholesaler wins is where the money is decided, "
+             "so an award worth more than this needs a second person, and "
+             "the buyer cannot approve their own choice. Kept separate from "
+             "the order figure above because they guard different things: "
+             "one guards what is spent, this guards where it goes. Zero "
+             "turns it off."),
     Declared("stock.adjust_threshold", "Adjustment needing a password",
              "money", "0", "Stock",
              "An adjustment worth more than this asks for a second person's "
@@ -214,9 +246,22 @@ def listing(db: Session = Depends(get_db)):
             "is_set": declared.key in stored and stored[declared.key] != "",
         })
     # Anything in the store that is not declared. Surfaced rather than hidden,
-    # because a stray key is usually a typo that has been silently doing nothing.
-    unknown = sorted(k for k in stored if k not in BY_KEY)
-    return {"groups": groups, "unrecognised": unknown}
+    # because a stray key is usually a typo that has been silently doing
+    # nothing. Settings that belong to another screen are excluded: the
+    # warning says they are "being ignored", and saying that about a key a
+    # nightly job reads every morning is how it gets deleted.
+    unknown = sorted(k for k in stored
+                     if k not in BY_KEY and k not in ELSEWHERE)
+    return {
+        "groups": groups,
+        "unrecognised": unknown,
+        # Read by code, set somewhere better than here, and named so nobody
+        # has to wonder whether they are live.
+        "set_elsewhere": [
+            {"key": k, "where": where, "value": stored.get(k, "")}
+            for k, where in sorted(ELSEWHERE.items()) if k in stored
+        ],
+    }
 
 
 @router.get("/{key:path}")

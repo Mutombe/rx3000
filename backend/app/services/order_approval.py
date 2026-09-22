@@ -39,11 +39,19 @@ from sqlalchemy.orm import Session
 from ..models import PurchaseOrder, User
 from . import config
 
-#: Orders worth more than this need a second signature. Nought means every
-#: order does; a negative number turns approval off entirely, which is the
-#: behaviour a pharmacy had before this existed and is theirs to choose.
+#: Orders worth more than this need a second signature.
+#:
+#: NOUGHT MEANS OFF, and that is not arbitrary. It is what
+#: `stock.transfer_threshold` already means on the same settings screen, so
+#: the two read the same way, and it is the only encoding the screen can
+#: express: it refuses a negative number, which is what this used to use.
+#: A threshold nobody can type is a control nobody has.
+#:
+#: Off is also the default, because it is how every pharmacy using this
+#: behaved before the control existed. Asking for a second signature is a
+#: decision the owner makes, not one that arrives in a release.
 SETTING = "orders.approve_over"
-DEFAULT_OVER = -1.0
+DEFAULT_OVER = 0.0
 
 
 def threshold(db: Session) -> float:
@@ -59,7 +67,7 @@ def value_of(order: PurchaseOrder) -> float:
 def required(db: Session, order: PurchaseOrder) -> bool:
     """Whether this order needs signing off before it can be sent."""
     over = threshold(db)
-    if over < 0:
+    if over <= 0:
         return False
     return value_of(order) > over
 
@@ -134,7 +142,7 @@ def awaiting(db: Session) -> list[PurchaseOrder]:
     discover it and the wrong person to discover it.
     """
     over = threshold(db)
-    if over < 0:
+    if over <= 0:
         return []
     return [o for o in db.query(PurchaseOrder)
             .filter(PurchaseOrder.status == "draft").all()

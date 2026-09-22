@@ -23,7 +23,17 @@ interface Row {
   value: string | number | boolean; default: string | number | boolean;
   is_set: boolean;
 }
-interface Payload { groups: Record<string, Row[]>; unrecognised: string[] }
+/** A setting this screen knows about but does not edit, because the choice
+ *  only makes sense beside something else. Named so nobody has to wonder
+ *  whether it is live: the warning below says stray keys are "being
+ *  ignored", and these are not. */
+interface Elsewhere { key: string; where: string; value: string }
+
+interface Payload {
+  groups: Record<string, Row[]>;
+  unrecognised: string[];
+  set_elsewhere?: Elsewhere[];
+}
 
 export default function GlobalSettings() {
   const toast = useToast();
@@ -131,6 +141,23 @@ export default function GlobalSettings() {
         <p className="st-note is-bad">
           {data.unrecognised.length} stored setting(s) are not recognised by this
           version and are being ignored: {data.unrecognised.join(", ")}.
+        </p>
+      )}
+
+      {(data.set_elsewhere?.length ?? 0) > 0 && (
+        // Live, and set on a better screen. Said plainly, because the
+        // warning above it is about keys that do nothing, and somebody who
+        // confuses the two deletes a setting a nightly job depends on.
+        <p className="st-note">
+          {data.set_elsewhere!.length} setting(s) are in force but changed
+          elsewhere:{" "}
+          {data.set_elsewhere!.map((e, i) => (
+            <span key={e.key}>
+              {i > 0 && "; "}
+              <b>{e.key}</b> is <b>{e.value || "not set"}</b>, on {e.where}
+            </span>
+          ))}
+          .
         </p>
       )}
 

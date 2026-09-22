@@ -53,11 +53,11 @@ from sqlalchemy.orm import Session
 from ..models import Rfq, RfqLine, RfqSupplier, User
 from . import config
 
-#: Awards worth more than this need a second signature. Nought means every
-#: award does; a negative number turns it off, which is how a pharmacy
-#: behaved before this existed and is theirs to choose.
+#: Awards worth more than this need a second signature. Nought means off,
+#: for the reason set out in `order_approval`: the settings screen refuses a
+#: negative number, so a threshold encoded as -1 is one nobody can ever type.
 SETTING = "rfqs.approve_over"
-DEFAULT_OVER = -1.0
+DEFAULT_OVER = 0.0
 
 
 class AwardError(Exception):
@@ -130,7 +130,7 @@ def dearer_than_cheapest(db: Session, rfq: Rfq) -> list[dict]:
 def required(db: Session, rfq: Rfq) -> bool:
     """Whether this award needs signing off before orders can be raised."""
     over = threshold(db)
-    if over < 0:
+    if over <= 0:
         return False
     return value_of(db, rfq) > over
 
