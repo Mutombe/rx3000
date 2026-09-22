@@ -11849,6 +11849,41 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    tucked onto the end of the second is not read as the thing to press. */
 .sr-owed-do { display: block; margin-top: 2px; font-size: 12px; }
 
+/* MOVEMENTS: WHICH WAY THE STOCK WENT.
+   The column was headed "Δ Qty" and the only cue to direction was a minus
+   sign, three characters wide, right-aligned in a wall of grey rows.
+   Direction is the first thing anybody scans a movement list for. The word
+   carries it as well as the colour, so it survives a colourblind reader and
+   a printout. */
+.mv-in, .mv-out { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.mv-in  { color: var(--ok); }
+.mv-out { color: var(--danger); }
+.mv-way {
+  margin-left: 5px; font-size: .62rem; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--ink-faint);
+}
+
+/* RECONCILIATION: WHICH TILES ARE CONTROLS.
+   `.wl-stat` carries a pointer cursor and a hover state because on the queue
+   it was written for, every tile filters the list. Two of the four here have
+   nothing to narrow to, so they looked clickable and were not. `.rc-read`
+   takes the affordance back off them. */
+.rc-read { cursor: default; }
+.rc-read:hover { background: var(--surface-sunk); border-color: var(--line); }
+/* And the two that do filter say what pressing them does, rather than
+   leaving somebody to discover it. */
+.rc-pick-do {
+  display: block; margin-top: 3px; font-style: normal; font-size: .62rem;
+  letter-spacing: .02em; text-transform: uppercase; color: var(--ink-faint);
+}
+.rc-pick.is-on .rc-pick-do { color: var(--accent); }
+/* Two actions in a card head, kept together so they do not straddle it. */
+.rc-acts { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+/* The medicine name is what somebody matches against the box in their hand,
+   so it wraps rather than clipping, as the supplier column does on the
+   delivery tables. A name cut mid word reads as a rendering fault. */
+.rc-table td:first-child { white-space: normal; }
+
 /* A wholesaler's registered name is a sentence, not a token.
    "UPD (United Pharmaceutical Distributors)" truncated to "UPD (United
    Pharmaceuti…" on every row of both tables, so the one column somebody

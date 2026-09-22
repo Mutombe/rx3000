@@ -11,7 +11,7 @@ import Quarantine from "../components/Quarantine";
 import SupplierReturns from "../components/SupplierReturns";
 import GoodsReceipts from "../components/GoodsReceipts";
 import DataTable, { Column } from "../components/DataTable";
-import { applyFilters, emptyFilters, FilterBar, FilterState, FilterToggle } from "../components/Filters";
+import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState, FilterToggle } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ExportButton from "../components/ExportButton";
 import { Product, StockBatch, StockMovement, Supplier } from "../types";
@@ -28,6 +28,23 @@ import BusyButton from "../components/BusyButton";
 type Tab = "products" | "watch" | "bins" | "quarantine" | "deliveries" | "returns" | "batches" | "movements" | "reconcile" | "upload";
 
 const CATEGORIES = ["medicine", "front_shop", "airtime", "consumable"];
+
+/** What each kind of movement is called on a screen, and how loud it is.
+ *
+ *  The Type filter has carried these words since it was written while the
+ *  column beside it printed the stored code, so one screen spelled the same
+ *  thing two ways. Kept next to each other here so the next kind added gets
+ *  both or neither.
+ */
+const MOVE_SAID: Record<string, string> = {
+  receive: "Received", sale: "Sold", dispense: "Dispensed",
+  adjustment: "Adjusted", return: "Returned", write_off: "Written off",
+  transfer: "Transferred", count: "Counted",
+};
+const MOVE_TONE: Record<string, string> = {
+  receive: "ok", return: "ok", sale: "warn", dispense: "warn",
+  write_off: "danger", adjustment: "muted", transfer: "muted", count: "muted",
+};
 
 function expiryBadge(expiry: string | null) {
   if (!expiry) return <span className="badge muted">No expiry</span>;
@@ -352,33 +369,73 @@ export default function Stock() {
   ];
 
   const movementCols: Column<StockMovement>[] = [
-    { key: "created_at", header: "When", sortable: true,
+    { key: "created_at", header: "When", sortable: true, width: 160,
       value: (m) => m.created_at ?? "",
       render: (m) => (m.created_at ? fmtDateTime(m.created_at)
                                    : <span className="muted">not recorded</span>) },
-    { key: "product", header: "Product", sortable: true, value: (m) => m.product?.name ?? "",
-      render: (m) => m.product?.name ?? "—" },
-    { key: "movement_type", header: "Type", sortable: true,
+    /* The medicine, followable. It was the plain name of the one thing on the
+       row somebody might want to look at, on a screen whose whole subject is
+       what happened to that medicine. */
+    { key: "product", header: "Product", sortable: true, width: 136,
+      value: (m) => m.product?.name ?? "",
+      render: (m) => (m.product?.name
+        ? <EntityLink kind="product" id={m.product_id}>{m.product.name}</EntityLink>
+        : <span className="muted">not named</span>) },
+    { key: "movement_type", header: "Type", sortable: true, width: 96,
+      /* Said in words. The filter beside it offered "Write-off" and the column
+         printed "write_off", which is one thing spelled two ways on one
+         screen, and the raw form is the database's spelling rather than
+         anybody's. */
       render: (m) => (
-        <span className={`badge ${m.movement_type === "sale" ? "warn"
-          : m.movement_type === "receive" ? "ok" : "muted"}`}>{m.movement_type}</span>
+        <span className={`badge ${MOVE_TONE[m.movement_type] ?? "muted"}`}>
+          {MOVE_SAID[m.movement_type] ?? m.movement_type.replace(/_/g, " ")}
+        </span>
       ) },
-    { key: "quantity_delta", header: "Δ Qty", align: "right", sortable: true,
-      render: (m) => (m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta) },
-    { key: "balance_after", header: "Balance", align: "right", sortable: true },
+    /* IN OR OUT, WHICH IS THE WHOLE POINT OF A MOVEMENT.
+       The header was "Δ Qty": a Greek letter on a pharmacy screen, and the
+       only cue to direction was a minus sign three characters wide in a
+       right-aligned column. Direction is what the reader is scanning for. */
+    { key: "quantity_delta", header: "In or out", align: "right", sortable: true, width: 100,
+      render: (m) => (
+        <span className={m.quantity_delta < 0 ? "mv-out" : "mv-in"}>
+          {m.quantity_delta > 0 ? `+${m.quantity_delta}` : m.quantity_delta}
+          <span className="mv-way">{m.quantity_delta < 0 ? "out" : "in"}</span>
+        </span>
+      ) },
+    { key: "balance_after", header: "Balance", align: "right", sortable: true, width: 84 },
     /* WHY AND WHO, WHICH WERE RECORDED FROM THE START AND SHOWN NOWHERE.
        Every adjustment has asked for a reason from a list since the dialog
        was written, and stamped the staff member who did it. Neither reached
        this table, so the two questions a stock movement is ever asked could
        not be answered from the screen that exists to answer them. */
-    { key: "reason", header: "Why", sortable: true, value: (m) => m.reason ?? "",
-      render: (m) => (m.reason
-        ? <span className="badge">{m.reason}</span>
-        : <span className="muted">—</span>) },
-    { key: "user_name", header: "Who", sortable: true, value: (m) => m.user_name ?? "",
-      render: (m) => m.user_name || <span className="muted">—</span> },
-    { key: "reference", header: "Reference", truncate: 34,
-      render: (m) => <span className="mono">{m.reference}{m.notes && <span className="muted">, {m.notes}</span>}</span> },
+    /* Blank, not a dash. A sale has no reason code and never will: the reason
+       it happened is that it was sold, and the column exists for adjustments.
+       A dash on every one of twenty-five rows reads as missing data. */
+    { key: "reason", header: "Why", sortable: true, width: 90, value: (m) => m.reason ?? "",
+      render: (m) => (m.reason ? <span className="badge">{m.reason}</span> : null) },
+    /* Followable. "Who moved this stock" is one of the two questions a
+       movement is ever asked, and the answer was a name nobody could open. */
+    { key: "user_name", header: "Who", sortable: true, width: 155,
+      value: (m) => m.user_name ?? "",
+      render: (m) => (m.user_name
+        ? <EntityLink kind="staff" id={m.user_id ?? 0}>{m.user_name}</EntityLink>
+        : <span className="muted">not recorded</span>) },
+    /* THE RECORD THAT CAUSED THE MOVEMENT.
+       A movement never happens by itself: something dispensed it, sold it or
+       booked it in, and the reference is the name of that something. It was
+       printed as monospace text, truncated at 34 characters, and led nowhere,
+       so the causing record was named on screen and unreachable from it. */
+    { key: "reference", header: "Reference", wrap: true,
+      render: (m) => (
+        <>
+          {m.prescription_id
+            ? <EntityLink to={`/prescriptions/${m.prescription_id}`}>
+                {m.reference || `Script ${m.prescription_id}`}
+              </EntityLink>
+            : <span className="mono">{m.reference}</span>}
+          {m.notes && <div className="muted small">{m.notes}</div>}
+        </>
+      ) },
   ];
 
   function load() {

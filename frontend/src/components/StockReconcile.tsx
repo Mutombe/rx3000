@@ -16,10 +16,11 @@
  *  This does not correct one from the other. Which is right is a question only
  *  somebody holding the box can answer, and the answer is a stock take.
  */
-import { useCallback, useEffect, useState } from "react";
-import { ArrowClockwise, Warning } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { ArrowClockwise, ClipboardText, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
-import { EntityLink } from "./Filters";
+import { EntityLink, FilterToggle } from "./Filters";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 
@@ -47,6 +48,10 @@ export default function StockReconcile() {
   const [data, setData] = useState<Report | null>(null);
   const [spinning, setSpinning] = useState(false);
   const toast = useToast();
+  const [q, setQ] = useState("");
+  /** Counted below nothing: the subset that cannot be a counting error in
+   *  the ordinary sense, because stock cannot be less than none. */
+  const [negOnly, setNegOnly] = useState(false);
 
   const load = useCallback(() => {
     setSpinning(true);
@@ -56,6 +61,15 @@ export default function StockReconcile() {
       .finally(() => window.setTimeout(() => setSpinning(false), 300));
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return (data?.lines ?? []).filter((l) =>
+      (!needle || l.product.toLowerCase().includes(needle))
+      && (!negOnly || l.negative));
+  }, [data, q, negOnly]);
+
+  const filtering = Boolean(q.trim()) || negOnly;
 
   return (
     <div className="card">
@@ -68,37 +82,74 @@ export default function StockReconcile() {
             different things about the same shelf.
           </span>
         </div>
-        <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-        </button>
+        {/* THE REMEDY THIS SCREEN NAMES, IN REACH OF IT.
+            Every sentence here ends at "a stock take is what settles them",
+            and there was no way to open one: somebody read the worst line,
+            went looking for the count screen, and typed the name in again
+            from memory. */}
+        <div className="rc-acts">
+          <Link to="/stock-take" className="btn primary">
+            <ClipboardText size={14} weight="bold" /> Start a stock take
+          </Link>
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+          </button>
+        </div>
       </div>
 
       <Refreshable loading={spinning || !data} hasData={!!data}
                    skeleton={<TableSkeleton cols={6} rows={8} />}>
         {data && (
           <>
+            {/* TWO OF THESE ARE CONTROLS AND TWO ARE READINGS.
+                All four were divs carrying .wl-stat, which sets a pointer
+                cursor and a hover state because on the queue it came from
+                every tile is a filter. Here two of them have nothing to
+                narrow to, so they looked clickable, were not, and taught
+                somebody the tiles do nothing. The two that can filter are
+                buttons; the two that cannot say so by not moving. */}
             <div className="wc-bands">
-              <div className="wl-stat">
+              <button type="button"
+                      className={`wl-stat rc-pick${filtering ? "" : " is-on"}`}
+                      aria-pressed={!filtering}
+                      onClick={() => { setNegOnly(false); setQ(""); }}>
                 <b className={data.reconciled ? "tone-ok" : "tone-danger"}>
                   {data.disagreeing}
                 </b>
-                <span>of {data.products} products disagree</span>
-              </div>
-              <div className="wl-stat">
+                <span>
+                  of {data.products} products disagree
+                  <em className="rc-pick-do">
+                    {filtering ? "show all of them" : "showing all of them"}
+                  </em>
+                </span>
+              </button>
+              <div className="wl-stat rc-read">
                 <b>{Math.round(data.agree_rate * 100)}%</b>
                 <span>Agree with their batches</span>
               </div>
-              <div className={`wl-stat${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
+              <div className={`wl-stat rc-read${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
                 <b className={data.value_at_risk > 0.005 ? "neg" : undefined}>
                   {money(data.value_at_risk)}
                 </b>
                 <span>At cost, on the difference</span>
               </div>
+              {/* Pressable, because it is the worst thing on the screen and
+                  was the one figure nobody could act on. Stock cannot be
+                  less than none, so these are not counting errors of the
+                  ordinary kind: more has gone out than was ever booked in. */}
               {data.negative > 0 && (
-                <div className="wl-stat wc-abandoned">
+                <button type="button"
+                        className={`wl-stat wc-abandoned rc-pick${negOnly ? " is-on" : ""}`}
+                        aria-pressed={negOnly}
+                        onClick={() => { setNegOnly(!negOnly); setQ(""); }}>
                   <b className="tone-danger">{data.negative}</b>
-                  <span>Counted below nothing</span>
-                </div>
+                  <span>
+                    Counted below nothing
+                    <em className="rc-pick-do">
+                      {negOnly ? "showing only these" : "show only these"}
+                    </em>
+                  </span>
+                </button>
               )}
             </div>
 
@@ -152,20 +203,46 @@ export default function StockReconcile() {
               </div>
             ) : (
               <>
+                {/* 67 lines with no way to find one. Somebody comes here
+                    holding a box, and the question is about that box. */}
+                <div className="dt-filters">
+                  <input type="search" className="filter-search"
+                         value={q} placeholder="Find a product…"
+                         onChange={(e) => setQ(e.target.value)} />
+                  <FilterToggle checked={negOnly} onChange={setNegOnly}
+                                hint="Lines whose own count has gone below nothing">
+                    Counted below nothing
+                  </FilterToggle>
+                  {filtering && (
+                    <button className="ghost small filter-clear"
+                            onClick={() => { setQ(""); setNegOnly(false); }}>
+                      Clear
+                    </button>
+                  )}
+                  <span className="dt-count muted">
+                    {shown.length} of {data.lines.length}
+                  </span>
+                </div>
+
                 <div className="dt-scroll">
-                  <table className="dt">
+                  <table className="dt rc-table">
                     <thead>
                       <tr>
                         <th>Product</th>
-                        <th className="num">Own count</th>
-                        <th className="num">In batches</th>
-                        <th className="num">Usable today</th>
-                        <th className="num">Out by</th>
-                        <th className="num">At cost</th>
+                        {/* col-count (5.5rem) is sized for a bare figure and
+                            cut every one of these headings: "Usable today"
+                            lost 28px of itself. A column has to be as wide as
+                            the question it asks, not as the answer. */}
+                        <th className="num col-money">Own count</th>
+                        <th className="num col-money">In batches</th>
+                        <th className="num col-money">Usable today</th>
+                        <th className="num col-money">Out by</th>
+                        <th className="num col-money">At cost</th>
+                        <th className="actions" />
                       </tr>
                     </thead>
                     <tbody>
-                      {data.lines.map((l) => (
+                      {shown.map((l) => (
                         <tr key={l.product_id}
                             className={l.negative ? "row-danger" : "row-warn"}>
                           <td>
@@ -191,11 +268,31 @@ export default function StockReconcile() {
                             </b>
                           </td>
                           <td className="num">{money(l.value_at_risk)}</td>
+                          {/* The transaction that answers this row, on this
+                              row. The count screen opens with the product
+                              already picked, so the line that raised the
+                              question is the line being counted. */}
+                          <td className="actions">
+                            <Link className="btn small secondary"
+                                  to={`/stock-take?product=${l.product_id}`}>
+                              Count it
+                            </Link>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
+                {shown.length === 0 && (
+                  <div className="empty">
+                    <b>No disagreement matches that</b>
+                    <p>
+                      {data.lines.length} product
+                      {data.lines.length === 1 ? "" : "s"} disagree with their
+                      batches. Widen the search or clear the filters.
+                    </p>
+                  </div>
+                )}
                 {data.truncated && (
                   <p className="muted small">
                     The largest differences by value are shown. A stock take is

@@ -21,7 +21,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Warning } from "@phosphor-icons/react";
+import { Warning } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -108,21 +108,33 @@ export default function MovementDetail() {
     <RecordPage
       trail={[{ label: "Dashboard", to: "/" },
               { label: "Inventory", to: "/stock" },
-              { label: "This movement" }]}
+              { label: "Movement history", to: "/stock?tab=movements" },
+              { label: row ? row.product || `Movement ${row.id}` : "This movement" }]}
       eyebrow="Stock movement"
       title={row ? row.product || `Movement ${row.id}` : "Movement"}
       subtitle={row?.says}
       loading={!row && !error}
       error={error}
       actions={
-        <Link to="/stock" className="btn secondary">
-          <ArrowLeft size={13} weight="bold" /> Movements
-        </Link>
+        <>
+          {/* The breadcrumb carries the way back, from the trail. What
+              belongs here is the record this movement is about. */}
+          {row?.product_id ? (
+            <Link to={`/products/${row.product_id}`} className="btn secondary">
+              The medicine
+            </Link>
+          ) : null}
+          {row?.user_id ? (
+            <Link to={`/staff/${row.user_id}`} className="btn secondary">
+              Who did it
+            </Link>
+          ) : null}
+        </>
       }
       facts={row ? [
         { label: "Moved", value: <Delta n={row.quantity_delta} />,
           hint: row.pack_size ? `pack of ${row.pack_size}` : "units" },
-        { label: "Balance after", value: row.balance_after ?? "—",
+        { label: "Balance after", value: row.balance_after ?? "not recorded",
           hint: row.balance_agrees ? "agrees with the movement before"
                                    : "does not agree",
           tone: row.balance_agrees ? undefined : "bad" },
@@ -155,7 +167,7 @@ export default function MovementDetail() {
               <dt>Medicine</dt>
               <dd>
                 <EntityLink to={`/products/${row.product_id}`}>
-                  {row.product || "—"}
+                  {row.product || "unnamed"}
                 </EntityLink>
                 {row.schedule >= 3 && (
                   <span className="badge sched">S{row.schedule}</span>

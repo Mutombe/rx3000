@@ -105,6 +105,34 @@ export default function StockTake() {
   const [lastCount, setLastCount] = useState<CountReply | null>(null);
   const countBox = useRef<HTMLInputElement>(null);
 
+  /** ARRIVING WITH A PRODUCT ALREADY IN MIND.
+   *
+   *  Reconciliation names a stock take as the thing that settles a
+   *  disagreement and could not open one: somebody read "Methylphenidate,
+   *  own count 0, 518 in the batches", came here, and typed the name in
+   *  again from memory. `?product=` picks it on arrival, exactly as a
+   *  scanned pack does, so the line that raised the question is the line
+   *  being counted.
+   *
+   *  Silent when the id is nonsense or the product has since gone: the
+   *  screen still works, it just opens without a pick. An error toast for a
+   *  stale link would be shouting about the one thing that does not matter.
+   */
+  useEffect(() => {
+    const wanted = Number(new URLSearchParams(window.location.search).get("product"));
+    if (!wanted) return;
+    let live = true;
+    api.get<{ product: Product }>(`/api/products/${wanted}`)
+      .then((r) => {
+        if (!live || !r.product) return;
+        setPicked(r.product);
+        setLastCount(null);
+        window.setTimeout(() => countBox.current?.focus(), 0);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
+
   /** A pack scanned on a phone at the shelf.
    *
    *  Picks the product straight away and puts the cursor in the count box, so
