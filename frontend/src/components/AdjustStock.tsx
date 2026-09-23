@@ -96,7 +96,6 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
   const [batch, setBatch] = useState("");
   const [expiry, setExpiry] = useState("");
   const mayWriteOff = useCan("stock.write_off");
-  const reasons = REASONS.filter((r) => mayWriteOff || !("writesOff" in r));
   const [reason, setReason] = useState<string>(REASONS[0].key);
   const [note, setNote] = useState("");
   const toast = useToast();
@@ -114,6 +113,34 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
     : mode === "add" ? Math.round(typed)
     : -Math.round(typed);
   const after = here + delta;
+
+  /* WHY, NARROWED TO THE REASONS THAT CAN APPLY.
+     All seven were offered whichever way the stock was moving, so somebody
+     adding ten units was invited to say they were stolen and somebody writing
+     off breakage was offered "delivery not booked in". The dialog already
+     knows the direction — it uses `delta` two lines down to choose the
+     movement type — so the row halves itself and the remaining chips are all
+     answers to the question actually being asked.
+     Direction is only known once a number is typed; until then the full list
+     stands, because an empty row would read as a broken dialog. */
+  const reasons = REASONS.filter((r) => {
+    if ("writesOff" in r && !mayWriteOff) return false;
+    if (!valid || delta === 0) return true;
+    if (r.key === "count") return true;          // a correction runs both ways
+    const arriving = r.key === "received" || r.key === "returned";
+    return delta > 0 ? arriving : !arriving;
+  });
+
+  /* A chip that has just been filtered away must not stay selected: the value
+     would still post, and the dialog would look like nothing is chosen while
+     recording something that is. */
+  const offered = reasons.map((r) => r.key).join(",");
+  useEffect(() => {
+    if (!reasons.some((r) => r.key === reason)) setReason(reasons[0]?.key ?? "count");
+    // Keyed on WHICH chips are offered rather than on the array, which is
+    // rebuilt every render and would run this on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offered, reason]);
 
   const needsBatch = delta > 0;
   const past = !!expiry && expiry < new Date().toLocaleDateString("en-CA");

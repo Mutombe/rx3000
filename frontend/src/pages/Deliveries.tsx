@@ -319,12 +319,24 @@ export default function Deliveries() {
                   <RowActions>
                     {w.status === "pending" && (
                       <button className="btn primary sm"
-                        onClick={() => { setSending(w); setDriverId(""); }}>
+                        /* The driver the dispenser already chose when the
+                           delivery was raised. Blanked here, the dispatch desk
+                           re-picked somebody the waybill already named, and a
+                           second answer to a settled question is how a parcel
+                           goes out under the wrong driver's cash account. */
+                        onClick={() => {
+                          setSending(w);
+                          setDriverId(w.driver_profile_id ? String(w.driver_profile_id) : "");
+                        }}>
                         Send out
                       </button>
                     )}
                     {w.status === "out" && (
-                      <button className="btn primary sm" onClick={() => setSigning(w)}>
+                      <button className="btn primary sm"
+                              onClick={() => {
+                                setSigning(w);
+                                setReceivedBy(w.recipient ?? "");
+                              }}>
                         Sign for
                       </button>
                     )}

@@ -19,7 +19,7 @@ import { Phone } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money, prefetchRoute } from "../api";
 import BusyButton from "../components/BusyButton";
 import RowLink, { RowActions } from "../components/RowLink";
-import { useAsk, useConfirm } from "../components/Confirm";
+import { useAsk } from "../components/Confirm";
 import Pagination from "../components/Pagination";
 import { TableSearch, useSearch } from "../components/Filters";
 import { useClientPage } from "../hooks/useClientPage";
@@ -68,7 +68,6 @@ export default function WillCall() {
   const [band, setBand] = useState("");
   const toast = useToast();
   const ask = useAsk();
-  const confirm = useConfirm();
 
   /** THE BAND IS ASKED FOR, NOT SIFTED OUT OF WHAT ARRIVED.
    *
@@ -106,22 +105,15 @@ export default function WillCall() {
   const page = useClientPage(rows, 25);
 
   async function collect(bag: Bag) {
-    /* Who took it is asked, not assumed. Often it is not the patient — a
-       relative, a driver, a neighbour going that way, and on a controlled item
-       it is the answer to "who had it", so there the name is required. */
-    const ok = await confirm({
-      title: `Hand over ${bag.product}?`,
-      body: (
-        <>
-          {bag.quantity} for <b>{bag.patient}</b>, bagged {fmtDateTime(bag.dispensed_at)}.
-          {bag.needs_id && (
-            <> This is a Schedule {bag.schedule} item, so who takes it must be recorded.</>
-          )}
-        </>
-      ),
-      confirmLabel: "Handed over",
-    });
-    if (!ok) return;
+    /* ONE PROMPT, WHERE THE LAW WANTS ONE.
+       A confirm stood here first and collected nothing: for an ordinary bag it
+       restated the row the person had just pressed and asked them to agree
+       with it, and for a controlled one it was a preamble to the prompt below
+       that actually takes the record. Handing over is the busiest action on
+       this shelf and it is reversible — `uncollect` puts the bag back, dated
+       from the dispensing — so a modal per hand-over bought nothing and cost a
+       click every time. The name prompt below still stands, because that one
+       is the legal record rather than a courtesy. */
 
     // Who took it, asked properly. This was a `window.prompt` — an unstyled
     // operating-system box with no label and no way to require an answer —
@@ -295,7 +287,6 @@ export default function WillCall() {
                         <span className={`badge wc-badge wc-${b.band}`} data-tip={b.action}>
                           {BAND_LABEL[b.band]}
                         </span>
-                        <div className="muted small">{b.days_waiting} days</div>
                       </td>
                       <RowActions>
                         <BusyButton className="btn small" onClick={() => collect(b)}>

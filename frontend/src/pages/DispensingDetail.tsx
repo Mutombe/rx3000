@@ -93,25 +93,34 @@ export default function DispensingDetail() {
    */
   async function collect() {
     if (!d) return;
+    // ASKED ONLY WHERE THE LAW ASKS.
+    //
+    // This demanded a name for every hand-over, with the patient's own name
+    // showing as grey placeholder text it then refused to accept as the
+    // answer: the screen knew the overwhelmingly common reply and made
+    // somebody type it anyway. The shelf screen has always had the right rule
+    // (WillCall.tsx) and asks only for a controlled item, so one action had
+    // two rules depending on which door it was reached through.
     const controlledItem = (d.schedule || 0) >= 5;
-    const answer = await ask({
-      title: `Who is taking ${d.product?.name ?? "this"}?`,
-      body: controlledItem
-        ? `This is a schedule ${d.schedule} item. The name of whoever `
-          + "physically receives it is the answer to \"who had it\"."
-        : "Often not the patient. A relative, a driver, a neighbour going "
-          + "that way. Recorded as given.",
-      field: "Name, as given",
-      placeholder: d.patient.name,
-      required: true,
-      maxLength: 120,
-      confirmLabel: "Hand it over",
-    });
-    if (!answer.ok) return;
+    let takenBy = "";
+    if (controlledItem) {
+      const answer = await ask({
+        title: `Who is taking ${d.product?.name ?? "this"}?`,
+        body: `This is a ${schedCode(d.schedule)} item. The name of whoever `
+            + "physically receives it is the answer to \"who had it\".",
+        field: "Name, as given",
+        placeholder: "Full name",
+        required: true,
+        maxLength: 120,
+        confirmLabel: "Record the handover",
+      });
+      if (!answer.ok) return;
+      takenBy = answer.value;
+    }
     try {
       await api.post(`/api/dispensing/will-call/${d.id}/collect`,
-                     { taken_by: answer.value, id_seen: "" });
-      toast.ok(`Handed to ${answer.value}.`);
+                     { taken_by: takenBy, id_seen: "" });
+      toast.ok(takenBy ? `Handed to ${takenBy}.` : "Handed over.");
       load();
     } catch (e) {
       toast.error(errorText(e, "That could not be recorded."));

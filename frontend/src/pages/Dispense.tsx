@@ -498,7 +498,16 @@ export default function Dispense() {
   // Taking the money at the counter is what happens to most scripts, so it is
   // what the dialog opens on. Sending it to the front till is the exception and
   // is one click away.
+  //
+  // Unless the patient is on a scheme, in which case the screen already knows.
+  // The card is on the record and the claim panel below is already filled in
+  // from it, and the dispenser still had to press "Medical aid" on every
+  // script to reach a panel that was waiting for them. `payHowSet` records
+  // that somebody chose for themselves, so the default never overrides a real
+  // decision or a restored draft.
   const [payHow, setPayHow] = useState("now");
+  const payHowSet = useRef(false);
+  const choosePayHow = (key: string) => { payHowSet.current = true; setPayHow(key); };
   /** Who is taking it, and where. Only asked for on the delivery route. */
   const [drivers, setDrivers] = useState<{ id: number; full_name: string;
     active: boolean; cash_holding?: number; cod_limit?: number;
@@ -514,7 +523,15 @@ export default function Dispense() {
     // that asking on demand is instant.
     if (payHow !== "delivery" || drivers.length) return;
     api.get<typeof drivers>("/api/drivers")
-      .then(setDrivers)
+      .then((rows) => {
+        setDrivers(rows);
+        // One driver is not a choice, so it is not presented as one. Most
+        // pharmacies have exactly one, and "Choose a driver…" made every
+        // delivery wait on a dropdown with a single entry in it. The same
+        // rule the order screen already applies to a single supplier.
+        const active = rows.filter((d) => d.active);
+        if (active.length === 1) setDriverId(active[0].id);
+      })
       .catch(() => setDrivers([]));
   }, [payHow]);
 
@@ -538,6 +555,11 @@ export default function Dispense() {
     if (payHow !== "aid" || schemes.length) return;
     api.get<typeof schemes>("/api/medical-aids").then(setSchemes).catch(() => setSchemes([]));
   }, [payHow]);
+  // A member's script is a claim unless somebody says otherwise.
+  useEffect(() => {
+    if (payHowSet.current) return;
+    setPayHow(patient?.medical_aid_id ? "aid" : "now");
+  }, [patient?.medical_aid_id]);
   // Whatever the patient's record holds, as the starting point: most members
   // show the same card every month, and retyping it is where numbers go wrong.
   useEffect(() => {
@@ -2583,6 +2605,7 @@ export default function Dispense() {
         setScriptSighted(before.scriptSighted); setPrescriberVerified(before.prescriberVerified);
         setCounselPoints(before.counselPoints); setCounselNotes(before.counselNotes);
         setScanChecks(before.scanChecks); setPackExpiry(before.packExpiry);
+        payHowSet.current = true;
         setPayHow(before.payHow); setTenders(before.tenders); setDriverId(before.driverId);
         setDeliverTo(before.deliverTo); setDeliveryFee(before.deliveryFee);
         setPrintPick(before.printPick); setAidScheme(before.aidScheme);
@@ -5259,7 +5282,7 @@ ${d.action}`}
                               <button key={c.key} type="button" role="radio"
                                       aria-checked={payHow === c.key}
                                       className={payHow === c.key ? "on" : ""}
-                                      onClick={() => setPayHow(c.key)}>
+                                      onClick={() => choosePayHow(c.key)}>
                                 {c.label}
                               </button>
                             ))}
