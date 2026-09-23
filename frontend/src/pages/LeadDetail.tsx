@@ -170,7 +170,7 @@ export default function LeadDetail() {
                 <dt>Telephone</dt><dd>{d.phone || "none"}</dd>
                 <dt>Email</dt><dd>{d.email || "none"}</dd>
                 <dt>Marketing</dt>
-                <dd>{d.marketing_opt_in ? "opted in" : "not opted in"}</dd>
+                <dd>{d.marketing_opt_in ? "opted in" : "Not opted in"}</dd>
               </dl>
             </Panel>
 

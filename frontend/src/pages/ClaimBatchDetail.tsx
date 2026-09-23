@@ -120,7 +120,7 @@ export default function ClaimBatchDetail() {
       subtitle={b && [b.pay_office?.name, period,
                       b.settled_at ? `settled ${fmtDate(b.settled_at)}`
                         : b.submitted_at ? `sent ${fmtDate(b.submitted_at)}`
-                          : "not sent yet"].filter(Boolean).join(" · ")}
+                          : "Not sent yet"].filter(Boolean).join(" · ")}
       loading={!d && !error}
       error={error}
       actions={d && (
@@ -144,14 +144,14 @@ export default function ClaimBatchDetail() {
         { label: "Claimed", value: money(b.total_claimed),
           hint: `${b.claim_count} claim${b.claim_count === 1 ? "" : "s"}` },
         { label: "Settled", value: money(b.total_settled),
-          hint: d.settled ? "paid by the scheme" : "not paid yet" },
+          hint: d.settled ? "paid by the scheme" : "Not paid yet" },
         // Only meaningful once the money has come back. Before that it is the
         // whole batch, which is not a shortfall, it is a queue.
         { label: d.settled ? "Short" : "Outstanding",
           value: money(d.settled ? d.shortfall : b.total_claimed),
           hint: d.settled
             ? `${d.short_count} claim${d.short_count === 1 ? "" : "s"} cut`
-            : "waiting on the scheme",
+            : "Waiting on the scheme",
           tone: d.settled && d.shortfall > 0.005 ? "bad" : undefined },
         { label: "Levies", value: money(b.total_levy),
           hint: "paid by patients at the counter" },

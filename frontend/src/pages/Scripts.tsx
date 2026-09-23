@@ -264,7 +264,7 @@ export default function Scripts() {
                       )}
                     </td>
                     <td className="muted">
-                      {r.date_prescribed ? fmtDate(r.date_prescribed) : "no date"}
+                      {r.date_prescribed ? fmtDate(r.date_prescribed) : "No date"}
                     </td>
                   </RowLink>
                 ))}

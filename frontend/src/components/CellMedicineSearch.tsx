@@ -109,7 +109,7 @@ export default function CellMedicineSearch({
                   <span className="muted">{p.dosage_form}</span>
                 </span>
                 <span className="muted">
-                  {taken ? "already on the script"
+                  {taken ? "Already on the script"
                          : `${p.here ?? p.quantity_on_hand} in stock`}
                 </span>
               </li>

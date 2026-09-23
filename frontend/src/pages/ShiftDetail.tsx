@@ -72,7 +72,7 @@ export default function ShiftDetail() {
                 <dt>Counted by</dt>
                 <dd>
                   <EntityLink kind="staff" id={d.counted_by.id}>
-                    {d.counted_by.name || "not recorded"}
+                    {d.counted_by.name || "Not recorded"}
                   </EntityLink>
                 </dd>
                 <dt>Opened</dt><dd>{fmtDateTime(d.opened_at)}</dd>

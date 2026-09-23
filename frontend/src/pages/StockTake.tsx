@@ -81,7 +81,7 @@ interface CountReply {
  *  read off it: handing the counter the answer while they are holding the box
  *  is the one thing this page must never do.
  */
-const NO_SHELF = "no shelf recorded";
+const NO_SHELF = "No shelf recorded";
 
 function shelvesLeft(sheet: Sheet | null): { bin: string; lines: SheetLine[] }[] {
   if (!sheet) return [];
@@ -437,7 +437,7 @@ export default function StockTake() {
               <span className="badge ok">{sentence(take.status)}</span>
             </div>
             <p className="muted">
-              Opened {take.opened_at ? fmtDateTime(take.opened_at) : "no date"}
+              Opened {take.opened_at ? fmtDateTime(take.opened_at) : "No date"}
               {take.scope.category || take.scope.bin
                 ? ` · counting ${[take.scope.category, take.scope.bin].filter(Boolean).join(" / ")}`
                 : " · counting everything"}

@@ -182,7 +182,7 @@ export default function SupplierDetail() {
       )}
       facts={d ? [
         { label: "Owed now", value: money(d.owed),
-          hint: d.owed > 0 ? "unpaid invoices" : "nothing outstanding" },
+          hint: d.owed > 0 ? "Unpaid invoices" : "Nothing outstanding" },
         { label: "Orders", value: d.orders.length,
           hint: `${received} received` },
         // THE TWO FIGURES A BUYER RENEWING TERMS ACTUALLY ARGUES FROM.
@@ -192,19 +192,19 @@ export default function SupplierDetail() {
         // conversation with a wholesaler was held on what somebody
         // remembered.
         { label: "Arrives",
-          value: d.record.fill_rate === null ? "not known"
+          value: d.record.fill_rate === null ? "Not known"
             : `${Math.round(d.record.fill_rate * 100)}%`,
           hint: d.record.fill_rate === null
             ? (d.record.units_outstanding
                 ? `${d.record.units_outstanding} unit(s) still to come`
-                : "nothing delivered yet")
+                : "Nothing delivered yet")
             : d.record.short_orders
               ? `${d.record.short_orders} order(s) came up short`
               : "of what was ordered",
           tone: d.record.fill_rate === null ? undefined
             : d.record.delivers ? "ok" : "bad" },
         { label: "Takes",
-          value: d.record.avg_days === null ? "not known"
+          value: d.record.avg_days === null ? "Not known"
             : `${d.record.avg_days} days`,
           hint: d.record.slowest_days !== null && d.record.quickest_days !== null
             && d.record.slowest_days > d.record.quickest_days
@@ -213,7 +213,7 @@ export default function SupplierDetail() {
         { label: "Spent with them", value: money(d.record.spend),
           hint: d.record.recent_spend
             ? `${money(d.record.recent_spend)} in the last 90 days`
-            : "nothing in the last 90 days" },
+            : "Nothing in the last 90 days" },
       ] : undefined}
     >
       {d && (
@@ -242,7 +242,7 @@ export default function SupplierDetail() {
                 <div>
                   <b>
                     {d.record.quoting.avg_reply_days === null
-                      ? "not known"
+                      ? "Not known"
                       : `${d.record.quoting.avg_reply_days} days`}
                   </b>
                   <span className="muted small">To reply on average</span>
@@ -268,7 +268,7 @@ export default function SupplierDetail() {
                       <EntityLink kind="invoice" id={i.id}>{i.invoice_number}</EntityLink>
                     </td>
                     <td>{fmtDate(i.invoice_date)}</td>
-                    <td>{i.due_date ? fmtDate(i.due_date) : "no date"}</td>
+                    <td>{i.due_date ? fmtDate(i.due_date) : "No date"}</td>
                     <td className="num">{money(i.total)}</td>
                     <td className="num">
                       {i.outstanding > 0.005 ? money(i.outstanding)

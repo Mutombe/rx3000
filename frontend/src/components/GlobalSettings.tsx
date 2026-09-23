@@ -154,7 +154,7 @@ export default function GlobalSettings() {
           {data.set_elsewhere!.map((e, i) => (
             <span key={e.key}>
               {i > 0 && "; "}
-              <b>{e.key}</b> is <b>{e.value || "not set"}</b>, on {e.where}
+              <b>{e.key}</b> is <b>{e.value || "Not set"}</b>, on {e.where}
             </span>
           ))}
           .

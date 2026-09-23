@@ -110,7 +110,7 @@ export default function Variants({ productId, skeleton = false }: {
               )}
             </span>
             <span className={`vr-stock${v.on_hand <= 0 ? " cu-diff" : ""}`}>
-              {v.on_hand > 0 ? `${v.on_hand} in stock` : "none in stock"}
+              {v.on_hand > 0 ? `${v.on_hand} in stock` : "None in stock"}
             </span>
           </li>
         ))}

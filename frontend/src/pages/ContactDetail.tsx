@@ -74,7 +74,7 @@ export default function ContactDetail() {
 
       <div className="card record-hero">
         <Highlights items={[
-          { label: "Lifecycle stage", value: contact.lifecycle_stage, hint: contact.source || "no source recorded" },
+          { label: "Lifecycle stage", value: contact.lifecycle_stage, hint: contact.source || "No source recorded" },
           { label: "Open pipeline", value: money(open.reduce((s, d) => s + d.value, 0)),
             hint: `${open.length} open opportunit(ies)` },
           { label: "Marketing consent",

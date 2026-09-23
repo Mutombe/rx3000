@@ -227,7 +227,7 @@ export default function Pharmacies() {
                 <td>
                   <b>{p.name}</b>
                   <div className="muted small">
-                    {p.registration_no || "no registration number"}
+                    {p.registration_no || "No registration number"}
                     {p.phone ? ` · ${p.phone}` : ""}
                   </div>
                 </td>

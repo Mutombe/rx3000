@@ -90,7 +90,7 @@ export default function CurrencyRates() {
                     {c.code} <span className="muted">{c.symbol}</span>
                   </div>
                   <div className="rate-value mono">
-                    {c.is_base ? "base" : c.rate ? c.rate.toFixed(4) : "no rate set"}
+                    {c.is_base ? "base" : c.rate ? c.rate.toFixed(4) : "No rate set"}
                   </div>
                   {!c.is_base && (
                     <div className="muted" style={{ fontSize: ".78rem" }}>

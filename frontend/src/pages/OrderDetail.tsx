@@ -164,7 +164,7 @@ export default function OrderDetail() {
           { label: "Received value", value: money(receivedValue),
             hint: value ? `${Math.round((receivedValue / value) * 100)}% of order` : "none" },
           { label: "Outstanding units", value: String(outstanding),
-            hint: outstanding ? "still to be delivered" : "fully delivered" },
+            hint: outstanding ? "Still to be delivered" : "fully delivered" },
           // WHAT THE WHOLESALER SAID, ON THE ORDER ITSELF.
           //
           // It was only on the supplier's page, which meant somebody looking
@@ -174,14 +174,14 @@ export default function OrderDetail() {
           { label: "They said",
             value: order.acknowledged_at
               ? (order.promised_date ? fmtDate(order.promised_date) : "confirmed")
-              : order.status === "sent" ? "no answer yet" : "not asked",
+              : order.status === "sent" ? "No answer yet" : "Not asked",
             hint: order.acknowledged_at
               ? (order.promised_date
                   ? `confirmed ${fmtDate(order.acknowledged_at)}`
                   : "confirmed, no date given")
               : order.status === "sent"
                 ? "send them their portal link"
-                : "not sent to them yet",
+                : "Not sent to them yet",
             tone: order.acknowledged_at ? "ok" : undefined },
           { label: "Status", value: order.status, hint: order.notes || "none" },
         ]} />

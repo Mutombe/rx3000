@@ -148,7 +148,7 @@ export default function SharePortalLink(
         </div>
 
         <p className="muted small">
-          Sending to <b>{link.send_to || "no number on file"}</b>. Their own
+          Sending to <b>{link.send_to || "No number on file"}</b>. Their own
           number, not a shared one. It opens their record.
         </p>
 

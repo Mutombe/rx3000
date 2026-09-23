@@ -53,7 +53,7 @@ export default function MessageDetail() {
       error={error}
       facts={d ? [
         { label: "Status", value: d.status,
-          hint: d.sent_at ? fmtDateTime(d.sent_at) : "not sent" },
+          hint: d.sent_at ? fmtDateTime(d.sent_at) : "Not sent" },
         { label: "Channel", value: d.channel },
         { label: "Kind", value: d.message_type },
         { label: "Scheduled", value: fmtDateTime(d.scheduled_for) },

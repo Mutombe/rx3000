@@ -147,12 +147,12 @@ export default function ComplianceDocument() {
       hint: doc.days_left === null ? undefined
         : doc.days_left < 0 ? `${Math.abs(doc.days_left)} days ago`
           : `${doc.days_left} days left` },
-    { label: "Expires", value: doc.expires_on ? fmtDate(doc.expires_on) : "no date",
+    { label: "Expires", value: doc.expires_on ? fmtDate(doc.expires_on) : "No date",
       hint: doc.renewal_months
         ? `renewed every ${doc.renewal_months} months` : undefined },
     { label: "Reference", value: doc.reference || "none" },
     { label: "Renewal", value: doc.renewal_cost ? money(doc.renewal_cost) : "none",
-      hint: doc.renewal_cost ? "what it costs to renew" : "no cost recorded" },
+      hint: doc.renewal_cost ? "what it costs to renew" : "No cost recorded" },
   ] : [];
 
   return (
@@ -313,8 +313,8 @@ export default function ComplianceDocument() {
                 {doc.replaced.map((r) => (
                   <tr key={r.id}>
                     <td className="mono">{r.reference || "none"}</td>
-                    <td>{r.issued_on ? fmtDate(r.issued_on) : "no date"}</td>
-                    <td>{r.expires_on ? fmtDate(r.expires_on) : "no date"}</td>
+                    <td>{r.issued_on ? fmtDate(r.issued_on) : "No date"}</td>
+                    <td>{r.expires_on ? fmtDate(r.expires_on) : "No date"}</td>
                     <td className="muted">{r.uploaded_by || "none"}</td>
                     <td className="num">{r.renewal_cost ? money(r.renewal_cost) : "none"}</td>
                     <td>

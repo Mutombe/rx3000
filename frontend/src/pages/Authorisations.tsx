@@ -399,7 +399,7 @@ export default function Authorisations() {
                         </span>
                       </td>
                       <td className={lapsed ? "cu-diff" : ""}>
-                        {a.valid_to ? fmtDate(a.valid_to) : "no date"}
+                        {a.valid_to ? fmtDate(a.valid_to) : "No date"}
                         {lapsed && (
                           <div className="muted small">
                             {lapsedFor(a.valid_to!)}. A claim drawn on this
@@ -497,7 +497,7 @@ export default function Authorisations() {
                           {a.uses.map((u, i) => (
                             <tr key={u.id ?? i} className={u.reversed ? "is-off" : ""}>
                               <td className="mono">{u.reference || "none"}</td>
-                              <td>{u.created_at ? fmtDate(u.created_at) : "no date"}</td>
+                              <td>{u.created_at ? fmtDate(u.created_at) : "No date"}</td>
                               <td className="num">{u.quantity}</td>
                               <td className="num">
                                 {u.amount > 0 ? money(u.amount)

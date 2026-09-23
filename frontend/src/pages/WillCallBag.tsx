@@ -198,7 +198,7 @@ export default function WillCallBag() {
                 <dt>Prescriber</dt>
                 <dd>
                   <EntityLink kind="prescriber" id={bag.prescriber_id}>
-                    {bag.prescriber || "not recorded"}
+                    {bag.prescriber || "Not recorded"}
                   </EntityLink>
                 </dd>
                 <dt>Checked by</dt>
@@ -250,7 +250,7 @@ export default function WillCallBag() {
               <Panel title="Who took it">
                 <dl className="kv">
                   <dt>Collected</dt><dd>{fmtDateTime(bag.collected_at)}</dd>
-                  <dt>Taken by</dt><dd>{bag.collected_name || "not recorded"}</dd>
+                  <dt>Taken by</dt><dd>{bag.collected_name || "Not recorded"}</dd>
                 </dl>
               </Panel>
             )}

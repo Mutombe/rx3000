@@ -95,7 +95,7 @@ export default function AuditDetail() {
         </Link>
       }
       facts={row ? [
-        { label: "Signed in as", value: row.username || "not recorded" },
+        { label: "Signed in as", value: row.username || "Not recorded" },
         { label: "Really", value: row.acted_as || row.username || "none",
           hint: row.acted_as ? "head office acting as somebody" : "themselves",
           tone: row.acted_as ? "warn" : undefined },

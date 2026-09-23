@@ -169,7 +169,7 @@ export default function ExpiryProvision() {
                     <td>{i.product}</td>
                     <td className="mono"><EntityLink kind="batch" id={i.batch_id}>{i.batch_number || "none"}</EntityLink></td>
                     <td>
-                      {i.expiry ? fmtDate(i.expiry) : "no date"}
+                      {i.expiry ? fmtDate(i.expiry) : "No date"}
                       <div className="muted small">
                         {i.days_left < 0 ? `${Math.abs(i.days_left)} days ago` : `in ${i.days_left} days`}
                       </div>

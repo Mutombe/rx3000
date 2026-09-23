@@ -158,7 +158,7 @@ export default function PrescriptionDetail() {
         { label: "Status", value: d.status },
         { label: "Items", value: d.items.length },
         { label: "Repeats left", value: repeatsLeft,
-          hint: repeatsLeft ? "across all items" : "none remaining" },
+          hint: repeatsLeft ? "across all items" : "None remaining" },
         // What is still in the script. The figure a shop wants on the day a
         // patient says they are moving away, and nothing produced it.
         { label: "Still to come", value: money(worthToCome),
@@ -314,7 +314,7 @@ export default function PrescriptionDetail() {
                 <dt>Prescriber</dt>
                 <dd>
                   <EntityLink kind="prescriber" id={d.doctor_id}>
-                    {d.doctor?.name ?? "not recorded"}
+                    {d.doctor?.name ?? "Not recorded"}
                   </EntityLink>
                   {d.doctor?.practice_number && (
                     <div className="muted small mono">{d.doctor.practice_number}</div>

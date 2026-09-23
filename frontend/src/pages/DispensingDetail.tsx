@@ -166,7 +166,7 @@ export default function DispensingDetail() {
         { label: "Dispensed", value: d.quantity,
           hint: d.product?.form || undefined },
         { label: "Collected",
-          value: d.collected_at ? fmtDate(d.collected_at) : "not yet",
+          value: d.collected_at ? fmtDate(d.collected_at) : "Not yet",
           hint: d.collected_at ? (d.collected_name || undefined)
             : d.days_waiting !== null ? `${d.days_waiting} days on the shelf`
             : undefined,

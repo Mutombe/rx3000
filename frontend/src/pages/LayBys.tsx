@@ -271,9 +271,9 @@ export default function LayBys() {
                             <span className="clip" title={l.patient}>{l.patient}</span>
                           </EntityLink>
                         </td>
-                        <td>{l.created_at ? fmtDate(l.created_at) : "no date"}</td>
+                        <td>{l.created_at ? fmtDate(l.created_at) : "No date"}</td>
                         <td className={overdue(l) ? "cu-diff" : ""}>
-                          {l.due_date ? fmtDate(l.due_date) : "no date"}
+                          {l.due_date ? fmtDate(l.due_date) : "No date"}
                         </td>
                         <td className="num">{money(l.total)}</td>
                         <td className="num">{money(l.paid)}</td>

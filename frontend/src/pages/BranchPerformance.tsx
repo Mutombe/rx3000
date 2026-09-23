@@ -238,7 +238,7 @@ export default function BranchPerformance() {
           <Fact label="Rejected" value={b.claims.rejected}
                 tone={b.claims.rejected > 0 ? "bad" : undefined} />
           <Fact label="Held" value={b.claims.held}
-                hint="waiting to be sent"
+                hint="Waiting to be sent"
                 tone={b.claims.held > 0 ? "warn" : undefined} />
         </div>
       </Section>

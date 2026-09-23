@@ -51,7 +51,7 @@ export default function CashFlow() {
         {data && (
           <span className="muted">
             {data.from} to {data.to} · cash is{" "}
-            {data.cash_accounts.map((a) => a.name).join(" and ") || "not flagged on any account"}
+            {data.cash_accounts.map((a) => a.name).join(" and ") || "Not flagged on any account"}
           </span>
         )}
       </div>

@@ -62,7 +62,7 @@ export default function ClaimDetail() {
         { label: "Allowed", value: money(d.amount_approved),
           hint: d.shortfall > 0.005 ? `${money(d.shortfall)} short` : undefined },
         { label: "Settled", value: money(d.settled_amount),
-          hint: d.settled_at ? fmtDateTime(d.settled_at) : "not yet paid" },
+          hint: d.settled_at ? fmtDateTime(d.settled_at) : "Not yet paid" },
         { label: "Patient owes", value: money(d.patient_liable),
           hint: "levy and any shortfall" },
       ] : undefined}

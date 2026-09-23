@@ -92,7 +92,7 @@ export default function MovementDetail() {
   const line = (m: Neighbour, isThis = false) => (
     <tr key={m.id} className={isThis ? "is-here" : undefined}>
       <td className="muted small">
-        {m.created_at ? fmtDateTime(m.created_at) : "not recorded"}
+        {m.created_at ? fmtDateTime(m.created_at) : "Not recorded"}
       </td>
       <td><span className="badge muted">{m.movement_type}</span></td>
       <td className="num"><Delta n={m.quantity_delta} /></td>
@@ -136,13 +136,13 @@ export default function MovementDetail() {
       facts={row ? [
         { label: "Moved", value: <Delta n={row.quantity_delta} />,
           hint: row.pack_size ? `pack of ${row.pack_size}` : "units" },
-        { label: "Balance after", value: row.balance_after ?? "not recorded",
+        { label: "Balance after", value: row.balance_after ?? "Not recorded",
           hint: row.balance_agrees ? "agrees with the movement before"
                                    : "does not agree",
           tone: row.balance_agrees ? undefined : "bad" },
         { label: "Why", value: row.reason || row.movement_type,
           hint: row.reason ? "chosen from the list" : "implied by the type" },
-        { label: "Who", value: row.user || "not recorded",
+        { label: "Who", value: row.user || "Not recorded",
           hint: row.user_role || (row.user ? "" : "written by the system") },
       ] : []}
     >

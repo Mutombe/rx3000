@@ -393,7 +393,7 @@ export default function Ledger() {
                     <EntityLink kind="order" id={o.order_id}>{o.order_number}</EntityLink>
                   </td>
                   <td>{o.supplier}</td>
-                  <td>{o.received_at ? fmtDate(o.received_at) : "no date"}</td>
+                  <td>{o.received_at ? fmtDate(o.received_at) : "No date"}</td>
                   <td className="num">{money(o.value)}</td>
                   <RowActions>
                     <BusyButton className="btn sm" onClick={() => postReceipt(o.order_id)}>

@@ -99,7 +99,7 @@ export default function AiHistory({
             <b><ClockCounterClockwise size={15} /> History</b>
             <span className="muted">
               {/* The real total, not the number of rows on screen. */}
-              {total === 0 ? "nothing asked yet"
+              {total === 0 ? "Nothing asked yet"
                 : `${total} question${total === 1 ? "" : "s"}${more ? `, showing the last ${items.length}` : ""}`}
             </span>
           </div>

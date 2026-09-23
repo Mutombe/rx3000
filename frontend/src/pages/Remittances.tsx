@@ -175,7 +175,7 @@ export default function Remittances() {
       // A short note, so that six months later the decision has a reason
       // attached. It goes in its own field — appending it to the scheme's stated
       // reason is how that column ended up saying "uneconomic" eight times.
-      const note = billing ? "billed to patient" : "uneconomic to pursue";
+      const note = billing ? "billed to patient" : "Uneconomic to pursue";
       await api.post(
         `/api/remittances/lines/${line.id}/resolve?action=${action}`
         + `&note=${encodeURIComponent(note)}`, {});
@@ -314,7 +314,7 @@ export default function Remittances() {
                             </span>
                           )}
                         </td>
-                        <td>{l.service_date ? fmtDate(l.service_date) : "no date"}</td>
+                        <td>{l.service_date ? fmtDate(l.service_date) : "No date"}</td>
                         <td className="num">{money(l.amount_claimed)}</td>
                         <td className="num">{money(l.amount_paid)}</td>
                         <td className="num cu-diff">{money(l.variance)}</td>
@@ -378,7 +378,7 @@ export default function Remittances() {
                              prefetch={prefetchRoute}>
                       <td className="mono">{a.remittance_number}</td>
                       <td>{a.funder_id}</td>
-                      <td>{a.payment_date ? fmtDate(a.payment_date) : "no date"}</td>
+                      <td>{a.payment_date ? fmtDate(a.payment_date) : "No date"}</td>
                       <td className="mono muted">{a.payment_reference || "none"}</td>
                       <td className="num">{a.line_count}</td>
                       <td className="num">{money(a.total_claimed)}</td>

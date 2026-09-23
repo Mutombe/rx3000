@@ -233,7 +233,7 @@ export default function PettyCash() {
                   {shown.map((e) => (
                     <tr key={e.id}>
                       <td className="muted">
-                        {e.created_at ? fmtDateTime(e.created_at) : "no date"}
+                        {e.created_at ? fmtDateTime(e.created_at) : "No date"}
                       </td>
                       <td>{e.category || <span className="muted">None</span>}</td>
                       <td>

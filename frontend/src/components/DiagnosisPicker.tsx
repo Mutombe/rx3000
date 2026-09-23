@@ -151,7 +151,7 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
                     setChosen({
                       code: query.trim().toUpperCase(),
                       description: verdict.description
-                        || "no description held locally",
+                        || "No description held locally",
                     } as DiagnosisCode);
                     setQuery("");
                     setOpen(false);

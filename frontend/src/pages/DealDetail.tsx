@@ -213,8 +213,8 @@ export default function DealDetail() {
           { label: "Deal value", value: money(deal.value), hint: `${deal.items.length} line item(s)` },
           { label: "Weighted", value: money(deal.value * deal.probability / 100), hint: `${deal.probability}% probability` },
           { label: "Expected close", value: deal.expected_close_date ? fmtDate(deal.expected_close_date) : "Not set",
-            hint: deal.source ? `source: ${deal.source}` : "no source" },
-          { label: "Quotes", value: String(quotes.length), hint: quotes[0]?.status ?? "none issued" },
+            hint: deal.source ? `source: ${deal.source}` : "No source" },
+          { label: "Quotes", value: String(quotes.length), hint: quotes[0]?.status ?? "None issued" },
           { label: "Stage", value: deal.stage, hint: deal.lost_reason || "none" },
         ]} />
         {deal.stage !== "lost" && (

@@ -146,7 +146,7 @@ export default function BinDetail() {
       }
       facts={data ? [
         { label: "Lines", value: data.lines.length,
-          hint: data.lines.length ? "on this shelf" : "nothing is kept here" },
+          hint: data.lines.length ? "on this shelf" : "Nothing is kept here" },
         // A shelf whose counts add up to less than nothing is not a shelf
         // holding a negative number of boxes; it is a record that is wrong.
         { label: "Units", value: data.units < 0
@@ -162,7 +162,7 @@ export default function BinDetail() {
         { label: "Worth", value: money(data.value),
           hint: "at cost, for lines kept mainly here" },
         { label: "Short", value: data.short,
-          hint: data.short ? "at or below the reorder level" : "nothing is short",
+          hint: data.short ? "at or below the reorder level" : "Nothing is short",
           tone: data.short ? "warn" : undefined },
       ] : []}
     >

@@ -45,10 +45,10 @@ export function findingsFor(screen: Screen | null | undefined, name: string) {
 }
 
 const COVER_LABEL: Record<string, string> = {
-  covered: "on benefit",
-  reference: "reference priced",
-  authorisation: "authorisation required",
-  excluded: "not on benefit",
+  covered: "On benefit",
+  reference: "Reference priced",
+  authorisation: "Authorisation required",
+  excluded: "Not on benefit",
 };
 
 export default function LineCheckModal({
@@ -92,7 +92,7 @@ export default function LineCheckModal({
     : error ? "the check could not run"
     : f.major ? "a major finding"
     : f.any ? "something to look at"
-    : "nothing found";
+    : "Nothing found";
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true"
@@ -179,7 +179,7 @@ export default function LineCheckModal({
               <h4>
                 Interactions
                 <span className="chk-scope">
-                  {" "}with {otherLines === 0 ? "no other line"
+                  {" "}with {otherLines === 0 ? "No other line"
                     : `the other ${otherLines} line${otherLines === 1 ? "" : "s"}`}
                   {hasPatient ? " and the last six months of this patient" : ""}
                 </span>

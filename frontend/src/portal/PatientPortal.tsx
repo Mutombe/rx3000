@@ -263,7 +263,7 @@ export default function PatientPortal() {
                   <span className="pp-muted">
                     {d.overdue
                       ? `was due ${Math.abs(d.days)} days ago`
-                      : d.days === 0 ? "due today"
+                      : d.days === 0 ? "Due today"
                       : `due in ${d.days} days`}
                     {" · "}{d.left} left on the script
                   </span>

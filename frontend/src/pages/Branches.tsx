@@ -17,7 +17,7 @@
  *  the shortfall when it never turns up.
  */
 import { useCallback, useEffect, useState } from "react";
-import { api, errorText, fmtDate } from "../api";
+import { api, errorText, fmtDate , sentence} from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -32,6 +32,8 @@ import { BRANCH_TABS } from "../branchTabs";
 
 /** A verdict, in the badge tone it deserves. Only two of the four are alarms:
  *  a shop that may not trade, and one that cannot prove it may. */
+/** Keyed on what the SERVER sends, so these stay in its spelling. The words a
+ *  person reads are capitalised where the badge is rendered. */
 const VERDICT_TONE: Record<string, string> = {
   "cannot trade": "danger",
   "cannot be proved": "warn",
@@ -308,7 +310,7 @@ export default function Branches() {
                   <td><span className="clip" title={t.from_branch}>{t.from_branch}</span></td>
                   <td><span className="clip" title={t.to_branch}>{t.to_branch}</span></td>
                   <td className="muted">
-                    {t.despatched_at ? fmtDate(t.despatched_at) : "no date"}
+                    {t.despatched_at ? fmtDate(t.despatched_at) : "No date"}
                   </td>
                   {/* A week on a bus is stock nobody has. Flagged, because the
                       alternative is finding it at the next stock take. */}
@@ -384,7 +386,7 @@ export default function Branches() {
                               title={standing[b.id]!.says}>
                           <span className={`badge ${
                             VERDICT_TONE[standing[b.id]!.verdict] ?? "muted"}`}>
-                            {standing[b.id]!.verdict}
+                            {sentence(standing[b.id]!.verdict)}
                           </span>
                           {standing[b.id]!.next && (
                             <span className="muted small">

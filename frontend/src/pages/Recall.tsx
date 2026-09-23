@@ -176,7 +176,7 @@ export default function Recall() {
                     </EntityLink>
                   </td>
                   <td>{h.product}</td>
-                  <td>{h.expiry_date ? fmtDate(h.expiry_date) : "no date"}</td>
+                  <td>{h.expiry_date ? fmtDate(h.expiry_date) : "No date"}</td>
                   <td className="num">
                     {h.quantity_remaining} <span className="muted">of {h.quantity_received}</span>
                   </td>
@@ -230,7 +230,7 @@ export default function Recall() {
                 </dd>
                 <dt>Batch</dt><dd className="mono">{trace.batch.batch_number || "not recorded"}</dd>
                 <dt>Expiry</dt>
-                <dd>{trace.batch.expiry_date ? fmtDate(trace.batch.expiry_date) : "not recorded"}</dd>
+                <dd>{trace.batch.expiry_date ? fmtDate(trace.batch.expiry_date) : "Not recorded"}</dd>
                 <dt>Supplier</dt>
                 <dd>
                   {trace.origin.supplier || <span className="muted">Not recorded</span>}
@@ -249,7 +249,7 @@ export default function Recall() {
                 <dt>Order</dt>
                 <dd className="mono">{trace.origin.order_number || "not recorded"}</dd>
                 <dt>Received</dt>
-                <dd>{trace.origin.received_on ? fmtDateTime(trace.origin.received_on) : "not recorded"}</dd>
+                <dd>{trace.origin.received_on ? fmtDateTime(trace.origin.received_on) : "Not recorded"}</dd>
                 <dt>Value on the shelf</dt><dd>{money(trace.value_on_shelf)}</dd>
                 <dt>Value dispensed</dt>
                 <dd>
@@ -307,7 +307,7 @@ export default function Recall() {
                               <div className="muted small">
                                 {r.phone
                                   ? <><Phone size={11} /> {r.phone}</>
-                                  : "no telephone number on file"}
+                                  : "No telephone number on file"}
                               </div>
                             </td>
                             <td className="num">{r.quantity}</td>

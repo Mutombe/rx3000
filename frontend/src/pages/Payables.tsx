@@ -643,7 +643,7 @@ export default function Payables() {
                         <EntityLink kind="supplier" id={w.supplier_id}>{w.supplier}</EntityLink>
                       </td>
                       <td>
-                        {w.received_at ? fmtDate(w.received_at) : "no date"}
+                        {w.received_at ? fmtDate(w.received_at) : "No date"}
                         {w.days !== null && w.days > 45 && (
                           <div className="muted small">{w.days} days ago</div>
                         )}

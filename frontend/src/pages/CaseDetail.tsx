@@ -118,7 +118,7 @@ export default function CaseDetail() {
           { label: "Assigned to", value: ticket.assigned_to?.full_name ?? "Unassigned",
             hint: ticket.assigned_to?.role ?? "route with an automation rule" },
           { label: "Replies", value: String(ticket.messages.length),
-            hint: ticket.first_response_at ? `first reply ${fmtDateTime(ticket.first_response_at)}` : "no reply yet" },
+            hint: ticket.first_response_at ? `first reply ${fmtDateTime(ticket.first_response_at)}` : "No reply yet" },
           { label: "CSAT", value: ticket.satisfaction ? `${ticket.satisfaction}/5` : "none",
             hint: "customer rating" },
         ]} />

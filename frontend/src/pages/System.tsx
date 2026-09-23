@@ -255,7 +255,7 @@ export default function System() {
             <h3>What is connected</h3>
             <span className={`badge ${integrations.production_ready ? "ok" : "warn"}`}>
               {integrations.production_ready
-                ? "ready to trade" : "not ready to trade"}
+                ? "ready to trade" : "Not ready to trade"}
             </span>
           </div>
           <table className="dt">

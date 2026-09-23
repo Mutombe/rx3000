@@ -324,7 +324,7 @@ export default function Compounding() {
                     {made.map((j) => (
                       <Fragment key={j.reference}>
                         <tr>
-                          <td>{j.made_at ? fmtDateTime(j.made_at) : "not recorded"}</td>
+                          <td>{j.made_at ? fmtDateTime(j.made_at) : "Not recorded"}</td>
                           <td>
                             {j.product_id
                               ? <EntityLink kind="product" id={j.product_id}>

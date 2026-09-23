@@ -100,7 +100,7 @@ export default function MatchToBill({ delivery, onClose, onMatched }: {
                     {inv.invoice_number || "unnumbered"}
                   </span>
                   <span className="muted small">
-                    {inv.invoice_date ? fmtDate(inv.invoice_date) : "no date"}
+                    {inv.invoice_date ? fmtDate(inv.invoice_date) : "No date"}
                     {" · "}{money(inv.total)}
                   </span>
                   {Math.abs(inv.differs_by) < 0.01

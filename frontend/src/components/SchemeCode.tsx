@@ -151,7 +151,7 @@ export default function SchemeCodeField({
         maxLength={24}
         value={typed}
         disabled={busy}
-        placeholder="not known"
+        placeholder="Not known"
         aria-label={`${scheme} code for ${productName}`}
         onChange={(e) => setTyped(e.target.value.replace(/[^0-9]/g, ""))}
         onKeyDown={(e) => {

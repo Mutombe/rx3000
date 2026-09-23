@@ -93,8 +93,8 @@ export default function ToFollowDetail() {
         { label: "In stock now", value: owed.quantity_on_hand,
           hint: owed.can_settle_now ? "enough to finish it"
                 : owed.can_settle_partially ? "enough for some of it"
-                : "not enough" },
-        { label: "Promised", value: owed.promised_for ? fmtDate(owed.promised_for) : "no date",
+                : "Not enough" },
+        { label: "Promised", value: owed.promised_for ? fmtDate(owed.promised_for) : "No date",
           hint: owed.overdue ? "past the date" : undefined },
         { label: "Status", value: owed.status },
       ] : undefined}

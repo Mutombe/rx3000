@@ -305,7 +305,7 @@ export default function CashUp(
                 {run.invoices.map((d) => (
                   <tr key={d.id} className={d.status === "void" ? "is-off" : ""}>
                     <td className="mono">{d.sale_number}</td>
-                    <td>{d.at ? fmtDateTime(d.at) : "no date"}</td>
+                    <td>{d.at ? fmtDateTime(d.at) : "No date"}</td>
                     <td>{d.status}</td>
                     <td>{d.methods.join(", ") || "none"}</td>
                     <td className="st-amount mono">{money(d.total)}</td>

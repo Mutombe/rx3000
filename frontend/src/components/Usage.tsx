@@ -102,7 +102,7 @@ export default function Usage({ productId }: { productId: number }) {
               m.written_off ? `${m.written_off} written off` : "",
               m.moved ? `${m.moved} moved between branches` : "",
               m.adjusted ? `${m.adjusted} adjusted` : "",
-            ].filter(Boolean).join(", ") || "nothing moved";
+            ].filter(Boolean).join(", ") || "Nothing moved";
             return (
               <li key={m.month} className={m.month === data.busiest ? "is-peak" : ""}>
                 <span className="usage-when">{readable(m.month)}</span>

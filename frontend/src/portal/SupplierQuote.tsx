@@ -271,7 +271,7 @@ export default function SupplierQuote() {
                       decimal point shows up here first. */}
                   <div className="sq-total">
                     <span className="sq-total-label">Line total</span>
-                    <b>{d.out ? "not supplied" : money(extended)}</b>
+                    <b>{d.out ? "Not supplied" : money(extended)}</b>
                   </div>
                 </div>
 

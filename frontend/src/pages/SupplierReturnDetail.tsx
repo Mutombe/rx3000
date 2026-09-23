@@ -186,12 +186,12 @@ export default function SupplierReturnDetail() {
       facts={row ? [
         { label: "Value", value: money(row.total),
           hint: "at what it cost" },
-        { label: "Credit", value: credited ? row.credit_note : "not received",
+        { label: "Credit", value: credited ? row.credit_note : "Not received",
           hint: credited
             ? (row.credited_at ? fmtDate(row.credited_at) : "on file")
             : "the pharmacy is out of pocket",
           tone: credited ? "ok" : "warn" },
-        { label: "Why", value: row.why || row.reason_code || "not given" },
+        { label: "Why", value: row.why || row.reason_code || "Not given" },
         { label: "Status", value: row.status },
       ] : []}
     >

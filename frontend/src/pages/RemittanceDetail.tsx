@@ -46,7 +46,7 @@ const TONE: Record<string, string> = {
 };
 const STATE: Record<string, string> = {
   matched: "paid in full", short_paid: "short paid", rejected: "refused",
-  unmatched: "no claim found", overpaid: "overpaid",
+  unmatched: "No claim found", overpaid: "overpaid",
 };
 
 type Action = "bill_patient" | "write_off" | "reopen";
@@ -140,7 +140,7 @@ export default function RemittanceDetail() {
               <dl className="kv">
                 <dt>Funder</dt><dd>{advice.funder_id}</dd>
                 <dt>Paid on</dt>
-                <dd>{advice.payment_date ? fmtDate(advice.payment_date) : "no date"}</dd>
+                <dd>{advice.payment_date ? fmtDate(advice.payment_date) : "No date"}</dd>
                 <dt>Their reference</dt>
                 <dd className="mono">{advice.payment_reference || "none"}</dd>
                 <dt>Currency</dt><dd>{advice.currency_code}</dd>

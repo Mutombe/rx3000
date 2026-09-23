@@ -28,7 +28,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { CloudArrowUp, FileText, Warning } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money , sentence} from "../api";
 import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -75,9 +75,10 @@ const TONE: Record<string, string> = {
   expiring: "muted", undated: "muted", valid: "ok",
 };
 const SAYS: Record<string, string> = {
-  expired: "expired", missing: "nothing on file", urgent: "renew now",
-  expiring: "renewal due", undated: "no expiry", valid: "current",
+  expired: "expired", missing: "Nothing on file", urgent: "Renew now",
+  expiring: "Renewal due", undated: "No expiry", valid: "current",
 };
+/** Keyed on what the SERVER sends, so these stay in its spelling. */
 const VERDICT: Record<string, string> = {
   "cannot trade": "bad", "cannot be proved": "warn", expired: "bad",
   gaps: "warn", "renew now": "warn", "renewals due": "muted",
@@ -294,7 +295,7 @@ export default function Compliance() {
                             full on the branch. */}
                         <span className={`badge ${VERDICT[b.verdict] ?? "muted"}`}
                               title={b.says}>
-                          {b.verdict}
+                          {sentence(b.verdict)}
                         </span>
                       </td>
                       <td className="num">
@@ -494,7 +495,7 @@ export default function Compliance() {
                           <Link to={`/compliance/documents/${d.id}`}>{d.name}</Link>
                         </td>
                         <td className="mono small">{d.reference || "none"}</td>
-                        <td>{d.expires_on ? fmtDate(d.expires_on) : "no date"}</td>
+                        <td>{d.expires_on ? fmtDate(d.expires_on) : "No date"}</td>
                         <td>
                           {d.has_file && (
                             <button className="linkish" onClick={() => openFile(d)}>

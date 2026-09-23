@@ -101,7 +101,7 @@ export default function Churn() {
       ],
       rows: data.leaving.map((l) => ({
         patient: l.patient, phone: l.phone || "none",
-        last: l.last_seen ? fmtDate(l.last_seen) : "no date",
+        last: l.last_seen ? fmtDate(l.last_seen) : "No date",
         away: l.days_away ?? "none", visits: l.visits_before,
         value: money(l.monthly_value),
       })),
@@ -232,7 +232,7 @@ export default function Churn() {
                               </a>
                             : <span className="muted">No number</span>}
                         </td>
-                        <td>{l.last_seen ? fmtDate(l.last_seen) : "no date"}</td>
+                        <td>{l.last_seen ? fmtDate(l.last_seen) : "No date"}</td>
                         <td className="num">{l.days_away ?? "none"}</td>
                         <td className="num">{l.visits_before}</td>
                         <td className="num">{money(l.monthly_value)}</td>

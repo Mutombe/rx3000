@@ -198,7 +198,7 @@ export default function StockCategories() {
                        whatever the row actually holds. */
                     key={`${c.id}-${c.target_margin}`}
                     defaultValue={c.target_margin || ""}
-                    placeholder="not set"
+                    placeholder="Not set"
                     disabled={list.isPending(c)}
                     onBlur={(e) => {
                       const next = Number(e.target.value) || 0;

@@ -391,10 +391,10 @@ export default function RfqDetail() {
                       <th key={s.rfq_supplier_id} className="num">
                         {s.supplier}
                         <div className="muted small">
-                          {s.declined ? "cannot supply"
+                          {s.declined ? "Cannot supply"
                             : s.responded_at ? `replied ${fmtDate(s.responded_at)}`
                             : s.sent_at ? "asked, no reply yet"
-                            : "not asked"}
+                            : "Not asked"}
                         </div>
                       </th>
                     ))}

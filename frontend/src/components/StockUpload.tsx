@@ -45,7 +45,7 @@ const TONE: Record<string, string> = {
   create: "ok", update: "warn", skip: "muted", refuse: "bad",
 };
 const VERB: Record<string, string> = {
-  create: "new product", update: "change", skip: "no change", refuse: "will not load",
+  create: "new product", update: "change", skip: "No change", refuse: "will not load",
 };
 
 export default function StockUpload({ onDone }: { onDone?: () => void }) {

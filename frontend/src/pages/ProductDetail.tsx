@@ -239,7 +239,7 @@ export default function ProductDetail() {
           ? [{ label: "AHFoZ code", value: p.nappi_code, mono: true }] : []),
         ...(p.barcode
           ? [{ label: "Barcode", value: p.barcode, mono: true }] : []),
-        { label: "Pack size", value: p.pack_size || "not recorded" },
+        { label: "Pack size", value: p.pack_size || "Not recorded" },
         { label: "Department",
           value: departments.find((d) => d.id === p.category_id)?.name
             ?? <span className="muted">Not filed</span> },
@@ -277,13 +277,13 @@ export default function ProductDetail() {
           { label: "Packs", value: String(shelf.packs),
             hint: shelf.per_pack > 1 ? `${shelf.per_pack} units to a pack` : "one unit a pack" },
           { label: "Days of cover",
-            value: shelf.days_cover === null ? "not known" : String(shelf.days_cover),
-            hint: shelf.a_day > 0 ? `${shelf.a_day} a day over 90 days` : "nothing has gone out" },
+            value: shelf.days_cover === null ? "Not known" : String(shelf.days_cover),
+            hint: shelf.a_day > 0 ? `${shelf.a_day} a day over 90 days` : "Nothing has gone out" },
           { label: "Average cost", value: money(shelf.avg_cost),
             hint: "weighted over the stock on the shelf" },
           { label: "Markup",
             value: shelf.markup_percent === null
-              ? "no cost recorded" : `${shelf.markup_percent}%`,
+              ? "No cost recorded" : `${shelf.markup_percent}%`,
             hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "none"}% margin` },
           // What the line has actually EARNED, which the markup beside it does
           // not say: that is the same percentage whether four boxes went out
@@ -293,14 +293,14 @@ export default function ProductDetail() {
             value: shelf.year.profit !== null ? money(shelf.year.profit)
                    : shelf.year.revenue > 0 ? money(shelf.year.revenue) : "none",
             hint: shelf.year.units === 0
-              ? "nothing has sold in a year"
+              ? "Nothing has sold in a year"
               : shelf.year.profit !== null
                 ? `${shelf.year.units.toLocaleString()} sold for ${money(shelf.year.revenue)}, `
                   + `${shelf.year.margin}% margin`
                 : `${shelf.year.units.toLocaleString()} sold. Takings, not profit: `
                   + "no cost was recorded against these sales" },
           { label: "On order", value: String(shelf.on_order),
-            hint: shelf.on_order > 0 ? "not yet received" : "nothing outstanding" },
+            hint: shelf.on_order > 0 ? "Not yet received" : "Nothing outstanding" },
         ] : [
           { label: "On hand", value: String(p.quantity_on_hand),
             hint: p.quantity_on_hand <= p.reorder_level ? "at or below reorder level" : `reorder at ${p.reorder_level}` },

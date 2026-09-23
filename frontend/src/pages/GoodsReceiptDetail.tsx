@@ -200,12 +200,12 @@ export default function GoodsReceiptDetail() {
         { label: "Goods", value: money(row.goods_total),
           hint: `${row.packs} pack(s)` },
         { label: "Damaged", value: row.damaged,
-          hint: row.damaged ? "claim a credit for these" : "none reported",
+          hint: row.damaged ? "claim a credit for these" : "None reported",
           tone: row.damaged ? "warn" : undefined },
-        { label: "On a bill", value: row.invoice_number || "not yet",
-          hint: row.invoice_number ? "matched" : "unbilled goods",
+        { label: "On a bill", value: row.invoice_number || "Not yet",
+          hint: row.invoice_number ? "matched" : "Unbilled goods",
           tone: row.invoice_number ? undefined : "warn" },
-        { label: "Signed for by", value: row.received_by || "not recorded",
+        { label: "Signed for by", value: row.received_by || "Not recorded",
           hint: row.received_at ? fmtDateTime(row.received_at) : "" },
       ] : []}
     >

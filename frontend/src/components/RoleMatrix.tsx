@@ -162,7 +162,7 @@ export default function RoleMatrix() {
                         title={cell.fixed
                           ? "An administrator's authority cannot be reduced here"
                           : moved
-                            ? `Changed from standard, which is ${cell.default ? "allowed" : "not allowed"}`
+                            ? `Changed from standard, which is ${cell.default ? "allowed" : "Not allowed"}`
                             : undefined}
                       >
                         {cell.allowed ? "Yes" : "No"}

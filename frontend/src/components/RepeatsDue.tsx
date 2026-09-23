@@ -166,7 +166,7 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
             <div className="rd-what">
               <b>{r.product}</b>
               <span className="muted small">
-                {r.quantity} · {r.dosage_instructions || "no directions recorded"}
+                {r.quantity} · {r.dosage_instructions || "No directions recorded"}
                 {" · "}{r.repeats_left} repeat{r.repeats_left === 1 ? "" : "s"} left
               </span>
             </div>
@@ -190,7 +190,7 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
                 // knew it had. "only -7 on hand" is arithmetic showing through;
                 // what a dispenser needs to read is that there is none.
                 <span className="badge bad">
-                  {r.on_hand > 0 ? `only ${r.on_hand} on hand` : "none on hand"}
+                  {r.on_hand > 0 ? `only ${r.on_hand} on hand` : "None on hand"}
                 </span>
               )}
             </div>

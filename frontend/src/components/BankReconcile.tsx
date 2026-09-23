@@ -146,7 +146,7 @@ export default function BankReconcile() {
                 <tbody>
                   {shown.map((l) => (
                     <tr key={l.line_number}>
-                      <td>{l.date ? fmtDate(l.date) : "no date"}</td>
+                      <td>{l.date ? fmtDate(l.date) : "No date"}</td>
                       <td>
                         {l.description}
                         {l.reference && (
@@ -207,7 +207,7 @@ export default function BankReconcile() {
                 <tbody>
                   {bank.matched.map((m) => (
                     <tr key={m.line_number}>
-                      <td>{m.date ? fmtDate(m.date) : "no date"}</td>
+                      <td>{m.date ? fmtDate(m.date) : "No date"}</td>
                       <td>{m.description}</td>
                       <td className="num">{money(m.amount)}</td>
                       <td className="mono small">{m.entry_reference}</td>

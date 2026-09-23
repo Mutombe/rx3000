@@ -97,7 +97,7 @@ export default function InvoiceDetail() {
         { label: "Billed", value: money(d.total) },
         { label: "Outstanding",
           value: d.outstanding > 0.005 ? money(d.outstanding) : "settled" },
-        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "no date" },
+        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "No date" },
         { label: "Status", value: d.status },
       ] : undefined}
       actions={d && !d.posted_reference
@@ -131,7 +131,7 @@ export default function InvoiceDetail() {
                   <dt>Order</dt>
                   <dd className="mono">
                     <EntityLink kind="order" id={d.order_id}>
-                      {d.order_number || "not linked"}
+                      {d.order_number || "Not linked"}
                     </EntityLink>
                   </dd>
                   <dt>Ordered</dt><dd className="num">{money(d.match.ordered)}</dd>

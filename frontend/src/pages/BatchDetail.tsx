@@ -116,7 +116,7 @@ export default function BatchDetail() {
           hint: `of ${d.quantity_received} received` },
         { label: "Value on hand", value: money(d.value_on_hand) },
         { label: "Expires",
-          value: d.expiry_date ? fmtDate(d.expiry_date) : "not recorded",
+          value: d.expiry_date ? fmtDate(d.expiry_date) : "Not recorded",
           hint: expiry === null || expiry === undefined ? undefined
             : expiry < 0 ? `${Math.abs(expiry)} days ago`
             : `in ${expiry} days` },
@@ -157,7 +157,7 @@ export default function BatchDetail() {
                 </dd>
                 <dt>Order</dt><dd className="mono">{d.origin.order_number || "none"}</dd>
                 <dt>Received</dt>
-                <dd>{d.received_at ? fmtDateTime(d.received_at) : "not recorded"}</dd>
+                <dd>{d.received_at ? fmtDateTime(d.received_at) : "Not recorded"}</dd>
                 <dt>Reference</dt><dd className="mono">{d.reference || "none"}</dd>
               </dl>
             </Panel>
@@ -200,7 +200,7 @@ export default function BatchDetail() {
                           <b>{r.patient}</b>
                         </EntityLink>
                         <div className="muted small">
-                          {r.phone || "no telephone number on file"}
+                          {r.phone || "No telephone number on file"}
                         </div>
                       </td>
                       <td className="num">{r.quantity}</td>

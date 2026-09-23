@@ -99,7 +99,7 @@ export default function PatientPortalPreview(
                     <b>{d.product}</b>
                     <span className="pp-muted">
                       {d.overdue ? `was due ${Math.abs(d.days)} days ago`
-                        : d.days === 0 ? "due today" : `due in ${d.days} days`}
+                        : d.days === 0 ? "Due today" : `due in ${d.days} days`}
                     </span>
                   </div>
                   <span className={`pp-pill ${d.overdue ? "pp-pill-bad" : ""}`}>

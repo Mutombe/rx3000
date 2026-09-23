@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
+import { api, fmtDate, money, prefetchRoute, errorText  , sentence} from "../api";
 import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import RowLink, { RowActions } from "../components/RowLink";
@@ -72,6 +72,8 @@ const LOSS_LABEL: Record<string, string> = {
 const GRACE = 7;
 const LAPSED = 45;
 
+/** Keyed on the reason the SERVER sends, so these stay in its spelling. What
+ *  a person reads is capitalised where the row is rendered. */
 const LOSS_TONE: Record<string, string> = {
   "still in hand": "muted",
   late: "warn",
@@ -598,7 +600,7 @@ export default function Repeats() {
                     {perf.loss_split.map((r: any) => (
                       <tr key={r.reason}
                           className={`row-${LOSS_TONE[r.reason] ?? "warn"}`}>
-                        <td><b>{LOSS_LABEL[r.reason] ?? r.reason}</b></td>
+                        <td><b>{LOSS_LABEL[r.reason] ?? sentence(r.reason)}</b></td>
                         <td className="num">{r.count}</td>
                         <td className="num">{money(r.value)}</td>
                         <td className={`num tone-${LOSS_TONE[r.reason] ?? "warn"}`}>

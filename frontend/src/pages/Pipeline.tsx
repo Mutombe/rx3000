@@ -209,7 +209,7 @@ export default function Pipeline() {
                     </div>
                     <div className="deal-meta">
                       <span>{d.probability}% · {age}d old</span>
-                      <span>{d.expected_close_date ? fmtDate(d.expected_close_date) : "no date"}</span>
+                      <span>{d.expected_close_date ? fmtDate(d.expected_close_date) : "No date"}</span>
                     </div>
                     <div className="deal-foot">
                       {d.owner

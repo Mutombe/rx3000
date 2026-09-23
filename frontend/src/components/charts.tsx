@@ -180,7 +180,7 @@ export function FunnelChart({ stages }: { stages: { stage: string; count: number
                 <span className="muted">
                   {dropped > 0 ? `−${dropped} dropped`
                     : dropped < 0 ? `+${-dropped} added directly`
-                    : "no change"}
+                    : "No change"}
                 </span>
               )}
             </div>

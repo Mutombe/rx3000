@@ -187,10 +187,10 @@ export default function RepeatDetail() {
       )}
       facts={r ? [
         { label: "Repeats used", value: `${r.used} of ${r.allowed}`,
-          hint: r.exhausted ? "none left" : `${r.left} left`,
+          hint: r.exhausted ? "None left" : `${r.left} left`,
           tone: r.exhausted ? "warn" : undefined },
         { label: r.overdue_days ? "Overdue since" : "Next due",
-          value: r.next_due ? fmtDate(r.next_due) : "no date",
+          value: r.next_due ? fmtDate(r.next_due) : "No date",
           hint: r.overdue_days ? `${r.overdue_days} days`
             : dueSoon ? "this week" : undefined,
           tone: r.overdue_days ? "bad" : dueSoon ? "warn" : undefined },

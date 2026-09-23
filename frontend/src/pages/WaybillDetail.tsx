@@ -176,10 +176,10 @@ export default function WaybillDetail() {
         { label: "Raised", value: fmtDateTime(w.created_at),
           hint: w.created_by || undefined },
         { label: "Delivered",
-          value: w.delivered_at ? fmtDateTime(w.delivered_at) : "not yet",
+          value: w.delivered_at ? fmtDateTime(w.delivered_at) : "Not yet",
           hint: w.received_by ? `signed by ${w.received_by}` : undefined },
         { label: "Identity check",
-          value: w.requires_id_check ? "required" : "not required",
+          value: w.requires_id_check ? "required" : "Not required",
           tone: w.requires_id_check && !w.id_number_seen && w.status === "delivered"
             ? "bad" : undefined,
           hint: w.id_number_seen || undefined },
@@ -221,7 +221,7 @@ export default function WaybillDetail() {
               <Step label="Raised" at={w.created_at} who={w.created_by} done />
               <Step label="Left the pharmacy" at={w.dispatched_at}
                     who={w.driver || undefined}
-                    note={w.driver ? undefined : "no driver recorded"}
+                    note={w.driver ? undefined : "No driver recorded"}
                     done={!!w.dispatched_at} />
               <Step label={w.status === "failed" ? "Did not arrive" : "Handed over"}
                     at={w.delivered_at}

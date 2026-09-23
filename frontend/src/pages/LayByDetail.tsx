@@ -165,7 +165,7 @@ export default function LayByDetail() {
         { label: "Total", value: money(d.total) },
         { label: "Paid", value: money(d.paid) },
         { label: "Balance", value: money(d.balance) },
-        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "no date set",
+        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "No date set",
           hint: overdue ? "past its date" : undefined },
       ] : undefined}
     >
@@ -209,7 +209,7 @@ export default function LayByDetail() {
                 {payments.map((p, n) => (
                   <tr key={p.id ?? n}>
                     <td>{p.paid_at || p.created_at
-                      ? fmtDateTime((p.paid_at || p.created_at)!) : "no date"}</td>
+                      ? fmtDateTime((p.paid_at || p.created_at)!) : "No date"}</td>
                     <td>{p.method || "none"}</td>
                     <td className="mono">{p.reference || "none"}</td>
                     <td className="num">{money(p.amount)}</td>

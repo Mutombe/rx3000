@@ -102,7 +102,7 @@ export default function LotPicker({
       <div className="lot-head">
         <span className="muted small">
           {front
-            ? <>Going out: <b>{front.batch_number || "unnamed lot"}</b>
+            ? <>Going out: <b>{front.batch_number || "Unnamed lot"}</b>
                 {front.expiry ? `, expires ${fmtDate(front.expiry)}` : ""}</>
             : "No lot on this shelf may be dispensed."}
         </span>
@@ -129,7 +129,7 @@ export default function LotPicker({
                   >
                     <span className="lot-name">{l.batch_number || "unnamed"}</span>
                     <span className="muted small">
-                      {l.expiry ? `expires ${fmtDate(l.expiry)}` : "no expiry recorded"}
+                      {l.expiry ? `expires ${fmtDate(l.expiry)}` : "No expiry recorded"}
                       {" · "}{l.remaining.toLocaleString()} left
                     </span>
                     {l.next_out && <span className="badge ok">rotation</span>}

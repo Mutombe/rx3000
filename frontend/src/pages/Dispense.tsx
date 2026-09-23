@@ -3396,7 +3396,7 @@ export default function Dispense() {
                 <div className="lane-field is-picked disp-patient-picked">
                   <span className="dpp-who"
                         onMouseEnter={(e) => showTip(e,
-                          `${patient.first_name} ${patient.last_name} · ID ${patient.id_number || "not on file"}`, false)}
+                          `${patient.first_name} ${patient.last_name} · ID ${patient.id_number || "Not on file"}`, false)}
                         onMouseLeave={() => setTip(null)}>
                     <span className="cell-text">
                       <b>{patient.first_name} {patient.last_name}</b>
@@ -3557,11 +3557,11 @@ export default function Dispense() {
                 if (doctor) {
                   return (
                     <div className="lane-field is-picked disp-doctor"
-                         title={`${doctor.name} · practice ${doctor.practice_number || "not on file"}`
+                         title={`${doctor.name} · practice ${doctor.practice_number || "Not on file"}`
                            + (doctor.phone ? ` · ${doctor.phone}` : "")}>
                       <span className="dpp-who"
                             onMouseEnter={(e) => showTip(e,
-                              `${doctor.name} · practice ${doctor.practice_number || "not on file"}`, false)}
+                              `${doctor.name} · practice ${doctor.practice_number || "Not on file"}`, false)}
                             onMouseLeave={() => setTip(null)}>
                         <span className="cell-text">
                           <b>{doctor.name}</b>
@@ -3893,10 +3893,10 @@ export default function Dispense() {
                         <div className={`coverage coverage-${tone}`}>
                           <div className="coverage-head">
                             <span className={`badge ${tone}`}>
-                              {cov.status === "covered" ? "on benefit"
-                                : cov.status === "reference" ? "reference priced"
-                                : cov.status === "authorisation" ? "authorisation required"
-                                : "not on benefit"}
+                              {cov.status === "covered" ? "On benefit"
+                                : cov.status === "reference" ? "Reference priced"
+                                : cov.status === "authorisation" ? "Authorisation required"
+                                : "Not on benefit"}
                             </span>
                             <span className="coverage-reason">{cov.reason}</span>
                           </div>

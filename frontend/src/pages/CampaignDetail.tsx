@@ -108,7 +108,7 @@ export default function CampaignDetail() {
               <dt>Audience</dt><dd>{d.segment}</dd>
               <dt>Channel</dt><dd>{d.channel}</dd>
               <dt>Created</dt>
-              <dd>{d.created_at ? fmtDateTime(d.created_at) : "no date"}</dd>
+              <dd>{d.created_at ? fmtDateTime(d.created_at) : "No date"}</dd>
             </dl>
             <p className="prose" style={{ whiteSpace: "pre-wrap" }}>
               {d.body || <span className="muted">No body was recorded.</span>}

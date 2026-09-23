@@ -234,7 +234,7 @@ export default function SaleDetail() {
           // whoever actually took the money at the front.
           { label: "Rung up by", value: sale.cashier_name || "none" },
           { label: "Payment taken by",
-            value: sale.settled_by_name || "not yet paid",
+            value: sale.settled_by_name || "Not yet paid",
             hint: sale.settled_at ? fmtDateTime(sale.settled_at) : undefined },
           { label: "Status", value: sale.status,
             hint: <span className={`badge ${sale.status === "paid" ? "ok" : sale.status === "void" ? "danger" : "warn"}`}>

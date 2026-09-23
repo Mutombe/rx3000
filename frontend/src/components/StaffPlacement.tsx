@@ -342,7 +342,7 @@ export default function StaffPlacement({ userId, name, onChanged }: {
                 <tbody>
                   {p.moves.map((m) => (
                     <tr key={m.id}>
-                      <td>{m.on ? fmtDate(m.on) : "no date"}</td>
+                      <td>{m.on ? fmtDate(m.on) : "No date"}</td>
                       <td>{m.from ?? <span className="muted">Not placed</span>}</td>
                       <td>{m.to ?? <span className="muted">No branch</span>}</td>
                       <td>{m.reason || <span className="muted">None</span>}</td>

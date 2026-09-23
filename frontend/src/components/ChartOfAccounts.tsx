@@ -289,7 +289,7 @@ export default function ChartOfAccounts() {
                           key={`${a.code}-ext-${a.external_code}`}
                           defaultValue={a.external_code}
                           maxLength={20}
-                          placeholder="not set"
+                          placeholder="Not set"
                           aria-label={`Pastel code for ${a.code} ${a.name}`}
                           title="The number this account has in the accountant's Pastel books. Leave empty and the export will refuse rather than guess."
                           disabled={accounts.isPending(a)}

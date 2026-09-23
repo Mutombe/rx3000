@@ -261,7 +261,7 @@ export default function Seasons() {
                           {p.index.map((v, i) => (
                             <span key={i}
                               className={`season-cell${v === null ? " is-blank" : ""}`}
-                              title={`${MONTHS[i]}: ${v === null ? "not seen"
+                              title={`${MONTHS[i]}: ${v === null ? "Not seen"
                                 : `${v}× a typical month`}`}
                               style={v === null ? undefined : {
                                 opacity: Math.min(1, 0.15 + v / 3),

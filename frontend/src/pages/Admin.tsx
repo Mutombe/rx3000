@@ -1020,7 +1020,7 @@ export default function Admin() {
                     </span>
                   </td>
                   <td>{n.body}</td>
-                  <td>{n.expires_on ? fmtDate(n.expires_on) : "no date"}</td>
+                  <td>{n.expires_on ? fmtDate(n.expires_on) : "No date"}</td>
                   <td>{n.created_by || "none"}</td>
                   <td className="actions">
                     {n.active === false ? (
@@ -1252,7 +1252,7 @@ export default function Admin() {
                       // tells an owner they have a problem and nothing about
                       // which problem.
                       <span className="badge danger" title={b.problem}>
-                        {b.problem ? b.problem.split(".")[0] : "not checked"}
+                        {b.problem ? b.problem.split(".")[0] : "Not checked"}
                       </span>
                     )}
                   </td>
