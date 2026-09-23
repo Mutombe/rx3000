@@ -68,6 +68,30 @@ const STATES: [string, string][] = [
   ["cancelled", "Cancelled"],
 ];
 
+/** How long a script has been waiting, said rather than left to arithmetic.
+ *
+ *  A prescription written yesterday and one written eight months ago both read
+ *  "Waiting", and the reader had to subtract a date in another column to tell
+ *  them apart. The one that has been waiting since February is the one worth
+ *  acting on, and it looked exactly like the one from this morning.
+ *
+ *  Deliberately a FACT and not a verdict. This system has no prescription
+ *  validity window: there is no column for one and no setting behind it, and
+ *  `services/script_scan.py` says so where it refuses to invent one. A badge
+ *  here reading "out of date" would be this screen enforcing a rule no other
+ *  screen agrees with. How long it has waited is true either way, and it is
+ *  the part somebody needs to see.
+ */
+function waitingFor(written: string | null): string {
+  if (!written) return "";
+  const days = Math.floor((Date.now() - new Date(written).getTime()) / 86400000);
+  if (days < 31) return "";
+  const months = Math.round(days / 30);
+  return months < 12
+    ? `${months} month${months === 1 ? "" : "s"}`
+    : `over a year`;
+}
+
 export default function Scripts() {
   const [data, setData] = useState<Paged<Row> | null>(null);
   const [q, setQ] = useState("");
@@ -214,7 +238,14 @@ export default function Scripts() {
                       ) : r.state === "COLLECTED" ? (
                         <span className="badge ok">Collected</span>
                       ) : (
-                        <span className="badge warn">Waiting</span>
+                        <>
+                          <span className="badge warn">Waiting</span>
+                          {waitingFor(r.date_prescribed) && (
+                            <div className="muted small">
+                              {waitingFor(r.date_prescribed)} old
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
                     <td>

@@ -793,7 +793,18 @@ def adjust_stock(body: schemas.StockAdjust, db: Session = Depends(get_db),
     entry_type = "receive" if body.quantity_delta > 0 else "adjustment"
     helpers.record_register_entry(db, product, body.quantity_delta, entry_type, user.id, reference=body.reference or body.movement_type)
     db.commit()
-    return {"ok": True, "quantity_on_hand": product.quantity_on_hand}
+    # BOTH NUMBERS, BECAUSE THE CALLER IS TALKING ABOUT ONE SHELF.
+    #
+    # This returned the group total and the dialog announced it as "12 to 52 on
+    # this shelf": a branch figure before, a group figure after, and a sentence
+    # asserting they are the same shelf. The adjustment moved one branch's
+    # batches, so that is the number the person who made it is owed.
+    from ..services import branches as branch_svc
+    _branch = _branch_of(db, user)
+    _here = (branch_svc.on_hand_many(db, [product.id], _branch).get(product.id, 0)
+             if _branch is not None else product.quantity_on_hand)
+    return {"ok": True, "quantity_on_hand": product.quantity_on_hand,
+            "here": _here}
 
 
 # ---------- batches / expiry ----------
@@ -871,7 +882,18 @@ def write_off_batch(batch_id: int, db: Session = Depends(get_db),
     ))
     helpers.record_register_entry(db, product, -qty, "adjustment", user.id, reference=f"WRITE-OFF {batch.batch_number}")
     db.commit()
-    return {"ok": True, "written_off": qty, "quantity_on_hand": product.quantity_on_hand}
+    # BOTH NUMBERS, BECAUSE THE CALLER IS TALKING ABOUT ONE SHELF.
+    #
+    # This returned the group total and the dialog announced it as "12 to 52 on
+    # this shelf": a branch figure before, a group figure after, and a sentence
+    # asserting they are the same shelf. The adjustment moved one branch's
+    # batches, so that is the number the person who made it is owed.
+    from ..services import branches as branch_svc
+    _branch = _branch_of(db, user)
+    _here = (branch_svc.on_hand_many(db, [product.id], _branch).get(product.id, 0)
+             if _branch is not None else product.quantity_on_hand)
+    return {"ok": True, "written_off": qty,
+            "quantity_on_hand": product.quantity_on_hand, "here": _here}
 
 
 # GET /stock/movements was here, capped at 200 against 5,143 rows —

@@ -107,7 +107,7 @@ export default function AttachBarcode({
                       onClick={() => setPicked(p)}>
                 <span><b>{p.name}</b> {p.strength}</span>
                 <span className="muted">
-                  {p.quantity_on_hand ?? 0} in stock
+                  {p.here ?? p.quantity_on_hand ?? 0} in stock
                   {p.schedule ? ` · S${p.schedule}` : ""}
                 </span>
               </button>

@@ -81,6 +81,42 @@ interface Day {
  *  short enough to read. The reports hold the full history. */
 const DAY_LIMIT = 60;
 
+/** How many nights a day has been open across.
+ *
+ *  Counted in calendar days rather than hours, because the obligation is
+ *  per trading day: a day opened at 08:00 and still open at 09:00 the next
+ *  morning has missed a Z-report, and twenty-five hours is not the point.
+ */
+function nightsOpen(openedAt: string): number {
+  const opened = new Date(openedAt);
+  const since = new Date(opened.getFullYear(), opened.getMonth(), opened.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today.getTime() - since.getTime()) / 86400000));
+}
+
+/** What an open day means, rather than the fact that it is open.
+ *
+ *  "Open" in green is correct for the day being traded and is a false
+ *  reassurance for any other: a day that never closed filed no Z-report, and
+ *  a pharmacy may not lawfully trade unfiscalised. The screen knew the opening
+ *  timestamp and left the reader to do the subtraction, in the one place where
+ *  getting it wrong is a matter for the authority rather than for the shop.
+ */
+function openDaySays(openedAt: string): { tone: string; badge: string; note: string } {
+  const nights = nightsOpen(openedAt);
+  if (nights <= 0) {
+    return { tone: "ok", badge: "Open", note: "" };
+  }
+  const plural = nights === 1 ? "" : "s";
+  return {
+    tone: "danger",
+    badge: nights === 1 ? "Open overnight" : `Open ${nights} days`,
+    note: `No Z-report has been filed for ${nights} trading day${plural}. `
+        + "Close it now.",
+  };
+}
+
 export default function Fiscal() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -188,10 +224,15 @@ export default function Fiscal() {
             <div className="fs-day">
               <div>
                 <span className="fs-daynum">Day {day.day_number}</span>
-                <span className="badge ok">Open</span>
+                <span className={`badge ${openDaySays(day.opened_at).tone}`}>
+                  {openDaySays(day.opened_at).badge}
+                </span>
               </div>
               <div className="muted">Opened {fmtDateTime(day.opened_at)}</div>
             </div>
+            {openDaySays(day.opened_at).note && (
+              <div className="alert warn">{openDaySays(day.opened_at).note}</div>
+            )}
             <div className="stat-row">
               <div className="stat"><span className="stat-label">Receipts</span>
                 <span className="stat-value">{day.receipt_count}</span></div>
@@ -393,8 +434,13 @@ export default function Fiscal() {
                     <td className="mono">{d.day_number}</td>
                     <td>{fmtDateTime(d.opened_at)}</td>
                     <td>
+                      {/* A past day that never closed is not "open", it is a
+                          missing Z-report sitting in a list of filed ones. */}
                       {d.closed_at ? fmtDateTime(d.closed_at)
-                        : <span className="badge ok">Open</span>}
+                        : <span className={`badge ${openDaySays(d.opened_at).tone}`}>
+                            {nightsOpen(d.opened_at) > 0
+                              ? "Never closed" : "Open"}
+                          </span>}
                     </td>
                     <td className="num">{d.receipt_count}</td>
                     <td className="num">{money(d.total_sales)}</td>

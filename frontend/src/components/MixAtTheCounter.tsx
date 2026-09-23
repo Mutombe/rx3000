@@ -182,7 +182,7 @@ export default function MixAtTheCounter(
                         }}>
                   <span><b>{h.name}</b> {h.strength}</span>
                   <span className="muted">
-                    {h.quantity_on_hand ?? 0} in stock
+                    {h.here ?? h.quantity_on_hand ?? 0} in stock
                     {h.schedule ? ` · S${h.schedule}` : ""}
                   </span>
                 </button>

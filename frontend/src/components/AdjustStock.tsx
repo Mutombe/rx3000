@@ -161,7 +161,8 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
     const name = product.name;
 
     const send = (token?: string) =>
-      api.post<{ quantity_on_hand: number }>("/api/stock/adjust", body, token);
+      api.post<{ quantity_on_hand: number; here?: number }>(
+        "/api/stock/adjust", body, token);
 
     // Worth, not act. Under the threshold this closes on the click as it
     // always has; over it, the dialog stays up long enough to ask.
@@ -173,7 +174,11 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
         const said = await guarded("stock.adjust", send,
                                    `${name}, ${money(worth)} of stock`);
         if (said === CANCELLED) return;          // they thought better of it
-        const real = Number((said as any)?.quantity_on_hand ?? expected);
+        // The shelf this dialog is about. `quantity_on_hand` is every branch
+        // added up, and announcing it as "on this shelf" made a ten unit
+        // correction at one shop read as a jump to the whole group.
+        const real = Number((said as any)?.here
+                            ?? (said as any)?.quantity_on_hand ?? expected);
         toast.ok(`${name}: ${was} to ${real} on this shelf.`);
         onAdjusted(real, true);
         onClose();
@@ -189,7 +194,7 @@ export default function AdjustStock({ product, onClose, onAdjusted, prescription
     void (async () => {
       try {
         const said = await send();
-        const real = Number(said?.quantity_on_hand ?? expected);
+        const real = Number(said?.here ?? said?.quantity_on_hand ?? expected);
         toast.ok(`${name}: ${was} to ${real} on this shelf.`);
         onAdjusted(real, true);
       } catch (e) {

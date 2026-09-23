@@ -78,7 +78,7 @@ export default function NewToFollow({ onClose, onPromised }: {
 
   const ready = !!product && (Number(quantity) || 0) > 0;
   const short = product
-    && (product.quantity_on_hand ?? 0) < (Number(quantity) || 0);
+    && (product.here ?? product.quantity_on_hand ?? 0) < (Number(quantity) || 0);
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -95,7 +95,7 @@ export default function NewToFollow({ onClose, onPromised }: {
             <div className="product-pick">
               <span>
                 <b>{product.name}</b> {product.strength}
-                <span className="muted"> · {product.quantity_on_hand ?? 0} on the shelf</span>
+                <span className="muted"> · {product.here ?? product.quantity_on_hand ?? 0} on the shelf</span>
               </span>
               <button type="button" className="btn ghost small"
                       onClick={() => setProduct(null)}>Change</button>
@@ -110,7 +110,7 @@ export default function NewToFollow({ onClose, onPromised }: {
                      onClick={() => { setProduct(p); setProductQ(""); setProductHits([]); }}>
                   <span>{p.name} {p.strength}</span>
                   <span className="muted">
-                    {p.quantity_on_hand ?? 0} in stock · {money(p.unit_price ?? 0)}
+                    {p.here ?? p.quantity_on_hand ?? 0} in stock · {money(p.unit_price ?? 0)}
                   </span>
                 </div>
               ))}
@@ -165,7 +165,7 @@ export default function NewToFollow({ onClose, onPromised }: {
             is wrong. */}
         {product && !short && (
           <div className="alert warn">
-            There are {product.quantity_on_hand ?? 0} of these on the shelf, so
+            There are {product.here ?? product.quantity_on_hand ?? 0} of these on the shelf, so
             this may not need to be owed at all. Unless the figure is wrong.
           </div>
         )}

@@ -4114,7 +4114,11 @@ export default function Dispense() {
                 const perPack = it.product.units_per_pack ?? 1;
                 const priced = marginFor(it.product.id);
                 const dose = doseScreen.byProduct.get(it.product.id);
-                const onHand = Number(it.product.quantity_on_hand ?? 0);
+                // What this counter can hand over. The group total told a
+                // dispenser there was plenty while the shelf beside them was
+                // empty, which the FEFO walk then refused with the patient
+                // already waiting.
+                const onHand = Number(it.product.here ?? it.product.quantity_on_hand ?? 0);
                 const go = (to: number) => { setOpenItem(to); setEditing(to); };
                 return (
                   <div className="modal-backdrop" role="dialog" aria-modal="true"

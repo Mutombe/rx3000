@@ -367,7 +367,15 @@ export default function Authorisations() {
               <tbody>
                 {rows.map((a) => {
                   const state = a.effective_status || a.status;
-                  const live = state === "approved";
+                  // A LAPSED AUTHORISATION IS NOT A LIVE ONE.
+                  //
+                  // `expired(a)` was worked out and spent on a CSS class, so
+                  // the row tinted a date red and went on offering Draw. A
+                  // claim drawn against it is refused by the funder weeks
+                  // later, by which time the medicine has gone and the patient
+                  // is the one billed.
+                  const lapsed = expired(a);
+                  const live = state === "approved" && !lapsed;
                   const c = checked[a.id];
                   return (
                     <Fragment key={a.id}>
@@ -386,10 +394,18 @@ export default function Authorisations() {
                         {a.icd10_code && <div className="muted mono small">{a.icd10_code}</div>}
                       </td>
                       <td>
-                        <span className={`badge ${badge(state)}`}>{state}</span>
+                        <span className={`badge ${lapsed ? "danger" : badge(state)}`}>
+                          {lapsed ? "lapsed" : state}
+                        </span>
                       </td>
-                      <td className={expired(a) ? "cu-diff" : ""}>
+                      <td className={lapsed ? "cu-diff" : ""}>
                         {a.valid_to ? fmtDate(a.valid_to) : "no date"}
+                        {lapsed && (
+                          <div className="muted small">
+                            {lapsedFor(a.valid_to!)}. A claim drawn on this
+                            will be refused, ask the funder for a new one.
+                          </div>
+                        )}
                       </td>
                       <td className="num">
                         {live ? (
@@ -691,6 +707,17 @@ function badge(state: string): string {
   if (state === "declined" || state === "cancelled") return "danger";
   if (state === "expired" || state === "exhausted") return "warn";
   return "muted";
+}
+
+/** How long ago an authorisation ran out, said the way somebody says it. */
+function lapsedFor(validTo: string): string {
+  const days = Math.max(0, Math.floor(
+    (Date.now() - new Date(validTo).getTime()) / 86400000));
+  if (days === 0) return "Lapsed today";
+  if (days === 1) return "Lapsed yesterday";
+  if (days < 31) return `Lapsed ${days} days ago`;
+  const months = Math.round(days / 30);
+  return `Lapsed about ${months} month${months === 1 ? "" : "s"} ago`;
 }
 
 function expired(a: Auth): boolean {

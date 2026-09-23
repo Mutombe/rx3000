@@ -316,17 +316,39 @@ export default function Stock() {
        screen entirely on a 1280px till. */
     { key: "unit_price", width: 104, header: "Price", align: "right", sortable: true, render: (p) => money(p.unit_price) },
     { key: "cost_price", width: 104, header: "Cost", align: "right", sortable: true, render: (p) => money(p.cost_price) },
-    { key: "quantity_on_hand", width: 104, header: "On hand", align: "right", sortable: true,
-      render: (p) => (
-        <span className={`badge ${p.category === "airtime" ? "muted"
-          : p.quantity_on_hand <= p.reorder_level ? "danger" : "ok"}`}>
-          {p.quantity_on_hand}
-        </span>
-      ) },
+    /* ONE NUMBER, AND IT MEANS WHAT YOU CAN REACH.
+       This showed the group total, and a `here` was added beside it so both
+       were on the row. That is the abstraction leaking: two numbers with two
+       meanings and one label, leaving the reader to work out which one answers
+       their question. It answers it for them instead.
+       When this shelf is empty and another branch is not, the row says so and
+       says what to do about it, because "0" on its own sends somebody to the
+       reorder list for stock the pharmacy already owns. */
+    { key: "quantity_on_hand", width: 128, header: "On hand", align: "right", sortable: true,
+      value: (p) => p.here ?? p.quantity_on_hand,
+      render: (p) => {
+        const here = p.here ?? p.quantity_on_hand;
+        const elsewhere = (p.quantity_on_hand ?? 0) - here;
+        return (
+          <>
+            <span className={`badge ${p.category === "airtime" ? "muted"
+              : here <= p.reorder_level ? "danger" : "ok"}`}>
+              {here}
+            </span>
+            {here <= 0 && elsewhere > 0 && (
+              <div className="muted small">{elsewhere} at another branch</div>
+            )}
+          </>
+        );
+      } },
+    /* Valued on the same units the column beside it counts. Left on the group
+       total it read "0 on hand" and "$412" on one row, which is true of two
+       different shelves and reads as a bug on either. */
     { key: "stock_value", width: 128, header: "Stock value", align: "right",
-      value: (p) => p.quantity_on_hand * p.cost_price,
-      render: (p) => money(p.quantity_on_hand * p.cost_price),
-      total: (p) => p.quantity_on_hand * p.cost_price, totalRender: (n) => money(n) },
+      value: (p) => (p.here ?? p.quantity_on_hand) * p.cost_price,
+      render: (p) => money((p.here ?? p.quantity_on_hand) * p.cost_price),
+      total: (p) => (p.here ?? p.quantity_on_hand) * p.cost_price,
+      totalRender: (n) => money(n) },
     { key: "actions", header: "", align: "right",
       render: (p) => (
         <span style={{ whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
@@ -906,7 +928,14 @@ export default function Stock() {
         <div className="modal-backdrop" onClick={() => setAdjusting(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <h2>Adjust stock for {adjusting.name}</h2>
-            <p className="muted">Currently {adjusting.quantity_on_hand} on hand{adjusting.schedule >= 5 && " · S-register entry will be recorded"}</p>
+            {/* The shelf this adjustment will actually move. An adjustment is
+                drawn from one branch, so the group total was the wrong figure
+                to put in front of somebody about to correct a count. */}
+            <p className="muted">
+              Currently {adjusting.here ?? adjusting.quantity_on_hand} on hand
+              {adjusting.schedule >= 5
+                && ` · ${sched(adjusting.schedule)} register entry will be recorded`}
+            </p>
             <form onSubmit={applyAdjust}>
               <div className="field">
                 <label>Type</label>
