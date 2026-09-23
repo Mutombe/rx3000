@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, nulls_last, or_
 from sqlalchemy.orm import Session
 
-from .. import auth as _auth
+from .. import auth as _auth, schedule_policy
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import (Product, ProductBarcode, PrescriptionItem, PurchaseOrderItem,
@@ -310,7 +310,8 @@ def resolve(body: ScanIn, db: Session = Depends(get_db), user: User = Depends(ge
             out["warnings"].append("This branch has none of that in stock.")
         if product.schedule >= 5:
             out["warnings"].append(
-                f"Schedule {product.schedule}. This must be dispensed against a "
+                f"{schedule_policy.code_for(product.schedule)}. This must be "
+                "dispensed against a "
                 "prescription and entered in the register, not sold at the till."
             )
     elif body.context in ("stock", "receive"):

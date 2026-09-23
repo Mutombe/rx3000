@@ -31,6 +31,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from ..models import Dispensing, Patient, Prescription, PrescriptionItem, Product
+from .. import schedule_policy
 
 #: Bands, in days, and what each one means to do about it.
 BANDS = [
@@ -241,8 +242,9 @@ def collect(db: Session, dispensing_id: int, *, user_id: int,
             f"by {d.collected_name or 'somebody unrecorded'}.")
     if (d.schedule or 0) >= 5 and not taken_by.strip():
         raise CollectionError(
-            "A Schedule 5 or 6 item cannot be handed over without recording who "
-            "took it. The register has to answer 'who had it and when'.")
+            f"A {schedule_policy.range_for(5, 6, 'or')} item cannot be handed over "
+            "without recording who took it. The register has to answer "
+            "'who had it and when'.")
     d.collected_at = datetime.utcnow()
     d.collected_by_id = user_id
     d.collected_name = taken_by.strip()[:120]

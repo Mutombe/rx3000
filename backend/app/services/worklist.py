@@ -25,6 +25,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Dispensing, Patient, Prescription, PrescriptionItem, Product
+from .. import schedule_policy
 
 # Conditions where a missed dose matters within hours rather than days. Held
 # here as a list rather than a column because it is clinical judgement that a
@@ -70,7 +71,8 @@ def _severity(product: Product, patient: Patient | None) -> tuple[int, str]:
     if (product.schedule or 0) >= 5:
         # Controlled, so it needs care and a register entry, but that is
         # process urgency, not clinical, so it sits below a chronic patient.
-        return 3, f"schedule {product.schedule}, register entry required"
+        return 3, (f"{schedule_policy.code_for(product.schedule)}, "
+                   "register entry required")
     if (product.schedule or 0) >= 2:
         return 4, "prescription medicine"
     return 5, "routine"

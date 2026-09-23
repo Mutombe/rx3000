@@ -36,6 +36,7 @@ from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .. import schedule_policy
 from ..models import (Dispensing, Patient, Prescription, PrescriptionItem,
                       Product)
 
@@ -123,10 +124,10 @@ def check(db: Session, patient: Patient | None,
               f"last supply unaccounted for."
         )
         advice = (
-            "This is a schedule {s} medicine. Ask what happened to the last "
+            "This is a {s} medicine. Ask what happened to the last "
             "supply and record the answer before dispensing, an early "
             "collection on a controlled item is the pattern a register is kept "
-            "to catch.".format(s=schedule)
+            "to catch.".format(s=schedule_policy.code_for(schedule))
             if controlled else
             "Ask whether they lost them, are taking more than the label says, "
             "or are going away. Any of those is fine once it is known."

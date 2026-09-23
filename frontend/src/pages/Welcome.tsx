@@ -23,7 +23,7 @@ const WORK = [
   {
     Icon: ClipboardText,
     title: "The controlled register",
-    body: "Schedule 3 upward recorded as it is dispensed, with the checking "
+    body: "Every controlled line recorded as it is dispensed, with the checking "
         + "pharmacist named. An inspector asks for this and it is already written.",
   },
   {

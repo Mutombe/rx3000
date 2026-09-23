@@ -32,6 +32,7 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session, joinedload
 
+from .. import schedule_policy
 from ..models import Branch, ComplianceDocument
 
 #: Inside this many days a renewal has to be started rather than noted. Most of
@@ -61,8 +62,8 @@ KINDS: list[tuple[str, str, str, int, bool, str]] = [
      "premises, and the certificate is the proof of registration."),
     ("dangerous_drugs", "Dangerous drugs permit",
      "Medicines Control Authority of Zimbabwe", 12, True,
-     "Required to hold and dispense schedule 5 and 6 medicines. Lapsed, the "
-     "controlled cupboard cannot lawfully be opened."),
+     f"Required to hold and dispense {schedule_policy.range_for(5, 6)} "
+     "medicines. Lapsed, the controlled cupboard cannot lawfully be opened."),
     ("city_health", "City health shop licence",
      "Local authority, such as City of Harare or Bulawayo City Council", 12, False,
      "The municipal trading licence for a health premises. Enforced by "

@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from .. import helpers
+from .. import helpers, schedule_policy
 from ..auth import get_current_user
 from ..database import get_db
 from ..models import LayBy, LayByItem, LayByPayment, Patient, Product, User
@@ -112,7 +112,8 @@ def create(body: LayByIn, db: Session = Depends(get_db),
             raise HTTPException(
                 status_code=400,
                 detail=(
-                    f"{product.name} is a schedule {product.schedule} item and cannot "
+                    f"{product.name} is a "
+                    f"{schedule_policy.code_for(product.schedule)} item and cannot "
                     "be held on a lay-by. Controlled medicines are dispensed against a "
                     "prescription, not paid off over months."
                 ),

@@ -37,7 +37,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 
-from .. import helpers
+from .. import helpers, schedule_policy
 from ..models import (BatchAllocation, Patient, Product, Sale, SaleItem,
                       StockMovement)
 
@@ -109,7 +109,8 @@ def plan(db: Session, sale: Sale, lines: list[dict]) -> dict:
             "schedule": schedule,
             "restock": restock,
             "why_not": ("" if restock else
-                        f"Schedule {schedule}. Once a controlled medicine has "
+                        f"{schedule_policy.code_for(schedule)}. Once a "
+                        f"controlled medicine has "
                         f"left the pharmacy it cannot go back into saleable "
                         f"stock, it is recorded as returned and destroyed "
                         f"under the destruction procedure."),

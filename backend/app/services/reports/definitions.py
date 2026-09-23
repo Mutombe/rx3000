@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from ... import schedule_policy
 from ...models import (
     Branch, BranchTransfer, Dispensing, Patient, Prescription, PrescriptionItem,
     PriceOverride, Product, Sale, SaleItem, SaleTender, StockBatch,
@@ -482,7 +483,8 @@ def _drug_usage(db: Session, p: dict):
     for dispensing, item, product in rows_q.all():
         entry = groups.setdefault(product.id, {
             "product": product.name,
-            "schedule": f"S{product.schedule}" if product.schedule else "\u2014",
+            "schedule": (schedule_policy.code_for(product.schedule)
+                         if product.schedule else "unscheduled"),
             "scripts": 0, "units": 0, "value": 0.0,
         })
         quantity = dispensing.quantity or 0
@@ -494,7 +496,7 @@ def _drug_usage(db: Session, p: dict):
 
 register(Report(
     key="schedule_register",
-    title="Schedule 5 & 6 register",
+    title=f"{schedule_policy.range_for(5, 6)} register",
     module="Dispensary",
     purpose="Every controlled item dispensed, with who dispensed it and to "
             "whom. This is the register an inspector asks for.",
@@ -552,7 +554,7 @@ def _schedule_register(db: Session, p: dict):
         {
             "date": e.created_at.isoformat(sep=" ", timespec="minutes"),
             "product": products.get(e.product_id, "#" + str(e.product_id)),
-            "schedule": "S" + str(e.schedule),
+            "schedule": schedule_policy.code_for(e.schedule),
             "quantity": abs(e.quantity_delta or 0),
             "patient": patients.get(e.patient_id, "-"),
             "dispenser": users.get(e.user_id, "-"),
@@ -1305,7 +1307,8 @@ register(Report(
         Column("dispenser", "Dispenser", "text"),
         Column("items", "Items dispensed", "number", total=True),
         Column("units", "Units", "number", total=True),
-        Column("controlled", "Of which S5/S6", "number", total=True),
+        Column("controlled", f"Of which {schedule_policy.range_for(5, 6)}",
+               "number", total=True),
         Column("busiest_day", "Busiest day", "date"),
     ],
     rows=lambda db, p: _dispenser_activity(db, p),
@@ -3067,7 +3070,8 @@ register(Report(
         Column("scripts", "Scripts", "number", total=True),
         Column("items", "Items", "number", total=True),
         Column("repeats", "Of which repeats", "number", total=True),
-        Column("controlled", "Of which S5/S6", "number", total=True),
+        Column("controlled", f"Of which {schedule_policy.range_for(5, 6)}",
+               "number", total=True),
         Column("value", "Value", "money", total=True),
     ],
     rows=lambda db, p: _script_analysis(db, p),
@@ -3350,7 +3354,8 @@ register(Report(
     key="controlled_compliance",
     title="Controlled dispensing compliance",
     module="Dispensary",
-    purpose="Schedule 5 and 6 items dispensed without the checks recorded. "
+    purpose=f"{schedule_policy.range_for(5, 6)} items dispensed without the "
+            "checks recorded. "
             "What an inspector looks for and what a defence rests on.",
     params=[DATE_FROM, DATE_TO],
     step_up=True,
@@ -3402,7 +3407,7 @@ def _controlled(db: Session, p: dict):
         out.append({
             "date": dispensing.dispensed_at.isoformat(sep=" ", timespec="minutes"),
             "product": product.name,
-            "schedule": "S" + str(product.schedule),
+            "schedule": schedule_policy.code_for(product.schedule),
             "quantity": dispensing.quantity or 0,
             "dispenser": users.get(dispensing.dispensed_by_id, "-"),
             "missing": ", ".join(gaps),
@@ -4619,7 +4624,8 @@ register(Report(
     key="otc_sales",
     title="Pharmacist-only sales",
     module="Dispensary",
-    purpose="Schedule 2 and 3 items sold without a prescription, with the "
+    purpose=f"{schedule_policy.range_for(2, 3)} items sold without a "
+            "prescription, with the "
             "indication and whether counselling was given. The record a "
             "pharmacist is accountable for.",
     params=[DATE_FROM, DATE_TO],
@@ -4668,7 +4674,7 @@ def _otc(db: Session, p: dict):
         {
             "date": r.created_at.isoformat(sep=" ", timespec="minutes"),
             "product": products.get(r.product_id, "#" + str(r.product_id)),
-            "schedule": "S" + str(r.schedule) if r.schedule else "",
+            "schedule": schedule_policy.code_for(r.schedule) if r.schedule else "",
             "quantity": r.quantity or 0,
             "customer": people.get(r.patient_id) or r.customer_name or "(walk-in)",
             "indication": r.indication or "",
@@ -5876,7 +5882,8 @@ register(Report(
     key="controlled_stock_sheet",
     title="Controlled medicines stock sheet",
     module="Dispensary",
-    purpose="Opening and closing balances for Schedule 5 and 6 lines, with "
+    purpose=f"Opening and closing balances for {schedule_policy.range_for(5, 6)} "
+            "lines, with "
             "what went out between them. What an inspector asks for, and the "
             "arithmetic they check first.",
     params=[DATE_FROM, DATE_TO],
@@ -5986,7 +5993,7 @@ def _controlled_stock_sheet(db: Session, p: dict):
         rows.append({
             "product_id": product.id,
             "product": product.name,
-            "schedule": f"S{product.schedule}",
+            "schedule": schedule_policy.code_for(product.schedule),
             "opening": opening,
             "received": took_in,
             "dispensed": out,

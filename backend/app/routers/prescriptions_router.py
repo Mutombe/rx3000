@@ -436,7 +436,8 @@ def create_prescription(
         if policy.route == "prohibited":
             raise HTTPException(
                 status_code=400,
-                detail=f"{product.name} is Schedule {product.schedule} and cannot be prescribed here.",
+                detail=f"{product.name} is {schedule_policy.code_for(product.schedule)} "
+                       "and cannot be prescribed here.",
             )
         # repeats are capped by what the schedule legally allows
         repeats = schedule_policy.effective_max_repeats(product.schedule, item.repeats_allowed)
@@ -621,8 +622,8 @@ def dispense(
     if policy.route == "prohibited":
         raise HTTPException(
             status_code=400,
-            detail=f"Schedule {highest} substances cannot be dispensed in a retail pharmacy "
-                   "without a departmental permit.",
+            detail=f"{schedule_policy.code_for(highest)} substances cannot be "
+                   "dispensed in a retail pharmacy without a departmental permit.",
         )
     # Two separate questions, and the stricter one wins.
     #
@@ -692,8 +693,10 @@ def dispense(
             if allowed == 0 and (item.repeats_used > 0 or item.dispensings):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"{item.product.name} is Schedule {item.product.schedule}, no repeats are "
-                           "permitted. A fresh prescription is required.",
+                    detail=f"{item.product.name} is "
+                           f"{schedule_policy.code_for(item.product.schedule)}, "
+                           "no repeats are permitted. A fresh prescription "
+                           "is required.",
                 )
 
     # What the patient was told. Required when the pharmacy says so for this

@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from .. import schedule_policy
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -167,7 +169,7 @@ DECLARED: tuple[Declared, ...] = (
              "never", "Dispensing",
              "never, controlled, or always. When required, a script cannot be "
              "dispensed until the points the patient was told are recorded. "
-             "Controlled means Schedule 5 and 6 scripts only."),
+             f"Controlled means {schedule_policy.range_for(5, 6)} scripts only."),
     Declared("dispensing.after_till", "After sending a sale to the till", "text",
              "stay", "Dispensing",
              "stay, or go. A pharmacy with a cashier leaves the dispenser on the "

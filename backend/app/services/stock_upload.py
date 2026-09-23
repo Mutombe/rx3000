@@ -45,6 +45,7 @@ from datetime import date, datetime
 
 from sqlalchemy.orm import Session
 
+from .. import schedule_policy
 from ..models import Branch, Product, StockBatch, StockMovement, Supplier
 from . import bins, price_sanity
 
@@ -265,8 +266,13 @@ def plan(db: Session, rows: list[dict], mapping: dict[str, str], *,
 
         if schedule is not None and not (0 <= schedule <= MAX_SCHEDULE):
             line.action = "refuse"
-            line.reason = (f"Schedule {schedule:g} is not a schedule. "
-                           f"S0 to S{MAX_SCHEDULE} is the whole scale.")
+            # The scale named in this country's own codes. A Zimbabwean
+            # pharmacy importing its catalogue was told the valid range
+            # was "S0 to S6", which is not a scale it has ever used.
+            line.reason = (
+                f"{schedule:g} is not a schedule. "
+                f"{schedule_policy.code_for(0)} to "
+                f"{schedule_policy.code_for(MAX_SCHEDULE)} is the whole scale.")
             out.append(line)
             continue
 

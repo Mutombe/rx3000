@@ -29,6 +29,7 @@ from sqlalchemy.orm import Session
 from .. import helpers
 from ..models import Mixture, MixtureIngredient, Product, StockCategory
 from . import compounding
+from .. import schedule_policy
 
 #: Where preparations are filed, so the dispensary searches them and the shop
 #: reports on them separately from bought-in stock.
@@ -183,8 +184,9 @@ def make(db: Session, *, name: str, ingredients: list[dict], user_id: int,
         "formula_id": formula_id,
         "drawn": [{"product": db.get(Product, int(l["product_id"])).name,
                    "quantity": float(l["quantity"])} for l in ingredients],
-        "warning": (f"This preparation is Schedule {schedule}: dispense it under the rules "
-                    "for that schedule." if schedule >= 5 else ""),
+        "warning": (f"This preparation is "
+                    f"{schedule_policy.code_for(schedule)}: dispense it under "
+                    "the rules for that schedule." if schedule >= 5 else ""),
     }
 
 

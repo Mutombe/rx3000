@@ -10,7 +10,7 @@
  *  on the shelf behind it.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useScheduleCodes } from "../schedules";
+import { scheduleRange, useScheduleCodes } from "../schedules";
 import { ArrowUUpLeft, Phone, Printer, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
@@ -214,7 +214,7 @@ export default function WillCallBag() {
               <Panel title="Hand it over">
                 <p className="muted">
                   {bag.needs_id
-                    ? "A Schedule 5 or 6 item cannot go to whoever turns up. Record who took it and the identity document you saw."
+                    ? `A ${scheduleRange(5, 6, "or")} item cannot go to whoever turns up. Record who took it and the identity document you saw.`
                     : "Often it is not the patient. A relative, a driver, a neighbour going that way. Recording who took it is the answer to “who had it” later."}
                 </p>
                 <label className="field">

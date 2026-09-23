@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from .. import helpers
 from ..config import settings
 from ..models import Mixture, Product, StockBatch
+from .. import schedule_policy
 
 
 class CompoundingError(ValueError):
@@ -106,8 +107,8 @@ def _schedule_source(mixture: Mixture, schedule: int) -> str:
         return "No scheduled ingredient."
     driver = next((i.product for i in mixture.ingredients
                    if (i.product.schedule or 0) == schedule), None)
-    return (f"Schedule {schedule}, inherited from {driver.name}."
-            if driver else f"Schedule {schedule}.")
+    code = schedule_policy.code_for(schedule)
+    return (f"{code}, inherited from {driver.name}." if driver else f"{code}.")
 
 
 def prepare(db: Session, mixture: Mixture, user_id: int, batches: float = 1.0,

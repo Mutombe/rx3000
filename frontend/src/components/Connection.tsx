@@ -1,4 +1,5 @@
 import { ArrowsClockwise } from "@phosphor-icons/react";
+import { scheduleRange, useScheduleCodes } from "../schedules";
 /** Whether the server is reachable, and what that means for what you may do.
  *
  *  A pharmacy's line goes down. That is the ordinary case this product is sold
@@ -278,6 +279,10 @@ export function RequiresConnection({
   children, what = "This",
 }: { children: ReactNode; what?: string }) {
   const { online, recheck } = useConnection();
+  // Subscribed so the codes below are this country's. Without the hook the
+  // bare helper falls back to "S5 and S6", which is the exact wording this
+  // sentence was changed to stop printing.
+  useScheduleCodes();
   if (online) return <>{children}</>;
 
   return (
@@ -298,8 +303,8 @@ export function RequiresConnection({
           would be handing over medicine and hoping the scheme pays.
         </li>
         <li>
-          <b>The controlled register.</b> Schedule 5 and 6 entries are a legal
-          record, and a gap in it is a regulatory problem.
+          <b>The controlled register.</b> {scheduleRange(5, 6)} entries are a
+          legal record, and a gap in it is a regulatory problem.
         </li>
       </ul>
       <p className="muted">

@@ -137,7 +137,10 @@ export default function Register() {
       <div className="page-head">
         <div>
           <h1>Controlled Register</h1>
-          <div className="sub">Fully electronic S5 / S6 controlled-substance register, immutable audit trail</div>
+          <div className="sub">
+            Fully electronic {scheduleRange(5, 6)} controlled-substance
+            register, immutable audit trail
+          </div>
         </div>
         <button className="secondary" onClick={printRegister}>Print register</button>
       </div>
@@ -147,7 +150,12 @@ export default function Register() {
           <Select
             value={String(schedule ?? "")}
             onChange={(__value) => setSchedule(__value)}
-            options={[{ value: "", label: "All schedules" }, { value: "5", label: "Schedule 5" }, { value: "6", label: "Schedule 6" }]}
+            /* Named the way the pharmacist filtering them says them out loud.
+               A Zimbabwean register offered "Schedule 5" and "Schedule 6" for
+               the two things everybody in the room calls PP10 and N. */
+            options={[{ value: "", label: "All schedules" },
+                      { value: "5", label: sched(5) },
+                      { value: "6", label: sched(6) }]}
           />
           <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ maxWidth: 180 }} />
           <span className="muted">to</span>
@@ -195,7 +203,7 @@ export default function Register() {
           <div className="empty">
             <b>No register entries for this filter</b>
             <p>
-              The controlled register records every Schedule 5 and 6 movement.
+              The controlled register records every {scheduleRange(5, 6)} movement.
               Widen the dates or clear the schedule to see more.
             </p>
           </div>

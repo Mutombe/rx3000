@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+from .. import schedule_policy
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -102,11 +103,12 @@ CAPABILITIES: list[tuple[str, str, tuple[str, ...]]] = [
     # had no way to say so, and the tab was there for everybody.
     #
     # Named for the act, so the rule survives the tabs being redesigned.
-    ("dispense.prescription", "Dispense an ordinary prescription (S3-S4)",
+    ("dispense.prescription", "Dispense an ordinary prescription",
      ("admin", "manager", "pharmacist")),
-    ("dispense.otc", "Sell pharmacy medicine over the counter (S0-S2)",
+    ("dispense.otc", "Sell pharmacy medicine over the counter",
      ("admin", "manager", "pharmacist", "cashier")),
-    ("dispense.controlled", "Dispense a schedule 5 or 6 medicine",
+    ("dispense.controlled",
+     f"Dispense a {schedule_policy.range_for(5, 6, 'or')} medicine",
      ("admin", "pharmacist")),
     # Two decisions that were written as role lists in four places: twice in
     # Python (holds.CLEARERS, script_cancel.CANCELLERS) and twice again in

@@ -84,7 +84,12 @@ export function useScheduleCodes(): (schedule: number | null | undefined) => str
   return scheduleCode;
 }
 
-/** A range, for the places that name two: "S5 and S6", or "PP10 and N". */
-export function scheduleRange(from: number, to: number): string {
-  return `${scheduleCode(from)} and ${scheduleCode(to)}`;
+/** A range, for the places that name two: "S5 and S6", or "PP10 and N".
+ *
+ *  The joiner is a parameter because both readings occur and they are not
+ *  interchangeable. A register covers PP10 AND N; a single item on a shelf is
+ *  PP10 OR N, and "a PP10 and N item" describes one box that is somehow both.
+ */
+export function scheduleRange(from: number, to: number, joiner = "and"): string {
+  return `${scheduleCode(from)} ${joiner} ${scheduleCode(to)}`;
 }

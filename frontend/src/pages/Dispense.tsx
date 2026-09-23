@@ -238,7 +238,12 @@ const ROUTE_TABS: {
   /** A capability from the server's matrix. Absent means everybody. */
   needs?: string;
 }[] = [
-  { key: "prescription", label: "Prescription (S3, S4)", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
+  // The route, not the schedules — the same reason Dangerous Drugs below drops
+  // its own. "S3, S4" named two South African codes on a Zimbabwean screen,
+  // and sat directly above a lane whose badge already says the schedule in
+  // this country's words. Fixed on the tab beside this one and missed here,
+  // which is how a label that is wrong in only one way survives a sweep.
+  { key: "prescription", label: "Prescription", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
   // Shown to whoever may actually do it.
   //
   // The endpoint has always refused a controlled dispensing without this
@@ -5669,7 +5674,7 @@ ${d.action}`}
                                 <label>Notes</label>
                                 <textarea rows={2} value={complianceNotes}
                                   onChange={(e) => setComplianceNotes(e.target.value)}
-                                  placeholder="e.g. Filed in the S6 register folder, ref 2026/044" />
+                                  placeholder={`e.g. Filed in the ${schedCode(6)} register folder, ref 2026/044`} />
                               </div>
                             </section>
                           )}

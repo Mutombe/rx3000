@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from .. import schedule_policy
 from ..models import (
     Dispensing, Patient, PrescriptionItem, Product, Sale, SaleItem,
 )
@@ -139,7 +140,12 @@ def interaction_check_prompt(db: Session, patient: Patient, products: list[Produ
     the blocking call below and the streaming endpoint. Two copies of a
     prompt drift until the two answers differ."""
     new_meds = "\n".join(
-        f"- {p.name} {p.strength} ({p.dosage_form}), schedule S{p.schedule}" for p in products
+        # The country's own code, not the ordinal dressed as a South
+        # African one. The model repeats back what it is given, so a prompt
+        # saying "S5" produces counselling text saying "S5" to a Zimbabwean
+        # pharmacist, which no amount of screen work upstream can undo.
+        f"- {p.name} {p.strength} ({p.dosage_form}), "
+        f"schedule {schedule_policy.code_for(p.schedule)}" for p in products
     )
     prompt = (
         f"{_patient_medication_context(db, patient)}\n\n"
@@ -188,7 +194,7 @@ def counseling_notes_prompt(product: Product) -> tuple[str, str]:
     prompt drift until the two answers differ."""
     prompt = (
         f"Medication: {product.name} {product.strength} ({product.dosage_form}), "
-        f"schedule S{product.schedule}.\n"
+        f"schedule {schedule_policy.code_for(product.schedule)}.\n"
         "Give patient counseling points a pharmacist should cover at hand-out: "
         "how to take it, common side effects, key warnings, storage. Keep it short "
         "and in plain language suitable for reading to a patient."
