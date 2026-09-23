@@ -299,7 +299,7 @@ export default function Leads() {
                     <span className={`badge ${statusClass(l.status)}`}>{l.status}</span>
                     <span className="muted">{l.source.replace("_", " ")}</span>
                   </div>
-                  <div className="lead-value">{l.estimated_value ? money(l.estimated_value) : <span className="muted">none</span>}</div>
+                  <div className="lead-value">{l.estimated_value ? money(l.estimated_value) : <span className="muted">None</span>}</div>
                   <ScoreRing score={l.score} rating={l.rating} size={40} />
                 </div>
               ))}

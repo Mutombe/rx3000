@@ -380,7 +380,7 @@ export default function Payables() {
                       </td>
                       {ageing.bands.map((b) => (
                         <td key={b} className="num">
-                          {s.bands[b] ? money(s.bands[b]) : <span className="muted">none</span>}
+                          {s.bands[b] ? money(s.bands[b]) : <span className="muted">None</span>}
                         </td>
                       ))}
                       <td className="num"><b>{money(s.total)}</b></td>
@@ -465,7 +465,7 @@ export default function Payables() {
                         <td className="num">
                           {i.outstanding > 0.005
                             ? money(i.outstanding)
-                            : <span className="muted">settled</span>}
+                            : <span className="muted">Settled</span>}
                         </td>
                         <td className="actions">
                           <button className="btn small" onClick={() => show(i.id)}>
@@ -556,12 +556,12 @@ export default function Payables() {
                     <tr key={r.payment_id}>
                       <td><b>{r.supplier}</b></td>
                       <td>{fmtDate(r.paid_on)}</td>
-                      <td className="mono small">{r.reference || <span className="muted">none</span>}</td>
+                      <td className="mono small">{r.reference || <span className="muted">None</span>}</td>
                       <td className="num">{money(r.amount)}</td>
                       <td className="num">
                         {r.on_account > 0.005
                           ? <b>{money(r.on_account)}</b>
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td className="actions">
                         <button className="btn small secondary"

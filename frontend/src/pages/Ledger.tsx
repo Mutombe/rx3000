@@ -258,7 +258,7 @@ export default function Ledger() {
                         nobody had worked out. */}
                     <td className="num">
                       {tb.balanced
-                        ? <span className="muted">balances</span>
+                        ? <span className="muted">Balances</span>
                         : money(tb.difference)}
                     </td>
                   </tr>

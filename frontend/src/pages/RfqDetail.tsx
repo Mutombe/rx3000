@@ -423,9 +423,9 @@ export default function RfqDetail() {
                             {/* Three states kept apart. See the note at the
                                 top of this file. */}
                             {!a.answered ? (
-                              <span className="muted">none</span>
+                              <span className="muted">None</span>
                             ) : !a.available ? (
-                              <span className="muted small">cannot supply</span>
+                              <span className="muted small">Cannot supply</span>
                             ) : (
                               <button type="button" className="rfq-pick"
                                       onClick={() => setPicks((p) => ({

@@ -389,7 +389,7 @@ export default function Authorisations() {
                       <td>{a.funder_id}</td>
                       <td>
                         <span className="clip" title={a.description}>
-                          {a.description || <span className="muted">none</span>}
+                          {a.description || <span className="muted">None</span>}
                         </span>
                         {a.icd10_code && <div className="muted mono small">{a.icd10_code}</div>}
                       </td>
@@ -418,7 +418,7 @@ export default function Authorisations() {
                               </div>
                             )}
                           </>
-                        ) : <span className="muted">none</span>}
+                        ) : <span className="muted">None</span>}
                       </td>
                       <td className="num lb-actions">
                         <button className="small ghost" disabled={busy === `check-${a.id}`}
@@ -501,7 +501,7 @@ export default function Authorisations() {
                               <td className="num">{u.quantity}</td>
                               <td className="num">
                                 {u.amount > 0 ? money(u.amount)
-                                  : <span className="muted">none</span>}
+                                  : <span className="muted">None</span>}
                               </td>
                               <td className="actions">
                                 {u.reversed ? (

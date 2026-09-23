@@ -222,13 +222,13 @@ export default function BinDetail() {
                         )}
                       </td>
                       <td className="mono small">
-                        {l.stock_code || <span className="muted">none</span>}
+                        {l.stock_code || <span className="muted">None</span>}
                       </td>
                       <td className="num"><Units n={l.on_hand} /></td>
                       <td className="num">{l.reorder_level}</td>
                       <td className="num">
                         {l.primary ? money(l.value)
-                                   : <span className="muted">counted elsewhere</span>}
+                                   : <span className="muted">Counted elsewhere</span>}
                       </td>
                       <td>
                         {/* Another shelf is another page. Following one is the
@@ -243,7 +243,7 @@ export default function BinDetail() {
                                 </Link>
                               </span>
                             ))
-                          : <span className="muted">nowhere else</span>}
+                          : <span className="muted">Nowhere else</span>}
                       </td>
                     </tr>
                   ))}

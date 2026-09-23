@@ -281,7 +281,7 @@ export default function Orders() {
                       <td>
                         <EntityLink to={`/orders/${o.id}`}>{o.order_number}</EntityLink>
                       </td>
-                      <td>{o.supplier?.name ?? <span className="muted">none</span>}</td>
+                      <td>{o.supplier?.name ?? <span className="muted">None</span>}</td>
                       <td className="small">{fmtDateTime(o.created_at)}</td>
                       <td className="num"><b>{money(o.value)}</b></td>
                       <td className="actions">

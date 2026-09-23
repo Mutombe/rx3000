@@ -142,7 +142,7 @@ export default function BatchDetail() {
                 </dd>
                 <dt>Supplier</dt>
                 <dd>
-                  {d.origin.supplier || <span className="muted">not recorded</span>}
+                  {d.origin.supplier || <span className="muted">Not recorded</span>}
                   {d.origin.supplier_phone && (
                     <div className="muted small">{d.origin.supplier_phone}</div>
                   )}

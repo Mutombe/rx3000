@@ -274,7 +274,7 @@ export default function RepeatDetail() {
                 </dd>
                 <dt>Directions</dt>
                 <dd className="wrap">
-                  {r.directions || <span className="muted">none recorded</span>}
+                  {r.directions || <span className="muted">None recorded</span>}
                 </dd>
                 <dt>Quantity each time</dt>
                 <dd>
@@ -283,7 +283,7 @@ export default function RepeatDetail() {
                 </dd>
                 <dt>Diagnosis</dt>
                 <dd className="mono">
-                  {r.icd10_code || <span className="muted">none</span>}
+                  {r.icd10_code || <span className="muted">None</span>}
                 </dd>
                 <dt>Patient</dt>
                 <dd>
@@ -318,7 +318,7 @@ export default function RepeatDetail() {
                         </div>
                       )}
                     </>
-                  ) : <span className="muted">none</span>}
+                  ) : <span className="muted">None</span>}
                 </dd>
               </dl>
             </Panel>
@@ -386,7 +386,7 @@ export default function RepeatDetail() {
                         {f.is_repeat && <span className="badge"> Repeat</span>}
                       </td>
                       <td className="num">{f.quantity}</td>
-                      <td>{f.by || <span className="muted">none</span>}</td>
+                      <td>{f.by || <span className="muted">None</span>}</td>
                       <td>
                         {f.collected_at
                           ? fmtDate(f.collected_at)

@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useScheduleCodes } from "../schedules";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
@@ -243,11 +243,11 @@ export default function StaffDetail() {
                       <EntityLink kind="shift" id={s.id}>{fmtDateTime(s.opened_at)}</EntityLink>
                     </td>
                     <td>{s.closed_at ? fmtDateTime(s.closed_at)
-                      : <span className="muted">still open</span>}</td>
-                    <td><span className="badge">{s.status}</span></td>
+                      : <span className="muted">Still open</span>}</td>
+                    <td><span className="badge">{sentence(s.status)}</span></td>
                     <td className="num">
                       {Math.abs(s.variance) < 0.005
-                        ? <span className="muted">balanced</span>
+                        ? <span className="muted">Balanced</span>
                         : money(s.variance)}
                     </td>
                   </tr>

@@ -196,14 +196,14 @@ export default function DealDetail() {
             ? <EntityLink to={`/accounts/${deal.company.id}`}>
                 {deal.company.name}
               </EntityLink>
-            : <span className="muted">none</span> },
+            : <span className="muted">None</span> },
         ...(deal.contact
           ? [{ label: "Contact",
                value: `${deal.contact.first_name} ${deal.contact.last_name}` }]
           : []),
         { label: "Owner",
           value: deal.owner?.full_name
-            ?? <span className="muted">unassigned</span> },
+            ?? <span className="muted">Unassigned</span> },
       ]}
     >
 

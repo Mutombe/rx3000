@@ -176,7 +176,7 @@ export default function SaleDetail() {
             ? <EntityLink to={`/patients/${sale.patient_id}`}>
                 {sale.patient.first_name} {sale.patient.last_name}
               </EntityLink>
-            : <span className="muted">walk in</span> },
+            : <span className="muted">Walk in</span> },
       ]}
       actions={
         <>

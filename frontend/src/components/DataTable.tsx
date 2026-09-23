@@ -40,7 +40,7 @@ const PAGE_SIZES = [10, 25, 50, 100];
 
 /** Clamp a long value and keep the whole thing available on hover. */
 export function Truncate({ text, at = 40 }: { text: string; at?: number }) {
-  if (!text) return <span className="muted">none</span>;
+  if (!text) return <span className="muted">None</span>;
   if (text.length <= at) return <>{text}</>;
   return <span title={text}>{text.slice(0, at - 1).trimEnd()}…</span>;
 }

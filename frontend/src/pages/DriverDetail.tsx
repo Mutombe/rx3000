@@ -185,7 +185,7 @@ export default function DriverDetail() {
           <b className={driver.failure_rate && driver.failure_rate > 10
             ? "tone-danger" : undefined}>
             {driver.failure_rate === null
-              ? <span className="muted">no deliveries yet</span>
+              ? <span className="muted">No deliveries yet</span>
               : `${driver.failure_rate}%`}
           </b>
           <span>Of attempts failed</span>
@@ -208,14 +208,14 @@ export default function DriverDetail() {
           {driver.national_id && (<><dt>National ID</dt><dd className="mono">{driver.national_id}</dd></>)}
           <dt>Licence</dt>
           <dd>
-            {driver.licence_number || <span className="muted">not recorded</span>}
+            {driver.licence_number || <span className="muted">Not recorded</span>}
             {driver.licence_expiry && ` · expires ${fmtDate(driver.licence_expiry)}`}
           </dd>
           <dt>Cash float</dt><dd className="mono">{money(driver.cash_float)}</dd>
           <dt>COD limit</dt>
           <dd className="mono">
             {driver.cod_limit ? money(driver.cod_limit)
-              : <span className="muted">no limit set</span>}
+              : <span className="muted">No limit set</span>}
           </dd>
           {driver.notes && (<><dt>Notes</dt><dd>{driver.notes}</dd></>)}
         </dl>
@@ -308,13 +308,13 @@ export default function DriverDetail() {
                       )}
                     </td>
                     <td className="num mono">
-                      {w.delivery_fee ? money(w.delivery_fee) : <span className="muted">none</span>}
+                      {w.delivery_fee ? money(w.delivery_fee) : <span className="muted">None</span>}
                     </td>
                     <td className="num mono">
-                      {w.cod_amount ? money(w.cod_amount) : <span className="muted">none</span>}
+                      {w.cod_amount ? money(w.cod_amount) : <span className="muted">None</span>}
                     </td>
                     <td className="num mono">
-                      {w.cod_collected ? money(w.cod_collected) : <span className="muted">none</span>}
+                      {w.cod_collected ? money(w.cod_collected) : <span className="muted">None</span>}
                       {/* Handed in or still on them. The distinction is the
                           entire reason both figures are kept. */}
                       {w.cod_collected > 0 && !w.cod_settled_at && (

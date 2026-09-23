@@ -5,7 +5,7 @@
  *  that went through that till while it was open.
  */
 import { useEffect, useState } from "react";
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
@@ -78,9 +78,9 @@ export default function ShiftDetail() {
                 <dt>Opened</dt><dd>{fmtDateTime(d.opened_at)}</dd>
                 <dt>Closed</dt>
                 <dd>{d.closed_at ? fmtDateTime(d.closed_at)
-                  : <span className="muted">still open</span>}</dd>
+                  : <span className="muted">Still open</span>}</dd>
                 <dt>Opening float</dt><dd className="num">{money(d.opening_float)}</dd>
-                <dt>Status</dt><dd><span className="badge">{d.status}</span></dd>
+                <dt>Status</dt><dd><span className="badge">{sentence(d.status)}</span></dd>
               </dl>
             </Panel>
 

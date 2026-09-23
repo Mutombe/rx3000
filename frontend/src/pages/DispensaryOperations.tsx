@@ -180,7 +180,7 @@ export default function DispensaryOperations() {
                 <div className="label">Median wait today</div>
                 <div className="value">
                   {day.medianWait === null
-                    ? <span className="muted">nothing dispensed yet</span>
+                    ? <span className="muted">Nothing dispensed yet</span>
                     : duration(day.medianWait)}
                 </div>
                 <div className="hint">

@@ -62,13 +62,13 @@ export default function ContactDetail() {
       title={`${contact.first_name} ${contact.last_name}`}
       meta={[
         { label: "Job title",
-          value: contact.job_title || <span className="muted">not recorded</span> },
+          value: contact.job_title || <span className="muted">Not recorded</span> },
         { label: "Account",
           value: contact.company
             ? <EntityLink to={`/accounts/${contact.company.id}`}>
                 {contact.company.name}
               </EntityLink>
-            : <span className="muted">none</span> },
+            : <span className="muted">None</span> },
       ]}
     >
 

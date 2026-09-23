@@ -201,7 +201,7 @@ export default function EstateStock() {
                                 {delta < 0 ? "" : "+"}{delta}
                               </span>
                             </span>
-                          ) : <span className="muted">unchanged</span>}
+                          ) : <span className="muted">Unchanged</span>}
                         </td>
                       </tr>
                     );

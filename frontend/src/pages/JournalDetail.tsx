@@ -10,7 +10,7 @@
  */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText  , sentence} from "../api";
 import RecordPage from "../components/RecordPage";
 import { EntityLink } from "../components/Filters";
 import { FormSkeleton, TableSkeleton } from "../components/Skeleton";
@@ -82,7 +82,7 @@ export default function JournalDetail() {
         { label: "Standing",
           value: entry.status === "posted"
             ? <span className="badge ok">posted</span>
-            : <span className="badge warn">{entry.status}</span> },
+            : <span className="badge warn">{sentence(entry.status)}</span> },
         ...(entry.created_by
           ? [{ label: "Posted by", value: entry.created_by }] : []),
       ]}
@@ -123,7 +123,7 @@ export default function JournalDetail() {
             {entry.lines.map((l, i) => (
               <tr key={i}>
                 <td className="mono">{l.account_code}</td>
-                <td>{l.description || <span className="muted">none</span>}</td>
+                <td>{l.description || <span className="muted">None</span>}</td>
                 <td>
                   {l.party_type ? (
                     <>
@@ -133,7 +133,7 @@ export default function JournalDetail() {
                   ) : (
                     /* An unattributed line on a control account is what makes a
                        subledger stop reconciling — worth naming, not blanking. */
-                    <span className="muted">unattributed</span>
+                    <span className="muted">Unattributed</span>
                   )}
                 </td>
                 <td className="num">{l.debit ? money(l.debit) : "none"}</td>

@@ -150,7 +150,7 @@ export default function MixAtTheCounter(
         <div className="mix-ingredients">
           <div className="mix-head">
             <span>Ingredients</span>
-            <span className="muted">from stock</span>
+            <span className="muted">From stock</span>
           </div>
           {lines.map((l, i) => (
             <div className="mix-line" key={l.product.id}>

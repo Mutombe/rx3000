@@ -65,7 +65,7 @@ const TYPES = [
  *  is how somebody reads a healthy creditor balance as a hole in the bank.
  */
 function Balance({ value }: { value: number }) {
-  if (Math.abs(value) < 0.005) return <span className="muted">none</span>;
+  if (Math.abs(value) < 0.005) return <span className="muted">None</span>;
   return (
     <span className={value < 0 ? "neg" : undefined}>
       {money(Math.abs(value))}{value < 0 ? " cr" : ""}

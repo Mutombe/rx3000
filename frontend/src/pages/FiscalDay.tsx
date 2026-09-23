@@ -174,7 +174,7 @@ export default function FiscalDay() {
                       <td className="num muted">{money(c.vat)}</td>
                       <td className="num">
                         {c.credit_notes ? money(c.credit_notes)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                     </tr>
                   ))}
@@ -197,7 +197,7 @@ export default function FiscalDay() {
                       <td className="num">{r.receipts}</td>
                       <td className="num">{money(r.total)}</td>
                       <td className="num">
-                        {r.vat ? money(r.vat) : <span className="muted">none</span>}
+                        {r.vat ? money(r.vat) : <span className="muted">None</span>}
                       </td>
                     </tr>
                   ))}
@@ -220,16 +220,16 @@ export default function FiscalDay() {
               <dd>
                 {day.response_ref
                   ? <span className="mono">{day.response_ref}</span>
-                  : open ? <span className="muted">the day is still open</span>
+                  : open ? <span className="muted">The day is still open</span>
                     : <span className="cu-diff">not filed</span>}
               </dd>
               <dt>Filed</dt>
               <dd>{day.submitted_at ? fmtDateTime(day.submitted_at)
-                : <span className="muted">none</span>}</dd>
+                : <span className="muted">None</span>}</dd>
               <dt>Global counters</dt>
               <dd className="mono">
                 {day.first_counter === null
-                  ? <span className="muted">no receipts filed</span>
+                  ? <span className="muted">No receipts filed</span>
                   : `${day.first_counter}. ${day.last_counter}`}
               </dd>
               <dt>Opening hash</dt>
@@ -297,12 +297,12 @@ export default function FiscalDay() {
                       <td>
                         {r.receipt_type === "credit_note"
                           ? <span className="badge warn">Credit note</span>
-                          : <span className="muted">sale</span>}
+                          : <span className="muted">Sale</span>}
                       </td>
                       <td className="num">{money(r.total)}</td>
                       <td className="num muted">
                         {r.vat_amount ? money(r.vat_amount)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td>
                         <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>

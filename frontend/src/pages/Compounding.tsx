@@ -339,9 +339,9 @@ export default function Compounding() {
                           <td className="num">{j.quantity}</td>
                           <td>
                             {j.expiry ? fmtDate(j.expiry)
-                                      : <span className="muted">not recorded</span>}
+                                      : <span className="muted">Not recorded</span>}
                           </td>
-                          <td>{j.made_by || <span className="muted">not recorded</span>}</td>
+                          <td>{j.made_by || <span className="muted">Not recorded</span>}</td>
                           <td className="num">{money(j.cost)}</td>
                           <td className="actions">
                             <button type="button" className="btn small secondary"

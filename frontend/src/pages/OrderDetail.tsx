@@ -93,7 +93,7 @@ export default function OrderDetail() {
       value: (i) => i.product?.name ?? "",
       render: (i) => (i.product
         ? <EntityLink to={`/products/${i.product.id}`}>{i.product.name} {i.product.strength}</EntityLink>
-        : <span className="muted">none</span>) },
+        : <span className="muted">None</span>) },
     { key: "quantity_ordered", header: "Ordered", align: "right", sortable: true, total: (i) => i.quantity_ordered },
     // Between Ordered and Received on purpose: it is the middle fact in the
     // life of a line, and the person receiving a delivery wants to know what
@@ -104,7 +104,7 @@ export default function OrderDetail() {
         // Null is "they have not said", which is a different answer from
         // nought and must not be shown as one.
         if (i.quantity_confirmed == null) {
-          return <span className="muted">not said</span>;
+          return <span className="muted">Not said</span>;
         }
         const short = i.quantity_confirmed < i.quantity_ordered;
         return short
@@ -148,7 +148,7 @@ export default function OrderDetail() {
             ? <EntityLink kind="supplier" id={order.supplier_id}>
                 {order.supplier.name}
               </EntityLink>
-            : <span className="muted">none recorded</span> },
+            : <span className="muted">None recorded</span> },
         { label: "Raised", value: fmtDateTime(order.created_at) },
         { label: "Lines", value: order.items.length },
       ]}

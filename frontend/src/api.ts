@@ -509,6 +509,23 @@ export function currentCurrency() {
   return { locale, symbol: currencySymbol, decimals: currencyDecimals };
 }
 
+/** A stored word, as a person reads it.
+ *
+ *  Statuses are stored the way a database wants them: lowercase, and joined
+ *  with underscores. Printed straight into a badge they arrive as "draft",
+ *  "part_paid", "write_off" — the column's own spelling, in the middle of a
+ *  screen where everything else is written in sentences.
+ *
+ *  Sentence case, not title case. "No date" rather than "No Date": capitalising
+ *  every word is how a form reads when it was built from field names, and the
+ *  one thing a capital is doing here is saying this is the start of something.
+ */
+export function sentence(text?: string | null): string {
+  const said = (text ?? "").replace(/_/g, " ").trim();
+  if (!said) return "";
+  return said[0].toUpperCase() + said.slice(1);
+}
+
 export function money(n: number | undefined | null, currency?: string) {
   const symbol = currency ?? currencySymbol;
   // Some locales are not present in every browser's ICU data; fall back rather

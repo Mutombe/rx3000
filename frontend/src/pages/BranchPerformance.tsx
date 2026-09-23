@@ -35,7 +35,7 @@ const WINDOWS = [
 /** A percentage, or the reason there is not one. */
 function pct(value: number | null, good = 90) {
   if (value === null || value === undefined) {
-    return <span className="muted">not counted</span>;
+    return <span className="muted">Not counted</span>;
   }
   return <span className={`badge ${rateTone(value, good)}`}>{value}%</span>;
 }

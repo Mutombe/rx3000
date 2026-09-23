@@ -91,7 +91,7 @@ export default function AccountDetail() {
       meta={[
         { label: "Type", value: c.account_type.replace(/_/g, " ") },
         { label: "Owner",
-          value: c.owner ?? <span className="muted">unassigned</span> },
+          value: c.owner ?? <span className="muted">Unassigned</span> },
       ]}
     >
 

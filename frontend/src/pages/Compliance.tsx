@@ -298,10 +298,10 @@ export default function Compliance() {
                         </span>
                       </td>
                       <td className="num">
-                        {b.expired || <span className="muted">none</span>}
+                        {b.expired || <span className="muted">None</span>}
                       </td>
                       <td className="num">
-                        {b.missing || <span className="muted">none</span>}
+                        {b.missing || <span className="muted">None</span>}
                       </td>
                       <td>
                         {b.next
@@ -309,7 +309,7 @@ export default function Compliance() {
                               <div className="muted small">
                                 in {b.next.days} days
                               </div></>
-                          : <span className="muted">nothing dated</span>}
+                          : <span className="muted">Nothing dated</span>}
                       </td>
                       <td className="num mono">{money(b.renewal_cost_year)}</td>
                     </tr>
@@ -425,11 +425,11 @@ export default function Compliance() {
                           turns the register into a list of things to do. */}
                       <td className="mono small">
                         {d.reference
-                          || <span className="muted">no number</span>}
+                          || <span className="muted">No number</span>}
                       </td>
                       <td>
                         {d.expires_on ? fmtDate(d.expires_on)
-                          : <span className="muted">no expiry</span>}
+                          : <span className="muted">No expiry</span>}
                       </td>
                       <td>
                         {d.has_file ? (
@@ -449,8 +449,8 @@ export default function Compliance() {
                             <FileText size={13} /> {d.file_name || "open"}
                           </button>
                         ) : d.id ? (
-                          <span className="muted small">not scanned</span>
-                        ) : <span className="muted">not scanned</span>}
+                          <span className="muted small">Not scanned</span>
+                        ) : <span className="muted">Not scanned</span>}
                       </td>
                       <td className="actions">
                         <button className="btn ghost sm"

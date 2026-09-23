@@ -159,10 +159,10 @@ export default function HqPermissions() {
                             </span></div>
                           )}
                         </td>
-                        <td>{g.branch || <span className="muted">anywhere</span>}</td>
+                        <td>{g.branch || <span className="muted">Anywhere</span>}</td>
                         <td className="num mono">
                           {g.limit_value ? money(g.limit_value)
-                            : <span className="muted">none</span>}
+                            : <span className="muted">None</span>}
                           {g.daily_limit > 0 && (
                             <div className="muted small">
                               {money(g.daily_limit)}/day
@@ -175,11 +175,11 @@ export default function HqPermissions() {
                         <td className="small">
                           {g.days || g.hours
                             ? <>{g.days}{g.days && g.hours && " · "}{g.hours}</>
-                            : <span className="muted">any time</span>}
+                            : <span className="muted">Any time</span>}
                         </td>
                         <td>
                           {g.expires_on ? fmtDate(g.expires_on)
-                            : <span className="muted">standing</span>}
+                            : <span className="muted">Standing</span>}
                         </td>
                         <td className="wrap muted small">
                           {g.reason}

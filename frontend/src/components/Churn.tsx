@@ -230,7 +230,7 @@ export default function Churn() {
                             ? <a href={`tel:${l.phone}`} className="row-link">
                                 <Phone size={13} /> {l.phone}
                               </a>
-                            : <span className="muted">no number</span>}
+                            : <span className="muted">No number</span>}
                         </td>
                         <td>{l.last_seen ? fmtDate(l.last_seen) : "no date"}</td>
                         <td className="num">{l.days_away ?? "none"}</td>

@@ -71,7 +71,7 @@ interface Data {
  *  could act on wrongly. */
 function Move({ trend }: { trend: Trend }) {
   if (trend.change === null) {
-    return <span className="muted small">nothing to compare against yet</span>;
+    return <span className="muted small">Nothing to compare against yet</span>;
   }
   const pct = Math.abs(Math.round(trend.change * 100));
   const Icon = trend.direction === "up" ? ArrowUp
@@ -284,7 +284,7 @@ export default function Dashboard() {
                       <th className="num">Sales</th>
                       <th className="num">Average sale</th>
                       <th className="num">Scripts</th>
-                      <th className="num">Drawer</th>
+                      <th className="num db-drawer">Drawer</th>
                       <th style={{ width: "12rem" }} />
                     </tr>
                   </thead>
@@ -305,7 +305,7 @@ export default function Dashboard() {
                           <td className="num">{b.scripts.toLocaleString()}</td>
                           <td className="num">
                             {b.cashup_accuracy === null
-                              ? <span className="muted">not counted</span>
+                              ? <span className="muted">Not counted</span>
                               : <span className={`badge ${b.cashup_accuracy >= 95
                                   ? "ok" : b.cashup_accuracy >= 80 ? "warn" : "bad"}`}>
                                   {b.cashup_accuracy}%

@@ -177,7 +177,7 @@ export default function BinsUnassigned() {
                           </EntityLink>
                         </td>
                         <td className="mono small">
-                          {r.stock_code || <span className="muted">none</span>}
+                          {r.stock_code || <span className="muted">None</span>}
                         </td>
                         <td className="num"><Units n={r.on_hand} /></td>
                         <td className="num">{money(r.value)}</td>
@@ -245,6 +245,6 @@ export function Units({ n }: { n: number }) {
       </span>
     );
   }
-  if (n === 0) return <span className="muted">nothing</span>;
+  if (n === 0) return <span className="muted">Nothing</span>;
   return <>{n.toLocaleString()}</>;
 }

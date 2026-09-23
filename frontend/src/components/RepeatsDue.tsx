@@ -173,7 +173,7 @@ export default function RepeatsDue({ patientId, onAdd, alreadyOn, variant = "lis
             <div className="rd-when">
               {r.days_overdue > 0
                 ? <b>{r.days_overdue} day{r.days_overdue === 1 ? "" : "s"} late</b>
-                : <span className="muted">due today</span>}
+                : <span className="muted">Due today</span>}
               <span className="muted small">{fmtDate(r.due)}</span>
             </div>
             <div className="rd-worth">

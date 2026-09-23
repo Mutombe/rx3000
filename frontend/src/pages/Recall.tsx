@@ -233,7 +233,7 @@ export default function Recall() {
                 <dd>{trace.batch.expiry_date ? fmtDate(trace.batch.expiry_date) : "not recorded"}</dd>
                 <dt>Supplier</dt>
                 <dd>
-                  {trace.origin.supplier || <span className="muted">not recorded</span>}
+                  {trace.origin.supplier || <span className="muted">Not recorded</span>}
                   {trace.origin.supplier_phone && (
                     <div className="muted small">{trace.origin.supplier_phone}</div>
                   )}

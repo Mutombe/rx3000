@@ -168,7 +168,7 @@ export default function Settlements() {
                             : f.paying_rate < 95 ? "tone-warn" : "tone-ok"}>
                             {f.paying_rate}%
                           </b>
-                        ) : <span className="muted">none</span>}
+                        ) : <span className="muted">None</span>}
                       </td>
                       <td className="num">
                         {f.average_days !== null ? (
@@ -185,13 +185,13 @@ export default function Settlements() {
                               </div>
                             )}
                           </>
-                        ) : <span className="muted">none</span>}
+                        ) : <span className="muted">None</span>}
                       </td>
                       <td className="num mono">
                         {f.held
                           ? <>{money(f.held)}
                               <div className="muted small">{f.held_lines} line(s)</div></>
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td className="wrap muted small">{f.says}</td>
                     </tr>
@@ -251,7 +251,7 @@ export default function Settlements() {
                       </td>
                       <td>
                         {l.service_date ? fmtDate(l.service_date)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td className="num mono">{money(l.amount_claimed)}</td>
                       <td className="wrap">

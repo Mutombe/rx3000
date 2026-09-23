@@ -136,14 +136,14 @@ export default function AuditDetail() {
               <dd className="mono wrap">{row.path}</dd>
 
               <dt>Summary</dt>
-              <dd>{row.summary || <span className="muted">none recorded</span>}</dd>
+              <dd>{row.summary || <span className="muted">None recorded</span>}</dd>
 
               <dt>Answer</dt>
               <dd><Status code={row.status_code} /></dd>
 
               <dt>From</dt>
               <dd className="mono">
-                {row.ip_address || <span className="muted">not recorded</span>}
+                {row.ip_address || <span className="muted">Not recorded</span>}
               </dd>
 
               <dt>When</dt>

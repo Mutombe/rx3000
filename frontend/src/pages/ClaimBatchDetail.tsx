@@ -249,16 +249,16 @@ export default function ClaimBatchDetail() {
                       <td className="num">
                         {c.amount_approved > 0.005
                           ? money(c.amount_approved)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td className="num">
                         {d.settled ? money(c.settled_amount)
-                          : <span className="muted">not yet</span>}
+                          : <span className="muted">Not yet</span>}
                       </td>
                       <td className="num">
                         {c.shortfall > 0.005
                           ? <b className="neg">{money(c.shortfall)}</b>
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                     </tr>
                   ))}

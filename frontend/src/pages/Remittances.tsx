@@ -320,7 +320,7 @@ export default function Remittances() {
                         <td className="num cu-diff">{money(l.variance)}</td>
                         <td>
                           <span className="clip clip-2" title={l.reason}>
-                            {l.reason || <span className="muted">not given</span>}
+                            {l.reason || <span className="muted">Not given</span>}
                           </span>
                           {l.reason_code && (
                             <div className="muted mono small">{l.reason_code}</div>
@@ -392,7 +392,7 @@ export default function Remittances() {
                             something we did not send, or our reference is wrong. */}
                         {a.unmatched > 0
                           ? <span className="badge danger">{a.unmatched}</span>
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                     </RowLink>
                   ))}

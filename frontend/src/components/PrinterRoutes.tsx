@@ -201,7 +201,7 @@ export default function PrinterRoutes() {
                 <input type="number" min={15} max={300} value={paper.tall}
                        aria-label="Sticker height in millimetres"
                        onChange={(e) => save(paper.wide, Number(e.target.value))} />
-                <span className="muted">mm</span>
+                <span className="muted">Mm</span>
               </span>
             </label>
           )}

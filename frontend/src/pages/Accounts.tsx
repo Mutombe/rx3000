@@ -94,7 +94,7 @@ export default function Accounts() {
       render: (c) => `${c.credit_terms_days} days` },
     { key: "owner", header: "Owner", sortable: true, width: 140,
       value: (c) => c.owner?.full_name ?? "",
-      render: (c) => c.owner?.full_name ?? <span className="muted">none</span> },
+      render: (c) => c.owner?.full_name ?? <span className="muted">None</span> },
     { key: "status", header: "Status", sortable: true, width: 104,
       render: (c) => (
         <span className={`badge ${c.status === "active" ? "ok" : c.status === "prospect" ? "warn" : "muted"}`}>
@@ -124,7 +124,7 @@ export default function Accounts() {
     { key: "company", header: "Account", sortable: true, value: (c) => c.company?.name ?? "",
       render: (c) => (c.company
         ? <EntityLink to={`/accounts/${c.company.id}`} muted>{c.company.name}</EntityLink>
-        : <span className="muted">none</span>) },
+        : <span className="muted">None</span>) },
     { key: "phone", header: "Details",
       render: (c) => <>{c.phone}<div className="muted" style={{ fontSize: 11.5 }}>
         <Truncate text={c.email} at={28} /></div></> },

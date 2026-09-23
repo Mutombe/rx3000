@@ -230,7 +230,7 @@ function RecordAnswer({ rfqId, invited, lines, onClose, onSaved }: {
                     {/* The extended figure, where a misplaced decimal point
                         shows up while somebody can still fix it. */}
                     <td className="num">
-                      {r.out ? <span className="muted">not supplied</span>
+                      {r.out ? <span className="muted">Not supplied</span>
                              : money((Number(r.price) || 0) * l.quantity)}
                     </td>
                     <td>

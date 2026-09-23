@@ -215,20 +215,20 @@ export default function SupplierReturnDetail() {
               <dd>
                 {row.supplier_id
                   ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
-                  : <span className="muted">not recorded</span>}
+                  : <span className="muted">Not recorded</span>}
               </dd>
 
               <dt>Reason</dt>
               <dd>
                 {row.why
                   ? <span className="badge">{row.why}</span>
-                  : <span className="muted">none given</span>}
+                  : <span className="muted">None given</span>}
               </dd>
 
               <dt>Raised</dt>
               <dd>
                 {row.created_at ? fmtDateTime(row.created_at)
-                                : <span className="muted">not recorded</span>}
+                                : <span className="muted">Not recorded</span>}
                 {row.raised_by && <span className="muted"> by {row.raised_by}</span>}
               </dd>
 
@@ -237,16 +237,16 @@ export default function SupplierReturnDetail() {
                 {row.approved_by
                   ? <>{row.approved_by}
                       {row.approved_at && <span className="muted"> · {fmtDateTime(row.approved_at)}</span>}</>
-                  : <span className="muted">not approved yet</span>}
+                  : <span className="muted">Not approved yet</span>}
               </dd>
 
               <dt>Credit note</dt>
               <dd className="mono">
-                {row.credit_note || <span className="muted">none received</span>}
+                {row.credit_note || <span className="muted">None received</span>}
               </dd>
 
               <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">none</span>}</dd>
+              <dd>{row.notes || <span className="muted">None</span>}</dd>
             </dl>
           </Panel>
 
@@ -277,10 +277,10 @@ export default function SupplierReturnDetail() {
                         </EntityLink>
                       </td>
                       <td className="mono small">
-                        {l.batch || <span className="muted">none</span>}
+                        {l.batch || <span className="muted">None</span>}
                       </td>
                       <td className="small">
-                        {l.expiry ? fmtDate(l.expiry) : <span className="muted">no expiry</span>}
+                        {l.expiry ? fmtDate(l.expiry) : <span className="muted">No expiry</span>}
                       </td>
                       <td className="mono small">
                         {/* An absent delivery arrives as an empty object, not
@@ -298,7 +298,7 @@ export default function SupplierReturnDetail() {
                                 </div>
                               )}
                             </>
-                          : <span className="muted">not linked</span>}
+                          : <span className="muted">Not linked</span>}
                       </td>
                       <td className="num">{l.quantity}</td>
                       <td className="num">{money(l.unit_cost)}</td>

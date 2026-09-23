@@ -180,7 +180,7 @@ export default function PaymentInstruments() {
                   {i.settles_to || (
                     // Not decoration. Ticking a column off against a statement
                     // means knowing which statement, and nothing else records it.
-                    <span className="muted">not recorded</span>
+                    <span className="muted">Not recorded</span>
                   )}
                 </td>
                 <td className="num">

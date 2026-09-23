@@ -235,9 +235,9 @@ export default function PettyCash() {
                       <td className="muted">
                         {e.created_at ? fmtDateTime(e.created_at) : "no date"}
                       </td>
-                      <td>{e.category || <span className="muted">none</span>}</td>
+                      <td>{e.category || <span className="muted">None</span>}</td>
                       <td>
-                        {e.description || <span className="muted">no description</span>}
+                        {e.description || <span className="muted">No description</span>}
                         {e.reference && <div className="muted mono small">{e.reference}</div>}
                       </td>
                       {/* Out is shown negative, because that is what it does to
@@ -247,7 +247,7 @@ export default function PettyCash() {
                         {money(e.amount)}
                       </td>
                       <td>
-                        {e.amount >= 0 ? <span className="muted">none</span>
+                        {e.amount >= 0 ? <span className="muted">None</span>
                           : e.receipt_seen ? <span className="badge ok">Seen</span>
                             : <span className="badge danger">None</span>}
                       </td>

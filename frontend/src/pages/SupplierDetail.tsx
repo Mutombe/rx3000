@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { LinkSimple, Printer } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { EntityLink } from "../components/Filters";
@@ -233,11 +233,11 @@ export default function SupplierDetail() {
               <div className="sup-quoting">
                 <div>
                   <b>{d.record.quoting.answered} of {d.record.quoting.asked}</b>
-                  <span className="muted small">requests answered</span>
+                  <span className="muted small">Requests answered</span>
                 </div>
                 <div>
                   <b>{d.record.quoting.keenest_on} of {d.record.quoting.lines_quoted}</b>
-                  <span className="muted small">lines they were cheapest on</span>
+                  <span className="muted small">Lines they were cheapest on</span>
                 </div>
                 <div>
                   <b>
@@ -245,7 +245,7 @@ export default function SupplierDetail() {
                       ? "not known"
                       : `${d.record.quoting.avg_reply_days} days`}
                   </b>
-                  <span className="muted small">to reply on average</span>
+                  <span className="muted small">To reply on average</span>
                 </div>
               </div>
             )}
@@ -272,9 +272,9 @@ export default function SupplierDetail() {
                     <td className="num">{money(i.total)}</td>
                     <td className="num">
                       {i.outstanding > 0.005 ? money(i.outstanding)
-                        : <span className="muted">settled</span>}
+                        : <span className="muted">Settled</span>}
                     </td>
-                    <td><span className="badge">{i.status}</span></td>
+                    <td><span className="badge">{sentence(i.status)}</span></td>
                     <td className="mono">
                       <EntityLink kind="order" id={i.order_id}>
                         {i.order_id ? `#${i.order_id}` : "none"}
@@ -307,7 +307,7 @@ export default function SupplierDetail() {
                       <td className="mono">
                         <EntityLink kind="order" id={o.id}>{o.order_number}</EntityLink>
                       </td>
-                      <td><span className="badge">{o.status}</span></td>
+                      <td><span className="badge">{sentence(o.status)}</span></td>
                       <td className="small">
                         {o.acknowledged_at ? (
                           <>
@@ -324,13 +324,13 @@ export default function SupplierDetail() {
                             )}
                           </>
                         ) : o.status === "sent" ? (
-                          <span className="muted">not confirmed yet</span>
+                          <span className="muted">Not confirmed yet</span>
                         ) : (
-                          <span className="muted">not asked</span>
+                          <span className="muted">Not asked</span>
                         )}
                       </td>
                       <td>{o.received_at ? fmtDate(o.received_at)
-                                         : <span className="muted">not yet</span>}</td>
+                                         : <span className="muted">Not yet</span>}</td>
                       <td className="num">{money(o.value)}</td>
                     </tr>
                   ))}

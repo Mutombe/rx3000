@@ -13,7 +13,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  , sentence} from "../api";
 import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -262,7 +262,7 @@ export default function ToFollows() {
                 <td className="num">{o.quantity_outstanding}</td>
                 <td className="num">{o.quantity_on_hand}</td>
                 <td>
-                  {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">no date</span>}
+                  {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">No date</span>}
                   {o.overdue && <span className="badge warn">Overdue</span>}
                 </td>
                 <RowActions>
@@ -294,7 +294,7 @@ export default function ToFollows() {
                     </button>
                   )}
                   {o.status !== "outstanding" && (
-                    <span className="badge">{o.status}</span>
+                    <span className="badge">{sentence(o.status)}</span>
                   )}
                 </RowActions>
               </RowLink>

@@ -6,7 +6,7 @@
  *  the same three medicines every week is a stock decision, not just a name.
  */
 import { useCallback, useEffect, useState } from "react";
-import { api, errorText, fmtDate } from "../api";
+import { api, errorText, fmtDate , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
@@ -180,7 +180,7 @@ export default function PrescriberDetail() {
                         </EntityLink>
                       </td>
                       <td>{fmtDate(p.date_prescribed)}</td>
-                      <td><span className="badge">{p.status}</span></td>
+                      <td><span className="badge">{sentence(p.status)}</span></td>
                     </tr>
                   ))}
                 </tbody>

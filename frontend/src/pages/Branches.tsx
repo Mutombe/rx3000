@@ -359,7 +359,7 @@ export default function Branches() {
                       {!b.active && <span className="badge muted">Closed</span>}
                     </td>
                     <td><span className="clip" title={b.city}>
-                      {b.city || <span className="muted">none</span>}</span></td>
+                      {b.city || <span className="muted">None</span>}</span></td>
                     <td>
                       {/* Empty is worth pointing at rather than leaving blank: a
                           branch with nobody named is a compliance gap, not a
@@ -393,7 +393,7 @@ export default function Branches() {
                             </span>
                           )}
                         </Link>
-                      ) : <span className="muted">none</span>}
+                      ) : <span className="muted">None</span>}
                     </td>
                     <td className="num lb-actions">
                       <button className="small ghost" onClick={() => showStock(b)}>

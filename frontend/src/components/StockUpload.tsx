@@ -368,23 +368,23 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
                         ? <>{l.changes.cost[0] !== null
                               && <s className="muted">{money(l.changes.cost[0])}</s>}{" "}
                             {money(l.changes.cost[1])}</>
-                        : <span className="muted">unchanged</span>}
+                        : <span className="muted">Unchanged</span>}
                     </td>
                     <td className="num">
                       {l.changes.price
                         ? <>{l.changes.price[0] !== null
                               && <s className="muted">{money(l.changes.price[0])}</s>}{" "}
                             {money(l.changes.price[1])}</>
-                        : <span className="muted">unchanged</span>}
+                        : <span className="muted">Unchanged</span>}
                     </td>
                     <td className="num">
                       {/* A catalogue line carries no quantity, which is not
                           a gap in the file. */}
                       {l.quantity ? l.quantity.toLocaleString()
-                        : <span className="muted">none</span>}
+                        : <span className="muted">None</span>}
                     </td>
                     <td className="mono small">
-                      {l.batch || <span className="muted">none</span>}
+                      {l.batch || <span className="muted">None</span>}
                       {l.expiry && (
                         <div className="muted">exp {fmtDate(l.expiry)}</div>
                       )}

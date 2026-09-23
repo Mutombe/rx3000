@@ -308,7 +308,7 @@ export default function Stock() {
     { key: "schedule", header: "Sched.", sortable: true, width: 84,
       render: (p) => (p.schedule > 0
         ? <span className={`badge ${p.schedule >= 5 ? "sched" : "muted"}`}>{sched(p.schedule)}</span>
-        : <span className="muted">none</span>) },
+        : <span className="muted">None</span>) },
     /* Barcode folded into the product cell rather than given a column of its
        own. It is a lookup key, not something anyone reads down a list — the
        search box above already matches on it, and as a column it took 130px
@@ -396,7 +396,7 @@ export default function Stock() {
     { key: "created_at", header: "When", sortable: true, width: 160,
       value: (m) => m.created_at ?? "",
       render: (m) => (m.created_at ? fmtDateTime(m.created_at)
-                                   : <span className="muted">not recorded</span>) },
+                                   : <span className="muted">Not recorded</span>) },
     /* The medicine, followable. It was the plain name of the one thing on the
        row somebody might want to look at, on a screen whose whole subject is
        what happened to that medicine. */
@@ -404,7 +404,7 @@ export default function Stock() {
       value: (m) => m.product?.name ?? "",
       render: (m) => (m.product?.name
         ? <EntityLink kind="product" id={m.product_id}>{m.product.name}</EntityLink>
-        : <span className="muted">not named</span>) },
+        : <span className="muted">Not named</span>) },
     { key: "movement_type", header: "Type", sortable: true, width: 96,
       /* Said in words. The filter beside it offered "Write-off" and the column
          printed "write_off", which is one thing spelled two ways on one
@@ -443,7 +443,7 @@ export default function Stock() {
       value: (m) => m.user_name ?? "",
       render: (m) => (m.user_name
         ? <EntityLink kind="staff" id={m.user_id ?? 0}>{m.user_name}</EntityLink>
-        : <span className="muted">not recorded</span>) },
+        : <span className="muted">Not recorded</span>) },
     /* THE RECORD THAT CAUSED THE MOVEMENT.
        A movement never happens by itself: something dispensed it, sold it or
        booked it in, and the reference is the name of that something. It was

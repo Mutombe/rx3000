@@ -53,7 +53,7 @@ function Step({ label, at, who, note, done }: {
     <li className={`wb-step${done ? " is-done" : ""}`}>
       <span className="wb-step-label">{label}</span>
       <span className="wb-step-when">
-        {at ? fmtDateTime(at) : <span className="muted">not yet</span>}
+        {at ? fmtDateTime(at) : <span className="muted">Not yet</span>}
       </span>
       {who && <span className="wb-step-who">{who}</span>}
       {note && <span className="wb-step-note muted">{note}</span>}
@@ -241,18 +241,18 @@ export default function WaybillDetail() {
                   </EntityLink>
                 </dd>
                 <dt>Address</dt>
-                <dd className="wrap">{w.address || <span className="muted">none given</span>}</dd>
+                <dd className="wrap">{w.address || <span className="muted">None given</span>}</dd>
                 <dt>Telephone</dt>
                 <dd>
                   {w.phone
                     ? <a href={`tel:${w.phone}`} className="row-link">
                         <Phone size={13} /> {w.phone}
                       </a>
-                    : <span className="muted">no number</span>}
+                    : <span className="muted">No number</span>}
                 </dd>
                 <dt>Instructions</dt>
                 <dd className="wrap">
-                  {w.instructions || <span className="muted">none</span>}
+                  {w.instructions || <span className="muted">None</span>}
                 </dd>
               </dl>
             </Panel>
@@ -272,7 +272,7 @@ export default function WaybillDetail() {
                   </EntityLink>
                 </dd>
                 <dt>Identity seen</dt>
-                <dd>{w.id_number_seen || <span className="muted">not recorded</span>}</dd>
+                <dd>{w.id_number_seen || <span className="muted">Not recorded</span>}</dd>
               </dl>
             </Panel>
           </div>

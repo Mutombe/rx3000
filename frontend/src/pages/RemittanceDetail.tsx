@@ -204,7 +204,7 @@ export default function RemittanceDetail() {
                             : (l.claim_reference || "none")}
                         </td>
                         <td>
-                          {l.member_name || <span className="muted">none</span>}
+                          {l.member_name || <span className="muted">None</span>}
                           {l.policy_number && (
                             <div className="muted small mono">{l.policy_number}</div>
                           )}

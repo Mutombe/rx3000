@@ -234,11 +234,11 @@ export default function DispensingDetail() {
                 <dt>Quantity</dt><dd>{d.quantity}</dd>
                 <dt>Directions</dt>
                 <dd className="wrap">
-                  {d.directions || <span className="muted">none recorded</span>}
+                  {d.directions || <span className="muted">None recorded</span>}
                 </dd>
                 <dt>Diagnosis</dt>
                 <dd className="mono">
-                  {d.icd10_code || <span className="muted">none</span>}
+                  {d.icd10_code || <span className="muted">None</span>}
                 </dd>
                 <dt>Patient</dt>
                 <dd>
@@ -271,7 +271,7 @@ export default function DispensingDetail() {
                         </div>
                       )}
                     </>
-                  ) : <span className="muted">none</span>}
+                  ) : <span className="muted">None</span>}
                 </dd>
                 {d.sale && (
                   <>
@@ -306,7 +306,7 @@ export default function DispensingDetail() {
                     ? <EntityLink kind="staff" id={d.dispensed_by_id}>
                         {d.dispensed_by || "none"}
                       </EntityLink>
-                    : d.dispensed_by || <span className="muted">none</span>}
+                    : d.dispensed_by || <span className="muted">None</span>}
                   {d.pharmacist_initial && (
                     <span className="muted"> · initialled {d.pharmacist_initial}</span>
                   )}
@@ -324,7 +324,7 @@ export default function DispensingDetail() {
                         </div>
                       )}
                     </>
-                  ) : <span className="muted">still on the shelf</span>}
+                  ) : <span className="muted">Still on the shelf</span>}
                 </dd>
               </dl>
               <ul className="plain-list">

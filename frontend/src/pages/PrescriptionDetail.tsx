@@ -24,7 +24,7 @@
 import { useEffect, useState } from "react";
 import { useScheduleCodes } from "../schedules";
 import { ArrowsClockwise, PencilSimpleLine } from "@phosphor-icons/react";
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
@@ -220,7 +220,7 @@ export default function PrescriptionDetail() {
                       </td>
                       <td>
                         {i.next_repeat_date ? fmtDate(i.next_repeat_date)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                         {i.auto_refill && <div className="muted small">auto refill</div>}
                       </td>
                     </tr>
@@ -292,7 +292,7 @@ export default function PrescriptionDetail() {
                           used to say. */}
                       <td className="muted">{a.old_value || <em>blank</em>}</td>
                       <td><b>{a.new_value || <em>blank</em>}</b></td>
-                      <td>{a.reason || <span className="muted">none</span>}</td>
+                      <td>{a.reason || <span className="muted">None</span>}</td>
                       <td className="muted">{a.changed_by || "none"}</td>
                     </tr>
                   ))}
@@ -321,7 +321,7 @@ export default function PrescriptionDetail() {
                   )}
                 </dd>
                 <dt>Written</dt><dd>{fmtDate(d.date_prescribed)}</dd>
-                <dt>Status</dt><dd><span className="badge">{d.status}</span></dd>
+                <dt>Status</dt><dd><span className="badge">{sentence(d.status)}</span></dd>
               </dl>
             </Panel>
 

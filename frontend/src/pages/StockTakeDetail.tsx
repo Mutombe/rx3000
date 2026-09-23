@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "@phosphor-icons/react";
 
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 
@@ -100,14 +100,14 @@ export default function StockTakeDetail() {
           <Panel title="The count">
             <dl className="kv">
               <dt>Status</dt>
-              <dd><span className="badge muted">{row.status}</span></dd>
+              <dd><span className="badge muted">{sentence(row.status)}</span></dd>
 
               <dt>Covered</dt>
               <dd>{scope}</dd>
 
               <dt>Opened</dt>
               <dd>{row.opened_at ? fmtDateTime(row.opened_at)
-                                 : <span className="muted">not recorded</span>}</dd>
+                                 : <span className="muted">Not recorded</span>}</dd>
 
               <dt>Closed</dt>
               <dd>{row.closed_at
@@ -145,14 +145,14 @@ export default function StockTakeDetail() {
                       <td className="num">{l.counted}</td>
                       <td className="num">
                         {l.variance === 0
-                          ? <span className="muted">none</span>
+                          ? <span className="muted">None</span>
                           : <span className={l.variance < 0 ? "neg" : "pos"}>
                               {l.variance > 0 ? `+${l.variance}` : l.variance}
                             </span>}
                       </td>
                       <td className="num">
                         {l.value === 0
-                          ? <span className="muted">none</span>
+                          ? <span className="muted">None</span>
                           : <span className={l.value < 0 ? "neg" : undefined}>
                               {money(l.value)}
                             </span>}

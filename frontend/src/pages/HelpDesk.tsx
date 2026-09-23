@@ -59,7 +59,7 @@ export default function HelpDesk() {
         t.patient ? <EntityLink to={`/patients/${t.patient.id}`} muted>{t.patient.first_name} {t.patient.last_name}</EntityLink>
         : t.contact ? <EntityLink to={`/contacts/${t.contact.id}`} muted>{t.contact.first_name} {t.contact.last_name}</EntityLink>
         : t.company ? <EntityLink to={`/accounts/${t.company.id}`} muted>{t.company.name}</EntityLink>
-        : <span className="muted">none</span>
+        : <span className="muted">None</span>
       ) },
     /* Sized to what each one holds. A fixed layout gave all seven 119px,
        so "System Administrator" lost 42px in Assigned while Priority spent
@@ -75,7 +75,7 @@ export default function HelpDesk() {
     { key: "sla", header: "SLA", width: 104, render: (t) => slaBadge(t) },
     { key: "assigned", header: "Assigned", sortable: true, width: 156,
       value: (t) => t.assigned_to?.full_name ?? "",
-      render: (t) => t.assigned_to?.full_name ?? <span className="muted">unassigned</span> },
+      render: (t) => t.assigned_to?.full_name ?? <span className="muted">Unassigned</span> },
     { key: "status", header: "Status", sortable: true, width: 104,
       render: (t) => (
         <span className={`badge ${t.status === "open" ? "warn" : t.status === "pending" ? "muted" : "ok"}`}>

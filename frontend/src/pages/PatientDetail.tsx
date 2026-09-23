@@ -251,14 +251,14 @@ export default function PatientDetail() {
         { label: "Phone",
           value: patient.phone
             ? <a href={`tel:${patient.phone}`}>{patient.phone}</a>
-            : <span className="muted">not on file</span> },
+            : <span className="muted">Not on file</span> },
         // Plain text: there is no scheme record to open. Every other kind on
         // this header has a page behind it, and inventing a link that goes
         // nowhere is worse than a name that does not pretend to be one.
         { label: "Medical aid",
           value: patient.medical_aid
             ? `${patient.medical_aid.name} #${patient.medical_aid_number}`
-            : <span className="muted">private patient</span> },
+            : <span className="muted">Private patient</span> },
         { label: "Loyalty", value: `${patient.loyalty_points} pts` },
       ]}
       actions={

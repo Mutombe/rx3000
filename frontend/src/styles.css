@@ -1248,10 +1248,27 @@ label {
   scrollbar-color: var(--line-strong) transparent;
   overscroll-behavior-x: contain;
 }
-.pill-tabs::-webkit-scrollbar { height: 6px; }
+/* HAIRLINE, BECAUSE IT SITS UNDER THE TABS.
+   Six pixels of bar under a strip of tabs reads as a second row of chrome: the
+   eye counts it as part of the menu and the menu looks twice as tall as it is.
+   Three, with the thumb inset to two, is enough to say "this scrolls" and
+   little enough to disappear when it does not. */
+.pill-tabs::-webkit-scrollbar { height: 3px; }
 .pill-tabs::-webkit-scrollbar-track { background: transparent; }
 .pill-tabs::-webkit-scrollbar-thumb {
   background: var(--line-strong); border-radius: 999px;
+}
+/* Only while the pointer is over the strip. A scroller nobody is touching does
+   not need to state itself, and the fade at its edge already says there is
+   more; this is for the moment somebody reaches for it. */
+.pill-tabs { scrollbar-color: transparent transparent; }
+.pill-tabs:hover, .pill-tabs:focus-within {
+  scrollbar-color: var(--line-strong) transparent;
+}
+.pill-tabs::-webkit-scrollbar-thumb { background: transparent; }
+.pill-tabs:hover::-webkit-scrollbar-thumb,
+.pill-tabs:focus-within::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
 }
 /* A tab must keep its own width; a flex row will otherwise squeeze them all
    to fit and the labels clip instead of scrolling. */
@@ -3952,11 +3969,31 @@ button.wl-stat:disabled:hover {
 .col-stamp { width: 12.5rem; } /* "20 Sept, 2026, 08:41" wants 157px */
 .col-range { width: 15rem; }   /* "01 Sept, 2026 to 30 Sept, 2026" wants 223px */
 .col-said  { width: 16rem; }   /* a short sentence: a reason, a description */
-.col-code  { width: 7rem; }    /* a short branch or account code */
+.col-code  { width: 7rem; }
+/* The period code and its month underneath. Without a width the table shares
+   its space equally and "202609" lost its last digit by eight pixels, on the
+   column the row is identified by. */
+.pe-code { width: 8rem; }
+/* Wide enough for "Not counted", which is what the column says on a branch
+   whose drawer nobody has counted, and which a capital N made six pixels too
+   long for the share the table was giving it. */
+.db-drawer { width: 7.5rem; }
+/* The claim batch table's own, narrower than the shared ones it used: nine
+   columns do not fit a till at the widths a five column table can afford. */
+.cl-batch  { width: 6.5rem; }
+.cl-office { width: 7.5rem; }
+.cl-period { width: 8.5rem; }    /* a short branch or account code */
 .col-city  { width: 8.5rem; }  /* a town name */
 .col-count { width: 5.5rem; }  /* a plain count: packs, units, lines */
 .col-row   { width: 4.5rem; }  /* a row number in an uploaded file */
 
+/* Left at 19rem. Narrowing it to buy width for the six ageing bands beside it
+   clipped the supplier LINK instead, which is worse than a clipped figure: a
+   name you cannot finish reading is still a name, a control you cannot press
+   is nothing. The payables ageing table carries a supplier, six bands, a total
+   and two actions, and that is more than a 1,440 screen holds at this size.
+   It is a column too many rather than a width too wide, and which column goes
+   is the pharmacy's decision rather than mine. */
 .pay-supplier { width: 19rem; }
 
 /* The two columns a repeat queue is actually read by. A combination name
@@ -3985,6 +4022,17 @@ div:has(> .dt.dt-wide),
 div:has(> .dt.dt-wider),
 div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
 
+/* LEFT AS FLAT MINIMUMS, DELIBERATELY, AND HERE IS THE WORKING.
+   Wrapping these in `min(_, 100%)` does stop the sideways scroll: every table
+   then fits its container. It stops it by squashing the columns until the text
+   inside them is cut, and measured across the product that traded four
+   scrolling screens for twenty-three silently truncated ones, none of which
+   offer the reader any way to see what was removed.
+   A cell that clips with an ellipsis AND a tooltip is a shortened cell; a cell
+   that clips with neither is text that simply stops. Scrolling is worse than
+   the first and better than the second.
+   Where a table genuinely does not fit, the fix is one column fewer or one
+   sentence shorter, which is what was done to the trading periods below. */
 .dt.dt-wide   { min-width: 68rem; }
 .dt.dt-wider  { min-width: 78rem; }
 .dt.dt-widest { min-width: 94rem; }

@@ -334,7 +334,7 @@ export default function Samples() {
                         {r.representative && <div className="muted small">{r.representative}</div>}
                       </td>
                       <td>
-                        {r.expiry_date ? fmtDate(r.expiry_date) : <span className="muted">not recorded</span>}
+                        {r.expiry_date ? fmtDate(r.expiry_date) : <span className="muted">Not recorded</span>}
                         {r.attention && <div className="badge danger">{r.attention}</div>}
                       </td>
                       <td className="num">
@@ -365,7 +365,7 @@ export default function Samples() {
                                     </td>
                                     <td className="num">{m.quantity}</td>
                                     <td className="num">{m.balance_after}</td>
-                                    <td>{m.given_to || <span className="muted">none</span>}</td>
+                                    <td>{m.given_to || <span className="muted">None</span>}</td>
                                     <td>
                                       {m.by}
                                       {m.witness && <div className="muted small">witness {m.witness}</div>}

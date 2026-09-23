@@ -139,12 +139,12 @@ export default function GoodsReceiptDetail() {
       <td>
         <EntityLink to={`/products/${i.product_id}`}>{i.product || "unnamed"}</EntityLink>
       </td>
-      <td className="mono small">{i.batch || <span className="muted">none</span>}</td>
+      <td className="mono small">{i.batch || <span className="muted">None</span>}</td>
       <td className="small">
         {/* Said the way every other date in the product is said. It was
             printed straight from the database as 2027-01-10, which is the
             one date format nobody in the pharmacy writes. */}
-        {i.expiry ? fmtDate(i.expiry) : <span className="muted">not given</span>}
+        {i.expiry ? fmtDate(i.expiry) : <span className="muted">Not given</span>}
       </td>
       <td className="num">{i.quantity}</td>
       <td className="num">{money(i.unit_cost)}</td>
@@ -228,7 +228,7 @@ export default function GoodsReceiptDetail() {
               <dd>
                 {row.supplier_id
                   ? <EntityLink to={`/suppliers/${row.supplier_id}`}>{row.supplier}</EntityLink>
-                  : <span className="muted">not recorded</span>}
+                  : <span className="muted">Not recorded</span>}
               </dd>
 
               <dt>Against order</dt>
@@ -242,20 +242,20 @@ export default function GoodsReceiptDetail() {
 
               <dt>Delivery note</dt>
               <dd className="mono">
-                {row.delivery_note || <span className="muted">none given</span>}
+                {row.delivery_note || <span className="muted">None given</span>}
               </dd>
 
               <dt>Invoice</dt>
               <dd className="mono">
-                {row.invoice_number || <span className="muted">not billed yet</span>}
+                {row.invoice_number || <span className="muted">Not billed yet</span>}
               </dd>
 
               <dt>Received</dt>
               <dd>{row.received_at ? fmtDateTime(row.received_at)
-                                   : <span className="muted">not recorded</span>}</dd>
+                                   : <span className="muted">Not recorded</span>}</dd>
 
               <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">none</span>}</dd>
+              <dd>{row.notes || <span className="muted">None</span>}</dd>
             </dl>
           </Panel>
 

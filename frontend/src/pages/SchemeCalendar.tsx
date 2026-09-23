@@ -255,13 +255,13 @@ export default function SchemeCalendar() {
                         ? <span className="badge ok">Realtime</span>
                         : s.claim_cutoff_day
                           ? `${s.claim_cutoff_day}${ordinal(s.claim_cutoff_day)}`
-                          : <span className="muted">not agreed</span>}
+                          : <span className="muted">Not agreed</span>}
                     </td>
                     {/* A real-time scheme has no cut-off to count down to. That is
                         an answer, not a gap. */}
                     <td>
                       {s.realtime
-                        ? <span className="muted">no cut-off</span>
+                        ? <span className="muted">No cut-off</span>
                         : when(s.days_to_cutoff, s.next_cutoff)}
                     </td>
                     <td>
@@ -269,7 +269,7 @@ export default function SchemeCalendar() {
                         ? `${s.settlement_day}${ordinal(s.settlement_day)}`
                         : s.settlement_days
                           ? `${s.settlement_days} days after`
-                          : <span className="muted">not agreed</span>}
+                          : <span className="muted">Not agreed</span>}
                     </td>
                     <td>{when(s.days_to_settlement, s.next_settlement)}</td>
                     <td className="num">
@@ -281,7 +281,7 @@ export default function SchemeCalendar() {
                     <td className="num">
                       {s.held > 0
                         ? <b>{s.held}</b>
-                        : <span className="muted">none</span>}
+                        : <span className="muted">None</span>}
                     </td>
                     <td className="actions">
                       <button className="btn small secondary" onClick={() => open(s)}>
@@ -319,7 +319,7 @@ export default function SchemeCalendar() {
                   <div>
                     <span className="muted small">Recovered</span>
                     <b>{standing.recovery === null
-                      ? <span className="muted">not yet</span>
+                      ? <span className="muted">Not yet</span>
                       : `${Math.round(standing.recovery * 100)}%`}</b>
                   </div>
                   <div>

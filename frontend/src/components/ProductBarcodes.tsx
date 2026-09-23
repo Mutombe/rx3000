@@ -78,8 +78,8 @@ export default function ProductBarcodes({ productId }: { productId: number }) {
             {list.items.map((c) => (
               <tr key={c.id} className={rowClass(list.stateOf(c))}>
                 <td className="mono"><b>{c.code}</b></td>
-                <td>{c.pack_size || <span className="muted">none</span>}</td>
-                <td>{c.label || <span className="muted">none</span>}</td>
+                <td>{c.pack_size || <span className="muted">None</span>}</td>
+                <td>{c.label || <span className="muted">None</span>}</td>
                 <td className="muted small">{SOURCE[c.source] ?? c.source}</td>
                 <td className="actions">
                   <BusyButton

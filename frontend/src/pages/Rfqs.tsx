@@ -185,7 +185,7 @@ export default function Rfqs() {
                       <td className="small">
                         {r.closes_at
                           ? fmtDate(r.closes_at)
-                          : <span className="muted">no date</span>}
+                          : <span className="muted">No date</span>}
                       </td>
                     </tr>
                   ))}

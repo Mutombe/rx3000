@@ -202,7 +202,7 @@ export default function ProductDetail() {
     { key: "created_at", header: "When", sortable: true,
       value: (m) => m.created_at ?? "",
       render: (m) => (m.created_at ? fmtDateTime(m.created_at)
-                                   : <span className="muted">not recorded</span>) },
+                                   : <span className="muted">Not recorded</span>) },
     { key: "movement_type", header: "Type", sortable: true,
       render: (m) => <span className="badge muted">{m.movement_type}</span> },
     { key: "quantity_delta", header: "Change", align: "right", sortable: true,
@@ -242,7 +242,7 @@ export default function ProductDetail() {
         { label: "Pack size", value: p.pack_size || "not recorded" },
         { label: "Department",
           value: departments.find((d) => d.id === p.category_id)?.name
-            ?? <span className="muted">not filed</span> },
+            ?? <span className="muted">Not filed</span> },
       ]}
       /* THE DEPARTMENT DROPDOWN IS NOT HERE ANY MORE.
          A form control sitting inside the title block is the one thing a
@@ -379,7 +379,7 @@ export default function ProductDetail() {
             <dd>
               {p.bin_location
                 ? <EntityLink to={`/bins/${p.bin_location}`}>{p.bin_location}</EntityLink>
-                : <span className="muted">no shelf</span>}
+                : <span className="muted">No shelf</span>}
               {/* Where else it is kept. The stock is valued at the first,
                   so the others are places to walk rather than piles to
                   price. */}
@@ -403,9 +403,9 @@ export default function ProductDetail() {
             </dd>
           </div>
           <div><dt>Ingredient</dt><dd>{p.active_ingredient
-            || <span className="muted">not recorded</span>}</dd></div>
+            || <span className="muted">Not recorded</span>}</dd></div>
           <div><dt>Manufacturer</dt><dd>{p.manufacturer
-            || <span className="muted">not recorded</span>}</dd></div>
+            || <span className="muted">Not recorded</span>}</dd></div>
           <div><dt>Reorder quantity</dt><dd>{p.reorder_quantity}</dd></div>
         </dl>
         {/* The rest of the family: other products holding the same molecule. */}

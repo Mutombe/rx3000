@@ -143,7 +143,7 @@ export default function RoleMatrix() {
                 </th>
                 {roles.map((role) => {
                   const cell = row.roles[role];
-                  if (!cell) return <td key={role} className="num">none</td>;
+                  if (!cell) return <td key={role} className="num">None</td>;
                   const key = `${row.capability}:${role}`;
                   const moved = cell.allowed !== cell.default;
                   return (

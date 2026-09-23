@@ -132,7 +132,7 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
                           "Cosmetics & Fragrance" beside it. */}
                       {plan.created.includes(name)
                         ? <span className="badge warn">Will be created</span>
-                        : <span className="muted small">existing</span>}
+                        : <span className="muted small">Existing</span>}
                     </td>
                   </tr>
                 ))}

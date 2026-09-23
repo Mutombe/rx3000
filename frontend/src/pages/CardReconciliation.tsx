@@ -59,14 +59,14 @@ export default function CardReconciliation() {
       total: (r) => r.statement_amount, totalRender: (n) => money(n) },
     { key: "difference", header: "Difference", align: "right", sortable: true,
       render: (r) => (Math.abs(r.difference) < 0.005
-        ? <span className="muted">none</span>
+        ? <span className="muted">None</span>
         : <b className="badge danger">{money(r.difference)}</b>),
       total: (r) => r.difference, totalRender: (n) => money(n) },
   ];
 
   const stmtCols: Column<ReconStatementLine>[] = [
     { key: "line", header: "Line", align: "right", sortable: true },
-    { key: "date", header: "Date", sortable: true, render: (r) => r.txn_date ?? <span className="muted">none</span> },
+    { key: "date", header: "Date", sortable: true, render: (r) => r.txn_date ?? <span className="muted">None</span> },
     { key: "auth_code", header: "Auth code", render: (r) => <span className="mono">{r.auth_code || "none"}</span> },
     { key: "reference", header: "Reference", truncate: 20,
       render: (r) => <span className="mono">{r.reference || "none"}</span> },

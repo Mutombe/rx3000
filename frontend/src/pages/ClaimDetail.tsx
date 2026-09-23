@@ -89,7 +89,7 @@ export default function ClaimDetail() {
                 <dt>Allowed</dt><dd className="num">{money(d.amount_approved)}</dd>
                 <dt>Shortfall</dt>
                 <dd className="num">
-                  {d.shortfall > 0.005 ? money(d.shortfall) : <span className="muted">none</span>}
+                  {d.shortfall > 0.005 ? money(d.shortfall) : <span className="muted">None</span>}
                 </dd>
               </dl>
             </Panel>
@@ -113,7 +113,7 @@ export default function ClaimDetail() {
                 <dt>Submitted</dt>
                 <dd>
                   {d.submitted_at ? fmtDateTime(d.submitted_at)
-                    : <span className="muted">not sent</span>}
+                    : <span className="muted">Not sent</span>}
                   {d.submit_attempts > 1 && (
                     <div className="muted small">{d.submit_attempts} attempts</div>
                   )}

@@ -165,7 +165,7 @@ export default function InsuranceStanding({ patientId, compact = false, variant 
             <span>Settled</span>
             <b>
               {data.scheme.recovery === null
-                ? <span className="muted">nothing settled yet</span>
+                ? <span className="muted">Nothing settled yet</span>
                 : `${Math.round(data.scheme.recovery * 100)}%`}
             </b>
           </div>

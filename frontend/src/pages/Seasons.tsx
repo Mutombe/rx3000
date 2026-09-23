@@ -192,7 +192,7 @@ export default function Seasons() {
                               whatever medicines they happen to dispense. */}
                           <td className="num">
                             {b.multiple ? `${b.multiple}×`
-                              : <span className="muted">none</span>}
+                              : <span className="muted">None</span>}
                           </td>
                           <td className="num">{b.attach_rate}%</td>
                         </tr>
@@ -327,7 +327,7 @@ export default function Seasons() {
                         <td className="num mono">{money(b.value)}</td>
                         <td>
                           {b.traded ? b.busiest
-                            : <span className="muted">no trade recorded</span>}
+                            : <span className="muted">No trade recorded</span>}
                           {b.traded && b.busiest !== group.group_busiest && (
                             <div><span className="badge warn">
                               Not the group's

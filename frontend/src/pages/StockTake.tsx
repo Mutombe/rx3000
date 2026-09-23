@@ -15,7 +15,7 @@
  *  a shelf, and nothing about how many there should be.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, errorText, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
@@ -434,7 +434,7 @@ export default function StockTake() {
           <div className="card">
             <div className="cu-head">
               <h3 style={{ margin: 0 }}>{take.reference}</h3>
-              <span className="badge ok">{take.status}</span>
+              <span className="badge ok">{sentence(take.status)}</span>
             </div>
             <p className="muted">
               Opened {take.opened_at ? fmtDateTime(take.opened_at) : "no date"}
@@ -738,17 +738,17 @@ export default function StockTake() {
                     <td>
                       <EntityLink to={`/stock-takes/${t.id}`}>{t.reference}</EntityLink>
                     </td>
-                    <td><span className="badge muted">{t.status}</span></td>
+                    <td><span className="badge muted">{sentence(t.status)}</span></td>
                     <td className="small">
                       {t.closed_at ? fmtDateTime(t.closed_at)
-                                   : <span className="muted">still open</span>}
+                                   : <span className="muted">Still open</span>}
                     </td>
                     <td className="num">{t.counted_lines}</td>
                     {/* Over and short kept apart. A count 40 over and 40 short
                         nets to nothing and is not a clean count, it is two
                         errors. */}
-                    <td className="num">{t.over_units || <span className="muted">none</span>}</td>
-                    <td className="num">{t.short_units || <span className="muted">none</span>}</td>
+                    <td className="num">{t.over_units || <span className="muted">None</span>}</td>
+                    <td className="num">{t.short_units || <span className="muted">None</span>}</td>
                     <td className="num">
                       <span className={t.variance_value < 0 ? "neg" : undefined}>
                         {money(t.variance_value)}

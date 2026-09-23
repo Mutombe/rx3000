@@ -263,7 +263,7 @@ export default function HeadOffice() {
                       <td className="num mono">{money(b.taken)}</td>
                       <td className="num">{b.sales}</td>
                       <td className="num">
-                        {b.change === null ? <span className="muted">none</span> : (
+                        {b.change === null ? <span className="muted">None</span> : (
                           <b className={b.change <= -25 ? "tone-danger"
                             : b.change > 0 ? "tone-ok" : undefined}>
                             {b.change > 0 ? "+" : ""}{b.change}%
@@ -506,7 +506,7 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
                   <td className="wrap">
                     {p.denied.length
                       ? <span className="badge bad">{p.denied.join(", ")}</span>
-                      : <span className="muted">none</span>}
+                      : <span className="muted">None</span>}
                   </td>
                 </tr>
               ))}

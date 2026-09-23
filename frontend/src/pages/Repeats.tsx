@@ -456,7 +456,7 @@ export default function Repeats() {
                               <span className="btn-count">{i.quantity}</span>
                             </BusyButton>
                           ) : (
-                            <span className="badge warn">Not enough stock</span>
+                            <span className="badge warn">No stock</span>
                           )}
                         </span>
                         {/* Not every repeat goes out as written. The patient
@@ -564,7 +564,7 @@ export default function Repeats() {
                     <b className={`tone-${rateTone(
                       (perf.value_capture_rate ?? 0) * 100, 80)}`}>
                       {perf.value_capture_rate === null
-                        ? <span className="muted">no repeats due yet</span>
+                        ? <span className="muted">No repeats due yet</span>
                         : `${Math.round(perf.value_capture_rate * 100)}%`}
                     </b>
                     <span>Of the value kept</span>

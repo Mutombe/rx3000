@@ -772,7 +772,7 @@ export default function Admin() {
                     <tr key={l.row}>
                       <td>{l.row}</td>
                       <td className="mono">{l.key}</td>
-                      <td>{l.product_name || <span className="muted">none</span>}</td>
+                      <td>{l.product_name || <span className="muted">None</span>}</td>
                       <td className="num">
                         {l.new_cost !== null
                           ? <><span className="muted">{money(l.old_cost)}</span> → <b>{money(l.new_cost)}</b></>
@@ -1084,9 +1084,9 @@ export default function Admin() {
                     <b>{g.action_name}</b>
                     <div className="muted small mono">{g.action}</div>
                   </td>
-                  <td>{g.requested_by || <span className="muted">none</span>}</td>
+                  <td>{g.requested_by || <span className="muted">None</span>}</td>
                   <td>
-                    {g.approved_by || <span className="muted">nobody</span>}
+                    {g.approved_by || <span className="muted">Nobody</span>}
                     {g.supervisor_override && (
                       <div className="muted small">a second person</div>
                     )}
@@ -1103,7 +1103,7 @@ export default function Admin() {
                     )}
                   </td>
                   <td className="small wrap">
-                    {g.reason || g.context || <span className="muted">none</span>}
+                    {g.reason || g.context || <span className="muted">None</span>}
                   </td>
                 </tr>
               ))}

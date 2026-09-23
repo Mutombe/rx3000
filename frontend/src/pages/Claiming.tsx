@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { api, errorText, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money , sentence} from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
@@ -505,10 +505,10 @@ export default function Claiming() {
                         </td>
                         <td>{officeName(b.pay_office_id)}</td>
                         <td className="muted">
-                          {b.period_from ? fmtDate(b.period_from) : "no date"}
-                          {b.period_to ? `. ${fmtDate(b.period_to)}` : ""}
+                          {b.period_from ? fmtDate(b.period_from) : "No date"}
+                          {b.period_to ? ` to ${fmtDate(b.period_to)}` : ""}
                         </td>
-                        <td><span className={`badge ${badgeFor(b.status)}`}>{b.status}</span></td>
+                        <td><span className={`badge ${badgeFor(b.status)}`}>{sentence(b.status)}</span></td>
                         <td className="num">{b.claim_count}</td>
                         <td className="num">{money(b.total_claimed)}</td>
                         <td className="num">{money(b.total_settled)}</td>
@@ -641,7 +641,7 @@ export default function Claiming() {
                       </td>
                       <td className="num">
                         {openFormulary?.id === f.id ? entries.length
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                       </td>
                       <td className="actions">
                         <button className="btn small secondary"
@@ -711,10 +711,10 @@ export default function Claiming() {
                         <td className="num">
                           {e.reference_price
                             ? money(e.reference_price)
-                            : <span className="muted">none</span>}
+                            : <span className="muted">None</span>}
                         </td>
                         <td className="num">
-                          {e.max_quantity || <span className="muted">no limit</span>}
+                          {e.max_quantity || <span className="muted">No limit</span>}
                         </td>
                         <td className="small wrap">{e.note}</td>
                       </tr>
@@ -896,7 +896,7 @@ export default function Claiming() {
                           percentage runs all the way up. */}
                       <td className="num">
                         {t.max_fee === null
-                          ? <span className="muted">no cap</span> : money(t.max_fee)}
+                          ? <span className="muted">No cap</span> : money(t.max_fee)}
                       </td>
                     </tr>
                   ))}

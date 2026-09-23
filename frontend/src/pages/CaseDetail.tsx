@@ -106,7 +106,7 @@ export default function CaseDetail() {
             ? <EntityLink to={`/accounts/${ticket.company.id}`}>
                 {ticket.company.name}
               </EntityLink>
-            : <span className="muted">none</span> },
+            : <span className="muted">None</span> },
       ]}
     >
 

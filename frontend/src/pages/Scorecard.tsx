@@ -59,7 +59,7 @@ const WINDOWS = [
 
 /** A percentage, or the reason there is not one. */
 function pct(value: number | null, good = 90): JSX.Element {
-  if (value === null) return <span className="muted">not counted</span>;
+  if (value === null) return <span className="muted">Not counted</span>;
   // Through the shared rule rather than a copy of it. Two screens each with
   // their own thresholds is how a 79% comes to be amber on one page and green
   // on the next, which teaches a reader to distrust the colour.

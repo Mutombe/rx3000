@@ -178,7 +178,7 @@ export default function MovementDetail() {
 
               <dt>When</dt>
               <dd>{row.created_at ? fmtDateTime(row.created_at)
-                                  : <span className="muted">not recorded</span>}</dd>
+                                  : <span className="muted">Not recorded</span>}</dd>
 
               <dt>Type</dt>
               <dd><span className="badge muted">{row.movement_type}</span></dd>
@@ -193,10 +193,10 @@ export default function MovementDetail() {
               </dd>
 
               <dt>Note</dt>
-              <dd>{row.notes || <span className="muted">none</span>}</dd>
+              <dd>{row.notes || <span className="muted">None</span>}</dd>
 
               <dt>Reference</dt>
-              <dd className="mono">{row.reference || <span className="muted">none</span>}</dd>
+              <dd className="mono">{row.reference || <span className="muted">None</span>}</dd>
 
               <dt>Who</dt>
               <dd>
@@ -206,7 +206,7 @@ export default function MovementDetail() {
               </dd>
 
               <dt>Where</dt>
-              <dd>{row.branch || <span className="muted">not recorded</span>}</dd>
+              <dd>{row.branch || <span className="muted">Not recorded</span>}</dd>
 
               {row.prescription_id ? (
                 <>

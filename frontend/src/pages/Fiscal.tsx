@@ -370,7 +370,7 @@ export default function Fiscal() {
                       </td>
                       <td className="small">
                         {r.submitted_at ? fmtDateTime(r.submitted_at)
-                          : <span className="muted">not filed</span>}
+                          : <span className="muted">Not filed</span>}
                       </td>
                       <td className="num">{money(r.total)}</td>
                       <td className="num muted">{money(r.vat_amount)}</td>
@@ -451,7 +451,7 @@ export default function Fiscal() {
                         ? <span className="badge danger" title={d.error}>failed</span>
                         : d.response_ref
                           ? <span className="mono">{d.response_ref}</span>
-                          : <span className="muted">none</span>}
+                          : <span className="muted">None</span>}
                     </td>
                   </RowLink>
                 ))}

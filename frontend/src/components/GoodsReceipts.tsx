@@ -346,7 +346,7 @@ export default function GoodsReceipts() {
                       )}
                       {r.invoice_number
                         ? <div className="small">
-                            <span className="muted">invoice </span>
+                            <span className="muted">Invoice </span>
                             {r.invoice_id
                               ? <EntityLink to={`/payables/invoices/${r.invoice_id}`}>
                                   {r.invoice_number}

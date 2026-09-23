@@ -148,7 +148,7 @@ export default function InvoiceDetail() {
                   </dd>
                   <dt>Posted as</dt>
                   <dd className="mono">
-                    {d.posted_reference || <span className="muted">not yet posted</span>}
+                    {d.posted_reference || <span className="muted">Not yet posted</span>}
                   </dd>
                 </dl>
               </Panel>

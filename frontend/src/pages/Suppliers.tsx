@@ -184,7 +184,7 @@ export default function Suppliers() {
                         {s.notes && <div className="muted small wrap">{s.notes}</div>}
                       </td>
                       <td>
-                        {s.contact_person || <span className="muted">not named</span>}
+                        {s.contact_person || <span className="muted">Not named</span>}
                         {s.phone && <div className="muted small">{s.phone}</div>}
                         {/* Truncated with an ellipsis and its full value on
                             hover: an address that simply stops mid-word looks
@@ -203,10 +203,10 @@ export default function Suppliers() {
                       {/* The bank account, readable at last. A payment made
                           against a stale number is not a data-entry problem. */}
                       <td className="mono small">
-                        {s.account_number || <span className="muted">not recorded</span>}
+                        {s.account_number || <span className="muted">Not recorded</span>}
                       </td>
                       <td className="small">
-                        {s.payment_terms || <span className="muted">none agreed</span>}
+                        {s.payment_terms || <span className="muted">None agreed</span>}
                       </td>
                       <td className="actions">
                         <button className="btn ghost small"
@@ -389,7 +389,7 @@ function SupplierRecord({ record, loading }: {
 }) {
   if (loading) return <span className="muted small">…</span>;
   if (!record || !record.orders) {
-    return <span className="muted small">never ordered from</span>;
+    return <span className="muted small">Never ordered from</span>;
   }
   // Waiting on them is not failing. An order still in transit used to drag
   // this to a red "0% arrives", which branded most of the supplier list as

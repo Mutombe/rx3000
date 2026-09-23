@@ -11,7 +11,7 @@
  */
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDate, fmtDateTime, money, errorText  } from "../api";
+import { api, fmtDate, fmtDateTime, money, errorText, sentence } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { useStepUp, CANCELLED } from "../components/StepUp";
@@ -165,10 +165,15 @@ export default function Periods() {
           hasData={periods.length > 0}
           skeleton={<TableSkeleton cols={6} rows={5} />}
         >
-        <table className="dt dt-wider">
+        {/* No forced width. `dt-wider` pinned this to 78rem, which is wider than
+            the content area on a 1440 screen, so the table scrolled sideways and
+            the actions were the part off the edge. It needed that width for a
+            two line sentence under every status badge; without it the seven
+            columns fit. */}
+        <table className="dt">
           <thead>
             <tr>
-              <th>Period</th>
+              <th className="pe-code">Period</th>
               <th className="col-range">Runs</th>
               <th>Status</th>
               <th className="num">Signed off at</th>
@@ -191,31 +196,39 @@ export default function Periods() {
                   {/* "closed" used to fall through to an empty tone and
                       render grey-on-grey, which on the row that says the books
                       are shut is the one status worth seeing. */}
+                  {/* THE BADGE, AND THE SENTENCE ON THE HOVER.
+                      Two lines of explanation under every badge made each row
+                      twice as tall and took the width that the actions on the
+                      right needed, so "Close the period" and "VAT return" were
+                      pushed off the screen entirely: the table explained the
+                      status and hid the controls for changing it. The sentence
+                      is the same on every row of a given status, which is what
+                      makes it a legend rather than data. */}
                   <span className={`badge ${p.status === "open" ? "ok"
-                    : p.status === "locked" ? "warn" : "muted"}`}>
-                    {p.status}
+                    : p.status === "locked" ? "warn" : "muted"}`}
+                        title={STATUS_HINT[p.status]}>
+                    {sentence(p.status)}
                   </span>
-                  <div className="muted small clip-2" title={STATUS_HINT[p.status]}>{STATUS_HINT[p.status]}</div>
                   {p.drift_warning && (
                     <div className="alert error small">{p.drift_warning}</div>
                   )}
                 </td>
                 <td className="num">
                   {p.status === "open" ? (
-                    <span className="muted">none</span>
+                    <span className="muted">None</span>
                   ) : (
                     money(p.closing_sales)
                   )}
                 </td>
                 <td className="num">
                   {p.status === "open" ? (
-                    <span className="muted">none</span>
+                    <span className="muted">None</span>
                   ) : (
                     p.closing_transactions
                   )}
                 </td>
                 <td>
-                  {p.closed_by || <span className="muted">none</span>}
+                  {p.closed_by || <span className="muted">None</span>}
                   {p.closed_at && (
                     <div className="muted small">{fmtDateTime(p.closed_at)}</div>
                   )}
@@ -330,11 +343,11 @@ export default function Periods() {
                   <td className="num mono">{money(vat.turnover_excluding_vat)}</td>
                 </tr>
                 <tr>
-                  <td>Output tax <span className="muted">charged on sales</span></td>
+                  <td>Output tax <span className="muted">Charged on sales</span></td>
                   <td className="num mono">{money(vat.output_tax)}</td>
                 </tr>
                 <tr>
-                  <td>Input tax <span className="muted">paid on purchases</span></td>
+                  <td>Input tax <span className="muted">Paid on purchases</span></td>
                   <td className="num mono">{money(vat.input_tax)}</td>
                 </tr>
                 <tr>

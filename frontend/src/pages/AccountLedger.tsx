@@ -127,7 +127,7 @@ export default function AccountLedger() {
                     ) : (
                       /* On a control account this is the line that will stop the
                          subledger reconciling, so it is named rather than blank. */
-                      <span className="muted">unattributed</span>
+                      <span className="muted">Unattributed</span>
                     )}
                   </td>
                   <td className="num">{l.debit ? money(l.debit) : "none"}</td>

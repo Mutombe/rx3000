@@ -240,7 +240,7 @@ export default function ComplianceDocument() {
               <dl className="kv">
                 <dt>Issued by</dt>
                 <dd>
-                  {doc.issuer || <span className="muted">not recorded</span>}
+                  {doc.issuer || <span className="muted">Not recorded</span>}
                   {doc.expected_issuer && doc.issuer
                     && doc.issuer !== doc.expected_issuer && (
                     <div className="muted small">
@@ -250,15 +250,15 @@ export default function ComplianceDocument() {
                 </dd>
                 <dt>Issued on</dt>
                 <dd>{doc.issued_on ? fmtDate(doc.issued_on)
-                  : <span className="muted">not recorded</span>}</dd>
+                  : <span className="muted">Not recorded</span>}</dd>
                 <dt>Expires</dt>
                 <dd>
                   {doc.expires_on ? fmtDate(doc.expires_on)
-                    : <span className="muted">does not expire</span>}
+                    : <span className="muted">Does not expire</span>}
                 </dd>
                 <dt>Renewal cost</dt>
                 <dd>{doc.renewal_cost ? money(doc.renewal_cost)
-                  : <span className="muted">not recorded</span>}</dd>
+                  : <span className="muted">Not recorded</span>}</dd>
               </dl>
             </Panel>
 
@@ -279,7 +279,7 @@ export default function ComplianceDocument() {
                 </dd>
                 <dt>Recorded by</dt>
                 <dd>
-                  {doc.uploaded_by || <span className="muted">none</span>}
+                  {doc.uploaded_by || <span className="muted">None</span>}
                   {doc.uploaded_at && (
                     <div className="muted small">{fmtDateTime(doc.uploaded_at)}</div>
                   )}

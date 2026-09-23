@@ -40,7 +40,7 @@ export default function CounsellingPoints(
         <span>Counselling points</span>
         {!open && (
           <span className="muted small">
-            what to say at hand-out
+            What to say at hand-out
           </span>
         )}
       </button>

@@ -931,7 +931,7 @@ export function ScanBar({
                 onClick={() => teach(p.id)}
               >
                 <span>{p.name}</span>
-                <span className="muted">attach code</span>
+                <span className="muted">Attach code</span>
               </BusyButton>
             ))}
           </div>

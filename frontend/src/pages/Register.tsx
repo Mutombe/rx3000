@@ -250,7 +250,7 @@ export default function Register() {
                   <td>{r.printed_by}</td>
                   <td className="wrap">
                     {r.reason || (
-                      <span className="muted">no reason given</span>
+                      <span className="muted">No reason given</span>
                     )}
                   </td>
                 </tr>
