@@ -818,10 +818,20 @@ def dispense(
                 status_code=400,
                 detail=f"{product.name}: cannot supply {supplied} of {item.quantity}.")
         owed_qty = item.quantity - supplied
-        if owed_qty and (product.quantity_on_hand or 0) < supplied:
-            raise HTTPException(
-                status_code=400,
-                detail=f"{product.name}: only {product.quantity_on_hand} in stock.")
+        if owed_qty:
+            # Checked against the shelf this dispenser can actually reach.
+            # Read from the group total, the message said there was plenty
+            # while the counter was empty, and the dispenser recorded a debt
+            # for medicine they were about to be refused.
+            from ..services import branches as _branches
+            _branch = _branches.branch_of(db, user.id)
+            _here = (_branches.on_hand_many(
+                db, [product.id], _branch, sellable_only=True).get(product.id, 0)
+                if _branch is not None else (product.quantity_on_hand or 0))
+            if _here < supplied:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{product.name}: only {_here} on this branch's shelf.")
 
         # Priced per UNIT, because `item.quantity` is a count of tablets.
         #

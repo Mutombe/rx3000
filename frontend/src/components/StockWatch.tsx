@@ -31,11 +31,16 @@ import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
 
-/** The four things the morning sweep can find, worst first. Labelled the
- *  way a person would say them rather than the way they are stored. */
+/** What the morning sweep can find, worst first. Labelled the way a person
+ *  would say them rather than the way they are stored.
+ *
+ *  "At another branch" is the one with a remedy attached: the medicine exists,
+ *  it is just in the wrong shop, and the fix is a transfer this afternoon
+ *  rather than an order next week. A single-shop pharmacy never sees it. */
 const KINDS: [string, string][] = [
   ["expired", "Expired"],
   ["out_of_stock", "Out of stock"],
+  ["empty_here", "At another branch"],
   ["expiring", "Expiring soon"],
   ["below_reorder", "Running low"],
 ];

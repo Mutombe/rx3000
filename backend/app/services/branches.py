@@ -121,6 +121,52 @@ def on_hand(db: Session, product_id: int, branch_id: int) -> int:
     return int(total or 0)
 
 
+def on_hand_many(db: Session, product_ids, branch_id: int | None,
+                 *, sellable_only: bool = False) -> dict[int, int]:
+    """What this branch holds, for a whole page of products in one query.
+
+    The list-shaped twin of `on_hand`, and the reason it exists rather than
+    that one in a loop: a screen of fifty products was fifty round trips, so
+    every caller that needed branch figures for a list quietly used
+    `Product.quantity_on_hand` instead and showed the group's.
+
+    `sellable_only` is the difference between the two questions people ask of
+    the same shelf. Off, it answers "what is here", which is what a count, a
+    valuation or a transfer wants: expired and quarantined stock is still
+    physically on the premises and still has to be accounted for. On, it
+    answers "what can I hand to this patient", which is what the FEFO walk will
+    actually allow, so a screen promising five cannot be refused by the
+    dispensing path a second later for stock it could see and could not use.
+
+    A branch of None means nobody has said which shop, and the answer is the
+    group: every branch's batches summed. That is the honest reading for a
+    single-shop pharmacy, which is most of them, and it keeps this usable as a
+    drop-in wherever a branch may or may not be known.
+    """
+    ids = [int(p) for p in product_ids]
+    if not ids:
+        return {}
+    query = (db.query(StockBatch.product_id,
+                      func.coalesce(func.sum(StockBatch.quantity_remaining), 0))
+             .filter(StockBatch.product_id.in_(ids),
+                     StockBatch.quantity_remaining > 0))
+    if branch_id is not None:
+        query = query.filter(StockBatch.branch_id == branch_id)
+    if sellable_only:
+        query = query.filter(StockBatch.status != "quarantined")
+        # Undated stock counts as sellable. It is most of an imported opening
+        # balance, the FEFO walk takes it, and excluding it here would report
+        # nothing on hand for a catalogue that has only just been brought in.
+        query = query.filter(
+            (StockBatch.expiry_date.is_(None))
+            | (StockBatch.expiry_date >= date.today()))
+    held = {pid: int(qty or 0) for pid, qty in query.group_by(StockBatch.product_id).all()}
+    # Every product asked about gets an answer. A missing key reads as "not
+    # known" and a zero reads as "none here", and the caller almost always
+    # means the second.
+    return {pid: held.get(pid, 0) for pid in ids}
+
+
 def stock_at(db: Session, branch_id: int, *, low_only: bool = False) -> list[dict]:
     """Everything this branch holds, with the group total alongside it.
 

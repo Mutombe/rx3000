@@ -13,16 +13,31 @@ router = APIRouter(prefix="/api/to-follows", tags=["to-follows"],
                    dependencies=[Depends(get_current_user)])
 
 
+def _branch(db: Session, user: User) -> int | None:
+    """The shelf the person asking is standing at, or None if nobody knows.
+
+    None rather than the default branch on purpose: a head office user covering
+    every shop has no one shelf, and answering with the default branch's would
+    tell them a product is out of stock because it is out at a shop they were
+    not asking about.
+    """
+    from ..services import branches as branch_svc
+    return branch_svc.branch_of(db, user.id)
+
+
 @router.get("")
 def queue(status: str = "outstanding", patient_id: int = 0, product_id: int = 0,
-          limit: int = 200, db: Session = Depends(get_db)):
+          limit: int = 200, db: Session = Depends(get_db),
+          user: User = Depends(get_current_user)):
     """Everything owed. The list a pharmacy currently keeps on paper."""
     return to_follows.queue(db, status=status, patient_id=patient_id,
-                            product_id=product_id, limit=limit)
+                            product_id=product_id, limit=limit,
+                            branch_id=_branch(db, user))
 
 
 @router.get("/ready")
-def ready(limit: int = 200, db: Session = Depends(get_db)):
+def ready(limit: int = 200, db: Session = Depends(get_db),
+          user: User = Depends(get_current_user)):
     """What is owed *and* now in stock: the list of patients to telephone.
 
     The incumbent can tell a pharmacy what it owes. This tells it what it can
@@ -30,12 +45,13 @@ def ready(limit: int = 200, db: Session = Depends(get_db)):
     the money off the shelf. Stock arriving is the event that matters and
     nothing else in the shop connects it to a waiting patient.
     """
-    return to_follows.ready(db, limit)
+    return to_follows.ready(db, limit, branch_id=_branch(db, user))
 
 
 @router.get("/summary")
-def summary(db: Session = Depends(get_db)):
-    return to_follows.totals(db)
+def summary(db: Session = Depends(get_db),
+            user: User = Depends(get_current_user)):
+    return to_follows.totals(db, branch_id=_branch(db, user))
 
 
 @router.post("")

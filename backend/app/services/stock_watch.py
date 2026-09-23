@@ -62,7 +62,11 @@ EXPIRING_DAYS = 90
 #: rather than a tidy catalogue. Six months is one repeat cycle plus room.
 STILL_WANTED_DAYS = 180
 
-URGENCY = {"expired": 3, "out_of_stock": 3, "expiring": 2, "below_reorder": 1}
+URGENCY = {"expired": 3, "out_of_stock": 3, "expiring": 2, "below_reorder": 1,
+           # Empty here while another shop has plenty. Urgent in the way a
+           # shortage is, and easier to fix than any of the others: it wants a
+           # transfer this afternoon rather than an order next week.
+           "empty_here": 3}
 
 
 def _open(db: Session, kind: str, product_id: int, branch_id: int | None):
@@ -121,7 +125,8 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
     """
     today = today or date.today()
     seen: set = set()
-    new = {"expired": 0, "expiring": 0, "out_of_stock": 0, "below_reorder": 0}
+    new = {"expired": 0, "expiring": 0, "out_of_stock": 0, "below_reorder": 0,
+           "empty_here": 0}
 
     # What this pharmacy calls short dated, rather than what this module used
     # to assume. Read once per sweep: the job runs over every branch and the
@@ -266,6 +271,66 @@ def sweep(db: Session, *, today: date | None = None) -> dict:
                     f"{product.quantity_on_hand or 0}."),
             seen=seen)
         new["below_reorder"] += made
+
+    # ---- empty at one shop, on the shelf at another ------------------------
+    #
+    # The gap the two passes above leave between them. The first compares the
+    # GROUP's shelf against the group's level, so it says nothing while the
+    # group has plenty. The second only walks branches that have SET a level of
+    # their own, and most never will. So the ordinary case goes unreported: a
+    # shop with none of something, in a pharmacy holding forty of it, and
+    # nobody told until a patient asks.
+    #
+    # Deliberately narrow, because the reason the second pass is narrow is
+    # sound: a list nobody reads is worse than no list. Three conditions, all
+    # of them required.
+    #
+    #   nothing here        not "low", none. A shortage is the other alert's
+    #                       job and needs a level to judge against; this one
+    #                       needs no level, which is the point.
+    #   plenty there        another branch holds enough to be worth moving, so
+    #                       the finding comes with its own remedy.
+    #   dispensed here      this shop actually uses it. Without this every
+    #                       branch is told about every line the other branches
+    #                       stock and it becomes noise on the first run.
+    branch_ids = [b.id for b in db.query(Branch).all()]
+    if len(branch_ids) > 1:
+        from ..models import Sale, SaleItem
+
+        for bid in branch_ids:
+            # What this shop has sold lately, so the alert is about medicine
+            # its own patients ask for.
+            used = {
+                pid for (pid,) in
+                db.query(SaleItem.product_id)
+                .join(Sale, Sale.id == SaleItem.sale_id)
+                .filter(Sale.branch_id == bid,
+                        Sale.created_at >= wanted_since)
+                .distinct().all()
+            }
+            if not used:
+                continue
+            here_all = branch_svc.on_hand_many(db, used, bid)
+            empty = [pid for pid, qty in here_all.items() if qty <= 0]
+            if not empty:
+                continue
+            group = branch_svc.on_hand_many(db, empty, None)
+            branch = db.get(Branch, bid)
+            where = branch.name if branch else f"branch {bid}"
+            for pid in empty:
+                elsewhere = group.get(pid, 0)
+                product = db.get(Product, pid)
+                if product is None or not product.active or elsewhere <= 0:
+                    continue
+                made = _raise(
+                    db, "empty_here", product, branch_id=bid,
+                    worth=valuation.at_cost(product, elsewhere),
+                    detail=(f"None at {where}, and it has been sold there in "
+                            f"the last six months. Another branch holds "
+                            f"{elsewhere}: raise a transfer rather than an "
+                            f"order."),
+                    seen=seen)
+                new["empty_here"] = new.get("empty_here", 0) + made
 
     # ---- and hold what has gone past its date ------------------------------
     #

@@ -34,7 +34,8 @@ router = APIRouter(prefix="/api", tags=["dispensing-extras"],
 @router.post("/quick-price")
 def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
                 medical_aid_id: int | None = Body(default=None),
-                db: Session = Depends(get_db)):
+                db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)):
     """Price something without starting a script.
 
     A patient at the counter asks what a repeat will cost them. Answering that
@@ -59,6 +60,11 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
     # On a scheme the price is the regulated one, not the shelf price — the
     # dispensing fee and any levy are part of what the patient is quoted.
     scheme_total = round(priced.gross, 2) if aid else cash_total
+    from ..services import branches as _branches
+    _branch = _branches.branch_of(db, user.id)
+    _here = (_branches.on_hand_many(
+        db, [product.id], _branch, sellable_only=True).get(product.id, 0)
+        if _branch is not None else (product.quantity_on_hand or 0))
     return {
         "product_id": product.id,
         "product": f"{product.name} {product.strength}".strip(),
@@ -75,8 +81,14 @@ def quick_price(product_id: int = Body(...), quantity: int = Body(default=1),
         "scheme_pays": round(priced.claimable, 2) if aid else 0.0,
         "patient_pays": round(priced.patient_portion, 2) if aid else cash_total,
         "levy": round(priced.levy, 2) if aid else 0.0,
-        "in_stock": product.quantity_on_hand,
-        "can_supply": product.quantity_on_hand >= quantity,
+        # THE SHELF IN THE ROOM.
+        #
+        # The patient is standing at this counter asking whether they can have
+        # it now. Answered from the group total, the assistant said yes and the
+        # dispensing path then refused for stock at the other shop, in front of
+        # the person who had just been told otherwise.
+        "in_stock": _here,
+        "can_supply": _here >= quantity,
         "note": ("" if not aid else
                  "An estimate from the scheme's terms on file. The funder's own "
                  "adjudication is the final answer."),

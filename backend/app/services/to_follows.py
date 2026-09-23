@@ -99,11 +99,25 @@ def settle(db: Session, owed: OwedItem, quantity: int, user_id: int,
             f"{owed.reference} has {remaining} outstanding; {quantity} was offered.")
 
     product = owed.product
-    available = product.quantity_on_hand or 0
+    # THIS SHELF, not the group's.
+    #
+    # The gate read the group total and the FEFO walk below draws from one
+    # branch, so a pharmacy with stock at the other shop passed this check and
+    # was refused three lines later by a different message about batches. Both
+    # were true and neither said the useful thing, which is that the medicine
+    # is in the other shop and wants a transfer.
+    from . import branches as _branches
+    branch_id = _branches.branch_of(db, user_id)
+    available = (_branches.on_hand_many(
+        db, [product.id], branch_id, sellable_only=True).get(product.id, 0)
+        if branch_id is not None else (product.quantity_on_hand or 0))
     if available < quantity:
+        elsewhere = (product.quantity_on_hand or 0) - available
         raise OwedError(
-            f"Only {available} of {product.name} in stock: {quantity} is needed to "
-            "settle this. Receive stock first.")
+            f"Only {available} of {product.name} on this branch's shelf: "
+            f"{quantity} is needed to settle this."
+            + (f" Another branch holds {elsewhere}, raise a transfer."
+               if elsewhere > 0 else " Receive stock first."))
 
     # Through the ordinary FEFO path: an item handed over three weeks late still
     # moves real batches with real expiry dates.
@@ -138,10 +152,19 @@ def cancel(db: Session, owed: OwedItem, reason: str) -> OwedItem:
     return owed
 
 
-def summarise(owed: OwedItem) -> dict:
+def summarise(owed: OwedItem, on_hand: int | None = None) -> dict:
+    """One owed item as a screen reads it.
+
+    `on_hand` is what the branch asking holds, passed in because this is a
+    plain function over a loaded row and a per-row stock query down a list of
+    two hundred is the thing `on_hand_many` exists to avoid. Left out, it falls
+    back to the group total, which is right for a single-shop pharmacy and is
+    what every caller got before branches were considered here at all.
+    """
     product = owed.product
     remaining = outstanding_quantity(owed)
-    on_hand = (product.quantity_on_hand or 0) if product else 0
+    if on_hand is None:
+        on_hand = (product.quantity_on_hand or 0) if product else 0
     return {
         "id": owed.id,
         "reference": owed.reference,
@@ -190,8 +213,19 @@ def _loaded(query):
     )
 
 
+def _held(db: Session, rows, branch_id: int | None) -> dict[int, int]:
+    """What the asking branch holds, for every product in one page of rows."""
+    if branch_id is None:
+        return {}
+    from . import branches as _branches
+    return _branches.on_hand_many(
+        db, {o.product_id for o in rows if o.product_id},
+        branch_id, sellable_only=True)
+
+
 def queue(db: Session, *, status: str = "outstanding", patient_id: int = 0,
-          product_id: int = 0, limit: int = 200) -> list[dict]:
+          product_id: int = 0, limit: int = 200,
+          branch_id: int | None = None) -> list[dict]:
     query = _loaded(db.query(OwedItem))
     if status:
         query = query.filter(OwedItem.status == status)
@@ -200,15 +234,30 @@ def queue(db: Session, *, status: str = "outstanding", patient_id: int = 0,
     if product_id:
         query = query.filter(OwedItem.product_id == product_id)
     rows = query.order_by(OwedItem.created_at).limit(limit).all()
-    return [summarise(o) for o in rows]
+    here = _held(db, rows, branch_id)
+    return [summarise(o, here.get(o.product_id)) for o in rows]
 
 
-def ready(db: Session, limit: int = 200) -> list[dict]:
+def ready(db: Session, limit: int = 200,
+          branch_id: int | None = None) -> list[dict]:
     """What is owed *and* now in stock: the call list.
 
     Tracking a debt is bookkeeping. Knowing the moment it can be honoured is the
     part the pharmacy actually wants, because stock arriving is an event nothing
     else in the shop connects to a waiting patient.
+
+    WHICH SHELF DECIDES WHO GETS TELEPHONED
+
+    This is the list somebody works down with a phone, so a wrong name on it
+    costs a patient a trip. Judged on the group total, a delivery into
+    Borrowdale told Avondale to ring five patients and ask them to come in for
+    medicine that was four hundred kilometres away, and the mistake only
+    surfaced with the patient at the counter.
+
+    The branch filter is applied AFTER the group one rather than instead of it:
+    the query narrows to products the pharmacy holds at all, which is a cheap
+    index scan, and the branch figures are then summed for that much smaller
+    set in one query.
     """
     rows = (_loaded(db.query(OwedItem))
             .join(Product, OwedItem.product_id == Product.id)
@@ -216,20 +265,23 @@ def ready(db: Session, limit: int = 200) -> list[dict]:
                     Product.quantity_on_hand > 0)
             .order_by(OwedItem.created_at)
             .limit(limit).all())
-    out = [summarise(o) for o in rows]
+    here = _held(db, rows, branch_id)
+    out = [summarise(o, here.get(o.product_id)) for o in rows]
     # Oldest promise first, and anything overdue above anything not.
     return sorted([o for o in out if o["quantity_on_hand"] > 0],
                   key=lambda o: (not o["overdue"], not o["can_settle_now"],
                                  o["created_at"]))
 
 
-def totals(db: Session) -> dict:
+def totals(db: Session, branch_id: int | None = None) -> dict:
     outstanding = (db.query(func.count(OwedItem.id),
                             func.coalesce(func.sum(OwedItem.quantity_owed
                                                    - OwedItem.quantity_settled), 0))
                    .filter(OwedItem.status == "outstanding").one())
-    ready_now = [o for o in ready(db) if o["can_settle_now"]]
-    overdue = [o for o in queue(db) if o["overdue"]]
+    # Counted on the same shelf the list itself is counted on, or the tile
+    # says four are ready to hand over and the list under it shows one.
+    ready_now = [o for o in ready(db, branch_id=branch_id) if o["can_settle_now"]]
+    overdue = [o for o in queue(db, branch_id=branch_id) if o["overdue"]]
     return {
         "outstanding_items": outstanding[0],
         "outstanding_units": int(outstanding[1] or 0),

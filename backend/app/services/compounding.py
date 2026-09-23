@@ -42,10 +42,23 @@ def effective_schedule(mixture: Mixture) -> int:
     return max((i.product.schedule or 0) for i in mixture.ingredients) if mixture.ingredients else 0
 
 
-def cost(db: Session, mixture: Mixture, batches: float = 1.0) -> dict:
+def cost(db: Session, mixture: Mixture, batches: float = 1.0,
+         branch_id: int | None = None) -> dict:
     """What one (or several) preparations cost to make, and whether stock allows it."""
     if not mixture.ingredients:
         raise CompoundingError(f"{mixture.name} has no ingredients")
+
+    # WHAT THIS BENCH CAN REACH.
+    #
+    # "Can I make this up" is a question about the shelf in the room, and it
+    # was answered from the group total. The dispenser was told every
+    # ingredient was in, started the preparation, and the FEFO walk in
+    # `prepare` then refused the one that was at the other shop, halfway
+    # through a mixture with a patient waiting.
+    from . import branches as _branches
+    here = _branches.on_hand_many(
+        db, [ing.product_id for ing in mixture.ingredients],
+        branch_id, sellable_only=True)
 
     lines: list[IngredientCost] = []
     for ing in mixture.ingredients:
@@ -60,8 +73,10 @@ def cost(db: Session, mixture: Mixture, batches: float = 1.0) -> dict:
             unit_cost=round(unit_cost, 2),
             line_cost=round(unit_cost * needed, 2),
             schedule=product.schedule or 0,
-            on_hand=product.quantity_on_hand,
-            short=product.quantity_on_hand < needed,
+            on_hand=here.get(product.id, product.quantity_on_hand or 0)
+                    if branch_id is not None else (product.quantity_on_hand or 0),
+            short=(here.get(product.id, 0) if branch_id is not None
+                   else (product.quantity_on_hand or 0)) < needed,
         ))
 
     ingredient_cost = round(sum(l.line_cost for l in lines), 2)

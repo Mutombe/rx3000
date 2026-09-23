@@ -53,9 +53,28 @@ def _product_search(db: Session, q: str, category: str, low_stock: bool,
 @router.get("/products", response_model=list[schemas.ProductOut])
 def list_products(q: str = "", category: str = "", category_id: int = 0,
                   low_stock: bool = False, limit: int = 300,
-                  db: Session = Depends(get_db)):
-    """Capped list, for pickers and typeaheads that want a shortlist."""
-    return _product_search(db, q, category, low_stock, category_id).limit(limit).all()
+                  db: Session = Depends(get_db),
+                  user: User = Depends(get_current_user)):
+    """Capped list, for pickers and typeaheads that want a shortlist.
+
+    Carries `here` as well as `quantity_on_hand`, because this list feeds the
+    pickers somebody chooses a medicine from and the two numbers are different
+    questions: the group holds forty, and this counter can reach none of them.
+    Filled in one query for the page rather than one per row.
+    """
+    rows = _product_search(db, q, category, low_stock, category_id).limit(limit).all()
+    branch_id = _branch_of(db, user)
+    if branch_id is not None and rows:
+        from ..services import branches as branch_svc
+        here = branch_svc.on_hand_many(
+            db, [r.id for r in rows], branch_id, sellable_only=True)
+        for row in rows:
+            # Set on the ORM object so the response model picks it up. The
+            # attribute is not a column, which is exactly why it has to be set
+            # here rather than left to a default: `response_model` drops what
+            # it is not given and the field would silently stay null.
+            row.here = here.get(row.id, 0)
+    return rows
 
 
 @router.delete("/products/{product_id}")

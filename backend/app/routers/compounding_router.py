@@ -121,7 +121,9 @@ def create_mixture(body: schemas.MixtureCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/mixtures/{mixture_id}/cost")
-def cost_mixture(mixture_id: int, batches: float = 1.0, db: Session = Depends(get_db)):
+def cost_mixture(mixture_id: int, batches: float = 1.0,
+                 db: Session = Depends(get_db),
+                 user: User = Depends(get_current_user)):
     """What it costs to make up, and whether stock allows it."""
     mixture = db.get(Mixture, mixture_id)
     if not mixture:
@@ -129,7 +131,9 @@ def cost_mixture(mixture_id: int, batches: float = 1.0, db: Session = Depends(ge
     if batches <= 0:
         raise HTTPException(status_code=400, detail="Batches must be positive")
     try:
-        return compounding.cost(db, mixture, batches)
+        from ..services import branches as branch_svc
+        return compounding.cost(db, mixture, batches,
+                                branch_id=branch_svc.branch_of(db, user.id))
     except compounding.CompoundingError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
