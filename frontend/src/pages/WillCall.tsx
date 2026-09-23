@@ -20,6 +20,7 @@ import BusyButton from "../components/BusyButton";
 import RowLink, { RowActions } from "../components/RowLink";
 import { useAsk, useConfirm } from "../components/Confirm";
 import Pagination from "../components/Pagination";
+import { TableSearch, useSearch } from "../components/Filters";
 import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
 import { TableSkeleton } from "../components/Skeleton";
@@ -85,7 +86,15 @@ export default function WillCall() {
 
   useEffect(() => { load(); }, [load]);
 
-  const rows = shelf?.items ?? [];
+  const all = shelf?.items ?? [];
+  /* SOMEBODY IS STANDING AT THE COUNTER SAYING THEIR NAME.
+     645 bags on the shelf and no way to look one up: the answer to "is mine
+     ready" was to page through twenty-six screens of them. The band tiles
+     narrow by age, which is the question the pharmacist asks; this is the
+     question the customer asks. */
+  const { q, setQ, shown: rows } = useSearch(all, (b) => [
+    b.patient, b.phone, b.product, b.rx_number, b.dispensed_by,
+  ]);
   const page = useClientPage(rows, 25);
 
   async function collect(bag: Bag) {
@@ -206,6 +215,9 @@ export default function WillCall() {
             {band && rows[0] && (
               <p className="muted wc-advice">{rows[0].action}</p>
             )}
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find a patient, a phone number or a medicine…"
+                         shown={rows.length} total={all.length} />
             <div className="dt-scroll">
               <table className="dt dt-wide">
                 <thead>

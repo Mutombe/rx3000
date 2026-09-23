@@ -25,7 +25,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
-import { EntityLink } from "./Filters";
+import { EntityLink , TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
 
@@ -50,6 +50,11 @@ interface Held {
 export default function Quarantine() {
   const toast = useToast();
   const [lines, setLines] = useState<Held[]>([]);
+  /* Held stock is where a return starts and where a recall is answered, so
+     the question is always about one batch or one medicine, never about the
+     list. It listed everything and offered no way to find one. */
+  const { q, setQ, shown } = useSearch(lines, (l) =>
+    [l.product, l.batch, l.why, l.note, l.reason_code]);
   const [value, setValue] = useState(0);
   const [units, setUnits] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -138,6 +143,9 @@ export default function Quarantine() {
       <Refreshable loading={loading} hasData={lines.length > 0}
                    skeleton={<TableSkeleton cols={5} rows={6}
                                             widths={["30ch", "14ch", "10ch", "12ch", "12ch"]} />}>
+        <TableSearch value={q} onChange={setQ}
+                     placeholder="Find a medicine, a batch or a reason…"
+                     shown={shown.length} total={lines.length} />
         <div className="dt-scroll">
           <table className="dt dt-wider">
             <thead>
@@ -151,7 +159,7 @@ export default function Quarantine() {
               </tr>
             </thead>
             <tbody>
-              {lines.map((l) => (
+              {shown.map((l) => (
                 <tr key={l.batch_id}>
                   <td>
                     <EntityLink kind="product" id={l.product_id}>{l.product}</EntityLink>

@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { api, errorText, fmtDateTime, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
-import { EntityLink } from "./Filters";
+import { EntityLink, TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 
 interface Row {
@@ -44,6 +44,11 @@ const PER_PAGE = 25;
 export default function ProductDispensings({ productId }: { productId: number }) {
   const toast = useToast();
   const [rows, setRows] = useState<Row[]>([]);
+  /* Every time this medicine was handed over. It is read in a recall, in a
+     dispute about a repeat, and whenever a prescriber rings about a patient
+     — all three are a question about ONE name in a list that only grows. */
+  const { q, setQ, shown } = useSearch(rows, (r) =>
+    [r.patient, r.rx_number, r.prescriber, r.dispensed_by]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -79,6 +84,9 @@ export default function ProductDispensings({ productId }: { productId: number })
         ) : (
           <>
             <div className="dt-scroll">
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find a patient, a script or a prescriber…"
+                           shown={shown.length} total={rows.length} />
               <table className="dt">
                 <thead>
                   <tr>
@@ -91,7 +99,7 @@ export default function ProductDispensings({ productId }: { productId: number })
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {shown.map((r) => (
                     <tr key={r.id}>
                       <td className="nowrap">{fmtDateTime(r.dispensed_at)}</td>
                       <td>

@@ -1,5 +1,5 @@
 /** Multi-dimensional filter controls and cross-entity hyperlinks. */
-import { ReactNode } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { Check } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 import Select from "./Select";
@@ -179,5 +179,72 @@ export function EntityLink({ to, kind, id, children, muted }: {
           onClick={(e) => e.stopPropagation()}>
       {children}
     </Link>
+  );
+}
+
+/** A search over one hand-written table's rows.
+ *
+ *  WHY THIS EXISTS
+ *
+ *  `FilterBar` is for a screen with dimensions to filter on: a status, a
+ *  supplier, a date range. Twenty-two screens in this product have none of
+ *  that and a single long list: the chart of accounts, a patient's dispensing
+ *  history, the bags on the will-call shelf. Every one of them rendered its
+ *  rows and offered no way to find one, so the answer to "is hers on the
+ *  shelf" was to read 645 rows.
+ *
+ *  They are hand-written tables rather than `DataTable`, so there was nothing
+ *  to add a search to centrally. This is the smallest piece that lets a
+ *  screen add one honestly: the caller says which fields are searchable, and
+ *  the count says how much of the list is being shown so a narrow search
+ *  never looks like an empty table.
+ */
+export function useSearch<T>(
+  rows: T[],
+  fields: (row: T) => (string | number | null | undefined)[],
+) {
+  const [q, setQ] = useState("");
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((row) =>
+      fields(row).filter((v) => v !== null && v !== undefined && v !== "")
+        .join(" ").toLowerCase().includes(needle));
+    // `fields` is deliberately not a dependency. Callers pass an inline
+    // arrow, which is a new function on every render, and including it would
+    // rebuild the list on every keystroke of every other state on the page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, q]);
+  return { q, setQ, shown };
+}
+
+/** The control that goes with it, in the same shape as every other filter
+ *  row in the product. */
+export function TableSearch({ value, onChange, placeholder, shown, total, children }: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder: string;
+  shown: number;
+  total: number;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="dt-filters">
+      <input type="search" className="filter-search" value={value}
+             placeholder={placeholder}
+             onChange={(e) => onChange(e.target.value)} />
+      {children}
+      {value && (
+        <button type="button" className="ghost small filter-clear"
+                onClick={() => onChange("")}>
+          Clear
+        </button>
+      )}
+      {/* Said always, not only when filtering: a list that shows 25 of 645
+          without saying so is a list somebody reads as complete. */}
+      <span className="dt-count muted">
+        {shown === total ? `${total}` : `${shown} of ${total}`}
+      </span>
+    </div>
   );
 }

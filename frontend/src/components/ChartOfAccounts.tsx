@@ -22,7 +22,7 @@ import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
-import { EntityLink } from "./Filters";
+import { EntityLink , TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
@@ -83,6 +83,10 @@ export default function ChartOfAccounts() {
 
   /* Every account, flat, so one of them can be provisional. The groups are
    * rebuilt from this at render time; see the note at the top of the file. */
+  /* A chart of accounts only ever grows, and it is read to find ONE account:
+     "which code does the medical aid control sit on". It was six tables of
+     rows with nothing to search. One search across all the sections, because
+     somebody looking for 'bank' does not know which section it is filed in. */
   const accounts = useOptimisticList<Row>({
     load: async () => {
       const c = await api.get<Chart>(
@@ -94,6 +98,9 @@ export default function ChartOfAccounts() {
     // and marked under it, so the key has to find both.
     key: (a) => (a as unknown as { id?: number }).id ?? a.code,
   });
+
+  const { q, setQ, shown } = useSearch(accounts.items, (a) =>
+    [a.code, a.name, a.notes, a.external_code, a.subledger]);
 
   const load = useCallback((quiet = false) => {
     if (!quiet) setSpinning(true);
@@ -217,7 +224,16 @@ export default function ChartOfAccounts() {
             </div>
           )}
 
-          {chart.groups.map((g) => (
+          <TableSearch value={q} onChange={setQ}
+                       placeholder="Find an account by name, code or Pastel code…"
+                       shown={shown.length} total={accounts.items.length} />
+
+          {/* A section with nothing matching is noise. Hidden only while a
+              search is running: an empty section with no search is a real
+              fact about the books. */}
+          {chart.groups
+            .filter((g) => !q || shown.some((a) => a.section === g.section))
+            .map((g) => (
             <div key={g.section} className="coa-group">
               <div className="coa-group-head">
                 <h4>{g.label}</h4>
@@ -237,7 +253,7 @@ export default function ChartOfAccounts() {
                   </tr>
                 </thead>
                 <tbody>
-                  {accounts.items.filter((a) => a.section === g.section).map((a) => (
+                  {shown.filter((a) => a.section === g.section).map((a) => (
                     <tr key={accounts.stateOf(a) === "settled" ? a.code : `pending-${a.code}`}
                         className={[
                           a.active ? "" : "is-muted",
