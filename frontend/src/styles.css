@@ -3393,15 +3393,35 @@ img { -webkit-user-drag: none; user-select: none; }
   display: flex; flex-direction: column; gap: 0; height: auto; padding: var(--s2);
   background: var(--surface-sunk); border: 1px solid var(--line);
   border-radius: var(--r-sm); color: var(--ink); white-space: normal;
-  align-items: flex-start; text-align: left; cursor: pointer;
+  align-items: flex-start; text-align: left;
 }
 .wl-stat b { font-size: 1.15rem; line-height: 1.1; }
 .wl-stat span { font-size: .68rem; color: var(--ink-soft); line-height: 1.2; }
-/* Hover states the rail was missing. A control that does not respond to the
-   pointer reads as decoration, and these are the filters for the whole queue. */
-.wl-stat:hover { background: var(--surface); border-color: var(--ink-faint); }
+
+/* THE ELEMENT SAYS WHETHER IT IS A CONTROL, NOT A CLASS.
+   `.wl-stat` was written for the dispensary rail, where every tile filters
+   the queue, so it carried `cursor: pointer` and a hover state for all of
+   them. The tile then spread to twenty-two other screens as a way of
+   showing a figure, and a sweep found 107 of them rendered as plain divs:
+   107 tiles across the product that took the pointer, lit up under it, and
+   did nothing. Somebody presses two of those and stops trying the rest,
+   which is how a real filter goes unused.
+
+   Nothing needed tagging one by one. A tile that filters is already a
+   <button> and a tile that reports is already a <div>, so the element
+   itself is the answer, and a new reporting tile is inert by default
+   rather than by remembering. */
+button.wl-stat, a.wl-stat { cursor: pointer; }
+button.wl-stat:hover, a.wl-stat:hover {
+  background: var(--surface); border-color: var(--ink-faint);
+}
 .wl-stat.is-on { border-color: var(--accent); background: var(--surface); }
-.wl-stat.is-on:hover { border-color: var(--accent); }
+button.wl-stat.is-on:hover, a.wl-stat.is-on:hover { border-color: var(--accent); }
+/* A count of nothing cannot be narrowed to, so it stops offering. */
+button.wl-stat:disabled { cursor: default; opacity: 1; }
+button.wl-stat:disabled:hover {
+  background: var(--surface-sunk); border-color: var(--line);
+}
 /* Only a non-zero urgent count is loud. A permanent red zero is furniture. */
 .wl-stat.is-urgent b { color: var(--danger); }
 /* Four tabs in a 320px rail.
@@ -11921,15 +11941,10 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   text-transform: uppercase; color: var(--ink-faint);
 }
 
-/* RECONCILIATION: WHICH TILES ARE CONTROLS.
-   `.wl-stat` carries a pointer cursor and a hover state because on the queue
-   it was written for, every tile filters the list. Two of the four here have
-   nothing to narrow to, so they looked clickable and were not. `.rc-read`
-   takes the affordance back off them. */
-.rc-read { cursor: default; }
-.rc-read:hover { background: var(--surface-sunk); border-color: var(--line); }
-/* And the two that do filter say what pressing them does, rather than
-   leaving somebody to discover it. */
+/* The two tiles that DO filter say what pressing them does, rather than
+   leaving somebody to discover it. (`.rc-read` used to sit here to take the
+   pointer back off the two that do not; the base rule no longer offers it to
+   a div at all, so the class had nothing left to do.) */
 .rc-pick-do {
   display: block; margin-top: 3px; font-style: normal; font-size: .62rem;
   letter-spacing: .02em; text-transform: uppercase; color: var(--ink-faint);
@@ -11947,10 +11962,6 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    Both are prose and both were clipping to one line, which on the refusal
    column meant the sentence explaining the refusal was the thing cut off. */
 .su-table td:nth-child(2), .su-table td:last-child { white-space: normal; }
-/* A disabled tile is a count of nothing. It stays legible and stops
-   pretending: no pointer, no hover, and it cannot be pressed. */
-.wl-stat:disabled { cursor: default; opacity: 1; }
-.wl-stat:disabled:hover { background: var(--surface-sunk); border-color: var(--line); }
 /* Where the stock went, after a file has loaded. */
 .su-after { display: flex; gap: var(--s2); flex-wrap: wrap; margin-top: var(--s3); }
 

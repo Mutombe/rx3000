@@ -261,7 +261,7 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
               </span>
             </button>
             {result.units > 0 && (
-              <div className="wl-stat rc-read">
+              <div className="wl-stat">
                 <b>{result.units.toLocaleString()}</b><span>Units to receive</span>
               </div>
             )}

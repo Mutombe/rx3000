@@ -123,11 +123,11 @@ export default function StockReconcile() {
                   </em>
                 </span>
               </button>
-              <div className="wl-stat rc-read">
+              <div className="wl-stat">
                 <b>{Math.round(data.agree_rate * 100)}%</b>
                 <span>Agree with their batches</span>
               </div>
-              <div className={`wl-stat rc-read${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
+              <div className={`wl-stat${data.value_at_risk > 0.005 ? " wc-stale" : ""}`}>
                 <b className={data.value_at_risk > 0.005 ? "neg" : undefined}>
                   {money(data.value_at_risk)}
                 </b>
