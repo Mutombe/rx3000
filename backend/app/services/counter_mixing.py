@@ -94,7 +94,20 @@ def make(db: Session, *, name: str, ingredients: list[dict], user_id: int,
         raise MixingError("Not enough stock to make it up: short of "
                           + ", ".join(summary["short_of"]))
 
-    reference = helpers.next_number(db, Mixture, "MIX", "code")
+    # NUMBERED FROM THE PRODUCT, WHICH IS ALWAYS WRITTEN.
+    #
+    # This read the highest MIX code on the Mixture table. A counter mix only
+    # creates a Mixture when the pharmacist ticks "keep this formula", which is
+    # off by default, so the counter never advanced: four different
+    # preparations on this database all carry MIX260900001 as their stock code,
+    # their batch number and the reference on every ingredient movement.
+    #
+    # That is worse than a failed insert. A recall on that batch returns four
+    # preparations, and there is no way to tell which ingredients went into
+    # which, which is exactly what the reference exists to answer. The
+    # preparation itself is always created as a Product carrying the reference
+    # as its stock code, so the numbering reads from there.
+    reference = helpers.next_number(db, Product, "MIX", "stock_code")
     schedule = int(summary["effective_schedule"] or 0)
     unit_cost = round(float(summary["total_cost"]) / max(1, makes), 2)
 
@@ -173,3 +186,93 @@ def make(db: Session, *, name: str, ingredients: list[dict], user_id: int,
         "warning": (f"This preparation is Schedule {schedule}: dispense it under the rules "
                     "for that schedule." if schedule >= 5 else ""),
     }
+
+
+# ---------------------------------------------------------------------------
+# WHAT HAS ACTUALLY BEEN MADE UP
+#
+# Every preparation already leaves a complete trail: the ingredients go out as
+# stock movements of type "compound" carrying the reference, and the
+# preparation comes back in as a batch under the same reference. Nothing
+# recorded it as a *job* anybody could look at, so a pharmacy could make up
+# forty preparations in a month and have no screen that said so.
+#
+# Read from the movements rather than stored again as a third copy: a separate
+# log would be one more thing to keep in step with the stock, and the moment it
+# disagreed the stock would be right and the log would be believed.
+# ---------------------------------------------------------------------------
+
+def history(db: Session, *, limit: int = 100, q: str = "") -> list[dict]:
+    """Every preparation made up at the counter, most recent first.
+
+    Grouped by the reference, which since the numbering fix is unique per
+    preparation. Four older rows on this database share MIX260900001 and will
+    group together: that is the damage the old numbering did, shown rather than
+    hidden, because pretending they were one job would be a worse lie than
+    admitting the reference cannot separate them.
+    """
+    from ..models import StockBatch, StockMovement, User
+
+    rows = (db.query(StockMovement)
+            .filter(StockMovement.movement_type == "compound",
+                    StockMovement.reference.like("MIX%"))
+            .order_by(StockMovement.created_at.desc())
+            .limit(max(1, min(limit, 500)) * 12)
+            .all())
+
+    made: dict[str, dict] = {}
+    for m in rows:
+        job = made.setdefault(m.reference, {
+            "reference": m.reference, "made_at": m.created_at,
+            "made_by": "", "made_by_id": m.user_id,
+            "product_id": None, "preparation": "", "quantity": 0,
+            "unit_cost": 0.0, "expiry": None, "schedule": 0,
+            "ingredients": [], "ingredient_count": 0,
+        })
+        # A positive movement is the preparation coming in; the negatives are
+        # what went into it.
+        if (m.quantity_delta or 0) > 0:
+            product = db.get(Product, m.product_id)
+            job["product_id"] = m.product_id
+            job["preparation"] = product.name if product else ""
+            job["quantity"] = m.quantity_delta
+            job["unit_cost"] = round(product.cost_price or 0.0, 2) if product else 0.0
+            job["schedule"] = int(product.schedule or 0) if product else 0
+            if m.created_at and (not job["made_at"] or m.created_at > job["made_at"]):
+                job["made_at"] = m.created_at
+        else:
+            product = db.get(Product, m.product_id)
+            job["ingredients"].append({
+                "product_id": m.product_id,
+                "product": product.name if product else "",
+                "quantity": abs(m.quantity_delta or 0),
+            })
+
+    # Who made it, and what it expires on, in two queries rather than two a row.
+    who = {u.id: u.full_name for u in db.query(User).all()} if made else {}
+    refs = list(made)
+    if refs:
+        for batch in (db.query(StockBatch)
+                      .filter(StockBatch.batch_number.in_(refs)).all()):
+            job = made.get(batch.batch_number)
+            if job and batch.expiry_date and not job["expiry"]:
+                job["expiry"] = batch.expiry_date.isoformat()
+
+    out = []
+    for job in made.values():
+        job["made_by"] = who.get(job["made_by_id"], "")
+        job["ingredient_count"] = len(job["ingredients"])
+        job["made_at"] = job["made_at"].isoformat() if job["made_at"] else ""
+        job["cost"] = round(job["unit_cost"] * (job["quantity"] or 0), 2)
+        out.append(job)
+
+    needle = (q or "").strip().lower()
+    if needle:
+        out = [j for j in out
+               if needle in j["preparation"].lower()
+               or needle in j["reference"].lower()
+               or needle in (j["made_by"] or "").lower()
+               or any(needle in i["product"].lower() for i in j["ingredients"])]
+
+    out.sort(key=lambda j: j["made_at"], reverse=True)
+    return out[:limit]

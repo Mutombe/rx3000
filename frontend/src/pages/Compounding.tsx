@@ -16,11 +16,12 @@
  *  of a formula is that the price is derived rather than guessed: ingredients at
  *  cost, plus the compounding fee, for the yield stated.
  */
-import { useCallback, useEffect, useState } from "react";
-import { api, errorText, money } from "../api";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Product } from "../types";
 import Select from "../components/Select";
@@ -36,6 +37,15 @@ interface Mixture {
   yield_quantity: number; yield_unit: string; compounding_fee: number;
   shelf_life_days: number; method: string; directions: string;
   active: boolean; ingredients: Ingredient[];
+}
+/** One preparation actually made up, read back from the stock movements it
+ *  left behind rather than from a log kept beside them. */
+interface Made {
+  reference: string; made_at: string; made_by: string;
+  product_id: number | null; preparation: string; quantity: number;
+  unit_cost: number; cost: number; expiry: string | null; schedule: number;
+  ingredient_count: number;
+  ingredients: { product_id: number; product: string; quantity: number }[];
 }
 interface CostLine {
   product_id: number; name: string; quantity: number; unit: string;
@@ -58,6 +68,14 @@ export default function Compounding() {
   const [cost, setCost] = useState<Cost | null>(null);
   const [batches, setBatches] = useState("1");
   const [busy, setBusy] = useState("");
+  /* THE OTHER HALF OF THIS SCREEN.
+     The formula book says what CAN be made. Nothing said what WAS, although
+     every preparation already leaves a complete trail: the ingredients go out
+     as compound movements under a reference and the preparation comes back in
+     as a batch under the same one. An inspector asks the second question. */
+  const [tab, setTab] = useState<"formulae" | "made">("formulae");
+  const [made, setMade] = useState<Made[] | null>(null);
+  const [openRef, setOpenRef] = useState<string | null>(null);
 
   // new formula
   const [adding, setAdding] = useState(false);
@@ -80,6 +98,20 @@ export default function Compounding() {
   });
   const mixtures = list.items;
   const load = list.reload;
+
+  /* Fetched when the tab is opened rather than with the page: most visits are
+     to look a formula up, and the history is the longer of the two lists. */
+  const loadMade = useCallback(() => {
+    api.get<{ made: Made[] }>("/api/compounding/made?limit=200")
+      .then((r) => setMade(r.made))
+      .catch((e) => {
+        setMade([]);
+        toast.error(errorText(e, "What has been made up could not be read."));
+      });
+  }, [toast]);
+
+  useEffect(() => { if (tab === "made" && made === null) loadMade(); },
+            [tab, made, loadMade]);
 
   useEffect(() => {
     if (productQ.trim().length < 2) { setProducts([]); return; }
@@ -184,11 +216,26 @@ export default function Compounding() {
             making it up
           </div>
         </div>
-        <button className="btn primary" onClick={() => setAdding(true)}>
-          Add a formula
+        <div className="page-actions">
+          <button className="btn primary" onClick={() => setAdding(true)}>
+            Add a formula
+          </button>
+        </div>
+      </div>
+
+      {/* Two halves of one job, and only one of them existed. */}
+      <div className="seg cmp-tabs" role="group" aria-label="Compounding">
+        <button type="button" className={tab === "formulae" ? "on" : ""}
+                onClick={() => setTab("formulae")}>
+          Formula book{mixtures ? ` (${mixtures.length})` : ""}
+        </button>
+        <button type="button" className={tab === "made" ? "on" : ""}
+                onClick={() => setTab("made")}>
+          Made up{made ? ` (${made.length})` : ""}
         </button>
       </div>
 
+      {tab === "formulae" && (
       <div className="card">
         {!mixtures ? <TableSkeleton cols={5} rows={4} /> : mixtures.length === 0 ? (
           <div className="empty">
@@ -226,6 +273,119 @@ export default function Compounding() {
           </table>
         )}
       </div>
+      )}
+
+      {/* WHAT WAS ACTUALLY MADE, AND OUT OF WHAT.
+          The question an inspector asks, and the question a pharmacist asks
+          when a preparation comes back: who made this, on what day, from which
+          batches, and when does it expire. All of it was already written down
+          as stock movements and none of it was readable. */}
+      {tab === "made" && (
+        <div className="card">
+          {made === null ? <TableSkeleton cols={6} rows={5} /> : made.length === 0 ? (
+            <div className="empty">
+              <b>Nothing has been made up yet</b>
+              <p>
+                A preparation made at the counter draws its ingredients out of
+                stock and comes back as a batch of its own with its own expiry.
+                Every one of those appears here, with what went into it.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="dt-filters">
+                <span className="dt-count muted">
+                  {made.length} preparation{made.length === 1 ? "" : "s"} made up
+                </span>
+              </div>
+              <div className="dt-scroll">
+                <table className="dt cmp-made">
+                  <thead>
+                    {/* A width on every column adds up to more than the
+                        table: declared on all seven, the preparation itself
+                        was squeezed to nought pixels and its name vanished
+                        while the data was there all along. Only the columns
+                        with a known shape say their size; the preparation
+                        takes what is left, and its reference sits under the
+                        name where it belongs rather than in a column of its
+                        own. */}
+                    <tr>
+                      <th className="col-when">Made</th>
+                      <th>Preparation</th>
+                      <th className="num col-count">Yield</th>
+                      <th className="col-code">Expires</th>
+                      <th className="col-city">By</th>
+                      <th className="num col-money">At cost</th>
+                      <th className="actions" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {made.map((j) => (
+                      <Fragment key={j.reference}>
+                        <tr>
+                          <td>{j.made_at ? fmtDateTime(j.made_at) : "not recorded"}</td>
+                          <td>
+                            {j.product_id
+                              ? <EntityLink kind="product" id={j.product_id}>
+                                  {j.preparation || "unnamed"}
+                                </EntityLink>
+                              : (j.preparation || "unnamed")}
+                            {j.schedule > 0 && (
+                              <span className="badge sched">S{j.schedule}</span>
+                            )}
+                            <div className="muted small mono">{j.reference}</div>
+                          </td>
+                          <td className="num">{j.quantity}</td>
+                          <td>
+                            {j.expiry ? fmtDate(j.expiry)
+                                      : <span className="muted">not recorded</span>}
+                          </td>
+                          <td>{j.made_by || <span className="muted">not recorded</span>}</td>
+                          <td className="num">{money(j.cost)}</td>
+                          <td className="actions">
+                            <button type="button" className="btn small secondary"
+                                    aria-expanded={openRef === j.reference}
+                                    onClick={() => setOpenRef(
+                                      openRef === j.reference ? null : j.reference)}>
+                              {openRef === j.reference ? "Hide"
+                                : `Ingredients (${j.ingredient_count})`}
+                            </button>
+                          </td>
+                        </tr>
+                        {openRef === j.reference && (
+                          <tr className="sr-detail">
+                            <td colSpan={7}>
+                              {j.ingredients.length === 0 ? (
+                                <span className="muted">
+                                  No ingredient movement was recorded against
+                                  this reference.
+                                </span>
+                              ) : (
+                                <ul>
+                                  {j.ingredients.map((i, n) => (
+                                    <li key={`${i.product_id}-${n}`}>
+                                      <EntityLink kind="product" id={i.product_id}>
+                                        <b>{i.product || "unnamed"}</b>
+                                      </EntityLink>
+                                      <span className="muted">
+                                        {" · "}{i.quantity.toLocaleString()} drawn
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {openId !== null && mixtures && (
         <div className="card">

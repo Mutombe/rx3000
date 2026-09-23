@@ -12922,3 +12922,10 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   background: var(--surface-sunk); white-space: normal;
   padding-top: var(--s2); padding-bottom: var(--s2); line-height: 1.45;
 }
+
+/* The preparation's own name, which is what somebody scans this list for.
+   It wraps rather than clipping: a compound is named for what is in it, so
+   the names are long by nature. */
+.cmp-made td:nth-child(2) { white-space: normal; }
+/* The two halves of compounding, side by side above the list. */
+.cmp-tabs { margin-bottom: var(--s4); }

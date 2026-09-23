@@ -61,6 +61,24 @@ def mix_at_the_counter(body: dict = Body(...), db: Session = Depends(get_db),
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@router.get("/made")
+def compounding_history(limit: int = 100, q: str = "",
+                        db: Session = Depends(get_db),
+                        _: User = Depends(get_current_user)):
+    """What has actually been made up, most recent first.
+
+    The formula book says what CAN be made. This says what was, by whom, from
+    what, and when it expires — which is the half a pharmacy is asked about in
+    an inspection and the half that had no screen.
+
+    No response_model on purpose: the shape is a job with its ingredients
+    nested, and every field here is one the screen reads.
+    """
+    from ..services import counter_mixing
+
+    return {"made": counter_mixing.history(db, limit=limit, q=q)}
+
+
 @router.get("/mixtures", response_model=list[schemas.MixtureOut])
 def list_mixtures(q: str = "", db: Session = Depends(get_db)):
     # Each mixture's ingredients, and each ingredient's product, were read per row
