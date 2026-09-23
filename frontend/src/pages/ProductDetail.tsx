@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { DetailSkeleton } from "../components/Skeleton";
 import { EntityLink } from "../components/Filters";
 import ProductDispensings from "../components/ProductDispensings";
@@ -29,6 +30,7 @@ function expiryBadge(expiry: string | null) {
 }
 
 export default function ProductDetail() {
+  const sched = useScheduleCodes();
   const { id } = useParams();
   const [data, setData] = useState<Detail | null>(null);
   const [error, setError] = useState("");
@@ -225,7 +227,7 @@ export default function ProductDetail() {
       subtitle={
         <>
           {p.dosage_form || "form not recorded"} · {p.category.replace(/_/g, " ")}
-          {p.schedule > 0 && <> · <span className="badge sched">S{p.schedule}</span></>}
+          {p.schedule > 0 && <> · <span className="badge sched">{sched(p.schedule)}</span></>}
         </>
       }
       /* The numbers somebody reads this header out loud from: a code down the

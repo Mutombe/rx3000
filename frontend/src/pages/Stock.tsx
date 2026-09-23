@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { useToast } from "../components/Toast";
 import { useSession } from "../session";
 import { useConfirm } from "../components/Confirm";
@@ -113,6 +114,7 @@ const REPORTS_FOR: Record<string, { value: string; label: string }[]> = {
 };
 
 export default function Stock() {
+  const sched = useScheduleCodes();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -305,7 +307,7 @@ export default function Stock() {
        at 1280px, which is the width of the tills this runs on. */
     { key: "schedule", header: "Sched.", sortable: true, width: 84,
       render: (p) => (p.schedule > 0
-        ? <span className={`badge ${p.schedule >= 5 ? "sched" : "muted"}`}>S{p.schedule}</span>
+        ? <span className={`badge ${p.schedule >= 5 ? "sched" : "muted"}`}>{sched(p.schedule)}</span>
         : <span className="muted">none</span>) },
     /* Barcode folded into the product cell rather than given a column of its
        own. It is a lookup key, not something anyone reads down a list — the
@@ -703,7 +705,7 @@ export default function Stock() {
                       c.replace(/_/g, " ").replace(/^./, (ch) => ch.toUpperCase()),
                     ] as [string, string]) },
                   { key: "schedule", label: "Schedule",
-                    options: [0, 1, 2, 3, 4, 5, 6].map((n) => [String(n), `S${n}`] as [string, string]) },
+                    options: [0, 1, 2, 3, 4, 5, 6].map((n) => [String(n), sched(n)] as [string, string]) },
                 ]}
                 // So Clear clears this too. It used to leave it on, and a
                 // screen still filtered to the low-stock lines after
@@ -804,7 +806,7 @@ export default function Stock() {
                     onChange={(v) => setForm({ ...form, schedule: Number(v) })}
                     options={[0, 1, 2, 3, 4, 5, 6].map((n) => ({
                       value: String(n),
-                      label: `S${n}`,
+                      label: sched(n),
                       // The register requirement belongs beside the schedule, not
                       // in the head of whoever is filling the form in.
                       hint: n >= 5 ? "controlled, register entry required" : undefined,

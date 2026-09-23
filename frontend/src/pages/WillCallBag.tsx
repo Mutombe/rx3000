@@ -10,6 +10,7 @@
  *  on the shelf behind it.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { ArrowUUpLeft, Phone, Printer, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
@@ -44,6 +45,7 @@ const TONE: Record<string, string> = {
 };
 
 export default function WillCallBag() {
+  const sched = useScheduleCodes();
   const { id } = useParams();
   const [bag, setBag] = useState<Bag | null>(null);
   const [error, setError] = useState("");
@@ -174,7 +176,7 @@ export default function WillCallBag() {
                 <dt>Medicine</dt>
                 <dd>
                   <EntityLink kind="product" id={bag.product_id}>{bag.product}</EntityLink>
-                  {bag.schedule >= 3 && <span className="badge sched">S{bag.schedule}</span>}
+                  {bag.schedule >= 3 && <span className="badge sched">{sched(bag.schedule)}</span>}
                 </dd>
                 <dt>Quantity</dt><dd>{bag.quantity}</dd>
                 <dt>Directions</dt>

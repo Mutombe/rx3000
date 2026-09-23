@@ -22,6 +22,7 @@
  *  disagree with the medicine.
  */
 import { useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { ArrowsClockwise, PencilSimpleLine } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -72,6 +73,7 @@ const FIELD_NAMES: Record<string, string> = {
 };
 
 export default function PrescriptionDetail() {
+  const sched = useScheduleCodes();
   const { id } = useParams();
   const navigate = useNavigate();
   const [d, setD] = useState<Data | null>(null);
@@ -200,7 +202,7 @@ export default function PrescriptionDetail() {
                             : `#${i.product_id}`}
                         </EntityLink>
                         {(i.product?.schedule ?? 0) >= 3 && (
-                          <span className="badge sched">S{i.product?.schedule}</span>
+                          <span className="badge sched">{sched(i.product?.schedule)}</span>
                         )}
                         {i.not_dispensed && (
                           <div className="muted small">not dispensed</div>

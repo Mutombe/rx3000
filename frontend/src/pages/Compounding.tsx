@@ -61,6 +61,7 @@ interface Cost {
 }
 
 export default function Compounding() {
+  const sched = useScheduleCodes();
   const schedCode = useScheduleCodes();
   const toast = useToast();
   const confirm = useConfirm();
@@ -331,7 +332,7 @@ export default function Compounding() {
                                 </EntityLink>
                               : (j.preparation || "unnamed")}
                             {j.schedule > 0 && (
-                              <span className="badge sched">S{j.schedule}</span>
+                              <span className="badge sched">{sched(j.schedule)}</span>
                             )}
                             <div className="muted small mono">{j.reference}</div>
                           </td>
@@ -435,7 +436,7 @@ export default function Compounding() {
                       <td className="num">{money(i.unit_cost)}</td>
                       <td className="num">{money(i.line_cost)}</td>
                       <td className={`num${i.short ? " cu-diff" : ""}`}>{i.on_hand}</td>
-                      <td>{i.schedule > 0 ? `S${i.schedule}` : "none"}</td>
+                      <td>{i.schedule > 0 ? sched(i.schedule) : "none"}</td>
                     </tr>
                   ))}
                 </tbody>

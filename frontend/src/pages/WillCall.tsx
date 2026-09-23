@@ -13,6 +13,7 @@
  *  a month, return it to stock and reverse the claim" does not.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { Link } from "react-router-dom";
 import { Phone } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money, prefetchRoute } from "../api";
@@ -61,6 +62,7 @@ const BAND_LABEL: Record<string, string> = {
 };
 
 export default function WillCall() {
+  const sched = useScheduleCodes();
   const [shelf, setShelf] = useState<Shelf | null>(null);
   const [failed, setFailed] = useState("");
   const [band, setBand] = useState("");
@@ -248,7 +250,7 @@ export default function WillCall() {
                       </td>
                       <td>
                         <b>{b.product}</b>
-                        {b.needs_id && <span className="badge sched">S{b.schedule}</span>}
+                        {b.needs_id && <span className="badge sched">{sched(b.schedule)}</span>}
                         {/* What is on the label, where the bag is handed over:
                             the question asked at the counter is how to take it,
                             and the shelf could not answer it. */}

@@ -15,6 +15,7 @@
  *  discovering afterwards.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { MagnifyingGlass, Trash, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
@@ -44,6 +45,7 @@ export default function MixAtTheCounter(
     onMade: (made: MadeUp) => void;
   },
 ) {
+  const sched = useScheduleCodes();
   const toast = useToast();
   const [name, setName] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
@@ -222,7 +224,7 @@ export default function MixAtTheCounter(
           <div>
             <span className="muted">Schedule</span>
             <b>{quote ? (quote.effective_schedule
-              ? `S${quote.effective_schedule}` : "unscheduled") : "none"}</b>
+              ? sched(quote.effective_schedule) : "unscheduled") : "none"}</b>
           </div>
           <div className="field mix-price">
             <label htmlFor="mix-price">Price</label>

@@ -11,6 +11,7 @@
  *  something anybody goes looking for.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { CaretDown, CaretRight, Plus, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime } from "../api";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
@@ -69,6 +70,7 @@ const MOVEMENTS = [
 ];
 
 export default function Samples() {
+  const sched = useScheduleCodes();
   const [reg, setReg] = useState<Register | null>(null);
   const [failed, setFailed] = useState("");
   const [openOnly, setOpenOnly] = useState(true);
@@ -324,7 +326,7 @@ export default function Samples() {
                       <td className="mono">{r.reference}</td>
                       <td>
                         <EntityLink kind="product" id={r.product_id}>{r.product}</EntityLink>
-                        {(r.schedule ?? 0) >= 3 && <span className="badge sched">S{r.schedule}</span>}
+                        {(r.schedule ?? 0) >= 3 && <span className="badge sched">{sched(r.schedule)}</span>}
                         {r.batch_number && <div className="muted small">batch {r.batch_number}</div>}
                       </td>
                       <td>

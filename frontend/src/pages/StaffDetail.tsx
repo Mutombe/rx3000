@@ -7,6 +7,7 @@
  *  from three weeks ago.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
@@ -34,6 +35,7 @@ interface Data {
 }
 
 export default function StaffDetail() {
+  const sched = useScheduleCodes();
   const { id } = useParams();
   const [d, setD] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -208,7 +210,7 @@ export default function StaffDetail() {
                         <EntityLink kind="product" id={r.product_id}>
                           {r.product || "none"}
                         </EntityLink>
-                        {r.schedule >= 5 && <span className="badge sched">S{r.schedule}</span>}
+                        {r.schedule >= 5 && <span className="badge sched">{sched(r.schedule)}</span>}
                       </td>
                       <td>
                         <EntityLink kind="patient" id={r.patient.id}>

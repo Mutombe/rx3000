@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDate, fmtDateTime, errorText  } from "../api";
 import { printDocument } from "../document";
+import { scheduleCode, scheduleRange, useScheduleCodes } from "../schedules";
 import { letterhead } from "../letterhead";
 import { RegisterEntry } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
@@ -18,6 +19,10 @@ interface Reprint {
 }
 
 export default function Register() {
+  /* The code this country writes, not the ordinal the database stores. A
+     register printed for an inspector in Harare said "S5" where the law, the
+     box and the inspector all say PP10. */
+  const sched = useScheduleCodes();
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [schedule, setSchedule] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -89,7 +94,9 @@ export default function Register() {
       printDocument(head, {
         kind: "Controlled substances register",
         meta: [
-          { label: "Schedule", value: schedule ? `S${schedule}` : "5 and 6" },
+          // The code this country uses, on the document an inspector reads.
+          { label: "Schedule",
+            value: schedule ? scheduleCode(Number(schedule)) : scheduleRange(5, 6) },
           { label: "From", value: dateFrom ? fmtDate(dateFrom) : "the beginning" },
           { label: "To", value: dateTo ? fmtDate(dateTo) : "today" },
           { label: "Entries", value: String(rows.length) },
@@ -108,7 +115,7 @@ export default function Register() {
         rows: rows.map((e) => ({
           when: fmtDateTime(e.created_at),
           substance: `${e.product?.name ?? ""} ${e.product?.strength ?? ""}`.trim(),
-          sched: `S${e.schedule}`,
+          sched: scheduleCode(e.schedule),
           type: e.entry_type,
           qty: e.quantity_delta > 0 ? `+${e.quantity_delta}` : String(e.quantity_delta),
           balance: String(e.balance_after),
@@ -165,7 +172,7 @@ export default function Register() {
               <tr key={e.id}>
                 <td>{fmtDateTime(e.created_at)}</td>
                 <td><EntityLink kind="product" id={e.product?.id}><b>{e.product?.name}</b> {e.product?.strength}</EntityLink></td>
-                <td><span className="badge sched">S{e.schedule}</span></td>
+                <td><span className="badge sched">{sched(e.schedule)}</span></td>
                 <td><span className={`badge ${e.entry_type === "dispense" ? "warn" : e.entry_type === "receive" ? "ok" : "muted"}`}>{e.entry_type}</span></td>
                 <td className="num">{e.quantity_delta > 0 ? `+${e.quantity_delta}` : e.quantity_delta}</td>
                 <td className="num"><b>{e.balance_after}</b></td>

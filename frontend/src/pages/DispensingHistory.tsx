@@ -11,6 +11,7 @@
  *  click away. Every name on the row opens the thing it names.
  */
 import { useCallback, useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { ArrowClockwise, Printer } from "@phosphor-icons/react";
 import { prefetchRoute, api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
@@ -65,6 +66,7 @@ const WINDOWS: [string, string][] = [
 ];
 
 export default function DispensingHistory() {
+  const sched = useScheduleCodes();
   const [data, setData] = useState<Paged<Row> | null>(null);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
@@ -137,7 +139,7 @@ export default function DispensingHistory() {
               value={schedule} onChange={setSchedule} ariaLabel="Schedule"
               options={[
                 { value: "-1", label: "Any schedule" },
-                ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: `S${n}` })),
+                ...[0, 1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: sched(n) })),
               ]}
             />
           </span>
@@ -230,7 +232,7 @@ export default function DispensingHistory() {
                     <td>
                       <EntityLink kind="product" id={r.product_id}>{r.product}</EntityLink>
                       {r.schedule >= 3 && (
-                        <span className="badge sched">S{r.schedule}</span>
+                        <span className="badge sched">{sched(r.schedule)}</span>
                       )}
                       {/* TOUCHED BY HAND.
                           Marked on the row rather than buried in a report,

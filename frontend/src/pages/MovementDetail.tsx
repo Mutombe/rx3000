@@ -20,6 +20,7 @@
  *  somebody to do in their head.
  */
 import { useEffect, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { Link, useParams } from "react-router-dom";
 import { Warning } from "@phosphor-icons/react";
 
@@ -73,6 +74,7 @@ function Delta({ n }: { n: number }) {
 }
 
 export default function MovementDetail() {
+  const sched = useScheduleCodes();
   const { id } = useParams();
   const [row, setRow] = useState<Detail | null>(null);
   const [error, setError] = useState("");
@@ -170,7 +172,7 @@ export default function MovementDetail() {
                   {row.product || "unnamed"}
                 </EntityLink>
                 {row.schedule >= 3 && (
-                  <span className="badge sched">S{row.schedule}</span>
+                  <span className="badge sched">{sched(row.schedule)}</span>
                 )}
               </dd>
 

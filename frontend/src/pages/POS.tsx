@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute, Refused } from "../api";
@@ -58,6 +59,7 @@ interface CartLine {
 }
 
 export default function POS() {
+  const sched = useScheduleCodes();
   const pharmacy = usePharmacy();
   const [scan, setScan] = useState("");
   const [results, setResults] = useState<Product[]>([]);
@@ -1186,7 +1188,7 @@ export default function POS() {
                 <span>
                   <b>{p.name}</b> {p.strength}
                   {p.category === "airtime" && <span className="badge" style={{ marginLeft: 6 }}>airtime</span>}
-                  {p.schedule >= 5 && <span className="badge sched" style={{ marginLeft: 6 }}>S{p.schedule}</span>}
+                  {p.schedule >= 5 && <span className="badge sched" style={{ marginLeft: 6 }}>{sched(p.schedule)}</span>}
                 </span>
                 <span className="muted">{money(p.unit_price)} · {p.category === "airtime" ? "∞" : p.quantity_on_hand}</span>
               </div>
@@ -1212,7 +1214,7 @@ export default function POS() {
                   <span className="till-name">
                     <span className="cell-text">{l.product.name} {l.product.strength}</span>
                     {l.product.schedule >= 3 && (
-                      <span className="badge muted">S{l.product.schedule}</span>
+                      <span className="badge muted">{sched(l.product.schedule)}</span>
                     )}
                   </span>
                   <span className="num">

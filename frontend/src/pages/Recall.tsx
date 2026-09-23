@@ -13,6 +13,7 @@
  *  person receiving it takes ten seconds.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useScheduleCodes } from "../schedules";
 import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { useToast } from "../components/Toast";
@@ -45,6 +46,7 @@ interface Trace {
 }
 
 export default function Recall() {
+  const sched = useScheduleCodes();
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [trace, setTrace] = useState<Trace | null>(null);
@@ -223,7 +225,7 @@ export default function Recall() {
                 <dd>
                   {trace.batch.product}
                   {(trace.batch.schedule ?? 0) >= 3 && (
-                    <span className="badge sched">S{trace.batch.schedule}</span>
+                    <span className="badge sched">{sched(trace.batch.schedule)}</span>
                   )}
                 </dd>
                 <dt>Batch</dt><dd className="mono">{trace.batch.batch_number || "not recorded"}</dd>
