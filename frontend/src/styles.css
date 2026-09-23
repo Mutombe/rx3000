@@ -13194,3 +13194,29 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .st-shelf-lines button:focus-visible::after { opacity: 1; transform: none; }
 .st-noshelf { padding: var(--s2) var(--s3); margin: 0;
               border-bottom: 1px solid var(--line-soft); }
+
+/* THE DRAWN FACE, EVERYWHERE ONE IS NEEDED.
+   ---------------------------------------------------------------------------
+   Generated SVG, so it is sized by its box rather than by a font size, and the
+   circle it draws for itself is the whole of it. The ring stays on the header's
+   own avatar, which is a statement about whose shift it is; a face in a list is
+   just a face and wears no border. */
+.blobatar { display: block; flex: 0 0 auto; border-radius: 50%;
+            overflow: hidden; line-height: 0; }
+.blobatar svg { width: 100%; height: 100%; display: block; }
+
+/* The picker. A grid of faces, each one a button, with the chosen one stated
+   rather than merely tinted: a selection somebody cannot see at a glance is a
+   setting they will change twice. */
+.av-grid { display: grid; gap: var(--s3); margin-top: var(--s3);
+           grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); }
+.av-pick { display: grid; place-items: center; padding: var(--s2);
+           background: none; border: 2px solid transparent;
+           border-radius: var(--r-lg); cursor: pointer; }
+.av-pick:hover { background: var(--hover); }
+.av-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.av-pick.is-on { border-color: var(--ink); background: var(--surface-sunk); }
+/* The current face, shown larger beside the grid so the choice is visible at
+   the size it will actually be worn. */
+.av-current { display: flex; align-items: center; gap: var(--s3);
+              margin-top: var(--s2); }

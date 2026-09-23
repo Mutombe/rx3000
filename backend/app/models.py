@@ -30,6 +30,19 @@ class User(Base, TenantMixin):
     #: all, so a row created without a role got an account that could not work
     #: and nobody found out until the person tried to use it.
     role = Column(String(20), nullable=False, default="cashier")
+    #: Which blobatar this person picked, as the seed it is drawn from.
+    #:
+    #: A pharmacy is not a social network and nobody is uploading a photograph
+    #: of themselves to a till, but a wall of identical grey discs makes a staff
+    #: list unreadable and a dispensing history anonymous. So everybody gets a
+    #: drawn one, generated from a string and therefore free to store: no file,
+    #: no upload, no moderation, and the same seed draws the same face for ever.
+    #:
+    #: Empty means nobody has chosen, and the screen falls back to a seed made
+    #: from their name. That is deliberate rather than a gap: a new user has a
+    #: distinct avatar the first time they sign in, without being sent to a
+    #: settings page to pick one before the product looks finished.
+    avatar_seed = Column(String(64), default="")
     active = Column(Boolean, default=True)
 
     # ---- what KIND of user this is -------------------------------------

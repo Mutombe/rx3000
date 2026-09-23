@@ -110,6 +110,12 @@ class UserOut(ORM):
     username: str
     full_name: str
     role: str
+    #: The seed their drawn avatar is generated from. Empty means they have not
+    #: chosen, and the screen draws one from their name instead, so a row is
+    #: never a blank disc. Carried on every user the client renders, because an
+    #: avatar that is right in the corner and wrong in the staff list is worse
+    #: than no avatar at all.
+    avatar_seed: str = ""
     # Carried on every auth response so the countdown starts from an absolute
     # server time rather than a duration the client has to hold on to. A client
     # counting down from "four hours" drifts, sleeps with the laptop lid, and

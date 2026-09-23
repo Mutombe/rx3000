@@ -40,6 +40,9 @@ export interface Me {
   username: string;
   full_name: string;
   role: string;
+  /** The seed their drawn avatar comes from. Empty means they have not
+   *  chosen, and the face falls back to their name. */
+  avatar_seed?: string;
   is_demo?: boolean;
   demo_expires_at?: string | null;
   /** capability key -> may they. Resolved by the server. */

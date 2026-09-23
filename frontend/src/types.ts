@@ -3,6 +3,9 @@ export interface User {
   username: string;
   full_name: string;
   role: string;
+  /** The seed their drawn avatar is generated from. Empty or absent means
+   *  they have not chosen one, and the face is drawn from their name. */
+  avatar_seed?: string;
   /** A time-limited demo account. Absent on every account in a real pharmacy. */
   is_demo?: boolean;
   /** When the demo stops working, as naive UTC from the server. */

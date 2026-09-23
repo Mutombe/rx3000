@@ -1,6 +1,7 @@
 /** Shared record-workspace primitives — the visual vocabulary the CRM screens
  *  are built from: avatars, score rings, stage paths and highlight strips. */
 import { ReactNode } from "react";
+import Blobatar from "./Blobatar";
 
 export function initials(first?: string, last?: string, fallback = "?") {
   const a = (first ?? "").trim()[0] ?? "";
@@ -8,31 +9,24 @@ export function initials(first?: string, last?: string, fallback = "?") {
   return ((a + b) || fallback).toUpperCase();
 }
 
-/** Deterministic tint per person so the same name always gets the same chip. */
+/** A person, drawn.
+ *
+ *  This built two initials on a tinted gradient disc, which is a placeholder
+ *  that looks like a decision. Two patients called Tendai Moyo and Tapiwa
+ *  Mabika wore the same letters, and a list of them read as one person
+ *  repeated. It is a blobatar now, from the same component the signed-in
+ *  user's face comes from, so the product has one avatar rather than two that
+ *  disagree.
+ *
+ *  Nobody else's face is chooseable: a patient has not signed in to pick one.
+ *  It is drawn from their name, which is stable, so the same person is the
+ *  same face on every screen.
+ */
 export function Avatar({ first, last, size = 34, label }: {
   first?: string; last?: string; size?: number; label?: string;
 }) {
-  const seed = `${first ?? ""}${last ?? ""}`;
-  let hash = 0;
-  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) % 360;
-  return (
-    <span
-      className="avatar"
-      title={label}
-      style={{
-        width: size, height: size, fontSize: size * 0.36,
-        // Lightness 34%/28%, not 78%/58%. The label is white, and white on
-        // hsl(h 42% 78%) is about 1.7:1 — the initials were a pale suggestion on
-        // a pale disc. 34% clears 4.5:1 for every hue including yellow, which is
-        // the brightest at any given lightness and therefore the one to size
-        // against; picking a value that worked for blue would have failed
-        // silently for a third of the alphabet.
-        background: `linear-gradient(140deg, hsl(${hash} 45% 34%), hsl(${(hash + 40) % 360} 42% 28%))`,
-      }}
-    >
-      {initials(first, last)}
-    </span>
-  );
+  const name = `${first ?? ""} ${last ?? ""}`.trim();
+  return <Blobatar name={name} size={size} title={label ?? name} />;
 }
 
 /** Circular score gauge: the arc length is the score, the colour is the band. */

@@ -51,6 +51,7 @@ import {
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import Blobatar from "./Blobatar";
 import { routeTone } from "../entityTone";
 import { viewBranch, viewingBranch } from "../api";
 import { api, configureLocale, fmtDateTime, setToken } from "../api";
@@ -655,7 +656,10 @@ export default function Layout({ children }: { children: ReactNode }) {
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((o) => !o)}
             >
-              <span className="me-avatar">{initials(user?.full_name)}</span>
+              <span className="me-avatar">
+                <Blobatar seed={user?.avatar_seed} name={user?.full_name}
+                          id={user?.id} size={28} />
+              </span>
               <span className="me-text">
                 <span className="who">{user?.full_name ?? "…"}</span>
                 <span className="role">{user?.role}</span>
@@ -666,7 +670,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             {menuOpen && (
               <div className="me-menu" role="menu">
                 <div className="me-menu-head">
-                  <span className="me-avatar">{initials(user?.full_name)}</span>
+                  <span className="me-avatar">
+                <Blobatar seed={user?.avatar_seed} name={user?.full_name}
+                          id={user?.id} size={28} />
+              </span>
                   <span className="me-text">
                     <span className="who">{user?.full_name ?? "…"}</span>
                     <span className="role">{user?.role}</span>

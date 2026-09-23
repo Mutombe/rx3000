@@ -27,16 +27,23 @@ import { forgetLetterhead, letterhead } from "../letterhead";
 import { useToast } from "../components/Toast";
 import { Block } from "../components/Skeleton";
 import PinInput from "../components/PinInput";
+import Blobatar, { choicesFor, defaultSeed } from "../components/Blobatar";
+import { useSession } from "../session";
 
 interface Me {
   id: number; username: string; full_name: string;
   role: string; active: boolean; can_edit_company: boolean;
+  avatar_seed?: string;
 }
 interface CompanyField { key: string; label: string; value: string }
 
 export default function Profile() {
   const [me, setMe] = useState<Me | null>(null);
   const [name, setName] = useState("");
+  /** The face they have chosen, or are choosing. Saved with the name, because
+   *  they are the same act: this is who I am on every screen. */
+  const [seed, setSeed] = useState("");
+  const session = useSession();
   const [fields, setFields] = useState<CompanyField[] | null>(null);
   const [editable, setEditable] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -90,7 +97,7 @@ export default function Profile() {
 
   useEffect(() => {
     api.get<Me>("/api/profile/me")
-      .then((m) => { setMe(m); setName(m.full_name); })
+      .then((m) => { setMe(m); setName(m.full_name); setSeed(m.avatar_seed ?? ""); })
       .catch((e) => toast.error(errorText(e)));
     api.get<{ fields: CompanyField[]; editable: boolean }>("/api/profile/company")
       .then((c) => { setFields(c.fields); setEditable(c.editable); })
@@ -104,8 +111,12 @@ export default function Profile() {
     e.preventDefault();
     setSavingName(true);
     try {
-      const r = await api.put<{ message: string }>("/api/profile/me", { full_name: name });
+      const r = await api.put<{ message: string; avatar_seed: string }>(
+        "/api/profile/me", { full_name: name, avatar_seed: seed });
       toast.ok(r.message);
+      // The corner of the screen wears this face too, so it has to change
+      // with it rather than at the next sign-in.
+      session.refresh?.();
     } catch (e: any) {
       toast.error(errorText(e));
     } finally {
@@ -258,9 +269,47 @@ export default function Profile() {
               <input value={me?.role ?? ""} readOnly disabled style={{ textTransform: "capitalize" }} />
             </label>
           </div>
+          {/* THE FACE, CHOSEN RATHER THAN UPLOADED.
+              A pharmacy is not a social network and nobody is putting a
+              photograph of themselves on a till, but a staff list of identical
+              discs is unreadable and a dispensing history where every row wears
+              the same initial names nobody. These are drawn from a string, so
+              picking one costs a file that does not exist, an upload that does
+              not happen and a moderation decision nobody has to make.
+
+              Everyone already has one before they come here: the first is drawn
+              from their own name, so a new account looks finished on the first
+              sign-in rather than after a visit to this page. */}
+          <div className="field-row av-current">
+            <Blobatar seed={seed} name={me?.full_name} id={me?.id} size={56} />
+            <div>
+              <b>Your face on every screen</b>
+              <div className="muted small">
+                In the corner, on the staff list, and beside what you dispensed.
+                Pick one, then save.
+              </div>
+            </div>
+          </div>
+          <div className="av-grid">
+            {choicesFor(me?.full_name, me?.id).map((option) => {
+              // The first of the list is what they get with nothing saved, so
+              // choosing it means "the one I already had" rather than a blank.
+              const mine = (seed || defaultSeed(me?.full_name, me?.id)) === option;
+              return (
+                <button key={option} type="button"
+                        className={`av-pick${mine ? " is-on" : ""}`}
+                        aria-pressed={mine}
+                        aria-label={mine ? "Your current face" : "Use this face"}
+                        onClick={() => setSeed(option)}>
+                  <Blobatar seed={option} size={44} />
+                </button>
+              );
+            })}
+          </div>
+
           <div>
             <button className="btn primary" disabled={savingName || !me}>
-              <FloppyDisk size={16} /> {savingName ? "Saving…" : "Save name"}
+              <FloppyDisk size={16} /> {savingName ? "Saving…" : "Save"}
             </button>
           </div>
         </form>

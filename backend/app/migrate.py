@@ -83,6 +83,8 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # PIN, and the password path has to keep working for them rather than
     # locking them out of a prompt they have always answered with a password.
     "users": {
+        # The drawn avatar this person chose. See User.avatar_seed.
+        "avatar_seed": "VARCHAR(64) DEFAULT ''",
         # Which door somebody arrives by. Staff, patient or prescriber.
         "user_type": "VARCHAR(16) DEFAULT 'staff'",
         "patient_id": "INTEGER",

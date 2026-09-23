@@ -56,6 +56,10 @@ COMPANY_FIELDS = {
 
 class MeIn(BaseModel):
     full_name: str = Field(min_length=1, max_length=120)
+    #: The blobatar they picked, as its seed. None leaves the current one
+    #: alone, so saving a name from a screen that does not show the picker
+    #: cannot silently reset somebody's face.
+    avatar_seed: str | None = Field(default=None, max_length=64)
 
 
 class PasswordIn(BaseModel):
@@ -101,6 +105,7 @@ def get_me(user: User = Depends(auth.get_current_user)):
         "full_name": user.full_name,
         "role": user.role,
         "active": user.active,
+        "avatar_seed": user.avatar_seed or "",
         # What this person may do, answered here so the UI never has to guess
         # from the role string and get it wrong.
         "can_edit_company": user.role == "admin",
@@ -114,8 +119,12 @@ def update_me(
     user: User = Depends(auth.get_current_user),
 ):
     user.full_name = body.full_name.strip()
+    if body.avatar_seed is not None:
+        user.avatar_seed = body.avatar_seed.strip()[:64]
     db.commit()
-    return {"full_name": user.full_name, "message": "Your name has been updated."}
+    return {"full_name": user.full_name,
+            "avatar_seed": user.avatar_seed or "",
+            "message": "Your name has been updated."}
 
 
 @router.post("/password")
