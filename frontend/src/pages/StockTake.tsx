@@ -145,10 +145,22 @@ export default function StockTake() {
   const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
   useEffect(() => {
     api.get<{ bins: { bin: string; lines: number }[] }>("/api/stock/bins")
-      .then((r) => setBins((r.bins ?? []).filter((b) => b.bin)))
+      .then((r) => setBins(Array.isArray(r?.bins)
+        ? r.bins.filter((b) => b.bin) : []))
       .catch(() => setBins([]));
-    api.get<{ id: number; name: string }[]>("/api/stock-categories")
-      .then(setDepartments).catch(() => setDepartments([]));
+    // `/api/stock-categories` answers `{items, untagged}`, not a bare list.
+    // This read the response as an array because that is what it was typed
+    // as, and a type annotation on `api.get` is an assertion rather than a
+    // check: TypeScript believed it, the compiler passed, and the page threw
+    // "map is not a function" the moment anybody opened it without a count
+    // already running.
+    //
+    // `Array.isArray` on both, because the crash was not the wrong key so
+    // much as trusting a shape nobody verified. A picker with nothing in it
+    // is a screen somebody can still work; a white page is not.
+    api.get<{ items: { id: number; name: string }[] }>("/api/stock-categories")
+      .then((r) => setDepartments(Array.isArray(r?.items) ? r.items : []))
+      .catch(() => setDepartments([]));
   }, []);
 
   // counting
