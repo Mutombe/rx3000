@@ -314,7 +314,7 @@ def z_report(db: Session, day_id: int) -> dict:
     # single total in one of them answers nothing an auditor asks.
     by_currency: dict[str, dict] = {}
     for r in receipts:
-        code = (r.currency_code or "").upper() or "—"
+        code = (r.currency_code or "").upper() or "not recorded"
         row = by_currency.setdefault(
             code, {"currency": code, "receipts": 0, "sales": 0.0,
                    "vat": 0.0, "credit_notes": 0.0})

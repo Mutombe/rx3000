@@ -178,7 +178,11 @@ export default function DispensaryOperations() {
               </div>
               <div className="card stat">
                 <div className="label">Median wait today</div>
-                <div className="value">{day.medianWait === null ? "—" : duration(day.medianWait)}</div>
+                <div className="value">
+                  {day.medianWait === null
+                    ? <span className="muted">nothing dispensed yet</span>
+                    : duration(day.medianWait)}
+                </div>
                 <div className="hint">
                   Capture to dispensed · {day.waitedCount} waited, {day.sameVisit} same visit
                 </div>

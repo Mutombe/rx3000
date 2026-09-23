@@ -892,7 +892,12 @@ export default function Claiming() {
                       <td className="num">{t.percentage}%</td>
                       <td className="num">{money(t.fixed_fee)}</td>
                       <td className="num">{money(t.min_fee)}</td>
-                      <td className="num">{t.max_fee === null ? "—" : money(t.max_fee)}</td>
+                      {/* No ceiling is a real term, not a missing figure: the band's
+                          percentage runs all the way up. */}
+                      <td className="num">
+                        {t.max_fee === null
+                          ? <span className="muted">no cap</span> : money(t.max_fee)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -184,7 +184,9 @@ export default function DriverDetail() {
         <div className="wl-stat">
           <b className={driver.failure_rate && driver.failure_rate > 10
             ? "tone-danger" : undefined}>
-            {driver.failure_rate === null ? "—" : `${driver.failure_rate}%`}
+            {driver.failure_rate === null
+              ? <span className="muted">no deliveries yet</span>
+              : `${driver.failure_rate}%`}
           </b>
           <span>Of attempts failed</span>
         </div>

@@ -257,7 +257,13 @@ export default function SchemeCalendar() {
                           ? `${s.claim_cutoff_day}${ordinal(s.claim_cutoff_day)}`
                           : <span className="muted">not agreed</span>}
                     </td>
-                    <td>{s.realtime ? "—" : when(s.days_to_cutoff, s.next_cutoff)}</td>
+                    {/* A real-time scheme has no cut-off to count down to. That is
+                        an answer, not a gap. */}
+                    <td>
+                      {s.realtime
+                        ? <span className="muted">no cut-off</span>
+                        : when(s.days_to_cutoff, s.next_cutoff)}
+                    </td>
                     <td>
                       {s.settlement_day
                         ? `${s.settlement_day}${ordinal(s.settlement_day)}`

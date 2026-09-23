@@ -281,7 +281,9 @@ export default function ProductDetail() {
             hint: shelf.a_day > 0 ? `${shelf.a_day} a day over 90 days` : "nothing has gone out" },
           { label: "Average cost", value: money(shelf.avg_cost),
             hint: "weighted over the stock on the shelf" },
-          { label: "Markup", value: shelf.markup_percent === null ? "—" : `${shelf.markup_percent}%`,
+          { label: "Markup",
+            value: shelf.markup_percent === null
+              ? "no cost recorded" : `${shelf.markup_percent}%`,
             hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "none"}% margin` },
           // What the line has actually EARNED, which the markup beside it does
           // not say: that is the same percentage whether four boxes went out

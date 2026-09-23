@@ -199,7 +199,7 @@ def describe(db: Session, user: User) -> dict:
         "cover": [{
             "branch_id": row.branch_id,
             "branch": branches[row.branch_id].name
-            if row.branch_id in branches else "—",
+            if row.branch_id in branches else "branch not on file",
             "until": row.until.isoformat() if row.until else None,
             "expired": bool(row.until and row.until < today),
             "reason": row.reason or "",

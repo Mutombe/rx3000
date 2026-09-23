@@ -146,7 +146,7 @@ def run(switch_id: str) -> dict:
                f"vs total {result.approved}", fatal=True)
         record("a rejection carries a reason",
                result.status != "REJECTED" or bool(result.rejection_reason),
-               result.rejection_reason or "n/a")
+               result.rejection_reason or "none given")
 
     # --- 3. the unhappy paths map onto the shared vocabulary ---
     try:

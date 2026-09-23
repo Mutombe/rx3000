@@ -53,7 +53,7 @@ def _named(product: Product) -> str:
 
 
 def _line(product_name: str, qty: int, cost: float, code: str) -> str:
-    return f"{qty:>6}  {(code or '—'):<14}  {product_name[:44]:<44}  {cost:>10,.2f}"
+    return f"{qty:>6}  {(code or 'no code'):<14}  {product_name[:44]:<44}  {cost:>10,.2f}"
 
 
 def document(db: Session, order: PurchaseOrder, *, pharmacy_name: str = "") -> str:
@@ -81,7 +81,7 @@ def document(db: Session, order: PurchaseOrder, *, pharmacy_name: str = "") -> s
             qty, cost,
             (product.stock_code or product.barcode or "") if product else ""))
 
-    when = order.created_at.strftime("%d %B %Y") if order.created_at else "—"
+    when = order.created_at.strftime("%d %B %Y") if order.created_at else "undated"
     head = [
         f"PURCHASE ORDER  {order.order_number}",
         f"Raised {when}",

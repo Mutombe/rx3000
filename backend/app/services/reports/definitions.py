@@ -605,7 +605,7 @@ def _voids(db: Session, p: dict):
             "date": s.created_at.isoformat(sep=" ", timespec="minutes"),
             "sale_number": s.sale_number or ("#" + str(s.id)),
             "cashier": names.get(s.settled_by_id or s.cashier_id, "-"),
-            "method": s.payment_method or "-",
+            "method": s.payment_method or "not recorded",
             "amount": round(s.total or 0, 2),
         }
         for s in rows
@@ -2868,15 +2868,15 @@ def _overrides(db: Session, p: dict):
             "date": row.created_at.isoformat(sep=" ", timespec="minutes"),
             "sale_number": (sale.sale_number or ("#" + str(sale.id))) if sale
                            else "not sold",
-            "product": row.product.name if row.product else "-",
+            "product": row.product.name if row.product else "not on file",
             "shelf_price": was,
             "sold_at": now,
             "difference": round((now - was) * quantity, 2),
             "percent": round((now - was) / was * 100, 1) if was else 0.0,
             "cashier": (row.requested_by.full_name or row.requested_by.username)
-                       if row.requested_by else "-",
+                       if row.requested_by else "not recorded",
             "approved_by": (row.approved_by.full_name or row.approved_by.username)
-                           if row.approved_by else "-",
+                           if row.approved_by else "nobody approved it",
             "reason": row.reason or "",
         })
 
@@ -2976,7 +2976,7 @@ def _audit_shape(rows):
     return [
         {
             "date": a.created_at.isoformat(sep=" ", timespec="minutes"),
-            "username": a.username or "-",
+            "username": a.username or "no username",
             "action": a.action or "",
             "summary": (a.summary or a.path or "")[:140],
             "status_code": a.status_code,
@@ -3978,7 +3978,7 @@ def _laybys(db: Session, p: dict, status: str):
         out.append({
             "layby_number": r.layby_number,
             "customer": ((person.first_name + " " + person.last_name).strip()
-                         if person else "-"),
+                         if person else "walk in"),
             "phone": (person.phone or "") if person else "",
             "total": round(r.total or 0, 2),
             "paid": r.paid,
@@ -4011,7 +4011,7 @@ def _laybys_closed(db: Session, p: dict):
         out.append({
             "layby_number": r.layby_number,
             "customer": ((person.first_name + " " + person.last_name).strip()
-                         if person else "-"),
+                         if person else "walk in"),
             "status": r.status,
             "total": round(r.total or 0, 2),
             "paid": r.paid,
@@ -4608,7 +4608,7 @@ def _remittance_advice(db: Session, p: dict):
         {
             "remittance": rem.remittance_number,
             "paid_on": str(rem.payment_date) if rem.payment_date else "",
-            "member": line.member_name or line.policy_number or "-",
+            "member": line.member_name or line.policy_number or "not given",
             "service_date": str(line.service_date) if line.service_date else "",
             "claimed": round(line.amount_claimed or 0, 2),
             "allowed": round(line.amount_allowed or 0, 2),
@@ -4911,7 +4911,7 @@ def _messages_shape(db: Session, rows_q):
         stamp = m.sent_at or m.scheduled_for
         out.append({
             "date": stamp.isoformat(sep=" ", timespec="minutes") if stamp else "",
-            "channel": m.channel or "-",
+            "channel": m.channel or "not recorded",
             "recipient": people.get(m.patient_id, "-"),
             "kind": m.message_type or "",
             # An unsent message is not a failure and not a success; saying
@@ -5116,7 +5116,7 @@ def _lapsed(db: Session, p: dict):
         out.append({
             "patient_id": script.patient_id,
             "patient": ((person.first_name + " " + person.last_name).strip()
-                        if person else "-"),
+                        if person else "walk in"),
             "phone": (person.phone or "") if person else "",
             "product": product.name,
             "due": item.next_repeat_date.isoformat(),

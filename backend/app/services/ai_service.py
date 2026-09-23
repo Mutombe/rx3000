@@ -121,7 +121,7 @@ def _patient_medication_context(db: Session, patient: Patient) -> str:
     )
     current = [
         f"- {i.product.name} {i.product.strength} ({i.product.dosage_form}); "
-        f"dosage: {i.dosage_instructions or 'n/a'}; repeats {i.repeats_used}/{i.repeats_allowed}"
+        f"dosage: {i.dosage_instructions or 'none recorded'}; repeats {i.repeats_used}/{i.repeats_allowed}"
         for i in items
     ]
     age = ""

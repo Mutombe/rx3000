@@ -564,7 +564,8 @@ export default function Repeats() {
                     <b className={`tone-${rateTone(
                       (perf.value_capture_rate ?? 0) * 100, 80)}`}>
                       {perf.value_capture_rate === null
-                        ? "—" : `${Math.round(perf.value_capture_rate * 100)}%`}
+                        ? <span className="muted">no repeats due yet</span>
+                        : `${Math.round(perf.value_capture_rate * 100)}%`}
                     </b>
                     <span>Of the value kept</span>
                   </div>

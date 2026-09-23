@@ -253,7 +253,14 @@ export default function Ledger() {
                     <td colSpan={3}>Totals</td>
                     <td className="num">{money(tb.total_debit)}</td>
                     <td className="num">{money(tb.total_credit)}</td>
-                    <td className="num">{tb.balanced ? "—" : money(tb.difference)}</td>
+                    {/* A trial balance that balances is the whole point of the
+                        column, so it says so. A dash here read as a figure
+                        nobody had worked out. */}
+                    <td className="num">
+                      {tb.balanced
+                        ? <span className="muted">balances</span>
+                        : money(tb.difference)}
+                    </td>
                   </tr>
                 )}
               </tbody>

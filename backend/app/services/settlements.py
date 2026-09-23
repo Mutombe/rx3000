@@ -62,7 +62,9 @@ def by_funder(db: Session, *, days: int = 180) -> dict:
 
     funders: dict[str, dict] = {}
     for advice in advices:
-        key = (advice.funder_id or "—").upper()
+        # Both the grouping key and the name shown beside the row, so it
+    # has to read as a sentence rather than as a symbol.
+    key = (advice.funder_id or "not named").upper()
         row = funders.setdefault(key, {
             "funder_id": key, "funder": key,
             "advices": 0, "lines": 0,

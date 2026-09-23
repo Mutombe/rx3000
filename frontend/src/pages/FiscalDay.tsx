@@ -228,7 +228,8 @@ export default function FiscalDay() {
                 : <span className="muted">none</span>}</dd>
               <dt>Global counters</dt>
               <dd className="mono">
-                {day.first_counter === null ? "—"
+                {day.first_counter === null
+                  ? <span className="muted">no receipts filed</span>
                   : `${day.first_counter}. ${day.last_counter}`}
               </dd>
               <dt>Opening hash</dt>

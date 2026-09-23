@@ -212,7 +212,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
             # Truncated deliberately: this is a queue, read at a glance, and a
             # long name pushes the quantity and the reason off a narrow panel.
             "patient": _clip(
-                f"{patient.first_name} {patient.last_name}".strip() if patient else "—", 22),
+                f"{patient.first_name} {patient.last_name}".strip() if patient else "no patient on file", 22),
             "product": _clip(f"{product.name} {product.strength or ''}".strip(), 26),
             "quantity": outstanding,
             "band": band,
@@ -411,7 +411,7 @@ def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> lis
             "schedule": product.schedule or 0,
             "patient_id": script.patient_id,
             "patient": _clip(
-                f"{patient.first_name} {patient.last_name}".strip() if patient else "—", 22),
+                f"{patient.first_name} {patient.last_name}".strip() if patient else "no patient on file", 22),
             "product": _clip(product.name, 24),
             "due": item.next_repeat_date.isoformat(),
             "days": days,
@@ -419,7 +419,7 @@ def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> lis
             "call": _clip(
                 (patient.caregiver_name or "")
                 if patient and patient.contact_caregiver_first and patient.caregiver_name
-                else (f"{patient.first_name} {patient.last_name}".strip() if patient else "—"),
+                else (f"{patient.first_name} {patient.last_name}".strip() if patient else "no patient on file"),
                 22),
             "phone": ((patient.caregiver_phone or patient.phone or "")
                       if patient and patient.contact_caregiver_first

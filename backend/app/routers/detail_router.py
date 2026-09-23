@@ -733,7 +733,7 @@ def dispensing_detail(dispensing_id: int, db: Session = Depends(get_db)):
                                if other.prescription_item else None)
             siblings.append({
                 "id": other.id,
-                "product": sibling_product.name if sibling_product else "—",
+                "product": sibling_product.name if sibling_product else "not on file",
                 "quantity": other.quantity,
                 "dispensed_at": other.dispensed_at,
                 "collected_at": other.collected_at,
