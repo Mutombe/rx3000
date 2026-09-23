@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from .. import auth, helpers, schemas
+from .. import auth, helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from .periods_router import require_step_up
@@ -375,6 +375,32 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db),
         # A retired line is hidden from the search and was still accepted by
         # the endpoint: a stale tab or an old barcode would sell it.
         helpers.refuse_if_retired(product, "sold")
+        # A TILL IS NOT A DISPENSARY.
+        #
+        # This endpoint had no opinion about schedules at all: it did not import
+        # `schedule_policy`, and its only guards were empty basket, not found
+        # and retired. The till searches the whole catalogue rather than the
+        # counter range, so a cashier could find a PP10, basket it and sell it
+        # with no prescription, no prescriber, no pharmacist and no refusal
+        # anywhere in the stack. Worse, `record_register_entry` below then
+        # wrote it into the controlled register with none of that attached, so
+        # the register an inspector reads carried a supply nobody could account
+        # for.
+        #
+        # Refused here rather than only in the search, because a search filter
+        # is a convenience and this is the rule: an old tab, a stale barcode or
+        # a client that simply posts an id must all be refused the same way.
+        # The dispensary applies the same policy from the same pack, so the two
+        # cannot drift.
+        _policy = schedule_policy.policy_for(product.schedule)
+        if _policy.route in ("prescription", "controlled", "prohibited"):
+            _code = schedule_policy.code_for(product.schedule)
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{product.name} is {_code} and cannot be sold at a "
+                        "till. Dispense it in the dispensary, where the script, "
+                        "the prescriber and the register entry are recorded."),
+            )
         # A price set by hand, if one was authorised for this line. Read off the
         # record the code wrote, never off the request: a till that could name
         # its own price has gone round the password rather than through it.

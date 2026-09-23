@@ -194,7 +194,14 @@ export default function POS() {
 
   useEffect(() => {
     if (scan.length < 2) { setResults([]); return; }
-    api.get<Product[]>(`/api/products?q=${encodeURIComponent(scan)}&limit=8`).then(setResults);
+    // Only what a till may lawfully sell. This searched the whole catalogue,
+    // so a cashier could find a prescription medicine, basket it and be
+    // refused at the end, or before the server learned to refuse it, not be
+    // refused at all. The sale is guarded server-side either way; this is what
+    // keeps the medicine out of the basket in the first place.
+    api.get<Product[]>(
+      `/api/products?q=${encodeURIComponent(scan)}&limit=8&counter_only=true`)
+      .then(setResults);
   }, [scan]);
 
   // What they owe, looked up when they are linked.

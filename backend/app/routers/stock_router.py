@@ -53,16 +53,37 @@ def _product_search(db: Session, q: str, category: str, low_stock: bool,
 @router.get("/products", response_model=list[schemas.ProductOut])
 def list_products(q: str = "", category: str = "", category_id: int = 0,
                   low_stock: bool = False, limit: int = 300,
+                  counter_only: bool = False,
                   db: Session = Depends(get_db),
                   user: User = Depends(get_current_user)):
     """Capped list, for pickers and typeaheads that want a shortlist.
+
+    `counter_only` narrows it to what may lawfully be sold at a till: the
+    schedules the jurisdiction pack puts on the `otc` route. Opt-in rather than
+    the default, because this same list is the stock catalogue, where a
+    pharmacy must be able to see every line it owns.
+
+    The till searched this endpoint unfiltered, so a cashier could find a PP10
+    and basket it. The sale itself is refused in `pos_router.create_sale`
+    whatever the client sends; this is what stops somebody being offered a
+    medicine they will then be told they may not sell, which reads as the
+    software being broken rather than as the rule it is.
 
     Carries `here` as well as `quantity_on_hand`, because this list feeds the
     pickers somebody chooses a medicine from and the two numbers are different
     questions: the group holds forty, and this counter can reach none of them.
     Filled in one query for the page rather than one per row.
     """
-    rows = _product_search(db, q, category, low_stock, category_id).limit(limit).all()
+    search = _product_search(db, q, category, low_stock, category_id)
+    if counter_only:
+        from .. import schedule_policy
+        over_the_counter = schedule_policy.schedules_for_route("otc")
+        # An unclassified line is NOT assumed to be counter stock. `policy_for`
+        # falls back to the freest schedule for a null, and inheriting that
+        # here would put sixteen thousand unclassified imports back on the till
+        # the filter exists to protect.
+        search = search.filter(Product.schedule.in_(over_the_counter))
+    rows = search.limit(limit).all()
     branch_id = _branch_of(db, user)
     if branch_id is not None and rows:
         from ..services import branches as branch_svc
