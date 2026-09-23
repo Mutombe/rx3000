@@ -62,7 +62,38 @@ def waiting_count(db: Session) -> int:
     return _base(db).count()
 
 
-def waiting(db: Session, *, limit: int = 200) -> dict:
+def band_window(name: str, now: datetime) -> tuple[datetime | None, datetime | None]:
+    """The `dispensed_at` range one band covers, derived from BANDS itself.
+
+    WHY THIS EXISTS
+
+    The tiles counted the whole shelf and the list held only the oldest few
+    hundred rows, so pressing "143 Waiting" answered "Nothing waiting": the
+    count was honest and the list could not honour it. A count taken over one
+    set and a list drawn from another is the same class of fault that was
+    fixed here once already, from the other end.
+
+    Returned as (newer_than, at_or_older_than) so the caller can build the
+    filter without knowing what a band is, and both bounds come from the same
+    table the counting does, which is the only way they stay in step.
+    """
+    previous: int | None = None
+    for index, (limit, band, _action) in enumerate(BANDS):
+        if band == name:
+            # The last band is open-ended by definition: its limit is the
+            # sentinel 10**6, and `now - timedelta(days=1000000)` lands in the
+            # year -736, which datetime refuses. Asking for the oldest bags
+            # answered 500 rather than listing them.
+            oldest = index == len(BANDS) - 1
+            newer_than = None if oldest else now - timedelta(days=limit)
+            older_than = now - timedelta(days=previous) if previous else None
+            return newer_than, older_than
+        previous = limit
+    return None, None
+
+
+def waiting(db: Session, *, limit: int = 200,
+            band: str = "") -> dict:
     """Everything on the shelf, oldest first.
 
     Oldest first rather than newest: the point of the screen is the bag that has
@@ -77,7 +108,18 @@ def waiting(db: Session, *, limit: int = 200) -> dict:
     # hosted database it is three network round trips per bag, so a shelf of
     # two hundred became six hundred round trips and the screen timed out
     # rather than drew.
-    rows = (_base(db)
+    # The rows, narrowed to one band when the screen is showing one. The
+    # counts and the total below are deliberately NOT narrowed: they are what
+    # the whole shelf holds, which is what the tiles report.
+    listed = _base(db)
+    if band:
+        newer_than, older_than = band_window(band, datetime.utcnow())
+        if newer_than is not None:
+            listed = listed.filter(Dispensing.dispensed_at > newer_than)
+        if older_than is not None:
+            listed = listed.filter(Dispensing.dispensed_at <= older_than)
+
+    rows = (listed
             .options(joinedload(Dispensing.prescription_item)
                      .joinedload(PrescriptionItem.product),
                      joinedload(Dispensing.prescription_item)

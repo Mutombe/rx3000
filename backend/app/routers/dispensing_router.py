@@ -686,9 +686,13 @@ def dispensing_history(
 
 
 @router.get("/will-call")
-def will_call(limit: int = 200, db: Session = Depends(get_db)):
-    """Everything dispensed and not yet collected, oldest first."""
-    return willcall.waiting(db, limit=max(1, min(limit, 500)))
+def will_call(limit: int = 200, band: str = "", db: Session = Depends(get_db)):
+    """Everything dispensed and not yet collected, oldest first.
+
+    `band` narrows the LIST to one ageing band. The counts and the total come
+    back whole-shelf either way, because those are what the tiles report.
+    """
+    return willcall.waiting(db, limit=max(1, min(limit, 500)), band=band)
 
 
 @router.post("/will-call/{dispensing_id}/collect")

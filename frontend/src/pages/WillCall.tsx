@@ -67,15 +67,25 @@ export default function WillCall() {
   const ask = useAsk();
   const confirm = useConfirm();
 
+  /** THE BAND IS ASKED FOR, NOT SIFTED OUT OF WHAT ARRIVED.
+   *
+   *  The tiles count the whole shelf and the list held only the oldest four
+   *  hundred bags, so on a shelf of 645 every one of those was stale or
+   *  abandoned, and pressing "143 Waiting" answered "Nothing waiting." The
+   *  count was honest; the list could not honour it. The server now narrows
+   *  the rows to the band, using the same table it counts from, so the two
+   *  cannot disagree.
+   */
   const load = useCallback(() =>
-    api.get<Shelf>("/api/dispensing/will-call?limit=400")
+    api.get<Shelf>(`/api/dispensing/will-call?limit=400${
+      band ? `&band=${encodeURIComponent(band)}` : ""}`)
       .then((s) => { setShelf(s); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "The shelf could not be read."))),
-  []);
+  [band]);
 
   useEffect(() => { load(); }, [load]);
 
-  const rows = (shelf?.items ?? []).filter((b) => !band || b.band === band);
+  const rows = shelf?.items ?? [];
   const page = useClientPage(rows, 25);
 
   async function collect(bag: Bag) {
