@@ -187,14 +187,15 @@ export default function Compliance() {
       destructive: true,
     });
     if (!ok) return;
-    try {
-      await api.delete(`/api/compliance/documents/${doc.id}`);
-      toast.ok("Off the register.");
-      if (open) openBranch(open);
-      load();
-    } catch (e) {
-      toast.error(errorText(e));
-    }
+    // Off the register on the click, back in its old place with the reason if
+    // the server refuses. The row already carries a pending state for exactly
+    // this; it was waiting on the request and then reloading the branch and
+    // the overview, so a register of fifteen documents blinked twice before
+    // anything looked different.
+    await docs.remove(doc.kind,
+      () => api.delete(`/api/compliance/documents/${doc.id}`),
+      "Off the register.");
+    load();
   }
 
   return (
@@ -363,32 +364,43 @@ export default function Compliance() {
                             : d.state === "missing" && d.critical ? "row-flag" : "",
                           rowClass(docs.stateOf(d)),
                         ].filter(Boolean).join(" ") || undefined}>
-                      <td>
-                        {/* The record, where the chain of what this replaced
-                            lives. A register says what is current; only the
-                            record can say what was current in March, which is
-                            the question an inspection actually asks. */}
-                        {d.id
-                          ? <Link to={`/compliance/documents/${d.id}`}><b>{d.name}</b></Link>
-                          : <b>{d.name}</b>}
-                        {d.critical && (
-                          <span className="badge bad"> The shop closes without it</span>
-                        )}
-                        <div className="muted small wrap">{d.why}</div>
-                        <div className="muted small">
+                      {/* ONE LINE PER DOCUMENT.
+                          This cell stacked four things: the name, a five word
+                          badge, a wrapped sentence of regulation and the
+                          issuer. Fifteen documents at four lines each is a
+                          register nobody can scan, and the sentence was the
+                          same on every branch's copy of the same row.
+
+                          The name and the issuer read across; the reason is on
+                          hover and on the record behind the name, which is
+                          where somebody goes when they want to know why the
+                          licence exists rather than whether it is current. */}
+                      <td title={d.why}>
+                        <span className="cl-doc">
+                          {d.id
+                            ? <Link to={`/compliance/documents/${d.id}`}><b>{d.name}</b></Link>
+                            : <b>{d.name}</b>}
+                          {d.critical && (
+                            // An icon, not a sentence. The row is already
+                            // flagged red; this says which flag it is.
+                            <span className="badge bad cl-critical"
+                                  title="The shop closes without it">closes the shop</span>
+                          )}
+                        </span>
+                        <span className="muted small cl-issuer">
                           {d.issuer || d.expected_issuer}
-                        </div>
+                        </span>
                       </td>
                       <td>
                         <span className={`badge ${TONE[d.state] ?? "muted"}`}>
                           {SAYS[d.state] ?? d.state}
                         </span>
                         {d.days_left !== null && (
-                          <div className="muted small">
+                          <span className="muted small cl-days">
                             {d.days_left < 0
                               ? `${Math.abs(d.days_left)} days ago`
-                              : `${d.days_left} days`}
-                          </div>
+                              : `in ${d.days_left} days`}
+                          </span>
                         )}
                       </td>
                       <td className="mono small">
