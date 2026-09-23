@@ -14,6 +14,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { currencyWorld } from "../components/Tenders";
 import { EntityLink } from "../components/Filters";
+import { TableSearch, useSearch } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -88,6 +89,9 @@ export default function MoneyOwed() {
   }
 
   const rows = data?.items ?? [];
+  /* Every unpaid sale in the shop. Somebody rings about THEIR bill, so
+     the question is always one name in a list that only grows. */
+  const { q, setQ, shown } = useSearch(rows, (r) => [r.patient, r.phone, r.sale_number]);
   const stale = rows.filter((r) => r.days >= 30);
 
   return (
@@ -138,6 +142,9 @@ export default function MoneyOwed() {
             skeleton={<TableSkeleton cols={7} rows={5}
               widths={["20ch", "12ch", "10ch", "10ch", "10ch", "10ch", "10ch"]} />}
           >
+          <TableSearch value={q} onChange={setQ}
+                       placeholder="Find a patient, a phone number or a sale…"
+                       shown={shown.length} total={rows.length} />
           <table className="dt">
             <thead>
               <tr>
@@ -147,7 +154,7 @@ export default function MoneyOwed() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {shown.map((r) => (
                 <tr key={r.sale_id} className={r.days >= 30 ? "row-flag" : ""}>
                   <td>
                     <EntityLink kind="patient" id={r.patient_id}>

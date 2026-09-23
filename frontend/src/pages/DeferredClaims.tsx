@@ -14,7 +14,7 @@ import { useEffect, useMemo, useState } from "react";
 import SectionNav from "../components/SectionNav";
 import { CLAIMING_TABS } from "../reconTabs";
 import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
-import { EntityLink } from "../components/Filters";
+import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -51,6 +51,11 @@ interface BatchResult {
 
 export default function DeferredClaims() {
   const [rows, setRows] = useState<Deferred[]>([]);
+  /* A held claim is chased one at a time: a scheme rings, or a patient does,
+     and the question is about that claim. The list only grows until each one
+     is resolved. */
+  const { q, setQ, shown } = useSearch(rows, (c) =>
+    [c.claim_number, c.patient_name, c.medical_aid, c.sale_number]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<Summary | null>(null);
   const toast = useToast();
@@ -153,6 +158,9 @@ export default function DeferredClaims() {
             hasData={rows.length > 0}
             skeleton={<TableSkeleton cols={6} rows={5} />}
           >
+          <TableSearch value={q} onChange={setQ}
+                       placeholder="Find a claim, a patient or a scheme…"
+                       shown={shown.length} total={rows.length} />
           <table className="dt dt-wider">
             <thead>
               <tr>
@@ -166,7 +174,7 @@ export default function DeferredClaims() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((c) => (
+              {shown.map((c) => (
                 <RowLink key={c.id} to={`/claims/${c.id}`}
                          prefetch={prefetchRoute}>
                   <td className="mono"><EntityLink kind="claim" id={c.id}>{c.claim_number}</EntityLink></td>

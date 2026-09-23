@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, prefetchRoute, errorText  } from "../api";
-import { EntityLink } from "../components/Filters";
+import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import ExportButton from "../components/ExportButton";
@@ -101,7 +101,13 @@ export default function ToFollows() {
      totals above this table are the pharmacy's whole outstanding debt, and a
      page at a time would either make them wrong or cost a second round trip.
      The data stays whole; only the render is bounded. */
-  const page = useClientPage(rows, 25);
+  /* A to-follow is chased by name: somebody rings to ask whether theirs has
+     come in. The list is every outstanding promise in the shop, so without a
+     search the answer is to read all of them. Search first, then page, so
+     paging walks the matches rather than the whole list. */
+  const { q, setQ, shown } = useSearch(rows, (o) =>
+    [o.patient_name, o.patient_phone, o.product_name, o.reference]);
+  const page = useClientPage(shown, 25);
 
   async function settle(owed: Owed, quantity?: number) {
     const amount = quantity ?? owed.quantity_outstanding;
@@ -208,6 +214,9 @@ export default function ToFollows() {
             widths={["10ch", "14ch", "18ch", "5ch", "5ch", "10ch", "16ch"]} />
         }
       >
+      <TableSearch value={q} onChange={setQ}
+                   placeholder="Find a patient, a phone number or a medicine…"
+                   shown={shown.length} total={rows.length} />
       <div className="dt-scroll">
         <table className="dt dt-wider">
           <thead>

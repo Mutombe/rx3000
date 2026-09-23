@@ -11,6 +11,7 @@
  */
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { TableSearch, useSearch } from "../components/Filters";
 import { api, fmtDate, money, prefetchRoute, errorText  } from "../api";
 import Breadcrumbs from "../components/Breadcrumbs";
 import RowLink from "../components/RowLink";
@@ -32,6 +33,11 @@ interface AccountView {
 export default function AccountLedger() {
   const { code } = useParams();
   const [view, setView] = useState<AccountView | null>(null);
+  /* A general ledger account only grows, and it is read to find ONE entry:
+     the journal somebody is querying, or the day a balance moved. It listed
+     every line and offered no way to reach one. */
+  const { q, setQ, shown } = useSearch(view?.lines ?? [], (l) =>
+    [l.reference, l.description, l.source, l.period_code]);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
 
@@ -78,6 +84,9 @@ export default function AccountLedger() {
         }
       >
         <div className="dt-scroll">
+          <TableSearch value={q} onChange={setQ}
+                       placeholder="Find a reference, a description or a period…"
+                       shown={shown.length} total={view?.lines.length ?? 0} />
           <table className="dt">
             <thead>
               <tr>
@@ -99,7 +108,7 @@ export default function AccountLedger() {
                   <td className="num">{money(view.opening_balance)}</td>
                 </tr>
               )}
-              {view?.lines.map((l, i) => (
+              {shown.map((l, i) => (
                 <RowLink
                   key={`${l.entry_id}-${i}`}
                   to={`/ledger/entries/${l.entry_id}`}

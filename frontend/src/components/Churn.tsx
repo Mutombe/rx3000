@@ -21,7 +21,7 @@ import { Phone, Printer } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
-import { EntityLink } from "./Filters";
+import { EntityLink, TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
@@ -60,6 +60,11 @@ const WINDOWS = [
 export default function Churn() {
   const [days, setDays] = useState("90");
   const [data, setData] = useState<Churn | null>(null);
+  /* Patients who have stopped coming. The list is worked down by ringing
+     people, so somebody comes back to it asking "did I already call her".
+     Without a search that is a re-read of the whole list. */
+  const { q, setQ, shown } = useSearch(data?.leaving ?? [], (l) =>
+    [l.patient, l.phone]);
   const [therapies, setTherapies] = useState<Therapies | null>(null);
   const [loading, setLoading] = useState(true);
   const toast = useToast();
@@ -196,6 +201,10 @@ export default function Churn() {
                 </p>
               </div>
             ) : (
+              <>
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find a patient or a telephone number…"
+                           shown={shown.length} total={data.leaving.length} />
               <div className="dt-scroll">
                 <table className="dt">
                   <thead>
@@ -209,7 +218,7 @@ export default function Churn() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.leaving.map((l) => (
+                    {shown.map((l) => (
                       <tr key={l.patient_id}>
                         <td>
                           <EntityLink kind="patient" id={l.patient_id}>
@@ -232,6 +241,7 @@ export default function Churn() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
           </>
