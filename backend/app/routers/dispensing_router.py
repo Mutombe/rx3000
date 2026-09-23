@@ -15,7 +15,7 @@ from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import (adjustments, doses, fefo, interactions, pack_dates,
-                        paging, willcall)
+                        paging, permissions, willcall)
 from ..models import (
     Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
     SaleItem, StockBatch, User,
@@ -54,37 +54,90 @@ def expiry_needed(lines: list[dict] = Body(..., embed=True),
 
 
 @router.get("/products", response_model=list[schemas.ProductOut])
-def products_by_route(route: str = "otc", q: str = "", limit: int = 40,
+def products_by_route(route: str = "", q: str = "", limit: int = 40,
                       db: Session = Depends(get_db),
                       user: User = Depends(get_current_user)):
-    """Products available on a given dispensing route (otc | prescription | controlled)."""
+    """Medicines this person may dispense, or those on one named route.
+
+    `route` used to be required and defaulted to `otc`, because the dispensary
+    had three tabs and the tab was the filter. Asking the dispenser which lane
+    they were in was asking them to classify a medicine the pack had already
+    classified, and the tab could disagree with what they then put in the
+    basket.
+
+    Left out, the range is worked out from what this person is actually allowed
+    to dispense. That is the same question the tab was standing in for, asked of
+    the permission matrix instead of the user, and it is strictly better: a
+    cashier is never offered a medicine they would be refused at the end, and a
+    pharmacist never has to say which kind of medicine they are about to look
+    for.
+
+    Naming a route still works, for callers that genuinely want one lane.
+    """
     from ..models import StockCategory
 
-    schedules = schedule_policy.schedules_for_route(route)
-    if not schedules:
-        raise HTTPException(status_code=400, detail="Route must be otc, prescription or controlled")
+    if route:
+        schedules = schedule_policy.schedules_for_route(route)
+        # `prohibited` is a real route in the pack and was never a real answer
+        # here: it slipped past the emptiness check below and listed substances
+        # nobody may dispense at all.
+        if not schedules or route == "prohibited":
+            raise HTTPException(
+                status_code=400,
+                detail="Route must be otc, prescription or controlled")
+        may_prescribe = route == "prescription"
+        may_control = route == "controlled"
+    else:
+        # WHAT THEY MAY HAND OVER, NOT WHAT THEY CLICKED.
+        #
+        # Built up from the lanes this person holds the capability for, using
+        # the same `ROUTE_CAPABILITY` map the dispense endpoint enforces with,
+        # so the search and the refusal cannot drift apart.
+        from .prescriptions_router import ROUTE_CAPABILITY
+
+        schedules = []
+        allowed_routes = []
+        for lane, capability in ROUTE_CAPABILITY.items():
+            if permissions.check(db, user, capability)["allowed"]:
+                allowed_routes.append(lane)
+                schedules.extend(schedule_policy.schedules_for_route(lane))
+        if not schedules:
+            # Nothing at all, which the screen renders as its own refusal.
+            return []
+        may_prescribe = "prescription" in allowed_routes
+        may_control = "controlled" in allowed_routes
+
     controlled = schedule_policy.schedules_for_route("controlled")
     query = db.query(Product).filter(Product.active)
 
-    if route == "prescription":
+    if may_prescribe:
         # Scheduled prescription medicines, and the unclassified ones.
         #
         # A catalogue that arrives from another system has no schedules on it —
         # every one of CareXpress's sixteen thousand lines is schedule 0 — so a
         # strict schedule filter offered the dispenser nothing at all on the
-        # tab they spend the day in. Anything not classified is therefore
+        # screen they spend the day in. Anything not classified is therefore
         # searchable on a script, and the department filter below is what keeps
-        # the crisps out. Controlled substances are never reached this way:
-        # they have their own tab and their own record.
+        # the crisps out.
         query = query.filter(
             or_(Product.schedule.in_(schedules),
-                func.coalesce(Product.schedule, 0) == 0),
-            ~Product.schedule.in_(controlled) if controlled else true(),
-        )
+                func.coalesce(Product.schedule, 0) == 0))
     else:
         query = query.filter(Product.schedule.in_(schedules))
-    if route == "otc":
-        query = query.filter(Product.category != "airtime")
+
+    # Controlled substances are subtracted only from somebody who may not
+    # dispense them. This used to be unconditional on the prescription route,
+    # which was correct while that route was a tab standing beside a separate
+    # controlled one — and would now hide every controlled medicine from the
+    # pharmacist who holds both capabilities, which is the entire point of
+    # asking the matrix instead of the tab.
+    if controlled and not may_control:
+        query = query.filter(~Product.schedule.in_(controlled))
+
+    # Airtime is not a medicine. It was dropped from the counter lane only,
+    # because that was the lane it could appear in; with one search box it has
+    # to be dropped from all of them.
+    query = query.filter(Product.category != "airtime")
 
     # What this pharmacy dispenses, as the pharmacy itself has filed it.
     #

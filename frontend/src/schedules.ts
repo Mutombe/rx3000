@@ -33,6 +33,8 @@ import { api } from "./api";
 import type { SchedulePolicy } from "./types";
 
 let known: Record<number, string> | null = null;
+/** The route each schedule belongs to, from the same fetch as the codes. */
+let routes: Record<number, string> | null = null;
 let asking: Promise<Record<number, string>> | null = null;
 const waiting = new Set<() => void>();
 
@@ -42,10 +44,13 @@ function fetchCodes(): Promise<Record<number, string>> {
   asking = api.get<SchedulePolicy[]>("/api/dispensing/policy")
     .then((policies) => {
       const map: Record<number, string> = {};
+      const lanes: Record<number, string> = {};
       for (const p of policies || []) {
         if (p.code) map[p.schedule] = p.code;
+        if (p.route) lanes[p.schedule] = p.route;
       }
       known = map;
+      routes = lanes;
       // Everything already on screen re-renders with the real codes.
       for (const wake of waiting) wake();
       return map;
@@ -82,6 +87,25 @@ export function useScheduleCodes(): (schedule: number | null | undefined) => str
     return () => { waiting.delete(wake); };
   }, []);
   return scheduleCode;
+}
+
+/** Which lane a schedule belongs to, as the jurisdiction pack decides.
+ *
+ *  `otc | prescription | controlled | prohibited`. This existed only on the
+ *  server, so the dispensary carried three copies of `schedule >= 5` instead:
+ *  one deciding whether a compliance record was needed, one deciding whether a
+ *  scanned medicine belonged on the open tab, and one deciding which tab a
+ *  queued script should open. Three copies of a number the pack is supposed to
+ *  own, and a pack that moved a schedule between lanes would have corrected
+ *  the server and left all three behind.
+ *
+ *  The fallback is the old literal, deliberately: while the policies are still
+ *  loading the screen must still be able to tell a controlled medicine from an
+ *  ordinary one, and being too strict for a moment is the safe direction.
+ */
+export function routeForSchedule(schedule: number | null | undefined): string {
+  const n = Number(schedule ?? 0);
+  return routes?.[n] ?? (n >= 5 ? "controlled" : n >= 3 ? "prescription" : "otc");
 }
 
 /** A range, for the places that name two: "S5 and S6", or "PP10 and N".

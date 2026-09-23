@@ -44,7 +44,11 @@ export default function CellMedicineSearch({
     let live = true;
     // Debounced, and the answer dropped if the typing moved on meanwhile.
     const t = window.setTimeout(() => {
-      api.get<Product[]>(`/api/dispensing/products?route=${route}&q=${encodeURIComponent(term)}`)
+      // An empty route means "what this person may dispense", worked out on
+      // the server from the permission matrix. See dispensing_router.
+      api.get<Product[]>(
+        `/api/dispensing/products?${route ? `route=${route}&` : ""}`
+        + `q=${encodeURIComponent(term)}`)
         .then((rows) => { if (live) { setHits(rows.slice(0, 8)); setCursor(0); } })
         .catch(() => { if (live) setHits([]); });
     }, 200);

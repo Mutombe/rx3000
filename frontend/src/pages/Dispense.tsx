@@ -70,10 +70,23 @@ import AlterScript from "../components/AlterScript";
 import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
-import { scheduleCode, useScheduleCodes } from "../schedules";
+import { routeForSchedule, scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
 
-type Route = "prescription" | "controlled" | "otc";
+/** Which kind of supply this is, which is a smaller question than it was.
+ *
+ *  There were three: prescription, controlled, otc. The first two were never
+ *  two lanes — they shared one form and differed in a search filter, a scan
+ *  check and four sentences of copy, while every rule with legal force already
+ *  came from the schedule of the lines. Asking a dispenser to choose between
+ *  them was asking them to classify a medicine the jurisdiction pack had
+ *  already classified, and the two could disagree: a controlled line captured
+ *  on the prescription tab used to reach a refusal it could not satisfy.
+ *
+ *  What is left is the one thing the system genuinely cannot work out by
+ *  itself, which is whether there is a prescription in the room.
+ */
+type Route = "script" | "otc";
 
 /** The label the server screens a line under — and so the one its findings
  *  come back under. Built in one place so the two can never drift. */
@@ -229,38 +242,25 @@ const ROUTE_TABS: {
   key: Route;
   /** The name in full, for the hint line and anywhere with room. */
   label: string;
-  /** The name on the tab itself. Short on purpose: three tabs at full length
-   *  were 900px wide and pushed the four buttons off the right-hand edge of a
-   *  1366 screen, which is most tills. The schedules stay because they are the
-   *  distinction a dispenser is actually making. */
+  /** The name on the tab itself. */
   tab: string;
   hint: string;
-  /** A capability from the server's matrix. Absent means everybody. */
-  needs?: string;
+  /** The capabilities that reach this lane. Any one of them is enough. */
+  needs?: string[];
 }[] = [
-  // The route, not the schedules — the same reason Dangerous Drugs below drops
-  // its own. "S3, S4" named two South African codes on a Zimbabwean screen,
-  // and sat directly above a lane whose badge already says the schedule in
-  // this country's words. Fixed on the tab beside this one and missed here,
-  // which is how a label that is wrong in only one way survives a sweep.
-  { key: "prescription", label: "Prescription", hint: "Ordinary prescription medicine", needs: "dispense.prescription" , tab: "Prescription"},
-  // Shown to whoever may actually do it.
-  //
-  // The endpoint has always refused a controlled dispensing without this
-  // capability, so the protection was never missing. The tab was: a cashier
-  // could open Dangerous Drugs, search a schedule 5 medicine, build a script
-  // and only then be told no — at the counter, with a patient waiting.
-  //
-  // It reads the same capability the endpoint checks rather than a second rule
-  // written to look similar, which is how the two come to disagree.
-  // The route, not the schedules. The label named two South African
-  // codes on a Zimbabwean screen, and the badge on the lane already
-  // says which schedules this tab is for in this country's own words.
-  { key: "controlled", label: "Dangerous Drugs", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" , tab: "Dangerous Drugs"},
-  // A cashier's whole reason to be on this screen, and the only route they have
-  // by default. It carried no capability at all, which made it the one tab
-  // nobody could be refused — including the people who should be.
-  { key: "otc", label: "OTC / Pharmacy Medicine", hint: "Counter sale, no prescription", needs: "dispense.otc" , tab: "OTC"},
+  // One lane for anything dispensed against a script. Whether it is also
+  // controlled is read off the medicine, not off a tab: the compliance record,
+  // the register entry, the repeat rule and the capability check are all
+  // already derived from the highest schedule on the script, on both sides of
+  // the wire.
+  { key: "script", label: "Against a prescription",
+    hint: "Dispensed against a script. Controlled medicines ask for their own record as they are added",
+    tab: "Prescription",
+    needs: ["dispense.prescription", "dispense.controlled"] },
+  // A cashier's whole reason to be on this screen, and the only lane they have
+  // by default.
+  { key: "otc", label: "Counter sale", hint: "No prescription", tab: "Counter",
+    needs: ["dispense.otc"] },
 ];
 
 /** What happens to the money at the moment of dispensing.
@@ -310,7 +310,7 @@ const PAY_CHOICES = [
 
 export default function Dispense() {
   const session = useSession();
-  const [route, setRoute] = useState<Route>("prescription");
+  const [route, setRoute] = useState<Route>("script");
   /** The script this screen last put out, so the menu can act on it.
    *
    *  Every document below the primary action is about a script that has just
@@ -425,7 +425,12 @@ export default function Dispense() {
   const visibleRoutes = useMemo(
     () => (!session.known
       ? ROUTE_TABS
-      : ROUTE_TABS.filter((t) => !t.needs || session.can(t.needs))),
+      // ANY of the lane's capabilities is enough. The script lane is reached
+      // by a pharmacist who may dispense ordinary prescriptions, by one who
+      // may dispense controlled substances, and by anyone holding both; what
+      // they are then OFFERED inside it is narrowed by the same matrix on the
+      // server, so the lane does not have to be.
+      : ROUTE_TABS.filter((t) => !t.needs || t.needs.some((c) => session.can(c)))),
     [session]);
 
   /* Somebody on a route they may not use is put on the first one they can.
@@ -749,7 +754,14 @@ export default function Dispense() {
   useEffect(() => {
     if (productQ.length < 2) { setProductResults([]); return; }
     let stale = false;
-    api.get<Product[]>(`/api/dispensing/products?route=${route}&q=${encodeURIComponent(productQ)}`)
+    // The counter lane asks for the counter range by name, because a
+    // pharmacist standing at it should be offered what may be sold there and
+    // not everything they are personally allowed to dispense. The script lane
+    // names nothing: the server works the range out from this person's own
+    // capabilities, which is the question the tab was standing in for.
+    api.get<Product[]>(
+      `/api/dispensing/products?${route === "otc" ? "route=otc&" : ""}`
+      + `q=${encodeURIComponent(productQ)}`)
       .then((found) => { if (!stale) setProductResults(found); })
       .catch(() => { if (!stale) setProductResults([]); });
     return () => { stale = true; };
@@ -772,7 +784,6 @@ export default function Dispense() {
    *  Listed rather than given as a range. "S0 to S2" reads as a span because
    *  the South African codes are numbered; the Zimbabwean ones are not, and
    *  "HR to PIM" reads as a span between two things that have no order. */
-  const controlledCodes = `${schedCode(5)} and ${schedCode(6)}`;
   const counterCodes = `${schedCode(0)}, ${schedCode(1)} and ${schedCode(2)}`;
 
   const policyFor = (schedule: number) => policies.find((p) => p.schedule === schedule);
@@ -1272,14 +1283,12 @@ export default function Dispense() {
         toast.error(`${res.product.name} is not on this script. Check the pack against what was prescribed.`);
         return;
       }
-      // The route decides which medicines may go on this script, scanned or
-      // searched: a scan must not be a way round the tab.
-      const fits = route === "controlled" ? res.product.schedule >= 5 : res.product.schedule < 5;
-      if (!fits) {
-        toast.warn(`${res.product.name} is Schedule ${res.product.schedule}. Use the `
-          + `${res.product.schedule >= 5 ? "Dangerous Drugs" : "Prescription"} tab.`);
-        return;
-      }
+      // NO LANE CHECK. A scanned medicine goes on the script if this person
+      // may dispense it, and that is the server's answer, asked of the
+      // permission matrix when the search offered it and asked again when the
+      // script is dispensed. This used to refuse a controlled pack for being
+      // scanned on the wrong tab and send the dispenser to another one, which
+      // cleared the basket they had just built.
       const full = await api.get<any>(`/api/products/${res.product.id}`);
       addItem(full.product ?? full);
       setScanChecks((cur) => ({ ...cur, [res.product.id]: code }));
@@ -2347,7 +2356,7 @@ export default function Dispense() {
       ]);
       setPatient(p);
       setPatientQ("");
-      goToRoute(row.schedule >= 5 ? "controlled" : "prescription");
+      goToRoute("script");
       if (rx.doctor_id) setDoctorId(rx.doctor_id);
 
       // Lines the prescriber marked "do not dispense" are on the script but are
@@ -3343,10 +3352,10 @@ export default function Dispense() {
         </div>
         <div className="card empty-state">
           <p>
-            Your account does not carry any of the three dispensing routes.
-            Prescription, over-the-counter, or dangerous drugs. That is a
-            setting, not a fault: whoever administers this pharmacy can add one
-            on the role matrix, or grant it to you by name.
+            Your account carries none of the dispensing permissions, so there
+            is nothing here you could hand over. That is a setting, not a
+            fault: whoever administers this pharmacy can add one on the role
+            matrix, or grant it to you by name.
           </p>
           <p className="muted">
             If you came here to serve somebody at the counter, the till is on
@@ -3787,12 +3796,17 @@ export default function Dispense() {
                 pharmacist and go in the register: it is why they are on this
                 tab. What changes what they do next is the repeat rule, so
                 that is what it says. */}
-            {route === "controlled" && (
+            {/* Shown when the SCRIPT calls for it, not when a tab is open.
+                On the tab it asserted a rule about the strictest schedule over
+                every script captured there, including the ones with no
+                controlled line on them at all. */}
+            {needsCompliance && (
               <div className="card sec sec-check dd-rule">
                 <Warning size={15} weight="fill" />
                 <span>
-                  <b>{scheduleCode(6)}</b> permits no repeats and needs the
-                  checking pharmacist's initials.
+                  <b>{schedCode(highestSchedule)}</b>
+                  {activePolicy?.max_repeats === 0 ? " permits no repeats and" : ""}
+                  {" "}needs the checking pharmacist's initials.
                 </span>
               </div>
             )}
@@ -3802,9 +3816,9 @@ export default function Dispense() {
                   Prescriber, Medicine. And a heading over them said nothing
                   the labels do not. The schedule badge stays, because THAT is not
                   obvious from anything else on the row. */}
-              {route === "controlled" && (
+              {needsCompliance && (
                 <div className="disp-lane-badge">
-                  <span className="badge sched">{controlledCodes} only</span>
+                  <span className="badge sched">{schedCode(highestSchedule)}</span>
                 </div>
               )}
               {patient ? (
@@ -3915,12 +3929,12 @@ export default function Dispense() {
                   items. */}
               <div className="lane-field disp-medicine">
                 <input data-hk="product" id="disp-product" type="search"
-                  aria-label={route === "controlled"
-                    ? `Medicine: search ${controlledCodes} medicines by name`
-                    : "Medicine: search prescription medicines by name"}
-                  placeholder={laneFocus === "product"
-                    ? (route === "controlled" ? `${controlledCodes}, by name` : MEDICINE_HINT)
-                    : "Medicine"}
+                  // One box, one sentence. It named the tab's schedules, which
+                  // was a promise about what the search would offer; it now
+                  // offers whatever this person may dispense, and the badge on
+                  // each result says which schedule that one is.
+                  aria-label="Medicine: search by name"
+                  placeholder={laneFocus === "product" ? MEDICINE_HINT : "Medicine"}
                   value={productQ}
                   onFocus={() => setLaneFocus("product")}
                   onBlur={() => setLaneFocus(null)}
@@ -4066,7 +4080,7 @@ export default function Dispense() {
                 <div key={p.id} className="product-pick" onClick={() => addItem(p)}>
                   <span>
                     <b>{p.name}</b> {p.strength} <span className="muted">{p.dosage_form}</span>
-                    <span className={`badge ${p.schedule >= 5 ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>{schedCode(p.schedule)}</span>
+                    <span className={`badge ${routeForSchedule(p.schedule) === "controlled" ? "danger" : "muted"}`} style={{ marginLeft: 6 }}>{schedCode(p.schedule)}</span>
                   </span>
                   <span className="muted">
                     {money(p.unit_price)}
@@ -4150,7 +4164,7 @@ export default function Dispense() {
                     <div className="modal disp-edit">
                       <h2>
                         {it.product.name} {it.product.strength}
-                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
+                        <span className={`badge ${routeForSchedule(it.product.schedule) === "controlled" ? "danger" : "muted"}`}>
                           {schedCode(it.product.schedule)}{pol?.register_entry ? " · register" : ""}
                         </span>
                         <span className="disp-entry-of">line {idx + 1} of {items.length}</span>
@@ -4619,7 +4633,7 @@ ${d.action}`}
                           scheme={schemeName}
                           onFix={() => { setOpenItem(idx); setEditing(idx); }}
                         />
-                        <span className={`badge ${it.product.schedule >= 5 ? "danger" : "muted"}`}>
+                        <span className={`badge ${routeForSchedule(it.product.schedule) === "controlled" ? "danger" : "muted"}`}>
                           {schedCode(it.product.schedule)}{pol?.register_entry ? " · register" : ""}
                         </span>
                         </>)}
@@ -6103,7 +6117,7 @@ ${d.action}`}
           Two screens showing one statutory record is one of them going stale.
           The link goes where the work is finished rather than duplicating it
           under the form. */}
-      {route === "controlled" && (
+      {needsCompliance && (
         <p className="muted small dd-register-link">
           Every hand-over is entered in the register as it is dispensed.{" "}
           <Link to="/register">Open the Controlled Register</Link> to read it,
@@ -6177,7 +6191,7 @@ ${d.action}`}
           // dispenser's back. A repeat still needs a safety check and a
           // pharmacist's initials; the shortcut this replaces skipped both and
           // was rejected by the server for exactly that reason.
-          goToRoute(row.schedule >= 5 ? "controlled" : "prescription");
+          goToRoute("script");
           if (row.doctor_id) setDoctorId(row.doctor_id);
           api.get<Patient>(`/api/patients/${row.patient_id}`)
             .then((p) => { setPatient(p); setPatientQ(""); })

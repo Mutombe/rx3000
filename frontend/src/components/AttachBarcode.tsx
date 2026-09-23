@@ -45,8 +45,8 @@ export default function AttachBarcode({
     if (term.length < 2) { setHits([]); return; }
     let live = true;
     const t = window.setTimeout(() => {
-      api.get<Product[]>(`/api/dispensing/products?route=${route ?? "otc"}`
-        + `&q=${encodeURIComponent(term)}&limit=8`)
+      api.get<Product[]>(`/api/dispensing/products?${route ? `route=${route}&` : ""}`
+        + `q=${encodeURIComponent(term)}&limit=8`)
         .then((r) => { if (live) setHits(r); })
         .catch(() => { if (live) setHits([]); });
     }, 180);
