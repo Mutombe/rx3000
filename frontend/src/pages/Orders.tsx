@@ -3,7 +3,7 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { api, fmtDateTime, money, errorText  } from "../api";
 import NewOrder from "../components/NewOrder";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Product, PurchaseOrder } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
@@ -31,6 +31,10 @@ interface Suggested {
 
 export default function Orders() {
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  /* A wholesaler rings about one order number, or somebody asks what is
+     outstanding with one supplier. The status tabs answer neither. */
+  const { q, setQ, shown } = useSearch(orders, (o) =>
+    [o.order_number, o.supplier?.name, o.status]);
   const [loading, setLoading] = useState(true);
   const [meta, setMeta] = useState<Paged<PurchaseOrder> | null>(null);
   const [page, setPage] = useState(1);
@@ -178,13 +182,16 @@ export default function Orders() {
             hasData={orders.length > 0}
             skeleton={<TableSkeleton cols={8} rows={8} rowHeight={55} widths={["3ch", "14ch", "20ch", "12ch", "16ch", "7ch", "12ch", "10ch"]} />}
           >
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find an order or a supplier…"
+                         shown={shown.length} total={orders.length} />
             <table>
               <thead>
                 <tr><th></th><th>Order</th><th>Supplier</th><th>Status</th><th>Raised</th>
                   <th className="num">Lines</th><th className="num">Value</th><th className="actions" /></tr>
               </thead>
               <tbody>
-                {orders.map((o) => {
+                {shown.map((o) => {
                   const open = expanded === o.id;
                   const value = o.items.reduce((s, i) => s + i.unit_cost * i.quantity_ordered, 0);
                   return (

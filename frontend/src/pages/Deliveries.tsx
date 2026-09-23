@@ -10,7 +10,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { api, fmtDateTime, money, prefetchRoute, errorText  } from "../api";
-import { EntityLink } from "../components/Filters";
+import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import Select from "../components/Select";
 import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
 import { useSelection } from "../hooks/useSelection";
@@ -88,6 +88,11 @@ export default function Deliveries() {
   useEffect(load, []);
 
   const list = rows[tab] ?? [];
+  /* A driver rings about one waybill, or a customer about their own address.
+     The tabs narrow by where a parcel is in its journey, which is the
+     dispatcher's question; this is everybody else's. */
+  const { q, setQ, shown } = useSearch(list, (w) =>
+    [w.waybill_number, w.recipient, w.address, w.phone, w.driver]);
 
   // A driver's round IS a bulk operation. Sending twelve deliveries out one at
   // a time is why the assignment gets written on paper instead, and a round
@@ -233,6 +238,9 @@ export default function Deliveries() {
         skeleton={<TableSkeleton cols={8} rows={8} rowHeight={65}
           widths={["12ch", "18ch", "26ch", "12ch", "16ch", "18ch"]} />}
       >
+        <TableSearch value={q} onChange={setQ}
+                     placeholder="Find a waybill, a recipient, an address or a driver…"
+                     shown={shown.length} total={list.length} />
         <div className="dt-scroll">
           <table className="dt dt-wider">
             <thead>
@@ -244,7 +252,7 @@ export default function Deliveries() {
               </tr>
             </thead>
             <tbody>
-              {list.map((w) => (
+              {shown.map((w) => (
                 <RowLink
                   key={w.id}
                   to={w.patient_id ? `/patients/${w.patient_id}` : `/sales/${w.sale_id}`}

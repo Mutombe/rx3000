@@ -23,7 +23,7 @@ import { useToast } from "../components/Toast";
 import { Patient, Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 
 type Status = "open" | "completed" | "cancelled";
@@ -45,6 +45,10 @@ export default function LayBys() {
 
   const [status, setStatus] = useState<Status>("open");
   const [list, setList] = useState<Listing | null>(null);
+  /* A customer comes in to pay off theirs, and the counter has to find it by
+     their name or the lay-by number on their slip. */
+  const { q, setQ, shown } = useSearch(list?.laybys ?? [], (l) =>
+    [l.layby_number, l.patient, l.status]);
   const [busy, setBusy] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
 
@@ -236,6 +240,9 @@ export default function LayBys() {
                 The {list.showing} most recent of {list.total}.
               </p>
             )}
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find a lay-by or a customer…"
+                         shown={shown.length} total={list.laybys.length} />
             <div className="cu-scroll">
               <table className="dt dt-wide">
                 <thead>
@@ -247,7 +254,7 @@ export default function LayBys() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.laybys.map((l) => (
+                  {shown.map((l) => (
                     // The key belongs on the outermost element a map returns; on
                     // the inner <tr> it is a console warning and a re-render bug
                     // waiting for the list to reorder.

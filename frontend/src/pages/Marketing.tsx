@@ -11,7 +11,7 @@ import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 
 type Tab = "compose" | "history";
@@ -20,6 +20,10 @@ export default function Marketing() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  /* Campaign history only grows, and it is read to find the one that went to
+     a particular segment or on a particular channel. */
+  const { q, setQ, shown } = useSearch(campaigns, (c: any) =>
+    [c.name, c.channel, c.segment, c.status]);
   const [campaignMeta, setCampaignMeta] = useState<Paged<Campaign> | null>(null);
   const [campaignPage, setCampaignPage] = useState(1);
   const [channel, setChannel] = useState("sms");
@@ -194,13 +198,16 @@ export default function Marketing() {
 
       {tab === "history" && (
       <div className="card">
+        <TableSearch value={q} onChange={setQ}
+                     placeholder="Find a campaign, a channel or a segment…"
+                     shown={shown.length} total={campaigns.length} />
         <table>
           <thead>
             <tr><th>Campaign</th><th>Channel</th><th>Segment</th><th className="num">Audience</th>
               <th className="num">Sent</th><th className="num">Failed</th><th>Status</th><th>When</th><th className="actions" /></tr>
           </thead>
           <tbody>
-            {campaigns.map((c) => (
+            {shown.map((c) => (
               <tr key={c.id}>
                 <td><EntityLink kind="campaign" id={c.id}><b>{c.name}</b></EntityLink><div className="muted" style={{ maxWidth: 340 }}>{c.body.slice(0, 90)}…</div></td>
                 <td>{c.channel.toUpperCase()}</td>

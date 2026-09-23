@@ -28,7 +28,7 @@
 import { useEffect, useState } from "react";
 import { Info, Warning } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -78,6 +78,10 @@ const MOVE: Record<string, string> = {
 
 export default function StockPerformance() {
   const [report, setReport] = useState<Report | null>(null);
+  /* Every line that moved in the window, up to two hundred of them, read to
+     answer a question about ONE medicine: is this one selling, is it dead. */
+  const { q, setQ, shown } = useSearch(report?.products ?? [], (r) =>
+    [r.product, r.department]);
   const [branches, setBranches] = useState<ByBranch | null>(null);
   const [days, setDays] = useState(90);
   const [loading, setLoading] = useState(true);
@@ -165,6 +169,9 @@ export default function StockPerformance() {
               </div>
             </div>
 
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find a medicine or a department…"
+                         shown={shown.length} total={report.products.length} />
             <div className="dt-scroll">
               <table className="dt">
                 <thead>
@@ -180,7 +187,7 @@ export default function StockPerformance() {
                   </tr>
                 </thead>
                 <tbody>
-                  {report.products.map((p) => (
+                  {shown.map((p) => (
                     <tr key={p.product_id}>
                       <td>
                         <EntityLink kind="product" id={p.product_id}>
