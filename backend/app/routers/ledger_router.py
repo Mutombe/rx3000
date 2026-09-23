@@ -380,6 +380,7 @@ def _year_start(upto: date) -> date:
 def income_statement(
     start: date | None = None, upto: date | None = None,
     period_code: str = "", hide_zero: bool = False,
+    branch_id: int | None = None,
     db: Session = Depends(get_db),
 ):
     """Revenue through to profit, with cost of sales separated out.
@@ -387,10 +388,18 @@ def income_statement(
     `period_code` is still accepted so existing callers keep working, but the
     window is what actually drives this: the old report summed all time, which
     quietly folded every previous year's trading into "profit".
+
+    `branch_id` asks for one shop instead of the group. It is a deliberate
+    choice rather than the ambient branch scope, because the person who wants
+    it is the owner or the area manager, and their scope is every branch: the
+    filter that narrows a dispenser's screen cannot narrow theirs, so they have
+    to be able to say which shop. A branch user asking for the group still gets
+    their own, because the scope narrows the query underneath this.
     """
     upto = upto or date.today()
     return statements.income_statement(
-        db, start=start or _year_start(upto), upto=upto, hide_zero=hide_zero)
+        db, start=start or _year_start(upto), upto=upto, hide_zero=hide_zero,
+        branch_id=branch_id)
 
 
 @router.get("/balance-sheet")

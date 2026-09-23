@@ -316,6 +316,11 @@ def post_invoice(db: Session, invoice: SupplierInvoice,
             description=what, lines=lines, source="supplier_invoice",
             source_id=invoice.id, user_id=user_id,
             currency_code=invoice.currency_code or "USD")
+        # No branch, deliberately. A wholesaler invoices the pharmacy, not a
+        # shop: one invoice routinely covers deliveries to several branches,
+        # and the goods were already debited to the branch that received them
+        # when the receipt posted. Putting the creditor at a branch too would
+        # book the same purchase in two places.
     except ledger.LedgerError as exc:
         return {"posted": False, "reason": str(exc)}
 
@@ -392,6 +397,8 @@ def record_payment(db: Session, *, supplier_id: int, amount: float,
         entry = ledger.post(
             db, entry_date=payment.paid_on,
             description=f"Payment to {supplier.name}", lines=lines,
+            # No branch: the money leaves the group's bank account, and a
+            # branch has no bank account to pay a supplier from.
             source="supplier_payment", source_id=payment.id, user_id=user_id)
         payment.posted_reference = entry.reference
     except ledger.LedgerError as exc:

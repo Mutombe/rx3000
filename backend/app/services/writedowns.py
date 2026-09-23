@@ -214,6 +214,10 @@ def post(db: Session, *, asof: date | None = None, user_id: int | None = None) -
         lines=lines,
         source=REFERENCE_PREFIX,
         user_id=user_id,
+        # No branch: the provision is measured over the group's whole shelf in
+        # one sweep, so there is no one shop it belongs to. Splitting it would
+        # mean running the valuation per branch, which is a different report
+        # rather than a different argument here.
     )
     return {
         "posted": True,

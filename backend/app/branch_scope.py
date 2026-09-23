@@ -170,6 +170,12 @@ def branch_scoped_models() -> list[type]:
         "Sale", "PettyCash", "LayBy", "Shift",
         # Stock physically on one shelf.
         "StockBatch", "StockTake", "StockMovement", "PurchaseOrder",
+        # What one shop earned and what it cost that shop. NULL is the group
+        # and the filter above keeps it, which is the behaviour this needs
+        # rather than one it tolerates: a branch manager should see their own
+        # trading plus the group overheads carried above them, and never a
+        # neighbouring shop's takings.
+        "JournalEntry",
         # The paperwork pinned to one branch's wall, and the licences an
         # inspector asks that branch for.
         "ComplianceDocument",

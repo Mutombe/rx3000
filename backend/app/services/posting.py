@@ -134,7 +134,12 @@ def post_sale(db: Session, sale: Sale, user_id: int | None = None) -> dict:
             db, entry_date=(sale.created_at.date() if sale.created_at else date.today()),
             description=f"Sale {sale.sale_number}", lines=lines,
             source="sale", source_id=sale.id,
-            currency_code=sale.currency_code or "USD", user_id=user_id)
+            currency_code=sale.currency_code or "USD", user_id=user_id,
+            # The till that rang it up, so revenue and cost of sales land at
+            # the shop that earned them. Off the sale rather than the session,
+            # because this also runs when the bookkeeper clears the unposted
+            # queue from head office days later.
+            branch_id=getattr(sale, "branch_id", None))
     except ledger.LedgerError as exc:
         # Never fatal. A till that refused to sell medicine because the
         # bookkeeping was unhappy would be a worse product than one whose ledger
@@ -255,7 +260,11 @@ def post_stock_receipt(db: Session, order, user_id: int | None = None) -> dict:
         entry = ledger.post(
             db, entry_date=date.today(),
             description=f"Goods received on {order.order_number}", lines=lines,
-            source="stock_receipt", source_id=order.id, user_id=user_id)
+            source="stock_receipt", source_id=order.id, user_id=user_id,
+            # The branch the goods were received into. A purchase order names
+            # the branch that will take delivery, and the stock went onto that
+            # branch's shelf, so the debit to stock belongs there too.
+            branch_id=getattr(order, "branch_id", None))
     except ledger.LedgerError as exc:
         # Never fatal: the stock is on the shelf whatever the ledger thinks.
         log.warning("receipt for %s did not post: %s", order.order_number, exc)
@@ -334,7 +343,10 @@ def post_supplier_return(db: Session, out, user_id: int | None = None) -> dict:
         entry = ledger.post(
             db, entry_date=date.today(),
             description=f"Goods returned on {out.reference}", lines=lines,
-            source="supplier_return", source_id=out.id, user_id=user_id)
+            source="supplier_return", source_id=out.id, user_id=user_id,
+            # The branch the goods went back from, so the credit to stock
+            # unwinds at the shelf the debit landed on.
+            branch_id=getattr(out, "branch_id", None))
     except ledger.LedgerError as exc:
         log.warning("return %s did not post: %s", out.reference, exc)
         return {"posted": False, "reason": str(exc), "reference": ""}

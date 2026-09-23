@@ -87,12 +87,24 @@ def infer_section(account: Account) -> str:
     return "operating_expense"
 
 
-def _movements(db: Session, *, start: date | None, upto: date) -> dict[str, float]:
+def _movements(db: Session, *, start: date | None, upto: date,
+               branch_id: int | None = None) -> dict[str, float]:
     """Net debit-minus-credit per account code over a window.
 
     Reversed entries are excluded rather than netted. A reversal posts its own
     contra lines, so counting both the original and the reversal would double
     the correction.
+
+    `branch_id` narrows to one shop's own trading. None is the group, which is
+    every entry including the ones no shop carries, and is what this always did.
+
+    Naming a branch excludes the unallocated entries rather than spreading
+    them. Four branch statements that each carried a share of head office
+    would depend on an apportionment nobody agreed, and four that each carried
+    ALL of it would sum to more than the group. Excluded, the four sum to the
+    group's gross profit exactly, and the difference against group net profit
+    is the overhead that was never anybody's branch. That is a figure an owner
+    can check; an apportioned one is a figure they have to trust.
     """
     query = (
         db.query(
@@ -104,6 +116,8 @@ def _movements(db: Session, *, start: date | None, upto: date) -> dict[str, floa
         .filter(JournalEntry.status == "posted")
         .filter(JournalEntry.entry_date <= upto)
     )
+    if branch_id is not None:
+        query = query.filter(JournalEntry.branch_id == branch_id)
     if start is not None:
         query = query.filter(JournalEntry.entry_date >= start)
     return {
@@ -144,10 +158,18 @@ def _collect(db: Session, balances: dict[str, float], layout, accounts):
     return sections
 
 
-def income_statement(db: Session, *, start: date, upto: date, hide_zero: bool = False) -> dict:
-    """Revenue through to profit for a window."""
+def income_statement(db: Session, *, start: date, upto: date,
+                     hide_zero: bool = False,
+                     branch_id: int | None = None) -> dict:
+    """Revenue through to profit for a window, for the group or for one shop.
+
+    A branch statement is the one an area manager actually asks for: which of
+    the four shops is making money. It stops at the trading lines that belong
+    to a shop, so read the net profit on it as this branch's contribution
+    before the overheads carried above it, not as a company in miniature.
+    """
     accounts = db.query(Account).filter(Account.active).order_by(Account.code).all()
-    balances = _movements(db, start=start, upto=upto)
+    balances = _movements(db, start=start, upto=upto, branch_id=branch_id)
     sections = _collect(db, balances, INCOME_LAYOUT, accounts)
 
     revenue = sections["revenue"]["total"]
@@ -170,6 +192,10 @@ def income_statement(db: Session, *, start: date, upto: date, hide_zero: bool = 
 
     return {
         "from": start.isoformat(), "to": upto.isoformat(),
+        # Which shop this is, so a printed statement cannot be mistaken for the
+        # group's. A figure on paper with no scope on it is the one that gets
+        # taken to a bank.
+        "branch_id": branch_id,
         "sections": rows,
         "revenue": revenue, "cost_of_sales": cogs, "gross_profit": gross,
         "gross_margin": round(gross / revenue * 100, 1) if revenue else 0.0,

@@ -3111,6 +3111,22 @@ class JournalEntry(Base, TenantMixin):
     # posted | reversed
     status = Column(String(12), default="posted", index=True)
     reverses_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+    #: Which shop the entry belongs to, where it belongs to one.
+    #:
+    #: Without this the ledger was pharmacy-wide and nothing else was: stock
+    #: sits on one shelf, a sale is rung up at one till, and the accounts that
+    #: recorded both knew only the group. A four-shop pharmacy could see which
+    #: branch sold the most and never which branch made anything, because gross
+    #: profit lives here and here had no branches in it.
+    #:
+    #: NULL is not a gap, it is a real and common answer: a bank charge, a
+    #: depreciation run, a head-office invoice and every entry posted before
+    #: this column existed belong to the group rather than to a shop. So the
+    #: branch filter keeps NULL rows (see branch_scope.install) and the income
+    #: statement reports them as unallocated rather than hiding them, because an
+    #: expense that silently belongs to nobody is how branch figures stop
+    #: adding up to the group's.
+    branch_id = Column(Integer, ForeignKey("branches.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 

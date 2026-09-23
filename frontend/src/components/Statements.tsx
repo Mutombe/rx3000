@@ -34,7 +34,10 @@ interface Income {
   from: string; to: string; sections: Section[];
   revenue: number; cost_of_sales: number; gross_profit: number; gross_margin: number;
   operating_expenses: number; net_profit: number;
+  /** Null for the group. See JournalEntry.branch_id. */
+  branch_id: number | null;
 }
+interface Branch { id: number; name: string }
 interface Balance {
   as_at: string; sections: Section[];
   total_assets: number; total_liabilities: number; total_equity: number;
@@ -49,6 +52,11 @@ function isoToday() {
 export default function Statements({ kind }: { kind: "income" | "balance" }) {
   const [upto, setUpto] = useState(isoToday);
   const [hideZero, setHideZero] = useState(false);
+  /* Which shop, or the group. Only the income statement offers this: a branch
+     has no bank account and no share capital, so a balance sheet for one is a
+     document that cannot balance. */
+  const [branch, setBranch] = useState("");
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [income, setIncome] = useState<Income | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
@@ -58,8 +66,20 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
      was never coming. */
   const [problem, setProblem] = useState("");
 
+  /* The shops to choose between. A single-shop pharmacy never sees the
+     control at all, because "which branch" is not a question they have. */
   useEffect(() => {
-    const q = `upto=${upto}&hide_zero=${hideZero}`;
+    if (kind !== "income") return;
+    api.get<Branch[]>("/api/branches")
+      .then(setBranches)
+      // Silent: without the list there is no picker, and no picker means the
+      // group statement, which is what this screen has always shown.
+      .catch(() => setBranches([]));
+  }, [kind]);
+
+  useEffect(() => {
+    const q = `upto=${upto}&hide_zero=${hideZero}`
+      + (kind === "income" && branch ? `&branch_id=${branch}` : "");
     const failed = (e: unknown) =>
       setProblem(errorText(e, "That statement could not be read."));
     setProblem("");
@@ -70,7 +90,9 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
       setBalance(null);
       api.get<Balance>(`/api/ledger/balance-sheet?${q}`).then(setBalance).catch(failed);
     }
-  }, [kind, upto, hideZero]);
+  }, [kind, upto, hideZero, branch]);
+
+  const branchName = branches.find((b) => String(b.id) === branch)?.name ?? "";
 
   const data = kind === "income" ? income : balance;
 
@@ -140,7 +162,11 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
     printDocument(head, {
       kind: kind === "income" ? "Income statement" : "Balance sheet",
       meta: kind === "income" && income
-        ? [{ label: "From", value: fmtDate(income.from) },
+        ? [// Which shop, on the paper itself. A branch statement and the
+           // group's look identical once printed, and the one that gets taken
+           // to a bank is whichever was on the desk.
+           ...(branchName ? [{ label: "Shop", value: branchName }] : []),
+           { label: "From", value: fmtDate(income.from) },
            { label: "To", value: fmtDate(income.to) },
            { label: "Gross margin", value: `${income.gross_margin}%` },
            { label: income.net_profit >= 0 ? "Net profit" : "Net loss",
@@ -179,6 +205,17 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
           <span>{kind === "income" ? "Up to" : "As at"}</span>
           <input type="date" value={upto} onChange={(e) => setUpto(e.target.value)} />
         </label>
+        {kind === "income" && branches.length > 1 && (
+          <label className="st-control">
+            <span>Shop</span>
+            <select value={branch} onChange={(e) => setBranch(e.target.value)}>
+              <option value="">The whole pharmacy</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="st-control st-check">
           <Checkbox checked={hideZero} onChange={setHideZero}>
             Hide empty sections
@@ -196,6 +233,20 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
       </div>
 
       {problem && <div className="alert error">{problem}</div>}
+
+      {/* Said once, plainly, because the figure below is not what a reader
+          assumes it is. A branch statement carries that shop's trading and
+          none of the costs carried above it, so the four shops add up to the
+          group's gross profit and not to its net. Leaving that unsaid is how
+          somebody reads a branch as unprofitable when what it is missing is
+          rent nobody charged it. */}
+      {kind === "income" && branchName && (
+        <p className="muted small">
+          {branchName} only. Group costs such as bank charges and head office
+          are not charged to a shop, so this is what {branchName} contributes
+          before them.
+        </p>
+      )}
 
       {problem ? null : !data ? (
         <TableSkeleton cols={2} rows={7} />

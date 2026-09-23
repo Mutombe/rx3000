@@ -75,6 +75,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     # re-key line by line, which is the work the export existed to remove.
     "accounts": {"section": "VARCHAR(24)", "is_cash": "BOOLEAN DEFAULT 0",
                  "external_code": "VARCHAR(20)"},
+    # Which shop an entry belongs to. See JournalEntry.branch_id: NULL is the
+    # group, and is the right answer for a bank charge as well as for every
+    # entry posted before this column existed.
+    "journal_entries": {"branch_id": "INTEGER"},
     # Till PINs. Nullable throughout: every user that existed before this has no
     # PIN, and the password path has to keep working for them rather than
     # locking them out of a prompt they have always answered with a password.
@@ -1346,6 +1350,44 @@ def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
     return 1 if moved else 0
 
 
+def _entries_follow_their_sale(conn, existing_tables: set[str]) -> int:
+    """Give every posted sale entry the branch the sale was rung up at.
+
+    `journal_entries.branch_id` is new, so without this every entry a pharmacy
+    already holds is unallocated and a branch income statement starts empty on
+    the morning this ships — which reads as "this branch has never sold
+    anything" rather than as "the column is new", and is the kind of zero
+    somebody escalates.
+
+    Only the entries whose source document names a branch can be placed. A bank
+    charge has no branch and must stay NULL; guessing one would put group costs
+    in whichever shop the guess landed on and quietly make four branch
+    statements that do not add up to the group's.
+
+    Sales only, deliberately. Receipts, credit notes and stock entries each name
+    their branch on a different table, and one join per source document type is
+    a migration that can only be verified one source at a time. Sales are the
+    volume, and the rest arrive branched from today because `ledger.post` now
+    takes the branch from the document it is posting.
+    """
+    if not {"journal_entries", "sales"} <= existing_tables:
+        return 0
+    entry_cols = {c["name"] for c in inspect(conn).get_columns("journal_entries")}
+    sale_cols = {c["name"] for c in inspect(conn).get_columns("sales")}
+    if "branch_id" not in entry_cols or "branch_id" not in sale_cols:
+        return 0
+    result = conn.execute(text("""
+        UPDATE journal_entries SET branch_id = (
+            SELECT s.branch_id FROM sales s WHERE s.id = journal_entries.source_id)
+        WHERE source = 'sale' AND branch_id IS NULL
+          AND source_id IN (SELECT id FROM sales WHERE branch_id IS NOT NULL)
+    """))
+    placed = result.rowcount or 0
+    if placed:
+        log.info("Placed %s journal entr(ies) at the branch of their sale", placed)
+    return 1 if placed else 0
+
+
 def _nobody_works_at_another_pharmacy(conn, existing_tables: set[str]) -> int:
     """Take away a branch that belongs to somebody else's pharmacy.
 
@@ -1587,6 +1629,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
+        applied += _entries_follow_their_sale(conn, existing_tables)
         applied += _batch_costs_are_per_unit(conn, existing_tables)
         applied += _departments_that_dispense(conn, existing_tables)
         applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)

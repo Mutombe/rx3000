@@ -193,8 +193,21 @@ def next_reference(db: Session) -> str:
 
 def post(db: Session, *, entry_date: date, description: str, lines: list[Line],
          source: str = "", source_id: int | None = None,
-         currency_code: str = "USD", user_id: int | None = None) -> JournalEntry:
-    """Post a balanced entry into an open period, or refuse."""
+         currency_code: str = "USD", user_id: int | None = None,
+         branch_id: int | None = None) -> JournalEntry:
+    """Post a balanced entry into an open period, or refuse.
+
+    `branch_id` is which shop the entry belongs to, and it is taken from the
+    DOCUMENT rather than from whoever is signed in. The difference matters for
+    every entry that is not posted at the moment it happens: a sale replayed off
+    the offline queue, an unposted-queue retry run by the bookkeeper at head
+    office, a night job. All three post a branch's sale while nobody is standing
+    at that branch, and stamping them from the session would file a Chinamano
+    sale under head office or under nothing.
+
+    None means the group, and is correct rather than missing for a bank charge
+    or a depreciation run. See JournalEntry.branch_id.
+    """
     if len(lines) < 2:
         raise LedgerError("An entry needs at least two lines, that is what makes "
                           "it double entry.")
@@ -232,6 +245,7 @@ def post(db: Session, *, entry_date: date, description: str, lines: list[Line],
         reference=next_reference(db), period_code=period.code, entry_date=entry_date,
         description=description[:240], source=source, source_id=source_id,
         currency_code=currency_code, created_by_id=user_id,
+        branch_id=branch_id,
     )
     db.add(entry)
     db.flush()
@@ -263,7 +277,13 @@ def reverse(db: Session, entry: JournalEntry, on: date | None = None,
         description=f"Reversal of {entry.reference}"
                     + (f": {reason}" if reason else ""),
         lines=mirrored, source=entry.source, source_id=entry.source_id,
-        currency_code=entry.currency_code, user_id=user_id)
+        currency_code=entry.currency_code, user_id=user_id,
+        # A reversal belongs where the original did, not where the person
+        # undoing it happens to be standing. Take it from the session and a
+        # correction made at head office would credit the group and leave the
+        # debit at the branch, so neither statement would balance and the pair
+        # would look like two unrelated entries.
+        branch_id=entry.branch_id)
     entry.status = "reversed"
     reversal.reverses_id = entry.id
     db.commit()
