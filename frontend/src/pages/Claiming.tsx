@@ -103,14 +103,26 @@ function lastMonthName(): string {
   return d.toLocaleDateString(undefined, { month: "long" });
 }
 
-/** A claim period, with the year said once when both ends share it. */
+/** A claim period, said the way somebody reads it out.
+ *
+ *  "10 Aug, 2026 to 17 Aug, 2026" repeats the month and the year to say one
+ *  week, and wanted 240px of a table that did not have it. Each part is
+ *  dropped from the first date only when the second one carries it anyway, so
+ *  a period that really does straddle a month or a year still says so on both
+ *  ends.
+ */
 function periodSaid(from?: string | null, to?: string | null): string {
   if (!from) return "No date";
   const start = fmtDate(from);
   if (!to) return start;
   const end = fmtDate(to);
   const sameYear = from.slice(0, 4) === to.slice(0, 4);
-  return `${sameYear ? start.replace(/,\s*\d{4}$/, "") : start} to ${end}`;
+  const sameMonth = sameYear && from.slice(0, 7) === to.slice(0, 7);
+  // "10 to 17 Aug, 2026" within a month; "10 Aug to 3 Sept, 2026" across one.
+  const head = sameMonth ? start.replace(/\s+\w+,\s*\d{4}$/, "")
+    : sameYear ? start.replace(/,\s*\d{4}$/, "")
+      : start;
+  return `${head} to ${end}`;
 }
 
 export default function Claiming() {
@@ -492,7 +504,7 @@ export default function Claiming() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="mono col-code">Batch</th><th className="col-name">Pay office</th><th className="cl-period">Period</th><th className="col-code">Status</th>
+                    <th className="mono col-code">Batch</th><th className="cl-office">Pay office</th><th className="cl-period">Period</th><th className="col-code">Status</th>
                     <th className="num">Claims</th>
                     <th className="num col-money">Claimed</th>
                     {/* No Short column. It is what a settled batch was paid
@@ -518,7 +530,9 @@ export default function Claiming() {
                             {b.batch_number}
                           </EntityLink>
                         </td>
-                        <td>{officeName(b.pay_office_id)}</td>
+                        <td className="clip" title={officeName(b.pay_office_id)}>
+                          {officeName(b.pay_office_id)}
+                        </td>
                         {/* "10 Aug, 2026 to 17 Aug, 2026" says the year twice
                             and wanted 240px for it. A claim period does not
                             straddle a new year often, and when it does the

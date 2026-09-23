@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { api, fmtDate, money, prefetchRoute, errorText  , sentence} from "../api";
 import Churn from "../components/Churn";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
+import { ChatCircleText, PencilSimpleLine } from "@phosphor-icons/react";
 import RowLink, { RowActions } from "../components/RowLink";
 import RepeatValue from "../components/RepeatValue";
 import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
@@ -377,7 +378,7 @@ export default function Repeats() {
               {/* Eight columns on a laptop card gave each 102px. A patient's
                   name wants 145 and "Tenofovir/Lamivudine/Dolutegravir"
                   wants 240, and those two are what the queue is read by. */}
-              <table className="dt dt-wider">
+              <table className="dt">
                 <thead>
                   <tr>
                     <SelectAll checked={picked.allChosen} onChange={picked.all} />
@@ -389,7 +390,13 @@ export default function Repeats() {
                         cannot be worked in the order that pays. */}
                     <th className="num rp-worth">Worth</th>
                     <th className="num rp-left">Repeats left</th>
-                    <th className="num">In stock</th><th className="actions" /></tr>
+                    {/* No "In stock" column. The table's fixed layout had
+                        already squeezed it to nothing, so it was rendering a
+                        number nobody could see, and the fact it carried is
+                        said better on the row's own action: a line that cannot
+                        be supplied wears "No stock" where the Dispense button
+                        would be, which is where somebody is looking. */}
+                    <th className="actions" /></tr>
                 </thead>
                 <tbody>
                   {dueRows.items.map((i) => (
@@ -417,8 +424,10 @@ export default function Repeats() {
                           <div className="muted small">{i.patient_phone}</div>
                         )}
                       </td>
-                      <td>
-                        <EntityLink kind="product" id={i.product_id}>{i.product}</EntityLink>
+                      <td title={i.product}>
+                        <div className="rp-what-cell">
+                          <EntityLink kind="product" id={i.product_id}>{i.product}</EntityLink>
+                        </div>
                         <div className="muted small">
                           {i.quantity} · {i.supply_days} days
                         </div>
@@ -436,7 +445,6 @@ export default function Repeats() {
                           remaining={i.value * i.repeats_left} />
                       </td>
                       <td className="num">{i.repeats_left} of {i.repeats_allowed}</td>
-                      <td className="num">{i.in_stock}</td>
                       <RowActions>
                         {/* A queue you can only read is a list, not a work
                             screen. A repeat is re-supplying a line on a script
@@ -469,23 +477,35 @@ export default function Repeats() {
                             already loaded, so the alteration is made where
                             capture belongs rather than by abandoning the
                             repeat and starting again. */}
-                        <button className="btn ghost sm"
+                        {/* A mark rather than a word. Three text buttons made
+                            this column 352px of a 1,076px table, so the queue
+                            scrolled sideways and the figures somebody works it
+                            by went off the edge. The one that starts the work
+                            keeps its name; these two say theirs on the hover,
+                            as the creditors row already does with its
+                            statement printer. */}
+                        <button className="btn ghost sm rp-icon"
                           title="Open the script in the dispensary to change it"
+                          aria-label="Alter this script"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/dispense?rx=${i.prescription_id}`
                                      + `&item=${i.item_id}`);
                           }}>
-                          Alter
+                          <PencilSimpleLine size={14} />
                         </button>
                         {/* The other half of the job. Half of a repeat queue is
                             people who have not come in, and telephoning them is
                             the work, so the message is here rather than on a
                             screen somebody has to remember to open. */}
-                        <BusyButton className="btn ghost sm"
+                        <BusyButton className="btn ghost sm rp-icon"
+                                    title={i.patient_phone
+                                      ? `Send a reminder to ${i.patient_phone}`
+                                      : "No telephone number on file"}
+                                    aria-label="Send a reminder"
                                     disabled={!i.patient_phone}
                                     onClick={() => remind(i)}>
-                          Remind
+                          <ChatCircleText size={14} />
                         </BusyButton>
                       </RowActions>
                     </RowLink>

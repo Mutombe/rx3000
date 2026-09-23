@@ -161,7 +161,7 @@ export default function Suppliers() {
                   mostly empty, and the email clipped mid-word with no
                   ellipsis — which reads as a rendering fault rather than as
                   a long address. */}
-              <table className="dt sup-table dt-wide">
+              <table className="dt sup-table">
                 <thead>
                   <tr>
                     <th className="sup-col-who">Supplier</th><th className="sup-col-contact">Contact</th>
@@ -395,13 +395,13 @@ function SupplierRecord({ record, loading }: {
   // this to a red "0% arrives", which branded most of the supplier list as
   // total failures on the strength of having ordered from them yesterday.
   if (record.fill_rate === null) {
-    return (
-      <span className="muted small">
-        {record.units_outstanding
-          ? `${record.units_outstanding} unit(s) still to come`
-          : `${record.orders} order(s), none delivered yet`}
-      </span>
-    );
+    // Longer than the column, and a sentence rather than a figure: shortened
+    // with the whole of it on the hover, which is a shortened cell rather than
+    // text that stops mid word.
+    const said = record.units_outstanding
+      ? `${record.units_outstanding} unit(s) still to come`
+      : `${record.orders} order(s), none delivered yet`;
+    return <span className="muted small clip" title={said}>{said}</span>;
   }
   return (
     <div className="sup-record">

@@ -739,7 +739,8 @@ export default function StockTake() {
                       <EntityLink to={`/stock-takes/${t.id}`}>{t.reference}</EntityLink>
                     </td>
                     <td><span className="badge muted">{sentence(t.status)}</span></td>
-                    <td className="small">
+                    <td className="small clip"
+                        title={t.closed_at ? fmtDateTime(t.closed_at) : undefined}>
                       {t.closed_at ? fmtDateTime(t.closed_at)
                                    : <span className="muted">Still open</span>}
                     </td>

@@ -1253,7 +1253,7 @@ label {
    eye counts it as part of the menu and the menu looks twice as tall as it is.
    Three, with the thumb inset to two, is enough to say "this scrolls" and
    little enough to disappear when it does not. */
-.pill-tabs::-webkit-scrollbar { height: 3px; }
+.pill-tabs::-webkit-scrollbar { height: 2px; }
 .pill-tabs::-webkit-scrollbar-track { background: transparent; }
 .pill-tabs::-webkit-scrollbar-thumb {
   background: var(--line-strong); border-radius: 999px;
@@ -1793,8 +1793,12 @@ table:has(td.actions .btn-count),
 table:has(td.lb-actions .btn-count) { --actions-w: 20.5rem; }
 /* A fixed primary slot is wider than the button it usually holds, because it
    also has to hold the sentence that replaces the button. Last, so it wins
-   over the rules above when both apply. */
-table:has(td.actions .act-primary) { --actions-w: 22rem; }
+   over the rules above when both apply.
+   Twenty-two rem was sized for three text buttons and the words "Not enough
+   stock". It now holds "Dispense", a count, two marks and "No stock", and at
+   the old width it was 352px of a 1,076px table: the repeat queue scrolled
+   sideways and the figures it is worked by went off the right edge. */
+table:has(td.actions .act-primary) { --actions-w: 17rem; }
 table th.actions { width: var(--actions-w, 11rem); }
 /* No `.dt` exception here. DataTable states its column widths as inline styles
    on the header cells, which outrank any stylesheet rule, so its own tables are
@@ -2794,6 +2798,56 @@ img { -webkit-user-drag: none; user-select: none; }
 .dx-list::-webkit-scrollbar,
 .ai-box::-webkit-scrollbar,
 .dt-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+
+/* A HORIZONTAL BAR IS THINNER THAN A VERTICAL ONE.
+   They are not the same furniture. A vertical bar runs down the edge of a
+   region and is grabbed and dragged, so it needs something to grab. A
+   horizontal one sits UNDER content, in the reading direction, directly below
+   the last row of a table or the strip of tabs it belongs to: at eight pixels
+   it reads as another rule across the card, and the eye counts it as part of
+   the thing above it.
+   Three, and no track, everywhere a region scrolls sideways. It is enough to
+   say "there is more this way" and little enough to stop being furniture. */
+.nav::-webkit-scrollbar:horizontal,
+.main::-webkit-scrollbar:horizontal,
+.rx-aside::-webkit-scrollbar:horizontal,
+.modal::-webkit-scrollbar:horizontal,
+.sel-list::-webkit-scrollbar:horizontal,
+.dx-list::-webkit-scrollbar:horizontal,
+.ai-box::-webkit-scrollbar:horizontal,
+.cu-scroll::-webkit-scrollbar:horizontal,
+.table-wrap::-webkit-scrollbar:horizontal,
+.dt-scroll::-webkit-scrollbar:horizontal { height: 3px; }
+
+/* The other scrollers a table can sit in, which never had the thin treatment
+   at all and were showing the platform's own 17px bar. */
+.cu-scroll, .table-wrap {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.cu-scroll::-webkit-scrollbar,
+.table-wrap::-webkit-scrollbar { width: 8px; height: 3px; }
+.cu-scroll::-webkit-scrollbar-track,
+.table-wrap::-webkit-scrollbar-track { background: transparent; }
+.cu-scroll::-webkit-scrollbar-thumb,
+.table-wrap::-webkit-scrollbar-thumb {
+  background: var(--line-strong); border-radius: 999px;
+}
+
+/* At three pixels the inset border below would leave nothing to see, so a
+   horizontal thumb is solid ink rather than ink inside a track. */
+.nav::-webkit-scrollbar-thumb:horizontal,
+.main::-webkit-scrollbar-thumb:horizontal,
+.rx-aside::-webkit-scrollbar-thumb:horizontal,
+.modal::-webkit-scrollbar-thumb:horizontal,
+.sel-list::-webkit-scrollbar-thumb:horizontal,
+.dx-list::-webkit-scrollbar-thumb:horizontal,
+.ai-box::-webkit-scrollbar-thumb:horizontal,
+.cu-scroll::-webkit-scrollbar-thumb:horizontal,
+.table-wrap::-webkit-scrollbar-thumb:horizontal,
+.dt-scroll::-webkit-scrollbar-thumb:horizontal {
+  border: 0; background-clip: border-box;
+}
 
 .nav::-webkit-scrollbar-track,
 .main::-webkit-scrollbar-track,
@@ -3971,7 +4025,8 @@ button.wl-stat:disabled:hover {
 /* The claim period, which now says its year once: "10 Aug to 17 Aug, 2026".
    The shared range column is sized for both years and a fixed width does not
    shrink to fit shorter text on its own. */
-.cl-period { width: 11rem; }
+.cl-office { width: 8.5rem; }
+.cl-period { width: 11.5rem; }
 .col-said  { width: 16rem; }   /* a short sentence: a reason, a description */
 .col-code  { width: 7rem; }
 /* The period code and its month underneath. Without a width the table shares
@@ -3982,11 +4037,10 @@ button.wl-stat:disabled:hover {
    whose drawer nobody has counted, and which a capital N made six pixels too
    long for the share the table was giving it. */
 .db-drawer { width: 7.5rem; }
-/* The claim batch table's own, narrower than the shared ones it used: nine
-   columns do not fit a till at the widths a five column table can afford. */
+/* The claim batch table's own. The widths are declared once, above, beside the
+   period they size; a second pair lived here from a reverted attempt and, being
+   later in the file, quietly won. */
 .cl-batch  { width: 6.5rem; }
-.cl-office { width: 7.5rem; }
-.cl-period { width: 8.5rem; }    /* a short branch or account code */
 .col-city  { width: 8.5rem; }  /* a town name */
 .col-count { width: 5.5rem; }  /* a plain count: packs, units, lines */
 .col-row   { width: 4.5rem; }  /* a row number in an uploaded file */
@@ -4003,13 +4057,18 @@ button.wl-stat:disabled:hover {
 /* The two columns a repeat queue is actually read by. A combination name
    like "Tenofovir/Lamivudine/Dolutegravir" wants 240px and an equal share
    gave it 102, so the queue listed medicines nobody could identify. */
-.rp-who  { width: 12rem; }
+.rp-who  { width: 10rem; }
 /* A date with a month name: "28 Jul, 2026" wants 119px. */
-.rp-due  { width: 8.5rem; }
+.rp-due  { width: 7.5rem; }
 .rp-worth { width: 7.5rem; }
 .db-branch { width: 14rem; }
-.rp-left { width: 8.5rem; }
-.rp-what { width: 17rem; }
+.rp-left { width: 7rem; }
+.rp-what { width: 14rem; }
+/* A combination name like "Tenofovir/Lamivudine/Dolutegravir" wants 240px and
+   there is not 240px to give it. Shortened with a mark and the whole name on
+   the hover, which is a shortened cell rather than text that stops. */
+.rp-what-cell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                max-width: 14rem; }
 
 /* A table that declares a floor needs whatever holds it to scroll.
  *
