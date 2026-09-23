@@ -21,6 +21,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useToast } from "../components/Toast";
 import { useScanFeed } from "../components/ScannerHub";
 import { Product } from "../types";
+import Select from "../components/Select";
 
 /** One count on file, as the history list needs it. */
 interface PastTake {
@@ -67,6 +68,37 @@ interface CountReply {
   variance: number; value: number; message: string;
 }
 
+
+/** What is still to count, grouped by the shelf it is on.
+ *
+ *  A stock take is walked, not searched. The screen gave a search box and a
+ *  running total, which answers "have I counted this one" and never answers
+ *  the question somebody standing in an aisle actually has, which is "what is
+ *  left on this shelf, and which shelf do I do next".
+ *
+ *  Nothing here reveals a quantity. The count is blind and the sheet carries
+ *  what the system expects, so only the product, its pack and its bin are
+ *  read off it: handing the counter the answer while they are holding the box
+ *  is the one thing this page must never do.
+ */
+function shelvesLeft(sheet: Sheet | null): { bin: string; lines: SheetLine[] }[] {
+  if (!sheet) return [];
+  const byBin = new Map<string, SheetLine[]>();
+  for (const line of sheet.lines) {
+    if (line.counted !== null) continue;
+    const where = line.bin || "no shelf recorded";
+    const rows = byBin.get(where);
+    if (rows) rows.push(line); else byBin.set(where, [line]);
+  }
+  // Fullest shelf first: it is the one that decides how long this takes, and
+  // the lines with no shelf go last because they need finding rather than
+  // walking to.
+  return [...byBin.entries()]
+    .map(([bin, lines]) => ({ bin, lines }))
+    .sort((a, b) => (a.bin === "no shelf recorded" ? 1
+      : b.bin === "no shelf recorded" ? -1 : b.lines.length - a.lines.length));
+}
+
 export default function StockTake() {
   const toast = useToast();
   /** Counts already closed. Null while loading, so the panel can hold its
@@ -89,12 +121,33 @@ export default function StockTake() {
    *  used for nothing, so a count of one line out of a thousand closed and
    *  posted as if the aisle had been checked. */
   const [sheet, setSheet] = useState<Sheet | null>(null);
+  /** Which shelf is open in the walk. One at a time: a list of every
+   *  uncounted line in the shop is the thing this replaced. */
+  const [walking, setWalking] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
+
+  /** The shelves with something still on them, fullest first. */
+  const shelves = shelvesLeft(sheet);
 
   // opening
   const [category, setCategory] = useState("");
   const [bin, setBin] = useState("");
+  /* THE SHOP'S OWN SHELVES AND DEPARTMENTS, RATHER THAN TWO EMPTY BOXES.
+     Scope was two free-text fields reading "e.g. medicine" and "e.g. A3", so
+     starting a count began by remembering what this pharmacy calls its
+     departments and how its shelf labels are spelled. Get either wrong and the
+     count opens over nothing and says so only once somebody has walked to the
+     shelf. Both are on file; both are offered. */
+  const [bins, setBins] = useState<{ bin: string; lines: number }[]>([]);
+  const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    api.get<{ bins: { bin: string; lines: number }[] }>("/api/stock/bins")
+      .then((r) => setBins((r.bins ?? []).filter((b) => b.bin)))
+      .catch(() => setBins([]));
+    api.get<{ id: number; name: string }[]>("/api/stock-categories")
+      .then(setDepartments).catch(() => setDepartments([]));
+  }, []);
 
   // counting
   const [query, setQuery] = useState("");
@@ -337,14 +390,23 @@ export default function StockTake() {
           </p>
           <div className="form-row">
             <div className="field">
-              <label>Category <span className="muted">(optional)</span></label>
-              <input value={category} onChange={(e) => setCategory(e.target.value)}
-                placeholder="e.g. medicine" />
+              <label>Department</label>
+              <Select value={category} onChange={setCategory}
+                options={[{ value: "", label: "Every department" },
+                          ...departments.map((d) => ({
+                            value: d.name, label: d.name }))]} />
             </div>
             <div className="field">
-              <label>Bin location <span className="muted">(optional)</span></label>
-              <input value={bin} onChange={(e) => setBin(e.target.value)}
-                placeholder="e.g. A3" />
+              <label>Shelf</label>
+              {/* Each shelf says how many lines are on it, because that is the
+                  question somebody is actually answering: not "which shelf"
+                  but "how long is this going to take". */}
+              <Select value={bin} onChange={setBin}
+                options={[{ value: "", label: "Every shelf" },
+                          ...bins.map((b) => ({
+                            value: b.bin,
+                            label: `${b.bin}. ${b.lines} line${b.lines === 1 ? "" : "s"}`,
+                          }))]} />
             </div>
           </div>
           <div className="cu-actions">
@@ -366,6 +428,23 @@ export default function StockTake() {
                 ? ` · counting ${[take.scope.category, take.scope.bin].filter(Boolean).join(" / ")}`
                 : " · counting everything"}
             </p>
+
+            {/* HOW FAR THROUGH THIS IS, AS A SHAPE.
+                Two numbers beside each other are a sum somebody does in their
+                head every time they look. A count of eleven hundred lines is
+                walked over an afternoon and the question at every pause is the
+                same one: how much of this is left. */}
+            {sheet && sheet.expected_lines > 0 && (
+              <div className="st-progress"
+                   role="progressbar" aria-valuemin={0}
+                   aria-valuemax={sheet.expected_lines}
+                   aria-valuenow={sheet.counted_lines}
+                   aria-label={`${sheet.counted_lines} of ${sheet.expected_lines} lines counted`}>
+                <div className="st-progress-done" style={{
+                  width: `${Math.round(
+                    (sheet.counted_lines / sheet.expected_lines) * 100)}%` }} />
+              </div>
+            )}
 
             <div className="stat-row">
               <div className="stat">
@@ -409,6 +488,65 @@ export default function StockTake() {
               </button>
             </div>
           </div>
+
+          {/* WHAT IS LEFT, AND WHERE IT IS.
+              The screen could say how many lines had been counted and could
+              not say which ones were missing, so finishing a count meant
+              remembering the shop. This is the walk: the fullest shelf first,
+              every uncounted line on it, and a tap to start counting one.
+              Nothing here shows a quantity, because the count is blind. */}
+          {shelves.length > 0 && (
+            <div className="card">
+              <div className="card-head">
+                <h3>Still to count</h3>
+                <span className="muted small">
+                  {sheet?.outstanding} line{sheet?.outstanding === 1 ? "" : "s"} across{" "}
+                  {shelves.length} shelf{shelves.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="st-shelves">
+                {shelves.map((shelf) => (
+                  <div key={shelf.bin} className="st-shelf">
+                    <button type="button" className="st-shelf-head"
+                            aria-expanded={walking === shelf.bin}
+                            onClick={() => setWalking(
+                              walking === shelf.bin ? "" : shelf.bin)}>
+                      <b>{shelf.bin}</b>
+                      <span className="muted small">
+                        {shelf.lines.length} to count
+                      </span>
+                    </button>
+                    {walking === shelf.bin && (
+                      <ul className="st-results st-shelf-lines">
+                        {shelf.lines.map((line) => (
+                          <li key={line.product_id}>
+                            <button type="button" onClick={() => {
+                              // Straight into the count box, with the product
+                              // already chosen. Searching for a line the screen
+                              // has just listed is work the screen can do.
+                              setPicked({
+                                id: line.product_id, name: line.product,
+                                pack_size: line.pack_size,
+                                bin_location: line.bin,
+                              } as unknown as Product);
+                              setLastCount(null); setCounted(""); setNote("");
+                              setTimeout(() => countBox.current?.focus(), 0);
+                            }}>
+                              <b>{line.product}</b>
+                              <span className="muted">
+                                {line.pack_size ? ` · ${line.pack_size}` : ""}
+                                {line.stock_code ? ` · ${line.stock_code}` : ""}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="card">
             <h3>Count a product</h3>

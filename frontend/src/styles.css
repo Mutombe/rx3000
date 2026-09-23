@@ -6446,7 +6446,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   width: 190px; min-height: 96px; flex: none;
   display: flex; align-items: center; justify-content: center;
   padding: 12px; border-radius: 10px;
-  border: 1px solid var(--line); background: var(--surface-2);
+  border: 1px solid var(--line); background: var(--surface-sunk);
   background-image:
     linear-gradient(45deg, rgba(128,128,150,.10) 25%, transparent 25%),
     linear-gradient(-45deg, rgba(128,128,150,.10) 25%, transparent 25%),
@@ -6556,7 +6556,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .sc-standing {
   margin: 12px 0 16px; padding: 12px 14px;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface-sunk);
   box-shadow: inset 3px 0 0 var(--line-strong);
 }
 .sc-standing.is-good  { box-shadow: inset 3px 0 0 var(--ok); }
@@ -6594,7 +6594,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .rd {
   margin: 14px 0; padding: 12px 14px;
   border: 1px solid var(--line); border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface-sunk);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .rd.is-overdue { box-shadow: inset 3px 0 0 var(--warn); }
@@ -13141,3 +13141,27 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* The countdown sits beside the state rather than under it. Two lines in a
    status cell set the height of every row in the table. */
 .cl-days { margin-left: var(--s2); white-space: nowrap; }
+
+/* THE STOCK TAKE, AS A WALK RATHER THAN A SEARCH BOX.
+   ---------------------------------------------------------------------------
+   A count is done in an aisle with a phone, so the screen has to answer "what
+   is left on this shelf" and "which shelf next". It used to answer neither:
+   there was a search box and a running total, which together can only confirm
+   a line somebody has already thought of. */
+.st-progress { height: 6px; border-radius: 3px; background: var(--line);
+               overflow: hidden; margin: var(--s3) 0; }
+.st-progress-done { height: 100%; background: var(--ok);
+                    transition: width .3s ease; }
+
+.st-shelves { display: flex; flex-direction: column; gap: var(--s2); }
+.st-shelf { border: 1px solid var(--line); border-radius: var(--r-sm);
+            overflow: hidden; }
+/* The head is the whole row, so a thumb in an aisle does not have to find a
+   caret. */
+.st-shelf-head { display: flex; align-items: baseline; justify-content: space-between;
+                 gap: var(--s3); width: 100%; padding: var(--s2) var(--s3);
+                 background: var(--surface-sunk); border: 0; cursor: pointer;
+                 text-align: left; font: inherit; color: inherit; }
+.st-shelf-head:hover { background: var(--surface); }
+.st-shelf-head[aria-expanded="true"] { border-bottom: 1px solid var(--line); }
+.st-shelf-lines { margin: 0; max-height: 40vh; overflow-y: auto; }
