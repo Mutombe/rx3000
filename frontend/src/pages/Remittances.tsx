@@ -296,6 +296,23 @@ export default function Remittances() {
                               {l.member_name}
                             </span>
                           )}
+                          {/* SAID, BECAUSE THE REFERENCE LOOKS THE SAME EITHER WAY.
+                              A line the importer could not tie to a claim shows
+                              its reference as plain text, and a line that was
+                              tied shows the same reference as a link. On a
+                              screen where most rows are one and some are the
+                              other, the difference is a colour nobody reads as
+                              a fact. It matters: an untied line has settled no
+                              claim, so the claim it paid still reads as
+                              outstanding in the ledger. */}
+                          {!l.claim_id && (
+                            <span className="badge warn"
+                                  title={"The scheme quoted a reference this "
+                                         + "pharmacy has no claim for, so nothing "
+                                         + "was settled against it."}>
+                              no claim found
+                            </span>
+                          )}
                         </td>
                         <td>{l.service_date ? fmtDate(l.service_date) : "no date"}</td>
                         <td className="num">{money(l.amount_claimed)}</td>
