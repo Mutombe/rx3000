@@ -787,14 +787,28 @@ export default function Repeats() {
 
       {tab === "churn" && <Churn />}
 
+      {/* WHAT WILL THIS COST ME?
+          A patient telephones, or stands at the counter, and asks the price of
+          something on their scheme before they commit to collecting it. That
+          is the whole of this tab, and it did not say so: three bare fields in
+          a card a third of the screen wide, floating in white space, with
+          nothing to tell anybody what it was for or what would appear.
+
+          It answers in the order the question is asked: the medicine, then the
+          one figure the patient wants, then the working behind it. */}
       {tab === "price" && (
-        <div className="quick-price">
-          <div className="card">
-            <label>
-              Medicine
-              <input value={q} autoFocus onChange={(e) => setQ(e.target.value)}
-                placeholder="Start typing a product name" />
-            </label>
+        <div className="qp">
+          <div className="card qp-ask">
+            <h3>What will it cost?</h3>
+            <p className="muted small">
+              For a patient asking before they collect. Pick the medicine, say
+              how many, and choose their scheme.
+            </p>
+
+            <label className="field-label" htmlFor="qp-medicine">Medicine</label>
+            <input id="qp-medicine" className="st-control" value={q} autoFocus
+                   onChange={(e) => setQ(e.target.value)}
+                   placeholder="Start typing a product name" />
             {products.length > 0 && (
               <ul className="pick-list">
                 {products.map((p) => (
@@ -806,51 +820,85 @@ export default function Repeats() {
                 ))}
               </ul>
             )}
-            <label>
-              Quantity
-              <input type="number" min={1} value={qty}
-                onChange={(e) => setQty(Math.max(1, Number(e.target.value)))} />
-            </label>
-            <label>
-              Scheme
-              <Select
-                value={String(aidId ?? "")}
-                onChange={(__value) => setAidId(__value === "" ? "" : Number(__value))}
-                options={[{ value: "", label: "Cash" }, ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
-              />
-            </label>
+
+            <div className="qp-two">
+              <div>
+                <label className="field-label" htmlFor="qp-qty">Quantity</label>
+                <input id="qp-qty" className="st-control" type="number" min={1}
+                       value={qty}
+                       onChange={(e) => setQty(Math.max(1, Number(e.target.value)))} />
+              </div>
+              <div>
+                <label className="field-label" htmlFor="qp-scheme">Scheme</label>
+                <Select
+                  value={String(aidId ?? "")}
+                  ariaLabel="Scheme"
+                  onChange={(__value) => setAidId(__value === "" ? "" : Number(__value))}
+                  options={[{ value: "", label: "Cash" },
+                            ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
+                />
+              </div>
+            </div>
           </div>
 
-          {quote && (
-            <div className="card">
-              <h3>{quote.product} × {quote.quantity}</h3>
-              <p className="muted">
-                {quote.classification} · {quote.route}
-                {quote.requires_prescription ? " · prescription required" : ""}
-              </p>
-              <dl className="kv">
-                <dt>Cash price</dt><dd className="num">{money(quote.cash_price)}</dd>
+          {/* The answer half. It holds its shape before anything is picked, so
+              the tab reads as a tool with two sides rather than a form beside
+              an empty half-screen. */}
+          {!quote ? (
+            <div className="card qp-answer qp-waiting">
+              <div className="empty">
+                <b>Pick a medicine to price it</b>
+                <p>
+                  The answer appears here: what the patient pays, what their
+                  scheme pays, and whether there is enough on the shelf to
+                  supply it today.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="card qp-answer">
+              <div className="qp-head">
+                <div>
+                  <div className="eyebrow tone-medicine">Quoted</div>
+                  <h3>{quote.product}</h3>
+                  <p className="muted small">
+                    {quote.quantity} × {quote.classification} · {quote.route}
+                    {quote.requires_prescription && (
+                      <> · <span className="badge warn">prescription required</span></>
+                    )}
+                  </p>
+                </div>
+                <div className={`qp-stock ${quote.can_supply ? "is-ok" : "is-short"}`}>
+                  <b>{quote.in_stock}</b>
+                  <span>{quote.can_supply ? "on the shelf" : "only, cannot supply in full"}</span>
+                </div>
+              </div>
+
+              {/* THE FIGURE THEY ASKED FOR, IN THE LARGEST TYPE ON THE SCREEN.
+                  Everything else here is the working that produces it. */}
+              <div className="qp-owes">
+                <span className="qp-owes-label">{patientOwes(!!quote.scheme)}</span>
+                <b className="qp-owes-n">{money(quote.patient_pays)}</b>
+              </div>
+
+              <dl className="qp-work">
+                <div><dt>Cash price</dt><dd>{money(quote.cash_price)}</dd></div>
                 {quote.scheme && (
                   <>
-                    <dt>On {quote.scheme}</dt>
-                    <dd className="num">{money(quote.scheme_price)}</dd>
-                    <dt>Dispensing fee</dt>
-                    <dd className="num">{money(quote.dispensing_fee)}</dd>
-                    <dt>Scheme pays</dt><dd className="num">{money(quote.scheme_pays)}</dd>
-                    <dt>Levy</dt><dd className="num">{money(quote.levy)}</dd>
+                    <div><dt>On {quote.scheme}</dt><dd>{money(quote.scheme_price)}</dd></div>
+                    <div><dt>Dispensing fee</dt><dd>{money(quote.dispensing_fee)}</dd></div>
+                    <div><dt>The scheme pays</dt><dd>{money(quote.scheme_pays)}</dd></div>
+                    <div><dt>Levy</dt><dd>{money(quote.levy)}</dd></div>
                   </>
                 )}
-                {/* The figure the patient standing there actually asked
-                    for, called what they and every pharmacy in the country
-                    call it. */}
-                <dt><strong>{patientOwes(!!quote.scheme)}</strong></dt>
-                <dd className="num"><strong>{money(quote.patient_pays)}</strong></dd>
               </dl>
-              <p className={quote.can_supply ? "muted small" : "alert warn"}>
-                {quote.can_supply
-                  ? `${quote.in_stock} in stock.`
-                  : `Only ${quote.in_stock} in stock. This cannot be supplied in full today.`}
-              </p>
+
+              {!quote.can_supply && (
+                <p className="alert warn">
+                  Only {quote.in_stock} in stock. This cannot be supplied in
+                  full today.
+                </p>
+              )}
               {quote.note && <p className="muted small">{quote.note}</p>}
             </div>
           )}

@@ -12929,3 +12929,65 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .cmp-made td:nth-child(2) { white-space: normal; }
 /* The two halves of compounding, side by side above the list. */
 .cmp-tabs { margin-bottom: var(--s4); }
+
+/* ---------- WHAT WILL IT COST? ----------
+   A counter tool, not a form. It was three bare fields in a card a third of
+   the screen wide with two thirds of white space beside it and nothing saying
+   what it was for. Two halves now: the question on the left, the answer on
+   the right, and the answer holds its shape before anything is picked so the
+   tab reads as a tool rather than a form floating in a void. */
+.qp {
+  display: grid; grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+  gap: var(--s4); align-items: start;
+}
+.qp-ask h3, .qp-answer h3 { margin: 0 0 2px; }
+.qp-ask .field-label { display: block; margin-top: var(--s3); }
+.qp-ask .st-control { width: 100%; }
+.qp-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+.qp-waiting { display: flex; align-items: center; justify-content: center; }
+
+.qp-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+}
+/* What is on the shelf, next to the price, because a quote nobody can fill
+   is worse than no quote: the patient is told a figure and then turned away. */
+.qp-stock {
+  display: flex; flex-direction: column; align-items: flex-end;
+  padding: var(--s2) var(--s3); border-radius: var(--r-sm);
+  border: 1px solid var(--line); background: var(--surface-sunk);
+  min-width: 8rem; text-align: right;
+}
+.qp-stock b { font-size: 1.35rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.qp-stock span { font-size: .68rem; color: var(--ink-soft); line-height: 1.25; }
+.qp-stock.is-short { border-color: var(--warn-line); background: var(--warn-soft); }
+.qp-stock.is-short b { color: var(--danger); }
+
+/* THE FIGURE THE PATIENT ASKED FOR. Everything under it is the working. */
+.qp-owes {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s4); flex-wrap: wrap;
+  margin: var(--s4) 0 var(--s3); padding: var(--s3) var(--s4);
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+}
+.qp-owes-label {
+  font-size: .68rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.qp-owes-n { font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+
+.qp-work { margin: 0; display: grid; gap: 0; }
+.qp-work > div {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s4); padding: var(--s2) 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.qp-work > div:last-child { border-bottom: 0; }
+.qp-work dt { margin: 0; color: var(--ink-soft); font-size: var(--t-base); }
+.qp-work dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 900px) {
+  /* The answer goes under the question rather than beside it. */
+  .qp { grid-template-columns: minmax(0, 1fr); }
+}
