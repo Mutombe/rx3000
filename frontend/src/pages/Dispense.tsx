@@ -73,20 +73,6 @@ import { DRAFT_SCRIPT, TERMS } from "../terms";
 import { routeForSchedule, scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
 
-/** Which kind of supply this is, which is a smaller question than it was.
- *
- *  There were three: prescription, controlled, otc. The first two were never
- *  two lanes — they shared one form and differed in a search filter, a scan
- *  check and four sentences of copy, while every rule with legal force already
- *  came from the schedule of the lines. Asking a dispenser to choose between
- *  them was asking them to classify a medicine the jurisdiction pack had
- *  already classified, and the two could disagree: a controlled line captured
- *  on the prescription tab used to reach a refusal it could not satisfy.
- *
- *  What is left is the one thing the system genuinely cannot work out by
- *  itself, which is whether there is a prescription in the room.
- */
-type Route = "script" | "otc";
 
 /** The label the server screens a line under — and so the one its findings
  *  come back under. Built in one place so the two can never drift. */
@@ -238,31 +224,6 @@ function lineEach(i: { product: Product; price?: number }): number {
 
 const DEFAULT_DIAGNOSIS = "Z76.9";
 
-const ROUTE_TABS: {
-  key: Route;
-  /** The name in full, for the hint line and anywhere with room. */
-  label: string;
-  /** The name on the tab itself. */
-  tab: string;
-  hint: string;
-  /** The capabilities that reach this lane. Any one of them is enough. */
-  needs?: string[];
-}[] = [
-  // One lane for anything dispensed against a script. Whether it is also
-  // controlled is read off the medicine, not off a tab: the compliance record,
-  // the register entry, the repeat rule and the capability check are all
-  // already derived from the highest schedule on the script, on both sides of
-  // the wire.
-  { key: "script", label: "Against a prescription",
-    hint: "Dispensed against a script. Controlled medicines ask for their own record as they are added",
-    tab: "Prescription",
-    needs: ["dispense.prescription", "dispense.controlled"] },
-  // A cashier's whole reason to be on this screen, and the only lane they have
-  // by default.
-  { key: "otc", label: "Counter sale", hint: "No prescription", tab: "Counter",
-    needs: ["dispense.otc"] },
-];
-
 /** What happens to the money at the moment of dispensing.
  *
  *  "Send to till" is the old behaviour and stays the default: the invoice is
@@ -308,9 +269,16 @@ const PAY_CHOICES = [
     hint: "Claim from the scheme on the card and take the patient's shortfall here" },
 ];
 
+/** How many steps the trail ends on, given which middle ones are showing. */
+function steps_last_number(needsScript: boolean, needsCompliance: boolean): number {
+  // Medicine is always 1. A script adds the patient step, a controlled line
+  // adds the compliance one, and a counter sale adds the consultation.
+  return 1 + (needsScript ? 1 : 0) + (needsCompliance ? 1 : 0)
+    + (needsScript ? 0 : 1);
+}
+
 export default function Dispense() {
   const session = useSession();
-  const [route, setRoute] = useState<Route>("script");
   /** The script this screen last put out, so the menu can act on it.
    *
    *  Every document below the primary action is about a script that has just
@@ -422,44 +390,20 @@ export default function Dispense() {
      what they may do: `can` is false while the session loads, and a dispensary
      that hides the controlled tab for a second every morning is one a
      pharmacist stops trusting. */
-  const visibleRoutes = useMemo(
-    () => (!session.known
-      ? ROUTE_TABS
-      // ANY of the lane's capabilities is enough. The script lane is reached
-      // by a pharmacist who may dispense ordinary prescriptions, by one who
-      // may dispense controlled substances, and by anyone holding both; what
-      // they are then OFFERED inside it is narrowed by the same matrix on the
-      // server, so the lane does not have to be.
-      : ROUTE_TABS.filter((t) => !t.needs || t.needs.some((c) => session.can(c)))),
+  /* Whether there is anything on this screen for this person at all.
+   *
+   *  This was a list of visible tabs, and the tabs are gone. What replaced
+   *  them is the medicine search asking the permission matrix what to offer,
+   *  so the only question left here is the whole-page one: somebody holding
+   *  none of the three dispensing permissions has nothing to hand over and is
+   *  told so, rather than being shown an empty search box.
+   */
+  const mayDispense = useMemo(
+    () => !session.known
+      || ["dispense.prescription", "dispense.controlled", "dispense.otc"]
+        .some((c) => session.can(c)),
     [session]);
 
-  /* Somebody on a route they may not use is put on the first one they can.
-     This can happen without them doing anything wrong: a link, a restored tab,
-     or an authority withdrawn while the screen was open.
-
-     The first VISIBLE route, not "prescription". Sending them back to a fixed
-     one only worked while everybody had it — a cashier who may sell over the
-     counter and nothing else was being bounced onto the prescription route,
-     found it hidden, and bounced again. */
-  useEffect(() => {
-    if (!session.known || !visibleRoutes.length) return;
-    if (!visibleRoutes.some((t) => t.key === route)) {
-      setRoute(visibleRoutes[0].key);
-    }
-  }, [session.known, visibleRoutes, route]);
-
-  /** Move to a route, but never to one this person cannot see.
-   *
-   *  Picking a repeat or a to-follow jumps the screen to where that item
-   *  belongs. Unclamped, that lands somebody on a hidden tab with nothing
-   *  rendered and no way back — so it is clamped here, once, rather than at
-   *  each of the three call sites where it would drift.
-   */
-  const goToRoute = useCallback((want: Route) => {
-    if (!session.known) { setRoute(want); return; }
-    const allowed = visibleRoutes.some((t) => t.key === want);
-    setRoute(allowed ? want : (visibleRoutes[0]?.key ?? want));
-  }, [session.known, visibleRoutes]);
   const [policies, setPolicies] = useState<SchedulePolicy[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -724,32 +668,6 @@ export default function Dispense() {
     return () => { stale = true; };
   }, [patientQ]);
 
-  /** The dispenser choosing a different route starts a different script.
-   *
-   *  Clearing belongs to the choice, not to the route changing, and that
-   *  distinction is the whole of the bug below.
-   */
-  function chooseRoute(next: Route) {
-    if (next === route) return;
-    setItems([]);
-    aiCheck.reset();
-    setRoute(next);
-  }
-
-  /* Changing route changes what the medicine search offers, so the search is
-     reset with it.
-     It used to empty the script here as well, and that quietly broke opening a
-     script that is not on the route currently showing. `openQueued` sets the
-     patient, moves to the script's route and sets its lines in one go; this
-     effect then ran — because the route had just changed — and cleared the
-     lines it had only just been given. Opening a Schedule 5 script by link
-     landed on Dangerous Drugs with the patient loaded and an empty table, and
-     nothing said why. Verified: /dispense?rx=<a controlled script> loaded the
-     patient and none of its lines.
-     Now only a tab press clears, which is what a dispenser means by it. */
-  useEffect(() => {
-    setProductQ(""); setProductResults([]); aiCheck.reset();
-  }, [route]);
 
   useEffect(() => {
     if (productQ.length < 2) { setProductResults([]); return; }
@@ -760,12 +678,11 @@ export default function Dispense() {
     // names nothing: the server works the range out from this person's own
     // capabilities, which is the question the tab was standing in for.
     api.get<Product[]>(
-      `/api/dispensing/products?${route === "otc" ? "route=otc&" : ""}`
-      + `q=${encodeURIComponent(productQ)}`)
+      `/api/dispensing/products?q=${encodeURIComponent(productQ)}`)
       .then((found) => { if (!stale) setProductResults(found); })
       .catch(() => { if (!stale) setProductResults([]); });
     return () => { stale = true; };
-  }, [productQ, route]);
+  }, [productQ]);
 
   /* The over-the-counter tab used to open on twelve medicines nobody had asked
    * for: the first twelve in the catalogue, alphabetically, which at CareXpress
@@ -813,6 +730,23 @@ export default function Dispense() {
    *  When the policies have not loaded, the schedule decides and all three are
    *  asked for: the failure has to be "this screen asked for too much", never
    *  "this screen refused to ask". */
+  /* WHETHER THERE IS A PRESCRIPTION IN THE ROOM.
+   *
+   *  The last question on this screen the system cannot answer for itself, and
+   *  it turns out it nearly can: a medicine that `requires_prescription` was
+   *  bought against one, and a basket with none of those in it is a counter
+   *  sale. So the dispenser is not asked. The patient and the prescriber
+   *  appear when a line calls for them and stay out of the way when none does,
+   *  which is what the three tabs were arranging by hand.
+   *
+   *  Any line is enough. A basket holding paracetamol and an antibiotic is a
+   *  script, because the antibiotic is. */
+  /** Whether anything in the basket has to be counselled before hand-over. */
+  const counsellingWanted = items.some(
+    (i) => policyFor(i.product.schedule || 0)?.counselling_required);
+  const needsScript = items.some(
+    (i) => policyFor(i.product.schedule || 0)?.requires_prescription
+      ?? (i.product.schedule || 0) >= 3);
   const needsCompliance = activePolicy
     ? activePolicy.route === "controlled"
     : highestSchedule >= 5;
@@ -863,7 +797,7 @@ export default function Dispense() {
   const [packExpiry, setPackExpiry] = useState<Record<number, string>>({});
   const stockKey = items.map((i) => `${i.product.id}:${i.quantity}`).join(",");
   useEffect(() => {
-    if (!items.length || route === "otc") { setExpiryNeeded([]); return; }
+    if (!items.length) { setExpiryNeeded([]); return; }
     const t = window.setTimeout(() => {
       api.post<typeof expiryNeeded>("/api/dispensing/expiry-needed", {
         lines: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
@@ -871,7 +805,7 @@ export default function Dispense() {
     }, 250);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stockKey, route]);
+  }, [stockKey]);
   /** The first line still needing a date from its pack, or a date already past. */
   const expiryProblem = (): string => {
     const today = localIsoDate();
@@ -976,7 +910,6 @@ export default function Dispense() {
       if (kept.patient) setPatient(kept.patient as Patient);
       setDoctorId(kept.doctorId);
       setQuoting(kept.quoting);
-      goToRoute(kept.route as Route);
       const who = kept.patient
         ? ` for ${(kept.patient as Patient).first_name} ${(kept.patient as Patient).last_name}`
         : "";
@@ -984,14 +917,14 @@ export default function Dispense() {
                + `line${kept.items.length === 1 ? "" : "s"}${who}. Escape clears it.`);
     }
     setDraftReady(true);
-  }, [draftReady, session.me, goToRoute, toast]);
+  }, [draftReady, session.me, toast]);
 
   useEffect(() => {
     if (!draftReady || !session.me) return;
     writeScriptDraft<DraftItem>({
-      userId: session.me.id, patient, doctorId, route, quoting, items,
+      userId: session.me.id, patient, doctorId, quoting, items,
     });
-  }, [draftReady, session.me, patient, doctorId, route, quoting, items]);
+  }, [draftReady, session.me, patient, doctorId, quoting, items]);
 
   /** Start again, cleanly. */
   function newScript() {
@@ -1882,6 +1815,10 @@ export default function Dispense() {
     if (!patient) return focus("[data-hk='patient']");
     if (doctorId === "") return focus("#step-patient .disp-doctor button, #step-patient .disp-doctor input");
     if (items.length === 0) return focus("[data-hk='product']");
+    // The counter's own gate, which the pack sets per medicine. The server
+    // refuses the sale without it, so the button has to say so first.
+    if (!needsScript && counsellingWanted && !counselled)
+      return "Confirm the patient was counselled before handing this over.";
     if (needsCompliance && !complianceDone)
       return openFinish("finish-compliance");
     if (blocked) return openFinish("finish-warnings");
@@ -2018,11 +1955,17 @@ export default function Dispense() {
         + (hold.placed_by ? `, placed by ${hold.placed_by}` : "")
         + ". A pharmacist or a manager releases it.";
     }
-    if (!patient) return "Find the patient first.";
-    // The server refuses without one and this never said so: the button went
-    // grey with no sentence beside it.
-    if (doctorId === "") return "Choose the prescriber.";
-    if (items.length === 0) return "Add at least one medicine to the script.";
+    if (items.length === 0) return "Add a medicine.";
+    // Asked only where there is a script. A counter sale has no prescriber and
+    // needs no patient on file: somebody buying a cough syrup is not
+    // registered first, and demanding it was what made the counter its own
+    // separate lane in the first place.
+    if (needsScript) {
+      if (!patient) return "Find the patient first.";
+      // The server refuses without one and this never said so: the button went
+      // grey with no sentence beside it.
+      if (doctorId === "") return "Choose the prescriber.";
+    }
     if (needsCompliance && !complianceDone)
       return `Complete the compliance record for ${activePolicy?.label ?? "this controlled substance"}.`;
     if (blocked) return "Acknowledge the blocking warning first.";
@@ -2356,7 +2299,6 @@ export default function Dispense() {
       ]);
       setPatient(p);
       setPatientQ("");
-      goToRoute("script");
       if (rx.doctor_id) setDoctorId(rx.doctor_id);
 
       // Lines the prescriber marked "do not dispense" are on the script but are
@@ -2539,15 +2481,93 @@ export default function Dispense() {
    *  including the packs scanned and the expiry dates read off them, and offers
    *  Try again rather than retrying anything by itself.
    */
+  /** Sell the basket over the counter, as one sale and one consultation.
+   *
+   *  The counter used to be a separate lane holding one medicine, so a
+   *  customer buying paracetamol and a cough syrup was two sales seconds
+   *  apart: two rows in the register reading as two consultations, and two
+   *  transactions in the cash-up. It is one basket now, and the server takes
+   *  it as one.
+   *
+   *  Every line is checked against the jurisdiction pack before anything
+   *  moves, so a basket that should never have reached here is refused whole
+   *  rather than half sold.
+   */
+  async function sellOverTheCounter() {
+    const lines = items.map((i) => ({
+      product_id: i.product.id,
+      quantity: i.quantity || 0,
+      ...(packExpiry[i.product.id]
+        ? { pack_expiry: packExpiry[i.product.id] } : {}),
+    }));
+    const world = currencyWorld(currencyState);
+    const took = tenders.reduce((n, t) => n + inBase(t, world.rates, world.base), 0);
+    const gross = items.reduce((n, i) => n + lineEach(i) * (i.quantity || 0), 0);
+    const said = items.length === 1
+      ? lineName(items[0].product)
+      : `${items.length} items`;
+    try {
+      const out = await api.post<{ sale_id: number; total: number;
+                                   change_due: number }>(
+        "/api/dispensing/otc", {
+          lines,
+          patient_id: patient?.id ?? null,
+          customer_name: customerName,
+          indication,
+          counselling_given: counselled,
+          referred_to_doctor: referred,
+          notes: otcNotes,
+          payment_method: "cash",
+          // The server refuses a cash sale tendered short. Where the finish
+          // panel collected nothing the sale is settled exactly, which is what
+          // a counter sale at the marked price is.
+          amount_tendered: took > 0.005 ? took : Math.round(gross * 100) / 100,
+        });
+      toast.ok(`${said} sold and recorded.`
+        + (out.change_due > 0.005 ? ` Change ${money(out.change_due)}.` : ""));
+      // The counter is given back, and the consultation with it.
+      setItems([]); aiCheck.reset();
+      setIndication(""); setCustomerName(""); setCounselled(false);
+      setReferred(false); setOtcNotes(""); setTenders([]);
+      clearScriptDraft();
+      loadLists();
+      if (out.sale_id) {
+        try {
+          const sale = await api.get<Sale>(`/api/pos/sales/${out.sale_id}`);
+          printReceipt(sale, pharmacy.name, pharmacy.regNo);
+        } catch {
+          // A receipt that will not print is not a sale that did not happen.
+        }
+      }
+    } catch (e) {
+      toast.error(errorText(e, "That sale could not be recorded."));
+    }
+  }
+
   function createAndDispense() {
-    if (!patient || doctorId === "" || items.length === 0) {
-      toast.error("Select a patient, a doctor and at least one medication.");
+    if (items.length === 0) {
+      toast.error("Add a medicine first.");
+      return;
+    }
+    // THE SCREEN PICKS THE PATH, NOT THE DISPENSER.
+    //
+    // A basket with nothing in it that needs a prescription is a counter sale,
+    // and a counter sale is a different transaction: no script record, no
+    // prescriber, its own endpoint, and a row in the pharmacy-medicine
+    // register rather than a dispensing. That used to be chosen by which tab
+    // somebody had clicked before they looked anything up.
+    if (!needsScript) {
+      sellOverTheCounter();
+      return;
+    }
+    if (!patient || doctorId === "") {
+      toast.error("Select a patient and a prescriber.");
       return;
     }
 
     // What the screen would have to become again, if this does not happen.
     const before = {
-      patient, doctorId, items, fromRx, route, initials, idNumber, complianceNotes,
+      patient, doctorId, items, fromRx, initials, idNumber, complianceNotes,
       idVerified, scriptSighted, prescriberVerified, counselPoints, counselNotes,
       scanChecks, packExpiry, payHow, tenders, driverId, deliverTo, deliveryFee,
       printPick, aidScheme, aidMember, aidDep, aidHold, aidHoldReason,
@@ -2609,7 +2629,7 @@ export default function Dispense() {
         setPatient(before.patient); setDoctorId(before.doctorId); setItems(before.items);
         setFromRx(already ? { id: already.id, number: already.rx?.rx_number ?? before.fromRx?.number ?? `#${already.id}`,
                               draft: false } : before.fromRx);
-        setRoute(before.route); setInitials(before.initials); setIdNumber(before.idNumber);
+        setInitials(before.initials); setIdNumber(before.idNumber);
         setComplianceNotes(before.complianceNotes); setIdVerified(before.idVerified);
         setScriptSighted(before.scriptSighted); setPrescriberVerified(before.prescriberVerified);
         setCounselPoints(before.counselPoints); setCounselNotes(before.counselNotes);
@@ -2926,187 +2946,6 @@ export default function Dispense() {
    *  refusal hands everything back exactly as it was, because the one thing
    *  worse than a slow sale is a sale that loses what somebody just typed.
    */
-  /** Everything one counter sale is built from, taken before the counter is
-   *  cleared: by the time the request runs the assistant may be serving the
-   *  next customer. */
-  interface OtcSnapshot {
-    product: Product;
-    quantity: number;
-    patient: Patient | null;
-    customerName: string;
-    indication: string;
-    counselled: boolean;
-    referred: boolean;
-    notes: string;
-    tendered: string;
-    expiry: string;
-    lot: LotChoice;
-  }
-
-  /** One sale, one shape, whichever path posts it. */
-  function otcBody(was: OtcSnapshot) {
-    return {
-      product_id: was.product.id, quantity: was.quantity,
-      patient_id: was.patient?.id ?? null,
-      customer_name: was.customerName, indication: was.indication,
-      counselling_given: was.counselled, referred_to_doctor: was.referred,
-      notes: was.notes, payment_method: "cash",
-      amount_tendered: Number(was.tendered) || 0,
-      // The date read off the pack, when this can only go out from stock that
-      // carries none. Without it an opening count leaves the front shop
-      // unable to sell anything at all.
-      ...(was.expiry ? { pack_expiry: was.expiry } : {}),
-      ...(was.lot.batch_id ? {
-        batch_id: was.lot.batch_id,
-        batch_reason: was.lot.reason,
-        batch_note: was.lot.note,
-      } : {}),
-    };
-  }
-
-  /** The sale where a lot is being taken out of turn.
-   *
-   *  Waits, rather than clearing the counter and finishing behind the
-   *  operator. The server answers 428 to ask for a supervisor's password, and
-   *  a password dialog about a sale that has already left the screen is one
-   *  nobody can check. The counter stays exactly as it is until either the
-   *  sale is made or somebody walks away from it.
-   */
-  async function sellOtcWithAuthority(was: OtcSnapshot, what: string) {
-    setOtcAuthorising(true);
-    try {
-      const record = await guarded<OTCSale>(
-        "stock.batch_override",
-        (token) => api.post<OTCSale>("/api/dispensing/otc", otcBody(was), token),
-        `${what} · lot ${was.lot.reason ? "taken out of turn" : "chosen by hand"}`);
-      if (record === CANCELLED) {
-        // A decision, not a failure. Nothing has left the shelf and the
-        // counter is untouched, so there is nothing to put back.
-        toast.warn("Nothing was sold. That lot needs a supervisor.");
-        return;
-      }
-      setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
-      setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
-      setOtcPackExpiry(""); setOtcLot(ROTATION);
-      loadLists();
-      toast.ok(`Sold ${record.quantity} × ${record.product?.name ?? was.product.name} `
-               + "out of turn. The lot and the reason are on the movement.");
-      if (record.sale_id) {
-        try {
-          const sale = await api.get<Sale>(`/api/pos/sales/${record.sale_id}`);
-          printReceipt(sale, pharmacy.name, pharmacy.regNo);
-        } catch { /* a receipt that will not print must not undo a sale */ }
-      }
-    } catch (e) {
-      toast.error(errorText(e, "That sale could not be recorded."));
-    } finally {
-      setOtcAuthorising(false);
-    }
-  }
-
-  function sellOtc() {
-    if (!otcProduct) return;
-    const pack = otcPackProblem();
-    if (pack) { toast.warn(pack); return; }
-
-    // Taken before the counter is cleared, and everything the sale is built
-    // from comes off this rather than off state: by the time the request runs
-    // the assistant may be serving the next customer.
-    const was = {
-      product: otcProduct, quantity: otcQty, patient, customerName, indication,
-      counselled, referred, notes: otcNotes, tendered, expiry: otcPackExpiry,
-      lot: otcLot,
-    };
-    const what = `${was.quantity} × ${was.product.name}`;
-
-    // A LOT TAKEN AHEAD OF THE ROTATION IS NOT A BACKGROUND SALE.
-    //
-    // The ordinary sale clears the counter on the click and finishes behind
-    // the operator, which is right: the medicine has gone out and the next
-    // customer is already there. An override cannot work that way, because
-    // the server answers 428 to ask for a supervisor's password and by then
-    // the counter is empty, the picker has gone, and a password dialog is
-    // asking about a sale nobody can see any more. It was doing exactly that.
-    //
-    // So an override waits, and it should: somebody has to fetch a supervisor
-    // either way, and nothing has left the shelf until they do. The picker
-    // only ever sets a lot here when it is NOT the one the rotation would
-    // take, so the ordinary sale never comes down this path.
-    if (was.lot.batch_id) { void sellOtcWithAuthority(was, what); return; }
-
-    setOtcProduct(null); setOtcQty(1); setCustomerName(""); setIndication("");
-    setCounselled(false); setReferred(false); setOtcNotes(""); setTendered("");
-    setOtcPackExpiry(""); setOtcLot(ROTATION);
-
-    doing.run({
-      label: `${what} · ${money(otcEach(was.product) * was.quantity)}`,
-      said: "Recording the sale…",
-      run: () => api.post<OTCSale>("/api/dispensing/otc", otcBody(was)),
-      done: (record: OTCSale) => {
-        loadLists();
-        toast.ok(`Sold ${record.quantity} × ${record.product?.name ?? was.product.name}. `
-                 + "Recorded in the pharmacy-medicine register.");
-        // The receipt prints itself, as it does at the till. Money changed
-        // hands over this counter and the customer is already walking; an
-        // assistant who has to press Print afterwards prints it late or not at
-        // all. Off the sale the hand-over raised, and never able to undo it:
-        // the medicine has gone out whatever the printer does.
-        if (record.sale_id) {
-          void (async () => {
-            try {
-              const sale = await api.get<Sale>(`/api/pos/sales/${record.sale_id}`);
-              printReceipt(sale, pharmacy.name, pharmacy.regNo);
-            } catch { /* a receipt that will not print must not undo a sale */ }
-          })();
-        }
-      },
-      undo: () => {
-        setOtcProduct(was.product); setOtcQty(was.quantity);
-        setPatient(was.patient); setCustomerName(was.customerName);
-        setIndication(was.indication); setCounselled(was.counselled);
-        setReferred(was.referred); setOtcNotes(was.notes);
-        setTendered(was.tendered); setOtcPackExpiry(was.expiry);
-        setOtcLot(was.lot);
-      },
-    });
-  }
-
-  /** What one dispensable unit sells for.
-   *
-   *  `unit_price` is the PACK price, which is a long standing lie in the
-   *  column name. The quantity on this screen is in units, as the expiry and
-   *  stock checks below already assume, so the pack price cannot be the one
-   *  multiplied by it: two tablets out of a box of a hundred were priced at a
-   *  whole box. */
-  const otcEach = (p: { unit_price: number; units_per_pack?: number }) =>
-    p.unit_price / Math.max(1, p.units_per_pack || 1);
-  const otcTotal = otcProduct ? otcEach(otcProduct) * otcQty : 0;
-  const otcPolicy = otcProduct ? policyFor(otcProduct.schedule || 0) : undefined;
-
-  /** Whether this sale can only come from stock with no expiry recorded.
-   *
-   *  Read off the figures the search already returned rather than asked of the
-   *  server: the dispensary asks `/expiry-needed` because a script has many
-   *  lines and they change as it is built, but a counter sale is one medicine
-   *  and one quantity, and a round trip on every keystroke of the quantity box
-   *  would buy nothing. Both quantities are in units here, which is what the
-   *  over-the-counter endpoint draws in.
-   */
-  const otcNeedsDate = !!otcProduct
-    && (otcProduct.here ?? 0) < otcQty
-    && (otcProduct.here_undated ?? 0) > 0;
-
-  /** The reason this sale is not ready, or "". */
-  function otcPackProblem(): string {
-    if (!otcNeedsDate) return "";
-    if (!otcPackExpiry) {
-      return `Enter the expiry printed on the pack of ${otcProduct?.name}.`;
-    }
-    if (otcPackExpiry < localIsoDate()) {
-      return `That pack of ${otcProduct?.name} has expired. Take another off the shelf.`;
-    }
-    return "";
-  }
 
   /** What each line on the script makes, priced as the totals bar prices it.
    *
@@ -3216,43 +3055,56 @@ export default function Dispense() {
    *  display that can disagree with the button is worse than none: it tells
    *  somebody they are finished while the one control they want stays grey.
    */
-  const steps: Step[] = route === "otc"
-    ? [
-      { n: 1, title: "Medicine", anchor: "step-otc-medicine", tone: "items",
-        done: !!otcProduct, needs: "Search for the medicine being sold." },
-      { n: 2, title: "Consultation", anchor: "step-otc-record", tone: "patient",
-        done: !!otcProduct && (!otcPolicy?.counselling_required || counselled),
-        needs: otcPolicy?.counselling_required && !counselled
-          ? "Confirm the patient was counselled before this can be handed over."
-          : "Record who it is for and what it is for." },
-    ]
-    : [
-      { n: 1, title: "Patient & prescriber", anchor: "step-patient", tone: "patient",
-        done: !!patient && doctorId !== "",
-        needs: !patient ? "Find the patient, or add them if they are new."
-          : "Choose the prescribing doctor." },
-      { n: 2, title: "Script items", anchor: "step-items", tone: "items",
-        done: items.length > 0,
-        needs: "Add the medicines on the script." },
-      // Typed as `Step[]` rather than inferred: inside a conditional spread
-      // TypeScript widens `tone` to `string`, and a tone that is not one of
-      // the four does nothing at all, silently, which is the same failure
-      // as a class the stylesheet has never heard of.
-      ...(needsCompliance ? ([{
-        n: 3, title: "Compliance record", anchor: "step-compliance", tone: "check",
-        done: items.length > 0 && complianceDone
-          && (!needsInitials || initials.trim() !== ""),
-        needs: items.length === 0
-          ? "Add a medicine first. The record is about what is being supplied."
-          : "Tick the script, the prescriber and the patient's identity, and "
-            + "initial it.",
-      }] as Step[]) : []),
-      { n: needsCompliance ? 4 : 3, title: "Safety check & dispense",
-        anchor: "step-dispense", tone: "go",
-        // Never "done" until it has happened; the screen clears when it does.
-        done: false,
-        needs: blockedBecause() || "Ready to dispense." },
-    ];
+  /* THE MEDICINE IS ALWAYS FIRST NOW.
+   *
+   *  There were two trails, chosen by the tab. The script one opened on
+   *  "Patient & prescriber" and the counter one on "Medicine", which is the
+   *  same disagreement the tabs had: the screen could not know which it was
+   *  until it knew what was being supplied, and it was asking the dispenser to
+   *  say so before they had looked anything up.
+   *
+   *  So the medicine comes first and the rest of the trail grows from it. A
+   *  counter sale never grows a patient step; a script grows one the moment a
+   *  line calls for it. */
+  const steps: Step[] = [
+    { n: 1, title: "Medicine", anchor: "step-items", tone: "items",
+      done: items.length > 0,
+      needs: "Search for what is being supplied." },
+    ...(needsScript ? ([{
+      n: 2, title: "Patient & prescriber", anchor: "step-patient", tone: "patient",
+      done: !!patient && doctorId !== "",
+      needs: !patient ? "Find the patient, or add them if they are new."
+        : "Choose the prescribing doctor.",
+    }] as Step[]) : []),
+    // Typed as `Step[]` rather than inferred: inside a conditional spread
+    // TypeScript widens `tone` to `string`, and a tone that is not one of
+    // the four does nothing at all, silently, which is the same failure
+    // as a class the stylesheet has never heard of.
+    ...(needsCompliance ? ([{
+      n: needsScript ? 3 : 2, title: "Compliance record",
+      anchor: "step-compliance", tone: "check",
+      done: items.length > 0 && complianceDone
+        && (!needsInitials || initials.trim() !== ""),
+      needs: items.length === 0
+        ? "Add a medicine first. The record is about what is being supplied."
+        : "Tick the script, the prescriber and the patient's identity, and "
+          + "initial it.",
+    }] as Step[]) : []),
+    ...(!needsScript && items.length > 0 ? ([{
+      n: 2, title: "Consultation", anchor: "step-counter", tone: "patient",
+      done: !counsellingWanted || counselled,
+      needs: counsellingWanted && !counselled
+        ? "Confirm the patient was counselled before this can be handed over."
+        : "Record who it is for and what it is for.",
+    }] as Step[]) : []),
+    { n: steps_last_number(needsScript, needsCompliance),
+      title: needsScript ? "Safety check & dispense" : "Hand it over",
+      anchor: "step-dispense", tone: "go",
+      // Never "done" until it has happened; the screen clears when it does.
+      done: false,
+      needs: blockedBecause() || (needsScript ? "Ready to dispense."
+                                              : "Ready to hand over.") },
+  ];
 
   /** The quote, as something a patient can take away and think about.
    *
@@ -3341,7 +3193,7 @@ export default function Dispense() {
      Only once the server has answered. `can` is false while the session loads,
      and a dispensary that flashes "you may not dispense" every morning before
      drawing itself is one nobody believes the second time. */
-  if (session.known && visibleRoutes.length === 0) {
+  if (session.known && !mayDispense) {
     return (
       <>
         <div className="page-head">
@@ -3411,16 +3263,6 @@ export default function Dispense() {
           </span>
         </div>
         <span className="spacer" />
-        {visibleRoutes.length > 1 && (
-          <div className="pill-tabs disp-routes">
-            {visibleRoutes.map((t) => (
-              <button key={t.key} className={route === t.key ? "active" : ""}
-                      onClick={() => chooseRoute(t.key)}>
-                {t.tab}
-              </button>
-            ))}
-          </div>
-        )}
         <div className="page-actions">
           <button className="btn" onClick={newScript}>
             <Plus size={14} weight="bold" /> New script
@@ -3508,283 +3350,6 @@ export default function Dispense() {
           free and the overview is worth having. */}
       <div className="disp-steps"><StepTrail steps={steps} /></div>
 
-      {route === "otc" ? (
-        <div className="disp-work">
-          {/* One column. It was a two-column grid because there was a second
-              column to hold; with the work alone, splitting it only made the
-              work narrower. */}
-          <div>
-            {/* NO NUMBERED HEADING.
-                "1 · Choose a pharmacy medicine" sat directly under a step chip
-                that already said "1 · Medicine", so the screen counted to one
-                twice before anybody could type. The chip is the step; this is
-                the work. */}
-            <div className="card sec sec-items" id="step-otc-medicine">
-              {/* WHAT IS BEING SOLD, once it is chosen.
-                  It used to be a highlighted row somewhere in a list of
-                  results, so the answer to "what am I selling" was a shade of
-                  grey a few rows down. Lifted out: the medicine, what it costs,
-                  what the shelf holds, and the way back to the search. */}
-              {otcProduct ? (
-                <div className="otc-chosen">
-                  <div className="otc-chosen-what">
-                    <b>{otcProduct.name} {otcProduct.strength}</b>
-                    <span className={`badge ${otcProduct.schedule > 0 ? "warn" : "muted"}`}>
-                      {schedCode(otcProduct.schedule)}
-                    </span>
-                  </div>
-                  <div className="otc-chosen-figs">
-                    <span>{money(otcProduct.unit_price)} each</span>
-                    <span>
-                      {otcProduct.here ?? otcProduct.quantity_on_hand} here
-                      {(otcProduct.here_undated ?? 0) > 0 && (
-                        <span className="stock-undated"> +{otcProduct.here_undated} undated</span>
-                      )}
-                    </span>
-                    {(() => {
-                      const m = shelfMargin(otcProduct.unit_price, otcProduct.cost_price);
-                      return m === null ? null : <MarginTag percent={m} compact />;
-                    })()}
-                  </div>
-                  <button type="button" className="linkish otc-chosen-change"
-                          onClick={() => { setOtcProduct(null); setOtcPackExpiry(""); setProductQ(""); }}>
-                    Change
-                  </button>
-                </div>
-              ) : (
-                <div className="lane-field otc-find">
-                  <input data-hk="product" type="search"
-                    aria-label={`Search ${counterCodes} medicines`}
-                    placeholder={`Search ${counterCodes} medicines…`} value={productQ}
-                    onChange={(e) => setProductQ(e.target.value)} />
-                  <MagnifyingGlass className="lane-icon" size={15} weight="bold"
-                                   aria-hidden="true" />
-                </div>
-              )}
-              {!otcProduct && productResults.map((p) => (
-                <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); setOtcLot(ROTATION); }}
-                  // Selected. A class, not an inline `background: "#fff"`.
-                  // That literal did not invert with the theme, so on the dark
-                  // counter the chosen medicine became near-white text on a
-                  // white block: the one row that was supposed to stand out
-                  // was the one row nobody could read. Neither colour check
-                  // could see it either, because both read stylesheets and
-                  // this was written into the element.
-                  className="product-pick">
-                  <span>
-                    <b>{p.name}</b> {p.strength}
-                    <span className={`badge ${p.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>
-                      {schedCode(p.schedule)}
-                    </span>
-                  </span>
-                  <span className="muted">
-                    {money(p.unit_price)}
-                    {(p.units_per_pack ?? 1) > 1
-                      && <> / {p.units_per_pack} = <b>{money(perUnit(p))}</b> each</>}
-                    {/* This branch's shelf, not the group's. It said
-                        `quantity_on_hand`, which is every branch added up, so
-                        the front shop read "40 on hand" and was refused with
-                        "not enough stock at this branch" — the same
-                        contradiction the prescription search had, on the same
-                        data, one tab across. */}
-                    {" · "}{p.here ?? p.quantity_on_hand} here
-                    {(p.here_undated ?? 0) > 0 && (
-                      <span className="stock-undated"
-                            title={`${p.here_undated} more here with no expiry recorded. `
-                              + "The sale asks for the date off the pack."}>
-                        {" "}+{p.here_undated} undated
-                      </span>
-                    )}
-                    {(() => {
-                      const m = shelfMargin(p.unit_price, p.cost_price);
-                      return m === null ? null : <MarginTag percent={m} compact />;
-                    })()}
-                  </span>
-                </div>
-              ))}
-              {otcPolicy && (
-                <div className={otcPolicy.counselling_required ? "error-banner" : "success-banner"} style={{ marginTop: 14 }}>
-                  <b>{otcPolicy.label}.</b> {otcPolicy.notes}
-                </div>
-              )}
-            </div>
-
-            <div className="card sec sec-patient" id="step-otc-record">
-              {/* NO VISIBLE LABELS ON THIS CARD.
-                  Each field says what it is in its own placeholder, which
-                  keeps the column edges straight and the card symmetrical.
-                  Every one keeps an aria-label: a placeholder is not a label
-                  to a screen reader, and dropping both would make the record
-                  unusable rather than merely plainer. */}
-              {/* WHO IS BEING SERVED, on one lane.
-                  The quantity left here: it belongs with the money at the
-                  foot, where it multiplies the price, not with the person. */}
-              <div className="otc-lane">
-                <div className="lane-field">
-                  <input value={customerName} aria-label="Customer"
-                         placeholder="Customer, if not a registered patient"
-                         onChange={(e) => setCustomerName(e.target.value)} />
-                  <UserCircle className="lane-icon" size={15} aria-hidden="true" />
-                </div>
-                {patient ? (
-                  <div className="lane-field is-picked otc-picked">
-                    <span className="dpp-who">
-                      {patient.first_name} {patient.last_name}
-                    </span>
-                    {patient.allergies && (
-                      <span className="badge danger">
-                        <Warning size={11} weight="fill" /> {patient.allergies}
-                      </span>
-                    )}
-                    <IconButton action="remove" onClick={() => setPatient(null)} />
-                  </div>
-                ) : (
-                  <div className="lane-field otc-patient">
-                    <input data-hk="patient" type="search" value={patientQ}
-                      aria-label="Patient"
-                      placeholder="Patient, if they are on file"
-                      onChange={(e) => setPatientQ(e.target.value)} />
-                    <MagnifyingGlass className="lane-icon" size={15} weight="bold"
-                                     aria-hidden="true" />
-                    {patients.map((p) => (
-                      <div key={p.id} className="product-pick otc-hit"
-                        onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); }}>
-                        <span>{p.last_name}, {p.first_name}</span>
-                        <span className="muted">{p.phone}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* THE CONSULTATION, AS ONE THING.
-                  The complaint, what was said about it and what was decided
-                  are one record: a pharmacist answering for this sale is
-                  answering for all three together. Loose in a column of
-                  identical boxes they read as four unrelated questions. */}
-              <div className="otc-consult">
-                <div className="otc-consult-head">The consultation</div>
-                <div className="lane-field">
-                  <input value={indication} aria-label="Complaint"
-                    onChange={(e) => setIndication(e.target.value)}
-                    placeholder="What did they come in for?" />
-                </div>
-              {/* The tick claims a conversation happened. Until now nothing
-                  on the screen said what that conversation should cover, which
-                  makes it a tick about the pharmacist's memory rather than
-                  about the medicine. */}
-              {otcProduct && (
-                <CounsellingPoints productId={otcProduct.id}
-                  name={`${otcProduct.name} ${otcProduct.strength ?? ""}`.trim()}
-                  compact />
-              )}
-                <div className="otc-ticks">
-                  <Checkbox checked={counselled} onChange={setCounselled}>Counselled on dose, duration and side effects</Checkbox>
-                  <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
-                </div>
-                <textarea rows={2} value={otcNotes} aria-label="Notes"
-                  className="otc-notes"
-                  placeholder="Anything else worth recording"
-                  onChange={(e) => setOtcNotes(e.target.value)} />
-              </div>
-              {/* Stock the shelf holds and the front shop cannot sell until
-                  somebody reads the date off the box. Asked here, with the pack
-                  in hand, rather than refused on the click as a shortage on a
-                  shelf the assistant can see is full. */}
-              {otcNeedsDate && (
-                <div className="otc-pack">
-                  <div className="otc-pack-what">
-                    <b>Expiry from the pack</b>
-                    <span className="muted small">
-                      {otcProduct?.here_undated} on the shelf here with no expiry
-                      recorded. Type the date printed on the box you are selling;
-                      it is kept against the stock, so nobody is asked again.
-                    </span>
-                    {otcPackExpiry && otcPackExpiry < localIsoDate() && (
-                      <span className="otc-pack-warn">
-                        <Warning size={12} weight="fill" /> That box has expired.
-                        Take another off the shelf.
-                      </span>
-                    )}
-                  </div>
-                  <input type="date" id="otc-pack-expiry" value={otcPackExpiry}
-                    aria-label={`Expiry printed on the pack of ${otcProduct?.name}`}
-                    onChange={(e) => setOtcPackExpiry(e.target.value)} />
-                </div>
-              )}
-              {/* WHICH LOT IS GOING OUT.
-                  Shut, it names the lot the rotation will take, which is worth
-                  saying on its own: the pack in somebody's hand and the pack
-                  the system records have never been checked against each other
-                  at this counter. Opened, it offers the others, and choosing
-                  one that is not the front lot asks why and then asks for a
-                  supervisor. */}
-              {otcProduct && (
-                <LotPicker productId={otcProduct.id} productName={otcProduct.name}
-                           value={otcLot} onChange={setOtcLot} />
-              )}
-              {/* THE MONEY, AS ONE LINE.
-                  How many, what it comes to, what they handed over. These were
-                  three boxes in three different places on the card, and the
-                  total was only ever visible inside the button. */}
-              <div className="otc-foot">
-                <label className="otc-foot-qty">
-                  <span>Qty</span>
-                  <input type="number" min={1} value={otcQty} aria-label="Quantity"
-                         onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
-                </label>
-                {/* Big only when there is a figure. An absence set in the
-                    size reserved for money shouts about nothing. */}
-                <div className="otc-foot-total">
-                  <span>To pay</span>
-                  {otcProduct
-                    ? <b>{money(otcTotal)}</b>
-                    : <em className="otc-foot-none">pick a medicine first</em>}
-                </div>
-                <label className="otc-foot-tendered">
-                  <span>Tendered</span>
-                  <input type="number" step="0.01" value={tendered}
-                         aria-label="Tendered"
-                         onChange={(e) => setTendered(e.target.value)} />
-                </label>
-              </div>
-              {/* Not disabled while a sale is in flight. The work is in the
-                  tray and the next customer can start, which is the whole
-                  point of clearing the counter on the click.
-                  The exception is a lot taken out of turn: that one waits for
-                  a supervisor with the counter still on screen, so the button
-                  has to say so rather than sit there looking ignored. */}
-              <button onClick={sellOtc}
-                disabled={!otcProduct || (otcPolicy?.counselling_required && !counselled)
-                          || !!otcPackProblem() || otcAuthorising}>
-                {otcAuthorising
-                  ? "Waiting for a supervisor…"
-                  : <>Sell &amp; record{otcProduct ? ` for ${money(otcTotal)}` : ""}</>}
-              </button>
-              {otcPolicy?.counselling_required && !counselled && (
-                <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                  Counselling must be confirmed before a pharmacy medicine can be handed over.
-                </div>
-              )}
-              {!!otcPackProblem() && (
-                <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
-                  {otcPackProblem()}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* The register is a screen, not a panel under the form.
-              A thirty-day copy sat here and its right-hand columns were cut
-              off by the worklist beside it, so the one column an inspector
-              asks about, who sold it, was the part you could not read. */}
-          <p className="muted small otc-register-link">
-            Every sale without a script is entered in the pharmacy-medicine
-            register as it is made.{" "}
-            <Link to="/register">Open the register</Link> to read it or print it.
-          </p>
-        </div>
-      ) : (
         <div className="rx-split">
           <div>
             {/* The controlled-substance notice, in the colour this product
@@ -3821,6 +3386,12 @@ export default function Dispense() {
                   <span className="badge sched">{schedCode(highestSchedule)}</span>
                 </div>
               )}
+              {/* Patient: asked for when a line needs a script.
+                  Somebody buying a cough syrup is not registered
+                  first, and the counter section below takes a
+                  walk-in name where one is wanted. */}
+              {needsScript && (
+              <>
               {patient ? (
                 <div className="lane-field is-picked disp-patient-picked">
                   <span className="dpp-who"
@@ -3921,6 +3492,8 @@ export default function Dispense() {
                   ))}
                 </>
               )}
+              </>
+              )}
               {/* The search moved up beside the patient and the prescriber.
                   All three are the same act. Saying what this script is for
                   and what is on it. And they were taking a heading and a row
@@ -3969,6 +3542,12 @@ export default function Dispense() {
               {/* The two halves of one question. Who is this for, and who
                   wrote it. A script has never had one without the other, and
                   they were taking a row each. */}
+              {/* Prescriber: only where there is a prescription.
+                  A counter sale has no prescriber, and asking for
+                  one was half the reason it needed a lane of its
+                  own. */}
+              {needsScript && (
+              <>
               {/* The prescriber, searched and listed like the patient and the
                   medicine. It was a dropdown whose list was a popover as narrow
                   as its own field, the one field on the lane that behaved
@@ -4054,7 +3633,60 @@ export default function Dispense() {
                   </div>
                 ));
               })()}
+              </>
+              )}
             </div>
+
+            {/* THE CONSULTATION, WHERE THE PATIENT AND PRESCRIBER WOULD BE.
+                Same slot, because it answers the same question: who is this
+                for, and on what authority. A script answers it with a doctor;
+                a counter sale answers it with a pharmacist's own record of
+                what was asked and what was said.
+
+                It was a separate lane behind a tab, which meant a dispenser
+                had to know before they started which kind of supply this was
+                going to be. It appears now because the basket has nothing in
+                it that needs a script. */}
+            {!needsScript && items.length > 0 && (
+              <div className="card sec sec-patient" id="step-counter">
+                <div className="otc-consult">
+                  <div className="otc-consult-head">The consultation</div>
+                  <div className="lane-field">
+                    <input value={indication} aria-label="Complaint"
+                      onChange={(e) => setIndication(e.target.value)}
+                      placeholder="What did they come in for?" />
+                  </div>
+                  {/* Who it is for, where somebody wants it recorded. A name
+                      rather than a patient record, because a walk-in is not
+                      registered and being made to register them is what sent
+                      counter sales to the till instead. */}
+                  <div className="lane-field">
+                    <input value={customerName} aria-label="Who it is for"
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Who it is for, if they gave a name" />
+                  </div>
+                  {/* The tick claims a conversation happened. The points say
+                      what that conversation should cover, so it is a tick
+                      about the medicine rather than about somebody's memory. */}
+                  {items.length === 1 && (
+                    <CounsellingPoints productId={items[0].product.id}
+                      name={lineName(items[0].product)} compact />
+                  )}
+                  <div className="otc-ticks">
+                    <Checkbox checked={counselled} onChange={setCounselled}>
+                      Counselled on dose, duration and side effects
+                    </Checkbox>
+                    <Checkbox checked={referred} onChange={setReferred}>
+                      Referred to a doctor
+                    </Checkbox>
+                  </div>
+                  <textarea rows={2} value={otcNotes} aria-label="Notes"
+                    className="otc-notes"
+                    placeholder="Anything else worth recording"
+                    onChange={(e) => setOtcNotes(e.target.value)} />
+                </div>
+              </div>
+            )}
 
             <div className="card sec sec-items" id="step-items">
               {/* The end of the search is the beginning of the work, the same
@@ -4583,7 +4215,7 @@ export default function Dispense() {
                             onMouseLeave={() => setTip(null)}>
                         {editingCell(it, "medicine") ? (
                           <CellMedicineSearch
-                            route={route}
+                            route=""
                             current={lineName(it.product)}
                             takenIds={items.map((x) => x.product.id)}
                             onPick={(p) => swapProduct(idx, p)}
@@ -4792,7 +4424,7 @@ ${d.action}`}
                     <span className="rx-item-name is-editing">
                       <CellMedicineSearch
                         adding
-                        route={route}
+                        route=""
                         current="Search for a medicine"
                         takenIds={items.map((x) => x.product.id)}
                         onPick={(p) => { setNewLine(false); addItem(p); }}
@@ -5853,7 +5485,7 @@ ${d.action}`}
             {unknownCode && (
               <AttachBarcode
                 code={unknownCode}
-                route={route}
+                route=""
                 onClose={() => setUnknownCode("")}
                 onAttached={(product) => {
                   // Straight onto the script, as though it had been recognised:
@@ -6104,7 +5736,6 @@ ${d.action}`}
               already lived, and clicking one loads it into the form on the left
 . Through the safety check, where the initials are captured. */}
         </div>
-      )}
 
       {/* THE REGISTER LIVES ON ITS OWN SCREEN.
           A ninety-day copy of the dangerous drugs register used to sit here
@@ -6191,7 +5822,6 @@ ${d.action}`}
           // dispenser's back. A repeat still needs a safety check and a
           // pharmacist's initials; the shortcut this replaces skipped both and
           // was rejected by the server for exactly that reason.
-          goToRoute("script");
           if (row.doctor_id) setDoctorId(row.doctor_id);
           api.get<Patient>(`/api/patients/${row.patient_id}`)
             .then((p) => { setPatient(p); setPatientQ(""); })

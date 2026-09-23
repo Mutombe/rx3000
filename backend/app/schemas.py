@@ -730,11 +730,35 @@ class SchedulePolicyOut(BaseModel):
     notes: str
 
 
-class OTCSaleCreate(BaseModel):
+class OTCLine(BaseModel):
+    """One medicine on a counter sale."""
     product_id: int
     quantity: int = 1
     # The expiry printed on the pack, when this can only go out from stock with
     # no expiry recorded. Same question the dispensary and the till both ask.
+    pack_expiry: Optional[date] = None
+    #: A lot named at the shelf, to be taken ahead of the rotation.
+    batch_id: Optional[int] = None
+    batch_reason: str = ""
+    batch_note: str = ""
+
+
+class OTCSaleCreate(BaseModel):
+    """A counter sale: one consultation, one payment, one or more medicines.
+
+    It took a single `product_id`, because the screen that posted it was a
+    one-medicine lane sitting behind its own tab. With the tabs gone the
+    counter sale is the same basket as everything else, and a customer buying
+    paracetamol and a cough syrup together is one consultation and one payment,
+    not two sales that happen to be seconds apart.
+
+    The single-product fields are still accepted and are folded into a one-line
+    basket, so nothing that already posts this keeps working by accident rather
+    than on purpose.
+    """
+    lines: list[OTCLine] = []
+    product_id: Optional[int] = None
+    quantity: int = 1
     pack_expiry: Optional[date] = None
     patient_id: Optional[int] = None
     customer_name: str = ""
@@ -768,6 +792,19 @@ class OTCSaleOut(ORM):
     product: Optional[ProductOut] = None
     patient: Optional[PatientOut] = None
     pharmacist: Optional[UserOut] = None
+
+
+class OTCSaleResult(BaseModel):
+    """What a counter sale produced: one payment, and its register rows.
+
+    The endpoint used to return the single `OTCSale` row it had just written,
+    which stopped being a whole answer the moment a sale could hold more than
+    one medicine.
+    """
+    sale_id: int
+    total: float
+    change_due: float
+    records: list[OTCSaleOut]
 
 
 class DispensingOut(ORM):

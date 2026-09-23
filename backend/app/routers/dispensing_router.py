@@ -238,38 +238,71 @@ def _stock_here(db: Session, product_ids: list[int], branch_id: int) -> dict:
 
 
 # ---------- OTC / pharmacy medicine ----------
-@router.post("/otc", response_model=schemas.OTCSaleOut)
+@router.post("/otc", response_model=schemas.OTCSaleResult)
 def otc_sale(
     body: schemas.OTCSaleCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     x_step_up: str = Header(default=""),
 ):
-    """Sell a pharmacy medicine over the counter and record the consultation."""
-    product = db.get(Product, body.product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    helpers.refuse_if_retired(product, "handed over the counter")
+    """Sell pharmacy medicines over the counter and record the consultation.
 
-    policy = schedule_policy.policy_for(product.schedule)
-    if policy.route != "otc":
-        raise HTTPException(
-            status_code=400,
-            detail=f"{product.name} is {policy.label}. It requires a prescription and cannot be "
-                   "sold over the counter.",
-        )
-    if policy.requires_pharmacist and user.role not in ("pharmacist", "admin"):
-        raise HTTPException(
-            status_code=403,
-            detail=f"{policy.label} must be handed over by a pharmacist.",
-        )
-    if policy.counselling_required and not body.counselling_given:
-        raise HTTPException(
-            status_code=400,
-            detail=f"{policy.label} requires the patient to be counselled before hand-over.",
-        )
-    if body.quantity < 1:
-        raise HTTPException(status_code=400, detail="Quantity must be at least 1")
+    ONE SALE, NOT ONE MEDICINE. This took a single product because the screen
+    behind it was a one-medicine lane with its own tab. A customer buying
+    paracetamol and a cough syrup is one consultation and one payment, and
+    writing it as two sales seconds apart made the register read as two
+    consultations and the cash-up as two transactions.
+
+    Every line is checked against the jurisdiction pack before anything moves,
+    so a basket with one prescription medicine in it is refused whole rather
+    than half sold.
+    """
+    lines = list(body.lines)
+    if not lines and body.product_id:
+        # The single-product form, folded into a one-line basket.
+        lines = [schemas.OTCLine(
+            product_id=body.product_id, quantity=body.quantity,
+            pack_expiry=body.pack_expiry, batch_id=body.batch_id,
+            batch_reason=body.batch_reason, batch_note=body.batch_note)]
+    if not lines:
+        raise HTTPException(status_code=400, detail="Nothing to sell")
+
+    # ---- every refusal first, before the shelf is touched -------------------
+    #
+    # Gathered over the whole basket rather than line by line inside the loop
+    # that moves stock: a basket that fails on its third line must not have
+    # sold the first two.
+    basket: list[tuple[schemas.OTCLine, Product]] = []
+    for line in lines:
+        product = db.get(Product, line.product_id)
+        if not product:
+            raise HTTPException(status_code=404,
+                                detail=f"Product {line.product_id} not found")
+        helpers.refuse_if_retired(product, "handed over the counter")
+        if line.quantity < 1:
+            raise HTTPException(status_code=400,
+                                detail=f"{product.name}: quantity must be at least 1")
+
+        policy = schedule_policy.policy_for(product.schedule)
+        if policy.route != "otc":
+            raise HTTPException(
+                status_code=400,
+                detail=f"{product.name} is {policy.label}. It requires a "
+                       "prescription and cannot be sold over the counter.",
+            )
+        if policy.requires_pharmacist and user.role not in ("pharmacist", "admin"):
+            raise HTTPException(
+                status_code=403,
+                detail=f"{product.name} ({policy.label}) must be handed over "
+                       "by a pharmacist.",
+            )
+        if policy.counselling_required and not body.counselling_given:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{product.name} ({policy.label}) requires the patient "
+                       "to be counselled before hand-over.",
+            )
+        basket.append((line, product))
 
     shift = shifts_router.current_open_shift(db, user.id)
     sale = Sale(
@@ -281,73 +314,89 @@ def otc_sale(
     db.add(sale)
     db.flush()
 
-    # PRICED PER UNIT, BECAUSE THE QUANTITY IS IN UNITS.
-    #
-    # `unit_price` is what a PACK sells for and `cost_price` is what a PACK
-    # cost, while `body.quantity` counts dispensable units: the FEFO call
-    # below omits `in_packs`, so selling "2" takes two tablets off the shelf.
-    # Charging the pack price for each of them billed a customer 12.50 for two
-    # tablets out of a box of a hundred, and filed a cost of 12.50 against
-    # them, which then flowed into every margin the line appears in.
-    #
-    # The quantity is left meaning units rather than being switched to packs.
-    # Everything else on this screen already treats it that way, including the
-    # expiry check and the stock check, and the shelf is already reduced
-    # correctly. Only the money was wrong, and this is the half that was wrong.
-    each = product.per_unit()
-    line_total = round(each * body.quantity, 2)
-    line_ex = round(line_total / (1 + product.vat_rate), 2)
-    sale_item = SaleItem(
-        sale_id=sale.id, product_id=product.id,
-        description=f"{product.name} {product.strength}".strip(),
-        quantity=body.quantity, unit_price=each,
-        unit_cost=product.unit_cost(),
-        vat_rate=product.vat_rate, line_total=line_total,
-    )
-    db.add(sale_item)
-    db.flush()
+    branch_id = _branch_of(db, user)
+    records: list[OTCSale] = []
+    total = 0.0
+    total_ex = 0.0
 
-    # The date the assistant read off the pack, onto the shelf before the sale
-    # draws from it. Without this an opening count with no expiry dates leaves
-    # the front shop unable to sell anything at all.
-    pack_dates.apply(db, _branch_of(db, user), user.id, {product.id: product},
-                     {product.id: body.pack_expiry} if body.pack_expiry else None)
-    # Settled before the shelf is touched, so every refusal leaves the stock
-    # where it was.
-    prefer, why_taken = fefo.authorise(
-        db, product=product, batch_id=body.batch_id,
-        branch_id=_branch_of(db, user),
-        reason=body.batch_reason, note=body.batch_note,
-        user=user, token=x_step_up)
-    helpers.consume_stock_fefo(
-        db, product, body.quantity, "sale", user.id,
-        reference=sale.sale_number, sale_item_id=sale_item.id,
-        prefer_batch_id=prefer, override_note=why_taken,
-    )
-    sale.subtotal = line_ex
-    sale.vat_amount = round(line_total - line_ex, 2)
-    sale.total = line_total
+    for line, product in basket:
+        # PRICED PER UNIT, BECAUSE THE QUANTITY IS IN UNITS.
+        #
+        # `unit_price` is what a PACK sells for and `cost_price` is what a PACK
+        # cost, while the quantity counts dispensable units: the FEFO call
+        # below omits `in_packs`, so selling "2" takes two tablets off the
+        # shelf. Charging the pack price for each of them billed a customer
+        # 12.50 for two tablets out of a box of a hundred, and filed a cost of
+        # 12.50 against them, which then flowed into every margin the line
+        # appears in.
+        each = product.per_unit()
+        line_total = round(each * line.quantity, 2)
+        line_ex = round(line_total / (1 + product.vat_rate), 2)
+        sale_item = SaleItem(
+            sale_id=sale.id, product_id=product.id,
+            description=f"{product.name} {product.strength}".strip(),
+            quantity=line.quantity, unit_price=each,
+            unit_cost=product.unit_cost(),
+            vat_rate=product.vat_rate, line_total=line_total,
+        )
+        db.add(sale_item)
+        db.flush()
+
+        # The date the assistant read off the pack, onto the shelf before the
+        # sale draws from it. Without this an opening count with no expiry
+        # dates leaves the front shop unable to sell anything at all.
+        pack_dates.apply(db, branch_id, user.id, {product.id: product},
+                         {product.id: line.pack_expiry} if line.pack_expiry else None)
+        # Settled before the shelf is touched, so every refusal leaves the
+        # stock where it was.
+        prefer, why_taken = fefo.authorise(
+            db, product=product, batch_id=line.batch_id,
+            branch_id=branch_id,
+            reason=line.batch_reason, note=line.batch_note,
+            user=user, token=x_step_up)
+        helpers.consume_stock_fefo(
+            db, product, line.quantity, "sale", user.id,
+            reference=sale.sale_number, sale_item_id=sale_item.id,
+            prefer_batch_id=prefer, override_note=why_taken,
+        )
+
+        total += line_total
+        total_ex += line_ex
+        # One register row per medicine. The consultation is shared, because
+        # there was one: the indication, the counselling and the referral
+        # belong to the customer standing there, not to each box.
+        records.append(OTCSale(
+            product_id=product.id, quantity=line.quantity,
+            schedule=product.schedule or 0,
+            patient_id=body.patient_id, customer_name=body.customer_name,
+            pharmacist_id=user.id, indication=body.indication,
+            counselling_given=body.counselling_given,
+            referred_to_doctor=body.referred_to_doctor,
+            notes=body.notes, sale_id=sale.id,
+        ))
+
+    sale.subtotal = round(total_ex, 2)
+    sale.total = round(total, 2)
+    sale.vat_amount = round(sale.total - sale.subtotal, 2)
     sale.payment_method = body.payment_method
     if body.payment_method == "cash":
         if body.amount_tendered + 0.005 < sale.total:
-            raise HTTPException(status_code=400, detail="Amount tendered is less than the total")
+            raise HTTPException(status_code=400,
+                                detail="Amount tendered is less than the total")
         sale.amount_tendered = body.amount_tendered
         sale.change_due = round(body.amount_tendered - sale.total, 2)
     else:
         sale.amount_tendered = sale.total
+        sale.change_due = 0.0
     sale.status = "paid"
 
-    record = OTCSale(
-        product_id=product.id, quantity=body.quantity, schedule=product.schedule or 0,
-        patient_id=body.patient_id, customer_name=body.customer_name,
-        pharmacist_id=user.id, indication=body.indication,
-        counselling_given=body.counselling_given, referred_to_doctor=body.referred_to_doctor,
-        notes=body.notes, sale_id=sale.id,
-    )
-    db.add(record)
+    for record in records:
+        db.add(record)
     db.commit()
-    db.refresh(record)
-    return record
+    for record in records:
+        db.refresh(record)
+    return {"sale_id": sale.id, "total": sale.total,
+            "change_due": sale.change_due or 0.0, "records": records}
 
 
 def _otc_query(db: Session, days: int, schedule: int | None):

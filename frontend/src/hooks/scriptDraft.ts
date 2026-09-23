@@ -46,7 +46,14 @@ export interface ScriptDraft<Item> {
   userId: number | null;
   patient: unknown | null;
   doctorId: number | "";
-  route: string;
+  /** Which lane the draft was started in.
+   *
+   *  Kept optional so a draft written before the dispensary tabs were removed
+   *  still parses. It is no longer read: what the screen becomes is worked out
+   *  from the medicines in the basket, so there is nothing for a restored lane
+   *  to disagree with.
+   */
+  route?: string;
   quoting: boolean;
   items: Item[];
 }
