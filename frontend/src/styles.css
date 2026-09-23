@@ -13135,7 +13135,13 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
           min-width: 0; max-width: 100%; }
 .cl-doc > a, .cl-doc > b { overflow: hidden; text-overflow: ellipsis;
                            white-space: nowrap; }
-.cl-critical { flex: none; }
+/* A mark rather than a sentence. "Closes the shop" as a badge cost the
+   document column its name on one side and stacked a second badge under the
+   standing on the other; both times the row grew to carry five words that are
+   true of the same three licences on every branch. Eight pixels, and the words
+   on hover. */
+.cl-dot { flex: none; width: 8px; height: 8px; border-radius: 50%;
+          background: var(--danger); align-self: center; }
 .cl-issuer { display: block; overflow: hidden; text-overflow: ellipsis;
              white-space: nowrap; }
 /* The countdown sits beside the state rather than under it. Two lines in a
@@ -13149,7 +13155,10 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    there was a search box and a running total, which together can only confirm
    a line somebody has already thought of. */
 .st-progress { height: 6px; border-radius: 3px; background: var(--line);
-               overflow: hidden; margin: var(--s3) 0; }
+               overflow: hidden; margin: var(--s3) 0;
+               /* Inset so an empty track reads as a container waiting to fill
+                  rather than as a rule across the card. */
+               box-shadow: inset 0 1px 2px rgba(0, 0, 0, .10); }
 .st-progress-done { height: 100%; background: var(--ok);
                     transition: width .3s ease; }
 
@@ -13164,4 +13173,24 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
                  text-align: left; font: inherit; color: inherit; }
 .st-shelf-head:hover { background: var(--surface); }
 .st-shelf-head[aria-expanded="true"] { border-bottom: 1px solid var(--line); }
-.st-shelf-lines { margin: 0; max-height: 40vh; overflow-y: auto; }
+/* The lines under a shelf are the things you tap, so they have to look it.
+   They rendered as plain rows flush against their shelf header, which read as
+   a paragraph of names rather than a list of four jobs. Indented so they are
+   visibly INSIDE the shelf, and each one shows its own hover. */
+.st-shelf-lines { margin: 0; max-height: 40vh; overflow-y: auto;
+                  padding-left: var(--s3); }
+.st-shelf-lines li { border-bottom: 1px solid var(--line-soft); }
+.st-shelf-lines li:last-child { border-bottom: 0; }
+.st-shelf-lines button { display: flex; align-items: baseline; gap: var(--s2);
+                         border-radius: 0; padding: var(--s2) var(--s3); }
+/* The affordance a list of tappable rows needs: something that moves. The
+   caret appears on hover rather than sitting on every row, because four
+   carets down a shelf is decoration and one under the thumb is a signal. */
+.st-shelf-lines button::after {
+  content: "A"; margin-left: auto; opacity: 0; color: var(--ink-faint);
+  transition: opacity .15s ease, transform .15s ease; transform: translateX(-4px);
+}
+.st-shelf-lines button:hover::after,
+.st-shelf-lines button:focus-visible::after { opacity: 1; transform: none; }
+.st-noshelf { padding: var(--s2) var(--s3); margin: 0;
+              border-bottom: 1px solid var(--line-soft); }

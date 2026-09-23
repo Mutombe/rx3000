@@ -81,12 +81,14 @@ interface CountReply {
  *  read off it: handing the counter the answer while they are holding the box
  *  is the one thing this page must never do.
  */
+const NO_SHELF = "no shelf recorded";
+
 function shelvesLeft(sheet: Sheet | null): { bin: string; lines: SheetLine[] }[] {
   if (!sheet) return [];
   const byBin = new Map<string, SheetLine[]>();
   for (const line of sheet.lines) {
     if (line.counted !== null) continue;
-    const where = line.bin || "no shelf recorded";
+    const where = line.bin || NO_SHELF;
     const rows = byBin.get(where);
     if (rows) rows.push(line); else byBin.set(where, [line]);
   }
@@ -95,8 +97,8 @@ function shelvesLeft(sheet: Sheet | null): { bin: string; lines: SheetLine[] }[]
   // walking to.
   return [...byBin.entries()]
     .map(([bin, lines]) => ({ bin, lines }))
-    .sort((a, b) => (a.bin === "no shelf recorded" ? 1
-      : b.bin === "no shelf recorded" ? -1 : b.lines.length - a.lines.length));
+    .sort((a, b) => (a.bin === NO_SHELF ? 1
+      : b.bin === NO_SHELF ? -1 : b.lines.length - a.lines.length));
 }
 
 export default function StockTake() {
@@ -501,7 +503,7 @@ export default function StockTake() {
                 <h3>Still to count</h3>
                 <span className="muted small">
                   {sheet?.outstanding} line{sheet?.outstanding === 1 ? "" : "s"} across{" "}
-                  {shelves.length} shelf{shelves.length === 1 ? "" : "s"}
+                  {shelves.length === 1 ? "one shelf" : `${shelves.length} shelves`}
                 </span>
               </div>
               <div className="st-shelves">
@@ -516,6 +518,14 @@ export default function StockTake() {
                         {shelf.lines.length} to count
                       </span>
                     </button>
+                    {walking === shelf.bin && shelf.bin === NO_SHELF && (
+                      <p className="muted small st-noshelf">
+                        These are not on any shelf on record, so they cannot be
+                        walked to. Counting them means finding them. Setting a
+                        bin location on each one turns this pile into a round
+                        somebody can do in order.
+                      </p>
+                    )}
                     {walking === shelf.bin && (
                       <ul className="st-results st-shelf-lines">
                         {shelf.lines.map((line) => (

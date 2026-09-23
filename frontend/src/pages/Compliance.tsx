@@ -286,12 +286,16 @@ export default function Compliance() {
                             of four branches taller than the screen and told
                             nobody anything faster. It is on the hover, and in
                             full on the branch itself. */}
-                        <span className={`badge ${VERDICT[b.verdict] ?? "muted"}`}>
+                        {/* The badge, and nothing under it. Clamping the
+                            sentence to two lines still left every row three
+                            lines tall for prose that is word for word the same
+                            on each branch, and the two columns beside it carry
+                            the facts it was restating. On the hover, and in
+                            full on the branch. */}
+                        <span className={`badge ${VERDICT[b.verdict] ?? "muted"}`}
+                              title={b.says}>
                           {b.verdict}
                         </span>
-                        <div className="muted small cp-says" title={b.says}>
-                          {b.says}
-                        </div>
                       </td>
                       <td className="num">
                         {b.expired || <span className="muted">none</span>}
@@ -376,18 +380,28 @@ export default function Compliance() {
                           where somebody goes when they want to know why the
                           licence exists rather than whether it is current. */}
                       <td title={d.why}>
+                        {/* The name gets the column to itself.
+                            The critical badge sat beside it as a flex sibling
+                            that would not shrink, so on a real register the
+                            names read "MCA...", "Resp...", "Dang..." and the
+                            one thing somebody scans the column for was the
+                            part that had been cut. It is a fact about
+                            STANDING, so it now sits with the standing. */}
                         <span className="cl-doc">
+                          {d.critical && (
+                            <span className="cl-dot" aria-hidden="true"
+                                  title="The shop cannot trade without this one" />
+                          )}
                           {d.id
                             ? <Link to={`/compliance/documents/${d.id}`}><b>{d.name}</b></Link>
                             : <b>{d.name}</b>}
-                          {d.critical && (
-                            // An icon, not a sentence. The row is already
-                            // flagged red; this says which flag it is.
-                            <span className="badge bad cl-critical"
-                                  title="The shop closes without it">closes the shop</span>
-                          )}
                         </span>
                         <span className="muted small cl-issuer">
+                          {d.critical && (
+                            <span className="sr-only">
+                              The shop cannot trade without this one.{" "}
+                            </span>
+                          )}
                           {d.issuer || d.expected_issuer}
                         </span>
                       </td>
@@ -395,6 +409,7 @@ export default function Compliance() {
                         <span className={`badge ${TONE[d.state] ?? "muted"}`}>
                           {SAYS[d.state] ?? d.state}
                         </span>
+
                         {d.days_left !== null && (
                           <span className="muted small cl-days">
                             {d.days_left < 0
@@ -403,12 +418,18 @@ export default function Compliance() {
                           </span>
                         )}
                       </td>
+                      {/* THREE COLUMNS THAT ALL SAID "none".
+                          One word repeated across a row says only that the
+                          row is empty; each of these is a different job
+                          somebody has not done, and naming the job is what
+                          turns the register into a list of things to do. */}
                       <td className="mono small">
-                        {d.reference || <span className="muted">none</span>}
+                        {d.reference
+                          || <span className="muted">no number</span>}
                       </td>
                       <td>
                         {d.expires_on ? fmtDate(d.expires_on)
-                          : <span className="muted">none</span>}
+                          : <span className="muted">no expiry</span>}
                       </td>
                       <td>
                         {d.has_file ? (
@@ -428,8 +449,8 @@ export default function Compliance() {
                             <FileText size={13} /> {d.file_name || "open"}
                           </button>
                         ) : d.id ? (
-                          <span className="muted small">details only</span>
-                        ) : <span className="muted">none</span>}
+                          <span className="muted small">not scanned</span>
+                        ) : <span className="muted">not scanned</span>}
                       </td>
                       <td className="actions">
                         <button className="btn ghost sm"
