@@ -79,8 +79,14 @@ export default function WillCall() {
    *  the rows to the band, using the same table it counts from, so the two
    *  cannot disagree.
    */
+  /* 200, because that is the ceiling and asking for more is not honest.
+     RequestSizeLimit clamps every `limit` in the product to MAX_PER_PAGE to
+     stop one request asking for a hundred thousand rows. This asked for 400,
+     was quietly cut to 200, and then showed 200 of 645 while the tile above
+     said 645 — the request looked generous and the screen was short, with
+     nothing saying which. */
   const load = useCallback(() =>
-    api.get<Shelf>(`/api/dispensing/will-call?limit=400${
+    api.get<Shelf>(`/api/dispensing/will-call?limit=200${
       band ? `&band=${encodeURIComponent(band)}` : ""}`)
       .then((s) => { setShelf(s); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "The shelf could not be read."))),
@@ -220,6 +226,19 @@ export default function WillCall() {
             <TableSearch value={q} onChange={setQ}
                          placeholder="Find a patient, a phone number or a medicine…"
                          shown={rows.length} total={all.length} />
+            {/* THE SHELF IS LONGER THAN THE PAGE, AND IT SAYS SO.
+                A list that stops at 200 without a word reads as the whole
+                shelf, and the tiles above it say 645. The bands and the search
+                are how somebody reaches the rest, so the line that admits the
+                limit is also the line that points at the way round it. */}
+            {shelf?.more && (
+              <p className="muted small wc-more">
+                Showing the oldest {all.length} of{" "}
+                {band ? `${shelf.bands?.[band] ?? "more"} in this band`
+                      : `${shelf.total} on the shelf`}.
+                Press a band above, or search, to reach the rest.
+              </p>
+            )}
             <div className="dt-scroll">
               <table className="dt dt-wide">
                 <thead>

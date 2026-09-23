@@ -3568,19 +3568,24 @@ export default function Dispense() {
             </div>
 
             <div className="card sec sec-patient" id="step-otc-record">
+              {/* NO VISIBLE LABELS ON THIS CARD.
+                  Each field says what it is in its own placeholder, which
+                  keeps the column edges straight and the card symmetrical.
+                  Every one keeps an aria-label: a placeholder is not a label
+                  to a screen reader, and dropping both would make the record
+                  unusable rather than merely plainer. */}
               <div className="form-row">
-                <div className="field" style={{ maxWidth: 110 }}>
-                  <label>Quantity</label>
-                  <input type="number" min={1} value={otcQty} onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
+                <div className="field">
+                  <input type="number" min={1} value={otcQty} aria-label="Quantity"
+                         onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
                 </div>
                 <div className="field">
-                  <label>Customer</label>
-                  <input value={customerName} placeholder="if not a registered patient"
+                  <input value={customerName} aria-label="Customer"
+                         placeholder="Customer, if not a registered patient"
                          onChange={(e) => setCustomerName(e.target.value)} />
                 </div>
               </div>
               <div className="field">
-                <label>Patient</label>
                 {patient ? (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <b>{patient.first_name} {patient.last_name}</b>
@@ -3590,7 +3595,8 @@ export default function Dispense() {
                 ) : (
                   <>
                     <input data-hk="patient" type="search" value={patientQ}
-                      placeholder="search by name, optional"
+                      aria-label="Patient"
+                      placeholder="Patient, search by name (optional)"
                       onChange={(e) => setPatientQ(e.target.value)} />
                     {patients.map((p) => (
                       <div key={p.id} className="product-pick"
@@ -3603,9 +3609,9 @@ export default function Dispense() {
                 )}
               </div>
               <div className="field">
-                <label>Complaint</label>
-                <input value={indication} onChange={(e) => setIndication(e.target.value)}
-                  placeholder="e.g. Headache for 2 days, no red flags" />
+                <input value={indication} aria-label="Complaint"
+                  onChange={(e) => setIndication(e.target.value)}
+                  placeholder="Complaint, e.g. headache for 2 days, no red flags" />
               </div>
               {/* The tick claims a conversation happened. Until now nothing
                   on the screen said what that conversation should cover, which
@@ -3618,8 +3624,10 @@ export default function Dispense() {
               )}
               <Checkbox checked={counselled} onChange={setCounselled}>Patient counselled on dose, duration and side effects</Checkbox>
               <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
-              <div className="field"><label>Notes</label>
-                <textarea rows={2} value={otcNotes} onChange={(e) => setOtcNotes(e.target.value)} /></div>
+              <div className="field">
+                <textarea rows={2} value={otcNotes} aria-label="Notes"
+                  placeholder="Notes, anything worth recording about this sale"
+                  onChange={(e) => setOtcNotes(e.target.value)} /></div>
               {/* Stock the shelf holds and the front shop cannot sell until
                   somebody reads the date off the box. Asked here, with the pack
                   in hand, rather than refused on the click as a shortage on a
@@ -3658,8 +3666,9 @@ export default function Dispense() {
               )}
               <div className="form-row">
                 <div className="field">
-                  <label>Tendered</label>
-                  <input type="number" step="0.01" value={tendered} onChange={(e) => setTendered(e.target.value)} />
+                  <input type="number" step="0.01" value={tendered}
+                         aria-label="Tendered" placeholder="Tendered"
+                         onChange={(e) => setTendered(e.target.value)} />
                 </div>
               </div>
               {/* Not disabled while a sale is in flight. The work is in the
