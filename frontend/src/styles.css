@@ -12991,3 +12991,57 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   /* The answer goes under the question rather than beside it. */
   .qp { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- THE OVER-THE-COUNTER CONSULTATION RECORD ----------
+   The dispensary's dense form puts a label right-aligned in a narrow gutter
+   beside its input. That is right where a row is one short value and there
+   are many of them; on this card it was wrong. Quantity sat next to Customer
+   with two different label widths, the gutter squeezed "Complaint" against
+   the field, and the whole record read as crowded into the middle of the
+   screen.
+
+   Each field gets its own line here, with the label above it in the same
+   micro-caps this product uses on every record header. The labels stay:
+   a placeholder disappears the moment somebody types, and a dispenser
+   interrupted mid-entry should not have to guess which box they were in. */
+#step-otc-record .field {
+  display: block;
+  /* Room above as well as below: a micro-caps label sitting hard under the
+     field before it reads as that field's hint rather than the next one's
+     name, which is the whole risk of putting labels above inputs. */
+  margin: 0 0 var(--s4);
+}
+#step-otc-record .form-row + .field,
+#step-otc-record .field + .field { margin-top: var(--s3); }
+/* The two ticks are a statement, not a field, so they get their own air. */
+#step-otc-record .inline-check,
+#step-otc-record label.inline-check { margin-bottom: var(--s2); }
+#step-otc-record .inline-check + .field { margin-top: var(--s4); }
+#step-otc-record .field > label {
+  display: block; grid-column: auto; text-align: left;
+  margin: 0 0 3px; font-size: .62rem; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--ink-faint); font-weight: 600;
+  white-space: normal; overflow: visible;
+}
+#step-otc-record .field > *:not(label) { grid-column: auto; width: 100%; }
+#step-otc-record .field .hint, #step-otc-record .field .err { grid-column: auto; }
+/* Quantity and Customer share a row, but on their own terms: the quantity is
+   a number a few characters wide and the customer is a name. */
+#step-otc-record .form-row {
+  display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: var(--s3);
+}
+/* `.form-row > .field` spans six of the base twelve columns, so inside a
+   two-column grid each field claimed six tracks and wrapped onto its own
+   row. The children take one track each here. */
+#step-otc-record .form-row > .field {
+  grid-column: auto; margin-bottom: 0; max-width: none !important;
+}
+
+/* The rule that changes what a dispenser does next, and nothing else. */
+.dd-rule {
+  display: flex; align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3);
+}
+.dd-rule svg { flex: 0 0 auto; color: var(--warn); }
+/* The register lives on its own screen; this is the way to it. */
+.dd-register-link, .otc-register-link { margin: var(--s3) 0 0; }

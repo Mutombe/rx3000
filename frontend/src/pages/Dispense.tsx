@@ -70,7 +70,7 @@ import AlterScript from "../components/AlterScript";
 import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
-import { useScheduleCodes } from "../schedules";
+import { scheduleCode, useScheduleCodes } from "../schedules";
 import DriverForm from "../components/DriverForm";
 
 type Route = "prescription" | "controlled" | "otc";
@@ -248,7 +248,10 @@ const ROUTE_TABS: {
   //
   // It reads the same capability the endpoint checks rather than a second rule
   // written to look similar, which is how the two come to disagree.
-  { key: "controlled", label: "Dangerous Drugs (S5-S6)", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" , tab: "Dangerous Drugs"},
+  // The route, not the schedules. The label named two South African
+  // codes on a Zimbabwean screen, and the badge on the lane already
+  // says which schedules this tab is for in this country's own words.
+  { key: "controlled", label: "Dangerous Drugs", hint: "Controlled substances, full compliance record required", needs: "dispense.controlled" , tab: "Dangerous Drugs"},
   // A cashier's whole reason to be on this screen, and the only route they have
   // by default. It carried no capability at all, which made it the one tab
   // nobody could be refused — including the people who should be.
@@ -3474,8 +3477,12 @@ export default function Dispense() {
               column to hold; with the work alone, splitting it only made the
               work narrower. */}
           <div>
+            {/* NO NUMBERED HEADING.
+                "1 · Choose a pharmacy medicine" sat directly under a step chip
+                that already said "1 · Medicine", so the screen counted to one
+                twice before anybody could type. The chip is the step; this is
+                the work. */}
             <div className="card sec sec-items" id="step-otc-medicine">
-              <h3>1 · Choose a pharmacy medicine</h3>
               {/* WHAT IS BEING SOLD, once it is chosen.
                   It used to be a highlighted row somewhere in a list of
                   results, so the answer to "what am I selling" was a shade of
@@ -3561,7 +3568,6 @@ export default function Dispense() {
             </div>
 
             <div className="card sec sec-patient" id="step-otc-record">
-              <h3>2 · Consultation record</h3>
               <div className="form-row">
                 <div className="field" style={{ maxWidth: 110 }}>
                   <label>Quantity</label>
@@ -3682,66 +3688,15 @@ export default function Dispense() {
             </div>
           </div>
 
-          <div className="card">
-            <h3>Pharmacy-medicine register (30 days)</h3>
-            <table>
-              {/* Sized so the whole register fits without scrolling sideways.
-                  A table you have to drag to read is a table nobody reads the
-                  right-hand end of, and the right-hand end here is who sold it
-. Which is the column an inspector asks about. */}
-              <colgroup>
-                <col style={{ width: "8.5rem" }} />
-                <col style={{ width: "22%" }} />
-                <col style={{ width: "14%" }} />
-                <col />
-                <col style={{ width: "9rem" }} />
-              </colgroup>
-              <thead><tr><th>When</th><th>Medicine</th><th>Customer</th><th>Indication</th><th>Sold by</th></tr></thead>
-              <tbody>
-                {otcLog.map((r) => (
-                  <tr key={r.id}>
-                    <td className="nowrap">{fmtWhen(r.created_at)}</td>
-                    <td>
-                      <EntityLink kind="product" id={r.product_id}><b>{r.product?.name}</b></EntityLink> ×{r.quantity}
-                      <span className={`badge ${r.schedule > 0 ? "warn" : "muted"}`} style={{ marginLeft: 6 }}>{schedCode(r.schedule)}</span>
-                    </td>
-                    <td>
-                      <EntityLink kind="patient" id={r.patient_id}>
-                        {r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : (r.customer_name || "none")}
-                      </EntityLink>
-                    </td>
-                    <td>
-                      {r.indication || "none"}
-                      {r.referred_to_doctor && <div><span className="badge warn">Referred to doctor</span></div>}
-                    </td>
-                    {/* The name, without the job title trailing it. "T. Moyo
-                        (Pharmacist)" in a register of pharmacy medicines says
-                        "pharmacist" on every row and pushes the column off the
-                        page to do it. */}
-                    <td className="muted">
-                      <span className="clip"
-                            title={r.pharmacist?.full_name}>
-                        {(r.pharmacist?.full_name ?? "").replace(/\s*\([^)]*\)\s*$/, "")}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {otcMeta && <Pagination meta={otcMeta} onPage={setOtcPage} noun="sales" />}
-            {logsLoading && otcLog.length === 0 && (
-              <TableSkeleton cols={5} rows={4} />
-            )}
-            {!logsLoading && otcLog.length === 0 && (
-              <div className="empty">
-                <b>No pharmacy-medicine sales recorded yet</b>
-                <p>
-                  Everything sold over the counter without a script is entered
-                  here, and this register is what an inspector asks to see.
-                </p>
-              </div>
-            )}
-          </div>
+          {/* The register is a screen, not a panel under the form.
+              A thirty-day copy sat here and its right-hand columns were cut
+              off by the worklist beside it, so the one column an inspector
+              asks about, who sold it, was the part you could not read. */}
+          <p className="muted small otc-register-link">
+            Every sale without a script is entered in the pharmacy-medicine
+            register as it is made.{" "}
+            <Link to="/register">Open the register</Link> to read it or print it.
+          </p>
         </div>
       ) : (
         <div className="rx-split">
@@ -3749,21 +3704,26 @@ export default function Dispense() {
             {/* The controlled-substance notice, in the colour this product
                 already uses for a schedule, rather than an orange written into
                 the element that stayed the same in both themes. */}
+            {/* ONE FACT, NOT A PARAGRAPH.
+                Three sentences of regulation stood here, and anybody allowed
+                on this tab already knows that controlled medicines need a
+                pharmacist and go in the register: it is why they are on this
+                tab. What changes what they do next is the repeat rule, so
+                that is what it says. */}
             {route === "controlled" && (
-              <div className="card sec sec-check">
-                <h3><Warning size={17} weight="fill" /> Controlled substance, dangerous drugs protocol</h3>
-                <p className="muted" style={{ fontSize: 13 }}>
-                  {controlledCodes} medicines must be dispensed by a pharmacist, entered in the
-                  electronic schedule register, and supported by a full compliance record.
-                  Schedule 6 permits <b>no repeats</b> and requires the checking pharmacist’s initials.
-                </p>
+              <div className="card sec sec-check dd-rule">
+                <Warning size={15} weight="fill" />
+                <span>
+                  <b>{scheduleCode(6)}</b> permits no repeats and needs the
+                  checking pharmacist's initials.
+                </span>
               </div>
             )}
 
             <div className="card sec sec-patient" id="step-patient">
               {/* No heading. The lane is three labelled fields. Patient,
                   Prescriber, Medicine. And a heading over them said nothing
-                  the labels do not. The S5–S6 badge stays, because THAT is not
+                  the labels do not. The schedule badge stays, because THAT is not
                   obvious from anything else on the row. */}
               {route === "controlled" && (
                 <div className="disp-lane-badge">
@@ -6051,114 +6011,23 @@ ${d.action}`}
         </div>
       )}
 
-      {/* THE DANGEROUS-DRUGS REGISTER.
-          The statutory record, and until now the one screen in the dispensary
-          that did not exist. These rows were being fetched on every load of
-          this tab and dropped on the floor: nothing rendered them, so nobody
-          noticed that the endpoint returned the compliance ticks without the
-          medicine, the patient or the prescriber either.
+      {/* THE REGISTER LIVES ON ITS OWN SCREEN.
+          A ninety-day copy of the dangerous drugs register used to sit here
+          and take the whole middle of the tab, pushing the three steps this
+          screen exists for into a strip at the top. It was also the lesser of
+          two: Controlled Register in the sidebar is the same record with date
+          ranges, a schedule filter, running balances and a printable document
+          an inspector can be handed.
 
-          A register is read across — what went out, to whom, on whose
-          authority, checked by whom — so every column an inspector asks for is
-          on the row rather than behind it. */}
+          Two screens showing one statutory record is one of them going stale.
+          The link goes where the work is finished rather than duplicating it
+          under the form. */}
       {route === "controlled" && (
-        <div className="card dd-register">
-          <h3>Dangerous drugs register, last 90 days</h3>
-          <p className="muted small">
-            Every schedule 5 and 6 hand-over, whether it was captured on this tab
-            or on the prescription tab. This is the list an inspector asks to see.
-          </p>
-          {controlledLog.length > 0 && (
-          <div className="table-scroll">
-            <table>
-              <colgroup>
-                <col style={{ width: "8.5rem" }} />
-                <col style={{ width: "24%" }} />
-                <col style={{ width: "20%" }} />
-                <col style={{ width: "18%" }} />
-                <col style={{ width: "7.5rem" }} />
-                <col style={{ width: "9rem" }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>When</th><th>Medicine</th><th>Patient</th>
-                  <th>Prescriber</th><th>Checks</th><th>Dispensed by</th>
-                </tr>
-              </thead>
-              <tbody>
-                {controlledLog.map((r) => (
-                  <tr key={r.id}>
-                    <td className="nowrap">{fmtWhen(r.dispensed_at)}</td>
-                    <td>
-                      <b>{r.medicine || "not recorded"}</b> ×{r.quantity}
-                      <span className="badge danger" style={{ marginLeft: 6 }}>{schedCode(r.schedule)}</span>
-                      {r.is_repeat && <span className="badge muted" style={{ marginLeft: 4 }}>repeat</span>}
-                      {r.rx_number && <div className="muted small">{r.rx_number}</div>}
-                    </td>
-                    <td>
-                      {r.patient || "not recorded"}
-                      {/* The identity document, on the row. It is the whole
-                          reason a schedule 5 hand-over is checked at all, and
-                          it is the first thing asked about in an inspection. */}
-                      <div className="muted small">
-                        ID {r.patient_id_number || "not recorded"}
-                      </div>
-                    </td>
-                    <td>
-                      {r.prescriber || "not recorded"}
-                      {r.prescriber_number && (
-                        <div className="muted small">{r.prescriber_number}</div>
-                      )}
-                    </td>
-                    {/* Three checks as three marks rather than three words.
-                        They are the same three on every row, so the column is
-                        read as a shape: a gap is what the eye is looking for. */}
-                    <td>
-                      <span className="dd-checks">
-                        {([["ID", r.id_verified, "Patient identity verified"],
-                           ["Rx", r.script_sighted, "Original prescription sighted"],
-                           ["Dr", r.prescriber_verified, "Prescriber verified"]] as const)
-                          .map(([mark, done, why]) => (
-                            <span key={mark}
-                                  className={`dd-check${done ? " is-done" : ""}`}
-                                  title={done ? why : `${why}, not recorded`}>
-                              {mark}
-                            </span>
-                          ))}
-                      </span>
-                    </td>
-                    <td className="muted">
-                      <span className="clip" title={r.dispensed_by}>
-                        {(r.dispensed_by || "").replace(/\s*\([^)]*\)\s*$/, "") || "not recorded"}
-                      </span>
-                      {r.pharmacist_initial && (
-                        <div className="muted small">checked {r.pharmacist_initial}</div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          )}
-          {/* Only once there is something to page through. Pagination says
-              "No hand-overs" on an empty list, which put a second, quieter
-              empty state directly above the real one. */}
-          {controlledMeta && controlledLog.length > 0 && (
-            <Pagination meta={controlledMeta} onPage={setControlledPage} noun="hand-overs" />
-          )}
-          {logsLoading && controlledLog.length === 0 && <TableSkeleton cols={6} rows={4} />}
-          {!logsLoading && controlledLog.length === 0 && (
-            <div className="empty">
-              <b>No schedule 5 or 6 medicines dispensed in the last 90 days</b>
-              <p>
-                Every controlled hand-over is entered here as it is dispensed,
-                with the identity checked, the script sighted and the prescriber
-                confirmed.
-              </p>
-            </div>
-          )}
-        </div>
+        <p className="muted small dd-register-link">
+          Every hand-over is entered in the register as it is dispensed.{" "}
+          <Link to="/register">Open the Controlled Register</Link> to read it,
+          filter it by date or schedule, or print it.
+        </p>
       )}
       </div>
 
