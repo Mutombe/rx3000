@@ -37,7 +37,7 @@ export default function Remittance({ data, onClose }: {
       meta: [
         { label: "Paid on", value: fmtDate(data.paid_on) },
         { label: "Method", value: data.method },
-        { label: "Reference", value: data.reference || "—" },
+        { label: "Reference", value: data.reference || "none" },
         { label: "Amount", value: money(data.amount), strong: true },
       ],
       columns: [

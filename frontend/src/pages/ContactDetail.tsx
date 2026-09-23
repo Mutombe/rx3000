@@ -83,12 +83,12 @@ export default function ContactDetail() {
           { label: "Added", value: fmtDate(contact.created_at), hint: "on record since" },
         ]} />
         <dl className="detail-fields" style={{ marginTop: 14 }}>
-          <div><dt>Phone</dt><dd>{contact.phone || "—"}</dd></div>
-          <div><dt>Email</dt><dd>{contact.email || "—"}</dd></div>
+          <div><dt>Phone</dt><dd>{contact.phone || "none"}</dd></div>
+          <div><dt>Email</dt><dd>{contact.email || "none"}</dd></div>
           <div><dt>Account</dt>
             <dd>{contact.company
               ? <EntityLink to={`/accounts/${contact.company.id}`}>{contact.company.name}</EntityLink>
-              : "—"}</dd></div>
+              : "none"}</dd></div>
         </dl>
         {contact.notes && <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>{contact.notes}</p>}
       </div>

@@ -154,7 +154,7 @@ export default function Seasons() {
                     <span>The visit is worth</span>
                   </div>
                   <div className="wl-stat">
-                    <b>{basket.multiple ? `${basket.multiple}×` : "—"}</b>
+                    <b>{basket.multiple ? `${basket.multiple}×` : "none"}</b>
                     <span>Basket per dollar of repeat</span>
                   </div>
                   <div className="wl-stat">
@@ -192,7 +192,7 @@ export default function Seasons() {
                               whatever medicines they happen to dispense. */}
                           <td className="num">
                             {b.multiple ? `${b.multiple}×`
-                              : <span className="muted">—</span>}
+                              : <span className="muted">none</span>}
                           </td>
                           <td className="num">{b.attach_rate}%</td>
                         </tr>
@@ -252,7 +252,7 @@ export default function Seasons() {
                       <td className="num">{p.occasions.toLocaleString()}</td>
                       <td><b>{p.peak_month}</b></td>
                       <td className="num">
-                        {p.peak_index ? `${p.peak_index}×` : "—"}
+                        {p.peak_index ? `${p.peak_index}×` : "none"}
                       </td>
                       {/* Twelve cells, one per month, so the shape is read
                           rather than inferred from two numbers. */}
@@ -334,7 +334,7 @@ export default function Seasons() {
                             </span></div>
                           )}
                         </td>
-                        <td className="muted">{b.quietest || "—"}</td>
+                        <td className="muted">{b.quietest || "none"}</td>
                         <td className="num">{b.swing}</td>
                         <td>
                           <span className="season-strip">

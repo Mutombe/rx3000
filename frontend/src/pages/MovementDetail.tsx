@@ -94,8 +94,8 @@ export default function MovementDetail() {
       </td>
       <td><span className="badge muted">{m.movement_type}</span></td>
       <td className="num"><Delta n={m.quantity_delta} /></td>
-      <td className="num">{m.balance_after ?? "—"}</td>
-      <td className="mono small">{m.reference || "—"}</td>
+      <td className="num">{m.balance_after ?? "none"}</td>
+      <td className="mono small">{m.reference || "none"}</td>
       <td className="actions">
         {isThis
           ? <span className="badge">this one</span>

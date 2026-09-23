@@ -361,7 +361,7 @@ export default function StockTake() {
               <span className="badge ok">{take.status}</span>
             </div>
             <p className="muted">
-              Opened {take.opened_at ? fmtDateTime(take.opened_at) : "—"}
+              Opened {take.opened_at ? fmtDateTime(take.opened_at) : "no date"}
               {take.scope.category || take.scope.bin
                 ? ` · counting ${[take.scope.category, take.scope.bin].filter(Boolean).join(" / ")}`
                 : " · counting everything"}
@@ -522,9 +522,9 @@ export default function StockTake() {
                         <td className="num">{l.counted}</td>
                         <td className="num">{l.expected}</td>
                         <td className={`num${l.variance !== 0 ? " cu-diff" : ""}`}>
-                          {l.variance > 0 ? `+${l.variance}` : l.variance || "—"}
+                          {l.variance > 0 ? `+${l.variance}` : l.variance || "none"}
                         </td>
-                        <td className="num">{l.variance ? money(l.value) : "—"}</td>
+                        <td className="num">{l.variance ? money(l.value) : "none"}</td>
                         <td className="muted">{l.note}</td>
                       </tr>
                     ))}
@@ -587,8 +587,8 @@ export default function StockTake() {
                     {/* Over and short kept apart. A count 40 over and 40 short
                         nets to nothing and is not a clean count, it is two
                         errors. */}
-                    <td className="num">{t.over_units || <span className="muted">—</span>}</td>
-                    <td className="num">{t.short_units || <span className="muted">—</span>}</td>
+                    <td className="num">{t.over_units || <span className="muted">none</span>}</td>
+                    <td className="num">{t.short_units || <span className="muted">none</span>}</td>
                     <td className="num">
                       <span className={t.variance_value < 0 ? "neg" : undefined}>
                         {money(t.variance_value)}

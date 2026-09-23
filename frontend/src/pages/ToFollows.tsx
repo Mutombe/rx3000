@@ -253,7 +253,7 @@ export default function ToFollows() {
                 <td className="num">{o.quantity_outstanding}</td>
                 <td className="num">{o.quantity_on_hand}</td>
                 <td>
-                  {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">—</span>}
+                  {o.promised_for ? fmtDate(o.promised_for) : <span className="muted">no date</span>}
                   {o.overdue && <span className="badge warn">Overdue</span>}
                 </td>
                 <RowActions>

@@ -157,7 +157,7 @@ export default function Quarantine() {
                     <EntityLink kind="product" id={l.product_id}>{l.product}</EntityLink>
                   </td>
                   <td className="mono small">
-                    {l.batch || "—"}
+                    {l.batch || "none"}
                     {l.expiry && (
                       <div className="muted small">expires {fmtDate(l.expiry)}</div>
                     )}

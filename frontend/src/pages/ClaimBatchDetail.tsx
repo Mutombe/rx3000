@@ -231,12 +231,12 @@ export default function ClaimBatchDetail() {
                       </td>
                       <td>
                         <EntityLink kind="patient" id={c.patient_id}>
-                          {c.patient || "—"}
+                          {c.patient || "none"}
                         </EntityLink>
                       </td>
                       <td className="mono">
                         <EntityLink kind="sale" id={c.sale_id}>
-                          {c.sale_number || "—"}
+                          {c.sale_number || "none"}
                         </EntityLink>
                       </td>
                       <td>
@@ -249,7 +249,7 @@ export default function ClaimBatchDetail() {
                       <td className="num">
                         {c.amount_approved > 0.005
                           ? money(c.amount_approved)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td className="num">
                         {d.settled ? money(c.settled_amount)
@@ -258,7 +258,7 @@ export default function ClaimBatchDetail() {
                       <td className="num">
                         {c.shortfall > 0.005
                           ? <b className="neg">{money(c.shortfall)}</b>
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                     </tr>
                   ))}
@@ -269,11 +269,11 @@ export default function ClaimBatchDetail() {
                     <td className="num"><b>{money(b.total_claimed)}</b></td>
                     <td className="num" />
                     <td className="num">
-                      <b>{d.settled ? money(b.total_settled) : "—"}</b>
+                      <b>{d.settled ? money(b.total_settled) : "none"}</b>
                     </td>
                     <td className="num">
                       <b className={d.settled && d.shortfall > 0.005 ? "neg" : undefined}>
-                        {d.settled ? money(d.shortfall) : "—"}
+                        {d.settled ? money(d.shortfall) : "none"}
                       </b>
                     </td>
                   </tr>

@@ -140,9 +140,9 @@ export default function RemittanceDetail() {
               <dl className="kv">
                 <dt>Funder</dt><dd>{advice.funder_id}</dd>
                 <dt>Paid on</dt>
-                <dd>{advice.payment_date ? fmtDate(advice.payment_date) : "—"}</dd>
+                <dd>{advice.payment_date ? fmtDate(advice.payment_date) : "no date"}</dd>
                 <dt>Their reference</dt>
-                <dd className="mono">{advice.payment_reference || "—"}</dd>
+                <dd className="mono">{advice.payment_reference || "none"}</dd>
                 <dt>Currency</dt><dd>{advice.currency_code}</dd>
                 <dt>Lines</dt><dd>{advice.line_count}</dd>
                 <dt>State</dt>
@@ -201,10 +201,10 @@ export default function RemittanceDetail() {
                         <td className="mono">
                           {l.claim_id
                             ? <EntityLink kind="claim" id={l.claim_id}>{l.claim_reference}</EntityLink>
-                            : (l.claim_reference || "—")}
+                            : (l.claim_reference || "none")}
                         </td>
                         <td>
-                          {l.member_name || <span className="muted">—</span>}
+                          {l.member_name || <span className="muted">none</span>}
                           {l.policy_number && (
                             <div className="muted small mono">{l.policy_number}</div>
                           )}
@@ -212,7 +212,7 @@ export default function RemittanceDetail() {
                         <td className="num">{money(l.amount_claimed)}</td>
                         <td className="num">{money(l.amount_paid)}</td>
                         <td className={`num${l.variance > 0.005 ? " cu-diff" : ""}`}>
-                          {l.variance > 0.005 ? money(l.variance) : "—"}
+                          {l.variance > 0.005 ? money(l.variance) : "none"}
                         </td>
                         <td>
                           <span className={`badge ${TONE[l.status] ?? ""}`}>

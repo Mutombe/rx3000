@@ -128,11 +128,11 @@ export default function PrescriberDetail() {
       facts={d ? [
         { label: "Scripts sent in", value: d.script_count },
         { label: "Practice number",
-          value: <span className="mono">{d.practice_number || "—"}</span> },
+          value: <span className="mono">{d.practice_number || "none"}</span> },
         { label: "AHFoZ number",
-          value: <span className="mono">{d.ahfoz_number || "—"}</span> },
-        { label: "Telephone", value: d.phone || "—" },
-        { label: "Email", value: d.email || "—" },
+          value: <span className="mono">{d.ahfoz_number || "none"}</span> },
+        { label: "Telephone", value: d.phone || "none" },
+        { label: "Email", value: d.email || "none" },
       ] : undefined}
     >
       {d && (

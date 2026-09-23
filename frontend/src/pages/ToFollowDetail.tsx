@@ -139,7 +139,7 @@ export default function ToFollowDetail() {
                 <dt>From sale</dt>
                 <dd className="mono">
                   <EntityLink kind="sale" id={owed.sale_id}>
-                    {owed.sale_id ? `#${owed.sale_id}` : "—"}
+                    {owed.sale_id ? `#${owed.sale_id}` : "none"}
                   </EntityLink>
                 </dd>
                 <dt>Recorded</dt>

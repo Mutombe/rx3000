@@ -256,7 +256,7 @@ export default function Bins() {
                       {l.empty ? <span className="badge danger">Empty</span>
                         : l.short ? <span className="badge warn">Low</span> : null}
                     </td>
-                    <td className="muted small">{l.stock_code || "—"}</td>
+                    <td className="muted small">{l.stock_code || "none"}</td>
                     <td className="num">{l.on_hand.toLocaleString()}</td>
                     <td className="num">
                       {/* Valued where it mainly lives, or the same stock is
@@ -266,7 +266,7 @@ export default function Bins() {
                         ? <span className="muted small">
                             valued in {l.also_in?.[0] ?? "its main bin"}
                           </span>
-                        : l.value > 0.005 ? money(l.value) : "—"}
+                        : l.value > 0.005 ? money(l.value) : "none"}
                     </td>
                   </tr>
                 ))}

@@ -202,20 +202,20 @@ export default function Periods() {
                 </td>
                 <td className="num">
                   {p.status === "open" ? (
-                    <span className="muted">—</span>
+                    <span className="muted">none</span>
                   ) : (
                     money(p.closing_sales)
                   )}
                 </td>
                 <td className="num">
                   {p.status === "open" ? (
-                    <span className="muted">—</span>
+                    <span className="muted">none</span>
                   ) : (
                     p.closing_transactions
                   )}
                 </td>
                 <td>
-                  {p.closed_by || <span className="muted">—</span>}
+                  {p.closed_by || <span className="muted">none</span>}
                   {p.closed_at && (
                     <div className="muted small">{fmtDateTime(p.closed_at)}</div>
                   )}

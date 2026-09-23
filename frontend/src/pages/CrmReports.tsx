@@ -78,7 +78,7 @@ export default function CrmReports() {
   }, [roi, SERIES]);
 
   const worstDrop = useMemo(() => {
-    let worst = { from: "—", lost: 0 };
+    let worst = { from: "none", lost: 0 };
     funnel?.stages.forEach((s, i) => {
       if (i === 0) return;
       const lost = funnel.stages[i - 1].count - s.count;
@@ -307,7 +307,7 @@ export default function CrmReports() {
                     <td className="num">{money(f.weighted_value)}</td>
                     <td className="num">{money(f.won_value)}</td>
                     <td className="num">
-                      {f.weighted_value ? `${Math.round((f.open_value / f.weighted_value) * 10) / 10}×` : "—"}
+                      {f.weighted_value ? `${Math.round((f.open_value / f.weighted_value) * 10) / 10}×` : "none"}
                     </td>
                   </tr>
                 ))}

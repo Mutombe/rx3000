@@ -275,7 +275,7 @@ export default function SchemeCalendar() {
                     <td className="num">
                       {s.held > 0
                         ? <b>{s.held}</b>
-                        : <span className="muted">—</span>}
+                        : <span className="muted">none</span>}
                     </td>
                     <td className="actions">
                       <button className="btn small secondary" onClick={() => open(s)}>

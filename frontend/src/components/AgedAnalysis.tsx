@@ -186,7 +186,7 @@ export default function AgedAnalysis() {
                           >
                             {/* An em dash, not 0.00. A column of zeros is
                                 visual noise that hides the figures that matter. */}
-                            {value ? money(value) : "—"}
+                            {value ? money(value) : "none"}
                           </td>
                         );
                       })}
@@ -204,7 +204,7 @@ export default function AgedAnalysis() {
                           (b === "90 days" || b === "120+ days") && data.totals[b] ? " is-old" : ""
                         }`}
                       >
-                        {data.totals[b] ? money(data.totals[b]) : "—"}
+                        {data.totals[b] ? money(data.totals[b]) : "none"}
                       </td>
                     ))}
                     <td className="mono st-amount">{money(data.total)}</td>

@@ -119,7 +119,7 @@ export default function ReturnLines(
                     </td>
                     <td className="num">{it.quantity}</td>
                     <td className="num">
-                      {back || <span className="muted">—</span>}
+                      {back || <span className="muted">none</span>}
                     </td>
                     <td className="num">
                       <input
@@ -132,7 +132,7 @@ export default function ReturnLines(
                       />
                     </td>
                     <td className="num mono">
-                      {n > 0 ? money(each * n) : <span className="muted">—</span>}
+                      {n > 0 ? money(each * n) : <span className="muted">none</span>}
                     </td>
                   </tr>
                 );

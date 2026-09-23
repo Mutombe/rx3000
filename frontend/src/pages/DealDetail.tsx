@@ -145,7 +145,7 @@ export default function DealDetail() {
     if (!deal) return;
     const rows = deal.items.map((i) =>
       `<tr><td>${i.description}</td><td class="r">${i.quantity}</td><td class="r">${money(i.unit_price)}</td>` +
-      `<td class="r">${i.discount_percent ? i.discount_percent + "%" : "—"}</td><td class="r">${money(i.line_total)}</td></tr>`).join("");
+      `<td class="r">${i.discount_percent ? i.discount_percent + "%" : "none"}</td><td class="r">${money(i.line_total)}</td></tr>`).join("");
     const win = window.open("", "_blank", "width=800,height=900");
     if (!win) return;
     win.document.write(`<!doctype html><html><head><title>${quote.quote_number}</title><style>
@@ -215,7 +215,7 @@ export default function DealDetail() {
           { label: "Expected close", value: deal.expected_close_date ? fmtDate(deal.expected_close_date) : "Not set",
             hint: deal.source ? `source: ${deal.source}` : "no source" },
           { label: "Quotes", value: String(quotes.length), hint: quotes[0]?.status ?? "none issued" },
-          { label: "Stage", value: deal.stage, hint: deal.lost_reason || "—" },
+          { label: "Stage", value: deal.stage, hint: deal.lost_reason || "none" },
         ]} />
         {deal.stage !== "lost" && (
           <div className="record-exit">
@@ -238,7 +238,7 @@ export default function DealDetail() {
                     <td>{i.description}</td>
                     <td className="num">{i.quantity}</td>
                     <td className="num">{money(i.unit_price)}</td>
-                    <td className="num">{i.discount_percent ? `${i.discount_percent}%` : "—"}</td>
+                    <td className="num">{i.discount_percent ? `${i.discount_percent}%` : "none"}</td>
                     <td className="num"><b>{money(i.line_total)}</b></td>
                     <td className="right"><IconButton action="remove" danger title="Remove this line" onClick={() => removeLine(i.id)} /></td>
                   </tr>

@@ -275,7 +275,7 @@ export default function Compounding() {
                       <td className="num">{money(i.unit_cost)}</td>
                       <td className="num">{money(i.line_cost)}</td>
                       <td className={`num${i.short ? " cu-diff" : ""}`}>{i.on_hand}</td>
-                      <td>{i.schedule > 0 ? `S${i.schedule}` : "—"}</td>
+                      <td>{i.schedule > 0 ? `S${i.schedule}` : "none"}</td>
                     </tr>
                   ))}
                 </tbody>

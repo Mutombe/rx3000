@@ -217,12 +217,12 @@ export default function MixAtTheCounter(
         <div className="mix-sum">
           <div>
             <span className="muted">Ingredients cost</span>
-            <b>{quote ? money(quote.total_cost) : "—"}</b>
+            <b>{quote ? money(quote.total_cost) : "none"}</b>
           </div>
           <div>
             <span className="muted">Schedule</span>
             <b>{quote ? (quote.effective_schedule
-              ? `S${quote.effective_schedule}` : "unscheduled") : "—"}</b>
+              ? `S${quote.effective_schedule}` : "unscheduled") : "none"}</b>
           </div>
           <div className="field mix-price">
             <label htmlFor="mix-price">Price</label>

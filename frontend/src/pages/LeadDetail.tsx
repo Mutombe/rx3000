@@ -137,9 +137,9 @@ export default function LeadDetail() {
       facts={d ? [
         { label: "Status", value: d.status,
           hint: d.converted_at ? "converted" : undefined },
-        { label: "Rating", value: d.rating || "—", hint: `score ${d.score}` },
+        { label: "Rating", value: d.rating || "none", hint: `score ${d.score}` },
         { label: "Worth", value: money(d.estimated_value) },
-        { label: "Source", value: d.source || "—" },
+        { label: "Source", value: d.source || "none" },
       ] : undefined}
     >
       {d && (
@@ -164,11 +164,11 @@ export default function LeadDetail() {
           <div className="grid cols-2">
             <Panel title="Who they are">
               <dl className="kv">
-                <dt>Name</dt><dd>{name || "—"}</dd>
-                <dt>Company</dt><dd>{d.company_name || "—"}</dd>
-                <dt>Role</dt><dd>{d.job_title || "—"}</dd>
-                <dt>Telephone</dt><dd>{d.phone || "—"}</dd>
-                <dt>Email</dt><dd>{d.email || "—"}</dd>
+                <dt>Name</dt><dd>{name || "none"}</dd>
+                <dt>Company</dt><dd>{d.company_name || "none"}</dd>
+                <dt>Role</dt><dd>{d.job_title || "none"}</dd>
+                <dt>Telephone</dt><dd>{d.phone || "none"}</dd>
+                <dt>Email</dt><dd>{d.email || "none"}</dd>
                 <dt>Marketing</dt>
                 <dd>{d.marketing_opt_in ? "opted in" : "not opted in"}</dd>
               </dl>
@@ -176,12 +176,12 @@ export default function LeadDetail() {
 
             <Panel title="Where it came from">
               <dl className="kv">
-                <dt>Source</dt><dd>{d.source || "—"}</dd>
-                <dt>Interest</dt><dd>{d.interest || "—"}</dd>
+                <dt>Source</dt><dd>{d.source || "none"}</dd>
+                <dt>Interest</dt><dd>{d.interest || "none"}</dd>
                 <dt>Campaign</dt>
                 <dd>
                   <EntityLink kind="campaign" id={d.campaign_id}>
-                    {d.campaign_id ? `#${d.campaign_id}` : "—"}
+                    {d.campaign_id ? `#${d.campaign_id}` : "none"}
                   </EntityLink>
                 </dd>
                 <dt>Owner</dt>

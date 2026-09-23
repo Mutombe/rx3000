@@ -293,13 +293,13 @@ export default function Leads() {
                   <Avatar first={l.first_name} last={l.last_name} />
                   <div className="lead-main">
                     <b>{l.first_name} {l.last_name}</b>
-                    <div className="muted">{l.company_name || l.job_title || "—"}</div>
+                    <div className="muted">{l.company_name || l.job_title || "none"}</div>
                   </div>
                   <div className="lead-meta">
                     <span className={`badge ${statusClass(l.status)}`}>{l.status}</span>
                     <span className="muted">{l.source.replace("_", " ")}</span>
                   </div>
-                  <div className="lead-value">{l.estimated_value ? money(l.estimated_value) : <span className="muted">—</span>}</div>
+                  <div className="lead-value">{l.estimated_value ? money(l.estimated_value) : <span className="muted">none</span>}</div>
                   <ScoreRing score={l.score} rating={l.rating} size={40} />
                 </div>
               ))}
@@ -336,7 +336,7 @@ export default function Leads() {
                           <b>{l.first_name} {l.last_name}</b>
                           <ScoreRing score={l.score} rating={l.rating} size={34} />
                         </div>
-                        <div className="muted">{l.company_name || "—"}</div>
+                        <div className="muted">{l.company_name || "none"}</div>
                         <div className="board-card-foot">
                           <span>{money(l.estimated_value)}</span>
                           <span className="muted">{l.source.replace("_", " ")}</span>
@@ -391,8 +391,8 @@ export default function Leads() {
               </div>
 
               <dl className="detail-fields">
-                <div><dt>Email</dt><dd>{selected.email || "—"}</dd></div>
-                <div><dt>Phone</dt><dd>{selected.phone || "—"}</dd></div>
+                <div><dt>Email</dt><dd>{selected.email || "none"}</dd></div>
+                <div><dt>Phone</dt><dd>{selected.phone || "none"}</dd></div>
                 <div><dt>Source</dt><dd>{selected.source.replace("_", " ")}</dd></div>
                 <div><dt>Owner</dt><dd>{selected.owner?.full_name ?? "Unassigned"}</dd></div>
                 <div><dt>Estimated value</dt><dd>{money(selected.estimated_value)}</dd></div>

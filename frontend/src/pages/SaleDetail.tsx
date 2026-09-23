@@ -232,7 +232,7 @@ export default function SaleDetail() {
           // Two people, and each answers only for their own half of it: the
           // dispenser who rang it up when the medicine left the shelf, and
           // whoever actually took the money at the front.
-          { label: "Rung up by", value: sale.cashier_name || "—" },
+          { label: "Rung up by", value: sale.cashier_name || "none" },
           { label: "Payment taken by",
             value: sale.settled_by_name || "not yet paid",
             hint: sale.settled_at ? fmtDateTime(sale.settled_at) : undefined },
@@ -249,10 +249,10 @@ export default function SaleDetail() {
               <dd>{sale.card_auth_code
                 ? <span className="mono">{sale.card_auth_code}</span>
                 : <span className="badge warn">Not captured, cannot be reconciled</span>}</dd></div>
-            <div><dt>Acquirer reference</dt><dd className="mono">{sale.card_reference || "—"}</dd></div>
-            <div><dt>Card</dt><dd>{sale.card_last4 ? `${sale.card_scheme || "card"} **** ${sale.card_last4}` : "—"}</dd></div>
-            <div><dt>Terminal</dt><dd>{sale.terminal_id || "—"}</dd></div>
-            <div><dt>Settlement batch</dt><dd>{sale.card_batch || "—"}</dd></div>
+            <div><dt>Acquirer reference</dt><dd className="mono">{sale.card_reference || "none"}</dd></div>
+            <div><dt>Card</dt><dd>{sale.card_last4 ? `${sale.card_scheme || "card"} **** ${sale.card_last4}` : "none"}</dd></div>
+            <div><dt>Terminal</dt><dd>{sale.terminal_id || "none"}</dd></div>
+            <div><dt>Settlement batch</dt><dd>{sale.card_batch || "none"}</dd></div>
           </dl>
         )}
 

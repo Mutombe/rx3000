@@ -423,7 +423,7 @@ export default function RfqDetail() {
                             {/* Three states kept apart. See the note at the
                                 top of this file. */}
                             {!a.answered ? (
-                              <span className="muted">—</span>
+                              <span className="muted">none</span>
                             ) : !a.available ? (
                               <span className="muted small">cannot supply</span>
                             ) : (

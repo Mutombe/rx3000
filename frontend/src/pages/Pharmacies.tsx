@@ -231,7 +231,7 @@ export default function Pharmacies() {
                     {p.phone ? ` · ${p.phone}` : ""}
                   </div>
                 </td>
-                <td>{p.city || <span className="muted">—</span>}</td>
+                <td>{p.city || <span className="muted">none</span>}</td>
                 <td className="num">{p.branches}</td>
                 <td className="num">{p.users}</td>
                 <td className="muted">{fmtDate(p.created_at)}</td>

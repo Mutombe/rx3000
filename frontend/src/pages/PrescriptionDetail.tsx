@@ -206,7 +206,7 @@ export default function PrescriptionDetail() {
                           <div className="muted small">not dispensed</div>
                         )}
                       </td>
-                      <td>{i.dosage_instructions || "—"}</td>
+                      <td>{i.dosage_instructions || "none"}</td>
                       <td className="num">{i.quantity}</td>
                       <td className="num">
                         {left} <span className="muted">of {i.repeats_allowed}</span>
@@ -218,7 +218,7 @@ export default function PrescriptionDetail() {
                       </td>
                       <td>
                         {i.next_repeat_date ? fmtDate(i.next_repeat_date)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                         {i.auto_refill && <div className="muted small">auto refill</div>}
                       </td>
                     </tr>
@@ -253,7 +253,7 @@ export default function PrescriptionDetail() {
                         )}
                       </td>
                       <td className="num">{x.quantity}</td>
-                      <td className="muted">{x.dispensed_by || "—"}</td>
+                      <td className="muted">{x.dispensed_by || "none"}</td>
                       <td>
                         {x.sale_id && (
                           <Link to={`/sales/${x.sale_id}`} className="muted small">
@@ -290,8 +290,8 @@ export default function PrescriptionDetail() {
                           used to say. */}
                       <td className="muted">{a.old_value || <em>blank</em>}</td>
                       <td><b>{a.new_value || <em>blank</em>}</b></td>
-                      <td>{a.reason || <span className="muted">—</span>}</td>
-                      <td className="muted">{a.changed_by || "—"}</td>
+                      <td>{a.reason || <span className="muted">none</span>}</td>
+                      <td className="muted">{a.changed_by || "none"}</td>
                     </tr>
                   ))}
                 </tbody>

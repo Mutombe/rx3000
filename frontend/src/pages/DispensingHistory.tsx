@@ -213,7 +213,7 @@ export default function DispensingHistory() {
                     <td>{fmtDateTime(r.dispensed_at)}</td>
                     <td className="mono">
                       <EntityLink kind="prescription" id={r.prescription_id}>
-                        {r.rx_number || "—"}
+                        {r.rx_number || "none"}
                       </EntityLink>
                       {r.is_repeat && <div className="muted small">repeat</div>}
                     </td>
@@ -253,19 +253,19 @@ export default function DispensingHistory() {
                     <td className="num">{r.quantity}</td>
                     <td>
                       <EntityLink kind="staff" id={r.dispensed_by_id}>
-                        {r.dispensed_by || r.pharmacist_initial || "—"}
+                        {r.dispensed_by || r.pharmacist_initial || "none"}
                       </EntityLink>
                     </td>
                     {/* Paid, part paid, or owed, and by whom. The commonest
                         reason for opening this screen at all. */}
                     <td>
                       <EntityLink kind="sale" id={r.sale_id}>
-                        {r.sale_number || "—"}
+                        {r.sale_number || "none"}
                       </EntityLink>
                       <div className="muted small">
                         {r.outstanding > 0.005
                           ? <b>{money(r.outstanding)} owed</b>
-                          : r.sale_status === "paid" ? "paid" : r.sale_status || "—"}
+                          : r.sale_status === "paid" ? "paid" : r.sale_status || "none"}
                         {r.claim_id ? (
                           <> · <EntityLink kind="claim" id={r.claim_id}>
                             scheme {money(r.scheme_pays)}

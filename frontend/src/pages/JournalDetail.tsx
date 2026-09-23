@@ -123,7 +123,7 @@ export default function JournalDetail() {
             {entry.lines.map((l, i) => (
               <tr key={i}>
                 <td className="mono">{l.account_code}</td>
-                <td>{l.description || <span className="muted">—</span>}</td>
+                <td>{l.description || <span className="muted">none</span>}</td>
                 <td>
                   {l.party_type ? (
                     <>
@@ -136,8 +136,8 @@ export default function JournalDetail() {
                     <span className="muted">unattributed</span>
                   )}
                 </td>
-                <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-                <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+                <td className="num">{l.debit ? money(l.debit) : "none"}</td>
+                <td className="num">{l.credit ? money(l.credit) : "none"}</td>
               </tr>
             ))}
             <tr className="total-row">

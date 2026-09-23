@@ -59,7 +59,7 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 function shortHash(h: string): string {
-  return h ? `${h.slice(0, 12)}…${h.slice(-4)}` : "—";
+  return h ? `${h.slice(0, 12)}…${h.slice(-4)}` : "none";
 }
 
 export default function FiscalDay() {
@@ -174,7 +174,7 @@ export default function FiscalDay() {
                       <td className="num muted">{money(c.vat)}</td>
                       <td className="num">
                         {c.credit_notes ? money(c.credit_notes)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                     </tr>
                   ))}
@@ -197,7 +197,7 @@ export default function FiscalDay() {
                       <td className="num">{r.receipts}</td>
                       <td className="num">{money(r.total)}</td>
                       <td className="num">
-                        {r.vat ? money(r.vat) : <span className="muted">—</span>}
+                        {r.vat ? money(r.vat) : <span className="muted">none</span>}
                       </td>
                     </tr>
                   ))}
@@ -225,7 +225,7 @@ export default function FiscalDay() {
               </dd>
               <dt>Filed</dt>
               <dd>{day.submitted_at ? fmtDateTime(day.submitted_at)
-                : <span className="muted">—</span>}</dd>
+                : <span className="muted">none</span>}</dd>
               <dt>Global counters</dt>
               <dd className="mono">
                 {day.first_counter === null ? "—"
@@ -263,7 +263,7 @@ export default function FiscalDay() {
                         </span>
                       </td>
                       <td className="muted small wrap">
-                        {r.response_message || "—"}
+                        {r.response_message || "none"}
                       </td>
                     </tr>
                   ))}
@@ -301,7 +301,7 @@ export default function FiscalDay() {
                       <td className="num">{money(r.total)}</td>
                       <td className="num muted">
                         {r.vat_amount ? money(r.vat_amount)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td>
                         <span className={`badge ${STATUS_TONE[r.status] ?? "muted"}`}>

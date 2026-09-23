@@ -12905,3 +12905,20 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 @media (max-width: 40rem) {
   .rfq-new-grid { grid-template-columns: 1fr; }
 }
+
+/* AUTHORISATIONS: the two columns that hold a sentence get the room.
+   Seven columns under `table-layout: fixed` took 116px each, so the medicine
+   and the funder's reason for refusing had a sixth of the table between them
+   while "CIMAS_ZW" and "08 Feb, 2027" spent the same on a token. The reason
+   is the whole value of a refusal: it says what to fix and resubmit. */
+.au-ref    { width: 8rem; }
+.au-funder { width: 6.5rem; }
+.au-when   { width: 7rem; }
+.au-left   { width: 6rem; }
+/* The funder's reason, under the row it belongs to. Same device as the draws
+   below an authorisation: a sentence that has to be read gets the width of
+   the table rather than a sixth of it. */
+.auth-why td {
+  background: var(--surface-sunk); white-space: normal;
+  padding-top: var(--s2); padding-bottom: var(--s2); line-height: 1.45;
+}

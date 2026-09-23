@@ -43,9 +43,9 @@ export default function CardReconciliation() {
       render: (r) => <EntityLink to={`/sales/${r.sale_id}`}><span className="mono">{r.sale_number}</span></EntityLink> },
     { key: "created_at", header: "When", sortable: true,
       render: (r) => <span className="muted">{fmtDateTime(r.created_at)}</span> },
-    { key: "auth_code", header: "Auth code", render: (r) => <span className="mono">{r.auth_code || "—"}</span> },
+    { key: "auth_code", header: "Auth code", render: (r) => <span className="mono">{r.auth_code || "none"}</span> },
     { key: "reference", header: "Reference", truncate: 18,
-      render: (r) => <span className="mono">{r.reference || "—"}</span> },
+      render: (r) => <span className="mono">{r.reference || "none"}</span> },
     { key: "matched_on", header: "Matched on", sortable: true,
       render: (r) => (
         <span className={`badge ${r.matched_on === "weak" ? "warn" : "ok"}`}>
@@ -59,19 +59,19 @@ export default function CardReconciliation() {
       total: (r) => r.statement_amount, totalRender: (n) => money(n) },
     { key: "difference", header: "Difference", align: "right", sortable: true,
       render: (r) => (Math.abs(r.difference) < 0.005
-        ? <span className="muted">—</span>
+        ? <span className="muted">none</span>
         : <b className="badge danger">{money(r.difference)}</b>),
       total: (r) => r.difference, totalRender: (n) => money(n) },
   ];
 
   const stmtCols: Column<ReconStatementLine>[] = [
     { key: "line", header: "Line", align: "right", sortable: true },
-    { key: "date", header: "Date", sortable: true, render: (r) => r.txn_date ?? <span className="muted">—</span> },
-    { key: "auth_code", header: "Auth code", render: (r) => <span className="mono">{r.auth_code || "—"}</span> },
+    { key: "date", header: "Date", sortable: true, render: (r) => r.txn_date ?? <span className="muted">none</span> },
+    { key: "auth_code", header: "Auth code", render: (r) => <span className="mono">{r.auth_code || "none"}</span> },
     { key: "reference", header: "Reference", truncate: 20,
-      render: (r) => <span className="mono">{r.reference || "—"}</span> },
-    { key: "last4", header: "Card", render: (r) => (r.last4 ? `**** ${r.last4}` : "—") },
-    { key: "terminal", header: "Terminal", render: (r) => r.terminal || "—" },
+      render: (r) => <span className="mono">{r.reference || "none"}</span> },
+    { key: "last4", header: "Card", render: (r) => (r.last4 ? `**** ${r.last4}` : "none") },
+    { key: "terminal", header: "Terminal", render: (r) => r.terminal || "none" },
     { key: "amount", header: "Amount", align: "right", sortable: true,
       render: (r) => <b>{money(r.amount)}</b>, total: (r) => r.amount, totalRender: (n) => money(n) },
   ];
@@ -85,7 +85,7 @@ export default function CardReconciliation() {
       render: (r) => (r.auth_code
         ? <span className="mono">{r.auth_code}</span>
         : <span className="badge warn">Not captured</span>) },
-    { key: "terminal_id", header: "Terminal", render: (r) => r.terminal_id || "—" },
+    { key: "terminal_id", header: "Terminal", render: (r) => r.terminal_id || "none" },
     { key: "sale_total", header: "Amount", align: "right", sortable: true,
       render: (r) => <b>{money(r.sale_total)}</b>, total: (r) => r.sale_total, totalRender: (n) => money(n) },
   ];

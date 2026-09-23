@@ -297,7 +297,7 @@ export default function Remittances() {
                             </span>
                           )}
                         </td>
-                        <td>{l.service_date ? fmtDate(l.service_date) : "—"}</td>
+                        <td>{l.service_date ? fmtDate(l.service_date) : "no date"}</td>
                         <td className="num">{money(l.amount_claimed)}</td>
                         <td className="num">{money(l.amount_paid)}</td>
                         <td className="num cu-diff">{money(l.variance)}</td>
@@ -361,13 +361,13 @@ export default function Remittances() {
                              prefetch={prefetchRoute}>
                       <td className="mono">{a.remittance_number}</td>
                       <td>{a.funder_id}</td>
-                      <td>{a.payment_date ? fmtDate(a.payment_date) : "—"}</td>
-                      <td className="mono muted">{a.payment_reference || "—"}</td>
+                      <td>{a.payment_date ? fmtDate(a.payment_date) : "no date"}</td>
+                      <td className="mono muted">{a.payment_reference || "none"}</td>
                       <td className="num">{a.line_count}</td>
                       <td className="num">{money(a.total_claimed)}</td>
                       <td className="num">{money(a.total_paid)}</td>
                       <td className={`num${a.shortfall > 0.005 ? " cu-diff" : ""}`}>
-                        {a.shortfall > 0.005 ? money(a.shortfall) : "—"}
+                        {a.shortfall > 0.005 ? money(a.shortfall) : "none"}
                       </td>
                       <td>
                         {/* A line the advice mentions that we cannot tie to a
@@ -375,7 +375,7 @@ export default function Remittances() {
                             something we did not send, or our reference is wrong. */}
                         {a.unmatched > 0
                           ? <span className="badge danger">{a.unmatched}</span>
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                     </RowLink>
                   ))}

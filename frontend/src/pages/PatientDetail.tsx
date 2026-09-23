@@ -403,7 +403,7 @@ export default function PatientDetail() {
                   {rx.items.map((i) => (
                     <tr key={i.id}>
                       <td><EntityLink kind="product" id={i.product_id}>{i.product?.name} {i.product?.strength}</EntityLink></td>
-                      <td>{i.dosage_instructions || "—"}</td>
+                      <td>{i.dosage_instructions || "none"}</td>
                       <td className="num">{i.quantity}</td>
                       <td>{i.repeats_used}/{i.repeats_allowed}</td>
                       <td className="num">
@@ -413,7 +413,7 @@ export default function PatientDetail() {
                             * Math.max(0, (i.repeats_allowed ?? 0) - (i.repeats_used ?? 0))} />
                       </td>
                       <td>{fmtDate(i.next_repeat_date)}</td>
-                      <td>{i.auto_refill ? <span className="badge ok">Yes</span> : "—"}</td>
+                      <td>{i.auto_refill ? <span className="badge ok">Yes</span> : "none"}</td>
                     </tr>
                   ))}
                 </tbody>

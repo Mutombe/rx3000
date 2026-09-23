@@ -147,11 +147,11 @@ export default function ComplianceDocument() {
       hint: doc.days_left === null ? undefined
         : doc.days_left < 0 ? `${Math.abs(doc.days_left)} days ago`
           : `${doc.days_left} days left` },
-    { label: "Expires", value: doc.expires_on ? fmtDate(doc.expires_on) : "—",
+    { label: "Expires", value: doc.expires_on ? fmtDate(doc.expires_on) : "no date",
       hint: doc.renewal_months
         ? `renewed every ${doc.renewal_months} months` : undefined },
-    { label: "Reference", value: doc.reference || "—" },
-    { label: "Renewal", value: doc.renewal_cost ? money(doc.renewal_cost) : "—",
+    { label: "Reference", value: doc.reference || "none" },
+    { label: "Renewal", value: doc.renewal_cost ? money(doc.renewal_cost) : "none",
       hint: doc.renewal_cost ? "what it costs to renew" : "no cost recorded" },
   ] : [];
 
@@ -279,7 +279,7 @@ export default function ComplianceDocument() {
                 </dd>
                 <dt>Recorded by</dt>
                 <dd>
-                  {doc.uploaded_by || <span className="muted">—</span>}
+                  {doc.uploaded_by || <span className="muted">none</span>}
                   {doc.uploaded_at && (
                     <div className="muted small">{fmtDateTime(doc.uploaded_at)}</div>
                   )}
@@ -312,11 +312,11 @@ export default function ComplianceDocument() {
               <tbody>
                 {doc.replaced.map((r) => (
                   <tr key={r.id}>
-                    <td className="mono">{r.reference || "—"}</td>
-                    <td>{r.issued_on ? fmtDate(r.issued_on) : "—"}</td>
-                    <td>{r.expires_on ? fmtDate(r.expires_on) : "—"}</td>
-                    <td className="muted">{r.uploaded_by || "—"}</td>
-                    <td className="num">{r.renewal_cost ? money(r.renewal_cost) : "—"}</td>
+                    <td className="mono">{r.reference || "none"}</td>
+                    <td>{r.issued_on ? fmtDate(r.issued_on) : "no date"}</td>
+                    <td>{r.expires_on ? fmtDate(r.expires_on) : "no date"}</td>
+                    <td className="muted">{r.uploaded_by || "none"}</td>
+                    <td className="num">{r.renewal_cost ? money(r.renewal_cost) : "none"}</td>
                     <td>
                       <Link to={`/compliance/documents/${r.id}`}
                             className="muted small">

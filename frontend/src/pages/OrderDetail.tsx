@@ -93,7 +93,7 @@ export default function OrderDetail() {
       value: (i) => i.product?.name ?? "",
       render: (i) => (i.product
         ? <EntityLink to={`/products/${i.product.id}`}>{i.product.name} {i.product.strength}</EntityLink>
-        : <span className="muted">—</span>) },
+        : <span className="muted">none</span>) },
     { key: "quantity_ordered", header: "Ordered", align: "right", sortable: true, total: (i) => i.quantity_ordered },
     // Between Ordered and Received on purpose: it is the middle fact in the
     // life of a line, and the person receiving a delivery wants to know what
@@ -162,7 +162,7 @@ export default function OrderDetail() {
         <Highlights items={[
           { label: "Order value", value: money(value), hint: `${order.items.length} line(s)` },
           { label: "Received value", value: money(receivedValue),
-            hint: value ? `${Math.round((receivedValue / value) * 100)}% of order` : "—" },
+            hint: value ? `${Math.round((receivedValue / value) * 100)}% of order` : "none" },
           { label: "Outstanding units", value: String(outstanding),
             hint: outstanding ? "still to be delivered" : "fully delivered" },
           // WHAT THE WHOLESALER SAID, ON THE ORDER ITSELF.
@@ -183,7 +183,7 @@ export default function OrderDetail() {
                 ? "send them their portal link"
                 : "not sent to them yet",
             tone: order.acknowledged_at ? "ok" : undefined },
-          { label: "Status", value: order.status, hint: order.notes || "—" },
+          { label: "Status", value: order.status, hint: order.notes || "none" },
         ]} />
         <div className="record-exit">
           {/* THIS NOW SENDS. It used to set a string to "sent" and the order

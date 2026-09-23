@@ -206,7 +206,7 @@ export default function StaffDetail() {
                       <td>{fmtDateTime(r.dispensed_at)}</td>
                       <td>
                         <EntityLink kind="product" id={r.product_id}>
-                          {r.product || "—"}
+                          {r.product || "none"}
                         </EntityLink>
                         {r.schedule >= 5 && <span className="badge sched">S{r.schedule}</span>}
                       </td>
@@ -217,7 +217,7 @@ export default function StaffDetail() {
                       </td>
                       <td className="mono">
                         <EntityLink kind="prescription" id={r.prescription_id}>
-                          {r.rx_number || "—"}
+                          {r.rx_number || "none"}
                         </EntityLink>
                       </td>
                       <td className="num">{r.quantity}</td>

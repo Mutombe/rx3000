@@ -202,7 +202,7 @@ export default function Pipeline() {
                     <b>{d.title}</b>
                     <div className="deal-value">{money(d.value)}</div>
                     <div className="muted" style={{ fontSize: 11.5 }}>
-                      {d.company?.name ?? (d.contact ? `${d.contact.first_name} ${d.contact.last_name}` : "—")}
+                      {d.company?.name ?? (d.contact ? `${d.contact.first_name} ${d.contact.last_name}` : "none")}
                     </div>
                     <div className="deal-prob">
                       <div style={{ width: `${d.probability}%` }} />

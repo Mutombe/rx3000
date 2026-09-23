@@ -162,7 +162,7 @@ export default function HqPermissions() {
                         <td>{g.branch || <span className="muted">anywhere</span>}</td>
                         <td className="num mono">
                           {g.limit_value ? money(g.limit_value)
-                            : <span className="muted">—</span>}
+                            : <span className="muted">none</span>}
                           {g.daily_limit > 0 && (
                             <div className="muted small">
                               {money(g.daily_limit)}/day

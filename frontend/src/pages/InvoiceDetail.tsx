@@ -97,7 +97,7 @@ export default function InvoiceDetail() {
         { label: "Billed", value: money(d.total) },
         { label: "Outstanding",
           value: d.outstanding > 0.005 ? money(d.outstanding) : "settled" },
-        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "—" },
+        { label: "Due", value: d.due_date ? fmtDate(d.due_date) : "no date" },
         { label: "Status", value: d.status },
       ] : undefined}
       actions={d && !d.posted_reference

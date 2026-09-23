@@ -203,7 +203,7 @@ export default function CashUp(
                     <td className="st-amount mono">{money(l.counted)}</td>
                     <td className="st-amount mono">{money(l.system)}</td>
                     <td className={`st-amount mono${off ? " cu-diff" : ""}`}>
-                      {off ? money(l.difference) : "—"}
+                      {off ? money(l.difference) : "none"}
                     </td>
                   </tr>
                 );
@@ -305,9 +305,9 @@ export default function CashUp(
                 {run.invoices.map((d) => (
                   <tr key={d.id} className={d.status === "void" ? "is-off" : ""}>
                     <td className="mono">{d.sale_number}</td>
-                    <td>{d.at ? fmtDateTime(d.at) : "—"}</td>
+                    <td>{d.at ? fmtDateTime(d.at) : "no date"}</td>
                     <td>{d.status}</td>
-                    <td>{d.methods.join(", ") || "—"}</td>
+                    <td>{d.methods.join(", ") || "none"}</td>
                     <td className="st-amount mono">{money(d.total)}</td>
                   </tr>
                 ))}

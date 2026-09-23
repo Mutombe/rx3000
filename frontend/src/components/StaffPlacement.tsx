@@ -228,7 +228,7 @@ export default function StaffPlacement({ userId, name, onChanged }: {
             { label: "Sees", value: p.sees },
             {
               label: "Covers",
-              value: p.cover.filter((c) => !c.expired).length || "—",
+              value: p.cover.filter((c) => !c.expired).length || "none",
               hint: p.all_branches ? "group-wide sight" : undefined,
             },
           ]} />
@@ -318,8 +318,8 @@ export default function StaffPlacement({ userId, name, onChanged }: {
                         {row.until ? fmtDate(row.until) : <span className="muted">Standing</span>}
                         {row.expired && <span className="badge warn">Ended</span>}
                       </td>
-                      <td>{row.reason || <span className="muted">—</span>}</td>
-                      <td>{row.added_by || <span className="muted">—</span>}</td>
+                      <td>{row.reason || <span className="muted">none</span>}</td>
+                      <td>{row.added_by || <span className="muted">none</span>}</td>
                       <td className="row-actions">
                         <button className="linkish" onClick={() => dropCover(row)}>
                           Stop
@@ -342,11 +342,11 @@ export default function StaffPlacement({ userId, name, onChanged }: {
                 <tbody>
                   {p.moves.map((m) => (
                     <tr key={m.id}>
-                      <td>{m.on ? fmtDate(m.on) : "—"}</td>
+                      <td>{m.on ? fmtDate(m.on) : "no date"}</td>
                       <td>{m.from ?? <span className="muted">Not placed</span>}</td>
                       <td>{m.to ?? <span className="muted">No branch</span>}</td>
-                      <td>{m.reason || <span className="muted">—</span>}</td>
-                      <td>{m.by || <span className="muted">—</span>}</td>
+                      <td>{m.reason || <span className="muted">none</span>}</td>
+                      <td>{m.by || <span className="muted">none</span>}</td>
                     </tr>
                   ))}
                 </tbody>

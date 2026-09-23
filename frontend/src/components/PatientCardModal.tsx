@@ -39,7 +39,7 @@ export default function PatientCardModal({ patient, canLeave, onClose }: {
   const age = ageFrom(patient.date_of_birth);
   const allergies = listOf(patient.allergies);
   const conditions = listOf(patient.chronic_conditions);
-  const dash = <span className="muted">—</span>;
+  const dash = <span className="muted">none</span>;
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Patient: ${name}`}

@@ -505,7 +505,7 @@ export default function Claiming() {
                         </td>
                         <td>{officeName(b.pay_office_id)}</td>
                         <td className="muted">
-                          {b.period_from ? fmtDate(b.period_from) : "—"}
+                          {b.period_from ? fmtDate(b.period_from) : "no date"}
                           {b.period_to ? `. ${fmtDate(b.period_to)}` : ""}
                         </td>
                         <td><span className={`badge ${badgeFor(b.status)}`}>{b.status}</span></td>
@@ -515,7 +515,7 @@ export default function Claiming() {
                         {/* Only on a settled batch. A short figure on a batch that
                             has not been paid yet is not short, it is unpaid. */}
                         <td className={`num${b.status === "settled" && short > 0.005 ? " cu-diff" : ""}`}>
-                          {b.status === "settled" && short > 0.005 ? money(short) : "—"}
+                          {b.status === "settled" && short > 0.005 ? money(short) : "none"}
                         </td>
                         <td className="num">
                           {b.status === "open" && (
@@ -641,7 +641,7 @@ export default function Claiming() {
                       </td>
                       <td className="num">
                         {openFormulary?.id === f.id ? entries.length
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td className="actions">
                         <button className="btn small secondary"
@@ -711,7 +711,7 @@ export default function Claiming() {
                         <td className="num">
                           {e.reference_price
                             ? money(e.reference_price)
-                            : <span className="muted">—</span>}
+                            : <span className="muted">none</span>}
                         </td>
                         <td className="num">
                           {e.max_quantity || <span className="muted">no limit</span>}

@@ -114,12 +114,12 @@ export default function CaseDetail() {
         <Path stages={PATH_STAGES} current={ticket.status} onPick={(s) => patch({ status: s })} />
         <Highlights items={[
           { label: "Priority", value: ticket.priority, hint: slaBadge(ticket) },
-          { label: "Category", value: ticket.category.replace(/_/g, " "), hint: ticket.channel || "—" },
+          { label: "Category", value: ticket.category.replace(/_/g, " "), hint: ticket.channel || "none" },
           { label: "Assigned to", value: ticket.assigned_to?.full_name ?? "Unassigned",
             hint: ticket.assigned_to?.role ?? "route with an automation rule" },
           { label: "Replies", value: String(ticket.messages.length),
             hint: ticket.first_response_at ? `first reply ${fmtDateTime(ticket.first_response_at)}` : "no reply yet" },
-          { label: "CSAT", value: ticket.satisfaction ? `${ticket.satisfaction}/5` : "—",
+          { label: "CSAT", value: ticket.satisfaction ? `${ticket.satisfaction}/5` : "none",
             hint: "customer rating" },
         ]} />
         <div className="form-row" style={{ marginTop: 14 }}>

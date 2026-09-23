@@ -59,26 +59,31 @@ export default function HelpDesk() {
         t.patient ? <EntityLink to={`/patients/${t.patient.id}`} muted>{t.patient.first_name} {t.patient.last_name}</EntityLink>
         : t.contact ? <EntityLink to={`/contacts/${t.contact.id}`} muted>{t.contact.first_name} {t.contact.last_name}</EntityLink>
         : t.company ? <EntityLink to={`/accounts/${t.company.id}`} muted>{t.company.name}</EntityLink>
-        : <span className="muted">—</span>
+        : <span className="muted">none</span>
       ) },
-    { key: "category", header: "Category", sortable: true,
+    /* Sized to what each one holds. A fixed layout gave all seven 119px,
+       so "System Administrator" lost 42px in Assigned while Priority spent
+       the same 119 on one short badge. */
+    { key: "category", header: "Category", sortable: true, width: 116,
       render: (t) => <span className="badge muted">{t.category.replace(/_/g, " ")}</span> },
-    { key: "priority", header: "Priority", sortable: true,
+    { key: "priority", header: "Priority", sortable: true, width: 96,
       render: (t) => (
         <span className={`badge ${t.priority === "urgent" ? "danger" : t.priority === "high" ? "warn" : "muted"}`}>
           {t.priority}
         </span>
       ) },
-    { key: "sla", header: "SLA", render: (t) => slaBadge(t) },
-    { key: "assigned", header: "Assigned", sortable: true, value: (t) => t.assigned_to?.full_name ?? "",
+    { key: "sla", header: "SLA", width: 104, render: (t) => slaBadge(t) },
+    { key: "assigned", header: "Assigned", sortable: true, width: 156,
+      value: (t) => t.assigned_to?.full_name ?? "",
       render: (t) => t.assigned_to?.full_name ?? <span className="muted">unassigned</span> },
-    { key: "status", header: "Status", sortable: true,
+    { key: "status", header: "Status", sortable: true, width: 104,
       render: (t) => (
         <span className={`badge ${t.status === "open" ? "warn" : t.status === "pending" ? "muted" : "ok"}`}>
           {t.status}
         </span>
       ) },
-    { key: "created_at", header: "Opened", sortable: true, value: (t) => t.created_at,
+    { key: "created_at", header: "Opened", sortable: true, width: 124,
+      value: (t) => t.created_at,
       render: (t) => <span className="muted">{fmtDateTime(t.created_at)}</span> },
   ];
   const [selected, setSelected] = useState<Ticket | null>(null);
@@ -203,12 +208,12 @@ export default function HelpDesk() {
           </div>
           <div className="card stat">
             <div className="label">Avg first response</div>
-            <div className="value">{stats.avg_first_response_mins ?? "—"}<span style={{ fontSize: 15 }}>{stats.avg_first_response_mins ? "m" : ""}</span></div>
-            <div className="hint">resolution {stats.avg_resolution_hours ?? "—"}{stats.avg_resolution_hours ? "h" : ""}</div>
+            <div className="value">{stats.avg_first_response_mins ?? "none"}<span style={{ fontSize: 15 }}>{stats.avg_first_response_mins ? "m" : ""}</span></div>
+            <div className="hint">resolution {stats.avg_resolution_hours ?? "none"}{stats.avg_resolution_hours ? "h" : ""}</div>
           </div>
           <div className="card stat">
             <div className="label">Satisfaction</div>
-            <div className="value">{stats.csat ?? "—"}<span style={{ fontSize: 15 }}>{stats.csat ? " / 5" : ""}</span></div>
+            <div className="value">{stats.csat ?? "none"}<span style={{ fontSize: 15 }}>{stats.csat ? " / 5" : ""}</span></div>
             <div className="hint">{stats.resolved_total} resolved all-time</div>
           </div>
         </div>

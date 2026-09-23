@@ -268,7 +268,7 @@ export default function SupplierDetail() {
                       <EntityLink kind="invoice" id={i.id}>{i.invoice_number}</EntityLink>
                     </td>
                     <td>{fmtDate(i.invoice_date)}</td>
-                    <td>{i.due_date ? fmtDate(i.due_date) : "—"}</td>
+                    <td>{i.due_date ? fmtDate(i.due_date) : "no date"}</td>
                     <td className="num">{money(i.total)}</td>
                     <td className="num">
                       {i.outstanding > 0.005 ? money(i.outstanding)
@@ -277,7 +277,7 @@ export default function SupplierDetail() {
                     <td><span className="badge">{i.status}</span></td>
                     <td className="mono">
                       <EntityLink kind="order" id={i.order_id}>
-                        {i.order_id ? `#${i.order_id}` : "—"}
+                        {i.order_id ? `#${i.order_id}` : "none"}
                       </EntityLink>
                     </td>
                   </tr>
@@ -349,7 +349,7 @@ export default function SupplierDetail() {
                     <tr key={p.id}>
                       <td>{fmtDate(p.paid_on)}</td>
                       <td>{p.method}</td>
-                      <td className="mono">{p.reference || "—"}</td>
+                      <td className="mono">{p.reference || "none"}</td>
                       <td className="num">{money(p.amount)}</td>
                     </tr>
                   ))}

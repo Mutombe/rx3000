@@ -175,7 +175,7 @@ export default function PaymentInstruments() {
                 <td>
                   {METHODS.find((m) => m.value === i.method)?.label ?? i.method}
                 </td>
-                <td className="mono small">{i.currencies.join(", ") || "—"}</td>
+                <td className="mono small">{i.currencies.join(", ") || "none"}</td>
                 <td className="muted small">
                   {i.settles_to || (
                     // Not decoration. Ticking a column off against a statement

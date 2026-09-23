@@ -687,7 +687,7 @@ export default function Admin() {
                           <td>{l.name}</td>
                           <td className="num">{l.times_sold}</td>
                           <td>
-                            {l.last_sold ? l.last_sold.slice(0, 10) : "—"}
+                            {l.last_sold ? l.last_sold.slice(0, 10) : "none"}
                             {(l.stale_days ?? 0) > 365 && (
                               <span className="badge warn" style={{ marginLeft: 6 }}>old</span>
                             )}
@@ -772,29 +772,29 @@ export default function Admin() {
                     <tr key={l.row}>
                       <td>{l.row}</td>
                       <td className="mono">{l.key}</td>
-                      <td>{l.product_name || <span className="muted">—</span>}</td>
+                      <td>{l.product_name || <span className="muted">none</span>}</td>
                       <td className="num">
                         {l.new_cost !== null
                           ? <><span className="muted">{money(l.old_cost)}</span> → <b>{money(l.new_cost)}</b></>
-                          : <span className="muted">{l.old_cost !== null ? money(l.old_cost) : "—"}</span>}
+                          : <span className="muted">{l.old_cost !== null ? money(l.old_cost) : "none"}</span>}
                       </td>
                       <td className="num">
                         {l.new_price !== null
                           ? <><span className="muted">{money(l.old_price)}</span> → <b>{money(l.new_price)}</b></>
-                          : <span className="muted">{l.old_price !== null ? money(l.old_price) : "—"}</span>}
+                          : <span className="muted">{l.old_price !== null ? money(l.old_price) : "none"}</span>}
                       </td>
                       {showsSep && (
                         <td className="num">
                           {l.new_sep != null
-                            ? <><span className="muted">{l.old_sep != null ? money(l.old_sep) : "—"}</span> → <b>{money(l.new_sep)}</b></>
-                            : <span className="muted">{l.old_sep != null ? money(l.old_sep) : "—"}</span>}
+                            ? <><span className="muted">{l.old_sep != null ? money(l.old_sep) : "none"}</span> → <b>{money(l.new_sep)}</b></>
+                            : <span className="muted">{l.old_sep != null ? money(l.old_sep) : "none"}</span>}
                         </td>
                       )}
                       {showsMmap && (
                         <td className="num">
                           {l.new_mmap != null
-                            ? <><span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "—"}</span> → <b>{money(l.new_mmap)}</b></>
-                            : <span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "—"}</span>}
+                            ? <><span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "none"}</span> → <b>{money(l.new_mmap)}</b></>
+                            : <span className="muted">{l.old_mmap != null ? money(l.old_mmap) : "none"}</span>}
                         </td>
                       )}
                       <td>
@@ -903,9 +903,9 @@ export default function Admin() {
                     </span>
                     {t.error_code && <div className="muted small">{t.error_code}</div>}
                   </td>
-                  <td className="num">{t.amount_claimed != null ? money(t.amount_claimed) : "—"}</td>
-                  <td className="num">{t.amount_approved != null ? money(t.amount_approved) : "—"}</td>
-                  <td className="num">{t.duration_ms != null ? `${t.duration_ms} ms` : "—"}</td>
+                  <td className="num">{t.amount_claimed != null ? money(t.amount_claimed) : "none"}</td>
+                  <td className="num">{t.amount_approved != null ? money(t.amount_approved) : "none"}</td>
+                  <td className="num">{t.duration_ms != null ? `${t.duration_ms} ms` : "none"}</td>
                 </tr>
               ))}
             </tbody>
@@ -1020,8 +1020,8 @@ export default function Admin() {
                     </span>
                   </td>
                   <td>{n.body}</td>
-                  <td>{n.expires_on ? fmtDate(n.expires_on) : "—"}</td>
-                  <td>{n.created_by || "—"}</td>
+                  <td>{n.expires_on ? fmtDate(n.expires_on) : "no date"}</td>
+                  <td>{n.created_by || "none"}</td>
                   <td className="actions">
                     {n.active === false ? (
                       <span className="badge muted">Retired</span>
@@ -1084,7 +1084,7 @@ export default function Admin() {
                     <b>{g.action_name}</b>
                     <div className="muted small mono">{g.action}</div>
                   </td>
-                  <td>{g.requested_by || <span className="muted">—</span>}</td>
+                  <td>{g.requested_by || <span className="muted">none</span>}</td>
                   <td>
                     {g.approved_by || <span className="muted">nobody</span>}
                     {g.supervisor_override && (
@@ -1103,7 +1103,7 @@ export default function Admin() {
                     )}
                   </td>
                   <td className="small wrap">
-                    {g.reason || g.context || <span className="muted">—</span>}
+                    {g.reason || g.context || <span className="muted">none</span>}
                   </td>
                 </tr>
               ))}
@@ -1164,7 +1164,7 @@ export default function Admin() {
                 <tr key={a.id}>
                   <td>{fmtDateTime(a.created_at)}</td>
                   <td>
-                    <b>{a.username || "—"}</b>
+                    <b>{a.username || "none"}</b>
                     {/* Who was REALLY doing it. Without this the trail says a
                         cashier in Bulawayo voided a sale at two in the morning
                         when it was somebody at head office. */}

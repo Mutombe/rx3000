@@ -367,7 +367,7 @@ export default function Payables() {
                       </td>
                       {ageing.bands.map((b) => (
                         <td key={b} className="num">
-                          {s.bands[b] ? money(s.bands[b]) : <span className="muted">—</span>}
+                          {s.bands[b] ? money(s.bands[b]) : <span className="muted">none</span>}
                         </td>
                       ))}
                       <td className="num"><b>{money(s.total)}</b></td>
@@ -546,7 +546,7 @@ export default function Payables() {
                       <td className="num">
                         {r.on_account > 0.005
                           ? <b>{money(r.on_account)}</b>
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td className="actions">
                         <button className="btn small secondary"
@@ -591,7 +591,7 @@ export default function Payables() {
                         <EntityLink kind="supplier" id={w.supplier_id}>{w.supplier}</EntityLink>
                       </td>
                       <td>
-                        {w.received_at ? fmtDate(w.received_at) : "—"}
+                        {w.received_at ? fmtDate(w.received_at) : "no date"}
                         {w.days !== null && w.days > 45 && (
                           <div className="muted small">{w.days} days ago</div>
                         )}

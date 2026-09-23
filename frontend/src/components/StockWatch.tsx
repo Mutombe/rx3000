@@ -260,7 +260,7 @@ export default function StockWatch() {
                   <td>
                     <EntityLink kind="product" id={a.product_id}>{a.product}</EntityLink>
                   </td>
-                  <td className="num">{a.worth > 0.005 ? money(a.worth) : "—"}</td>
+                  <td className="num">{a.worth > 0.005 ? money(a.worth) : "none"}</td>
                   <td className="nowrap">{fmtDate(a.since)}</td>
                   <td className="actions">
                     {/* Somewhere to go and do something about it. An alert

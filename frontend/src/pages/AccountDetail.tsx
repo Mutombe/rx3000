@@ -105,9 +105,9 @@ export default function AccountDetail() {
             hint: <span className={`badge ${c.status === "active" ? "ok" : "muted"}`}>{c.status}</span> },
         ]} />
         <dl className="detail-fields" style={{ marginTop: 14 }}>
-          <div><dt>Phone</dt><dd>{c.phone || "—"}</dd></div>
-          <div><dt>Email</dt><dd>{c.email || "—"}</dd></div>
-          <div><dt>Address</dt><dd>{c.address || "—"}</dd></div>
+          <div><dt>Phone</dt><dd>{c.phone || "none"}</dd></div>
+          <div><dt>Email</dt><dd>{c.email || "none"}</dd></div>
+          <div><dt>Address</dt><dd>{c.address || "none"}</dd></div>
         </dl>
         {c.notes && <p className="muted" style={{ marginTop: 12, fontSize: 12.5 }}>{c.notes}</p>}
       </div>

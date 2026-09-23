@@ -87,7 +87,7 @@ export default function SharePortalLink(
         {/* The code, large enough to read out over a counter or a telephone. */}
         <div className="share-code">
           <span className="muted small">Their four-digit code</span>
-          <b>{link.code || "—"}</b>
+          <b>{link.code || "none"}</b>
           <div className="share-code-actions">
             <button className="btn ghost sm"
               onClick={() => copy(link.code, "Code copied.")}>

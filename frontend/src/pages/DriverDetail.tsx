@@ -254,7 +254,7 @@ export default function DriverDetail() {
                     <td className="muted">
                       {h.shift_id
                         ? <Link to={`/shifts/${h.shift_id}`}>shift {h.shift_id}</Link>
-                        : "—"}
+                        : "none"}
                     </td>
                   </tr>
                 ))}
@@ -306,13 +306,13 @@ export default function DriverDetail() {
                       )}
                     </td>
                     <td className="num mono">
-                      {w.delivery_fee ? money(w.delivery_fee) : <span className="muted">—</span>}
+                      {w.delivery_fee ? money(w.delivery_fee) : <span className="muted">none</span>}
                     </td>
                     <td className="num mono">
-                      {w.cod_amount ? money(w.cod_amount) : <span className="muted">—</span>}
+                      {w.cod_amount ? money(w.cod_amount) : <span className="muted">none</span>}
                     </td>
                     <td className="num mono">
-                      {w.cod_collected ? money(w.cod_collected) : <span className="muted">—</span>}
+                      {w.cod_collected ? money(w.cod_collected) : <span className="muted">none</span>}
                       {/* Handed in or still on them. The distinction is the
                           entire reason both figures are kept. */}
                       {w.cod_collected > 0 && !w.cod_settled_at && (

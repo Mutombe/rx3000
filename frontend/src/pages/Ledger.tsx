@@ -243,8 +243,8 @@ export default function Ledger() {
                       {l.subledger && <span className="badge">{l.subledger}</span>}
                     </td>
                     <td className="muted">{l.type}</td>
-                    <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-                    <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+                    <td className="num">{l.debit ? money(l.debit) : "none"}</td>
+                    <td className="num">{l.credit ? money(l.credit) : "none"}</td>
                     <td className="num">{money(l.balance)}</td>
                   </RowLink>
                 ))}
@@ -386,7 +386,7 @@ export default function Ledger() {
                     <EntityLink kind="order" id={o.order_id}>{o.order_number}</EntityLink>
                   </td>
                   <td>{o.supplier}</td>
-                  <td>{o.received_at ? fmtDate(o.received_at) : "—"}</td>
+                  <td>{o.received_at ? fmtDate(o.received_at) : "no date"}</td>
                   <td className="num">{money(o.value)}</td>
                   <RowActions>
                     <BusyButton className="btn sm" onClick={() => postReceipt(o.order_id)}>

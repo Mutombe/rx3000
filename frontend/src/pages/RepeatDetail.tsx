@@ -148,7 +148,7 @@ export default function RepeatDetail() {
       subtitle={r && (
         <>
           For {r.patient.name}
-          {r.quantity ? ` · ${r.quantity} every ${r.interval_days || "—"} days` : ""}
+          {r.quantity ? ` · ${r.quantity} every ${r.interval_days || "none"} days` : ""}
           {r.auto_refill && " · auto-refill on"}
         </>
       )}
@@ -190,7 +190,7 @@ export default function RepeatDetail() {
           hint: r.exhausted ? "none left" : `${r.left} left`,
           tone: r.exhausted ? "warn" : undefined },
         { label: r.overdue_days ? "Overdue since" : "Next due",
-          value: r.next_due ? fmtDate(r.next_due) : "—",
+          value: r.next_due ? fmtDate(r.next_due) : "no date",
           hint: r.overdue_days ? `${r.overdue_days} days`
             : dueSoon ? "this week" : undefined,
           tone: r.overdue_days ? "bad" : dueSoon ? "warn" : undefined },
@@ -264,7 +264,7 @@ export default function RepeatDetail() {
                     ? <EntityLink kind="product" id={r.product.id}>
                         {r.product.name}
                       </EntityLink>
-                    : "—"}
+                    : "none"}
                   {r.product?.form && (
                     <span className="muted"> · {r.product.form}</span>
                   )}
@@ -318,7 +318,7 @@ export default function RepeatDetail() {
                         </div>
                       )}
                     </>
-                  ) : <span className="muted">—</span>}
+                  ) : <span className="muted">none</span>}
                 </dd>
               </dl>
             </Panel>
@@ -386,7 +386,7 @@ export default function RepeatDetail() {
                         {f.is_repeat && <span className="badge"> Repeat</span>}
                       </td>
                       <td className="num">{f.quantity}</td>
-                      <td>{f.by || <span className="muted">—</span>}</td>
+                      <td>{f.by || <span className="muted">none</span>}</td>
                       <td>
                         {f.collected_at
                           ? fmtDate(f.collected_at)

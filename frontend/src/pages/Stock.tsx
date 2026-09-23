@@ -306,7 +306,7 @@ export default function Stock() {
     { key: "schedule", header: "Sched.", sortable: true, width: 84,
       render: (p) => (p.schedule > 0
         ? <span className={`badge ${p.schedule >= 5 ? "sched" : "muted"}`}>S{p.schedule}</span>
-        : <span className="muted">—</span>) },
+        : <span className="muted">none</span>) },
     /* Barcode folded into the product cell rather than given a column of its
        own. It is a lookup key, not something anyone reads down a list — the
        search box above already matches on it, and as a column it took 130px
@@ -356,7 +356,7 @@ export default function Stock() {
       render: (b) => <b>{b.quantity_remaining}</b>, total: (b) => b.quantity_remaining },
     { key: "unit_cost", header: "Unit cost", align: "right", sortable: true, render: (b) => money(b.unit_cost) },
     { key: "reference", header: "Reference", truncate: 22,
-      render: (b) => <span className="mono">{b.reference || "—"}</span> },
+      render: (b) => <span className="mono">{b.reference || "none"}</span> },
     { key: "actions", header: "", align: "right",
       render: (b) => {
         const expired = b.expiry_date && new Date(b.expiry_date).getTime() < Date.now();

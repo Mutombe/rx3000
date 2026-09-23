@@ -214,7 +214,7 @@ export default function DispensingDetail() {
                     ? <EntityLink kind="product" id={d.product.id}>
                         {d.product.name}
                       </EntityLink>
-                    : "—"}
+                    : "none"}
                   {d.product?.form && (
                     <span className="muted"> · {d.product.form}</span>
                   )}
@@ -262,7 +262,7 @@ export default function DispensingDetail() {
                         </div>
                       )}
                     </>
-                  ) : <span className="muted">—</span>}
+                  ) : <span className="muted">none</span>}
                 </dd>
                 {d.sale && (
                   <>
@@ -295,9 +295,9 @@ export default function DispensingDetail() {
                 <dd>
                   {d.dispensed_by_id
                     ? <EntityLink kind="staff" id={d.dispensed_by_id}>
-                        {d.dispensed_by || "—"}
+                        {d.dispensed_by || "none"}
                       </EntityLink>
-                    : d.dispensed_by || <span className="muted">—</span>}
+                    : d.dispensed_by || <span className="muted">none</span>}
                   {d.pharmacist_initial && (
                     <span className="muted"> · initialled {d.pharmacist_initial}</span>
                   )}

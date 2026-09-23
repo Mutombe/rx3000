@@ -145,14 +145,14 @@ export default function StockTakeDetail() {
                       <td className="num">{l.counted}</td>
                       <td className="num">
                         {l.variance === 0
-                          ? <span className="muted">—</span>
+                          ? <span className="muted">none</span>
                           : <span className={l.variance < 0 ? "neg" : "pos"}>
                               {l.variance > 0 ? `+${l.variance}` : l.variance}
                             </span>}
                       </td>
                       <td className="num">
                         {l.value === 0
-                          ? <span className="muted">—</span>
+                          ? <span className="muted">none</span>
                           : <span className={l.value < 0 ? "neg" : undefined}>
                               {money(l.value)}
                             </span>}

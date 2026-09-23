@@ -15,7 +15,7 @@
  *  governs, and a screen that showed the stored status would show "approved"
  *  over an authorisation that lapsed last month.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import SectionNav from "../components/SectionNav";
 import { CLAIMING_TABS } from "../reconTabs";
 import { api, errorText, fmtDate, money } from "../api";
@@ -351,8 +351,17 @@ export default function Authorisations() {
             <table>
               <thead>
                 <tr>
-                  <th>Reference</th><th>Funder</th><th>For</th><th>Status</th>
-                  <th>Valid to</th><th className="num">Left</th><th className="actions" />
+                  {/* A fixed layout shares equally between columns that
+                      declare nothing, so all six took 116px: the funder spent
+                      it on "CIMAS_ZW" while the medicine and the funder's
+                      reason for refusing, which is the whole value of a
+                      refusal, had 116px each to say a sentence in. The token
+                      columns say their size; For and Status take the rest. */}
+                  <th className="au-ref">Reference</th>
+                  <th className="au-funder">Funder</th>
+                  <th>For</th><th>Status</th>
+                  <th className="au-when">Valid to</th>
+                  <th className="num au-left">Left</th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -361,8 +370,8 @@ export default function Authorisations() {
                   const live = state === "approved";
                   const c = checked[a.id];
                   return (
-                    <tr key={a.id}
-                        className={`${state === "declined" ? "is-off" : ""} ${rowClass(list.stateOf(a))}`.trim()}>
+                    <Fragment key={a.id}>
+                    <tr className={`${state === "declined" ? "is-off" : ""} ${rowClass(list.stateOf(a))}`.trim()}>
                       <td>
                         <span className="mono">{a.reference}</span>
                         {a.authorisation_number && (
@@ -372,22 +381,15 @@ export default function Authorisations() {
                       <td>{a.funder_id}</td>
                       <td>
                         <span className="clip" title={a.description}>
-                          {a.description || <span className="muted">—</span>}
+                          {a.description || <span className="muted">none</span>}
                         </span>
                         {a.icd10_code && <div className="muted mono small">{a.icd10_code}</div>}
                       </td>
                       <td>
                         <span className={`badge ${badge(state)}`}>{state}</span>
-                        {/* The reason a funder gave for refusing is the whole
-                            value of a refusal. It says what to fix and resubmit.   */}
-                        {!live && a.decision_reason && (
-                          <div className="muted small clip-2" title={a.decision_reason}>
-                            {a.decision_reason}
-                          </div>
-                        )}
                       </td>
                       <td className={expired(a) ? "cu-diff" : ""}>
-                        {a.valid_to ? fmtDate(a.valid_to) : "—"}
+                        {a.valid_to ? fmtDate(a.valid_to) : "no date"}
                       </td>
                       <td className="num">
                         {live ? (
@@ -400,7 +402,7 @@ export default function Authorisations() {
                               </div>
                             )}
                           </>
-                        ) : <span className="muted">—</span>}
+                        ) : <span className="muted">none</span>}
                       </td>
                       <td className="num lb-actions">
                         <button className="small ghost" disabled={busy === `check-${a.id}`}
@@ -437,6 +439,26 @@ export default function Authorisations() {
                         )}
                       </td>
                     </tr>
+                    {/* THE REASON A FUNDER GAVE, WHERE IT CAN BE READ.
+                        It is the whole value of a refusal: it says what to
+                        fix and resubmit. It was clamped to two lines inside a
+                        129px column, which showed "Granted in part -" and
+                        stopped, with the rest on a tooltip that a printout
+                        does not have and a hurried reader never finds. Under
+                        the row it has the width of the table. */}
+                    {!live && a.decision_reason && (
+                      <tr className="auth-why">
+                        <td colSpan={7}>
+                          {/* One label, not two. The badge on the row above
+                              already says declined or cancelled, and a second
+                              word for it ran straight into the sentence:
+                              "Declined The diagnosis given is not...". */}
+                          <span className="muted small">The funder said:</span>{" "}
+                          {a.decision_reason}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
                 {/* The draws, under the authorisation they came out of.
@@ -458,12 +480,12 @@ export default function Authorisations() {
                         <tbody>
                           {a.uses.map((u, i) => (
                             <tr key={u.id ?? i} className={u.reversed ? "is-off" : ""}>
-                              <td className="mono">{u.reference || "—"}</td>
-                              <td>{u.created_at ? fmtDate(u.created_at) : "—"}</td>
+                              <td className="mono">{u.reference || "none"}</td>
+                              <td>{u.created_at ? fmtDate(u.created_at) : "no date"}</td>
                               <td className="num">{u.quantity}</td>
                               <td className="num">
                                 {u.amount > 0 ? money(u.amount)
-                                  : <span className="muted">—</span>}
+                                  : <span className="muted">none</span>}
                               </td>
                               <td className="actions">
                                 {u.reversed ? (

@@ -121,8 +121,8 @@ export default function AccountLedger() {
                       <span className="muted">unattributed</span>
                     )}
                   </td>
-                  <td className="num">{l.debit ? money(l.debit) : "—"}</td>
-                  <td className="num">{l.credit ? money(l.credit) : "—"}</td>
+                  <td className="num">{l.debit ? money(l.debit) : "none"}</td>
+                  <td className="num">{l.credit ? money(l.credit) : "none"}</td>
                   <td className="num">{money(l.balance)}</td>
                 </RowLink>
               ))}

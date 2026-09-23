@@ -73,6 +73,11 @@ export default function Accounts() {
   }), [contacts, filters]);
 
   const companyCols: Column<Company>[] = [
+    /* WIDTHS, BECAUSE A FIXED LAYOUT SHARES EQUALLY OTHERWISE.
+       Every column was taking 152px: "Sunrise Retirement Village" lost 199px
+       of itself while "Terms" spent the same 152 on the word "30 days". The
+       columns with a known shape say so; the account name takes what is
+       left, which is what somebody reads the row to find. */
     { key: "name", header: "Account", sortable: true, value: (c) => c.name,
       render: (c) => (
         <>
@@ -80,16 +85,17 @@ export default function Accounts() {
           {c.notes && <div className="muted" style={{ fontSize: 11.5 }}><Truncate text={c.notes} at={60} /></div>}
         </>
       ) },
-    { key: "account_type", header: "Type", sortable: true,
+    { key: "account_type", header: "Type", sortable: true, width: 116,
       render: (c) => <span className="badge muted">{c.account_type.replace(/_/g, " ")}</span> },
-    { key: "phone", header: "Contact details",
+    { key: "phone", header: "Contact details", width: 168,
       render: (c) => <>{c.phone}<div className="muted" style={{ fontSize: 11.5 }}>
         <Truncate text={c.email} at={28} /></div></> },
-    { key: "credit_terms_days", header: "Terms", align: "right", sortable: true,
+    { key: "credit_terms_days", header: "Terms", align: "right", sortable: true, width: 84,
       render: (c) => `${c.credit_terms_days} days` },
-    { key: "owner", header: "Owner", sortable: true, value: (c) => c.owner?.full_name ?? "",
-      render: (c) => c.owner?.full_name ?? <span className="muted">—</span> },
-    { key: "status", header: "Status", sortable: true,
+    { key: "owner", header: "Owner", sortable: true, width: 140,
+      value: (c) => c.owner?.full_name ?? "",
+      render: (c) => c.owner?.full_name ?? <span className="muted">none</span> },
+    { key: "status", header: "Status", sortable: true, width: 104,
       render: (c) => (
         <span className={`badge ${c.status === "active" ? "ok" : c.status === "prospect" ? "warn" : "muted"}`}>
           {c.status}
@@ -118,7 +124,7 @@ export default function Accounts() {
     { key: "company", header: "Account", sortable: true, value: (c) => c.company?.name ?? "",
       render: (c) => (c.company
         ? <EntityLink to={`/accounts/${c.company.id}`} muted>{c.company.name}</EntityLink>
-        : <span className="muted">—</span>) },
+        : <span className="muted">none</span>) },
     { key: "phone", header: "Details",
       render: (c) => <>{c.phone}<div className="muted" style={{ fontSize: 11.5 }}>
         <Truncate text={c.email} at={28} /></div></> },
@@ -129,7 +135,7 @@ export default function Accounts() {
           : c.lifecycle_stage === "lost" ? "danger" : "muted"}`}>{c.lifecycle_stage}</span>
       ) },
     { key: "source", header: "Source", sortable: true,
-      render: (c) => <span className="muted">{c.source || "—"}</span> },
+      render: (c) => <span className="muted">{c.source || "none"}</span> },
     { key: "marketing_opt_in", header: "Marketing",
       render: (c) => (c.marketing_opt_in
         ? <span className="badge ok">Opted in</span>

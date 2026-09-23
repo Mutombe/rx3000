@@ -282,11 +282,11 @@ export default function BranchDetail() {
                             <div className="muted small">Issued {fmtDate(d.issued_on)}</div>
                           )}
                         </td>
-                        <td className="mono">{d.reference || "—"}</td>
-                        <td>{d.issuer || d.expected_issuer || "—"}</td>
+                        <td className="mono">{d.reference || "none"}</td>
+                        <td>{d.issuer || d.expected_issuer || "none"}</td>
                         <td><span className={`badge ${s.tone}`}>{s.label}</span></td>
                         <td className="num">
-                          {d.renewal_cost ? money(d.renewal_cost) : "—"}
+                          {d.renewal_cost ? money(d.renewal_cost) : "none"}
                         </td>
                       </tr>
                     );

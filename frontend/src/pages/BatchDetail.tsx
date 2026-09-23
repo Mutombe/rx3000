@@ -155,10 +155,10 @@ export default function BatchDetail() {
                     </div>
                   )}
                 </dd>
-                <dt>Order</dt><dd className="mono">{d.origin.order_number || "—"}</dd>
+                <dt>Order</dt><dd className="mono">{d.origin.order_number || "none"}</dd>
                 <dt>Received</dt>
                 <dd>{d.received_at ? fmtDateTime(d.received_at) : "not recorded"}</dd>
-                <dt>Reference</dt><dd className="mono">{d.reference || "—"}</dd>
+                <dt>Reference</dt><dd className="mono">{d.reference || "none"}</dd>
               </dl>
             </Panel>
 

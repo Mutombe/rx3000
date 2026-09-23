@@ -179,10 +179,10 @@ export default function DeferredClaims() {
                         {c.patient_name}
                       </EntityLink>
                     ) : (
-                      <span className="muted">—</span>
+                      <span className="muted">none</span>
                     )}
                   </td>
-                  <td>{c.medical_aid || <span className="muted">—</span>}</td>
+                  <td>{c.medical_aid || <span className="muted">none</span>}</td>
                   <td className="num">{money(c.amount_claimed)}</td>
                   <td>
                     {c.deferred_reason}

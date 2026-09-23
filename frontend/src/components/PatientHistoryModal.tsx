@@ -108,7 +108,7 @@ export default function PatientHistoryModal({ patient, onClose }: {
         <div className="fin-stats">
           <div className="fin-stat"><b>{lines ? lines.length : <span className="skel skel-num" />}</b><span>Dispensed</span></div>
           <div className="fin-stat"><b>{scripts ? scripts.length : <span className="skel skel-num" />}</b><span>Scripts</span></div>
-          <div className="fin-stat"><b>{lines === null ? <span className="skel skel-num is-wide" /> : last ? fmtDate(last) : "—"}</b><span>Last dispensed</span></div>
+          <div className="fin-stat"><b>{lines === null ? <span className="skel skel-num is-wide" /> : last ? fmtDate(last) : "no date"}</b><span>Last dispensed</span></div>
         </div>
 
         <div className="seg pt-tabs" role="tablist" aria-label="Which record">
@@ -142,14 +142,14 @@ export default function PatientHistoryModal({ patient, onClose }: {
                           <td className="nowrap">{fmtDate(l.date)}</td>
                           <td className="pt-clip" title={med}><b>{med}</b></td>
                           <td className="num">{l.quantity}</td>
-                          <td className="pt-clip" title={l.dosage}>{l.dosage || <span className="muted">—</span>}</td>
+                          <td className="pt-clip" title={l.dosage}>{l.dosage || <span className="muted">none</span>}</td>
                           <td>
                             <span className={`badge ${l.is_repeat ? "muted" : "ok"}`}>
                               {l.is_repeat ? "Repeat" : "New"}
                             </span>
                           </td>
-                          <td className="mono nowrap">{l.rx_number || "—"}</td>
-                          <td className="pt-clip" title={l.dispensed_by}>{l.dispensed_by || "—"}</td>
+                          <td className="mono nowrap">{l.rx_number || "none"}</td>
+                          <td className="pt-clip" title={l.dispensed_by}>{l.dispensed_by || "none"}</td>
                         </tr>
                       );
                     })}
@@ -179,10 +179,10 @@ export default function PatientHistoryModal({ patient, onClose }: {
                           <td className="nowrap">{fmtDate((rx as any).date_prescribed)}</td>
                           <td className="mono nowrap">{rx.rx_number || (rx as any).draft_ref || `#${rx.id}`}</td>
                           <td className="pt-clip" title={(rx as any).doctor?.name ?? ""}>
-                            {(rx as any).doctor?.name ?? <span className="muted">—</span>}
+                            {(rx as any).doctor?.name ?? <span className="muted">none</span>}
                           </td>
-                          <td className="pt-clip" title={meds}>{meds || <span className="muted">—</span>}</td>
-                          <td className="num">{allowed ? `${used}/${allowed}` : "—"}</td>
+                          <td className="pt-clip" title={meds}>{meds || <span className="muted">none</span>}</td>
+                          <td className="num">{allowed ? `${used}/${allowed}` : "none"}</td>
                           <td>
                             <span className={`badge ${(rx as any).status === "draft" ? "warn" : "muted"}`}>
                               {(rx as any).status}

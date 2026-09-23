@@ -168,11 +168,11 @@ export default function ReportChart({
     const order: string[] = [];
     const buckets = new Map<string, Record<string, number[]>>();
     for (const r of rows) {
-      const cat = String(r[labelCol.key] ?? "—");
+      const cat = String(r[labelCol.key] ?? "none");
       if (!buckets.has(cat)) { buckets.set(cat, {}); order.push(cat); }
       const into = buckets.get(cat)!;
       if (breakdown) {
-        const key = String(r[breakdown.key] ?? "—");
+        const key = String(r[breakdown.key] ?? "none");
         (into[key] ??= []).push(chosen[0] ? Number(r[chosen[0].key]) || 0 : 1);
       } else if (chosen.length) {
         for (const m of chosen) (into[m.key] ??= []).push(Number(r[m.key]) || 0);
@@ -182,7 +182,7 @@ export default function ReportChart({
     }
 
     let keys = breakdown
-      ? [...new Set(rows.map((r) => String(r[breakdown.key] ?? "—")))]
+      ? [...new Set(rows.map((r) => String(r[breakdown.key] ?? "none")))]
       : chosen.length ? chosen.map((m) => m.key) : ["count"];
 
     let folded: string[] = [];

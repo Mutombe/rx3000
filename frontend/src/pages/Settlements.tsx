@@ -133,7 +133,7 @@ export default function Settlements() {
                 <span>held pending a query</span>
               </div>
               <div className="wl-stat">
-                <b>{report.paying_rate !== null ? `${report.paying_rate}%` : "—"}</b>
+                <b>{report.paying_rate !== null ? `${report.paying_rate}%` : "none"}</b>
                 <span>Of what is claimed arrives</span>
               </div>
             </div>
@@ -168,7 +168,7 @@ export default function Settlements() {
                             : f.paying_rate < 95 ? "tone-warn" : "tone-ok"}>
                             {f.paying_rate}%
                           </b>
-                        ) : <span className="muted">—</span>}
+                        ) : <span className="muted">none</span>}
                       </td>
                       <td className="num">
                         {f.average_days !== null ? (
@@ -185,13 +185,13 @@ export default function Settlements() {
                               </div>
                             )}
                           </>
-                        ) : <span className="muted">—</span>}
+                        ) : <span className="muted">none</span>}
                       </td>
                       <td className="num mono">
                         {f.held
                           ? <>{money(f.held)}
                               <div className="muted small">{f.held_lines} line(s)</div></>
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td className="wrap muted small">{f.says}</td>
                     </tr>
@@ -242,16 +242,16 @@ export default function Settlements() {
                   {held.lines.map((l) => (
                     <tr key={l.id}>
                       <td>
-                        <b>{l.member_name || "—"}</b>
+                        <b>{l.member_name || "none"}</b>
                         <div className="muted small mono">{l.policy_number}</div>
                       </td>
                       <td className="mono small">
-                        {l.claim_reference || "—"}
+                        {l.claim_reference || "none"}
                         <div className="muted">{l.remittance_number}</div>
                       </td>
                       <td>
                         {l.service_date ? fmtDate(l.service_date)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td className="num mono">{money(l.amount_claimed)}</td>
                       <td className="wrap">

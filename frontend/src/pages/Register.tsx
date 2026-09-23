@@ -112,8 +112,8 @@ export default function Register() {
           type: e.entry_type,
           qty: e.quantity_delta > 0 ? `+${e.quantity_delta}` : String(e.quantity_delta),
           balance: String(e.balance_after),
-          patient: e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "—",
-          prescriber: e.doctor?.name ?? "—",
+          patient: e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "none",
+          prescriber: e.doctor?.name ?? "none",
           reference: e.reference,
         })),
         note: "Every entry in this register is written once and never altered. "
@@ -169,8 +169,8 @@ export default function Register() {
                 <td><span className={`badge ${e.entry_type === "dispense" ? "warn" : e.entry_type === "receive" ? "ok" : "muted"}`}>{e.entry_type}</span></td>
                 <td className="num">{e.quantity_delta > 0 ? `+${e.quantity_delta}` : e.quantity_delta}</td>
                 <td className="num"><b>{e.balance_after}</b></td>
-                <td><EntityLink kind="patient" id={e.patient?.id}>{e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "—"}</EntityLink></td>
-                <td><EntityLink kind="prescriber" id={e.doctor?.id}>{e.doctor?.name ?? "—"}</EntityLink></td>
+                <td><EntityLink kind="patient" id={e.patient?.id}>{e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "none"}</EntityLink></td>
+                <td><EntityLink kind="prescriber" id={e.doctor?.id}>{e.doctor?.name ?? "none"}</EntityLink></td>
                 <td className="mono">{e.reference}</td>
               </tr>
             ))}
@@ -230,7 +230,7 @@ export default function Register() {
                       <EntityLink kind="prescription" id={r.prescription_id}>
                         {r.rx_number || `#${r.prescription_id}`}
                       </EntityLink>
-                    ) : "—"}
+                    ) : "none"}
                   </td>
                   <td>{r.printed_by}</td>
                   <td className="wrap">

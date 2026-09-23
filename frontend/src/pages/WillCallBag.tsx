@@ -189,7 +189,7 @@ export default function WillCallBag() {
                 <dt>Script</dt>
                 <dd className="mono">
                   <EntityLink kind="prescription" id={bag.prescription_id}>
-                    {bag.rx_number || "—"}
+                    {bag.rx_number || "none"}
                   </EntityLink>
                   {bag.is_repeat && <div className="muted small">repeat</div>}
                 </dd>
@@ -202,7 +202,7 @@ export default function WillCallBag() {
                 <dt>Checked by</dt>
                 <dd>
                   <EntityLink kind="staff" id={bag.dispensed_by_id}>
-                    {bag.dispensed_by || bag.pharmacist_initial || "—"}
+                    {bag.dispensed_by || bag.pharmacist_initial || "none"}
                   </EntityLink>
                 </dd>
               </dl>

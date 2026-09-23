@@ -280,14 +280,14 @@ export default function ProductDetail() {
           { label: "Average cost", value: money(shelf.avg_cost),
             hint: "weighted over the stock on the shelf" },
           { label: "Markup", value: shelf.markup_percent === null ? "—" : `${shelf.markup_percent}%`,
-            hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "—"}% margin` },
+            hint: `${money(shelf.each)} each, ${shelf.margin_percent ?? "none"}% margin` },
           // What the line has actually EARNED, which the markup beside it does
           // not say: that is the same percentage whether four boxes went out
           // this year or four hundred. Profit where the sales carry a recorded
           // cost, takings where they do not, and the hint says which.
           { label: "Earned in a year",
             value: shelf.year.profit !== null ? money(shelf.year.profit)
-                   : shelf.year.revenue > 0 ? money(shelf.year.revenue) : "—",
+                   : shelf.year.revenue > 0 ? money(shelf.year.revenue) : "none",
             hint: shelf.year.units === 0
               ? "nothing has sold in a year"
               : shelf.year.profit !== null

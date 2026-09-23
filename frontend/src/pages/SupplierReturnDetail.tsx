@@ -273,7 +273,7 @@ export default function SupplierReturnDetail() {
                     <tr key={`${l.product_id}-${l.batch}-${n}`}>
                       <td>
                         <EntityLink to={`/products/${l.product_id}`}>
-                          {l.product || "—"}
+                          {l.product || "none"}
                         </EntityLink>
                       </td>
                       <td className="mono small">

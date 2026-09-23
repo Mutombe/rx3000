@@ -405,7 +405,7 @@ export default function Fiscal() {
                         ? <span className="badge danger" title={d.error}>failed</span>
                         : d.response_ref
                           ? <span className="mono">{d.response_ref}</span>
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                     </td>
                   </RowLink>
                 ))}

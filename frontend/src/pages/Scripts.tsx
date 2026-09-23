@@ -219,10 +219,10 @@ export default function Scripts() {
                     </td>
                     <td>
                       <EntityLink kind="patient" id={r.patient_id}>
-                        {r.patient || "—"}
+                        {r.patient || "none"}
                       </EntityLink>
                     </td>
-                    <td className="muted">{r.doctor || "—"}</td>
+                    <td className="muted">{r.doctor || "none"}</td>
                     <td className="num">{r.items}</td>
                     <td className="num">
                       {r.dispensed_count}
@@ -233,7 +233,7 @@ export default function Scripts() {
                       )}
                     </td>
                     <td className="muted">
-                      {r.date_prescribed ? fmtDate(r.date_prescribed) : "—"}
+                      {r.date_prescribed ? fmtDate(r.date_prescribed) : "no date"}
                     </td>
                   </RowLink>
                 ))}

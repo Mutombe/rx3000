@@ -3275,7 +3275,7 @@ export default function Dispense() {
         ],
         rows: priced.map(({ line, q }) => ({
           item: `${line.product.name} ${line.product.strength ?? ""}`.trim(),
-          directions: line.dosage_instructions || "—",
+          directions: line.dosage_instructions || "none",
           qty: String(line.quantity),
           price: money(lineTotal(q) ?? 0),
           scheme: money(q.scheme_pays ?? 0),
@@ -3707,11 +3707,11 @@ export default function Dispense() {
                     </td>
                     <td>
                       <EntityLink kind="patient" id={r.patient_id}>
-                        {r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : (r.customer_name || "—")}
+                        {r.patient ? `${r.patient.first_name} ${r.patient.last_name}` : (r.customer_name || "none")}
                       </EntityLink>
                     </td>
                     <td>
-                      {r.indication || "—"}
+                      {r.indication || "none"}
                       {r.referred_to_doctor && <div><span className="badge warn">Referred to doctor</span></div>}
                     </td>
                     {/* The name, without the job title trailing it. "T. Moyo

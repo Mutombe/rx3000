@@ -106,10 +106,10 @@ export default function ClaimDetail() {
                 <dt>Scheme</dt><dd>{d.scheme.name}</dd>
                 <dt>Sale</dt>
                 <dd className="mono">
-                  <EntityLink kind="sale" id={d.sale_id}>{d.sale_number || "—"}</EntityLink>
+                  <EntityLink kind="sale" id={d.sale_id}>{d.sale_number || "none"}</EntityLink>
                 </dd>
-                <dt>Diagnosis</dt><dd className="mono">{d.icd10_code || "—"}</dd>
-                <dt>Authorisation</dt><dd className="mono">{d.authorisation || "—"}</dd>
+                <dt>Diagnosis</dt><dd className="mono">{d.icd10_code || "none"}</dd>
+                <dt>Authorisation</dt><dd className="mono">{d.authorisation || "none"}</dd>
                 <dt>Submitted</dt>
                 <dd>
                   {d.submitted_at ? fmtDateTime(d.submitted_at)
@@ -133,7 +133,7 @@ export default function ClaimDetail() {
                   <tr key={i}>
                     <td>
                       <EntityLink kind="product" id={l.product_id}>
-                        {l.product || "—"}
+                        {l.product || "none"}
                       </EntityLink>
                     </td>
                     <td className="num">{l.quantity}</td>

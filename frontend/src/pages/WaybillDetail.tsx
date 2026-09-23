@@ -237,7 +237,7 @@ export default function WaybillDetail() {
                 <dt>Recipient</dt>
                 <dd>
                   <EntityLink kind="patient" id={w.patient_id}>
-                    {w.recipient || "—"}
+                    {w.recipient || "none"}
                   </EntityLink>
                 </dd>
                 <dt>Address</dt>
@@ -262,13 +262,13 @@ export default function WaybillDetail() {
                 <dt>Sale</dt>
                 <dd>
                   <EntityLink kind="sale" id={w.sale_id}>
-                    {w.sale_id ? `#${w.sale_id}` : "—"}
+                    {w.sale_id ? `#${w.sale_id}` : "none"}
                   </EntityLink>
                 </dd>
                 <dt>Patient</dt>
                 <dd>
                   <EntityLink kind="patient" id={w.patient_id}>
-                    {w.patient_id ? w.recipient : "—"}
+                    {w.patient_id ? w.recipient : "none"}
                   </EntityLink>
                 </dd>
                 <dt>Identity seen</dt>

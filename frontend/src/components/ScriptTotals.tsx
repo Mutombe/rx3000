@@ -194,7 +194,7 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
                 <td className="num">{l.quantity}</td>
                 <td className="num">{money(l.gross)}</td>
                 <td className="num muted">{money(l.cost)}</td>
-                <td className="num">{l.claim ? money(l.claim) : <span className="muted">—</span>}</td>
+                <td className="num">{l.claim ? money(l.claim) : <span className="muted">none</span>}</td>
                 <td className={`num${l.margin_percent < 0 ? " is-bad" : ""}`}>
                   {l.margin_percent}%
                 </td>

@@ -170,11 +170,11 @@ export default function Recall() {
                          prefetch={prefetchRoute}>
                   <td className="mono">
                     <EntityLink kind="batch" id={h.batch_id}>
-                      {h.batch_number || "—"}
+                      {h.batch_number || "none"}
                     </EntityLink>
                   </td>
                   <td>{h.product}</td>
-                  <td>{h.expiry_date ? fmtDate(h.expiry_date) : "—"}</td>
+                  <td>{h.expiry_date ? fmtDate(h.expiry_date) : "no date"}</td>
                   <td className="num">
                     {h.quantity_remaining} <span className="muted">of {h.quantity_received}</span>
                   </td>

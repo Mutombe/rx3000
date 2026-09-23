@@ -165,7 +165,7 @@ export default function Patients() {
                       {fmtDate(p.date_of_birth)}
                     </div>
                   </td>
-                  <td className="mono">{p.id_number || "—"}</td>
+                  <td className="mono">{p.id_number || "none"}</td>
                   <td>
                     <span className="clip" title={p.phone}>{p.phone}</span>
                     <span className="clip muted" title={p.email}>{p.email}</span>
@@ -186,7 +186,7 @@ export default function Patients() {
                     {p.allergies
                       ? <span className="badge danger clip" title={p.allergies}
                           style={{ maxWidth: "12rem" }}>{p.allergies}</span>
-                      : "—"}
+                      : "none"}
                   </td>
                   <td className="num">{p.loyalty_points} pts</td>
                   <RowActions>

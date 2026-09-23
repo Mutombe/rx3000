@@ -104,11 +104,11 @@ export default function CampaignDetail() {
         <>
           <Panel title="What it said">
             <dl className="kv">
-              <dt>Subject</dt><dd>{d.subject || "—"}</dd>
+              <dt>Subject</dt><dd>{d.subject || "none"}</dd>
               <dt>Audience</dt><dd>{d.segment}</dd>
               <dt>Channel</dt><dd>{d.channel}</dd>
               <dt>Created</dt>
-              <dd>{d.created_at ? fmtDateTime(d.created_at) : "—"}</dd>
+              <dd>{d.created_at ? fmtDateTime(d.created_at) : "no date"}</dd>
             </dl>
             <p className="prose" style={{ whiteSpace: "pre-wrap" }}>
               {d.body || <span className="muted">No body was recorded.</span>}

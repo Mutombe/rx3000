@@ -1115,7 +1115,7 @@ export default function POS() {
                   <td className="muted">{fmtDateTime(h.created_at)}</td>
                   {/* How it was settled, which is the question asked when the
                       drawer does not balance. */}
-                  <td>{h.payment_method || "—"}</td>
+                  <td>{h.payment_method || "none"}</td>
                   <td className="num"><b>{money(h.total)}</b></td>
                 </RowLink>
               ))}

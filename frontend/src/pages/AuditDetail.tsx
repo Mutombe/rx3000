@@ -48,7 +48,7 @@ interface Detail extends Entry {
 function Status({ code }: { code: number }) {
   const bad = code >= 400;
   return (
-    <span className={`badge ${bad ? "danger" : "ok"}`}>{code || "—"}</span>
+    <span className={`badge ${bad ? "danger" : "ok"}`}>{code || "none"}</span>
   );
 }
 
@@ -96,10 +96,10 @@ export default function AuditDetail() {
       }
       facts={row ? [
         { label: "Signed in as", value: row.username || "not recorded" },
-        { label: "Really", value: row.acted_as || row.username || "—",
+        { label: "Really", value: row.acted_as || row.username || "none",
           hint: row.acted_as ? "head office acting as somebody" : "themselves",
           tone: row.acted_as ? "warn" : undefined },
-        { label: "Answer", value: row.status_code || "—",
+        { label: "Answer", value: row.status_code || "none",
           hint: row.status_code >= 400 ? "the server refused it" : "accepted",
           tone: row.status_code >= 400 ? "bad" : undefined },
         { label: "When", value: fmtDateTime(row.created_at),

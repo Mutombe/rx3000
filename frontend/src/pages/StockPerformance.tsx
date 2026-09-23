@@ -160,7 +160,7 @@ export default function StockPerformance() {
                 <span>In lines that have not moved</span>
               </div>
               <div className="wl-stat">
-                <b>{report.gmroi ?? "—"}</b>
+                <b>{report.gmroi ?? "none"}</b>
                 <span>Gross profit per dollar of stock</span>
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function StockPerformance() {
                       <td className="num">{p.times_out_a_month}</td>
                       <td className="num">{p.on_hand.toLocaleString()}</td>
                       <td className="num">
-                        {p.days_cover === null ? <span className="muted">—</span>
+                        {p.days_cover === null ? <span className="muted">none</span>
                           : (
                             // The figure that says WHEN. Under a fortnight and
                             // it is on this week's order.
@@ -229,10 +229,10 @@ export default function StockPerformance() {
                             {p.margin !== null && (
                               <div className="muted small">{p.margin}%</div>
                             )}</>
-                        ) : <span className="muted">—</span>}
+                        ) : <span className="muted">none</span>}
                       </td>
                       <td className="num">
-                        {p.gmroi === null ? <span className="muted">—</span> : (
+                        {p.gmroi === null ? <span className="muted">none</span> : (
                           <b className={p.gmroi >= 3 ? "tone-ok"
                             : p.gmroi < 1 ? "tone-danger" : undefined}>
                             {p.gmroi}
@@ -277,7 +277,7 @@ export default function StockPerformance() {
                           {p.product}
                         </EntityLink>
                       </td>
-                      <td className="muted small">{p.department || "—"}</td>
+                      <td className="muted small">{p.department || "none"}</td>
                       <td className="num">{p.on_hand.toLocaleString()}</td>
                       <td className="num mono"><b>{money(p.held_at_cost)}</b></td>
                     </tr>
@@ -326,13 +326,13 @@ export default function StockPerformance() {
                       <td className="num mono">{money(b.profit)}</td>
                       <td className="num">
                         {b.margin !== null ? `${b.margin}%`
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       {/* The fair comparison. Revenue rewards the biggest shop;
                           this rewards the one that earns most per dollar it has
                           tied up, which is the question an owner is asking. */}
                       <td className="num">
-                        {b.gmroi === null ? <span className="muted">—</span> : (
+                        {b.gmroi === null ? <span className="muted">none</span> : (
                           <b className={b.gmroi >= 3 ? "tone-ok"
                             : b.gmroi < 1 ? "tone-danger" : undefined}>
                             {b.gmroi}
@@ -342,7 +342,7 @@ export default function StockPerformance() {
                       <td className="num mono">{money(b.dead_money)}</td>
                       <td className="muted small wrap">
                         {b.top.map((t) => t.product).slice(0, 3).join(", ")
-                          || "—"}
+                          || "none"}
                       </td>
                     </tr>
                   ))}

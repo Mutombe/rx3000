@@ -216,9 +216,9 @@ export default function Samples() {
       )}
 
       <div className="wc-bands">
-        <div className="wl-stat"><b>{reg?.open ?? "—"}</b><span>Open receipts</span></div>
-        <div className="wl-stat"><b>{reg?.units_held ?? "—"}</b><span>Units held</span></div>
-        <div className="wl-stat"><b>{reg?.total ?? "—"}</b><span>Ever received</span></div>
+        <div className="wl-stat"><b>{reg?.open ?? "none"}</b><span>Open receipts</span></div>
+        <div className="wl-stat"><b>{reg?.units_held ?? "none"}</b><span>Units held</span></div>
+        <div className="wl-stat"><b>{reg?.total ?? "none"}</b><span>Ever received</span></div>
       </div>
 
       {adding && (
@@ -363,7 +363,7 @@ export default function Samples() {
                                     </td>
                                     <td className="num">{m.quantity}</td>
                                     <td className="num">{m.balance_after}</td>
-                                    <td>{m.given_to || <span className="muted">—</span>}</td>
+                                    <td>{m.given_to || <span className="muted">none</span>}</td>
                                     <td>
                                       {m.by}
                                       {m.witness && <div className="muted small">witness {m.witness}</div>}

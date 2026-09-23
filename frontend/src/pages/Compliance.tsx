@@ -293,10 +293,10 @@ export default function Compliance() {
                         </div>
                       </td>
                       <td className="num">
-                        {b.expired || <span className="muted">—</span>}
+                        {b.expired || <span className="muted">none</span>}
                       </td>
                       <td className="num">
-                        {b.missing || <span className="muted">—</span>}
+                        {b.missing || <span className="muted">none</span>}
                       </td>
                       <td>
                         {b.next
@@ -392,11 +392,11 @@ export default function Compliance() {
                         )}
                       </td>
                       <td className="mono small">
-                        {d.reference || <span className="muted">—</span>}
+                        {d.reference || <span className="muted">none</span>}
                       </td>
                       <td>
                         {d.expires_on ? fmtDate(d.expires_on)
-                          : <span className="muted">—</span>}
+                          : <span className="muted">none</span>}
                       </td>
                       <td>
                         {d.has_file ? (
@@ -417,7 +417,7 @@ export default function Compliance() {
                           </button>
                         ) : d.id ? (
                           <span className="muted small">details only</span>
-                        ) : <span className="muted">—</span>}
+                        ) : <span className="muted">none</span>}
                       </td>
                       <td className="actions">
                         <button className="btn ghost sm"
@@ -460,8 +460,8 @@ export default function Compliance() {
                               what an audit asks about. */}
                           <Link to={`/compliance/documents/${d.id}`}>{d.name}</Link>
                         </td>
-                        <td className="mono small">{d.reference || "—"}</td>
-                        <td>{d.expires_on ? fmtDate(d.expires_on) : "—"}</td>
+                        <td className="mono small">{d.reference || "none"}</td>
+                        <td>{d.expires_on ? fmtDate(d.expires_on) : "no date"}</td>
                         <td>
                           {d.has_file && (
                             <button className="linkish" onClick={() => openFile(d)}>

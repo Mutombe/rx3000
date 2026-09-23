@@ -255,7 +255,7 @@ export default function Shifts() {
                   {s.till_no || s.run_number
                     ? [s.till_no && `Till ${s.till_no}`, s.run_number && `run ${s.run_number}`]
                         .filter(Boolean).join(" · ")
-                    : "—"}
+                    : "none"}
                 </td>
                 <td>{fmtDateTime(s.opened_at)}</td>
                 <td>{s.closed_at ? fmtDateTime(s.closed_at) : <span className="badge">Open</span>}</td>

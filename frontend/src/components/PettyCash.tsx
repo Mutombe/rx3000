@@ -225,9 +225,9 @@ export default function PettyCash() {
                   {list.entries.map((e) => (
                     <tr key={e.id}>
                       <td className="muted">
-                        {e.created_at ? fmtDateTime(e.created_at) : "—"}
+                        {e.created_at ? fmtDateTime(e.created_at) : "no date"}
                       </td>
-                      <td>{e.category || <span className="muted">—</span>}</td>
+                      <td>{e.category || <span className="muted">none</span>}</td>
                       <td>
                         {e.description || <span className="muted">no description</span>}
                         {e.reference && <div className="muted mono small">{e.reference}</div>}
@@ -239,7 +239,7 @@ export default function PettyCash() {
                         {money(e.amount)}
                       </td>
                       <td>
-                        {e.amount >= 0 ? <span className="muted">—</span>
+                        {e.amount >= 0 ? <span className="muted">none</span>
                           : e.receipt_seen ? <span className="badge ok">Seen</span>
                             : <span className="badge danger">None</span>}
                       </td>

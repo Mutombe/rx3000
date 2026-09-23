@@ -281,7 +281,7 @@ export default function Deliveries() {
                       ? <EntityLink kind="driver" id={w.driver_profile_id}>
                           {w.driver}
                         </EntityLink>
-                      : w.driver || <span className="muted">—</span>}
+                      : w.driver || <span className="muted">none</span>}
                     {w.driver_phone && (
                       <div className="muted small">{w.driver_phone}</div>
                     )}
@@ -300,7 +300,7 @@ export default function Deliveries() {
                         ? <span className="muted small">
                             {money(w.delivery_fee)} fee
                           </span>
-                        : <span className="muted">—</span>}
+                        : <span className="muted">none</span>}
                     {w.cod_collected > 0 && !w.cod_settled_at && (
                       <div><span className="badge warn">
                         {money(w.cod_collected)} not handed in

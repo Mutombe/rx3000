@@ -209,9 +209,9 @@ export default function LayByDetail() {
                 {payments.map((p, n) => (
                   <tr key={p.id ?? n}>
                     <td>{p.paid_at || p.created_at
-                      ? fmtDateTime((p.paid_at || p.created_at)!) : "—"}</td>
-                    <td>{p.method || "—"}</td>
-                    <td className="mono">{p.reference || "—"}</td>
+                      ? fmtDateTime((p.paid_at || p.created_at)!) : "no date"}</td>
+                    <td>{p.method || "none"}</td>
+                    <td className="mono">{p.reference || "none"}</td>
                     <td className="num">{money(p.amount)}</td>
                   </tr>
                 ))}

@@ -308,7 +308,7 @@ export default function Branches() {
                   <td><span className="clip" title={t.from_branch}>{t.from_branch}</span></td>
                   <td><span className="clip" title={t.to_branch}>{t.to_branch}</span></td>
                   <td className="muted">
-                    {t.despatched_at ? fmtDate(t.despatched_at) : "—"}
+                    {t.despatched_at ? fmtDate(t.despatched_at) : "no date"}
                   </td>
                   {/* A week on a bus is stock nobody has. Flagged, because the
                       alternative is finding it at the next stock take. */}
@@ -359,7 +359,7 @@ export default function Branches() {
                       {!b.active && <span className="badge muted">Closed</span>}
                     </td>
                     <td><span className="clip" title={b.city}>
-                      {b.city || <span className="muted">—</span>}</span></td>
+                      {b.city || <span className="muted">none</span>}</span></td>
                     <td>
                       {/* Empty is worth pointing at rather than leaving blank: a
                           branch with nobody named is a compliance gap, not a
@@ -370,7 +370,7 @@ export default function Branches() {
                         )}
                       </span>
                     </td>
-                    <td className="mono muted">{b.registration_no || "—"}</td>
+                    <td className="mono muted">{b.registration_no || "none"}</td>
                     <td>
                       {/* The one figure that decides whether the shop opens,
                           linked to the register that explains it. Silent while
@@ -393,7 +393,7 @@ export default function Branches() {
                             </span>
                           )}
                         </Link>
-                      ) : <span className="muted">—</span>}
+                      ) : <span className="muted">none</span>}
                     </td>
                     <td className="num lb-actions">
                       <button className="small ghost" onClick={() => showStock(b)}>

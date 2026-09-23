@@ -41,7 +41,7 @@ export default function RepeatValue({
   // product is not a line worth nothing, it is a line nobody has priced, and
   // printing 0.00 states the first while meaning the second.
   if (!now && !later) {
-    return <span className="rv-none" title="No price on this product yet">—</span>;
+    return <span className="rv-none" title="No price on this product yet">none</span>;
   }
 
   // "3-Repeat" — the dispensary's own name for a script with three

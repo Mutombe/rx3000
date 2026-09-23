@@ -167,7 +167,7 @@ export default function Drivers() {
                         <td className="num">{d.deliveries}</td>
                         <td className="num mono">{money(d.to_collect)}</td>
                         <td className="num mono">{money(d.holding)}</td>
-                        <td>{d.oldest ? fmtDate(d.oldest) : <span className="muted">—</span>}</td>
+                        <td>{d.oldest ? fmtDate(d.oldest) : <span className="muted">no date</span>}</td>
                       </tr>
                     ))}
                     {!road.drivers.length && (
@@ -235,16 +235,16 @@ export default function Drivers() {
                         </>
                       ) : <span className="muted">not recorded</span>}
                     </td>
-                    <td className="num">{d.out || <span className="muted">—</span>}</td>
+                    <td className="num">{d.out || <span className="muted">none</span>}</td>
                     <td className="num mono">
-                      {d.cash_holding ? money(d.cash_holding) : <span className="muted">—</span>}
+                      {d.cash_holding ? money(d.cash_holding) : <span className="muted">none</span>}
                       {d.over_cod_limit && (
                         <div><span className="badge bad">Over limit</span></div>
                       )}
                     </td>
                     <td className="num">
                       {d.failure_rate === null
-                        ? <span className="muted">—</span>
+                        ? <span className="muted">none</span>
                         : `${d.failure_rate}%`}
                     </td>
                     <RowActions>
