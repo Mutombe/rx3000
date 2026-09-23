@@ -11,7 +11,7 @@
  *  question an owner opens it to answer. The match sits behind an invoice,
  *  where it is read at the moment somebody is deciding whether to pay.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowClockwise, CheckCircle, Printer, Question, Receipt, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import { printDocument } from "../document";
@@ -20,7 +20,7 @@ import BusyButton from "../components/BusyButton";
 import RowLink from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
-import { EntityLink } from "../components/Filters";
+import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import PaySupplier from "../components/PaySupplier";
 import Remittance, { RemittanceData } from "../components/Remittance";
 import { TableSkeleton } from "../components/Skeleton";
@@ -68,6 +68,19 @@ const DEPTH_SAYS: Record<string, string> = {
 
 export default function Payables() {
   const [ageing, setAgeing] = useState<Ageing | null>(null);
+  /* OPEN INVOICES, FLATTENED SO THE SEARCH CAN REACH THEM.
+     The table is grouped by supplier, so an invoice number lives one level
+     down and a plain filter on `suppliers` would have searched the group
+     headings only. "Find an invoice" above this is a lookup that builds its
+     own separate result list; this narrows the table a pharmacy actually
+     pays from. */
+  const openInvoices = useMemo(
+    () => (ageing?.suppliers ?? []).flatMap((s) =>
+      s.invoices.map((i) => ({ ...i, supplier: s.supplier,
+                               supplier_id: s.supplier_id }))),
+    [ageing]);
+  const { q, setQ, shown } = useSearch(openInvoices, (i) =>
+    [i.invoice_number, i.supplier]);
   const [waiting, setWaiting] = useState<Uninvoiced[]>([]);
   const [open, setOpen] = useState<Invoice | null>(null);
   const [querying, setQuerying] = useState(false);
@@ -470,6 +483,9 @@ export default function Payables() {
           {ageing.suppliers.length > 0 && (
             <div className="card">
               <div className="card-head"><h3>Open invoices</h3></div>
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find an invoice number or a supplier…"
+                           shown={shown.length} total={openInvoices.length} />
               <table className="dt">
                 <thead>
                   <tr>
@@ -478,14 +494,13 @@ export default function Payables() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ageing.suppliers.flatMap((s) =>
-                    s.invoices.map((i) => (
+                  {shown.map((i) => (
                       <tr key={i.invoice_id}>
                         <td className="mono">
                           <EntityLink kind="invoice" id={i.invoice_id}>{i.invoice_number}</EntityLink>
                         </td>
                         <td>
-                          <EntityLink kind="supplier" id={s.supplier_id}>{s.supplier}</EntityLink>
+                          <EntityLink kind="supplier" id={i.supplier_id}>{i.supplier}</EntityLink>
                         </td>
                         <td>
                           {fmtDate(i.due_date)}
@@ -506,7 +521,7 @@ export default function Payables() {
                           </button>
                         </td>
                       </tr>
-                    )))}
+                    ))}
                 </tbody>
               </table>
             </div>

@@ -15,6 +15,7 @@ import { useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
+import { TableSearch, useSearch } from "./Filters";
 
 /** What comes back from `/api/ledger/bank-reconciliation`.
  *
@@ -40,6 +41,11 @@ export interface BankRecon {
 export default function BankReconcile() {
   const [statement, setStatement] = useState("");
   const [bank, setBank] = useState<BankRecon | null>(null);
+  /* The statement lines nothing in the ledger accounts for. This is the list
+     somebody works down with the bank statement beside them, looking up one
+     description or one amount at a time. */
+  const { q, setQ, shown } = useSearch(bank?.on_statement_only ?? [], (l) =>
+    [l.description, l.reference, l.suggestion]);
   const toast = useToast();
 
   async function reconcileBank() {
@@ -126,6 +132,10 @@ export default function BankReconcile() {
                 Every line on the statement is accounted for.
               </div>
             ) : (
+              <>
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find a description or a reference…"
+                           shown={shown.length} total={bank.on_statement_only.length} />
               <table className="dt">
                 <thead>
                   <tr>
@@ -134,7 +144,7 @@ export default function BankReconcile() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bank.on_statement_only.map((l) => (
+                  {shown.map((l) => (
                     <tr key={l.line_number}>
                       <td>{l.date ? fmtDate(l.date) : "no date"}</td>
                       <td>
@@ -149,6 +159,7 @@ export default function BankReconcile() {
                   ))}
                 </tbody>
               </table>
+              </>
             )}
           </div>
 
