@@ -19,6 +19,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import { useStepUp, CANCELLED } from "./StepUp";
 import { useToast } from "./Toast";
+import { TableSearch, useSearch } from "./Filters";
 import Checkbox from "./Checkbox";
 import Select from "./Select";
 
@@ -38,6 +39,10 @@ export default function PettyCash() {
   const toast = useToast();
   const { guarded, prompt } = useStepUp();
   const [list, setList] = useState<Listing | null>(null);
+  /* The tin's own ledger. It is read to find one payment: "what was that
+     forty dollars on the fourteenth". */
+  const { q, setQ, shown } = useSearch(list?.entries ?? [], (e) =>
+    [e.description, e.category, e.reference, e.user]);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -214,6 +219,9 @@ export default function PettyCash() {
             <div className="empty">Nothing recorded.</div>
           ) : (
             <div className="cu-scroll">
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find a payment, a category or a name…"
+                           shown={shown.length} total={list.entries.length} />
               <table>
                 <thead>
                   <tr>
@@ -222,7 +230,7 @@ export default function PettyCash() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.entries.map((e) => (
+                  {shown.map((e) => (
                     <tr key={e.id}>
                       <td className="muted">
                         {e.created_at ? fmtDateTime(e.created_at) : "no date"}

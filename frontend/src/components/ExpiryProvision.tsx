@@ -16,7 +16,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
-import { EntityLink } from "./Filters";
+import { EntityLink, TableSearch, useSearch } from "./Filters";
 
 interface Item {
   batch_id: number; product: string; batch_number: string;
@@ -41,6 +41,10 @@ interface State {
 
 export default function ExpiryProvision() {
   const [state, setState] = useState<State | null>(null);
+  /* Every batch carrying a provision. Read to answer "why is this line
+     provided for" about one medicine. */
+  const { q, setQ, shown } = useSearch(state?.items ?? [], (i) =>
+    [i.product, i.batch_number, i.reason]);
   const [failed, setFailed] = useState("");
   const toast = useToast();
   const confirm = useConfirm();
@@ -148,6 +152,9 @@ export default function ExpiryProvision() {
         <details className="prov-detail">
           <summary>{state.items.length} batch{state.items.length === 1 ? "" : "es"} behind this figure</summary>
           <div className="dt-scroll">
+              <TableSearch value={q} onChange={setQ}
+                           placeholder="Find a medicine or a batch…"
+                           shown={shown.length} total={state.items.length} />
             <table className="dt sub">
               <thead>
                 <tr>
@@ -157,7 +164,7 @@ export default function ExpiryProvision() {
                 </tr>
               </thead>
               <tbody>
-                {state.items.map((i) => (
+                {shown.map((i) => (
                   <tr key={i.batch_id}>
                     <td>{i.product}</td>
                     <td className="mono"><EntityLink kind="batch" id={i.batch_id}>{i.batch_number || "none"}</EntityLink></td>

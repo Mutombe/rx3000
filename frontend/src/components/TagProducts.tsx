@@ -18,7 +18,7 @@ import { useState } from "react";
 import { CheckCircle, Tag } from "@phosphor-icons/react";
 import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
-import { EntityLink } from "./Filters";
+import { EntityLink , TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 
 interface Plan {
@@ -37,6 +37,10 @@ interface Unplaced {
 export default function TagProducts({ onDone }: { onDone?: () => void }) {
   const [plan, setPlan] = useState<Plan | null>(null);
   const [left, setLeft] = useState<Unplaced | null>(null);
+  /* Lines no rule placed, worth first, so a pharmacist works down them. Which
+     means coming back to it and asking "did I do this one". */
+  const { q, setQ, shown } = useSearch(left?.items ?? [], (p) =>
+    [p.name, p.stock_code]);
   const [retag, setRetag] = useState(false);
   const toast = useToast();
 
@@ -197,6 +201,9 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
             pays. Open a line to file it.
           </p>
           <div className="dt-scroll">
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find a product or a code…"
+                         shown={shown.length} total={left.items.length} />
             <table className="dt">
               <thead>
                 <tr>
@@ -206,7 +213,7 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
                 </tr>
               </thead>
               <tbody>
-                {left.items.map((p) => (
+                {shown.map((p) => (
                   <tr key={p.id}>
                     <td>
                       <EntityLink kind="product" id={p.id}>{p.name}</EntityLink>

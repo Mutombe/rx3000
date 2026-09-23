@@ -17,6 +17,7 @@
  *  action, which is how a list stops being read.
  */
 import { useEffect, useState } from "react";
+import { TableSearch, useSearch } from "./Filters";
 import { Printer } from "@phosphor-icons/react";
 import { api, fmtDate, money } from "../api";
 import { printDocument } from "../document";
@@ -44,6 +45,9 @@ export default function AgedAnalysis() {
   const [subledger, setSubledger] = useState("debtors");
   const [asof, setAsof] = useState(() => new Date().toISOString().slice(0, 10));
   const [data, setData] = useState<Ageing | null>(null);
+  /* Aged debtors and creditors: one row an account, and it is read to chase
+     ONE of them. The list only grows with the business. */
+  const { q, setQ, shown } = useSearch(data?.parties ?? [], (p) => [p.name]);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -149,6 +153,10 @@ export default function AgedAnalysis() {
               Nothing outstanding at {data.as_at}. Every account is settled.
             </div>
           ) : (
+            <>
+            <TableSearch value={q} onChange={setQ}
+                         placeholder="Find an account…"
+                         shown={shown.length} total={data.parties.length} />
             <div className="age-scroll">
               <table className="age-table">
                 <thead>
@@ -166,7 +174,7 @@ export default function AgedAnalysis() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.parties.map((p) => (
+                  {shown.map((p) => (
                     <tr key={`${p.party_type}-${p.party_id}`}>
                       <td>
                         {p.name}
@@ -212,6 +220,7 @@ export default function AgedAnalysis() {
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </>
       )}
