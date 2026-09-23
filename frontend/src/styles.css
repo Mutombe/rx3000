@@ -13055,3 +13055,68 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .dd-rule svg { flex: 0 0 auto; color: var(--warn); }
 /* The register lives on its own screen; this is the way to it. */
 .dd-register-link, .otc-register-link { margin: var(--s3) 0 0; }
+
+/* ---------- THE OVER-THE-COUNTER SALE, GIVEN A SHAPE ----------
+   Stripping the labels left a column of eight identical rounded boxes: the
+   medicine, the customer, the patient, the complaint, two ticks, the notes
+   and the money all the same width and the same weight, so nothing on the
+   card said which of them belonged together. A form is not a design.
+
+   It borrows the prescription tab's grammar, because that is the screen
+   beside it and a counter assistant moves between the two all day: a lane of
+   search fields that name themselves and carry their function icon at the
+   right end, then the work, then the money on one line at the foot. */
+.otc-lane {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.otc-find { margin-bottom: var(--s3); }
+.otc-patient { position: relative; }
+/* The hits hang under their own field rather than pushing the card open. */
+.otc-patient .otc-hit {
+  position: relative; z-index: 2; background: var(--surface);
+}
+.otc-picked { justify-content: space-between; }
+
+/* The consultation is one record, so it sits in one block with its own
+   quiet heading. The complaint, what was said and what was decided are the
+   three halves of the same answer. */
+.otc-consult {
+  border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--surface-sunk);
+  padding: var(--s3); margin-bottom: var(--s4);
+}
+.otc-consult-head {
+  font-size: .62rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 600; margin-bottom: var(--s2);
+}
+.otc-consult .lane-field { margin-bottom: var(--s3); }
+.otc-ticks { display: grid; gap: 2px; margin-bottom: var(--s3); }
+.otc-notes { width: 100%; resize: vertical; }
+
+/* Qty times price is what they pay, and what they handed over. One line,
+   in that order, because that is the order it is said out loud. */
+.otc-foot {
+  display: grid; grid-template-columns: 5.5rem 1fr 8rem;
+  gap: var(--s3); align-items: end; margin-bottom: var(--s3);
+}
+.otc-foot label, .otc-foot-total { display: grid; gap: 3px; min-width: 0; }
+.otc-foot span {
+  font-size: .62rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-faint); font-weight: 600;
+}
+.otc-foot input { width: 100%; }
+/* The figure the customer is told, in the size that says so. */
+.otc-foot-total b {
+  font-size: 1.5rem; line-height: 1.1; font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 700px) {
+  .otc-lane { grid-template-columns: 1fr; }
+  .otc-foot { grid-template-columns: 5rem 1fr; }
+  .otc-foot-tendered { grid-column: 1 / -1; }
+}
+.otc-foot-none {
+  font-style: normal; font-size: var(--t-base); color: var(--ink-faint);
+  align-self: center;
+}

@@ -67,7 +67,7 @@ import MarginTag, { shelfMargin } from "../components/MarginTag";
 import { TableSkeleton } from "../components/Skeleton";
 import AdjustStock from "../components/AdjustStock";
 import AlterScript from "../components/AlterScript";
-import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, XCircle } from "@phosphor-icons/react";
+import { Camera, EyeSlash, Plus, Receipt, PencilSimpleLine, UserCircle, XCircle } from "@phosphor-icons/react";
 import StepTrail, { Step, goToStep } from "../components/StepTrail";
 import { DRAFT_SCRIPT, TERMS } from "../terms";
 import { scheduleCode, useScheduleCodes } from "../schedules";
@@ -3515,9 +3515,14 @@ export default function Dispense() {
                   </button>
                 </div>
               ) : (
-                <input data-hk="product" type="search"
-                  placeholder={`Search ${counterCodes} medicines…`} value={productQ}
-                  onChange={(e) => setProductQ(e.target.value)} />
+                <div className="lane-field otc-find">
+                  <input data-hk="product" type="search"
+                    aria-label={`Search ${counterCodes} medicines`}
+                    placeholder={`Search ${counterCodes} medicines…`} value={productQ}
+                    onChange={(e) => setProductQ(e.target.value)} />
+                  <MagnifyingGlass className="lane-icon" size={15} weight="bold"
+                                   aria-hidden="true" />
+                </div>
               )}
               {!otcProduct && productResults.map((p) => (
                 <div key={p.id} onClick={() => { setOtcProduct(p); setOtcPackExpiry(""); setOtcLot(ROTATION); }}
@@ -3574,45 +3579,59 @@ export default function Dispense() {
                   Every one keeps an aria-label: a placeholder is not a label
                   to a screen reader, and dropping both would make the record
                   unusable rather than merely plainer. */}
-              <div className="form-row">
-                <div className="field">
-                  <input type="number" min={1} value={otcQty} aria-label="Quantity"
-                         onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
-                </div>
-                <div className="field">
+              {/* WHO IS BEING SERVED, on one lane.
+                  The quantity left here: it belongs with the money at the
+                  foot, where it multiplies the price, not with the person. */}
+              <div className="otc-lane">
+                <div className="lane-field">
                   <input value={customerName} aria-label="Customer"
                          placeholder="Customer, if not a registered patient"
                          onChange={(e) => setCustomerName(e.target.value)} />
+                  <UserCircle className="lane-icon" size={15} aria-hidden="true" />
                 </div>
-              </div>
-              <div className="field">
                 {patient ? (
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <b>{patient.first_name} {patient.last_name}</b>
-                    {patient.allergies && <span className="badge danger"><Warning size={11} weight="fill" /> {patient.allergies}</span>}
+                  <div className="lane-field is-picked otc-picked">
+                    <span className="dpp-who">
+                      {patient.first_name} {patient.last_name}
+                    </span>
+                    {patient.allergies && (
+                      <span className="badge danger">
+                        <Warning size={11} weight="fill" /> {patient.allergies}
+                      </span>
+                    )}
                     <IconButton action="remove" onClick={() => setPatient(null)} />
                   </div>
                 ) : (
-                  <>
+                  <div className="lane-field otc-patient">
                     <input data-hk="patient" type="search" value={patientQ}
                       aria-label="Patient"
-                      placeholder="Patient, search by name (optional)"
+                      placeholder="Patient, if they are on file"
                       onChange={(e) => setPatientQ(e.target.value)} />
+                    <MagnifyingGlass className="lane-icon" size={15} weight="bold"
+                                     aria-hidden="true" />
                     {patients.map((p) => (
-                      <div key={p.id} className="product-pick"
+                      <div key={p.id} className="product-pick otc-hit"
                         onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); }}>
                         <span>{p.last_name}, {p.first_name}</span>
                         <span className="muted">{p.phone}</span>
                       </div>
                     ))}
-                  </>
+                  </div>
                 )}
               </div>
-              <div className="field">
-                <input value={indication} aria-label="Complaint"
-                  onChange={(e) => setIndication(e.target.value)}
-                  placeholder="Complaint, e.g. headache for 2 days, no red flags" />
-              </div>
+
+              {/* THE CONSULTATION, AS ONE THING.
+                  The complaint, what was said about it and what was decided
+                  are one record: a pharmacist answering for this sale is
+                  answering for all three together. Loose in a column of
+                  identical boxes they read as four unrelated questions. */}
+              <div className="otc-consult">
+                <div className="otc-consult-head">The consultation</div>
+                <div className="lane-field">
+                  <input value={indication} aria-label="Complaint"
+                    onChange={(e) => setIndication(e.target.value)}
+                    placeholder="What did they come in for?" />
+                </div>
               {/* The tick claims a conversation happened. Until now nothing
                   on the screen said what that conversation should cover, which
                   makes it a tick about the pharmacist's memory rather than
@@ -3622,12 +3641,15 @@ export default function Dispense() {
                   name={`${otcProduct.name} ${otcProduct.strength ?? ""}`.trim()}
                   compact />
               )}
-              <Checkbox checked={counselled} onChange={setCounselled}>Patient counselled on dose, duration and side effects</Checkbox>
-              <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
-              <div className="field">
+                <div className="otc-ticks">
+                  <Checkbox checked={counselled} onChange={setCounselled}>Counselled on dose, duration and side effects</Checkbox>
+                  <Checkbox checked={referred} onChange={setReferred}>Referred to a doctor</Checkbox>
+                </div>
                 <textarea rows={2} value={otcNotes} aria-label="Notes"
-                  placeholder="Notes, anything worth recording about this sale"
-                  onChange={(e) => setOtcNotes(e.target.value)} /></div>
+                  className="otc-notes"
+                  placeholder="Anything else worth recording"
+                  onChange={(e) => setOtcNotes(e.target.value)} />
+              </div>
               {/* Stock the shelf holds and the front shop cannot sell until
                   somebody reads the date off the box. Asked here, with the pack
                   in hand, rather than refused on the click as a shortage on a
@@ -3664,12 +3686,30 @@ export default function Dispense() {
                 <LotPicker productId={otcProduct.id} productName={otcProduct.name}
                            value={otcLot} onChange={setOtcLot} />
               )}
-              <div className="form-row">
-                <div className="field">
-                  <input type="number" step="0.01" value={tendered}
-                         aria-label="Tendered" placeholder="Tendered"
-                         onChange={(e) => setTendered(e.target.value)} />
+              {/* THE MONEY, AS ONE LINE.
+                  How many, what it comes to, what they handed over. These were
+                  three boxes in three different places on the card, and the
+                  total was only ever visible inside the button. */}
+              <div className="otc-foot">
+                <label className="otc-foot-qty">
+                  <span>Qty</span>
+                  <input type="number" min={1} value={otcQty} aria-label="Quantity"
+                         onChange={(e) => setOtcQty(Math.max(1, Number(e.target.value)))} />
+                </label>
+                {/* Big only when there is a figure. An absence set in the
+                    size reserved for money shouts about nothing. */}
+                <div className="otc-foot-total">
+                  <span>To pay</span>
+                  {otcProduct
+                    ? <b>{money(otcTotal)}</b>
+                    : <em className="otc-foot-none">pick a medicine first</em>}
                 </div>
+                <label className="otc-foot-tendered">
+                  <span>Tendered</span>
+                  <input type="number" step="0.01" value={tendered}
+                         aria-label="Tendered"
+                         onChange={(e) => setTendered(e.target.value)} />
+                </label>
               </div>
               {/* Not disabled while a sale is in flight. The work is in the
                   tray and the next customer can start, which is the whole
