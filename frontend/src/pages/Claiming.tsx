@@ -103,6 +103,16 @@ function lastMonthName(): string {
   return d.toLocaleDateString(undefined, { month: "long" });
 }
 
+/** A claim period, with the year said once when both ends share it. */
+function periodSaid(from?: string | null, to?: string | null): string {
+  if (!from) return "No date";
+  const start = fmtDate(from);
+  if (!to) return start;
+  const end = fmtDate(to);
+  const sameYear = from.slice(0, 4) === to.slice(0, 4);
+  return `${sameYear ? start.replace(/,\s*\d{4}$/, "") : start} to ${end}`;
+}
+
 export default function Claiming() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -479,14 +489,19 @@ export default function Claiming() {
           <div className="card">
             <h3>Batches</h3>
             <div className="cu-scroll">
-              <table className="dt dt-wider">
+              <table className="dt">
                 <thead>
                   <tr>
-                    <th className="mono col-code">Batch</th><th className="col-name">Pay office</th><th className="col-range">Period</th><th className="col-code">Status</th>
+                    <th className="mono col-code">Batch</th><th className="col-name">Pay office</th><th className="cl-period">Period</th><th className="col-code">Status</th>
                     <th className="num">Claims</th>
                     <th className="num col-money">Claimed</th>
-                    <th className="num col-money">Settled</th>
-                    <th className="num col-money">Short</th><th className="actions" />
+                    {/* No Short column. It is what a settled batch was paid
+                        less than it claimed, so it is empty on every batch that
+                        is still open or still out, which on a real screen is
+                        most of them: 120px of "none" beside the figure it is
+                        derived from. It rides under the settled figure, where
+                        the comparison is. */}
+                    <th className="num col-money">Settled</th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -504,18 +519,24 @@ export default function Claiming() {
                           </EntityLink>
                         </td>
                         <td>{officeName(b.pay_office_id)}</td>
-                        <td className="muted">
-                          {b.period_from ? fmtDate(b.period_from) : "No date"}
-                          {b.period_to ? ` to ${fmtDate(b.period_to)}` : ""}
-                        </td>
+                        {/* "10 Aug, 2026 to 17 Aug, 2026" says the year twice
+                            and wanted 240px for it. A claim period does not
+                            straddle a new year often, and when it does the
+                            year comes back on both ends. */}
+                        <td className="muted">{periodSaid(b.period_from, b.period_to)}</td>
                         <td><span className={`badge ${badgeFor(b.status)}`}>{sentence(b.status)}</span></td>
                         <td className="num">{b.claim_count}</td>
                         <td className="num">{money(b.total_claimed)}</td>
-                        <td className="num">{money(b.total_settled)}</td>
-                        {/* Only on a settled batch. A short figure on a batch that
-                            has not been paid yet is not short, it is unpaid. */}
-                        <td className={`num${b.status === "settled" && short > 0.005 ? " cu-diff" : ""}`}>
-                          {b.status === "settled" && short > 0.005 ? money(short) : "none"}
+                        {/* Only on a settled batch. A short figure on a batch
+                            that has not been paid yet is not short, it is
+                            unpaid. */}
+                        <td className="num">
+                          {money(b.total_settled)}
+                          {b.status === "settled" && short > 0.005 && (
+                            <div className="muted small cu-diff">
+                              {money(short)} short
+                            </div>
+                          )}
                         </td>
                         <td className="num">
                           {b.status === "open" && (

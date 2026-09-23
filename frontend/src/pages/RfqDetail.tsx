@@ -26,7 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Check, PaperPlaneTilt, Plus, Prohibit } from "@phosphor-icons/react";
 
-import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { api, errorText, fmtDate, fmtDateTime, money , sentence} from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
@@ -76,12 +76,14 @@ interface Invited {
 
 /** The status, as a person would say it. The stored values stay as they are;
  *  these are only for reading. */
+/** What each stored status is called on screen, in sentence case: these are
+ *  read as words on a stat tile, not as the column's own spelling. */
 const SAYS_STATUS: Record<string, string> = {
-  draft: "draft",
-  sent: "out for quotation",
-  awaiting_approval: "waiting to be signed off",
-  closed: "orders raised",
-  cancelled: "cancelled",
+  draft: "Draft",
+  sent: "Out for quotation",
+  awaiting_approval: "Waiting to be signed off",
+  closed: "Orders raised",
+  cancelled: "Cancelled",
 };
 
 interface Detail {
@@ -314,8 +316,8 @@ export default function RfqDetail() {
             : "nobody has replied yet" },
         // In words, not in the database's spelling. "awaiting_approval" on
         // a screen is the software showing somebody its own internals.
-        { label: "Status", value: SAYS_STATUS[row.status] ?? row.status },
-        { label: "Closes", value: row.closes_at ? fmtDate(row.closes_at) : "no date",
+        { label: "Status", value: SAYS_STATUS[row.status] ?? sentence(row.status) },
+        { label: "Closes", value: row.closes_at ? fmtDate(row.closes_at) : "No date",
           hint: row.closes_at ? "" : "a request with no closing date is never compared" },
         // What asking around was actually worth, which is the case for doing it.
         { label: "Spread", value: money(row.saving),
@@ -401,15 +403,18 @@ export default function RfqDetail() {
                 <tbody>
                   {row.lines.map((line) => (
                     <tr key={line.rfq_line_id}>
-                      <td>
+                      <td title={line.quoted_by > 1 && line.spread > 0
+                        ? `${money(line.saving)} between the dearest and the cheapest`
+                        : undefined}>
                         <EntityLink to={`/products/${line.product_id}`}>
                           {line.product}
                         </EntityLink>
-                        {line.quoted_by > 1 && line.spread > 0 && (
-                          <div className="muted small">
-                            {money(line.saving)} between dearest and cheapest
-                          </div>
-                        )}
+                        {/* The spread is on the hover rather than under the
+                            name. It is the dearest quote less the cheapest,
+                            both of which are in the row beside it with the
+                            cheapest already marked, and printed on its own
+                            line it doubled the height of every row in a table
+                            read by comparing across. */}
                       </td>
                       <td className="num">{line.quantity}</td>
                       {line.answers.map((a) => {
@@ -428,14 +433,15 @@ export default function RfqDetail() {
                               <span className="muted small">Cannot supply</span>
                             ) : (
                               <button type="button" className="rfq-pick"
+                                      title={`${money(a.line_total ?? 0)} for `
+                                             + `${line.quantity}`}
                                       onClick={() => setPicks((p) => ({
                                         ...p, [line.rfq_line_id]: a.rfq_supplier_id }))}
                                       disabled={!buyable || row.status === "closed"}>
                                 <b>{money(a.unit_price ?? 0)}</b>
-                                <span className="muted small">
-                                  {money(a.line_total ?? 0)}
-                                  {a.lead_days !== null && ` · ${a.lead_days}d`}
-                                </span>
+                                {a.lead_days !== null && (
+                                  <span className="muted small">{a.lead_days}d</span>
+                                )}
                                 {picked && <Check size={13} weight="bold" />}
                               </button>
                             )}

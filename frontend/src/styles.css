@@ -3968,6 +3968,10 @@ button.wl-stat:disabled:hover {
 .col-when  { width: 11rem; }   /* "20 Aug, 2026" wants 111px */
 .col-stamp { width: 12.5rem; } /* "20 Sept, 2026, 08:41" wants 157px */
 .col-range { width: 15rem; }   /* "01 Sept, 2026 to 30 Sept, 2026" wants 223px */
+/* The claim period, which now says its year once: "10 Aug to 17 Aug, 2026".
+   The shared range column is sized for both years and a fixed width does not
+   shrink to fit shorter text on its own. */
+.cl-period { width: 11rem; }
 .col-said  { width: 16rem; }   /* a short sentence: a reason, a description */
 .col-code  { width: 7rem; }
 /* The period code and its month underneath. Without a width the table shares
@@ -4175,6 +4179,13 @@ td.lb-actions {
 
 /* A search box that belongs to a page rather than to a table. */
 .page-actions { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+/* A Select in an action bar sizes to its own label, not to the bar.
+   `.sel-trigger` is `width: 100%`, which is right in a form field and wrong
+   here: as a flex item it made the whole action group collapse to the width of
+   one dropdown, and the button beside it wrapped onto a second line under it.
+   Two controls, stacked, in the corner of a page head. */
+.page-actions .sel, .page-actions .sel-trigger { width: auto; }
+.page-actions .sel-trigger { min-width: 12rem; }
 
 /* ONE SIZE OF BUTTON IN A PAGE'S ACTION GROUP.
    ExportButton defaults to `small`, which is right in a card head and wrong
@@ -12673,9 +12684,13 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    is no use for a line that is out of stock today. */
 .rfq-cell.is-cheapest { background: var(--ok-soft); }
 .rfq-cell.is-picked { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* One line, not two stacked. The price and the lead time sit beside each
+   other; the line total is the price times the quantity in the column two
+   across, and it was setting the height of every row in the table. */
 .rfq-pick {
-  display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px;
-  width: 100%; padding: 6px 8px; min-height: 44px;
+  display: inline-flex; align-items: baseline; justify-content: flex-end;
+  gap: var(--s2);
+  width: 100%; padding: 6px 8px; min-height: 32px;
   border: 1px solid transparent; border-radius: var(--r-sm);
   background: transparent; color: inherit; cursor: pointer; text-align: right;
 }

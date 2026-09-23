@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Robot } from "@phosphor-icons/react";
 
-import { api, errorText, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money , sentence} from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -37,12 +37,14 @@ interface RfqRow {
 }
 
 /** The status in words rather than in the database's spelling. */
+/** What each stored status is called on screen. Sentence case, because these
+ *  are read as words in a badge rather than as the column's own spelling. */
 const SAYS_STATUS: Record<string, string> = {
-  draft: "draft",
-  sent: "out for quotation",
-  awaiting_approval: "waiting to be signed off",
-  closed: "orders raised",
-  cancelled: "cancelled",
+  draft: "Draft",
+  sent: "Out for quotation",
+  awaiting_approval: "Waiting to be signed off",
+  closed: "Orders raised",
+  cancelled: "Cancelled",
 };
 
 interface Awaiting {
@@ -167,7 +169,7 @@ export default function Rfqs() {
                         )}
                         {r.notes && <div className="muted small wrap">{r.notes}</div>}
                       </td>
-                      <td><span className="badge muted">{SAYS_STATUS[r.status] ?? r.status}</span></td>
+                      <td><span className="badge muted">{SAYS_STATUS[r.status] ?? sentence(r.status)}</span></td>
                       <td className="small">{fmtDate(r.created_at)}</td>
                       <td className="num">{r.line_count}</td>
                       {/* The only actionable thing here: who still owes an

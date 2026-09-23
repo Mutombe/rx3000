@@ -12,6 +12,8 @@
  *  where it is read at the moment somebody is deciding whether to pay.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Select from "../components/Select";
 import { ArrowClockwise, CheckCircle, Printer, Question, Receipt, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import { printDocument } from "../document";
@@ -67,6 +69,7 @@ const DEPTH_SAYS: Record<string, string> = {
 };
 
 export default function Payables() {
+  const navigate = useNavigate();
   const [ageing, setAgeing] = useState<Ageing | null>(null);
   /* OPEN INVOICES, FLATTENED SO THE SEARCH CAN REACH THEM.
      The table is grouped by supplier, so an invoice number lives one level
@@ -277,10 +280,32 @@ export default function Payables() {
           <h1>Creditors</h1>
           <div className="sub">What was billed, what arrived, and what is still owed</div>
         </div>
-        <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-          Refresh
-        </button>
+        {/* THE WORK THIS PAGE LEADS TO.
+            The bar carried Refresh and nothing else, on the screen a pharmacy
+            opens to decide who gets paid this week. Everything it could
+            already do was buried a row at a time, or on a reports screen
+            somebody had to know existed. */}
+        <div className="page-actions">
+          <Select
+            value=""
+            placeholder="Reports…"
+            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
+            options={[
+              // The aged analysis is this table as a document, and it is
+              // where the spreadsheet comes from: a second export button
+              // beside it would be a second set of figures to keep true.
+              { value: "aged_analysis", label: "Aged analysis, and the spreadsheet" },
+              { value: "creditor_statements", label: "Creditor statements" },
+              { value: "purchases_by_supplier", label: "Purchases by supplier" },
+              { value: "supplier_performance", label: "Supplier performance" },
+              { value: "goods_received_not_invoiced", label: "Delivered and not billed" },
+            ]}
+          />
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {/* "Working out what is owed…" is a sentence where a table is about to
@@ -333,7 +358,7 @@ export default function Payables() {
             <div className="card-head">
               <h3>What is owed, by age</h3>
               <span className="muted small">
-                Aged on the due date, not the invoice date
+                Aged on the due date, not the invoice date. Columns are days
               </span>
             </div>
             {ageing.suppliers.length === 0 ? (
@@ -352,12 +377,25 @@ export default function Payables() {
                  declared rather than taken from whichever row sorts
                  first. */
               <div className="dt-scroll">
-              <table className="dt dt-wider">
+              <table className="dt">
                 <thead>
                   <tr>
                     <th className="pay-supplier">Supplier</th>
-                    {ageing.bands.map((b) => <th key={b} className="num">{b}</th>)}
-                    <th className="num">Total</th>
+                    {/* No Total column. It is the six bands added up, the
+                        tile above already states the grand total, and it was
+                        the column that pushed the Pay button off the right
+                        edge: an arithmetic convenience was costing the control
+                        somebody opens this page to press. The row's own total
+                        rides with the supplier, where the eye already is. */}
+                    {/* "1 to 30 days" in a 90px column reads "1 TO 30 DA...".
+                        The word "days" is on all six and is said once, in the
+                        card's own subtitle, so the columns carry the numbers
+                        that differ. */}
+                    {ageing.bands.map((b) => (
+                      <th key={b} className="num" title={b}>
+                        {b.replace(/ days$/, "").replace(/^Not yet due$/, "Not due")}
+                      </th>
+                    ))}
                     <th className="actions" />
                   </tr>
                 </thead>
@@ -368,22 +406,21 @@ export default function Payables() {
                     // columns were dead space in a table people read across.
                     <RowLink key={s.supplier_id} to={`/suppliers/${s.supplier_id}`}
                              prefetch={prefetchRoute}>
-                      <td>
+                      <td className="pay-name" title={s.supplier}>
                         <EntityLink kind="supplier" id={s.supplier_id}>
                           <b>{s.supplier}</b>
                         </EntityLink>
-                        {s.oldest_days > 0 && (
-                          <div className="muted small">
-                            oldest is {s.oldest_days} day{s.oldest_days === 1 ? "" : "s"} past due
-                          </div>
-                        )}
+                        <div className="muted small">
+                          {money(s.total)} owed
+                          {s.oldest_days > 0
+                            && `, oldest ${s.oldest_days} day${s.oldest_days === 1 ? "" : "s"} past due`}
+                        </div>
                       </td>
                       {ageing.bands.map((b) => (
                         <td key={b} className="num">
                           {s.bands[b] ? money(s.bands[b]) : <span className="muted">None</span>}
                         </td>
                       ))}
-                      <td className="num"><b>{money(s.total)}</b></td>
                       <td className="actions">
                         {/* Inside a RowLink, so the click has to be stopped or
                             paying a supplier navigates away from the form. */}
