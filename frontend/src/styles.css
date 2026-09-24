@@ -8046,11 +8046,11 @@ table.dt.sub th { font-size: var(--t-xs); }
    the full measure does not survive being told it has half of it, and the
    result looked broken because it was. */
 .disp-dense .sec-patient > *:not(h3) { grid-column: 1 / -1; min-width: 0; }
-.disp-dense .sec-patient > .field:first-of-type { grid-column: 1; grid-row: 2; }
-.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; margin: 0; }
+.disp-dense .sec-patient > .disp-medicine { grid-column: 1; grid-row: 2; margin: 0; }
+.disp-dense .sec-patient > .field:first-of-type { grid-column: 2; grid-row: 2; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 3; grid-row: 2; margin: 0; }
 /* The patient summary, once one is chosen, takes the place the search had. */
-.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 2; }
-.disp-dense .sec-patient > .disp-medicine { grid-column: 3; grid-row: 2; margin: 0; }
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 2; grid-row: 2; }
 /* Everything a search or a patient can open — results, the "nobody matches"
    prompt, the insurance standing, the repeats already due — still spans the
    lane and appears under it. */
@@ -8532,9 +8532,9 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .sec-patient {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
-.disp-dense .sec-patient > .field:first-of-type { grid-column: 1; grid-row: 2; }
-.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 2; }
-.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 2; }
+.disp-dense .sec-patient > .field:first-of-type { grid-column: 2; grid-row: 2; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 3; grid-row: 2; }
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 2; grid-row: 2; }
 
 /* The safety band shows its heading and its first line, or it shows nothing
    useful. At 17vh on a 900px screen it had 153px for a heading, an initials
@@ -8922,10 +8922,10 @@ table.dt.sub th { font-size: var(--t-xs); }
    1 and the context owns row 2. `:first-of-type` is gone too: it matches by
    element, not class, so the S5-S6 badge div on the controlled route took the
    patient field's cell. */
+.disp-dense .sec-patient > .disp-medicine { grid-column: 1; grid-row: 1; }
 .disp-dense .sec-patient > .disp-patient-field,
-.disp-dense .sec-patient > .disp-patient-picked { grid-column: 1; grid-row: 1; }
-.disp-dense .sec-patient > .disp-doctor { grid-column: 2; grid-row: 1; }
-.disp-dense .sec-patient > .disp-medicine { grid-column: 3; grid-row: 1; }
+.disp-dense .sec-patient > .disp-patient-picked { grid-column: 2; grid-row: 1; }
+.disp-dense .sec-patient > .disp-doctor { grid-column: 3; grid-row: 1; }
 .disp-dense .sec-patient > .disp-context { grid-column: 1 / -1; grid-row: 2; }
 .disp-dense .sec-patient > .disp-lane-badge { grid-column: 1 / -1; grid-row: 3; }
 .disp-dense .sec-patient > .field:first-of-type:not(.disp-patient-field):not(.disp-medicine) {
@@ -8977,7 +8977,7 @@ button.ctx-chip:hover { background: var(--hover); }
 /* The patient's name is what is being confirmed, so it is the last thing on the
    lane to truncate: its column gets the room, the prescriber and search give it. */
 .disp-dense .sec-patient {
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr);
 }
 /* The sentence gives way, not the controls. The paragraph clips itself, the
    sentence takes the ellipsis, and the link and the chip keep their size — the
@@ -9013,7 +9013,7 @@ button.ctx-chip:hover { background: var(--hover); }
    label themselves at their own width, because in a single row nothing sits
    under them for a shared label column to line up with. */
 .disp-dense .sec-patient {
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
 }
 .disp-dense .sec-patient > .disp-doctor,
 .disp-dense .sec-patient > .disp-medicine { grid-template-columns: auto minmax(0, 1fr); }
@@ -9033,7 +9033,7 @@ button.ctx-chip:hover { background: var(--hover); }
    weight selectors and was outranking the rule that put the patient field on
    row one, so an empty lane was two rows with a hole at its top left.
    ======================================================================== */
-.disp-dense .card.sec-patient > .field.disp-patient-field { grid-column: 1; grid-row: 1; }
+.disp-dense .card.sec-patient > .field.disp-patient-field { grid-column: 2; grid-row: 1; }
 .disp-dense .card.sec-patient > .disp-lane-badge { grid-column: 1 / -1; grid-row: 3; }
 
 /* ========================================================================
@@ -9218,14 +9218,26 @@ button.fin-ack { cursor: pointer; }
    THE LANE FIELDS — the name inside, what to type once you are in, one icon
    position, one picked box, and widths that follow what each has to hold.
    ======================================================================== */
+/* MEDICINE FIRST, AND THE TRACKS FOLLOW IT.
+   The lane read patient, prescriber, medicine, and the patient and the
+   prescriber only appear once the basket holds something that needs a script.
+   So the first thing anybody types into was the third field along, sitting
+   525px from the left edge of the lane with nothing beside it, and then two
+   fields arrived to its LEFT and shifted the screen under the dispenser's
+   hand. The order is now the order of the work: the medicine, then who it is
+   for, then who wrote it.
+
+   Each track keeps the width its field already had — 1fr for the medicine,
+   1.9fr for the patient, 1.25fr for the prescriber — so only the order has
+   changed and not one box is a different size. */
 .disp-dense .sec-patient {
-  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.9fr) minmax(0, 1.25fr);
 }
 .disp-dense .card.sec-patient > .lane-field { grid-row: 1; margin: 0; min-width: 0; }
+.disp-dense .card.sec-patient > .lane-field.disp-medicine { grid-column: 1; }
 .disp-dense .card.sec-patient > .lane-field.disp-patient-field,
-.disp-dense .card.sec-patient > .lane-field.disp-patient-picked { grid-column: 1; }
-.disp-dense .card.sec-patient > .lane-field.disp-doctor { grid-column: 2; }
-.disp-dense .card.sec-patient > .lane-field.disp-medicine { grid-column: 3; }
+.disp-dense .card.sec-patient > .lane-field.disp-patient-picked { grid-column: 2; }
+.disp-dense .card.sec-patient > .lane-field.disp-doctor { grid-column: 3; }
 
 .lane-field { position: relative; display: block; }
 .disp-dense .lane-field > input { width: 100%; padding-right: 32px; }
@@ -9479,7 +9491,7 @@ button.fin-ack { cursor: pointer; }
    THE PATIENT BOX AS A TOOLBAR
    ======================================================================== */
 .disp-dense .sec-patient {
-  grid-template-columns: minmax(0, 2.3fr) minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2.3fr) minmax(0, 1.2fr);
 }
 .disp-dense .lane-field.is-picked.disp-patient-picked { gap: 6px; padding-right: 2px; }
 .lane-field.is-picked .dpp-who { display: flex; min-width: 0; }
@@ -9584,7 +9596,7 @@ button.fin-ack { cursor: pointer; }
    wins on source order and is the one that decides these columns. Tuned here,
    nothing happens — which cost an hour once. The live figures are there. */
 .disp-dense .sec-patient {
-  grid-template-columns: minmax(0, 2.05fr) minmax(0, 1.3fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 2.05fr) minmax(0, 1.3fr);
 }
 .lane-tools { padding: 0 3px; gap: 0; }
 .lane-tool { width: 28px; height: 28px; }
@@ -10005,8 +10017,21 @@ button.fin-ack { cursor: pointer; }
      gaps take 29px more than they did, and it comes out of the two columns
      that can spare it: at 1366 the prescriber keeps 190px for a 138px hint and
      the medicine 181 for a 107px one, both still clear. The patient gets it,
-     which is what keeps the ID beside the name at 1512. */
-  grid-template-columns: minmax(0, 1.78fr) minmax(0, 1.02fr) minmax(0, .97fr);
+     which is what keeps the ID beside the name at 1512.
+
+     MEDICINE FIRST, AND ONLY THE ORDER CHANGED.
+     The lane read patient, prescriber, medicine, and the first two only
+     appear once the basket holds something needing a script. So the first
+     field anybody types into was the third one along, sitting 522px from the
+     left of an otherwise empty band — and then two fields arrived to its LEFT
+     and moved the screen under the dispenser's hand mid-keystroke. The order
+     is now the order of the work.
+
+     The three factors are the same three numbers, carried with their own
+     fields: .97 stays with the medicine, 1.78 with the patient, 1.02 with the
+     prescriber. At 1366 that is 180, 330 and 189 exactly as before. Nothing
+     resized; the band was re-ordered, not re-measured. */
+  grid-template-columns: minmax(0, .97fr) minmax(0, 1.78fr) minmax(0, 1.02fr);
 }
 /* Every field on the lane is one height, and it is a big one. */
 .disp-dense .sec-patient > .lane-field { height: var(--lane-h, 40px); }
@@ -12687,9 +12712,12 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
  * columns in CSS makes adding one a change to every rule after it, and
  * nobody remembers that. Naming them makes the two independent. */
 .sup-table { table-layout: fixed; width: 100%; }
-.sup-col-who     { width: 24%; }
-.sup-col-contact { width: 24%; }
-.sup-col-arrive  { width: 17%; }
+/* "Never ordered from" is 150px of text and this column was 137px of room, so
+   it stopped mid-word. The 2% comes from the two widest columns, which hold a
+   name and an email and already truncate with a tooltip. */
+.sup-col-who     { width: 23%; }
+.sup-col-contact { width: 23%; }
+.sup-col-arrive  { width: 19%; }
 .sup-col-paid    { width: 15%; }
 .sup-col-terms   { width: 13%; }
 /* An address that stops mid-word reads as a fault. This one says it has been
@@ -13361,3 +13389,21 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   margin-top: 2px; color: #b8860b; font-size: 11px; letter-spacing: 0.08em;
 }
 .dh-rating.is-poor { color: var(--danger); }
+
+
+/* ========================================================================
+   THE DRIVERS TABLE
+   Seven columns divided equally gave the driver 144px to hold a name, a
+   telephone number and a branch — 277px of text — so it stopped mid-word.
+   The five that know their own size say so, and the one holding words takes
+   what is left. Named rather than numbered, for the reason the suppliers'
+   table gives above: numbering makes adding a column a change to every rule
+   after it, and nobody remembers that.
+   ======================================================================== */
+.dt-drivers { table-layout: fixed; width: 100%; }
+.drv-col-who     { width: 30%; }
+.drv-col-vehicle { width: 15%; }
+.drv-col-licence { width: 15%; }
+.drv-col-out     { width: 8%; }
+.drv-col-holding { width: 11%; }
+.drv-col-failed  { width: 8%; }

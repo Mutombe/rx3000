@@ -188,13 +188,15 @@ export default function Drivers() {
           skeleton={<TableSkeleton cols={6} rows={5} />}
         >
           <div className="dt-scroll">
-            <table className="dt">
+            <table className="dt dt-drivers">
               <thead>
                 <tr>
-                  <th>Driver</th><th>Vehicle</th><th>Licence</th>
-                  <th className="num">Out</th>
-                  <th className="num">Holding</th>
-                  <th className="num">Failed</th>
+                  <th className="drv-col-who">Driver</th>
+                  <th className="drv-col-vehicle">Vehicle</th>
+                  <th className="drv-col-licence">Licence</th>
+                  <th className="num drv-col-out">Out</th>
+                  <th className="num drv-col-holding">Holding</th>
+                  <th className="num drv-col-failed">Failed</th>
                   <th className="actions" />
                 </tr>
               </thead>

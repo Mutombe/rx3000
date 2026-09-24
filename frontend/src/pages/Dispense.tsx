@@ -3386,6 +3386,51 @@ export default function Dispense() {
                   <span className="badge sched">{schedCode(highestSchedule)}</span>
                 </div>
               )}
+              {/* FIRST, BECAUSE IT IS WHAT SOMEBODY TYPES FIRST.
+                  The patient and the prescriber only appear once the basket
+                  holds something that needs a script, so this used to be the
+                  third field along with nothing beside it, and then two
+                  fields arrived to its LEFT and moved the screen under the
+                  dispenser's hand. All three are the same act — saying what
+                  this script is for and what is on it — and they now run in
+                  the order the work does. The heading went with them: a
+                  table under a search box labelled "Medicine" does not need
+                  telling it holds script items. */}
+              <div className="lane-field disp-medicine">
+                <input data-hk="product" id="disp-product" type="search"
+                  // One box, one sentence. It named the tab's schedules, which
+                  // was a promise about what the search would offer; it now
+                  // offers whatever this person may dispense, and the badge on
+                  // each result says which schedule that one is.
+                  aria-label="Medicine: search by name"
+                  placeholder={laneFocus === "product" ? MEDICINE_HINT : "Medicine"}
+                  value={productQ}
+                  onFocus={() => setLaneFocus("product")}
+                  onBlur={() => setLaneFocus(null)}
+                  onChange={(e) => setProductQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    // A scanner's Enter, not a person's: check the pack.
+                    if (e.key === "Enter" && looksLikeCode(productQ)) {
+                      e.preventDefault();
+                      const code = productQ.trim();
+                      setProductQ("");
+                      scanPack(code);
+                    }
+                  }} />
+                {/* The camera, for a counter that has no scanner on it. A
+                    phone or a laptop is the scanner instead, and the pack is
+                    checked against the script exactly as a scanner's would be.
+                    Hidden where the browser has no camera to offer. */}
+                {cameraSupported() && (
+                  <button type="button" className="lane-icon-btn lane-scan"
+                          title="Scan the pack with the camera"
+                          aria-label="Scan the pack with the camera"
+                          onClick={() => setCameraOpen(true)}>
+                    <Camera size={16} />
+                  </button>
+                )}
+                <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
+              </div>
               {/* Patient: asked for when a line needs a script.
                   Somebody buying a cough syrup is not registered
                   first, and the counter section below takes a
@@ -3494,47 +3539,6 @@ export default function Dispense() {
               )}
               </>
               )}
-              {/* The search moved up beside the patient and the prescriber.
-                  All three are the same act. Saying what this script is for
-                  and what is on it. And they were taking a heading and a row
-                  each. The heading went with them: a table under a search box
-                  labelled "Medicine" does not need telling it holds script
-                  items. */}
-              <div className="lane-field disp-medicine">
-                <input data-hk="product" id="disp-product" type="search"
-                  // One box, one sentence. It named the tab's schedules, which
-                  // was a promise about what the search would offer; it now
-                  // offers whatever this person may dispense, and the badge on
-                  // each result says which schedule that one is.
-                  aria-label="Medicine: search by name"
-                  placeholder={laneFocus === "product" ? MEDICINE_HINT : "Medicine"}
-                  value={productQ}
-                  onFocus={() => setLaneFocus("product")}
-                  onBlur={() => setLaneFocus(null)}
-                  onChange={(e) => setProductQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    // A scanner's Enter, not a person's: check the pack.
-                    if (e.key === "Enter" && looksLikeCode(productQ)) {
-                      e.preventDefault();
-                      const code = productQ.trim();
-                      setProductQ("");
-                      scanPack(code);
-                    }
-                  }} />
-                {/* The camera, for a counter that has no scanner on it. A
-                    phone or a laptop is the scanner instead, and the pack is
-                    checked against the script exactly as a scanner's would be.
-                    Hidden where the browser has no camera to offer. */}
-                {cameraSupported() && (
-                  <button type="button" className="lane-icon-btn lane-scan"
-                          title="Scan the pack with the camera"
-                          aria-label="Scan the pack with the camera"
-                          onClick={() => setCameraOpen(true)}>
-                    <Camera size={16} />
-                  </button>
-                )}
-                <MagnifyingGlass className="lane-icon" size={15} weight="bold" aria-hidden="true" />
-              </div>
               {/* Read before the first medicine goes on the script, not after
                   the basket is built. Whether the scheme is paying changes
                   whether this should be supplied on credit at all. */}
