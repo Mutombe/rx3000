@@ -303,6 +303,15 @@ export function resolvedLabelMode(printer = printerFor("label")): "zpl" | "page"
 export async function printLabelsDirect(labels: Label[], copies = 1): Promise<number> {
   const printer = printerFor("label");
   if (!printer) throw new Error("No label printer has been chosen on this till.");
+  // Ask Windows what this printer is, if nothing has yet.
+  //
+  // The dispensary prints without ever opening the printer list, so on a fresh
+  // launch the driver is unknown and the language would be guessed from the
+  // printer's NAME alone. That is usually the driver's name and usually right,
+  // and "usually" means a pharmacy that renamed its roll to "Labels" silently
+  // takes the route that cannot deliver. One enumeration per run, before the
+  // first sticker, costs nothing anybody can feel.
+  if (known.length === 0) await listPrinterInfo();
   const info = describe(printer);
   const mode = resolvedLabelMode(printer);
 
