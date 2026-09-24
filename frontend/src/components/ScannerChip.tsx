@@ -63,6 +63,25 @@ import { useScannerHub } from "./ScannerHub";
  *  first. The file was removed rather than left pretending. The landing page
  *  now at least carries a link to the scanner, so somebody who lands there is
  *  one tap away instead of stuck.
+ *
+ *  THE RULE NOW EXISTS, AND THE SLASH STAYS ANYWAY.
+ *
+ *  A redirect from /scanner to /scanner/ was added ahead of the catch-all on
+ *  24 Sept 2026, and /scanner now answers 301 to /scanner/ and opens the
+ *  camera. The slash is no longer required.
+ *
+ *  It is still printed here, deliberately, and this is the reason: the old
+ *  catch-all answered with a 301, which means PERMANENT, and a browser caches
+ *  a permanent redirect for as long as it likes without asking again. Every
+ *  phone that typed /scanner before that rule existed still holds
+ *  "/scanner goes to /index.html" in its own cache, and no change on the
+ *  server reaches it. Those handsets are fixed by clearing site data, which is
+ *  not an instruction to put in front of somebody at a counter.
+ *
+ *  /scanner/ has always answered 200 and has never been cached as a redirect
+ *  by anything. So the address with the slash is the one that works on every
+ *  phone, including the poisoned ones, and it costs a keystroke that the
+ *  person is reading off the screen anyway.
  */
 const SCANNER_ADDRESS = "rx5000.com/scanner/";
 
