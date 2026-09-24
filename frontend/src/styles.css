@@ -320,11 +320,43 @@
   --radius-sm: var(--r-md);
 
   /* ---- elevation: three levels, all subtle ---- */
-  --e1: 0 1px 2px rgba(22, 22, 29, 0.05);
-  --e2: 0 1px 2px rgba(22, 22, 29, 0.05), 0 4px 12px rgba(22, 22, 29, 0.06);
-  --e3: 0 2px 4px rgba(22, 22, 29, 0.06), 0 12px 32px rgba(22, 22, 29, 0.12);
+  /* DEPTH COMES FROM SURFACE AND EDGE, NOT FROM BLUR.
+   *
+   * These were three blurs. A blur is how a printed page fakes a physical
+   * object sitting on another one, and it reads as decoration: the thing it
+   * actually communicates — "this is nearer you" — is communicated better and
+   * more cheaply by a different background value and one crisp line.
+   *
+   * So the ladder is now three BACKGROUNDS (--canvas under --surface-sunk
+   * under --surface) and three EDGES. A surface that sits on the page needs
+   * no edge at all; one that floats over it gets a 1px line, and the line
+   * gets stronger the further it floats. Nothing gets a shadow.
+   *
+   * Written as a ring rather than a border so it drops into the same slot the
+   * blur occupied: every floating menu, tooltip and drawer in this file asked
+   * for elevation and got its only edge from the blur, and changing 29 of
+   * them to declare a border instead is 29 chances to miss one. */
+  --e1: none;
+  --e2: 0 0 0 1px var(--line);
+  --e3: 0 0 0 1px var(--line-strong);
   --shadow: var(--e2);
   --shadow-soft: var(--e1);
+
+  /* ---- motion: the UI answers before the gesture finishes ----
+   *
+   * Two durations and one curve. Hover is the one the hand notices: at 80ms
+   * the surface has already changed by the time the cursor has settled, and
+   * anything slower reads as the screen thinking about it. Everything else —
+   * a panel opening, a row arriving, a state changing — lands inside 120ms,
+   * which is under the ~150ms where a change stops feeling like a direct
+   * consequence of what you just did and starts feeling like an animation
+   * playing at you.
+   *
+   * The curve decelerates and never overshoots. A bounce says "look at me";
+   * this is a dispensary. */
+  --m-hover: 80ms;
+  --m: 120ms;
+  --m-ease: cubic-bezier(.2, .7, .3, 1);
 
   /* ---- control sizing: every interactive element lands on one of these ---- */
   --control-sm: 30px;
@@ -340,13 +372,30 @@
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-dots: var(--font-num);   /* legacy alias */
 
-  --t-xs: 11px;
-  --t-sm: 12.5px;
-  --t-base: 13.5px;
-  --t-md: 15px;
-  --t-lg: 19px;
-  --t-xl: 24px;
-  --t-2xl: 30px;
+  /* DENSITY READS AS COMPETENCE.
+   *
+   * 13px body, not 14. Twice the work on one screen, which is what somebody
+   * at a counter actually wants: a dispenser comparing two scripts, a manager
+   * reading a day's takings, a buyer looking down a list of what is short.
+   * Scrolling to see the rest of the answer is the thing that makes software
+   * feel slow, and it costs nothing here because these are tables of short
+   * strings and figures, not prose.
+   *
+   * The steps below are the same ladder shifted down, so nothing that was in
+   * proportion stops being in proportion. */
+  --t-xs: 10.5px;
+  --t-sm: 12px;
+  --t-base: 13px;
+  --t-md: 14px;
+  --t-lg: 18px;
+  --t-xl: 22px;
+  --t-2xl: 28px;
+
+  /* Pulled in 1%. At 13px, Inter's default fit reads loose in a table; a
+     hair tighter and a column of names reads as one object rather than as
+     a row of separate words. Headings take more of it, body text less. */
+  --track: -0.01em;
+  --track-tight: -0.02em;
 
   /* legacy glass aliases, now near-opaque */
   --glass: var(--surface);
@@ -373,8 +422,9 @@ html:has(.shell), body:has(.shell), #root:has(.shell) { height: 100%; }
 body {
   font-family: var(--font-body);
   color: var(--ink);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--t-base);
+  letter-spacing: var(--track);
+  line-height: 1.45;
   background: var(--canvas);
   position: relative;
 }
@@ -391,7 +441,7 @@ body::before {
 
 h1, h2, h3, h4 {
   font-family: var(--font-display); margin: 0;
-  letter-spacing: -0.021em; color: var(--ink);
+  letter-spacing: var(--track-tight); color: var(--ink);
 }
 h1 { font-size: var(--t-2xl); font-weight: 700; line-height: 1.15; }
 h2 { font-size: var(--t-xl); font-weight: 700; }
@@ -452,7 +502,7 @@ a:hover { opacity: 0.75; }
   border-radius: var(--r-md); color: var(--ink-mid);
   font-weight: 500; font-size: var(--t-base);
   border: 1px solid transparent;
-  transition: background 0.12s, color 0.12s;
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .nav a:hover { opacity: 1; background: var(--hover); color: var(--ink); }
 .nav a.active { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
@@ -635,26 +685,64 @@ table { width: 100%; border-collapse: collapse; }
 th {
   text-align: left; font-size: var(--t-xs); text-transform: uppercase;
   letter-spacing: 0.06em; font-weight: 600;
-  color: var(--ink-soft); padding: var(--s3); border-bottom: 1px solid var(--line);
+  color: var(--ink-soft); padding: 6px var(--s3);
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
+/* A ROW IS 32px, AND IT IS 32px BECAUSE OF WHAT IS IN IT.
+   These were 12px all round, which made a one-line row 46px and a two-line
+   row 70 — eight records on a 768px screen where sixteen fit. 6px vertical
+   on the 4px grid puts a single-line row at 32 and a two-line row at 50,
+   and nothing was removed to get there. */
 td {
-  padding: var(--s3); border-bottom: 1px solid var(--line);
+  padding: 6px var(--s3); border-bottom: 1px solid var(--line);
   vertical-align: middle; font-size: var(--t-base); color: var(--ink-mid);
+  line-height: 1.4;
 }
 td b, td strong { color: var(--ink); font-weight: 600; }
 tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: var(--hover); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
+/* A KEY CAP, WHEREVER A SHORTCUT IS SHOWN.
+ *
+ * Three places drew their own and the bare element had no style at all, so a
+ * `<kbd>` outside those three rendered as italic monospace body text. An
+ * action that carries a shortcut should say so in the same shape every time,
+ * because the point of showing it is that somebody stops reaching for the
+ * mouse — and they only learn that if the mark is recognisable.
+ *
+ * Grey, like everything that is not status. It is a label, not a warning. */
+kbd, .kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border: 1px solid var(--line); border-radius: var(--r-xs);
+  background: var(--surface-sunk); color: var(--ink-soft);
+  font: 600 var(--t-xs)/1 var(--font-mono);
+  letter-spacing: 0; font-style: normal; white-space: nowrap;
+}
+
 /* ---------- badges ---------- */
+/* ONE COLOUR, AND THIS IS NOT IT.
+ *
+ * A badge with no tone on it used to paint itself in the info wash, so every
+ * label that merely NAMES something — employer, clinic, old age home, which
+ * medical aid, which pack size — arrived on screen in colour. Forty-six of
+ * them on the accounts list alone. Colour that appears everywhere says
+ * nothing anywhere, and the badges that genuinely mean "look at this" were
+ * competing with a field of pastel for attention.
+ *
+ * So the default is grey and it is the ordinary case. Colour is spent only
+ * where it changes what somebody does: `ok`, `warn` and `danger` below, and
+ * the schedule badge, which is a legal classification a dispenser acts on.
+ * Everything else is a word in a grey box. */
 .badge {
   display: inline-flex; align-items: center; gap: var(--s1);
   padding: 2px var(--s2); border-radius: var(--r-sm);
   font-size: var(--t-xs); font-weight: 600; line-height: 1.6;
   letter-spacing: 0.005em; white-space: nowrap;
-  background: var(--info-soft); color: var(--ink);
-  border: 1px solid transparent;
+  background: var(--surface-sunk); color: var(--ink-soft);
+  border: 1px solid var(--line-soft);
 }
 .badge.ok { background: var(--ok-soft); color: var(--ok); border-color: var(--ok-line); }
 .badge.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn-line); }
@@ -701,7 +789,7 @@ button, .btn {
   background: var(--accent); color: var(--accent-ink);
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
   white-space: nowrap;
-  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  transition: background var(--m) var(--m-ease), border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 /* Wrapped in :where(), so this hover carries the specificity of `button` alone
    and any variant that sets its own background keeps it.
@@ -755,7 +843,7 @@ input, select, textarea {
   height: var(--control); padding: 0 var(--s3);
   background: var(--surface);
   width: 100%;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 input::placeholder, textarea::placeholder { color: var(--ink-faint); }
 input:hover, select:hover, textarea:hover { border-color: var(--ink-faint); }
@@ -871,7 +959,7 @@ label {
   /* Nothing inside a dialog may push it sideways. A modal with a horizontal
      scrollbar is a modal with content already off the edge of it. */
   overflow-x: hidden;
-  box-shadow: 0 30px 90px rgba(28, 29, 27, 0.3);
+  box-shadow: var(--e3);
 }
 .modal > * { min-width: 0; }
 
@@ -1143,9 +1231,12 @@ label {
   background: var(--surface);
   border: 1px solid var(--line-soft);
   border-radius: 999px;
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition: transform var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
-.product-pick:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); background: var(--surface); }
+/* Hover changes the surface value, never the elevation: a row that
+   jumps a pixel under the cursor is decoration, and on a list being
+   read down at a counter it is a list that will not hold still. */
+.product-pick:hover { background: var(--hover); }
 
 /* ---------- misc ---------- */
 .ai-box {
@@ -1185,7 +1276,7 @@ label {
      on the page. Slot one of the chart palette is the same blue ReportChart draws
      a single series in, which also makes the dashboard and the reports agree. */
   background: linear-gradient(180deg, var(--chart-1) 0%, var(--chart-1-fade) 100%);
-  transition: filter 0.12s, transform 0.12s;
+  transition: filter var(--m) var(--m-ease), transform var(--m) var(--m-ease);
 }
 .chart-bars .bar:hover { filter: brightness(1.35); }
 .chart-bars .bar span {
@@ -1280,7 +1371,7 @@ label {
 .pill-tabs-wrap::after {
   content: ""; position: absolute; top: 0; bottom: var(--s5); right: 0;
   width: 34px; pointer-events: none; opacity: 0;
-  transition: opacity .15s ease;
+  transition: opacity var(--m-hover) var(--m-ease);
   background: linear-gradient(to right, transparent, var(--surface-sunk));
   border-radius: 0 var(--r-md) var(--r-md) 0;
 }
@@ -1313,7 +1404,7 @@ label {
   background: var(--surface);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius); padding: 14px; min-height: 180px;
-  backdrop-filter: blur(18px); transition: background 0.15s, border-color 0.15s;
+  backdrop-filter: blur(18px); transition: background var(--m-hover) var(--m-ease), border-color var(--m-hover) var(--m-ease);
 }
 .kanban-col.over { background: rgba(240, 180, 182, 0.30); border-color: var(--rose); }
 .kanban-head {
@@ -1324,10 +1415,10 @@ label {
 .deal-card {
   background: var(--surface); border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm); padding: 11px 13px; margin-bottom: 9px;
-  cursor: grab; box-shadow: 0 1px 3px rgba(30, 32, 28, 0.06);
-  transition: transform 0.12s, box-shadow 0.12s; font-size: 13px;
+  cursor: grab; box-shadow: var(--e1);
+  transition: transform var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease); font-size: 13px;
 }
-.deal-card:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
+.deal-card:hover { background: var(--hover); }
 .deal-card:active { cursor: grabbing; }
 .deal-value { font-family: var(--font-dots); font-weight: 900; font-size: 17px; margin: 3px 0; }
 .deal-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); margin-top: 5px; }
@@ -1412,7 +1503,7 @@ label {
 .funnel-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 130px; gap: 14px; align-items: center; }
 .funnel-label { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
 .funnel-track { height: 30px; background: var(--tint-weak); border-radius: 8px; overflow: hidden; }
-.funnel-bar { height: 100%; border-radius: 8px; transition: width 0.3s ease; }
+.funnel-bar { height: 100%; border-radius: 8px; transition: width var(--m) var(--m-ease); }
 .funnel-side { text-align: right; font-size: 12px; }
 .funnel-side b { font-variant-numeric: tabular-nums; }
 .funnel-side .muted { display: block; font-size: 11px; }
@@ -1428,7 +1519,7 @@ label {
    their own legend disagree for as long as this component has existed. */
 .barlist-bar {
   position: absolute; left: 0; height: 11px; border-radius: 999px;
-  transition: width 0.3s ease;
+  transition: width var(--m) var(--m-ease);
   /* A hairline of the surface between the two bars, so a long primary and a
      long secondary read as two marks rather than one thick one. */
   box-shadow: 0 0 0 1.5px var(--surface);
@@ -1673,8 +1764,8 @@ label {
 .dt td.center, .dt th.center { text-align: center; }
 .dt-compact td { padding: 6px 12px; font-size: 12.5px; }
 .dt-compact th { padding: 6px 12px; }
-.dt-comfortable td { padding: 10px 12px; }
-.dt-spacious td { padding: 15px 14px; }
+.dt-comfortable td { padding: 8px 12px; }
+.dt-spacious td { padding: 12px 16px; }
 .dt tfoot td {
   background: var(--tint-weak); font-weight: 700;
   border-top: 2px solid var(--line); border-bottom: none;
@@ -1846,7 +1937,7 @@ td.actions > * + * { margin-left: var(--s2); }
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--line-strong); border-radius: var(--r-md);
   font-size: var(--t-base); font-weight: 400; text-align: left;
-  cursor: pointer; transition: border-color 0.12s, box-shadow 0.12s;
+  cursor: pointer; transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .sel-trigger:hover { background: var(--surface); border-color: var(--ink-faint); }
 .sel-trigger.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
@@ -2148,7 +2239,7 @@ td.actions > * + * { margin-left: var(--s2); }
  * stay on: the user may still scroll and read while the next page arrives, and
  * blanking a table to a skeleton on every filter change makes a fast connection
  * feel like a slow one and loses the row somebody was reading. */
-.is-refreshing { opacity: 0.65; transition: opacity 130ms ease; }
+.is-refreshing { opacity: 0.65; transition: opacity var(--m-hover) var(--m-ease); }
 .is-refreshing input, .is-refreshing button { cursor: progress; }
 
 /* ---- optimistic rows ------------------------------------------------------
@@ -2212,7 +2303,7 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   padding: var(--s2) var(--s3);
   background: var(--surface);
   box-shadow: var(--e2);
-  animation: toast-in 160ms ease-out;
+  animation: toast-in var(--m) var(--m-ease);
 }
 @keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
@@ -2394,7 +2485,7 @@ input:disabled, select:disabled, textarea:disabled {
 
 /* `--rail-user` is set by dragging; `--rail` is the default it falls back to.
    No transition while dragging, or the edge lags behind the pointer. */
-.shell > .sidebar { width: var(--rail-user, var(--rail)); transition: width 140ms ease; }
+.shell > .sidebar { width: var(--rail-user, var(--rail)); transition: width var(--m) var(--m-ease); }
 .shell.is-resizing > .sidebar { transition: none; }
 .shell.is-collapsed > .sidebar { width: var(--rail-collapsed); }
 
@@ -2459,8 +2550,8 @@ input:disabled, select:disabled, textarea:disabled {
   border: 1px solid var(--line-strong); border-radius: var(--r-pill);
   background: var(--surface); color: var(--ink-mid);
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(22, 22, 29, 0.10);
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  box-shadow: var(--e1);
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), border-color var(--m-hover) var(--m-ease);
 }
 .rail-toggle:hover {
   background: var(--accent); color: var(--accent-ink); border-color: var(--accent);
@@ -2547,7 +2638,7 @@ input:disabled, select:disabled, textarea:disabled {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 60;
     width: var(--rail-collapsed);
     transform: translateX(0);
-    transition: transform 180ms ease;
+    transition: transform var(--m) var(--m-ease);
     box-shadow: 0 0 40px rgba(22, 22, 29, 0.18);
   }
   .shell.is-collapsed > .sidebar {
@@ -2894,7 +2985,7 @@ img { -webkit-user-drag: none; user-select: none; }
   border: 1px solid var(--line-strong);
   border-radius: var(--r-lg);
   padding: var(--s5);
-  box-shadow: 0 18px 48px rgba(22, 22, 29, 0.22);
+  box-shadow: var(--e3);
 }
 .cf-title { margin: 0 0 var(--s2); font-size: var(--t-lg); }
 .cf-body { color: var(--ink-mid); margin-bottom: var(--s5); }
@@ -2915,7 +3006,7 @@ img { -webkit-user-drag: none; user-select: none; }
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
-  transition: border-color .12s ease, box-shadow .12s ease;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .scan-bar:focus-within {
   border-color: var(--accent);
@@ -2953,7 +3044,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .scan-stage {
   position: relative; flex: 0 0 46vh; overflow: hidden;
   display: grid; place-items: center; background: #000;
-  transition: box-shadow .18s ease;
+  transition: box-shadow var(--m) var(--m-ease);
 }
 /* A read landed. The operator is looking at the pack, not the screen, so
    this is backup for the vibration rather than the primary signal. */
@@ -3080,7 +3171,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .st-section.is-openable:hover > td { background: var(--accent-soft); }
 .st-caret {
   display: inline-block; width: 1em; color: var(--ink-faint);
-  transition: transform .12s ease;
+  transition: transform var(--m) var(--m-ease);
 }
 .st-caret.is-open { transform: rotate(90deg); }
 .st-count { font-weight: 400; font-size: .78rem; }
@@ -3807,7 +3898,7 @@ button.wl-stat:disabled:hover {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
   gap: var(--s3); padding: var(--s3);
   background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--r-md); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18));
+  border-radius: var(--r-md); box-shadow: var(--e2);
 }
 .sig-book h5 {
   margin: 0 0 var(--s1); font-size: .7rem; text-transform: uppercase;
@@ -3905,7 +3996,7 @@ button.wl-stat:disabled:hover {
   gap: 2px; min-height: 88px; padding: var(--s3) var(--s4);
   border: 1.5px dashed var(--line-strong); border-radius: var(--r-md);
   background: var(--surface-sunk); cursor: pointer; text-align: center;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .fd-zone:hover { border-color: var(--accent); }
 /* Focus lands on the hidden input, so the ring has to be drawn on the label. */
@@ -4460,9 +4551,9 @@ main td > .badge:only-child { margin-top: 0; }
   border: 1px solid var(--line-strong); border-radius: var(--r-xs);
   background: var(--surface);
   display: grid; place-items: center;
-  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  transition: background var(--m) var(--m-ease), border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
-.cbx-tick { width: 12px; height: 12px; color: var(--accent-ink); opacity: 0; transform: scale(0.7); transition: opacity 0.1s, transform 0.1s; }
+.cbx-tick { width: 12px; height: 12px; color: var(--accent-ink); opacity: 0; transform: scale(0.7); transition: opacity var(--m) var(--m-ease), transform var(--m) var(--m-ease); }
 .cbx:hover .cbx-box { border-color: var(--ink-faint); }
 .cbx-input:checked + .cbx-box { background: var(--accent); border-color: var(--accent); }
 .cbx-input:checked + .cbx-box .cbx-tick { opacity: 1; transform: scale(1); }
@@ -4668,7 +4759,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   background: var(--ink); color: var(--on-ink);
   font-size: var(--t-sm); font-weight: 500; line-height: 1.35;
   white-space: pre-wrap; overflow-wrap: anywhere;
-  box-shadow: 0 6px 18px rgba(22, 22, 29, 0.22);
+  box-shadow: var(--e2);
   pointer-events: none;                 /* never stands between pointer and row */
   animation: tip-in 90ms ease-out;
 }
@@ -4744,7 +4835,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   position: absolute; z-index: 5; transform: translate(-50%, -100%);
   min-width: 9rem; padding: 7px 10px; border-radius: var(--r-sm);
   background: var(--ink); color: var(--on-ink); pointer-events: none;
-  box-shadow: 0 6px 18px rgba(22, 22, 29, 0.24);
+  box-shadow: var(--e2);
 }
 .rc-tip-cat { font-size: .68rem; opacity: .75; margin-bottom: 3px; letter-spacing: .03em; }
 .rc-tip-row { display: flex; align-items: center; gap: 6px; font-size: .78rem; line-height: 1.5; }
@@ -4992,7 +5083,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   display: flex; flex-direction: column; gap: var(--s4);
   padding: var(--s6);
   background: var(--surface); border-radius: var(--r-lg);
-  box-shadow: 0 24px 60px rgba(22, 22, 29, 0.32);
+  box-shadow: var(--e3);
 }
 .lock-head { display: flex; align-items: flex-start; gap: var(--s3); }
 .lock-head h2 { margin: 0 0 2px; font-size: 1.15rem; }
@@ -5088,7 +5179,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
   background: var(--ink); color: var(--on-ink);
   border: 0; border-radius: var(--r-pill);
   font-size: var(--t-sm); font-weight: 500;
-  box-shadow: 0 8px 24px rgba(22, 22, 29, 0.28);
+  box-shadow: var(--e3);
 }
 .lock-bar:hover { background: var(--accent-hover); }
 .lock-bar b { font-weight: 700; text-decoration: underline; }
@@ -5369,7 +5460,7 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
      be findable at a glance and never compete with the page. */
   font-size: .72rem; font-weight: 500; line-height: 1;
   color: var(--ink-soft); cursor: pointer;
-  transition: background var(--fast), color var(--fast);
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .theme-opt:where(:hover) { background: var(--accent-soft); color: var(--ink-mid); }
 .theme-opt.is-on {
@@ -5745,9 +5836,11 @@ button:not(.primary):not(.danger):not([class*="accent"]) .btn-count {
 
   /* Shadows do almost nothing on a dark ground; the lighter panel is the
      elevation. Kept faint so a card still has a soft edge. */
-  --e1: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --e2: 0 8px 24px rgba(0, 0, 0, 0.55);
-  --e3: 0 12px 40px rgba(0, 0, 0, 0.65);
+  /* The same ladder. On a dark ground the edge is light rather than dark,
+     which is what --line already resolves to here. */
+  --e1: none;
+  --e2: 0 0 0 1px var(--line);
+  --e3: 0 0 0 1px var(--line-strong);
 }
 
 /* --- interaction screening ------------------------------------------------ */
@@ -5999,7 +6092,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--line-strong); border-radius: var(--r-md);
   font-size: var(--t-base); cursor: text;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .term-select:hover { border-color: var(--ink-faint); }
 .term-select.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
@@ -6092,7 +6185,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--line-strong); border-radius: var(--r-md);
   font-size: var(--t-base); cursor: text;
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .lookup:hover { border-color: var(--ink-faint); }
 .lookup.is-open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
@@ -6151,7 +6244,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .tender-line {
   border: 1px solid var(--line); border-radius: var(--r-lg);
   padding: var(--s3); background: var(--surface-sunk);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .tender-line:focus-within {
   border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft, rgba(0,0,0,0.05));
@@ -6250,7 +6343,13 @@ table.dt.sub th { font-size: var(--t-xs); }
   100% { transform: translateX(100%); }
 }
 
-.dt tbody tr { animation: row-in 220ms ease both; }
+/* A LIST DOES NOT PERFORM ITS ARRIVAL.
+   Every row faded up over 220ms and the first ten were staggered 18ms apart,
+   so a table finished assembling itself 380ms after the data had landed.
+   Somebody who has just pressed a filter is reading the first row while the
+   tenth is still sliding into place, and the answer to "is it done yet" was
+   "wait and see". It appears. */
+.dt tbody tr { animation: row-in var(--m) var(--m-ease) both; }
 
 .row-creating, .row-saving {
   position: relative;
@@ -6275,20 +6374,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .row-creating input[type="checkbox"], .row-saving input[type="checkbox"] {
   pointer-events: none; opacity: 0.4;
 }
-.row-removing { animation: row-out 180ms ease both; pointer-events: none; }
-
-/* Lists arrive in sequence rather than all at once. Capped at ten: past that
-   the last row waits noticeably, which is the opposite of the intent. */
-.dt tbody tr:nth-child(1)  { animation-delay: 0ms; }
-.dt tbody tr:nth-child(2)  { animation-delay: 18ms; }
-.dt tbody tr:nth-child(3)  { animation-delay: 36ms; }
-.dt tbody tr:nth-child(4)  { animation-delay: 54ms; }
-.dt tbody tr:nth-child(5)  { animation-delay: 72ms; }
-.dt tbody tr:nth-child(6)  { animation-delay: 90ms; }
-.dt tbody tr:nth-child(7)  { animation-delay: 108ms; }
-.dt tbody tr:nth-child(8)  { animation-delay: 126ms; }
-.dt tbody tr:nth-child(9)  { animation-delay: 144ms; }
-.dt tbody tr:nth-child(10) { animation-delay: 162ms; }
+.row-removing { animation: row-out var(--m) var(--m-ease) both; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .dt tbody tr, .row-removing { animation: none; }
@@ -7426,7 +7512,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   width: 360px; max-width: 100%; height: min(70vh, 40rem);
   margin: 0 auto; overflow: hidden;
   border: 8px solid var(--ink); border-radius: 28px;
-  background: var(--surface); box-shadow: 0 12px 40px rgba(16, 16, 22, 0.28);
+  background: var(--surface); box-shadow: var(--e3);
 }
 .preview-phone > iframe { width: 100%; height: 100%; border: 0; }
 /* The portal's own page, rendered inside the frame: it scrolls within the
@@ -7670,7 +7756,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   position: absolute; z-index: 45; top: calc(100% + 4px); left: 0; right: 0;
   background: var(--surface); border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, .18));
+  box-shadow: var(--e2);
   overflow: hidden;
 }
 .sig-suggest-head {
@@ -7721,7 +7807,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   position: absolute; z-index: 60; top: calc(100% + 4px); right: 0;
   min-width: 17rem; padding: var(--s1);
   background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--r-md); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.18));
+  border-radius: var(--r-md); box-shadow: var(--e2);
   display: flex; flex-direction: column;
 }
 .printmenu-list button {
@@ -8176,7 +8262,7 @@ table.dt.sub th { font-size: var(--t-xs); }
 .disp-dense .rx-item.is-open > .rx-item-head { background: var(--surface-sunk, var(--hover)); }
 .disp-dense .rx-item-caret {
   color: var(--ink-faint, var(--ink-soft));
-  transition: transform .12s ease;
+  transition: transform var(--m) var(--m-ease);
 }
 .disp-dense .rx-item.is-open .rx-item-caret { transform: rotate(90deg); }
 .disp-dense .rx-item-name {
@@ -8322,7 +8408,7 @@ table.dt.sub th { font-size: var(--t-xs); }
   display: inline-flex; align-items: center; gap: var(--s2);
 }
 .disp-ref > summary::-webkit-details-marker { display: none; }
-.disp-ref > summary::before { content: "›"; transition: transform .12s ease; }
+.disp-ref > summary::before { content: "›"; transition: transform var(--m) var(--m-ease); }
 .disp-ref[open] > summary::before { transform: rotate(90deg); }
 .disp-ref > summary:hover { background: var(--hover); color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
@@ -9410,7 +9496,7 @@ button.fin-ack { cursor: pointer; }
   position: fixed; z-index: 500; list-style: none; margin: 0; padding: 4px;
   max-height: 18rem; overflow-y: auto;
   background: var(--surface); border: 1px solid var(--line-strong);
-  border-radius: var(--r-md); box-shadow: var(--e2, 0 10px 30px rgba(0, 0, 0, .25));
+  border-radius: var(--r-md); box-shadow: var(--e2);
 }
 .cell-menu li {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
@@ -9426,7 +9512,7 @@ button.fin-ack { cursor: pointer; }
   transform: translateY(-100%); max-width: 32rem;
   padding: 6px 10px; border-radius: var(--r-sm);
   background: var(--ink); color: var(--surface);
-  font-size: .8rem; line-height: 1.35; box-shadow: var(--e2, 0 8px 24px rgba(0, 0, 0, .3));
+  font-size: .8rem; line-height: 1.35; box-shadow: var(--e2);
 }
 .cell-tip.is-below { transform: none; }
 .cell-tip small { display: block; margin-top: 2px; font-size: .7rem; opacity: .7; }
@@ -9511,7 +9597,7 @@ button.fin-ack { cursor: pointer; }
   border: 1px solid transparent; border-radius: var(--r-sm);
   background: var(--surface-sunk);
   color: var(--ink-mid); cursor: pointer;
-  transition: background 90ms ease, border-color 90ms ease, color 90ms ease;
+  transition: background var(--m-hover) var(--m-ease), border-color var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .lane-tool:hover:not(:disabled) {
   background: var(--surface); border-color: var(--line-strong); color: var(--ink);
@@ -9694,7 +9780,7 @@ button.fin-ack { cursor: pointer; }
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface-sunk); color: var(--ink-soft);
   font: inherit; cursor: pointer;
-  transition: border-color .12s ease, background .12s ease;
+  transition: border-color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .fin-print:hover { border-color: var(--line-strong); }
 .fin-print:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -10318,8 +10404,8 @@ button.fin-ack { cursor: pointer; }
   background: var(--doing-bg, #23262e);
   color: var(--doing-ink, #f2f3f5);
   border: 1px solid var(--doing-edge);
-  box-shadow: 0 10px 28px rgba(12, 14, 20, .3), 0 2px 6px rgba(12, 14, 20, .2);
-  font-size: .82rem; animation: doing-in 170ms cubic-bezier(.2, .8, .3, 1);
+  box-shadow: var(--e3);
+  font-size: .82rem; animation: doing-in var(--m) var(--m-ease);
 }
 /* The state as an edge down the leading side, where a list of chips lines them
    up and the colour reads as a column. */
@@ -10406,7 +10492,7 @@ button.fin-ack { cursor: pointer; }
 .wl-row-wrap.is-leaving {
   opacity: .45; filter: grayscale(.6); pointer-events: none;
   transform: translateX(-4px);
-  transition: opacity 180ms ease, transform 180ms ease, filter 180ms ease;
+  transition: opacity var(--m) var(--m-ease), transform var(--m) var(--m-ease), filter var(--m) var(--m-ease);
 }
 @media (prefers-reduced-motion: reduce) { .wl-row-wrap.is-leaving { transition: none; } }
 
@@ -10978,12 +11064,12 @@ button.fin-ack { cursor: pointer; }
 .adj-mode {
   height: 34px; border: 0; background: none; border-radius: 7px;
   font-size: var(--t-sm); font-weight: 600; color: var(--ink-mid);
-  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+  transition: background var(--m) var(--m-ease), color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .adj-mode:hover:not(.is-on) { color: var(--ink); background: var(--surface); }
 .adj-mode.is-on {
   background: var(--surface); color: var(--ink);
-  box-shadow: 0 1px 2px rgba(22, 22, 29, .1), inset 0 0 0 1px var(--line-strong, var(--line));
+  box-shadow: inset 0 0 0 1px var(--line-strong, var(--line));
 }
 
 /* How many, and what it becomes, side by side. The figure is the biggest
@@ -11017,7 +11103,7 @@ button.fin-ack { cursor: pointer; }
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface-sunk, var(--hover));
   font-variant-numeric: tabular-nums;
-  transition: border-color 140ms ease, background 140ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .adj-becomes.is-live { border-color: var(--line-strong, var(--line)); }
 .adj-was { font-size: 1.25rem; font-weight: 600; color: var(--ink-mid); }
@@ -11085,7 +11171,7 @@ button.fin-ack { cursor: pointer; }
   padding: 7px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--line); background: var(--surface);
   color: var(--ink-mid); font-size: .82rem; font-weight: 500;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .adj-reason:hover:not(.is-on) { border-color: var(--line-strong); color: var(--ink); }
 .adj-reason.is-on {
@@ -11291,7 +11377,7 @@ button.fin-ack { cursor: pointer; }
   border: 1px solid var(--line-strong, var(--line));
   background: var(--surface); color: var(--ink);
   font-size: .82rem; font-weight: 600; white-space: nowrap;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .ax-chip:hover { background: var(--hover); border-color: var(--accent); }
 .ax-chip.is-on {
@@ -11312,10 +11398,10 @@ button.fin-ack { cursor: pointer; }
   background: var(--ax-bg);
   border: 1px solid var(--ax-edge);
   border-radius: 14px; overflow: hidden;
-  box-shadow: 0 1px 2px rgba(16, 18, 27, .06),
-              0 12px 28px -6px rgba(16, 18, 27, .16),
-              0 32px 64px -12px rgba(16, 18, 27, .22);
-  animation: ax-rise 220ms cubic-bezier(.16, 1, .3, 1);
+  /* The dock already carries its own 1px edge above; a three-layer blur on
+     top of it was the one piece of decoration on this panel. */
+  box-shadow: var(--e2);
+  animation: ax-rise 120ms cubic-bezier(.16, 1, .3, 1);
 }
 /* A dialog is a question the till is waiting on an answer to. The assistant
    steps out of the way while one is open rather than floating over its
@@ -11349,7 +11435,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: inline-grid; place-items: center; width: 28px; height: 28px;
   border: 0; background: none; border-radius: 7px;
   color: var(--ax-dim); cursor: pointer;
-  transition: background 110ms ease, color 110ms ease;
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .ax-dock-btn:hover { background: var(--hover); color: var(--ax-ink); }
 @media (max-width: 620px) {
@@ -11397,14 +11483,14 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   padding: 7px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--ax-line); background: var(--ax-card);
   color: var(--ax-dim); font-size: .81rem; line-height: 1.35;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .ax-opener:hover {
   border-color: var(--accent); color: var(--accent);
   background: color-mix(in srgb, var(--accent) 5%, var(--ax-bg));
 }
 
-.ax-turn { display: grid; gap: var(--s3); animation: ax-in 200ms ease; }
+.ax-turn { display: grid; gap: var(--s3); animation: ax-in var(--m) var(--m-ease); }
 @keyframes ax-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .ax-turn { animation: none; } }
 
@@ -11468,7 +11554,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 /* What can be done with an answer. Quiet until the turn is hovered. */
 .ax-acts {
   display: flex; align-items: center; gap: var(--s2);
-  opacity: 0; transition: opacity 140ms ease;
+  opacity: 0; transition: opacity var(--m-hover) var(--m-ease);
 }
 .ax-turn:hover .ax-acts, .ax-acts:focus-within { opacity: 1; }
 .ax-act {
@@ -11490,7 +11576,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   height: auto; padding: 5px 12px; border-radius: var(--r-pill);
   border: 1px solid var(--ax-edge); background: var(--ax-card);
   color: var(--ax-ink); font-size: .76rem; font-weight: 600;
-  box-shadow: 0 6px 18px rgba(16, 18, 27, .16);
+  box-shadow: var(--e2);
 }
 
 /* ---- the route ----------------------------------------------------------
@@ -11518,7 +11604,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 1px solid var(--ax-edge);
   background: var(--ax-card); color: var(--ax-ink);
   font-size: .81rem; font-weight: 600; line-height: 1.3;
-  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease), transform var(--m) var(--m-ease);
 }
 .ax-step:not(:disabled):hover {
   border-color: var(--accent); color: var(--accent);
@@ -11583,7 +11669,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   display: flex; align-items: flex-end; gap: 6px;
   padding: 5px 5px 5px 6px; border-radius: 12px;
   border: 1px solid var(--ax-edge); background: var(--ax-card);
-  transition: border-color 120ms ease, box-shadow 120ms ease;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 .ax-ask-row:focus-within {
   border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring);
@@ -11599,7 +11685,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   flex: 0 0 auto; display: inline-grid; place-items: center;
   width: 32px; height: 32px; border-radius: 8px;
   border: 0; background: none; color: var(--ax-dim); cursor: pointer;
-  transition: background 110ms ease, color 110ms ease;
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .ax-clip:hover { background: var(--hover); color: var(--ax-ink); }
 .ax-send, .ax-stop {
@@ -11823,7 +11909,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 1px solid var(--line); background: var(--surface);
   color: var(--ink-mid); font-size: .82rem; font-weight: 500;
   white-space: nowrap;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .pt-view:hover:not(.is-on) { border-color: var(--line-strong); color: var(--ink); }
 .pt-view.is-on {
@@ -11874,7 +11960,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px);
   list-style: none; margin: 0; padding: 4px;
   background: var(--surface); border: 1px solid var(--line-strong, var(--line));
-  border-radius: var(--r-md); box-shadow: 0 10px 28px rgba(22, 22, 29, .18);
+  border-radius: var(--r-md); box-shadow: var(--e2);
   max-height: 16rem; overflow-y: auto;
 }
 .es-hits button {
@@ -11953,7 +12039,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 1px solid var(--warn-line); border-radius: var(--r-md);
   background: var(--warn-soft); color: var(--ink);
   font: inherit; line-height: 1.45; cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .bins-loose:hover { border-color: var(--line-strong); }
 .bins-loose-n {
@@ -11976,7 +12062,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); color: var(--ink); font: inherit;
   text-align: left; cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
+  transition: border-color var(--m-hover) var(--m-ease), background var(--m-hover) var(--m-ease);
 }
 .bins-card:hover { border-color: var(--line-strong); background: var(--surface-sunk); }
 .bins-card-name { font-weight: 600; font-size: .98rem; }
@@ -12059,7 +12145,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    a control second, which is the order somebody meets it in. */
 .sr-owed-act {
   font: inherit; color: inherit; text-align: left; cursor: pointer;
-  transition: border-color .12s ease, box-shadow .12s ease;
+  transition: border-color var(--m) var(--m-ease), box-shadow var(--m) var(--m-ease);
 }
 /* Focus is left to the house ring on `button`, which this already is. */
 .sr-owed-act:hover { border-color: var(--warn); }
@@ -12472,7 +12558,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 0; border-radius: 50%;
   background: rgba(255, 255, 255, 0.12); color: #ffffff;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease);
 }
 .scan-tool:hover { background: rgba(255, 255, 255, 0.2); }
 .scan-tool.is-on { background: #ffd54f; color: #201c00; }
@@ -12576,7 +12662,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border: 1px solid transparent; border-radius: 50%;
   background: transparent; color: var(--ink-soft);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition: background var(--m-hover) var(--m-ease), color var(--m-hover) var(--m-ease), border-color var(--m-hover) var(--m-ease);
 }
 .sc-chip-btn:hover:not(:disabled) { background: var(--surface-sunk); color: var(--ink); }
 /* The glyph is a flex item, and flex items shrink. Without this it computed
@@ -12622,7 +12708,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   padding: var(--s3);
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--r-md);
-  box-shadow: var(--e3, 0 10px 30px rgba(0,0,0,.18));
+  box-shadow: var(--e3);
 }
 .sc-pop-head {
   display: flex; align-items: center; justify-content: space-between;
@@ -13310,7 +13396,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
                   rather than as a rule across the card. */
                box-shadow: inset 0 1px 2px rgba(0, 0, 0, .10); }
 .st-progress-done { height: 100%; background: var(--ok);
-                    transition: width .3s ease; }
+                    transition: width var(--m) var(--m-ease); }
 
 .st-shelves { display: flex; flex-direction: column; gap: var(--s2); }
 .st-shelf { border: 1px solid var(--line); border-radius: var(--r-sm);
@@ -13338,7 +13424,7 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    carets down a shelf is decoration and one under the thumb is a signal. */
 .st-shelf-lines button::after {
   content: "A"; margin-left: auto; opacity: 0; color: var(--ink-faint);
-  transition: opacity .15s ease, transform .15s ease; transform: translateX(-4px);
+  transition: opacity var(--m) var(--m-ease), transform var(--m) var(--m-ease); transform: translateX(-4px);
 }
 .st-shelf-lines button:hover::after,
 .st-shelf-lines button:focus-visible::after { opacity: 1; transform: none; }

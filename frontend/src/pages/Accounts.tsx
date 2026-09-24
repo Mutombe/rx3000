@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
-import { api, fmtDate, errorText  } from "../api";
+import { api, fmtDate, errorText  , sentence } from "../api";
 import AiStreamBlock from "../components/AiStreamBlock";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
@@ -86,7 +86,8 @@ export default function Accounts() {
         </>
       ) },
     { key: "account_type", header: "Type", sortable: true, width: 116,
-      render: (c) => <span className="badge muted">{c.account_type.replace(/_/g, " ")}</span> },
+      render: (c) => (
+        <span className="badge">{sentence(c.account_type)}</span>) },
     { key: "phone", header: "Contact details", width: 168,
       render: (c) => <>{c.phone}<div className="muted" style={{ fontSize: 11.5 }}>
         <Truncate text={c.email} at={28} /></div></> },
@@ -97,8 +98,8 @@ export default function Accounts() {
       render: (c) => c.owner?.full_name ?? <span className="muted">None</span> },
     { key: "status", header: "Status", sortable: true, width: 104,
       render: (c) => (
-        <span className={`badge ${c.status === "active" ? "ok" : c.status === "prospect" ? "warn" : "muted"}`}>
-          {c.status}
+        <span className={`badge ${c.status === "active" ? "ok" : ""}`}>
+          {sentence(c.status)}
         </span>
       ) },
     { key: "actions", header: "", align: "right",

@@ -165,7 +165,12 @@ export default function Patients() {
                       {fmtDate(p.date_of_birth)}
                     </div>
                   </td>
-                  <td className="mono">{p.id_number || "none"}</td>
+                  {/* Named, not "none": a blank cell and the word "none" both
+                      leave the reader wondering whether the software lost it
+                      or nobody ever wrote it down. */}
+                  <td className="mono">
+                    {p.id_number || <span className="muted">Not on file</span>}
+                  </td>
                   <td>
                     <span className="clip" title={p.phone}>{p.phone}</span>
                     <span className="clip muted" title={p.email}>{p.email}</span>
@@ -186,7 +191,7 @@ export default function Patients() {
                     {p.allergies
                       ? <span className="badge danger clip" title={p.allergies}
                           style={{ maxWidth: "12rem" }}>{p.allergies}</span>
-                      : "none"}
+                      : <span className="muted">None recorded</span>}
                   </td>
                   <td className="num">{p.loyalty_points} pts</td>
                   <RowActions>
