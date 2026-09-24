@@ -32,10 +32,13 @@
       "msi",
       "nsis",
       "deb",
-      "appimage"
+      "appimage",
+      "app",
+      "dmg"
     ],
     "icon": [
       "icons/icon.ico",
+      "icons/icon.icns",
       "icons/icon.png"
     ],
     "publisher": "BitStudio",
