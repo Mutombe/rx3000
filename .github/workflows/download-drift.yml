@@ -1,0 +1,47 @@
+# Say, on every push, whether the installer people can download is still the
+# application in this repository.
+#
+# The drift only ever happens in one direction and only ever at one moment:
+# this push redeploys the website, and the Windows installer stays whatever was
+# last built on the laptop. So this is the moment to say it.
+#
+# It does not fail the push, on purpose. A Windows bundle cannot be cut here,
+# it is cut by hand on the machine that has the signing key, so failing main
+# would mean main is red from the first front-end commit until somebody finds
+# time to build. Red for a condition you are not allowed to fix from here is
+# how a check gets switched off. A warning on the run, and a line in the
+# summary, is what a person can act on.
+name: Is the download the code?
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The check counts commits between the published one and HEAD, so it
+          # needs the history. The default shallow clone has one commit and the
+          # count would be meaningless rather than wrong, which is worse.
+          fetch-depth: 0
+
+      - name: Compare the published installer with the branch
+        run: |
+          set +e
+          out=$(python3 qa/the-download-is-not-behind-the-code.py)
+          code=$?
+          echo "$out"
+          {
+            echo '```'
+            echo "$out"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ $code -ne 0 ]; then
+            first=$(echo "$out" | grep -m1 'behind the code')
+            echo "::warning title=The download is behind::${first:-The published installer could not be vouched for. Cut a build: python desktop/publish.py <next version>}"
+          fi
+          exit 0
