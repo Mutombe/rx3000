@@ -26,6 +26,8 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { apiBase } from "../api";
+import PortalShell, { PortalGate, PortalGone, PortalLoading, useBrand }
+  from "./PortalShell";
 import "./portal.css";
 
 interface Teaser {
@@ -63,6 +65,7 @@ const day = (s: string | null) =>
 
 export default function PatientPortal() {
   const { token = "" } = useParams();
+  const brand = useBrand("patient", token);
   const [teaser, setTeaser] = useState<Teaser | null>(null);
   const [record, setRecord] = useState<Record | null>(null);
   const [code, setCode] = useState("");
@@ -108,78 +111,54 @@ export default function PatientPortal() {
     }
   }
 
-  if (error && !teaser) {
-    return (
-      <div className="pp pp-gate">
-        <form className="pp-card pp-centre" onSubmit={(e) => e.preventDefault()}>
-          <div className="pp-mark">℞</div>
-          <h1>This link has expired</h1>
-          <p className="pp-muted">{error}</p>
-        </form>
-      </div>
-    );
-  }
-
-  if (!teaser) {
-    return (
-      <div className="pp pp-gate">
-        <form className="pp-card pp-centre" onSubmit={(e) => e.preventDefault()}>
-          <div className="pp-spinner" />
-        </form>
-      </div>
-    );
-  }
+  // One expired card and one spinner for every portal, from the shell. There
+  // were three of each and they had already drifted: two drew the mark as
+  // "RX" and one as the prescription sign.
+  if (error && !teaser) return <PortalGone brand={brand} said={error} />;
+  if (!teaser) return <PortalLoading brand={brand} />;
 
   // ---- the gate ---------------------------------------------------------
   if (!record) {
     return (
-      // Centred in the screen, like the sign-in the staff use. It used to sit
-      // near the top of an empty page, which reads as a form somebody forgot
-      // to finish rather than as the front door.
-      <div className="pp pp-gate">
-        <form className="pp-card pp-centre" onSubmit={confirm}>
-          <div className="pp-mark">℞</div>
-          <h1>Hello {teaser.greeting}</h1>
-
-          {/* The one fact worth showing before anything is proved. It says
-              nothing about what the medicine is, so a link on the wrong phone
-              has disclosed nothing clinical. */}
-          {teaser.waiting > 0 ? (
-            <p className="pp-lead">
-              <b>{teaser.waiting}</b>{" "}
-              {teaser.waiting === 1 ? "item is" : "items are"} ready to collect.
-            </p>
-          ) : (
-            <p className="pp-lead">Nothing is waiting for you at the moment.</p>
-          )}
-
-          <label className="pp-label" htmlFor="code">
-            Enter your four-digit code
-          </label>
-          <input
-            id="code"
-            ref={box}
-            className="pp-code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            pattern="[0-9]*"
-            maxLength={8}
-            value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="••••"
-            aria-describedby={error ? "pp-error" : undefined}
-          />
-          {error && <p id="pp-error" className="pp-error">{error}</p>}
-
+      <PortalGate
+        brand={brand}
+        title={`Hello ${teaser.greeting}`}
+        // The one fact worth showing before anything is proved. It says
+        // nothing about what the medicine is, so a link on the wrong phone
+        // has disclosed nothing clinical.
+        lead={teaser.waiting > 0 ? (
+          <>
+            <b>{teaser.waiting}</b>{" "}
+            {teaser.waiting === 1 ? "item is" : "items are"} ready to collect.
+          </>
+        ) : "Nothing is waiting for you at the moment."}
+        said={error}
+        onSubmit={confirm}
+        action={
           <button className="pp-btn" disabled={busy || code.length < 4}>
             {busy ? "Checking…" : "See my prescriptions"}
           </button>
-          <p className="pp-fine">
-            The pharmacy gave you this code. If you have lost it, ring them and
-            they will read you a new one.
-          </p>
-        </form>
-      </div>
+        }
+        fine={"The pharmacy gave you this code. If you have lost it, ring them "
+              + "and they will read you a new one."}
+      >
+        <label className="pp-label" htmlFor="code">
+          Enter your four-digit code
+        </label>
+        <input
+          id="code"
+          ref={box}
+          className="pp-code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={8}
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          placeholder="••••"
+          aria-describedby={error ? "pp-error" : undefined}
+        />
+      </PortalGate>
     );
   }
 
@@ -188,19 +167,15 @@ export default function PatientPortal() {
   const soon = record.due.filter((d) => !d.overdue && d.days <= 14);
 
   return (
-    <div className="pp">
-      <header className="pp-head">
-        <div>
-          <div className="pp-mark pp-mark-sm">℞</div>
-          <h1>{record.first_name}</h1>
-          {record.medical_aid && (
-            <p className="pp-muted">
-              {record.medical_aid}
-              {record.member_number && ` · ${record.member_number}`}
-            </p>
-          )}
-        </div>
-      </header>
+    <PortalShell
+      brand={brand}
+      title={record.first_name}
+      sub={record.medical_aid
+        ? `${record.medical_aid}${record.member_number ? ` · ${record.member_number}` : ""}`
+        : undefined}
+      foot={"Your record, as your pharmacy holds it. Ring them if anything "
+            + "here looks wrong. It is quicker than it looks."}
+    >
 
       {/* Allergies first and unmissable. It is the one thing on this page that
           could matter to somebody else reading it over their shoulder. A
@@ -378,10 +353,6 @@ export default function PatientPortal() {
         </section>
       )}
 
-      <footer className="pp-foot">
-        Your record, as your pharmacy holds it. Ring them if anything here looks
-        wrong. It is quicker than it looks.
-      </footer>
-    </div>
+    </PortalShell>
   );
 }

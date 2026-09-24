@@ -274,6 +274,108 @@ def _asking_pharmacy(db: Session) -> str:
     return (row.trading_name or row.name) if row else ""
 
 
+# --------------------------------------------------------------- the brand
+#
+# WHOSE SHOPFRONT THIS IS.
+#
+# Three of the four portals put "RX5000" at the top, which is the software
+# vendor's name on a page the pharmacy's own customer is reading. The printed
+# documents settled this argument already: the wordmark on a statement is the
+# PHARMACY'S, not ours. The portals never got the memo, so a patient opening
+# their prescriptions from an SMS sees a product they have never bought from
+# and not the shop they collect at.
+#
+# Served here rather than folded into each portal's own payload because all
+# five want the same answer, and a second copy of it is a second thing to keep
+# true. The same shape the letterhead serves, so print and portal cannot
+# disagree about what this pharmacy is called.
+
+@router.get("/brand/{kind}/{token}")
+def portal_brand(kind: str, token: str, db: Session = Depends(get_db)):
+    """The pharmacy behind this link: what it is called, and what it looks like.
+
+    Public, and narrow on purpose. It carries what goes on a shopfront and
+    nothing a competitor could not read off the door: the trading name, the
+    logo, a telephone number and an address. No figures, no patients, no
+    stock, and nothing at all until the token proves which pharmacy is being
+    asked about.
+    """
+    # Looked up at call time rather than in a module-level map: the supplier
+    # resolver is defined below this point, and a map built at import would
+    # bind the name before it exists.
+    #
+    # Each resolver proves the token AND sets the tenant as a side effect,
+    # which is what makes the settings lookup below return anything at all. A
+    # caller cannot therefore ask for one pharmacy's brand holding another's
+    # link.
+    resolve = {
+        "patient": _patient_from,
+        "rfq": _invited_from,
+        # The quote portal's own route is /portal/quote/{token}, so it asks
+        # under the name it is read at rather than the name of the row.
+        "quote": _invited_from,
+        "doctor": _doctor_from,
+        "supplier": _supplier_from,
+    }.get(kind)
+    if resolve is None:
+        raise HTTPException(404, "No such link.")
+    # Sets the tenant as it goes, and raises if the link is spent. Everything
+    # below reads settings, which return nothing without a pharmacy in force.
+    resolve(token, db)
+
+    from ..routers.profile_router import LOGO_KEY, _many
+
+    stored = _many(db, ["company.trading_name", "company.legal_name",
+                        "company.phone", "company.email",
+                        "company.address_line1", "company.address_line2",
+                        "company.city", "company.registration_no", LOGO_KEY])
+    pid = tenancy.current_pharmacy_id()
+    row = db.get(Pharmacy, pid) if pid else None
+
+    # The settings first, the pharmacy row behind them. A shop that has filled
+    # in its company profile has said how it wants to be seen; one that has
+    # not still has a name on its record, and a blank header is worse than an
+    # unstyled one.
+    name = (stored["company.trading_name"] or stored["company.legal_name"]
+            or (row.trading_name or row.name if row else ""))
+    # Every field a string, never a null. A header that renders "null" under
+    # the pharmacy's name is worse than one that renders nothing, and the
+    # pharmacy row carries nulls for anything nobody filled in.
+    return {
+        "name": name or "",
+        "logo": stored[LOGO_KEY] or "",
+        "phone": stored["company.phone"] or (row.phone if row else "") or "",
+        "email": stored["company.email"] or (row.email if row else "") or "",
+        "registration_no": (stored["company.registration_no"]
+                            or (row.registration_no if row else "") or ""),
+        "address": _address_lines(
+            stored["company.address_line1"] or (row.address if row else ""),
+            stored["company.address_line2"],
+            stored["company.city"] or (row.city if row else ""),
+        ),
+    }
+
+
+def _address_lines(*lines: str | None) -> list[str]:
+    """The address, with nothing said twice.
+
+    A shop that types "114 Samora Machel Avenue, Harare" on the first line and
+    "Harare" in the city box is not making a mistake — both boxes want
+    filling — but printing both gives the patient "114 Samora Machel Avenue,
+    Harare, Harare", which reads as a fault in the software rather than in
+    the form. So a line already spelt out inside an earlier one is dropped.
+    """
+    kept: list[str] = []
+    for line in lines:
+        said = (line or "").strip()
+        if not said:
+            continue
+        if any(said.casefold() in already.casefold() for already in kept):
+            continue
+        kept.append(said)
+    return kept
+
+
 @router.get("/quote/{token}")
 def quote_form(token: str, db: Session = Depends(get_db)):
     """What a wholesaler sees when they open the link in the email.
@@ -420,6 +522,32 @@ def issue_supplier_link(supplier_id: int, db: Session = Depends(get_db)):
 
 
 # -------------------------------------------------------------- doctor portal
+def _doctor_from(token: str, db: Session) -> Doctor:
+    """The prescriber a signed link names, and their pharmacy put in force.
+
+    Same reasoning as `_patient_from`, and the same defect it was written to
+    fix: a portal request carries no session, so no pharmacy was in force, so
+    every script the prescriber asked about was filtered away and the page
+    came back empty for a prescriber whose patients had collected that
+    morning. The token is the authority; the row is read unscoped once, and
+    the prescriber's own pharmacy is in force for everything read after it.
+    """
+    try:
+        did = portal_tokens.read(token, expect="doctor")
+    except portal_tokens.TokenError as e:
+        raise HTTPException(401, str(e))
+
+    with tenancy.unscoped():
+        doctor = db.get(Doctor, did)
+    if not doctor:
+        raise HTTPException(404, "This link is no longer available.")
+
+    if doctor.pharmacy_id:
+        tenancy.set_current_pharmacy(doctor.pharmacy_id)
+        tenancy.stamp(db)
+    return doctor
+
+
 @router.get("/doctor/{token}")
 def doctor_overview(token: str, db: Session = Depends(get_db)):
     """Read-only visibility for a prescriber, from a link.
@@ -428,13 +556,7 @@ def doctor_overview(token: str, db: Session = Depends(get_db)):
     did my patient collect. It shows no clinical detail beyond the prescriber's
     own scripts, because that is all they are entitled to see here.
     """
-    try:
-        did = portal_tokens.read(token, expect="doctor")
-    except portal_tokens.TokenError as e:
-        raise HTTPException(401, str(e))
-    doctor = db.get(Doctor, did)
-    if not doctor:
-        raise HTTPException(404, "This link is no longer available.")
+    doctor = _doctor_from(token, db)
 
     scripts = (db.query(Prescription)
                .filter(Prescription.doctor_id == doctor.id)

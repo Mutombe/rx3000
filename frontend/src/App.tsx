@@ -1,335 +1,49 @@
+/** The fork in the road: the pharmacy's own staff, or one of its customers.
+ *
+ *  WHY THE PORTALS SIT ABOVE EVERYTHING
+ *
+ *  The four public portals used to be routes inside the staff application,
+ *  which meant a patient opening a link from an SMS mounted `ConnectionProvider`
+ *  and `ScannerProvider` and then sat there polling `/api/health` from a phone
+ *  on a Zimbabwean mobile connection, and downloaded a 645 KB stylesheet
+ *  written for a point-of-sale system to find out whether their tablets were
+ *  ready. `PatientPortal.tsx` opened by insisting a patient "must never load
+ *  its bundle". It did.
+ *
+ *  So the split is made here, at the very top, before a single provider is
+ *  mounted. A portal route reaches its own small chunk and nothing else; the
+ *  staff application — every provider, every page and the stylesheet they are
+ *  drawn with — is behind one lazy boundary that a customer never crosses.
+ */
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
-import Layout from "./components/Layout";
+import { Route, Routes } from "react-router-dom";
 
-const WillCall = lazy(() => import("./pages/WillCall"));
-const Samples = lazy(() => import("./pages/Samples"));
-const Recall = lazy(() => import("./pages/Recall"));
-const Payables = lazy(() => import("./pages/Payables"));
-const ClaimBatchDetail = lazy(() => import("./pages/ClaimBatchDetail"));
-const WaybillDetail = lazy(() => import("./pages/WaybillDetail"));
-const DispensingHistory = lazy(() => import("./pages/DispensingHistory"));
-const MoneyOwed = lazy(() => import("./pages/MoneyOwed"));
-const WillCallBag = lazy(() => import("./pages/WillCallBag"));
-const ToFollowDetail = lazy(() => import("./pages/ToFollowDetail"));
-const SchemeCalendar = lazy(() => import("./pages/SchemeCalendar"));
-const SupplierDetail = lazy(() => import("./pages/SupplierDetail"));
-const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
-const BatchDetail = lazy(() => import("./pages/BatchDetail"));
-const MovementDetail = lazy(() => import("./pages/MovementDetail"));
-const GoodsReceiptDetail = lazy(() => import("./pages/GoodsReceiptDetail"));
-const SupplierReturnDetail = lazy(() => import("./pages/SupplierReturnDetail"));
-const StockTakeDetail = lazy(() => import("./pages/StockTakeDetail"));
-const AuditDetail = lazy(() => import("./pages/AuditDetail"));
-const Suppliers = lazy(() => import("./pages/Suppliers"));
-const Rfqs = lazy(() => import("./pages/Rfqs"));
-const RfqDetail = lazy(() => import("./pages/RfqDetail"));
-const PrescriptionDetail = lazy(() => import("./pages/PrescriptionDetail"));
-const StaffDetail = lazy(() => import("./pages/StaffDetail"));
-const PrescriberDetail = lazy(() => import("./pages/PrescriberDetail"));
-const ShiftDetail = lazy(() => import("./pages/ShiftDetail"));
-const MessageDetail = lazy(() => import("./pages/MessageDetail"));
-const CampaignDetail = lazy(() => import("./pages/CampaignDetail"));
-const InvoiceDetail = lazy(() => import("./pages/InvoiceDetail"));
-const LayByDetail = lazy(() => import("./pages/LayByDetail"));
-const LeadDetail = lazy(() => import("./pages/LeadDetail"));
-const Welcome = lazy(() => import("./pages/Welcome"));
-const Training = lazy(() => import("./pages/Training"));
-import { getToken } from "./api";
-import Login from "./pages/Login";
-import { PageSkeleton } from "./components/Skeleton";
-import { ToastProvider } from "./components/Toast";
-import { DoingProvider } from "./components/Doing";
-import { ConfirmProvider } from "./components/Confirm";
-import { ConnectionProvider, RequiresConnection } from "./components/Connection";
-import { ScannerProvider } from "./components/ScannerHub";
-import { SessionProvider } from "./session";
-
-/* Every page is split out of the initial bundle. A till on a mobile
- * connection pays for the whole application on first load otherwise, and
- * a pharmacist only ever opens three or four screens. Login stays eager:
- * it is the first thing a signed-out user sees and must not wait on a
- * second round trip. */
-const AccountDetail = lazy(() => import("./pages/AccountDetail"));
-const Profile = lazy(() => import("./pages/Profile"));
-// Outside the staff application entirely: their own chunks, their own
-// stylesheet, no sidebar and no session. A patient checking whether their
-// tablets are ready must not download a point-of-sale system to find out.
+// Their own chunks, their own stylesheet, no sidebar and no session.
 const PatientPortal = lazy(() => import("./portal/PatientPortal"));
 const DoctorPortal = lazy(() => import("./portal/DoctorPortal"));
 const SupplierQuote = lazy(() => import("./portal/SupplierQuote"));
 const SupplierOrders = lazy(() => import("./portal/SupplierOrders"));
-const PhoneScanner = lazy(() => import("./pages/PhoneScanner"));
-const Accounts = lazy(() => import("./pages/Accounts"));
-const Admin = lazy(() => import("./pages/Admin"));
-const Assistant = lazy(() => import("./pages/Assistant"));
-const CardReconciliation = lazy(() => import("./pages/CardReconciliation"));
-const CaseDetail = lazy(() => import("./pages/CaseDetail"));
-const ContactDetail = lazy(() => import("./pages/ContactDetail"));
-const CrmReports = lazy(() => import("./pages/CrmReports"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
-const DealDetail = lazy(() => import("./pages/DealDetail"));
-const DeferredClaims = lazy(() => import("./pages/DeferredClaims"));
-const Scorecard = lazy(() => import("./pages/Scorecard"));
-const BranchPerformance = lazy(() => import("./pages/BranchPerformance"));
-const BinDetail = lazy(() => import("./pages/BinDetail"));
-const BinsUnassigned = lazy(() => import("./pages/BinsUnassigned"));
-const StockCategories = lazy(() => import("./pages/StockCategories"));
-const Pharmacies = lazy(() => import("./pages/Pharmacies"));
-const RemittanceDetail = lazy(() => import("./pages/RemittanceDetail"));
-const Deliveries = lazy(() => import("./pages/Deliveries"));
-const Drivers = lazy(() => import("./pages/Drivers"));
-const Reconciliation = lazy(() => import("./pages/Reconciliation"));
-const Seasons = lazy(() => import("./pages/Seasons"));
-const Compliance = lazy(() => import("./pages/Compliance"));
-const ComplianceDocument = lazy(() => import("./pages/ComplianceDocument"));
-const HeadOffice = lazy(() => import("./pages/HeadOffice"));
-const Settlements = lazy(() => import("./pages/Settlements"));
-const StockPerformance = lazy(() => import("./pages/StockPerformance"));
-const DispensingDetail = lazy(() => import("./pages/DispensingDetail"));
-const DispensaryOperations = lazy(() => import("./pages/DispensaryOperations"));
-const Scripts = lazy(() => import("./pages/Scripts"));
-const RepeatDetail = lazy(() => import("./pages/RepeatDetail"));
-const BankReconciliation = lazy(() => import("./pages/BankReconciliation"));
-const DriverDetail = lazy(() => import("./pages/DriverDetail"));
-const Dispense = lazy(() => import("./pages/Dispense"));
-const HelpDesk = lazy(() => import("./pages/HelpDesk"));
-const AccountLedger = lazy(() => import("./pages/AccountLedger"));
-const JournalDetail = lazy(() => import("./pages/JournalDetail"));
-const Leads = lazy(() => import("./pages/Leads"));
-const Ledger = lazy(() => import("./pages/Ledger"));
-const Marketing = lazy(() => import("./pages/Marketing"));
-const OrderDetail = lazy(() => import("./pages/OrderDetail"));
-const Orders = lazy(() => import("./pages/Orders"));
-const POS = lazy(() => import("./pages/POS"));
-const PatientDetail = lazy(() => import("./pages/PatientDetail"));
-const Patients = lazy(() => import("./pages/Patients"));
-const Periods = lazy(() => import("./pages/Periods"));
-const Pipeline = lazy(() => import("./pages/Pipeline"));
-const ProductDetail = lazy(() => import("./pages/ProductDetail"));
-const BranchDetail = lazy(() => import("./pages/BranchDetail"));
-const Register = lazy(() => import("./pages/Register"));
-const Reminders = lazy(() => import("./pages/Reminders"));
-const Repeats = lazy(() => import("./pages/Repeats"));
-const Reports = lazy(() => import("./pages/Reports"));
-const SaleDetail = lazy(() => import("./pages/SaleDetail"));
-const Shifts = lazy(() => import("./pages/Shifts"));
-const Fiscal = lazy(() => import("./pages/Fiscal"));
-const FiscalDay = lazy(() => import("./pages/FiscalDay"));
-const Claiming = lazy(() => import("./pages/Claiming"));
-const StockTake = lazy(() => import("./pages/StockTake"));
-const LayBys = lazy(() => import("./pages/LayBys"));
-const Remittances = lazy(() => import("./pages/Remittances"));
-const Authorisations = lazy(() => import("./pages/Authorisations"));
-const Compounding = lazy(() => import("./pages/Compounding"));
-const Branches = lazy(() => import("./pages/Branches"));
-const Stock = lazy(() => import("./pages/Stock"));
-const System = lazy(() => import("./pages/System"));
-const ToFollows = lazy(() => import("./pages/ToFollows"));
 
-
-function Protected({ children }: { children: JSX.Element }) {
-  if (!getToken()) return <Navigate to="/login" replace />;
-  // Who they are and what they may do, fetched once and read by every screen
-  // inside. Mounted here rather than at the top so the login page does not ask
-  // the server about a session that does not exist yet.
-  return <SessionProvider>{children}</SessionProvider>;
-}
+// Everything a member of staff ever sees, including the sign-in.
+const Staff = lazy(() => import("./Staff"));
 
 export default function App() {
   return (
-    <ToastProvider>
-    {/* Work the counter started and need not wait for. */}
-    <DoingProvider>
-    <ConfirmProvider>
-    <ConnectionProvider>
-      <ScannerProvider>
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      {/* Public, because the person reading either of these has no account yet.
-          Lazily loaded: neither is on the path of anybody who works here, and a
-          till on a slow branch line should not pay for them at startup. */}
-      <Route path="/welcome" element={<Suspense fallback={null}><Welcome /></Suspense>} />
-      <Route path="/training" element={<Suspense fallback={null}><Training /></Suspense>} />
-      {/* Public, unauthenticated, and deliberately above the Protected route so
-          a patient is never bounced to a staff sign-in screen. */}
-      <Route
-        path="/portal/patient/:token"
-        element={<Suspense fallback={null}><PatientPortal /></Suspense>}
-      />
-      <Route
-        path="/portal/doctor/:token"
-        element={<Suspense fallback={null}><DoctorPortal /></Suspense>}
-      />
-      {/* A wholesaler quoting from a link in an email. Public for the same
-          reason the patient's is, and at the short address on purpose: this
-          one is pasted into emails and read off screens by people who have
-          never heard of us, and /quote/ is what it is. */}
-      <Route
-        path="/quote/:token"
-        element={<Suspense fallback={null}><SupplierQuote /></Suspense>}
-      />
-      {/* A wholesaler's standing link: the orders this pharmacy has sent
-          them, and where they say when each one is coming. Public for the
-          same reason the quote link is. */}
-      <Route
-        path="/supplier/:token"
-        element={<Suspense fallback={null}><SupplierOrders /></Suspense>}
-      />
-      {/* A phone borrowed as a scanner. Public for the same reason the portal
-          is: nobody signs in here. The pairing code shown on the counter's
-          screen is the credential, and a member of staff typing their password
-          into a phone at a counter in front of a queue is a worse trade than a
-          code that dies in three minutes. */}
-      <Route
-        path="/scanner"
-        element={<Suspense fallback={null}><PhoneScanner /></Suspense>}
-      />
-      <Route
-        path="/*"
-        element={
-          <Protected>
-            <Layout>
-              {/* Inside Layout on purpose: the chrome stays put and only
-                  the page area waits. A boundary above this would blank
-                  the whole application on every navigation. */}
-              <Suspense fallback={<PageSkeleton />}>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/patients" element={<Patients />} />
-                <Route path="/patients/:id" element={<PatientDetail />} />
-                <Route path="/dispense" element={
-                  <RequiresConnection what="Dispensing"><Dispense /></RequiresConnection>} />
-                <Route path="/to-follows" element={<ToFollows />} />
-                <Route path="/will-call" element={<WillCall />} />
-                <Route path="/samples" element={<Samples />} />
-                <Route path="/recall" element={<Recall />} />
-                <Route path="/payables" element={<Payables />} />
-                <Route path="/dispensing-history" element={<DispensingHistory />} />
-                <Route path="/dispensary/operations" element={<DispensaryOperations />} />
-                <Route path="/dispensings/:id" element={<DispensingDetail />} />
-                <Route path="/scripts" element={<Scripts />} />
-                <Route path="/money-owed" element={<MoneyOwed />} />
-                <Route path="/will-call/:id" element={<WillCallBag />} />
-                <Route path="/to-follows/:id" element={<ToFollowDetail />} />
-                <Route path="/claiming-calendar" element={<SchemeCalendar />} />
-                {/* There was no supplier list at all: create, edit and
-                    retire had existed with no caller anywhere, so a
-                    wholesaler could only be reached from an order. */}
-                {/* Asking several wholesalers before buying, which had
-                    no model, no endpoint and no screen. */}
-                <Route path="/rfqs" element={<Rfqs />} />
-                <Route path="/rfqs/:id" element={<RfqDetail />} />
-                <Route path="/suppliers" element={<Suppliers />} />
-                <Route path="/suppliers/:id" element={<SupplierDetail />} />
-                <Route path="/claims/:id" element={<ClaimDetail />} />
-                <Route path="/claim-batches/:id" element={<ClaimBatchDetail />} />
-                <Route path="/batches/:id" element={<BatchDetail />} />
-                {/* A movement had no page of its own: clicking a row went to
-                    the product, which is what the reader was already looking
-                    at. */}
-                <Route path="/movements/:id" element={<MovementDetail />} />
-                {/* Both endpoints have existed since the documents were
-                    built and nothing reached them, so a delivery and a
-                    return could be listed and never opened. */}
-                <Route path="/deliveries/:id" element={<GoodsReceiptDetail />} />
-                <Route path="/returns/:id" element={<SupplierReturnDetail />} />
-                {/* Past counts were unreachable: the screen loaded the open
-                    one and no endpoint listed the rest. */}
-                <Route path="/stock-takes/:id" element={<StockTakeDetail />} />
-                {/* Audit rows were not even clickable, and there was no
-                    endpoint behind them. */}
-                <Route path="/audit/:id" element={<AuditDetail />} />
-                <Route path="/prescriptions/:id" element={<PrescriptionDetail />} />
-                <Route path="/staff/:id" element={<StaffDetail />} />
-                <Route path="/prescribers/:id" element={<PrescriberDetail />} />
-                <Route path="/shifts/:id" element={<ShiftDetail />} />
-                <Route path="/messages/:id" element={<MessageDetail />} />
-                <Route path="/campaigns/:id" element={<CampaignDetail />} />
-                <Route path="/payables/invoices/:id" element={<InvoiceDetail />} />
-                <Route path="/laybys/:id" element={<LayByDetail />} />
-                <Route path="/leads/:id" element={<LeadDetail />} />
-                <Route path="/periods" element={<Periods />} />
-                <Route path="/system" element={<System />} />
-                <Route path="/claims-held" element={<DeferredClaims />} />
-                <Route path="/scorecard" element={<Scorecard />} />
-                <Route path="/branches/:id" element={<BranchDetail />} />
-                <Route path="/branches/:id/performance" element={<BranchPerformance />} />
-                {/* A shelf is a place somebody walks to, so it gets an
-                    address that can be sent to them. */}
-                {/* Above /bins/:bin, or "unassigned" is read as the name
-                    of a shelf and opens an empty one. */}
-                <Route path="/bins/unassigned" element={<BinsUnassigned />} />
-                <Route path="/bins/:bin" element={<BinDetail />} />
-                <Route path="/stock-categories" element={<StockCategories />} />
-                <Route path="/pharmacies" element={<Pharmacies />} />
-                <Route path="/remittances/:id" element={<RemittanceDetail />} />
-                <Route path="/deliveries" element={<Deliveries />} />
-                <Route path="/waybills/:id" element={<WaybillDetail />} />
-                <Route path="/drivers" element={<Drivers />} />
-                <Route path="/drivers/:id" element={<DriverDetail />} />
-                <Route path="/repeats" element={<Repeats />} />
-                <Route path="/repeats/:id" element={<RepeatDetail />} />
-                <Route path="/ledger" element={<Ledger />} />
-                <Route path="/ledger/entries/:id" element={<JournalDetail />} />
-                <Route path="/ledger/accounts/:code" element={<AccountLedger />} />
-                <Route path="/pos" element={<POS />} />
-                <Route path="/sales/:id" element={<SaleDetail />} />
-                <Route path="/stock" element={<Stock />} />
-                <Route path="/products/:id" element={<ProductDetail />} />
-                <Route path="/orders" element={<Orders />} />
-                <Route path="/orders/:id" element={<OrderDetail />} />
-                <Route path="/register" element={
-                  <RequiresConnection what="The controlled register"><Register /></RequiresConnection>} />
-                <Route path="/reminders" element={<Reminders />} />
-                <Route path="/shifts" element={<Shifts />} />
-                <Route path="/fiscal" element={<Fiscal />} />
-                <Route path="/fiscal/days/:id" element={<FiscalDay />} />
-                <Route path="/claiming" element={<Claiming />} />
-                <Route path="/stock-take" element={<StockTake />} />
-                <Route path="/laybys" element={<LayBys />} />
-                <Route path="/remittances" element={<Remittances />} />
-                <Route path="/authorisations" element={<Authorisations />} />
-                <Route path="/compounding" element={<Compounding />} />
-                <Route path="/branches" element={<Branches />} />
-                {/* The hub, then the two that need a file uploaded. Cash,
-                    claims and stock keep the screens they already had and
-                    are reached from the same strip. */}
-                <Route path="/seasons" element={<Seasons />} />
-                <Route path="/stock-performance" element={<StockPerformance />} />
-                <Route path="/compliance" element={<Compliance />} />
-                <Route path="/compliance/documents/:id" element={<ComplianceDocument />} />
-                <Route path="/head-office" element={<HeadOffice />} />
-                <Route path="/reconciliation/settlements" element={<Settlements />} />
-                <Route path="/reconciliation" element={<Reconciliation />} />
-                <Route path="/reconciliation/card" element={<CardReconciliation />} />
-                <Route path="/reconciliation/bank" element={<BankReconciliation />} />
-                <Route path="/leads" element={<Leads />} />
-                <Route path="/pipeline" element={<Pipeline />} />
-                <Route path="/deals/:id" element={<DealDetail />} />
-                <Route path="/crm-reports" element={<CrmReports />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/accounts" element={<Accounts />} />
-                <Route path="/accounts/:id" element={<AccountDetail />} />
-                <Route path="/contacts/:id" element={<ContactDetail />} />
-                <Route path="/marketing" element={<Marketing />} />
-                <Route path="/helpdesk" element={<HelpDesk />} />
-                <Route path="/cases/:id" element={<CaseDetail />} />
-                <Route path="/reports" element={<Reports />} />
-                <Route path="/assistant" element={<Assistant />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              </Suspense>
-            </Layout>
-          </Protected>
-        }
-      />
-    </Routes>
-      </ScannerProvider>
-    </ConnectionProvider>
-    </ConfirmProvider>
-    </DoingProvider>
-    </ToastProvider>
+    <Suspense fallback={null}>
+      <Routes>
+        {/* Public, unauthenticated, and above the staff application on purpose
+            so a patient is never bounced to a staff sign-in screen. */}
+        <Route path="/portal/patient/:token" element={<PatientPortal />} />
+        <Route path="/portal/doctor/:token" element={<DoctorPortal />} />
+        {/* A wholesaler quoting from a link in an email, at the short address
+            on purpose: this one is pasted into emails and read off screens by
+            people who have never heard of us, and /quote/ is what it is. */}
+        <Route path="/quote/:token" element={<SupplierQuote />} />
+        {/* A wholesaler's standing link: the orders this pharmacy has sent
+            them, and where they say when each one is coming. */}
+        <Route path="/supplier/:token" element={<SupplierOrders />} />
+        <Route path="/*" element={<Staff />} />
+      </Routes>
+    </Suspense>
   );
 }

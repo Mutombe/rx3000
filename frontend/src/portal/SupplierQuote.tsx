@@ -31,6 +31,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
+import PortalShell, { PortalGone, PortalLoading, useBrand }
+  from "./PortalShell";
 import "./portal.css";
 
 interface QuoteLine {
@@ -78,6 +80,7 @@ function when(iso: string | null): string {
 
 export default function SupplierQuote() {
   const { token = "" } = useParams();
+  const brand = useBrand("quote", token);
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState("");
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -176,33 +179,21 @@ export default function SupplierQuote() {
     }
   }
 
-  if (error && !view) {
-    return (
-      <div className="pp pp-gate">
-        <div className="pp-card pp-centre">
-          <div className="pp-mark">RX</div>
-          <h1>This link cannot be opened</h1>
-          <p className="pp-muted">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!view) {
-    return <div className="pp"><div className="pp-spinner" /></div>;
-  }
+  if (error && !view) return <PortalGone brand={brand} said={error} />;
+  if (!view) return <PortalLoading brand={brand} />;
 
   return (
-    <div className="pp pp-wide">
-      <header className="pp-head">
-        <div className="pp-brand">RX5000</div>
-        <h1>Request for quotation {view.reference}</h1>
-        <p className="pp-muted">
-          {view.pharmacy || "A pharmacy"} has asked {view.supplier} for prices
-          on {lines.length} item{lines.length === 1 ? "" : "s"}.
-          {view.closes_at && ` Please reply by ${when(view.closes_at)}.`}
-        </p>
-      </header>
+    <PortalShell
+      brand={brand}
+      wide
+      title={`Request for quotation ${view.reference}`}
+      sub={`We have asked ${view.supplier} for prices on ${lines.length} `
+        + `item${lines.length === 1 ? "" : "s"}.`
+        + (view.closes_at ? ` Please reply by ${when(view.closes_at)}.` : "")}
+      foot={`You are quoting ${view.pharmacy || "the pharmacy"} directly. `
+        + "Nobody else can see what you have entered, and no other supplier's "
+        + "prices are shown to you."}
+    >
 
       {error && <p className="pp-error">{error}</p>}
       {sent && <p className="pp-ok">{sent}</p>}
@@ -320,11 +311,6 @@ export default function SupplierQuote() {
         )}
       </form>
 
-      <footer className="pp-foot">
-        You are quoting {view.pharmacy || "the pharmacy"} directly. Nobody else
-        can see what you have entered, and no other supplier's prices are shown
-        to you.
-      </footer>
-    </div>
+    </PortalShell>
   );
 }

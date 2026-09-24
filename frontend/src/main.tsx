@@ -2,7 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
-import "./styles.css";
+// No stylesheet here. It is imported by `Staff.tsx` instead, because it is
+// 645 KB of point-of-sale and every public portal used to download it.
 import { startTheme } from "./theme";
 
 // After the inline script in index.html has already painted, so this is not what

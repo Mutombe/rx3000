@@ -12,7 +12,10 @@
  *  believes they are *inside* the patient's session will believe anything they
  *  change here reaches the patient, and nothing here changes anything.
  */
+import { useEffect, useState } from "react";
 import { X } from "@phosphor-icons/react";
+import { letterhead } from "../letterhead";
+import { PortalFoot, PortalHead, type Brand } from "../portal/PortalShell";
 // The portal's own stylesheet, so the preview is the patient's page rather
 // than its markup with none of its rules. Without this the phone frame held
 // raw browser defaults — bold runs, no cards, no spacing — which is not what
@@ -29,6 +32,21 @@ const day = (s: string | null) =>
 export default function PatientPortalPreview(
   { record, onClose }: { record: any; onClose: () => void },
 ) {
+  // The pharmacy's own particulars, from the same place the printed letterhead
+  // takes them. The preview used to draw a generic mark and no shop name, so
+  // staff were shown a page the patient does not get.
+  const [brand, setBrand] = useState<Brand | null>(null);
+  useEffect(() => {
+    letterhead().then((l) => setBrand({
+      name: l.display_name || l.legal_name || "",
+      logo: l.logo || "",
+      phone: l.phone || "",
+      email: l.email || "",
+      registration_no: l.registration_no || "",
+      address: l.address || [],
+    }));
+  }, []);
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal wide preview-shell" onClick={(e) => e.stopPropagation()}>
@@ -55,15 +73,11 @@ export default function PatientPortalPreview(
             becomes an unresolvable argument. */}
         <div className="preview-phone">
           <div className="pp">
-            <header className="pp-head">
-              <div>
-                <div className="pp-mark pp-mark-sm">℞</div>
-                <h1>{record.first_name}</h1>
-                {record.medical_aid && (
-                  <p className="pp-muted">{record.medical_aid}</p>
-                )}
-              </div>
-            </header>
+            {/* The portal's own masthead and footer, imported rather than
+                copied. This was a fifth hand-written copy of the patient's
+                markup and it had already drifted from the other four. */}
+            <PortalHead brand={brand} title={record.first_name}
+                        sub={record.medical_aid} />
 
             {record.allergies && (
               <div className="pp-alert pp-alert-bad">
@@ -84,7 +98,7 @@ export default function PatientPortalPreview(
                       {w.quantity} · since {day(w.since)}
                     </span>
                   </div>
-                  <span className="pp-pill pp-pill-ok">ready</span>
+                  <span className="pp-pill pp-pill-ok">Ready</span>
                 </div>
               ))}
             </section>
@@ -98,8 +112,8 @@ export default function PatientPortalPreview(
                   <div>
                     <b>{d.product}</b>
                     <span className="pp-muted">
-                      {d.overdue ? `was due ${Math.abs(d.days)} days ago`
-                        : d.days === 0 ? "Due today" : `due in ${d.days} days`}
+                      {d.overdue ? `Was due ${Math.abs(d.days)} days ago`
+                        : d.days === 0 ? "Due today" : `Due in ${d.days} days`}
                     </span>
                   </div>
                   <span className={`pp-pill ${d.overdue ? "pp-pill-bad" : ""}`}>
@@ -117,6 +131,8 @@ export default function PatientPortalPreview(
                 </div>
               </section>
             )}
+
+            <PortalFoot brand={brand} />
           </div>
         </div>
       </div>

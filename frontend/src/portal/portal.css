@@ -29,6 +29,21 @@
  * that costs a round trip on a Zimbabwean mobile connection.
  */
 
+/* THE RESET THIS FILE USED TO BORROW.
+ *
+ * The portals were routes inside the staff application, so `styles.css` was
+ * always on the page and its `* { box-sizing: border-box }` and
+ * `html, body, #root { margin: 0 }` applied here for free. They no longer are:
+ * a patient's phone downloads this file and nothing else, and the moment the
+ * staff sheet stopped loading, every padded box on these pages went back to
+ * `content-box` and the card ran off the right edge of a 390px screen with the
+ * body's default 8px margin under it.
+ *
+ * So the sheet states its own. It is the same reset the staff sheet declares,
+ * which is why the staff preview loading both changes nothing. */
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; }
+
 .pp {
   /* The product's own palette, restated locally so this file stands alone if
      it is ever served without the staff sheet. */
@@ -47,9 +62,29 @@
   --pp-warn: #8a5a12;    --pp-warn-bg: #fbf1de;
   --pp-bad: #a8341f;     --pp-bad-bg: #fbeae7;
 
+  /* A SCALE, BECAUSE THERE WAS NONE.
+     Seventeen colours were declared and not one spacing, radius or type step,
+     so every 18px and every 0.78rem in this file was a literal somebody had
+     chosen once. Nothing below 14px, because this is read outdoors on a phone
+     by somebody who has never seen it before. */
+  --pp-1: 4px;  --pp-2: 8px;   --pp-3: 12px;
+  --pp-4: 16px; --pp-5: 24px;  --pp-6: 32px;  --pp-7: 48px;
+  --pp-r-sm: 10px; --pp-r: 14px; --pp-r-lg: 18px; --pp-r-pill: 999px;
+  --pp-t-sm: 0.875rem;   /* 14px: the floor */
+  --pp-t: 1rem;
+  --pp-t-lg: 1.125rem;
+  --pp-t-xl: 1.5rem;
+  /* A thumb. Everything tappable clears this. */
+  --pp-tap: 44px;
+
+  /* `dvh`, not `vh`. On iOS Safari the URL bar counts toward `vh`, so a card
+     centred in 100vh sits under it until the page is scrolled. */
   min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
-  padding: 20px 14px 48px;
+  padding: calc(var(--pp-5) + env(safe-area-inset-top, 0px))
+           var(--pp-4)
+           calc(var(--pp-7) + env(safe-area-inset-bottom, 0px));
   color: var(--pp-ink);
   font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
         "Helvetica Neue", Arial, sans-serif;
@@ -69,10 +104,24 @@
    so a card taller than a short landscape screen scrolls rather than being
    clipped at both ends. */
 .pp-gate {
-  min-height: 100vh; margin: 0; padding: 20px 14px;
-  display: grid; place-items: safe center;
+  min-height: 100vh; min-height: 100dvh; margin: 0;
+  padding: calc(var(--pp-5) + env(safe-area-inset-top, 0px)) var(--pp-4)
+           calc(var(--pp-5) + env(safe-area-inset-bottom, 0px));
+  /* A column rather than `place-items`, because the door now carries the
+     pharmacy's own footer under it: two grid items would each be centred in
+     their own row and drift apart. */
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: safe center;
 }
 .pp-gate > form { width: min(26rem, 100%); }
+.pp-gate > .pp-foot { width: min(26rem, 100%); }
+/* The shop's name over the door, under its own mark. The heading below it
+   greets the person; this says whose counter they are standing at. */
+.pp .pp-gate-shop {
+  margin: 0 0 var(--pp-2); color: var(--pp-mid);
+  font-size: var(--pp-t-sm); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
 
 @media (prefers-color-scheme: dark) {
   .pp {
@@ -490,3 +539,85 @@
   border: 1px dashed var(--pp-line); min-height: 44px; font-weight: 500;
   margin-bottom: 12px;
 }
+
+
+/* ==========================================================================
+   THE SHELL
+   ==========================================================================
+   The masthead is the PHARMACY'S, not ours: their logo where a logo goes,
+   their name beside it, and RX5000 in small print at the bottom where a
+   supplier's mark belongs. See PortalShell.tsx. */
+
+.pp .pp-brandline {
+  display: flex; align-items: center; gap: var(--pp-3);
+  margin-bottom: var(--pp-4);
+}
+/* Capped by height, not width, so a wide wordmark and a square mark sit on the
+   same line as each other. */
+.pp .pp-logo {
+  height: 40px; width: auto; max-width: 62vw; object-fit: contain;
+  display: block;
+}
+.pp .pp-logo-lg { height: 56px; margin: 0 auto var(--pp-4); }
+.pp .pp-shopname {
+  font-size: var(--pp-t); font-weight: 600; color: var(--pp-ink);
+  line-height: 1.2;
+}
+/* The brandline already names the pharmacy, so the mark beside it loses the
+   margin it had when it stood alone. */
+.pp .pp-brandline .pp-mark-sm { margin: 0; }
+
+.pp .pp-centre {
+  display: grid; place-items: safe center;
+  min-height: 100dvh;
+}
+.pp-centre .pp-card-centre,
+.pp .pp-card-centre {
+  width: min(26rem, 100%); text-align: center;
+}
+.pp .pp-gone-title {
+  font-size: var(--pp-t-xl); margin: var(--pp-2) 0 var(--pp-3);
+  color: var(--pp-ink);
+}
+
+/* The footer carries the shop's own details, and the telephone number is a
+   link because the next thing somebody does after reading this is ring them. */
+.pp .pp-foot-said { margin: 0 0 var(--pp-3); }
+.pp .pp-foot-shop {
+  margin: 0 0 var(--pp-3); color: var(--pp-mid);
+  font-size: var(--pp-t-sm); line-height: 1.6;
+}
+.pp .pp-foot-shop b { color: var(--pp-ink); }
+.pp .pp-foot-link {
+  color: var(--pp-brand); text-decoration: none; font-weight: 600;
+  /* A telephone number in a footer is a tap target like any other. */
+  display: inline-block; padding: var(--pp-1) 0; min-height: var(--pp-tap);
+  line-height: var(--pp-tap);
+}
+.pp .pp-foot-by {
+  margin: 0; color: var(--pp-faint); font-size: var(--pp-t-sm);
+}
+
+/* ---------- a thumb, and a keyboard ----------
+   Not one `:focus-visible` rule existed in this file for a button: only inputs
+   had a ring. Somebody on a keyboard or a switch had nothing at all on the
+   primary actions, on pages whose whole purpose is one action. */
+.pp button:focus-visible,
+.pp a:focus-visible,
+.pp .pp-btn:focus-visible {
+  outline: 3px solid var(--pp-brand);
+  outline-offset: 2px;
+  border-radius: var(--pp-r-sm);
+}
+/* The floor for anything tappable. Several controls sat at 42px, 24px and, in
+   the case of the supplier's "cannot supply" tick, about 20px: one of only two
+   answers a wholesaler can give. */
+.pp .pp-tabs button,
+.pp .so-head,
+.pp .sq-out { min-height: var(--pp-tap); }
+.pp .sq-out input[type="checkbox"] { width: 26px; height: 26px; }
+/* Nothing under 14px. Each of these was between 11.5px and 13.6px. */
+.pp .so-cap, .pp .sq-fields label, .pp .sq-total-label, .pp .pp-pill,
+.pp .pp-brand, .pp .pp-fine, .pp .pp-foot, .pp .sq-what .pp-muted,
+.pp .so-short { font-size: var(--pp-t-sm); }
+.pp h2 { font-size: var(--pp-t-sm); }

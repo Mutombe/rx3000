@@ -11,7 +11,9 @@
  */
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { apiBase } from "../api";
+import { apiBase, sentence } from "../api";
+import PortalShell, { PortalGone, PortalLoading, useBrand }
+  from "./PortalShell";
 import "./portal.css";
 
 interface Script {
@@ -32,6 +34,7 @@ const BLANK: Line = {
 
 export default function DoctorPortal() {
   const { token = "" } = useParams();
+  const brand = useBrand("doctor", token);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState("");
 
@@ -121,18 +124,21 @@ export default function DoctorPortal() {
     setLines((all) => all.map((l, n) => (n === i ? { ...l, ...patch } : l)));
   }
 
-  return (
-    <div className="pp pp-wide">
-      <header className="pp-head">
-        <div className="pp-brand">RX5000</div>
-        {overview && (
-          <>
-            <h1>{overview.doctor}</h1>
-            <p className="pp-muted">Practice {overview.practice_number}</p>
-          </>
-        )}
-      </header>
+  // The link itself failed, so there is nothing under it to show. An error
+  // raised while signing in or sending a script is different and stays on the
+  // page beside the form it came from.
+  if (error && !overview) return <PortalGone brand={brand} said={error} />;
+  if (!overview) return <PortalLoading brand={brand} />;
 
+  return (
+    <PortalShell
+      brand={brand}
+      wide
+      title={overview.doctor}
+      sub={overview.practice_number
+        ? `Practice ${overview.practice_number}` : undefined}
+      foot="Prescriptions sent here are reviewed by a pharmacist before dispensing."
+    >
       {error && <p className="pp-error">{error}</p>}
       {sent && <p className="pp-ok">{sent}</p>}
 
@@ -140,7 +146,7 @@ export default function DoctorPortal() {
         <h2>Send a prescription</h2>
         {!session ? (
           <>
-            <p className="pp-muted">{overview?.note}</p>
+            <p className="pp-muted">{overview.note}</p>
             <form onSubmit={signIn}>
               <label>
                 Practice number
@@ -215,13 +221,15 @@ export default function DoctorPortal() {
 
       <section className="pp-card">
         <h2>Your recent scripts here</h2>
-        {overview?.scripts.length ? (
+        {overview.scripts.length ? (
           <ul className="pp-items">
             {overview.scripts.map((s) => (
               <li key={s.rx_number}>
                 <div className="pp-row">
                   <b>{s.patient}</b>
-                  <span className={`pp-tag ${s.collected ? "ok" : ""}`}>{s.status}</span>
+                  <span className={`pp-tag ${s.collected ? "ok" : ""}`}>
+                    {sentence(s.status)}
+                  </span>
                 </div>
                 <div className="pp-muted">{s.rx_number} · {s.date}</div>
               </li>
@@ -232,9 +240,6 @@ export default function DoctorPortal() {
         )}
       </section>
 
-      <footer className="pp-foot">
-        Prescriptions sent here are reviewed by a pharmacist before dispensing.
-      </footer>
-    </div>
+    </PortalShell>
   );
 }

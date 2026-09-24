@@ -27,6 +27,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
+import PortalShell, { PortalGone, PortalLoading, useBrand }
+  from "./PortalShell";
 import "./portal.css";
 
 interface Line {
@@ -64,7 +66,10 @@ interface View {
 }
 
 function money(n: number): string {
+  // With the currency on it. It printed "1,542.80" before, which is a number
+  // and not a price, and a wholesaler quoting in two currencies had to guess.
   return n.toLocaleString(undefined, {
+    style: "currency", currency: "USD",
     minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
@@ -77,6 +82,7 @@ function when(iso: string | null): string {
 
 export default function SupplierOrders() {
   const { token = "" } = useParams();
+  const brand = useBrand("supplier", token);
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<number | null>(null);
@@ -96,31 +102,19 @@ export default function SupplierOrders() {
   }, [token]);
   useEffect(load, [load]);
 
-  if (error && !view) {
-    return (
-      <div className="pp pp-gate">
-        <div className="pp-card pp-centre">
-          <div className="pp-mark">RX</div>
-          <h1>This link cannot be opened</h1>
-          <p className="pp-muted">{error}</p>
-        </div>
-      </div>
-    );
-  }
-  if (!view) return <div className="pp"><div className="pp-spinner" /></div>;
+  if (error && !view) return <PortalGone brand={brand} said={error} />;
+  if (!view) return <PortalLoading brand={brand} />;
 
   return (
-    <div className="pp pp-wide">
-      <header className="pp-head">
-        <div className="pp-brand">RX5000</div>
-        <h1>{view.pharmacy || "Pharmacy"} orders</h1>
-        <p className="pp-muted">
-          {view.supplier}.{" "}
-          {view.waiting
-            ? `${view.waiting} order${view.waiting === 1 ? "" : "s"} waiting on you.`
-            : "Nothing is waiting on you."}
-        </p>
-      </header>
+    <PortalShell
+      brand={brand}
+      wide
+      title="Your orders"
+      sub={`${view.supplier}. ` + (view.waiting
+        ? `${view.waiting} order${view.waiting === 1 ? "" : "s"} waiting on you.`
+        : "Nothing is waiting on you.")}
+      foot={view.note}
+    >
 
       {error && <p className="pp-error">{error}</p>}
 
@@ -141,8 +135,7 @@ export default function SupplierOrders() {
         ))
       )}
 
-      <footer className="pp-foot">{view.note}</footer>
-    </div>
+    </PortalShell>
   );
 }
 
@@ -214,19 +207,19 @@ function OrderCard({ token, order, open, onToggle, onSaved }: {
           <span className="pp-muted">
             {order.lines.length} line{order.lines.length === 1 ? "" : "s"} ·{" "}
             {money(order.value)}
-            {order.sent_at && ` · sent ${when(order.sent_at)}`}
+            {order.sent_at && ` · Sent ${when(order.sent_at)}`}
           </span>
         </span>
         <span className={`pp-pill ${
           order.status === "received" ? "pp-pill-ok"
             : order.needs_answer ? "pp-pill-warn" : ""}`}>
-          {order.status === "received" ? "received"
-            : order.status === "cancelled" ? "cancelled"
+          {order.status === "received" ? "Received"
+            : order.status === "cancelled" ? "Cancelled"
             : order.acknowledged_at
               ? (order.promised_date
-                  ? `due ${when(order.promised_date)}`
-                  : "confirmed")
-              : "please confirm"}
+                  ? `Due ${when(order.promised_date)}`
+                  : "Confirmed")
+              : "Please confirm"}
         </span>
       </button>
 
