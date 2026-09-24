@@ -36,7 +36,29 @@ Two of those printed nothing at all rather than saying anything. A claim copy
 or a waybill printed from the desktop application opened no window, showed no
 message and produced no paper.
 
-**Also**
+**The barcode prints once, on the label**
 
-If a label printer will not take a job, the message now says what the printer
-said, rather than sending you to a browser setting.
+The dispensing label has always carried the script barcode along its bottom. A
+second sticker carrying only the barcode was also printing on every item,
+which is two stickers where one will do. It is a tick again, for the pack that
+needs the number somewhere else as well.
+
+**When something will not print, it now says why**
+
+"The printer accepted no document" was Windows talking, and it told nobody
+anything. A printer refuses a job for three reasons in practice, and all three
+are things you can see from where you are standing: it is switched off, it is
+out of paper, or it is paused. It now says which, and names the printer.
+
+The till and the dispensary used to throw the printer's answer away and
+quietly open the print dialogue instead, so a till appeared to print sometimes
+and ask you other times, for no reason anybody could see. The sale and the
+dispensing still stand, and now you are told why the paper did not come out.
+
+**Each document goes where you sent it**
+
+Dispensing labels to the label roll, receipts to the receipt printer, claim
+copies to the A4 printer. Anything you have not pointed anywhere follows the
+label roll, so one printer still does everything until you say otherwise.
+These belong to the till they are set on, because the printer is plugged in
+there.
