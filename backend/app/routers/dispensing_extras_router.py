@@ -1564,7 +1564,7 @@ def dispensary_worklist(db: Session = Depends(get_db)):
     # they would shrink as the queue grew, so a worsening backlog would report
     # fewer time-critical items.
     bands = worklist.band_counts(everything)
-    reminders = worklist.due_reminders(db)
+    reminders, due_total = worklist.due_reminders(db)
     return {
         "queue": queue,
         "bands": bands,
@@ -1574,6 +1574,11 @@ def dispensary_worklist(db: Session = Depends(get_db)):
             "waiting": waiting_total,
             "showing": len(queue),
             "time_critical": bands.get("Time-critical", 0),
+            # The whole repeat book, not the page of it sent above — the tab
+            # reports the size of the problem, and a number that shrank to
+            # the page size would report a backlog getting better as it got
+            # worse. Same rule the queue's `waiting` already follows.
+            "due": due_total,
             "overdue_repeats": sum(1 for r in reminders if r["overdue"]),
         },
     }

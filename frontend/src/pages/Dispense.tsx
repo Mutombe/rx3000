@@ -46,7 +46,7 @@ import { deliveryLabelLines, priceLabelLines } from "../deviceAgent";
 import type { Line } from "../escpos";
 import { labelLines } from "../deviceAgent";
 import {
-  ControlledDispensing, CoverageReport, Doctor, Label, OTCSale, Patient,
+  CoverageReport, Doctor, Label, Patient,
   Prescription, PrescriptionItem, Product, Sale, SchedulePolicy, User,
 } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
@@ -572,11 +572,6 @@ export default function Dispense() {
    *  than a boolean that would light up whichever one you are not looking at. */
   const [initialsFocus, setInitialsFocus] = useState<"bar" | "finish" | null>(null);
   const [complianceNotes, setComplianceNotes] = useState("");
-  const [controlledLog, setControlledLog] = useState<ControlledDispensing[]>([]);
-  const [controlledMeta, setControlledMeta] = useState<Paged<ControlledDispensing> | null>(null);
-  const [controlledPage, setControlledPage] = useState(1);
-  const [otcMeta, setOtcMeta] = useState<Paged<OTCSale> | null>(null);
-  const [otcPage, setOtcPage] = useState(1);
 
   // OTC
   const [otcProduct, setOtcProduct] = useState<Product | null>(null);
@@ -600,11 +595,9 @@ export default function Dispense() {
   const [referred, setReferred] = useState(false);
   const [otcNotes, setOtcNotes] = useState("");
   const [tendered, setTendered] = useState("");
-  const [otcLog, setOtcLog] = useState<OTCSale[]>([]);
   /* The two registers on this screen load into empty tables, and an empty
      controlled register reads as "nothing was dispensed", which for a
      schedule 5 log is the most misleading sentence on the page. */
-  const [logsLoading, setLogsLoading] = useState(true);
 
   // `recent`, `moreRecent` and `repeatsDue` used to live here to feed the middle
   // column. They are gone with it — including the two requests they made on
@@ -629,23 +622,21 @@ export default function Dispense() {
     api.get<Doctor[]>("/api/doctors").then(setDoctors);
     api.get<User[]>("/api/auth/roster").then(setUsers)
       .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded.")));
-    loadLists();
   }, []);
 
-  function loadLists() {
-    // Ask for one more than is shown. If it comes back there are more, which
-    // is all the screen needs to say — a truthful "there is more" beats a
-    // precise total that costs another endpoint, and beats silence entirely.
-    api.get<Paged<ControlledDispensing>>(
-      `/api/dispensing/controlled/log/paged?days=90&page=${controlledPage}&per_page=25`)
-      .then((res) => {
-        setControlledLog(res.items); setControlledMeta(res);
-        if (res.page !== controlledPage) setControlledPage(res.page);
-      });
-    api.get<Paged<OTCSale>>(`/api/dispensing/otc/paged?days=30&page=${otcPage}&per_page=25`)
-      .then((res) => { setOtcLog(res.items); setOtcMeta(res); if (res.page !== otcPage) setOtcPage(res.page); })
-      .finally(() => setLogsLoading(false));
-  }
+  /* `loadLists` is gone, and with it four round trips.
+   *
+   *  It fetched the controlled register for the last ninety days and the
+   *  counter log for the last thirty, stored both in state, and NOTHING read
+   *  either — the tabs that used to show them were taken off this screen when
+   *  the lane learnt to reshape itself from the basket, and the fetches
+   *  stayed behind.
+   *
+   *  It ran when the dispensary opened, and again after every single
+   *  dispense, which is the moment a dispenser is watching the screen and
+   *  waiting for it to be ready for the next patient. Twenty-five kilobytes
+   *  and two round trips, twice, for two lists nobody could see.
+   */
 
   /* A LATE ANSWER MUST NOT REFILL A FIELD SOMEBODY HAS EMPTIED.
    *
@@ -2538,8 +2529,7 @@ export default function Dispense() {
       setIndication(""); setCustomerName(""); setCounselled(false);
       setReferred(false); setOtcNotes(""); setTenders([]);
       clearScriptDraft();
-      loadLists();
-      if (out.sale_id) {
+        if (out.sale_id) {
         try {
           const sale = await api.get<Sale>(`/api/pos/sales/${out.sale_id}`);
           printReceipt(sale, pharmacy.name, pharmacy.regNo);
@@ -2594,7 +2584,6 @@ export default function Dispense() {
     setCounselPoints([]); setCounselNotes(""); setScanChecks({}); setPackExpiry({});
     setPrintPick({});
     setTenders([{ method: "cash", currency_code: currencyState?.base ?? "USD", amount: "" }]);
-    loadLists();
     setWorklistNonce((n) => n + 1);
 
     // A script created by a first attempt is dispensed by the second, never
@@ -2878,7 +2867,6 @@ export default function Dispense() {
       if (!itemsRef.current.length && !patientRef.current) {
         setDoneSale(finished); setDoneRxId(rx.id);
       }
-      loadLists();
       // The queue is why anybody is on this screen. It refreshed itself every
       // two minutes and not on dispensing, so the count sat unchanged after the
       // very act that should have moved it, which reads as the dispensing not

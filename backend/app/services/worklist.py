@@ -138,8 +138,20 @@ def pending_count(db: Session) -> int:
     )
 
 
-def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dict]]:
+def pending(db: Session, *, limit: int = 60) -> tuple[list[dict], int, list[dict]]:
     """Everything captured and not yet dispensed, worst first then oldest first.
+
+    SIXTY, NOT TWO HUNDRED.
+
+    The panel shows about six rows at a time and the tab reports the true
+    total beside it, so two hundred was thirty screens of scrolling that
+    nobody reaches — and it is fetched again after every dispense, which is
+    the moment a dispenser is waiting for the screen to be ready for the next
+    patient. Sixty is ten screens, which is well past the point where anybody
+    stops scrolling and searches instead.
+
+    The band counts and the totals are still taken from the whole backlog, so
+    the numbers do not shrink as the queue grows.
 
     Returns the visible rows *and* the true count. A queue is one of the few
     places a cap is genuinely right, nobody works a list of five thousand, but
@@ -175,7 +187,7 @@ def pending(db: Session, *, limit: int = 200) -> tuple[list[dict], int, list[dic
         .all()
     )
     if not rows:
-        return [], 0, []
+        return [], total, []
 
     patients = {
         p.id: p for p in
@@ -374,20 +386,48 @@ def chronic_patients(db: Session, *, limit: int = 50) -> list[dict]:
 REPEAT_HORIZON_DAYS = 14
 
 
-def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> list[dict]:
-    """Repeats due soon or already past, with who to contact."""
+def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS,
+                  limit: int = 60) -> tuple[list[dict], int]:
+    """Repeats due soon or already past, with who to contact.
+
+    CAPPED, LIKE THE QUEUE BESIDE IT.
+
+    This returned every one, and a shop with a healthy repeat book has a lot
+    of them: on the demonstration data it was 577 rows and 240 KB, which was
+    77% of everything the dispensary asks for when it opens. The panel shows
+    a handful at a time and the tab shows a number, so the other 550 were
+    downloaded to be scrolled past — and on a Zimbabwean line that is a
+    couple of seconds before a dispenser can type the first letter of a
+    medicine.
+
+    The worst are first, so the cap takes the ones nobody should reach.
+    Returns the page and the true total, because the tab must still say 577.
+    """
     horizon = date.today() + timedelta(days=within_days)
-    rows = (
+    # ORDERED AND LIMITED IN SQL, NOT IN PYTHON.
+    #
+    # This fetched every due repeat — 577 of them on the demonstration data —
+    # joined three tables for each, loaded every one of their patients, built
+    # 577 dictionaries, sorted them, and then returned the first sixty. The
+    # other 517 were constructed to be thrown away, on a call that runs when
+    # the dispensary opens AND after every dispense.
+    #
+    # `days` is `next_repeat_date - today`, so ordering by the date is the
+    # same order, and the database can do it against an index.
+    due = (
         db.query(PrescriptionItem, Prescription, Product)
         .join(Prescription, PrescriptionItem.prescription_id == Prescription.id)
         .join(Product, PrescriptionItem.product_id == Product.id)
         .filter(PrescriptionItem.next_repeat_date.isnot(None))
         .filter(PrescriptionItem.next_repeat_date <= horizon)
         .filter(PrescriptionItem.repeats_used < PrescriptionItem.repeats_allowed)
-        .all()
     )
+    # The tab reports the whole repeat book, so the total is counted rather
+    # than measured off the page — one cheap aggregate, no rows built.
+    total = due.count()
+    rows = due.order_by(PrescriptionItem.next_repeat_date.asc()).limit(limit).all()
     if not rows:
-        return []
+        return [], 0
     patients = {
         p.id: p for p in
         db.query(Patient).filter(
@@ -434,5 +474,7 @@ def due_reminders(db: Session, *, within_days: int = REPEAT_HORIZON_DAYS) -> lis
                 product, item.quantity or 0,
                 times=max(0, (item.repeats_allowed or 0) - (item.repeats_used or 0))),
         })
+    # Already in date order from the database; the sort is kept because it is
+    # free on sixty rows and makes the guarantee local to this function.
     out.sort(key=lambda r: r["days"])
-    return out
+    return out, total

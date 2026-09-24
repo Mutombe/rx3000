@@ -53,7 +53,9 @@ interface Worklist {
   bands: Record<string, number>;
   chronics: ChronicRow[];
   reminders: ReminderRow[];
-  counts: { waiting: number; showing: number; time_critical: number; overdue_repeats: number };
+  counts: { waiting: number; showing: number; time_critical: number;
+            /** The whole repeat book; `reminders` is a page of it. */
+            due?: number; overdue_repeats: number };
 }
 
 export type WorklistPanel = "queue" | "chronics" | "due" | "drafts";
@@ -215,7 +217,8 @@ export default function DispensaryWorklist({
       <div className="wl-tabs">
         {([["queue", "Queue", counts.waiting],
            ["chronics", "Chronic", data.chronics.length],
-           ["due", "Due", data.reminders.length],
+           // The whole repeat book, not the page of it that was sent.
+           ["due", "Due", counts.due ?? data.reminders.length],
            ["drafts", DRAFT_SCRIPT_PLURAL, drafts.length]] as [Panel, string, number][])
           .map(([key, label, n]) => (
           <button

@@ -31,6 +31,17 @@ interface Verdict {
   in_local_table: boolean; description: string; note: string;
 }
 
+/** The ICD-10 chapters, fetched once for the whole session and shared.
+ *  Same shape as `SigInput`'s dosage book, for the same reason. */
+let chapters: Promise<Chapter[]> | null = null;
+function chapterBook(): Promise<Chapter[]> {
+  if (!chapters) {
+    chapters = api.get<Chapter[]>("/api/claiming/diagnoses/chapters")
+      .catch(() => [] as Chapter[]);
+  }
+  return chapters;
+}
+
 export default function DiagnosisPicker({ value, onChange, autoFocus }: {
   value: string;
   onChange: (code: string) => void;
@@ -54,11 +65,11 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
       .then(setChosen).catch(() => setChosen(null));
   }, [value]);
 
-  // The chapter list is small and fixed, so it is fetched once and kept.
-  useEffect(() => {
-    api.get<Chapter[]>("/api/claiming/diagnoses/chapters")
-      .then(setChapters).catch(() => setChapters([]));
-  }, []);
+  // Once per session, not once per mount. The comment below used to say
+  // "fetched once and kept" and the effect fetched it again every time a
+  // picker appeared — which is every line on every script. The chapter list
+  // is the ICD-10 headings; they change when the WHO says so.
+  useEffect(() => { chapterBook().then(setChapters); }, []);
 
   useEffect(() => {
     if (query.trim().length < 2) { setResults([]); setVerdict(null); return; }
