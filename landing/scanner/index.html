@@ -57,13 +57,36 @@
     --bad-soft: rgba(241, 141, 125, .14);
     --accent: #f4f3f1;
   }
+  /* THE SAME TYPE AS THE REST OF THE SYSTEM.
+     This was the phone's own font, which meant Roboto on an Android, San
+     Francisco on an iPhone and something else again on a cheap tablet — so
+     the one screen a pharmacy hands to a customer facing assistant looked
+     like it belonged to the handset rather than to RX5000. These are the
+     application's own two faces, byte for byte the same files it serves.
+     Swap, and the device stack behind them, so the viewfinder never waits on
+     a font to open: the camera is the point of this page. */
+  @font-face {
+    font-family: "Inter";
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url("/assets/inter-variable.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "IBM Plex Mono";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("/assets/ibm-plex-mono-400.woff2") format("woff2");
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
     margin: 0;
     padding: env(safe-area-inset-top, 0) 0 env(safe-area-inset-bottom, 0);
     background: var(--ground); color: var(--ink);
-    font: 400 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 400 16px/1.5 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    letter-spacing: -0.01em;
     display: flex; flex-direction: column;
     overscroll-behavior: none;
   }
@@ -172,7 +195,7 @@
           background: var(--ok-soft); color: var(--ok); font-size: .8rem; }
   li.bad .mark { background: transparent; color: var(--bad); }
   .body { flex: 1 1 auto; min-width: 0; }
-  .code { display: block; font-weight: 600; font-family: ui-monospace, monospace;
+  .code { display: block; font-weight: 600; font-family: "IBM Plex Mono", ui-monospace, monospace;
           overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
   .chip { flex: 0 0 auto; padding: 2px 8px; border-radius: 999px;
@@ -190,7 +213,7 @@
     flex: 1 1 auto; min-width: 0; min-height: 48px;
     padding: 0 14px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--sunk); color: var(--ink);
-    font-size: 1rem; font-family: ui-monospace, monospace;
+    font-size: 1rem; font-family: "IBM Plex Mono", ui-monospace, monospace;
   }
   input#code { text-align: center; letter-spacing: .22em; font-size: 1.15rem; }
   input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
