@@ -1,77 +1,42 @@
-Dispensing is four times faster, and the screens look the part.
+Labels print.
 
-**A script goes out in a quarter of the time**
+**If you have a Zebra, it now speaks Zebra**
 
-Pressing Dispense took 564 milliseconds of the server's time and now takes
-122. Twenty foreign keys in the database had no index, so fetching the four
-lines of one sale meant reading all 81,935 lines the shop has ever sold,
-twice, on every dispense. Worse, it got slower on its own: the reading grows
-with your trading history, so a till that was quick in its first month was
-several times slower a year later with nothing having changed. That is fixed,
-and the same reading was slowing the patient record, the till and the reports.
+A label printer speaks its own language, and this application was not speaking
+it. It drew the sticker as a PDF and asked Windows to hand that to the
+printer's driver, which Windows will only do if something on the machine has
+registered itself as able to print a PDF to a named printer. Edge does not.
+Acrobat does, which is why this worked on some tills and not others and looked
+like a fault with the printer.
 
-**The medicine is the first field on the lane**
+A Zebra needs none of that. The sticker now goes to it in ZPL, straight to the
+spooler, with the driver bypassed and nothing to install on the till. It is the
+same sticker, drawn from the same measurements as the preview on screen, at
+your printer's own resolution.
 
-It used to be the third, sitting two thirds of the way across an empty band,
-and the patient and prescriber appeared to its LEFT once you had typed, which
-moved the screen under your hand mid-keystroke. The order is now the order of
-the work: the medicine, then who it is for, then who wrote it. No field
-changed size.
+Nobody is asked which language their printer speaks. Windows already says so:
+it calls the printer something like "ZDesigner ZD421 203dpi ZPL", which names
+the language and the resolution, and that is now read rather than guessed.
 
-**The barcode sticker prints by default**
+**The reprint screen was sending the wrong thing entirely**
 
-Still a tick you can clear before printing, for the pack that does not need
-one.
+Printing from the dispensing history said "1 label(s) printed" and nothing came
+off the roll. It was sending receipt printer codes, whatever the till was set
+to, and a label printer accepts that job and throws it away. It now prints by
+the same route the dispensary uses.
 
-**Your patients get a portal worth sending**
+**"The print window was blocked"**
 
-Every link now carries your pharmacy's own name, logo, telephone number and
-address, not ours, and opens in about a fifth of what it used to download: a
-patient on a mobile connection was being sent the whole dispensary to find out
-whether their tablets were ready. Every portal has its own four-digit code, so
-a link forwarded to the wrong person opens nothing. That includes the
-wholesalers, because a quotation email lands in a shared inbox.
+The application would ask you to allow pop ups for this site. There is no site
+and no setting to find, because the desktop application is not a browser. Every
+document now prints without needing a window: labels, receipts, claim copies,
+waybills, statements and quotations.
 
-**A driver's round, on the driver's phone**
-
-A new portal shows a driver what is still out with them, with the address and
-telephone number as taps, and the patient signs for it on the screen at the
-door. The signature is kept against the waybill, which is what a disputed
-delivery is argued from. Deliveries used to be closed from the back office by
-somebody who was not there.
-
-**What happened to a dispensing, wherever you look at it**
-
-How it was supplied, meaning counter, will-call shelf or delivery, how it was
-paid for, whether it was signed for, and what the patient thought of it. On the
-dispensing history with filters, on the patient's portal, in the script book
-and its spreadsheet, and in a new report that answers whether delivery is
-worth doing. Nothing is typed in: the till, the shelf and the waybill already
-knew, and now they say.
-
-**Patients can say how you did**
-
-One question and five stars on their own portal, after a collection. Nobody
-had ever asked them.
-
-**The look**
-
-Flat surfaces with a single fine edge instead of shadows. Thirteen-point text
-on tighter rows, so about a quarter more fits on a screen without anything
-being removed. Every table in the system is now the same table. Colour is
-spent only where it changes what you do, and a status carries a shape as well
-as a colour, so it still reads for the one person in twelve who cannot tell
-green from amber.
+Two of those printed nothing at all rather than saying anything. A claim copy
+or a waybill printed from the desktop application opened no window, showed no
+message and produced no paper.
 
 **Also**
 
-The band across the top of the dispensary used to announce a collection before
-anything had been added to the script, and it stayed on collection whatever
-you then chose. It now waits until there is something to say, and says what
-you actually picked: collection, delivery or a will-call shelf.
-
-Searching the dispensing history for a full name now finds it. Two columns on
-the dashboard that reported the day's takings were cutting the figures off.
-Reference numbers are set in the same typeface on every machine. The
-prescriber portal was showing an empty list of scripts to prescribers whose
-patients had collected that morning.
+If a label printer will not take a job, the message now says what the printer
+said, rather than sending you to a browser setting.
