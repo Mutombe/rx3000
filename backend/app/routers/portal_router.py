@@ -44,7 +44,8 @@ from .. import auth, tenancy
 from ..database import get_db
 from ..models import (Doctor, Patient, Pharmacy, Prescription, PrescriptionItem,
                       Product, PurchaseOrder, RfqSupplier, Sale, Supplier, User)
-from ..services import config, patient_portal, portal_tokens, supplier_portal
+from ..services import (config, patient_portal, portal_pins, portal_tokens,
+                        supplier_portal)
 from ..services import rfq as rfq_svc
 
 # Unauthenticated by design: the link or the prescriber login is the credential.
@@ -68,11 +69,12 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
             "send the link. Add one first.")
     token = portal_tokens.issue(kind="patient", subject_id=patient.id)
 
-    # A code goes with the link, and is kept if one already exists — a patient
-    # who has learned their four digits should not be given new ones every time
-    # somebody re-sends the link.
-    code = patient.portal_code or patient_portal.set_code(db, patient)
-    db.commit()
+    # A code goes with the link. It cannot be "the one they already have" any
+    # more, because nothing can read that back — it is a hash. So re-sending a
+    # link issues fresh digits and the message carries them, which is the
+    # honest version of what this always meant: the patient reads the code out
+    # of the message they were just sent.
+    code = patient_portal.set_code(db, patient)
 
     return {
         "token": token,
@@ -235,7 +237,10 @@ def preview_as_patient(patient_id: int, db: Session = Depends(get_db)):
     return {
         **patient_portal.record(db, patient),
         "impersonated": True,
-        "code": patient.portal_code or "",
+        # No code. It is a hash now, so nobody — staff included — can read a
+        # patient's four digits off a screen. Where they have forgotten them,
+        # "Give them a new code" issues fresh ones and shows them once.
+        "has_code": portal_pins.has_pin(patient),
         "note": ("This is what the patient sees. Nothing here is a live "
                  "portal session. It is their record, read through your own."),
     }

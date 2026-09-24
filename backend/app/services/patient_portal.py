@@ -39,10 +39,12 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..models import (Dispensing, Patient, Prescription, PrescriptionItem,
                       Product, Sale, Waybill)
+from . import portal_pins
 
-#: Wrong tries before the link stops answering.
-MAX_TRIES = 5
-LOCK_MINUTES = 15
+#: Wrong tries before the link stops answering. Kept here as the names this
+#: module has always published; the counting itself is `portal_pins`'s.
+MAX_TRIES = portal_pins.MAX_TRIES
+LOCK_MINUTES = portal_pins.LOCK_MINUTES
 
 
 class PortalError(RuntimeError):
@@ -50,59 +52,33 @@ class PortalError(RuntimeError):
 
 
 def set_code(db: Session, patient: Patient, code: str = "") -> str:
-    """Give this patient a code, or the one the pharmacy chose.
+    """Give this patient a code, or the one the pharmacy chose, and hand it
+    back once.
 
-    Generated with `secrets` rather than `random`. Four digits is a small space
-    and a predictable generator makes it a much smaller one — the seed is the
-    only thing between a guess and a certainty.
+    The returned string is the only time the code exists outside the patient's
+    head. It is read to them at the counter or put in the message the link is
+    sent with, and then it is a hash: `patients.portal_code` used to hold the
+    working code to every patient portal in the shop, in clear text, in every
+    backup.
     """
-    code = (code or "").strip()
-    if code:
-        if not code.isdigit() or not 4 <= len(code) <= 8:
-            raise PortalError("A code is four to eight digits.")
-    else:
-        code = f"{secrets.randbelow(10000):04d}"
-    patient.portal_code = code
-    patient.portal_code_set_at = datetime.utcnow()
-    patient.portal_failed = 0
-    patient.portal_locked_until = None
-    return code
+    try:
+        return portal_pins.issue(db, patient, code)
+    except portal_pins.PortalPinError as e:
+        # One exception type crosses this module's own boundary, because every
+        # caller already catches PortalError and says what it says.
+        raise PortalError(str(e)) from e
 
 
 def verify(db: Session, patient: Patient, code: str) -> None:
-    """Check the code, counting failures. Raises with what to show."""
-    now = datetime.utcnow()
-    if patient.portal_locked_until and patient.portal_locked_until > now:
-        wait = int((patient.portal_locked_until - now).total_seconds() // 60) + 1
-        raise PortalError(
-            f"Too many tries. Please wait {wait} minute(s), or ring the "
-            f"pharmacy and they will read you a new code.")
+    """Check the code, counting failures. Raises with what to show.
 
-    if not patient.portal_code:
-        raise PortalError(
-            "There is no code on this record yet. Ring the pharmacy and they "
-            "will give you one.")
-
-    # Constant time, so the comparison cannot be timed to learn the code a
-    # digit at a time. Cheap here and free to get right.
-    if not secrets.compare_digest(str(code or "").strip(), patient.portal_code):
-        patient.portal_failed = (patient.portal_failed or 0) + 1
-        left = MAX_TRIES - patient.portal_failed
-        if left <= 0:
-            patient.portal_locked_until = now + timedelta(minutes=LOCK_MINUTES)
-            patient.portal_failed = 0
-            raise PortalError(
-                f"That code is wrong, and this link is now closed for "
-                f"{LOCK_MINUTES} minutes. Ring the pharmacy if you need it "
-                f"sooner.")
-        raise PortalError(
-            f"That code is not right. {left} more "
-            f"{'try' if left == 1 else 'tries'} before the link closes for a "
-            f"while.")
-
-    patient.portal_failed = 0
-    patient.portal_locked_until = None
-    patient.portal_last_seen = now
+    A patient whose code predates the hashing still verifies: the migration
+    moved theirs across unchanged, so nobody is asked for a new one.
+    """
+    try:
+        portal_pins.check(db, patient, code)
+    except portal_pins.PortalPinError as e:
+        raise PortalError(str(e)) from e
 
 
 def teaser(db: Session, patient: Patient) -> dict:
@@ -123,7 +99,7 @@ def teaser(db: Session, patient: Patient) -> dict:
     return {
         "greeting": patient.first_name,
         "waiting": int(waiting),
-        "has_code": bool(patient.portal_code),
+        "has_code": portal_pins.has_pin(patient),
         "note": ("Enter the four-digit code the pharmacy gave you to see your "
                  "prescriptions."),
     }

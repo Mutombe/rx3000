@@ -165,8 +165,8 @@ def directory(db: Session) -> dict:
     # whether or not they have a `users` row: the link is the credential. They
     # belong in a directory of who can see what.
     with_portal = (db.query(func.count(Patient.id))
-                   .filter(Patient.portal_code != "",
-                           Patient.portal_code.isnot(None)).scalar() or 0)
+                   .filter(Patient.portal_pin_hash != "",
+                           Patient.portal_pin_hash.isnot(None)).scalar() or 0)
 
     return {
         "types": [describe(k) for k in BY_KEY],

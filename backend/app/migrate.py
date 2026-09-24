@@ -51,6 +51,24 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "payment_terms": "VARCHAR(60) DEFAULT ''",
         "notes": "TEXT DEFAULT ''",
         "active": "BOOLEAN DEFAULT 1",
+        # The portal's own four digits, hashed. A link that is forwarded is
+        # a link the code does not travel with. See services/portal_pins.py.
+        "portal_pin_hash": "VARCHAR(255) DEFAULT ''",
+        "portal_pin_set_at": "DATETIME",
+        "portal_failed": "INTEGER DEFAULT 0",
+        "portal_locked_until": "DATETIME",
+        "portal_last_seen": "DATETIME",
+    },
+    # A driver reads their round off their own phone, and proves it is theirs
+    # the same way everybody else on a portal does.
+    "drivers": {
+        # The portal's own four digits, hashed. A link that is forwarded is
+        # a link the code does not travel with. See services/portal_pins.py.
+        "portal_pin_hash": "VARCHAR(255) DEFAULT ''",
+        "portal_pin_set_at": "DATETIME",
+        "portal_failed": "INTEGER DEFAULT 0",
+        "portal_locked_until": "DATETIME",
+        "portal_last_seen": "DATETIME",
     },
     # Which EcoCash, which bank. Used to be parsed back out of the front of the
     # tender's free-text reference, which is not a data model.
@@ -138,6 +156,14 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # upgrade never silently grants a prescriber the ability to write in.
         "portal_password_hash": "VARCHAR(255)",
         "portal_active": "BOOLEAN DEFAULT 0",
+        # The portal's own four digits, hashed. A link that is forwarded is
+        # a link the code does not travel with. See services/portal_pins.py.
+        "portal_pin_hash": "VARCHAR(255) DEFAULT ''",
+        "portal_pin_set_at": "DATETIME",
+        "portal_failed": "INTEGER DEFAULT 0",
+        "portal_locked_until": "DATETIME",
+        "portal_last_seen": "DATETIME",
+
         # What a Zimbabwean funder adjudicates on, beside the practice number
         # the prescriber prints on their own stationery.
         "ahfoz_number": "VARCHAR(40) DEFAULT ''",
@@ -200,6 +226,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         # forwarded message usually reaches somebody who already knows.
         "portal_code": "VARCHAR(8) DEFAULT ''",
         "portal_code_set_at": "DATETIME",
+        # Hashed, from here on. `_hash_the_portal_codes` moves the plaintext
+        # ones across; nothing writes `portal_code` any more.
+        "portal_pin_hash": "VARCHAR(255) DEFAULT ''",
+        "portal_pin_set_at": "DATETIME",
         "portal_failed": "INTEGER DEFAULT 0",
         "portal_locked_until": "DATETIME",
         "portal_last_seen": "DATETIME",
@@ -1256,6 +1286,43 @@ def _add_tenant_columns(conn, inspector, existing_tables) -> int:
 from datetime import datetime  # noqa: E402  (only the numbering pass needs it)
 
 
+def _hash_the_portal_codes(conn, existing_tables: set) -> int:
+    """Move the patients' plaintext portal codes into a hash.
+
+    `patients.portal_code` was a VARCHAR(8) holding the working four digits to
+    every patient portal in the shop, in the clear, in every backup. The
+    application already hashed staff PINs properly — this was the weaker of
+    two patterns we already owned, and spreading it to the suppliers, the
+    prescribers and the drivers would have made four of it.
+
+    So each code is hashed the way a staff PIN is and written to
+    `portal_pin_hash`, and the plaintext column is blanked in the same
+    statement. Nothing is lost: the patient's code does not change, and the
+    only thing that stops working is reading it back off a staff screen, which
+    is the point.
+
+    Idempotent — a row that already has a hash is skipped — and safe to run on
+    a database where nobody has ever been issued a code.
+    """
+    if "patients" not in existing_tables:
+        return 0
+    from .services import pins
+
+    rows = conn.execute(text(
+        "SELECT id, portal_code FROM patients "
+        "WHERE portal_code IS NOT NULL AND portal_code != '' "
+        "AND (portal_pin_hash IS NULL OR portal_pin_hash = '')"
+    )).fetchall()
+    for row in rows:
+        conn.execute(
+            text("UPDATE patients SET portal_pin_hash = :h, portal_code = '' "
+                 "WHERE id = :i"),
+            {"h": pins.hash_pin(str(row[1]).strip()), "i": row[0]})
+    if rows:
+        log.info("Hashed %d patient portal code(s)", len(rows))
+    return len(rows)
+
+
 def _number_the_patients(conn, existing_tables: set) -> int:
     """Give every patient already on file a profile number, then make it unique.
 
@@ -1626,6 +1693,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _add_tenant_columns(conn, inspector, existing_tables)
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _number_the_patients(conn, existing_tables)
+        applied += _hash_the_portal_codes(conn, existing_tables)
         applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)

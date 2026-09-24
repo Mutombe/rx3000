@@ -538,6 +538,20 @@ class Doctor(Base, TenantMixin):
     # still says who wrote it. Retired, never deleted.
     active = Column(Boolean, default=True, index=True)
 
+    # ---- the portal's own four digits -------------------------------------
+    #
+    # Named identically on every row a portal link can point at — patient,
+    # supplier, prescriber, driver — so `services/portal_pins.py` needs to
+    # know nothing about which kind of row it has been handed. A hash, never
+    # the code.
+    portal_pin_hash = Column(String(255), default="")
+    portal_pin_set_at = Column(DateTime, nullable=True)
+    #: Wrong codes in a row, and the wait that follows five of them.
+    portal_failed = Column(Integer, default=0)
+    portal_locked_until = Column(DateTime, nullable=True)
+    portal_last_seen = Column(DateTime, nullable=True)
+
+
 
 class Patient(Base, TenantMixin):
     __tablename__ = "patients"
@@ -575,8 +589,14 @@ class Patient(Base, TenantMixin):
     # system can produce. A code the pharmacy hands over is known by exactly
     # the people who should know it, and can be changed the moment a phone is
     # lost.
+    # Kept only so the plaintext codes already in the database can be moved
+    # into `portal_pin_hash` on first use; nothing writes it any more and
+    # nothing reads it back to a screen. See services/portal_pins.py.
     portal_code = Column(String(8), default="")
     portal_code_set_at = Column(DateTime, nullable=True)
+    #: The same four digits, hashed the way a staff PIN is.
+    portal_pin_hash = Column(String(255), default="")
+    portal_pin_set_at = Column(DateTime, nullable=True)
     #: Wrong codes in a row. A link that reaches the wrong phone should not be
     #: guessable at ten thousand tries; five is generous for four digits.
     portal_failed = Column(Integer, default=0)
@@ -619,6 +639,19 @@ class Supplier(Base, TenantMixin):
     notes = Column(Text, default="")
     # Retired, never deleted: the name is on every order they ever fulfilled.
     active = Column(Boolean, default=True, index=True)
+
+    # ---- the portal's own four digits -------------------------------------
+    #
+    # Named identically on every row a portal link can point at — patient,
+    # supplier, prescriber, driver — so `services/portal_pins.py` needs to
+    # know nothing about which kind of row it has been handed. A hash, never
+    # the code: see that module for why the wholesalers get one too.
+    portal_pin_hash = Column(String(255), default="")
+    portal_pin_set_at = Column(DateTime, nullable=True)
+    #: Wrong codes in a row, and the wait that follows five of them.
+    portal_failed = Column(Integer, default=0)
+    portal_locked_until = Column(DateTime, nullable=True)
+    portal_last_seen = Column(DateTime, nullable=True)
 
 
 class StockCategory(Base, TenantMixin):
@@ -3294,6 +3327,19 @@ class Driver(Base, TenantMixin):
     active = Column(Boolean, default=True, index=True)
     notes = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.utcnow)
+
+    # ---- the portal's own four digits -------------------------------------
+    #
+    # Named identically on every row a portal link can point at — patient,
+    # supplier, prescriber, driver — so `services/portal_pins.py` needs to
+    # know nothing about which kind of row it has been handed. A hash, never
+    # the code.
+    portal_pin_hash = Column(String(255), default="")
+    portal_pin_set_at = Column(DateTime, nullable=True)
+    #: Wrong codes in a row, and the wait that follows five of them.
+    portal_failed = Column(Integer, default=0)
+    portal_locked_until = Column(DateTime, nullable=True)
+    portal_last_seen = Column(DateTime, nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])
     branch = relationship("Branch", foreign_keys=[branch_id])
