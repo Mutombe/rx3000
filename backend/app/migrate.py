@@ -705,6 +705,39 @@ WANTED_INDEXES: list[tuple[str, str, tuple[str, ...]]] = [
     ("prescriptions", "ix_prescriptions_patient_id", ("patient_id",)),
     ("prescriptions", "ix_prescriptions_status", ("status",)),
     ("prescriptions", "ix_prescriptions_date", ("date_prescribed",)),
+
+    # ---- FOREIGN KEYS THAT WERE NEVER INDEXED ----------------------------
+    #
+    # A foreign key is not an index. SQLite and Postgres both index the
+    # PARENT side, because that is the primary key, and neither indexes the
+    # child — so `sale.items` reads "every row in sale_items whose sale_id is
+    # this one", and with no index that is a scan of the whole table.
+    #
+    # It was 81,935 rows here and 21ms a time, TWICE in a single dispense:
+    # 38ms of the 52ms that dispensing a script spends in the database, to
+    # fetch the four lines of one sale. And it gets worse on its own — the
+    # scan is linear in the shop's whole trading history, so a pharmacy that
+    # is quick in its first month is six times slower in its second year and
+    # nothing in the software has changed. That is the shape of complaint
+    # that makes somebody leave, because it reads as the system wearing out.
+    #
+    # Every one below was found by walking the schema's own foreign keys and
+    # asking which had no index on the child column, on tables over 500 rows.
+    ("sale_items", "ix_sale_items_sale_id", ("sale_id",)),
+    ("sales", "ix_sales_patient_id", ("patient_id",)),
+    ("sales", "ix_sales_cashier_id", ("cashier_id",)),
+    ("dispensings", "ix_dispensings_dispensed_by_id", ("dispensed_by_id",)),
+    ("batch_allocations", "ix_batch_allocations_batch_id", ("batch_id",)),
+    ("batch_allocations", "ix_batch_allocations_sale_item_id", ("sale_item_id",)),
+    ("stock_alerts", "ix_stock_alerts_batch_id", ("batch_id",)),
+    ("stock_movements", "ix_stock_movements_product_id", ("product_id",)),
+    ("audit_logs", "ix_audit_logs_user_id", ("user_id",)),
+    ("products", "ix_products_supplier_id", ("supplier_id",)),
+    ("patients", "ix_patients_medical_aid_id", ("medical_aid_id",)),
+    ("remittance_lines", "ix_remittance_lines_claim_id", ("claim_id",)),
+    ("messages", "ix_messages_patient_id", ("patient_id",)),
+    ("ticket_messages", "ix_ticket_messages_ticket_id", ("ticket_id",)),
+    ("journal_entries", "ix_journal_entries_created_by", ("created_by_id",)),
 ]
 
 
