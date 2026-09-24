@@ -67,7 +67,10 @@ interface View {
 interface Draft { price: string; lead: string; out: boolean; note: string }
 
 function money(n: number): string {
+  // With the currency on it. A quotation is the one number a wholesaler will
+  // be held to, and it printed as a bare "1,542.80" beside a pack size.
   return n.toLocaleString(undefined, {
+    style: "currency", currency: "USD",
     minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 

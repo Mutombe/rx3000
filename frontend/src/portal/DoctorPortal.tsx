@@ -28,6 +28,16 @@ interface Line {
   quantity: string; repeats_allowed: string;
 }
 
+/** A date a prescriber reads, not the one the database stores.
+ *
+ *  These printed as "2026-09-22", which is a sort key. A prescriber scanning
+ *  for last Tuesday's script reads "22 Sep 2026". */
+const day = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(undefined, {
+    day: "numeric", month: "short", year: "numeric" });
+};
+
 const BLANK: Line = {
   product_id: "", dosage_instructions: "", quantity: "", repeats_allowed: "0",
 };
@@ -231,7 +241,7 @@ export default function DoctorPortal() {
                     {sentence(s.status)}
                   </span>
                 </div>
-                <div className="pp-muted">{s.rx_number} · {s.date}</div>
+                <div className="pp-muted">{s.rx_number} · {day(s.date)}</div>
               </li>
             ))}
           </ul>
