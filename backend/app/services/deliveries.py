@@ -177,6 +177,10 @@ def waybill_row(w: Waybill) -> dict:
                    else w.driver.full_name if w.driver else ""),
         "driver_phone": w.driver_profile.phone if w.driver_profile else "",
         "received_by": w.received_by, "failure_reason": w.failure_reason,
+        # The recipient's own mark, drawn on the driver's phone at the door.
+        # The typed name above is the driver's claim about who took it; this
+        # is what a disputed delivery is argued from.
+        "signature": w.signature or "",
         "requires_id_check": w.requires_id_check,
         "id_number_seen": w.id_number_seen,
         "delivery_fee": round(w.delivery_fee or 0.0, 2),

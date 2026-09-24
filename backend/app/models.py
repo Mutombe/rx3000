@@ -3226,6 +3226,15 @@ class Waybill(Base, TenantMixin):
     driver_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     # Who actually took it. A delivery signed for by nobody is not a delivery.
     received_by = Column(String(120), default="")
+    #: Their actual signature, drawn on the driver's phone at the door, kept
+    #: as a data URI.
+    #:
+    #: A typed name is a claim by the driver about the recipient; a signature
+    #: is the recipient's own mark, and it is what a disputed delivery is
+    #: argued from when a funder or a patient says the parcel never arrived.
+    #: Held as an image rather than parsed, because nothing sorts or filters
+    #: on it — it is shown beside the name and that is all.
+    signature = Column(Text, default="")
     failure_reason = Column(String(200), default="")
     # A controlled substance leaving the premises needs identity checked at the
     # door, not at the counter it never reached.

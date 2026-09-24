@@ -675,3 +675,64 @@ html, body, #root { margin: 0; min-height: 100%; }
   .pp .pin { gap: var(--pp-2); }
   .pp .pin-box { width: 48px; height: 58px; }
 }
+
+/* ---------- the driver's round ----------
+   Read one-handed on a motorbike seat outside somebody's gate. Everything
+   here is bigger than the desk equivalent and nothing needs two taps. */
+.pp .dp-purse {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--pp-3);
+}
+.pp .dp-drop { padding: 0; overflow: hidden; }
+/* A controlled medicine gets an edge, because the identity check is the one
+   thing on this screen a driver cannot make good afterwards. */
+.pp .dp-drop.is-id { border-left: 3px solid var(--pp-warn); }
+.pp .dp-head {
+  width: 100%; min-height: var(--pp-tap);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--pp-3); padding: var(--pp-4);
+  background: none; border: 0; text-align: left; cursor: pointer;
+  color: var(--pp-ink); font: inherit;
+}
+.pp .dp-head-main { display: grid; gap: 2px; min-width: 0; }
+.pp .dp-head-main b { font-size: var(--pp-t-lg); }
+/* The address wraps rather than clipping. A truncated address is a driver at
+   the wrong gate. */
+.pp .dp-head-main .pp-muted { white-space: normal; }
+.pp .dp-drop form, .pp .dp-links, .pp .dp-note,
+.pp .dp-drop .pp-alert, .pp .dp-drop .pp-error {
+  margin: 0 var(--pp-4) var(--pp-4);
+}
+.pp .dp-links { display: grid; gap: var(--pp-2); }
+.pp .dp-call, .pp .dp-map {
+  min-height: var(--pp-tap); display: grid; place-items: center;
+  text-decoration: none;
+}
+.pp .dp-note { color: var(--pp-mid); }
+
+/* ---------- the signature ----------
+   The first place in this product where anybody signs anything. */
+.pp .dp-sign { margin: var(--pp-4) 0; }
+.pp .dp-sign > .pp-label { display: block; margin-bottom: var(--pp-2); }
+/* The way out sits under the pad, not beside the label: side by side it
+   squeezed "Ask them to sign here" onto two lines the moment it appeared. */
+.pp .dp-sign-under {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--pp-3); margin-top: var(--pp-1);
+}
+.pp .dp-sign-under .pp-fine { margin: 0; }
+.pp .dp-sign-clear {
+  min-height: var(--pp-tap); padding: 0 var(--pp-3); flex: none;
+}
+.pp .dp-sign-pad {
+  display: block; width: 100%; height: 160px;
+  border: 1px dashed var(--pp-line); border-radius: var(--pp-r);
+  /* Light in both themes, because the stroke is fixed dark ink: this image
+     is shown on a white panel and printed on white paper later, so the pad
+     has to show the person signing what the document will show. */
+  background: #fbfbfd;
+  color: #16161d;
+  /* Without this a finger dragged across the pad scrolls the page out from
+     under the person signing. */
+  touch-action: none;
+}

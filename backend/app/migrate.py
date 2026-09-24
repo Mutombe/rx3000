@@ -86,6 +86,10 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
         "cod_shift_id": "INTEGER",
         "driver_profile_id": "INTEGER",
         "branch_id": "INTEGER",
+        # The recipient's own mark, drawn on the driver's phone at the door.
+        # A typed name is the driver's claim about who took the parcel; this
+        # is what a disputed delivery is actually argued from.
+        "signature": "TEXT DEFAULT ''",
     },
     # `external_code` is what the pharmacy's accountant calls this account in
     # Pastel. Ours and theirs are both right and are rarely the same number,

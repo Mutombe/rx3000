@@ -13342,3 +13342,14 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    the size it will actually be worn. */
 .av-current { display: flex; align-items: center; gap: var(--s3);
               margin-top: var(--s2); }
+
+/* The recipient's own mark, taken on the driver's phone at the door. Drawn on
+   a light pad whatever the theme, because a signature written in dark ink on
+   a dark card is a black rectangle, and this is the one image on the page
+   somebody may have to produce for a funder. */
+.wb-signature {
+  display: block; width: 100%; max-width: 22rem; height: auto;
+  background: #fff; border: 1px solid var(--line);
+  border-radius: var(--r-md); padding: var(--s2);
+  margin-bottom: var(--s2);
+}

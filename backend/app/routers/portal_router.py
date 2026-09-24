@@ -137,6 +137,54 @@ def issue_doctor_link(doctor_id: int, db: Session = Depends(get_db)):
     }
 
 
+@admin.post("/links/driver/{driver_id}")
+def issue_driver_link(driver_id: int, db: Session = Depends(get_db)):
+    """A driver's round, on the driver's own phone, for one shift.
+
+    Sixteen hours rather than the patient link's week: this link names live
+    deliveries with addresses and telephone numbers on them, so a phone left
+    in a taxi stops opening anything by the next morning. Re-issued at the
+    start of each round, which is also when somebody checks the licence.
+    """
+    from ..models import Driver as DriverRow
+    from ..routers import driver_portal_router as driver_portal
+
+    driver = db.get(DriverRow, driver_id)
+    if not driver:
+        raise HTTPException(404, "Driver not found")
+    if not driver.active:
+        raise HTTPException(
+            400, f"{driver.full_name} is retired and cannot be sent out.")
+    if driver.licence_expiry and driver.licence_expiry < date.today():
+        raise HTTPException(
+            400,
+            f"{driver.full_name}: licence expired on "
+            f"{driver.licence_expiry:%d %b %Y}. Renew it or send somebody "
+            f"else.")
+
+    token = portal_tokens.issue(kind="driver", subject_id=driver.id,
+                                ttl=driver_portal.SHIFT_TTL)
+    code = portal_pins.issue(db, driver)
+    base = config.text(db, "portal.base_url",
+                       rfq_svc.DEFAULT_PORTAL_BASE).rstrip("/")
+    link = f"{base}/driver/{token}"
+    return {
+        "token": token,
+        "link": link,
+        "path": f"/driver/{token}",
+        "code": code,
+        "driver": driver.full_name,
+        "send_to": driver.phone or "",
+        "expires_in_hours": driver_portal.SHIFT_TTL // 3600,
+        "share_text": (
+            f"{driver.full_name}, your round is here: {link}"
+            f"\n\nYour code is {code}. The link stops working tonight."),
+        "message": (f"Link and code for {driver.full_name} created. It lasts "
+                    f"{driver_portal.SHIFT_TTL // 3600} hours and shows their "
+                    "own deliveries only."),
+    }
+
+
 def _patient_from(token: str, db: Session) -> Patient:
     """The patient a signed link names, and their pharmacy put in force.
 
@@ -303,6 +351,18 @@ def _asking_pharmacy(db: Session) -> str:
 
 
 
+def _driver_brand_from(token: str, db: Session):
+    """The driver behind a link, for the branding and the unlock door.
+
+    Delegates to the driver portal's own resolver so the refusals a retired
+    driver and an expired licence earn are stated in exactly one place. The
+    pass is not required here: this is the door itself, and asking somebody to
+    already be through it in order to knock is a locked room.
+    """
+    from ..routers.driver_portal_router import driver_from
+    return driver_from(token, db, require_code=False)
+
+
 def _brand_resolvers() -> dict:
     """Which function proves which kind of link.
 
@@ -322,6 +382,7 @@ def _brand_resolvers() -> dict:
         "quote": _invited_from,
         "doctor": _doctor_from,
         "supplier": _supplier_from,
+        "driver": _driver_brand_from,
     }
 
 

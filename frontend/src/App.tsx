@@ -23,6 +23,7 @@ const PatientPortal = lazy(() => import("./portal/PatientPortal"));
 const DoctorPortal = lazy(() => import("./portal/DoctorPortal"));
 const SupplierQuote = lazy(() => import("./portal/SupplierQuote"));
 const SupplierOrders = lazy(() => import("./portal/SupplierOrders"));
+const DriverPortal = lazy(() => import("./portal/DriverPortal"));
 
 // Everything a member of staff ever sees, including the sign-in.
 const Staff = lazy(() => import("./Staff"));
@@ -42,6 +43,10 @@ export default function App() {
         {/* A wholesaler's standing link: the orders this pharmacy has sent
             them, and where they say when each one is coming. */}
         <Route path="/supplier/:token" element={<SupplierOrders />} />
+        {/* A driver's round, on their own phone, for one shift. Short
+            address on purpose: it is read off a screen by somebody on a
+            motorbike. */}
+        <Route path="/driver/:token" element={<DriverPortal />} />
         <Route path="/*" element={<Staff />} />
       </Routes>
     </Suspense>

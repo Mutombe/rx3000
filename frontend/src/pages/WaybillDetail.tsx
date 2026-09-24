@@ -27,6 +27,8 @@ interface Waybill {
   recipient: string; address: string; phone: string; instructions: string;
   driver: string; driver_profile_id: number | null; driver_phone: string;
   received_by: string; failure_reason: string;
+  /** The recipient's own mark from the driver's phone, as a data URI. */
+  signature: string;
   // The money side, added when deliveries grew one. A waybill that does not
   // say what it is collecting is a parcel with an unknown value attached.
   delivery_fee: number; cod_amount: number; cod_collected: number;
@@ -275,6 +277,20 @@ export default function WaybillDetail() {
                 <dd>{w.id_number_seen || <span className="muted">Not recorded</span>}</dd>
               </dl>
             </Panel>
+
+            {/* The signature taken at the door. Shown rather than described,
+                because a claim is argued from the mark itself and "signed:
+                yes" is not evidence of anything. */}
+            {w.signature && (
+              <Panel title="Signed for at the door">
+                <img className="wb-signature" src={w.signature}
+                     alt={`Signature of ${w.received_by || "the recipient"}`} />
+                <p className="muted small">
+                  {w.received_by || "The recipient"} signed on the driver's
+                  phone{w.delivered_at ? ` on ${fmtDateTime(w.delivered_at)}` : ""}.
+                </p>
+              </Panel>
+            )}
           </div>
         </>
       )}
