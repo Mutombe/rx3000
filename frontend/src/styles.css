@@ -726,6 +726,50 @@ kbd, .kbd {
   letter-spacing: 0; font-style: normal; white-space: nowrap;
 }
 
+
+/* STATUS IS A SHAPE AS WELL AS A COLOUR.
+ *
+ * "Status is an icon, not a coloured pill" is right about the failure it
+ * names — a pill that means something only to people who can tell green from
+ * amber is a pill that means nothing to about one man in twelve — but wrong
+ * about the remedy if it throws the colour away. Colour is the fastest thing
+ * on a screen for everybody who can see it.
+ *
+ * So the badge keeps its colour AND carries a shape, and the shapes differ
+ * from each other in outline rather than in hue: a disc is fine, a triangle
+ * wants attention, a square stops. Printed in black and white, read on a
+ * failing monitor, or read by somebody who has never distinguished red from
+ * green, the three are still three different marks.
+ *
+ * Drawn here rather than passed in at 140 call sites, which is the same
+ * reason the colour is: one rule, every badge, no chance of the one that was
+ * forgotten. A badge that already carries its own icon keeps it — the mark is
+ * only added where nothing else is saying which state this is.
+ *
+ * `.muted` and `.sched` get nothing: one is the absence of a state and the
+ * other is a legal classification, not a state. */
+.badge.ok::before,
+.badge.warn::before,
+.badge.danger::before,
+.badge.bad::before {
+  content: ""; flex: none;
+  width: 7px; height: 7px;
+  background: currentColor;
+}
+/* Fine: a disc. */
+.badge.ok::before { border-radius: var(--r-pill); }
+/* Wants attention: a triangle. */
+.badge.warn::before {
+  width: 0; height: 0; background: none;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-bottom: 7px solid currentColor;
+}
+/* Stops: a square, corners left on so it reads as the blunt one. */
+.badge.danger::before, .badge.bad::before { border-radius: 1px; }
+/* Where a badge already says which state it is with its own icon, the shape
+   would be a second mark for one fact. */
+.badge:has(> svg)::before { content: none; }
+
 /* ---------- badges ---------- */
 /* ONE COLOUR, AND THIS IS NOT IT.
  *
@@ -4154,7 +4198,11 @@ button.wl-stat:disabled:hover {
    gave it 102, so the queue listed medicines nobody could identify. */
 .rp-who  { width: 10rem; }
 /* A date with a month name: "28 Jul, 2026" wants 119px. */
-.rp-due  { width: 7.5rem; }
+/* 8.5rem, not 7.5. The date sits in a state badge, and a badge now carries a
+   shape as well as a colour, which is 11px the column did not have: "28 Jul,
+   2026" wanted 127px in 120. The mark earns its width — it is what makes the
+   state readable without colour — so the column gives it up. */
+.rp-due  { width: 8.5rem; }
 .rp-worth { width: 7.5rem; }
 .db-branch { width: 14rem; }
 /* "Average sale" is the longest column name on this table and an equal share

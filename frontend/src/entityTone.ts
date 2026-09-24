@@ -143,6 +143,21 @@ export const LABEL_FAMILY: Record<string, Family> = {
   Product: "medicine", Batch: "medicine", Supplier: "medicine",
   "Purchase order": "medicine", "On the shelf": "medicine",
   Branch: "medicine",
+  // Nine record pages were writing an eyebrow that appeared in neither table,
+  // so the word above them rendered grey while every neighbour carried a
+  // hue — which reads as an oversight rather than as a decision, because it
+  // was one. Each takes the family its own record already takes: a stock take
+  // and a shelf location are the stock behind the medicine, an RFQ and a
+  // supplier return are how that stock is got and sent back.
+  "Stock take": "medicine", "Stock movement": "medicine",
+  "Shelf location": "medicine", "Shelf locations": "medicine",
+  "Request for quotation": "medicine", "Return to supplier": "medicine",
+  // A delivery is a waybill, and `waybill` is already money above: what it
+  // carries is collected for at the door.
+  Delivery: "money", Journal: "money",
+  // An audit entry is the record of an act, which is what the script family
+  // means — the document, rather than the person who acted.
+  "Audit entry": "script",
 
   // Money
   Sale: "money", "Lay-by": "money", "Supplier invoice": "money",
@@ -182,6 +197,12 @@ export const ROUTE_FAMILY: Record<string, Family> = {
   "/helpdesk": "person", "/accounts": "person", "/leads": "person",
   "/pipeline": "money", "/marketing": "person", "/crm-reports": "money",
   "/head-office": "person", "/pharmacies": "person",
+
+  // Three destinations the sidebar was learning nothing from. Suppliers and
+  // quotes are how stock is got, which is the medicine axis; operations is
+  // the delivery round, which is the waybill, which is money.
+  "/suppliers": "medicine", "/rfqs": "medicine",
+  "/dispensary/operations": "money",
 };
 
 /** The class for a named record type, or nothing where it has no single
