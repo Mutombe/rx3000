@@ -3343,8 +3343,26 @@ export default function Dispense() {
           height. It costs 76px to name three sections that name themselves
           twelve pixels lower. The headings below are numbered for the same
           reason it was. It comes back on a tall screen, where the space is
-          free and the overview is worth having. */}
-      <div className="disp-steps"><StepTrail steps={steps} /></div>
+          free and the overview is worth having.
+
+          AND NOT UNTIL THERE IS SOMETHING IN THE BASKET.
+
+          With nothing on the script the trail could only guess, and it
+          guessed a counter sale: "1 Medicine, 2 Hand it over", above an
+          empty table, before anybody had typed a letter. Put one
+          prescription medicine on and it becomes a four-step script with a
+          patient, a prescriber and a safety check — so the overview was
+          wrong in exactly the half of cases it was most confidently shown.
+
+          That is the fault the tabs had, which is why they went: the screen
+          cannot know what kind of supply this is until it knows what is
+          being supplied. The lane already reshapes itself from the basket
+          rather than asking first, and this is the last thing on the screen
+          that was still asserting an answer ahead of the evidence. It waits
+          for the basket now, like everything else here. */}
+      {items.length > 0 && (
+        <div className="disp-steps"><StepTrail steps={steps} /></div>
+      )}
 
         <div className="rx-split">
           <div>

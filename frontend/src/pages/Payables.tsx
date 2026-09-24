@@ -95,7 +95,6 @@ export default function Payables() {
   const [payments, setPayments] = useState<RemittanceData[]>([]);
   const [advice, setAdvice] = useState<RemittanceData | null>(null);
   const [spinning, setSpinning] = useState(false);
-  const [loading, setLoading] = useState(true);
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -114,7 +113,6 @@ export default function Payables() {
     } catch (e) {
       setFailed(errorText(e, "What is owed could not be worked out."));
     } finally {
-      setLoading(false);
       // Held briefly so the turn is visible. A spinner that stops on the same
       // frame it started reads as a button that did nothing.
       window.setTimeout(() => setSpinning(false), 450);
