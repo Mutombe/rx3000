@@ -245,6 +245,16 @@ def delivered(token: str, waybill_id: int, body: Signed,
     w.signature = signature
     w.delivered_at = datetime.utcnow()
     db.commit()
+
+    # THE BAG IS NO LONGER ON THE SHELF.
+    #
+    # It was. A delivery closed at the door marked the waybill and stopped
+    # there, so every dispensing behind it still read "on the shelf" on the
+    # dispensing history and still counted on the will-call ageing tiles —
+    # medicine the patient had signed for in front of the driver, which the
+    # shop believed was sitting behind the counter. Somebody would eventually
+    # ring the patient about a bag they had had for a fortnight.
+    delivery_svc.off_the_shelf(db, w)
     return {"drop": _drop(w), "message": f"{w.waybill_number} is done."}
 
 

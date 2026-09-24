@@ -1052,6 +1052,38 @@ class Dispensing(Base, TenantMixin):
     scan_code = Column(String(64), default="")
     scan_verified = Column(Boolean, default=False)
 
+    # ---- how it reached them, how it was paid, what they thought ----------
+    #
+    # COLUMNS, NOT A JSON BAG.
+    #
+    # These are the four facts anybody actually asks a dispensing record for
+    # after the fact — how the medicine got to the patient, how it was paid
+    # for, whether it was signed for, and whether the patient was happy — and
+    # every one of them is asked as "how many", "which ones" or "compared
+    # with last month". A blob answers none of those. A report has to be able
+    # to filter and group on them, so they are columns on the row that a
+    # report already walks.
+    #
+    # The signature is the exception and is not here: it lives on the waybill
+    # beside the name it belongs to, because it is shown and never sorted,
+    # and a dispensing reaches it through the sale they share.
+
+    #: counter | will_call | delivery. Worked out rather than asked for: the
+    #: till knows whether somebody walked out with it, the shelf knows whether
+    #: it waited, and raising a waybill says it was driven.
+    supply_type = Column(String(12), default="", index=True)
+    #: cash | card | mobile | scheme | account | split. Taken from the sale's
+    #: own tenders when it is paid, because the money was already recorded
+    #: properly and asking a second time is how two records disagree.
+    payment_type = Column(String(24), default="", index=True)
+
+    #: What the patient thought, one to five, from their own portal. Nought
+    #: where they have not said, which is a different fact from a low score
+    #: and is kept different.
+    rating = Column(Integer, default=0, index=True)
+    review_note = Column(Text, default="")
+    reviewed_at = Column(DateTime, nullable=True)
+
     prescription_item = relationship("PrescriptionItem", back_populates="dispensings")
     dispensed_by = relationship("User", foreign_keys=[dispensed_by_id])
     collected_by = relationship("User", foreign_keys=[collected_by_id])

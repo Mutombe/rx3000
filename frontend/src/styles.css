@@ -13353,3 +13353,11 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   border-radius: var(--r-md); padding: var(--s2);
   margin-bottom: var(--s2);
 }
+
+/* What the patient thought of a dispensing, on the history row beside how it
+   reached them. Three or fewer out of five reads in the warning colour,
+   because those are the ones worth a telephone call. */
+.dh-rating {
+  margin-top: 2px; color: #b8860b; font-size: 11px; letter-spacing: 0.08em;
+}
+.dh-rating.is-poor { color: var(--danger); }

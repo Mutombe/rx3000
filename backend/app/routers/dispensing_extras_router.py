@@ -19,6 +19,7 @@ from ..models import (
     Driver, MedicalAid, Patient, Pharmacy, Prescription, PriceOverride, Product,
     Sale, Shift, StockMovement, User, Waybill,
 )
+from ..services import supply_facts
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
                         price_history, repeat_performance,
                         scheme_codes as scheme_codes_svc)
@@ -388,6 +389,10 @@ def create_waybill(sale_id: int | None = Body(default=None),
     db.add(waybill)
     db.commit()
     db.refresh(waybill)
+    # Everything on this sale was driven, not handed over a counter. Written
+    # down here because this is the moment it becomes true, and a report
+    # asking "what does delivery cost us" has to be able to group by it.
+    supply_facts.settle_sale(db, waybill.sale_id)
     return _row(waybill)
 
 
@@ -574,6 +579,9 @@ def deliver(waybill_id: int, received_by: str = Body(...),
     w.id_number_seen = id_number_seen.strip()
     w.delivered_at = datetime.utcnow()
     db.commit()
+    # And off the will-call shelf, where it had been sitting in the system
+    # while the patient had it at home. See deliveries.off_the_shelf.
+    delivery_svc.off_the_shelf(db, w)
     return _row(w)
 
 

@@ -15,10 +15,10 @@ from .. import helpers, schedule_policy, schemas
 from ..auth import get_current_user
 from ..database import get_db
 from ..services import (adjustments, doses, fefo, interactions, pack_dates,
-                        paging, permissions, willcall)
+                        paging, permissions, supply_facts, willcall)
 from ..models import (
     Claim, Dispensing, OTCSale, Patient, Prescription, PrescriptionItem, Product, Sale,
-    SaleItem, StockBatch, User,
+    SaleItem, StockBatch, User, Waybill,
 )
 from . import shifts_router
 
@@ -393,6 +393,10 @@ def otc_sale(
     for record in records:
         db.add(record)
     db.commit()
+    # How it was paid, taken from the sale's own tenders rather than asked
+    # for a second time. See services/supply_facts.py.
+    from ..services import supply_facts
+    supply_facts.settle_sale(db, sale.id)
     for record in records:
         db.refresh(record)
     return {"sale_id": sale.id, "total": sale.total,
@@ -657,6 +661,12 @@ def dispensing_history(
     days: int = 0,
     unpaid_only: bool = False,
     uncollected_only: bool = False,
+    #: counter | will_call | delivery — how it reached the patient.
+    supply: str = "",
+    #: cash | card | mobile_money | medical_aid | account | split | unpaid.
+    payment: str = "",
+    #: Only what the patient has rated, or only what they rated badly.
+    rated: str = "",
     page: int = 1,
     per_page: int = paging.DEFAULT_PER_PAGE,
     db: Session = Depends(get_db),
@@ -692,13 +702,23 @@ def dispensing_history(
     )
 
     if q.strip():
-        like = f"%{q.strip()}%"
-        query = query.filter(or_(
-            Prescription.rx_number.ilike(like),
-            Product.name.ilike(like),
-            Patient.first_name.ilike(like),
-            Patient.last_name.ilike(like),
-        )).join(Patient, Prescription.patient_id == Patient.id)
+        # WORD BY WORD, BECAUSE PEOPLE TYPE FULL NAMES.
+        #
+        # This compared the whole phrase against each field on its own, so
+        # "Tapiwa Andela" matched nothing at all: there is no field holding
+        # both halves. Somebody typing the name off the bag in front of them
+        # got "Nothing matches that" and concluded the patient had no
+        # dispensings. Each word now has to match somewhere, so a full name
+        # narrows rather than excludes and a single word behaves as before.
+        query = query.join(Patient, Prescription.patient_id == Patient.id)
+        for word in q.strip().split()[:5]:
+            like = f"%{word}%"
+            query = query.filter(or_(
+                Prescription.rx_number.ilike(like),
+                Product.name.ilike(like),
+                Patient.first_name.ilike(like),
+                Patient.last_name.ilike(like),
+            ))
     if patient_id:
         query = query.filter(Prescription.patient_id == patient_id)
     if product_id:
@@ -712,6 +732,18 @@ def dispensing_history(
             Dispensing.dispensed_at >= datetime.utcnow() - timedelta(days=days))
     if uncollected_only:
         query = query.filter(Dispensing.collected_at.is_(None))
+    # The three facts that were nowhere before. Filters rather than columns
+    # somebody reads down, because "how much of what we do is delivery" is
+    # the question, and a column you have to count by eye does not answer it.
+    if supply.strip():
+        query = query.filter(Dispensing.supply_type == supply.strip())
+    if payment.strip():
+        query = query.filter(Dispensing.payment_type == payment.strip())
+    if rated == "any":
+        query = query.filter(Dispensing.rating > 0)
+    elif rated == "unhappy":
+        # Three or fewer out of five. The ones worth a telephone call.
+        query = query.filter(Dispensing.rating > 0, Dispensing.rating <= 3)
 
     result = paging.page(query.order_by(Dispensing.dispensed_at.desc()),
                          page=page, per_page=per_page)
@@ -732,6 +764,15 @@ def dispensing_history(
     rx_ids = {d.prescription_item.prescription_id for d in result.items
               if d.prescription_item}
     touched = adjustments.summarise(db, rx_ids)
+
+    # Which of these were signed for at the door. One query for the page, not
+    # one per row: the signature itself is shown on the waybill's own screen,
+    # and what a history row needs is only whether there is one.
+    signed_sales = {
+        sid for (sid,) in
+        db.query(Waybill.sale_id)
+        .filter(Waybill.sale_id.in_(sale_ids or [0]),
+                Waybill.signature != "").all()}
 
     def row(d):
         item = d.prescription_item
@@ -764,6 +805,20 @@ def dispensing_history(
             "pharmacist_initial": d.pharmacist_initial or "",
             "collected_at": d.collected_at,
             "collected_name": d.collected_name or "",
+            # HOW IT REACHED THEM, HOW IT WAS PAID, WHETHER IT WAS SIGNED
+            # FOR, AND WHAT THEY THOUGHT.
+            #
+            # Four facts a dispensing record could not answer. The raw value
+            # goes with the sentence, because the screen shows one and
+            # filters on the other, and a screen that sends back the words it
+            # printed is how a filter silently matches nothing.
+            "supply_type": d.supply_type or "",
+            "supply_said": supply_facts.SUPPLY_SAID.get(d.supply_type or "", ""),
+            "payment_type": d.payment_type or "",
+            "payment_said": supply_facts.PAYMENT_SAID.get(d.payment_type or "", ""),
+            "signed": d.sale_id in signed_sales,
+            "rating": int(d.rating or 0),
+            "review_note": d.review_note or "",
             "sale_id": d.sale_id,
             "sale_number": sale.sale_number if sale else "",
             "sale_status": sale.status if sale else "",

@@ -53,7 +53,11 @@ interface Record {
          left: number }[];
   scripts: Script[];
   history: { product: string; quantity: number; on: string;
-             collected: string | null; is_repeat: boolean }[];
+             collected: string | null; is_repeat: boolean;
+             /** The four facts that follow a dispensing everywhere. */
+             how: string; paid: string; signed: boolean; rating: number }[];
+  /** The last handover they have not rated, or nothing. */
+  to_review: { on: string; ids: number[]; what: string[]; how: string } | null;
   deliveries: { number: string; status: string; address: string;
                 when: string; to_collect: number }[];
 }
@@ -73,6 +77,10 @@ export default function PatientPortal() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"now" | "scripts" | "history">("now");
+  // Hidden for the rest of the visit once they have answered, rather than
+  // waiting for a reload: a prompt that reappears after you answered it is a
+  // prompt people learn to ignore.
+  const [rated, setRated] = useState(false);
 
   useEffect(() => {
     fetch(`${apiBase}/api/portal/patient/${token}`)
@@ -205,6 +213,18 @@ export default function PatientPortal() {
           </button>
         ))}
       </nav>
+
+      {/* Asked once, about the last handover, and only while it is still
+          worth asking. Nobody had ever asked a patient of one of these
+          pharmacies what they thought. */}
+      {tab === "now" && record.to_review && !rated && (
+        <RateIt
+          token={token}
+          code={code}
+          it={record.to_review}
+          onDone={() => setRated(true)}
+        />
+      )}
 
       {tab === "now" && (
         <>
@@ -339,12 +359,23 @@ export default function PatientPortal() {
               <div>
                 <b>{h.product}</b>
                 <span className="pp-muted">
-                  {day(h.on)} · {h.quantity}
-                  {h.is_repeat && " · repeat"}
+                  {/* How it reached them, how it was paid, and whether
+                      somebody signed for it. Four facts that were nowhere
+                      before, and which are what a patient checks a record
+                      for after the event. */}
+                  {[day(h.on), String(h.quantity), h.how, h.paid,
+                    h.signed ? "Signed for" : "",
+                    h.is_repeat ? "Repeat" : ""]
+                    .filter(Boolean).join(" · ")}
                 </span>
+                {h.rating > 0 && (
+                  <span className="pp-stars" aria-label={`You rated this ${h.rating} out of 5`}>
+                    {"★".repeat(h.rating)}{"☆".repeat(5 - h.rating)}
+                  </span>
+                )}
               </div>
               <span className={`pp-pill ${h.collected ? "pp-pill-ok" : "pp-pill-warn"}`}>
-                {h.collected ? "collected" : "waiting"}
+                {h.collected ? "Collected" : "Waiting"}
               </span>
             </div>
           ))}
@@ -352,5 +383,94 @@ export default function PatientPortal() {
       )}
 
     </PortalShell>
+  );
+}
+
+
+/** One question, five taps, and a box nobody has to fill in.
+ *
+ *  Asked about the handover rather than the medicine: a script with four
+ *  items is one visit and one opinion, and asking four times is how a rating
+ *  prompt gets dismissed and never answered again. The answer is written
+ *  against every line in that handover, so a report can still group by it.
+ */
+function RateIt({ token, code, it, onDone }: {
+  token: string;
+  code: string;
+  it: { on: string; ids: number[]; what: string[]; how: string };
+  onDone: () => void;
+}) {
+  const [stars, setStars] = useState(0);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [oops, setOops] = useState("");
+
+  async function send(rating: number) {
+    setBusy(true);
+    setOops("");
+    try {
+      const r = await fetch(`${apiBase}/api/portal/patient/${token}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, rating, note, ids: it.ids }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.detail ?? "That did not save.");
+      onDone();
+    } catch (e: any) {
+      setOops(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="pp-card pp-rate">
+      <h2>How did we do</h2>
+      <p className="pp-lead">
+        {it.how || "Your medicine"} on {day(it.on)}
+        {it.what.length > 0 && `: ${it.what.join(", ")}`}
+      </p>
+      <div className="pp-stars-pick" role="group" aria-label="Your rating">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={n <= stars ? "on" : ""}
+            aria-label={`${n} out of 5`}
+            aria-pressed={n <= stars}
+            disabled={busy}
+            onClick={() => setStars(n)}
+          >
+            {n <= stars ? "★" : "☆"}
+          </button>
+        ))}
+      </div>
+      {stars > 0 && (
+        <>
+          <label className="pp-label" htmlFor="pp-note">
+            Anything you want to tell them
+          </label>
+          <textarea
+            id="pp-note"
+            rows={2}
+            value={note}
+            maxLength={2000}
+            disabled={busy}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional"
+          />
+          <button className="pp-btn" disabled={busy}
+                  onClick={() => send(stars)}>
+            {busy ? "Sending…" : "Send it"}
+          </button>
+        </>
+      )}
+      {oops && <p className="pp-error">{oops}</p>}
+      <button type="button" className="pp-ghost" disabled={busy}
+              onClick={onDone}>
+        Not now
+      </button>
+    </section>
   );
 }

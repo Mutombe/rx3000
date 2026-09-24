@@ -233,6 +233,60 @@ def patient_overview(token: str, db: Session = Depends(get_db)):
     return patient_portal.teaser(db, patient)
 
 
+class Review(BaseModel):
+    """What a patient thought of one handover."""
+    #: The code again, because this writes. A read-only link is the
+    #: credential for looking; leaving a rating is a write against the
+    #: pharmacy's own records and the four digits prove it was the patient.
+    code: str = Field(default="", max_length=8)
+    rating: int = Field(default=0, ge=1, le=5)
+    note: str = Field(default="", max_length=2000)
+    #: The dispensings this covers, as the portal was told them. Checked
+    #: against the patient's own, so a forwarded link cannot rate somebody
+    #: else's medicine.
+    ids: list[int] = Field(default_factory=list)
+
+
+@router.post("/patient/{token}/review")
+def patient_review(token: str, body: Review, db: Session = Depends(get_db)):
+    """A rating, against one handover rather than one medicine.
+
+    Nobody had ever asked a patient of one of these pharmacies what they
+    thought, and the pharmacy's own patients are the only people who can say.
+    It lands beside the dispensing rather than in a separate satisfaction
+    system, because the question a pharmacy actually asks is "were the
+    deliveries worse than the counter", and that is a comparison you can only
+    make if the answer sits on the same row as how it was supplied.
+    """
+    from ..models import Dispensing
+    from ..services import supply_facts
+
+    patient = _patient_from(token, db)
+    try:
+        patient_portal.verify(db, patient, body.code)
+    except patient_portal.PortalError as e:
+        raise HTTPException(401, str(e)) from e
+
+    # Theirs, and nobody else's. The ids come from the page, so they are
+    # checked against this patient's own dispensings rather than trusted.
+    rows = (db.query(Dispensing)
+            .join(PrescriptionItem,
+                  PrescriptionItem.id == Dispensing.prescription_item_id)
+            .join(Prescription,
+                  Prescription.id == PrescriptionItem.prescription_id)
+            .filter(Prescription.patient_id == patient.id,
+                    Dispensing.id.in_(body.ids or []))
+            .all())
+    if not rows:
+        raise HTTPException(404, "There is nothing to rate there.")
+
+    try:
+        supply_facts.review(db, rows, rating=body.rating, note=body.note)
+    except supply_facts.ReviewError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"message": "Thank you. The pharmacy will see this."}
+
+
 @router.post("/patient/{token}/confirm")
 def patient_confirm(token: str, code: str = Body(default="", embed=True),
                     date_of_birth: str = Body(default="", embed=True),

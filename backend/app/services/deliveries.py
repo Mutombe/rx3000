@@ -330,3 +330,40 @@ def on_the_road(db: Session) -> dict:
         "uncollected_cash": round(float(unsettled or 0), 2),
         "fees_out": round(sum(w.delivery_fee or 0.0 for w in rows), 2),
     }
+
+
+def off_the_shelf(db, w) -> int:
+    """Mark everything a delivered waybill carried as collected, at the door.
+
+    THE BAG WAS STILL ON THE SHELF.
+
+    Closing a delivery marked the waybill and stopped there, so every
+    dispensing behind it still read "on the shelf" on the dispensing history
+    and still counted on the will-call ageing tiles — medicine the patient had
+    signed for in front of the driver, which the shop believed was sitting
+    behind the counter. Somebody would eventually ring the patient about a bag
+    they had had for a fortnight.
+
+    Recorded as taken by whoever signed, which is who actually took it: often
+    not the patient, and on a controlled item that is the answer to "who had
+    it". The delivery's own timestamp is used rather than now, so the record
+    says when the medicine changed hands.
+    """
+    from ..models import Dispensing
+    from . import supply_facts
+
+    if not getattr(w, "sale_id", None):
+        return 0
+    when = w.delivered_at or datetime.utcnow()
+    rows = (db.query(Dispensing)
+            .filter(Dispensing.sale_id == w.sale_id,
+                    Dispensing.collected_at.is_(None)).all())
+    for row in rows:
+        row.collected_at = when
+        row.collected_name = (w.received_by or "")[:120]
+        if w.id_number_seen and not row.id_number_seen:
+            row.id_number_seen = w.id_number_seen[:30]
+    if rows:
+        db.commit()
+    supply_facts.settle_sale(db, w.sale_id)
+    return len(rows)

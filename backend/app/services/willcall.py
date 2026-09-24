@@ -250,6 +250,11 @@ def collect(db: Session, dispensing_id: int, *, user_id: int,
     d.collected_name = taken_by.strip()[:120]
     if id_seen.strip():
         d.id_number_seen = id_seen.strip()[:40]
+    # How it reached them, worked out now that it has. Nobody is asked: the
+    # gap between dispensing and this moment is the answer. See
+    # services/supply_facts.py.
+    from . import supply_facts
+    supply_facts.settle(db, d)
     db.commit()
     db.refresh(d)
     return d

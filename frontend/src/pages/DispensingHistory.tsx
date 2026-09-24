@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useScheduleCodes } from "../schedules";
 import { ArrowClockwise, Printer } from "@phosphor-icons/react";
-import { prefetchRoute, api, errorText, fmtDate, fmtDateTime, money } from "../api";
+import { prefetchRoute, api, errorText, fmtDate, fmtDateTime, money,
+  sentence } from "../api";
 import { EntityLink } from "../components/Filters";
 import RowLink from "../components/RowLink";
 import LabelSheet from "../components/LabelSheet";
@@ -49,6 +50,17 @@ interface Row {
   claim_status: string;
   scheme_pays: number;
   outstanding: number;
+  /** How it reached them, how it was paid, whether somebody signed at the
+   *  door, and what the patient thought. Four facts a dispensing record
+   *  could not answer before. The raw value travels with the sentence: the
+   *  screen prints one and filters on the other. */
+  supply_type: string;
+  supply_said: string;
+  payment_type: string;
+  payment_said: string;
+  signed: boolean;
+  rating: number;
+  review_note: string;
   /** What somebody decided about this script rather than the system computing
    *  it: a price set by hand, a shelf corrected while it was being dispensed.
    *  Absent on almost every row, which is the point of showing it. */
@@ -56,6 +68,27 @@ interface Row {
   stock_adjusted?: boolean;
   summary?: string;
 }
+
+/** How it reached the patient. Keys are the server's own spelling — a lookup
+ *  keyed on a capitalised value silently misses, which has cost this codebase
+ *  three broken badge maps already. */
+const SUPPLIES: [string, string][] = [
+  ["", "Any way"],
+  ["counter", "Over the counter"],
+  ["will_call", "Collected later"],
+  ["delivery", "Delivered"],
+];
+
+const PAYMENTS: [string, string][] = [
+  ["", "Any payment"],
+  ["cash", "Cash"],
+  ["card", "Card"],
+  ["mobile_money", "Mobile money"],
+  ["medical_aid", "Medical aid"],
+  ["account", "On account"],
+  ["split", "Split payment"],
+  ["unpaid", "Not yet paid"],
+];
 
 const WINDOWS: [string, string][] = [
   ["0", "Everything"],
@@ -74,6 +107,9 @@ export default function DispensingHistory() {
   const [schedule, setSchedule] = useState("-1");
   const [unpaid, setUnpaid] = useState(false);
   const [uncollected, setUncollected] = useState(false);
+  const [supply, setSupply] = useState("");
+  const [payment, setPayment] = useState("");
+  const [unhappy, setUnhappy] = useState(false);
   const [failed, setFailed] = useState("");
   const [spinning, setSpinning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -87,6 +123,9 @@ export default function DispensingHistory() {
       ...(q.trim() ? { q: q.trim() } : {}),
       ...(unpaid ? { unpaid_only: "true" } : {}),
       ...(uncollected ? { uncollected_only: "true" } : {}),
+      ...(supply ? { supply } : {}),
+      ...(payment ? { payment } : {}),
+      ...(unhappy ? { rated: "unhappy" } : {}),
     });
     api.get<Paged<Row>>(`/api/dispensing/history?${params}`)
       .then((r) => { setData(r); setFailed(""); })
@@ -97,12 +136,13 @@ export default function DispensingHistory() {
         setLoading(false);
         window.setTimeout(() => setSpinning(false), 400);
       });
-  }, [page, q, days, schedule, unpaid, uncollected]);
+  }, [page, q, days, schedule, unpaid, uncollected, supply, payment, unhappy]);
 
   useEffect(() => { load(); }, [load]);
   // Any filter change starts again at the first page — page 4 of a different
   // question is not a page anybody asked for.
-  useEffect(() => { setPage(1); }, [q, days, schedule, unpaid, uncollected]);
+  useEffect(() => { setPage(1); },
+    [q, days, schedule, unpaid, uncollected, supply, payment, unhappy]);
 
   const rows = data?.items ?? [];
   const owing = rows.reduce((sum, r) => sum + r.outstanding, 0);
@@ -147,9 +187,23 @@ export default function DispensingHistory() {
                   onClick={() => setUnpaid(!unpaid)}>
             Not paid for
           </button>
+          <span className="filter-dim">
+            <Select value={supply} onChange={setSupply} ariaLabel="How it was supplied"
+                    options={SUPPLIES.map(([v, l]) => ({ value: v, label: l }))} />
+          </span>
+          <span className="filter-dim">
+            <Select value={payment} onChange={setPayment} ariaLabel="How it was paid"
+                    options={PAYMENTS.map(([v, l]) => ({ value: v, label: l }))} />
+          </span>
           <button className={`btn small ${uncollected ? "" : "ghost"}`}
                   onClick={() => setUncollected(!uncollected)}>
             Not collected
+          </button>
+          {/* Three out of five or worse. The ones worth a telephone call,
+              which is the only reason to collect a rating at all. */}
+          <button className={`btn small ${unhappy ? "" : "ghost"}`}
+                  onClick={() => setUnhappy(!unhappy)}>
+            Unhappy
           </button>
         </div>
 
@@ -267,7 +321,8 @@ export default function DispensingHistory() {
                       <div className="muted small">
                         {r.outstanding > 0.005
                           ? <b>{money(r.outstanding)} owed</b>
-                          : r.sale_status === "paid" ? "paid" : r.sale_status || "none"}
+                          : r.payment_said
+                            || (r.sale_status ? sentence(r.sale_status) : "No sale")}
                         {r.claim_id ? (
                           <> · <EntityLink kind="claim" id={r.claim_id}>
                             scheme {money(r.scheme_pays)}
@@ -278,8 +333,20 @@ export default function DispensingHistory() {
                     <td>
                       {r.collected_at
                         ? <>{fmtDate(r.collected_at)}
-                            {r.collected_name && (
-                              <div className="muted small">{r.collected_name}</div>
+                            {/* No tenth column: the four facts belong with
+                                the collection they describe, and this table
+                                already scrolls sideways at nine. */}
+                            <div className="muted small">
+                              {[r.supply_said, r.collected_name,
+                                r.signed ? "Signed for" : ""]
+                                .filter(Boolean).join(" · ")}
+                            </div>
+                            {r.rating > 0 && (
+                              <div className={`dh-rating${r.rating <= 3 ? " is-poor" : ""}`}
+                                   title={r.review_note || undefined}>
+                                {"★".repeat(r.rating)}
+                                {"☆".repeat(5 - r.rating)}
+                              </div>
                             )}</>
                         : <span className="badge warn">On the shelf</span>}
                     </td>

@@ -39,7 +39,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from ..models import (Dispensing, Patient, Prescription, PrescriptionItem,
                       Product, Sale, Waybill)
-from . import portal_pins
+from . import portal_pins, supply_facts
 
 #: Wrong tries before the link stops answering. Kept here as the names this
 #: module has always published; the counting itself is `portal_pins`'s.
@@ -102,6 +102,30 @@ def teaser(db: Session, patient: Patient) -> dict:
         "has_code": portal_pins.has_pin(patient),
         "note": ("Enter the four-digit code the pharmacy gave you to see your "
                  "prescriptions."),
+    }
+
+
+def _worth_asking_about(fills: list) -> dict | None:
+    """The most recent handover this patient has not rated, or nothing.
+
+    Grouped by the day it was collected rather than by line, because that is
+    what the patient experienced: one visit, or one delivery, not four
+    medicines. Only the latest is offered — a portal that opens with a
+    backlog of six rating prompts is one nobody answers.
+    """
+    landed = [f for f in fills if f.collected_at and not f.rating]
+    if not landed:
+        return None
+    landed.sort(key=lambda f: f.collected_at, reverse=True)
+    newest = landed[0].collected_at.date()
+    same = [f for f in landed if f.collected_at.date() == newest]
+    return {
+        "on": landed[0].collected_at,
+        "ids": [f.id for f in same],
+        "what": [(f.prescription_item.product.name
+                  if f.prescription_item and f.prescription_item.product
+                  else "your medicine") for f in same][:4],
+        "how": supply_facts.SUPPLY_SAID.get(landed[0].supply_type or "", ""),
     }
 
 
@@ -202,7 +226,20 @@ def record(db: Session, patient: Patient) -> dict:
             "on": f.dispensed_at,
             "collected": f.collected_at,
             "is_repeat": bool(f.is_repeat),
+            # The four facts that follow a dispensing everywhere it is shown.
+            # In the patient's own words rather than the database's: they do
+            # not know what "will_call" means and should not have to.
+            "how": supply_facts.SUPPLY_SAID.get(f.supply_type or "", ""),
+            "paid": supply_facts.PAYMENT_SAID.get(f.payment_type or "", ""),
+            "signed": bool(f.supply_type == supply_facts.DELIVERY
+                           and supply_facts.signature_for(db, f)),
+            "rating": int(f.rating or 0),
         } for f in fills],
+        # One prompt, about one handover, and only where there is something
+        # to ask about. A script with four items is one visit and one
+        # opinion; asking four times is how a rating prompt gets dismissed
+        # and never answered again. See services/supply_facts.py.
+        "to_review": _worth_asking_about(fills),
         "deliveries": [{
             "number": w.waybill_number, "status": w.status,
             "address": w.address or "", "when": w.dispatched_at or w.created_at,

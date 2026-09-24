@@ -41,7 +41,7 @@ BRANCH = Param("branch_id", "Branch", "select", options=_branch_options)
 from ..sold import last_sold_at, units_sold_since  # noqa: E402
 # cost_price and unit_price are PER PACK and the quantities below are in
 # UNITS. Stated once in services/valuation rather than in ten places.
-from .. import stock_reasons, valuation  # noqa: E402
+from .. import stock_reasons, supply_facts, valuation  # noqa: E402
 
 
 def line_cost():
@@ -3249,6 +3249,13 @@ register(Report(
         Column("repeat", "Repeat", "text"),
         Column("prescriber", "Prescriber", "text"),
         Column("dispenser", "Dispensed by", "text"),
+        # How it reached them, how it was paid for, whether anybody signed at
+        # the door and what they thought of it. Four facts this record could
+        # not answer, and the four a claim or a complaint is argued from.
+        Column("how", "How supplied", "text"),
+        Column("paid", "Paid by", "text"),
+        Column("signed", "Signed for", "text"),
+        Column("rating", "Rated", "text"),
     ],
     rows=lambda db, p: _script_book(db, p),
 ))
@@ -3280,19 +3287,115 @@ def _script_book(db: Session, p: dict):
         db.query(User).filter(
             User.id.in_({d.dispensed_by_id for d, _i, _p, _s in rows_q if d.dispensed_by_id})).all()
     }
+    # Which of these were signed for at the door. One query for the whole
+    # report rather than one per row, and only whether there is a signature:
+    # the mark itself is shown on the waybill's own screen.
+    from ...models import Waybill
+    sale_ids = {d.sale_id for d, _i, _p, _s in rows_q if d.sale_id}
+    signed = {sid for (sid,) in
+              db.query(Waybill.sale_id)
+              .filter(Waybill.sale_id.in_(sale_ids or [0]),
+                      Waybill.signature != "").all()}
+
     return [
         {
             "date": d.dispensed_at.isoformat(sep=" ", timespec="minutes"),
             "rx_number": script.rx_number or ("#" + str(script.id)),
-            "patient": patients.get(script.patient_id, "-"),
+            # Named rather than dashed. A dash in a column is a reader
+            # wondering whether the software lost it or nobody filled it in.
+            "patient": patients.get(script.patient_id, "") or "Walk-in",
             "product": product.name,
             "quantity": d.quantity or 0,
-            "repeat": "repeat" if d.is_repeat else "",
-            "prescriber": doctors.get(script.doctor_id, "-"),
-            "dispenser": users.get(d.dispensed_by_id, "-"),
+            "repeat": "Repeat" if d.is_repeat else "",
+            "prescriber": doctors.get(script.doctor_id, "") or "Not recorded",
+            "dispenser": users.get(d.dispensed_by_id, "") or "Not recorded",
+            "how": supply_facts.SUPPLY_SAID.get(d.supply_type or "",
+                                                "Not recorded"),
+            "paid": supply_facts.PAYMENT_SAID.get(d.payment_type or "",
+                                                  "No sale"),
+            "signed": "Signed" if d.sale_id in signed else "",
+            "rating": f"{d.rating} of 5" if d.rating else "",
         }
         for d, item, product, script in rows_q
     ]
+
+
+register(Report(
+    key="how_it_reaches_people",
+    title="How medicine reaches people",
+    module="Dispensary",
+    purpose="Counter, will-call shelf or delivery — how much of each, what it "
+            "is worth, how it was paid for, and what the patients said. The "
+            "report behind 'is delivery worth doing'.",
+    params=[DATE_FROM, DATE_TO],
+    columns=[
+        Column("how", "How supplied", "text"),
+        Column("paid", "Paid by", "text"),
+        Column("items", "Items", "number", total=True),
+        Column("value", "Value", "money", total=True),
+        Column("signed", "Signed for", "number", total=True),
+        Column("rated", "Rated", "number", total=True),
+        Column("average", "Average rating", "text"),
+    ],
+    rows=lambda db, p: _how_it_reaches_people(db, p),
+))
+
+
+def _how_it_reaches_people(db: Session, p: dict):
+    """Grouped by how it got there and how it was paid for.
+
+    Two dimensions rather than one, because the pair is the question: cash at
+    the counter and cash at the door are different risks, and a pharmacy
+    deciding whether to keep running a delivery round needs to see what the
+    round is worth beside what it collected and what people thought of it.
+    """
+    from ...models import Waybill
+
+    rows_q = (
+        db.query(Dispensing, PrescriptionItem, Product)
+        .join(PrescriptionItem, Dispensing.prescription_item_id == PrescriptionItem.id)
+        .join(Product, PrescriptionItem.product_id == Product.id)
+        .filter(func.date(Dispensing.dispensed_at) >= p["date_from"])
+        .filter(func.date(Dispensing.dispensed_at) <= p["date_to"])
+        .all()
+    )
+    if not rows_q:
+        return []
+
+    sale_ids = {d.sale_id for d, _i, _p in rows_q if d.sale_id}
+    signed = {sid for (sid,) in
+              db.query(Waybill.sale_id)
+              .filter(Waybill.sale_id.in_(sale_ids or [0]),
+                      Waybill.signature != "").all()}
+
+    groups: dict[tuple, dict] = {}
+    for d, item, product in rows_q:
+        key = (d.supply_type or "", d.payment_type or "")
+        row = groups.setdefault(key, {
+            "how": supply_facts.SUPPLY_SAID.get(key[0], "Not recorded"),
+            "paid": supply_facts.PAYMENT_SAID.get(key[1], "No sale"),
+            "items": 0, "value": 0.0, "signed": 0, "rated": 0,
+            "_stars": 0,
+        })
+        row["items"] += 1
+        row["value"] = round(
+            row["value"] + valuation.at_retail(product, d.quantity or 0), 2)
+        if d.sale_id in signed:
+            row["signed"] += 1
+        if d.rating:
+            row["rated"] += 1
+            row["_stars"] += int(d.rating)
+
+    out = []
+    for row in groups.values():
+        stars = row.pop("_stars")
+        # Nought ratings is "nobody has said", which is a different fact from
+        # a low score and is never printed as 0.0 out of 5.
+        row["average"] = (f"{stars / row['rated']:.1f} of 5" if row["rated"]
+                          else "Nobody has said")
+        out.append(row)
+    out.sort(key=lambda r: r["items"], reverse=True)
+    return out
 
 
 register(Report(

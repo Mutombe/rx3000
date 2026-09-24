@@ -411,6 +411,15 @@ ADDED_COLUMNS: dict[str, dict[str, str]] = {
     "messages": {"campaign_id": "INTEGER"},
     "deals": {"campaign_id": "INTEGER"},
     "dispensings": {
+        # How it reached them, how it was paid, and what they thought.
+        # Columns rather than a JSON bag because every question anybody asks
+        # of these is "how many", "which ones" or "against last month", and a
+        # blob answers none of them. Backfilled by `_how_it_was_supplied`.
+        "supply_type": "VARCHAR(12) DEFAULT ''",
+        "payment_type": "VARCHAR(24) DEFAULT ''",
+        "rating": "INTEGER DEFAULT 0",
+        "review_note": "TEXT DEFAULT ''",
+        "reviewed_at": "DATETIME",
         "pharmacist_initial": "VARCHAR(8)",
         "dispense_type": "VARCHAR(20) DEFAULT 'prescription'",
         "schedule": "INTEGER DEFAULT 0",
@@ -1393,6 +1402,82 @@ def _number_the_patients(conn, existing_tables: set) -> int:
     return len(updates)
 
 
+def _how_it_was_supplied(conn, existing_tables: set) -> int:
+    """Fill in how every dispensing already on file reached the patient, and
+    how it was paid for.
+
+    Every fact here is one the database already held and could not be asked
+    for: a waybill against the sale means it was driven, a gap between
+    dispensing and collection means it waited on the shelf, and the sale's own
+    tenders say how it was settled. Nothing is guessed and nothing is asked of
+    anybody — see services/supply_facts.py.
+
+    Done in SQL rather than through the ORM because it touches every
+    dispensing in the shop, and idempotent: a row that already carries an
+    answer is left alone, so a pharmacy that has been running the new code for
+    a week does not have last week rewritten under it.
+    """
+    if "dispensings" not in existing_tables:
+        return 0
+
+    filled = 0
+    # Driven: a waybill exists against the sale this dispensing was part of.
+    if "waybills" in existing_tables:
+        filled += conn.execute(text(
+            "UPDATE dispensings SET supply_type = 'delivery' "
+            "WHERE (supply_type IS NULL OR supply_type = '') "
+            "AND sale_id IS NOT NULL AND sale_id IN "
+            "(SELECT sale_id FROM waybills WHERE sale_id IS NOT NULL)"
+        )).rowcount or 0
+
+    # Handed over in the same visit, against waited on the shelf. Thirty
+    # minutes is the line; anything in between is a queue.
+    filled += conn.execute(text(
+        "UPDATE dispensings SET supply_type = 'counter' "
+        "WHERE (supply_type IS NULL OR supply_type = '') "
+        "AND collected_at IS NOT NULL AND dispensed_at IS NOT NULL "
+        "AND collected_at <= dispensed_at"
+    )).rowcount or 0
+    filled += conn.execute(text(
+        "UPDATE dispensings SET supply_type = 'will_call' "
+        "WHERE supply_type IS NULL OR supply_type = ''"
+    )).rowcount or 0
+
+    # How it was paid, from the sale's own tenders.
+    if "sale_tenders" in existing_tables and "sales" in existing_tables:
+        conn.execute(text(
+            "UPDATE dispensings SET payment_type = 'unpaid' "
+            "WHERE (payment_type IS NULL OR payment_type = '') "
+            "AND sale_id IN (SELECT id FROM sales "
+            "                WHERE status IN ('pending', 'part_paid'))"))
+        # One method on the sale, so that is the method.
+        conn.execute(text(
+            "UPDATE dispensings SET payment_type = ("
+            "  SELECT MIN(t.method) FROM sale_tenders t "
+            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) "
+            "WHERE (payment_type IS NULL OR payment_type = '') "
+            "AND sale_id IS NOT NULL AND ("
+            "  SELECT COUNT(DISTINCT t.method) FROM sale_tenders t "
+            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) = 1"))
+        # More than one, which is ordinary in a dual-currency market.
+        conn.execute(text(
+            "UPDATE dispensings SET payment_type = 'split' "
+            "WHERE (payment_type IS NULL OR payment_type = '') "
+            "AND sale_id IS NOT NULL AND ("
+            "  SELECT COUNT(DISTINCT t.method) FROM sale_tenders t "
+            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) > 1"))
+        # Settled with no tender against it: the money went to the patient's
+        # ledger rather than into a drawer.
+        conn.execute(text(
+            "UPDATE dispensings SET payment_type = 'account' "
+            "WHERE (payment_type IS NULL OR payment_type = '') "
+            "AND sale_id IS NOT NULL"))
+
+    if filled:
+        log.info("Filled in how %d dispensing(s) were supplied", filled)
+    return filled
+
+
 def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
     """Put every sale line in the same pharmacy as its sale.
 
@@ -1702,6 +1787,7 @@ def run_migrations(engine: Engine) -> int:
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
+        applied += _how_it_was_supplied(conn, existing_tables)
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
         applied += _entries_follow_their_sale(conn, existing_tables)
         applied += _batch_costs_are_per_unit(conn, existing_tables)
