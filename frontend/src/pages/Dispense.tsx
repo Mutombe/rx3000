@@ -1438,19 +1438,18 @@ export default function Dispense() {
     if (kind === "receipt") return payHow === "now" || payHow === "aid";
     if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
-    // ON, by the pharmacy's own decision (24 Sept 2026).
+    // OFF, by the pharmacy's own decision (24 Sept 2026), settled twice.
     //
-    // It was off, and the reasoning was sound as far as it went: the
-    // dispensing label already carries the script barcode, so a second
-    // sticker satisfies a requirement the first one already met, and the
-    // cost is two labels on every pack.
+    // It was turned ON that morning, on the reading that "the barcode should
+    // print by default" meant this tile. It did not: the dispensing label
+    // already carries the script barcode along its bottom, so what that
+    // actually produced was two stickers for every item, the second one
+    // carrying nothing the first did not.
     //
-    // The pharmacy wants it anyway. A separate barcode sticker goes where the
-    // dispensing label cannot — the bag rather than the pack, the folder copy,
-    // the shelf edge on a will-call bay — and a script that has to be found
-    // again is found by scanning. Still a tick anybody can clear before
-    // printing, so the pack that does not need one does not get one.
-    if (kind === "barcode") return true;
+    // The barcode is on the label. This tile is the extra sticker for the pack
+    // that needs the number somewhere else as well, which is a pack at a time
+    // rather than every pack, so it is a tick rather than a default.
+    if (kind === "barcode") return false;
     return false;
   }
   function willPrint(kind: roll.DocKind) {
@@ -2900,7 +2899,13 @@ export default function Dispense() {
             } else {
               printReceipt(sale, pharmacy.name, pharmacy.regNo);
             }
-          } catch { /* a receipt that will not print must not undo a dispensing */ }
+          } catch (e) {
+            // A receipt that will not print must not undo a dispensing, but it
+            // must not be silent either: the customer is standing there without
+            // one, and the reason is usually paper or a switched off printer.
+            toast.warn(errorText(e, "The medicine went out. The receipt did not "
+                                  + "print."));
+          }
         }
         // The script's barcode, on its own sticker. Never fatal: the medicine
         // has gone out, and a barcode that would not print is reprinted from

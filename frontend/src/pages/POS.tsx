@@ -933,14 +933,30 @@ export default function POS() {
     // one since the printer settings were written, and nothing used it: a till
     // with a receipt roll chosen still opened the browser's dialog, which is
     // the one thing this function exists to avoid.
+    // WHY THE PRINTER'S COMPLAINT IS SAID OUT LOUD.
+    //
+    // Both of these swallowed the reason and quietly opened the print dialog.
+    // From behind the counter that is a till which sometimes prints a receipt
+    // and sometimes asks you to, for no reason anybody can see — and the
+    // reasons are things a cashier can fix in seconds: out of paper, switched
+    // off, paused. The sale is already settled either way, so this is a
+    // warning and the dialog still follows.
     if (roll.goesStraightToPrinter("receipt")) {
       roll.printReceiptDirect(paid, pharmacy.name, pharmacy.regNo)
-        .catch(() => printReceipt(paid, pharmacy.name, pharmacy.regNo));
+        .catch((e) => {
+          toast.warn(errorText(e, "The receipt printer did not take it. "
+                                + "Opening the print dialogue instead."));
+          printReceipt(paid, pharmacy.name, pharmacy.regNo);
+        });
       return;
     }
     if (agent?.printer.ready) {
       deviceAgent.printReceiptOnAgent(paid, pharmacy.name, pharmacy.regNo)
-        .catch(() => printReceipt(paid, pharmacy.name, pharmacy.regNo));
+        .catch((e) => {
+          toast.warn(errorText(e, "The receipt roll did not answer. "
+                                + "Opening the print dialogue instead."));
+          printReceipt(paid, pharmacy.name, pharmacy.regNo);
+        });
       return;
     }
     printReceipt(paid, pharmacy.name, pharmacy.regNo);

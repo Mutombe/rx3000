@@ -50,6 +50,21 @@ function keyFor(kind: DocKind): string {
   return kind === "label" ? CHOSEN : `printer_${kind}`;
 }
 
+/** Nothing is routed here, said so somebody knows which setting to open.
+ *
+ *  One sentence, naming the document in the words the settings page uses and
+ *  the place to fix it. These were four different sentences, two of which said
+ *  only "this document", which is no help to somebody who has just pressed
+ *  Dispense and does not know a claim copy from a price ticket.
+ */
+function noPrinter(kind: DocKind): Error {
+  const said = DOC_KINDS.find((d) => d.kind === kind)?.name.toLowerCase()
+    ?? "document";
+  return new Error(
+    `No printer is set for the ${said} on this till. `
+    + `Choose one under This till, Printers.`);
+}
+
 /** Which printer this kind goes to. Falls back to the label roll.
  *
  *  The fallback is what makes this safe to ship: a till that has only ever
@@ -246,7 +261,7 @@ export function setSticker(wide: number, tall: number) {
 export async function printPage(bytes: Uint8Array | ArrayBuffer,
                                 kind: DocKind = "claim"): Promise<void> {
   const printer = printerFor(kind);
-  if (!printer) throw new Error("No printer has been chosen for this document.");
+  if (!printer) throw noPrinter(kind);
   const data = Array.from(
     bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
   await invoke<number>("print_page", { printer, data });
@@ -270,7 +285,7 @@ export function labelsGoStraightToRoll(): boolean {
 export async function printLines(lines: Line[], copies = 1,
                                  kind: DocKind = "label"): Promise<number> {
   const printer = printerFor(kind);
-  if (!printer) throw new Error("No label printer has been chosen on this till.");
+  if (!printer) throw noPrinter(kind);
   const width = printerWidth();
   const payload = Array.from(render(lines, width));
   let done = 0;
@@ -302,7 +317,7 @@ export function resolvedLabelMode(printer = printerFor("label")): "zpl" | "page"
 
 export async function printLabelsDirect(labels: Label[], copies = 1): Promise<number> {
   const printer = printerFor("label");
-  if (!printer) throw new Error("No label printer has been chosen on this till.");
+  if (!printer) throw noPrinter("label");
   // Ask Windows what this printer is, if nothing has yet.
   //
   // The dispensary prints without ever opening the printer list, so on a fresh
@@ -362,16 +377,12 @@ export async function printLabelsDirect(labels: Label[], copies = 1): Promise<nu
  *  thing a text-mode ESC/POS stream cannot express.
  */
 export async function printBarcodeDirect(text: string, below = ""): Promise<void> {
-  if (!printerFor("barcode")) {
-    throw new Error("No printer has been chosen for script barcodes.");
-  }
+  if (!printerFor("barcode")) throw noPrinter("barcode");
   await printPage(barcodePdf(text, below, sticker()), "barcode");
 }
 
 export async function printReceiptDirect(sale: Sale, pharmacyName: string,
                                          regNo = ""): Promise<void> {
-  if (!printerFor("receipt")) {
-    throw new Error("No receipt printer has been chosen on this till.");
-  }
+  if (!printerFor("receipt")) throw noPrinter("receipt");
   await printLines(receiptLines(sale, pharmacyName, regNo, printerWidth()), 1, "receipt");
 }

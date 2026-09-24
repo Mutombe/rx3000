@@ -210,13 +210,18 @@ mod windows_impl {
         let outcome = if code > 32 {
             Ok(())
         } else if code == 31 {
+            // SE_ERR_NOASSOC, and the reason the default label route could not
+            // work on a stock Windows 11: Edge owns PDFs and does not register
+            // the "printto" verb. Says what to do rather than naming a verb.
             Err(format!(
-                "Windows has nothing registered to print a PDF, so it could not \
-                 send this to \"{printer}\". Install a PDF reader on this till."))
+                "This till has no application that can print a PDF to a chosen \
+                 printer, so \"{printer}\" could not be reached this way. If it \
+                 is a label printer, set This till, Printers to ZPL. Otherwise \
+                 install a PDF reader such as Adobe Reader."))
         } else {
             Err(format!(
-                "Windows refused to print to \"{printer}\" (code {code}). Check \
-                 the name matches one it lists."))
+                "Windows would not print to \"{printer}\" (code {code}). Check it \
+                 is still installed and not paused."))
         };
 
         // Deleted on a delay: the spooler reads the file after this call
@@ -242,8 +247,10 @@ mod windows_impl {
             let mut name = wide(printer);
             let mut handle: *mut c_void = std::ptr::null_mut();
             if OpenPrinterW(name.as_mut_ptr(), &mut handle, std::ptr::null_mut()) == 0 {
-                return Err(format!("Windows could not open the printer \"{printer}\". \
-                                    Check the name matches one it lists."));
+                return Err(format!(
+                    "Windows cannot find a printer called \"{printer}\". It may have \
+                     been renamed, switched off or unplugged. Choose it again under \
+                     This till, Printers."));
             }
             // Every early return past this point has to close the handle, so the
             // work is done in a closure and the handle is closed once after it.
@@ -255,12 +262,24 @@ mod windows_impl {
                     output_file: std::ptr::null_mut(),
                     datatype: datatype.as_mut_ptr(),
                 };
+                // WHAT A PERSON AT A COUNTER CAN DO ABOUT IT.
+                //
+                // These said "The printer accepted no document" and "The
+                // printer accepted no page", which is what the Windows call
+                // returned and tells a dispenser nothing. Windows refuses a
+                // job here for three reasons in practice, and all three are
+                // things somebody standing at the printer can see and fix.
                 if StartDocPrinterW(handle, 1, &mut info) == 0 {
-                    return Err("The printer accepted no document.".into());
+                    return Err(format!(
+                        "\"{printer}\" would not take the job. It is usually \
+                         switched off, out of paper, or paused in Windows. \
+                         Check the printer, then print again."));
                 }
                 if StartPagePrinter(handle) == 0 {
                     EndDocPrinter(handle);
-                    return Err("The printer accepted no page.".into());
+                    return Err(format!(
+                        "\"{printer}\" took the job and then would not start a \
+                         label. Check the roll is loaded and the cover is shut."));
                 }
                 let mut written = 0u32;
                 let ok = WritePrinter(handle, data.as_ptr() as *const c_void,
@@ -268,7 +287,9 @@ mod windows_impl {
                 EndPagePrinter(handle);
                 EndDocPrinter(handle);
                 if ok == 0 {
-                    return Err("The printer refused the data.".into());
+                    return Err(format!(
+                        "\"{printer}\" stopped part way through the label. Check \
+                         the cable and the roll, then print again."));
                 }
                 Ok(written as usize)
             })();
