@@ -162,6 +162,16 @@ def build() -> None:
     print(f"  the bundle was built {age:.0f} minute(s) ago")
 
 
+def _head_commit() -> str:
+    """The commit this installer was built from."""
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                              check=True, capture_output=True, text=True,
+                              shell=False).stdout.strip()
+    except Exception:
+        return ""
+
+
 def publish(version: str) -> list[Path]:
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
 
@@ -197,6 +207,12 @@ def publish(version: str) -> list[Path]:
                   f'downloads/{wanted["msi"]}', page)
     page = re.sub(r'RX5000 [0-9]+\.[0-9]+\.[0-9]+ MSI',
                   f'RX5000 {version} MSI', page)
+    # And the size, which the page stated and nobody maintained: it read
+    # 3.5 MB beside a 5.0 MB installer. A page that is wrong about the thing
+    # it is offering is a page nobody checks the rest of.
+    mb = (DOWNLOADS / wanted["nsis"]).stat().st_size / 1024 / 1024
+    page = re.sub(r'(Windows 10 and 11, 64-bit\. )[0-9.]+ MB',
+                  rf'\g<1>{mb:.1f} MB', page)
     PAGE.write_text(page, encoding="utf-8")
 
     still = re.findall(r'downloads/RX5000[^"]*', page)
@@ -256,6 +272,26 @@ def _manifest(version: str, installer: str) -> None:
     out = DOWNLOADS / "latest.json"
     out.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     print(f"  manifest  {out.name} offers {version} to every running till")
+
+    # WHICH COMMIT IS IN THE THING PEOPLE DOWNLOAD.
+    #
+    # Nothing recorded this, and without it nobody can answer the only
+    # question that matters about an installer: is it the code we are looking
+    # at. The website redeploys on every push; a desktop build happens when
+    # somebody runs this. So the two drift by default, silently, and the drift
+    # is discovered by a pharmacy installing a five-day-old application and
+    # reporting screens that were changed last week.
+    #
+    # Written beside the manifest rather than inside it: `latest.json` is a
+    # contract with the Tauri updater, and an unrecognised key there is a risk
+    # taken for no reason. qa/the-download-is-not-behind-the-code.py reads it.
+    stamp = DOWNLOADS / "published.json"
+    stamp.write_text(json.dumps({
+        "version": version,
+        "commit": _head_commit(),
+        "published_at": manifest["pub_date"],
+    }, indent=2) + "\n", encoding="utf-8")
+    print(f"  stamped   built from {_head_commit()[:7] or 'unknown'}")
 
 
 def main() -> int:
