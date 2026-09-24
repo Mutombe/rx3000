@@ -82,20 +82,32 @@ export default function Accounts() {
       render: (c) => (
         <>
           <EntityLink to={`/accounts/${c.id}`}>{c.name}</EntityLink>
-          {c.notes && <div className="muted" style={{ fontSize: 11.5 }}><Truncate text={c.notes} at={60} /></div>}
+          {c.notes && <div className="muted" style={{ fontSize: "var(--t-xs)" }}><Truncate text={c.notes} at={60} /></div>}
         </>
       ) },
     { key: "account_type", header: "Type", sortable: true, width: 116,
       render: (c) => (
         <span className="badge">{sentence(c.account_type)}</span>) },
     { key: "phone", header: "Contact details", width: 168,
-      render: (c) => <>{c.phone}<div className="muted" style={{ fontSize: 11.5 }}>
-        <Truncate text={c.email} at={28} /></div></> },
+      render: (c) => (
+        <>
+          {/* Both halves carry the whole value on hover. A number or an
+              address that stops mid-way with no way to see the rest is a
+              cell somebody has to open the record to read. */}
+          <span className="clip" title={c.phone || undefined}>{c.phone}</span>
+          <div className="muted clip" title={c.email || undefined}
+               style={{ fontSize: "var(--t-xs)" }}>
+            <Truncate text={c.email} at={28} />
+          </div>
+        </>
+      ) },
     { key: "credit_terms_days", header: "Terms", align: "right", sortable: true, width: 84,
       render: (c) => `${c.credit_terms_days} days` },
     { key: "owner", header: "Owner", sortable: true, width: 140,
       value: (c) => c.owner?.full_name ?? "",
-      render: (c) => c.owner?.full_name ?? <span className="muted">None</span> },
+      render: (c) => (c.owner?.full_name
+        ? <span className="clip" title={c.owner.full_name}>{c.owner.full_name}</span>
+        : <span className="muted">Nobody yet</span>) },
     { key: "status", header: "Status", sortable: true, width: 104,
       render: (c) => (
         <span className={`badge ${c.status === "active" ? "ok" : ""}`}>

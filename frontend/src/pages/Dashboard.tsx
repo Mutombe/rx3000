@@ -279,10 +279,10 @@ export default function Dashboard() {
                           the one thing cut: "RX5000 Pharmacy Central" wants
                           197px and an equal share of eight gave it 115. */}
                       <th className="db-branch">Branch</th>
-                      <th className="num">Taken</th>
+                      <th className="num db-taken">Taken</th>
                       <th className="num">Share</th>
                       <th className="num">Sales</th>
-                      <th className="num">Average sale</th>
+                      <th className="num db-avg">Average sale</th>
                       <th className="num">Scripts</th>
                       <th className="num db-drawer">Drawer</th>
                       <th style={{ width: "12rem" }} />

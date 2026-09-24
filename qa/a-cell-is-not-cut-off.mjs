@@ -101,8 +101,23 @@ for (const route of ROUTES) {
     console.log(`  ?    ${route}`.padEnd(46) + "did not load");
     continue;
   }
+  // WAIT FOR THE TYPEFACE, NOT JUST FOR THE DATA.
+  //
+  // This guard used to give a different answer on every run — clean, then two
+  // screens, then four, all from the same commit. It was measuring text drawn
+  // in the FALLBACK font. Inter arrives as a woff2 after first paint, and the
+  // fallback has different metrics, so `scrollWidth` was being read against
+  // letters that were about to be replaced by narrower ones. Half the
+  // findings were real and half were the font swap, and there was no way to
+  // tell which from the output.
+  //
+  // `document.fonts.ready` resolves once every declared face has loaded, so
+  // what is measured is what a person actually sees.
+  await page.evaluate(() => document.fonts.ready);
   // Rows arrive after the shell; a skeleton has nothing to clip.
   await page.waitForTimeout(1400);
+  // And one more frame, so the relayout the swap caused has happened.
+  await page.evaluate(() => new Promise(requestAnimationFrame));
 
   const found = await page.evaluate((slack) => {
     const out = { tables: 0, cut: [], shortened: [] };
