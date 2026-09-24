@@ -1454,18 +1454,18 @@ def _how_it_was_supplied(conn, existing_tables: set) -> int:
         conn.execute(text(
             "UPDATE dispensings SET payment_type = ("
             "  SELECT MIN(t.method) FROM sale_tenders t "
-            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) "
+            "  WHERE t.sale_id = dispensings.sale_id AND NOT t.is_change) "
             "WHERE (payment_type IS NULL OR payment_type = '') "
             "AND sale_id IS NOT NULL AND ("
             "  SELECT COUNT(DISTINCT t.method) FROM sale_tenders t "
-            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) = 1"))
+            "  WHERE t.sale_id = dispensings.sale_id AND NOT t.is_change) = 1"))
         # More than one, which is ordinary in a dual-currency market.
         conn.execute(text(
             "UPDATE dispensings SET payment_type = 'split' "
             "WHERE (payment_type IS NULL OR payment_type = '') "
             "AND sale_id IS NOT NULL AND ("
             "  SELECT COUNT(DISTINCT t.method) FROM sale_tenders t "
-            "  WHERE t.sale_id = dispensings.sale_id AND t.is_change = 0) > 1"))
+            "  WHERE t.sale_id = dispensings.sale_id AND NOT t.is_change) > 1"))
         # Settled with no tender against it: the money went to the patient's
         # ledger rather than into a drawer.
         conn.execute(text(
@@ -1787,7 +1787,6 @@ def run_migrations(engine: Engine) -> int:
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
-        applied += _how_it_was_supplied(conn, existing_tables)
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
         applied += _entries_follow_their_sale(conn, existing_tables)
         applied += _batch_costs_are_per_unit(conn, existing_tables)
@@ -1814,6 +1813,15 @@ def run_migrations(engine: Engine) -> int:
     for label, needs, fix in [
         ("naming unnamed products", "products", _name_the_nameless),
         ("classifying cash accounts", "accounts", _mark_cash_accounts),
+        # Filling in how existing dispensings were supplied and paid for.
+        # ADVISORY, and it was not, which took production down: it ran inside
+        # the fatal block and a boolean compared to an integer — the very
+        # fault the note above describes, made a second time — stopped the
+        # API booting at all. Nothing downstream breaks if this is skipped:
+        # the columns exist, they are simply empty, and the screens that read
+        # them say "Not recorded" until it succeeds on a later boot.
+        ("filling in how dispensings were supplied", "dispensings",
+         lambda conn: _how_it_was_supplied(conn, existing_tables)),
     ]:
         if needs not in existing_tables:
             continue
