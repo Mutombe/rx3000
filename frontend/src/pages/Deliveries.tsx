@@ -246,9 +246,16 @@ export default function Deliveries() {
             <thead>
               <tr>
                 <SelectAll checked={picked.allChosen} onChange={picked.all} />
-                <th>Waybill</th><th>Recipient</th><th>Address</th>
-                <th>Driver</th><th className="num">To collect</th>
-                <th>Raised</th><th className="actions" />
+                {/* Declared, because an eight-column table divides itself
+                    equally otherwise and gave the address 130px for 237px of
+                    street. The three that know their own size say so and the
+                    address takes what is left. */}
+                <th className="dlv-no">Waybill</th>
+                <th className="dlv-who">Recipient</th>
+                <th>Address</th>
+                <th className="dlv-driver">Driver</th>
+                <th className="num dlv-cod">To collect</th>
+                <th className="dlv-raised">Raised</th><th className="actions" />
               </tr>
             </thead>
             <tbody>

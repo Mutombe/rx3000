@@ -693,7 +693,18 @@ th {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
-/* A ROW IS 32px, AND IT IS 32px BECAUSE OF WHAT IS IN IT.
+/* EVERY TABLE IN THE PRODUCT IS THIS TABLE.
+   A cell is 13px on 6px of vertical padding and 12px of horizontal, and a
+   column name is 10.5px uppercase on the same padding. Nine tables used to
+   write their own — 8px here, 4px there, a header grown to 12px on three of
+   them — and three density variants (`compact`, `comfortable`, `spacious`)
+   set three more. Twelve tables that were nearly the same is worse than
+   twelve that are either the same or plainly different, because the reader
+   cannot tell whether the difference means anything. It did not. They all
+   take this now, and the variants remain as names without metrics so the
+   markup using them did not have to change.
+
+   A ROW IS 32px, AND IT IS 32px BECAUSE OF WHAT IS IN IT.
    These were 12px all round, which made a one-line row 46px and a two-line
    row 70 — eight records on a 768px screen where sixteen fit. 6px vertical
    on the 4px grid puts a single-line row at 32 and a two-line row at 50,
@@ -1810,10 +1821,10 @@ label {
 .dt th.sortable:hover { color: var(--ink); }
 .dt-sort { margin-left: 6px; opacity: 0.45; font-size: var(--t-xs); }
 .dt td.center, .dt th.center { text-align: center; }
-.dt-compact td { padding: 6px 12px; font-size: var(--t-sm); }
+.dt-compact td { padding: 6px var(--s3); }
 .dt-compact th { padding: 6px 12px; }
-.dt-comfortable td { padding: 8px 12px; }
-.dt-spacious td { padding: 12px 16px; }
+.dt-comfortable td { padding: 6px var(--s3); }
+.dt-spacious td { padding: 6px var(--s3); }
 .dt tfoot td {
   background: var(--tint-weak); font-weight: 700;
   border-top: 2px solid var(--line); border-bottom: none;
@@ -1847,7 +1858,17 @@ label {
 .line-list > div:last-child { border-bottom: none; padding-bottom: 0; }
 @media (max-width: 760px) { .line-list > div { grid-template-columns: 1fr; gap: 2px; } }
 
-.mono { font-family: ui-monospace, monospace; font-size: var(--t-sm); }
+/* One monospace, the bundled one. This asked for `ui-monospace` and so took
+   whatever the machine had — Consolas on the till, SF Mono on a Mac, DejaVu
+   on the Linux box — while --font-mono names IBM Plex Mono, which ships with
+   the application precisely so a branch with no line still renders the same.
+   Every reference number in the product was set in a different face
+   depending on who was looking at it.
+
+   12px rather than 13 is deliberate and stays: a monospace face reads larger
+   than a proportional one at the same nominal size, so a reference column set
+   at 13 looks bigger than the name beside it. */
+.mono { font-family: var(--font-mono); font-size: var(--t-sm); }
 
 /* A reference is not prose, and must never be elided.
    Batch numbers, claim references and invoice numbers differ from each other in
@@ -3212,7 +3233,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .st-control > span { color: var(--ink-soft); }
 .st-check { cursor: pointer; }
 .st-table { width: 100%; border-collapse: collapse; }
-.st-table td { padding: var(--s2) var(--s3); }
+.st-table td { padding: 6px var(--s3); }
 .st-amount { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .st-section > td { font-weight: 600; border-top: 1px solid var(--line); }
 .st-section.is-openable { cursor: pointer; }
@@ -3273,11 +3294,11 @@ img { -webkit-user-drag: none; user-select: none; }
 .age-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
 .age-table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .age-table th, .age-table td {
-  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  padding: 6px var(--s3); border-bottom: 1px solid var(--line-soft);
   white-space: nowrap;
 }
 .age-table th {
-  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em;
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .04em;
   color: var(--ink-soft); border-bottom: 1px solid var(--line);
 }
 .age-table th.is-old { color: var(--danger); }
@@ -3350,11 +3371,11 @@ img { -webkit-user-drag: none; user-select: none; }
 .rr-scroll { overflow-x: auto; overscroll-behavior-x: contain; }
 .rr-table { width: 100%; border-collapse: collapse; }
 .rr-table th, .rr-table td {
-  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  padding: 6px var(--s3); border-bottom: 1px solid var(--line-soft);
   white-space: nowrap;
 }
 .rr-table th {
-  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em;
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .04em;
   color: var(--ink-soft); border-bottom: 1px solid var(--line);
   position: sticky; top: 0; background: var(--surface); z-index: 1;
 }
@@ -3430,11 +3451,11 @@ img { -webkit-user-drag: none; user-select: none; }
 .sh-run { white-space: nowrap; }
 .cu-table { width: 100%; border-collapse: collapse; }
 .cu-table th, .cu-table td {
-  padding: var(--s2) var(--s3); border-bottom: 1px solid var(--line-soft);
+  padding: 6px var(--s3); border-bottom: 1px solid var(--line-soft);
   white-space: nowrap;
 }
 .cu-table th {
-  font-size: var(--t-sm); text-transform: uppercase; letter-spacing: .04em;
+  font-size: var(--t-xs); text-transform: uppercase; letter-spacing: .04em;
   color: var(--ink-soft); border-bottom: 1px solid var(--line);
 }
 .cu-table tr.is-off td { background: var(--warn-soft); }
@@ -3532,7 +3553,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .md-table-wrap { overflow-x: auto; overscroll-behavior-x: contain; margin: 0 0 var(--s3); }
 .md table { border-collapse: collapse; width: 100%; font-size: var(--t-md); }
 .md th, .md td {
-  border: 1px solid var(--line); padding: var(--s2) var(--s3); text-align: left;
+  border: 1px solid var(--line); padding: 6px var(--s3); text-align: left;
 }
 .md th { background: var(--surface-sunk); font-weight: 600; }
 
@@ -3864,7 +3885,7 @@ button.wl-stat:disabled:hover {
 .fm-name { font-weight: 600; font-size: var(--t-md); }
 .fm-flags { display: flex; gap: var(--s2); flex-wrap: wrap; }
 .fm-tiers { margin: var(--s3) 0; }
-.fm-tiers th, .fm-tiers td { padding: var(--s1) var(--s2); font-size: var(--t-base); }
+.fm-tiers th, .fm-tiers td { padding: 6px var(--s3); font-size: var(--t-base); }
 /* The switch that turns the reference-price cap on. Set apart from the bands
    because it is the one thing on this card that changes what a patient pays. */
 .fm-mmap {
@@ -3915,7 +3936,7 @@ button.wl-stat:disabled:hover {
 .lb-cols ul { margin: 0; padding-left: var(--s4); font-size: var(--t-md); }
 .lb-cols li { margin-bottom: 2px; }
 .lb-lines { margin: var(--s3) 0; }
-.lb-lines td { padding: var(--s1) var(--s2); }
+.lb-lines td { padding: 6px var(--s3); }
 @media (max-width: 700px) { .lb-cols { grid-template-columns: 1fr; gap: var(--s3); } }
 
 /* ------------------------------------------------------- dosage shorthand
@@ -4251,6 +4272,16 @@ div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
    sentence shorter, which is what was done to the trading periods below. */
 .dt.dt-wide   { min-width: 68rem; }
 .dt.dt-wider  { min-width: 78rem; }
+/* The deliveries table: a waybill number, a name, a driver, a figure and a
+   date all know roughly how wide they are; the address does not, and it is
+   the one a driver reads. So the five declare and the address takes the
+   remainder. */
+.dlv-no     { width: 8rem; }
+.dlv-who    { width: 12rem; }
+.dlv-driver { width: 10rem; }
+.dlv-cod    { width: 8rem; }
+/* "30 Aug, 2026, 06:32" is 149px and this was 144. */
+.dlv-raised { width: 10rem; }
 .dt.dt-widest { min-width: 94rem; }
 /* With fixed layout a cell can no longer be sized by its content, so every cell
    clips unless its column opts out.
@@ -9711,11 +9742,12 @@ button.fin-ack { cursor: pointer; }
 .pt-table th {
   position: sticky; top: 0; z-index: 1;
   background: var(--surface-sunk); text-align: left;
-  padding: 6px 8px; font-size: var(--t-xs); font-weight: 700; letter-spacing: .06em;
+  padding: 6px var(--s3); font-size: var(--t-xs); font-weight: 700;
+  letter-spacing: .06em;
   text-transform: uppercase; color: var(--ink-soft);
   border-bottom: 2px solid var(--line-strong);
 }
-.pt-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.pt-table td { padding: 6px var(--s3); border-bottom: 1px solid var(--line); vertical-align: middle; }
 .pt-table th + th, .pt-table td + td { border-left: 1px solid var(--line); }
 .pt-table tbody tr:hover td { background: var(--hover); }
 .pt-table .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -10306,7 +10338,7 @@ button.fin-ack { cursor: pointer; }
 @media (max-width: 1280px) { .ops-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .ops-tiles { grid-template-columns: 1fr; } }
 .stat .value.warn { color: var(--warn); }
-.ops-table th, .ops-table td { padding: var(--s2) var(--s3); }
+.ops-table th, .ops-table td { padding: 6px var(--s3); }
 .ops-table td.num, .ops-table th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .ops-table td.actions { text-align: right; white-space: nowrap; }
 .ops-empty { margin: var(--s4) 0; }

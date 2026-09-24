@@ -1447,11 +1447,19 @@ export default function Dispense() {
     if (kind === "receipt") return payHow === "now" || payHow === "aid";
     if (kind === "claim") return !!split?.covered || payHow === "aid";
     if (kind === "delivery") return payHow === "delivery";
-    // Off, now that the dispensing label carries the barcode itself. MCAZ
-    // expects a dispensed script to have one and it does; this kind is the
-    // second, separate sticker, and defaulting it on meant sticking two labels
-    // on every pack to satisfy a requirement one of them already met.
-    if (kind === "barcode") return false;
+    // ON, by the pharmacy's own decision (24 Sept 2026).
+    //
+    // It was off, and the reasoning was sound as far as it went: the
+    // dispensing label already carries the script barcode, so a second
+    // sticker satisfies a requirement the first one already met, and the
+    // cost is two labels on every pack.
+    //
+    // The pharmacy wants it anyway. A separate barcode sticker goes where the
+    // dispensing label cannot — the bag rather than the pack, the folder copy,
+    // the shelf edge on a will-call bay — and a script that has to be found
+    // again is found by scanning. Still a tick anybody can clear before
+    // printing, so the pack that does not need one does not get one.
+    if (kind === "barcode") return true;
     return false;
   }
   function willPrint(kind: roll.DocKind) {
