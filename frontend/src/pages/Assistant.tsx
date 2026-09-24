@@ -10,7 +10,8 @@
  *  history of those conversations is kept and still readable.
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Sparkle, NotePencil } from "@phosphor-icons/react";
+import { NotePencil } from "@phosphor-icons/react";
+import ClaudeIcon from "../components/ClaudeIcon";
 
 import { api } from "../api";
 import AssistantChat from "../components/AssistantChat";
@@ -68,7 +69,7 @@ export default function Assistant() {
           honest answer here is short: it has read the software, not the shop. */}
       {atlas && (
         <p className="muted small ax-knows">
-          <Sparkle size={12} weight="fill" /> Reads a map of{" "}
+          <ClaudeIcon size={12} /> Reads a map of{" "}
           <b>{atlas.screens}</b> screens and <b>{atlas.keys}</b> keyboard
           shortcuts, rebuilt with the software. It knows what RX5000 does, not
           what your pharmacy has done: nothing here reads a patient or a sale.

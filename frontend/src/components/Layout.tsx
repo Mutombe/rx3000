@@ -32,7 +32,6 @@ import {
   SignOut,
   Siren,
   SlidersHorizontal,
-  Sparkle,
   SquaresFour,
   Storefront,
   Truck,
@@ -560,7 +559,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             aria-pressed={dock.open}
             title="Ask RX-Assistant where something is"
           >
-            <Sparkle size={14} weight="fill" />
+            <ClaudeIcon size={14} />
             <span className="ax-chip-name">RX-Assistant</span>
           </button>
           {/* A new version of the till application, when there is one.

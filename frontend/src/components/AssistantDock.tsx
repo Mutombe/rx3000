@@ -14,7 +14,8 @@
  *  pop-up.
  */
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { X, Sparkle, ArrowSquareOut, CornersOut, CornersIn, NotePencil }
+import ClaudeIcon from "./ClaudeIcon";
+import { X, ArrowSquareOut, CornersOut, CornersIn, NotePencil }
   from "@phosphor-icons/react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -130,7 +131,7 @@ export default function AssistantDock({ open, onClose }: {
            aria-label="RX-Assistant">
       <header className="ax-dock-head">
         <span className="ax-dock-name">
-          <Sparkle size={14} weight="fill" /> RX-Assistant
+          <ClaudeIcon size={14} /> RX-Assistant
         </span>
         <span className="ax-dock-acts">
           {/* The thread now survives being closed, reopened, made bigger and
