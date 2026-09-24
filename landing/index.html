@@ -904,6 +904,22 @@
 <footer>
   <div class="wrap">
     <p><strong>RX5000</strong>. Pharmacy management software.</p>
+    <!-- A WAY OUT FOR SOMEBODY WHO MEANT THE SCANNER.
+
+         A member of staff at a counter types "rx5000.com/scanner" on a phone,
+         without the trailing slash, because nobody types a trailing slash.
+         The hosting answers any address it does not recognise with a redirect
+         to this page, so they arrive here holding a phone they wanted to scan
+         with, and there was nothing on this page that would take them there.
+
+         The redirect loses the address, so this page cannot know what they
+         meant and cannot forward them. What it can do is offer the door. The
+         proper fix is a redirect rule from /scanner to /scanner/ ahead of that
+         catch-all, which lives in the hosting dashboard and not here. -->
+    <p class="small">
+      Staff pairing a phone as a barcode scanner:
+      <a href="/scanner/">open the scanner</a>.
+    </p>
     <p class="small">
       Regulatory behaviour follows the jurisdiction the pharmacy is set up
       under. For a pharmacy trading in Zimbabwe, medicine classifications

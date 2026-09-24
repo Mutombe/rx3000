@@ -47,6 +47,22 @@ import { useScannerHub } from "./ScannerHub";
  *  works. The slash comes off the day a redirect rule from /scanner to
  *  /scanner/ is added ahead of that catch-all, which lives in the hosting
  *  dashboard rather than in this repository.
+ *
+ *  MEASURED, 24 Sept 2026, because it was reported as a phone problem.
+ *
+ *  It is not one. Both addresses behave identically on a desktop and on a
+ *  phone; what differs is that a desktop browser has the address in history
+ *  WITH the slash and completes it, while somebody typing it fresh on a
+ *  handset does not. So the failure follows whoever is typing, which on a
+ *  counter is always the phone.
+ *
+ *  A file cannot fix it from here. landing/scanner.html was tried on the
+ *  reasoning that the host resolves an extensionless address to the .html of
+ *  the same name; it does not. With /scanner.html deployed and answering 200,
+ *  /scanner still redirected to /index.html, because the catch-all is reached
+ *  first. The file was removed rather than left pretending. The landing page
+ *  now at least carries a link to the scanner, so somebody who lands there is
+ *  one tap away instead of stuck.
  */
 const SCANNER_ADDRESS = "rx5000.com/scanner/";
 
