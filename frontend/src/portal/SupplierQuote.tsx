@@ -31,8 +31,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
-import PortalShell, { PortalGone, PortalLoading, useBrand }
-  from "./PortalShell";
+import PortalShell, { PortalDoor, PortalGone, PortalLoading, useBrand,
+  usePortalPass } from "./PortalShell";
 import "./portal.css";
 
 interface QuoteLine {
@@ -84,6 +84,11 @@ function when(iso: string | null): string {
 export default function SupplierQuote() {
   const { token = "" } = useParams();
   const brand = useBrand("quote", token);
+  const gate = usePortalPass("quote", token);
+  // Locked until the four digits land. A quotation request lands in a shared
+  // sales inbox and is forwarded to whoever is free, so the link alone opens
+  // nothing and the code travels on its own line in the email.
+  const [locked, setLocked] = useState(false);
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState("");
   const [drafts, setDrafts] = useState<Record<number, Draft>>({});
@@ -92,10 +97,12 @@ export default function SupplierQuote() {
   const [sent, setSent] = useState("");
 
   useEffect(() => {
-    fetch(`${apiBase}/api/portal/quote/${token}`)
+    fetch(`${apiBase}/api/portal/quote/${token}`, { headers: gate.headers })
       .then(async (r) => {
         const data = await r.json();
+        if (r.status === 401) { setLocked(true); return; }
         if (!r.ok) throw new Error(data.detail ?? "This link could not be opened.");
+        setLocked(false);
         setView(data);
         setNote(data.their_note ?? "");
         // Their previous answer comes back filled in, so correcting one price
@@ -112,7 +119,7 @@ export default function SupplierQuote() {
         setDrafts(next);
       })
       .catch((e) => setError(e.message));
-  }, [token]);
+  }, [token, gate.pass]);
 
   const lines = view?.lines ?? [];
 
@@ -143,7 +150,7 @@ export default function SupplierQuote() {
     try {
       const r = await fetch(`${apiBase}/api/portal/quote/${token}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(gate.headers ?? {}) },
         body: JSON.stringify({
           declined,
           note,
@@ -183,6 +190,19 @@ export default function SupplierQuote() {
   }
 
   if (error && !view) return <PortalGone brand={brand} said={error} />;
+  if (locked && !view) {
+    return (
+      <PortalDoor
+        brand={brand}
+        title="Request for quotation"
+        lead={"Enter the code in the email, and you can type your prices "
+              + "straight in."}
+        said={gate.said}
+        busy={gate.busy}
+        onCode={(code) => gate.unlock(code)}
+      />
+    );
+  }
   if (!view) return <PortalLoading brand={brand} />;
 
   return (

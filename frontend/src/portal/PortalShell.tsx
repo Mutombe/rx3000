@@ -24,6 +24,7 @@
  */
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { apiBase } from "../api";
+import PinInput from "../components/PinInput";
 import "./portal.css";
 
 /** What the pharmacy looks like, from `GET /api/portal/brand/{kind}/{token}`.
@@ -179,6 +180,102 @@ export function PortalGate({
         <PortalFoot brand={brand} />
       )}
     </div>
+  );
+}
+
+/** The four digits, and the pass they buy.
+ *
+ *  WHY THE WHOLESALERS GET ONE TOO
+ *
+ *  The link is signed and expiring, which answers forgery. It does not answer
+ *  forwarding, and forwarding is what happens: a quotation request lands in a
+ *  shared sales inbox and goes to whoever is free. The code travels in the
+ *  body of the message, on its own line, so forwarding the URL opens nothing.
+ *
+ *  The code itself is posted once. What comes back is a short-lived signed
+ *  pass that every later request carries, so the four digits are not in every
+ *  proxy log between here and the pharmacy.
+ */
+export function usePortalPass(kind: string, token: string) {
+  // "" means no pass yet; a link with no code on it comes back from the
+  // server with an empty pass and `open: true`, and those are different
+  // states — one is a locked door, the other is no door.
+  const [pass, setPass] = useState("");
+  const [open, setOpen] = useState(false);
+  const [said, setSaid] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function unlock(code: string) {
+    setBusy(true);
+    setSaid("");
+    try {
+      const r = await fetch(`${apiBase}/api/portal/unlock/${kind}/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.detail ?? "That did not work.");
+      setPass(body.pass ?? "");
+      setOpen(true);
+      return true;
+    } catch (e: any) {
+      // Shown exactly as the server wrote it. "3 more tries" is the only
+      // thing that stops somebody guessing blindly and then ringing to
+      // complain the link is broken.
+      setSaid(e.message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /** The header every request behind the gate carries. */
+  const headers = pass ? { "X-Portal-Pass": pass } : undefined;
+  return { pass, open, said, busy, unlock, headers, setSaid };
+}
+
+/** The door itself: the shop's mark, four boxes, and one sentence. */
+export function PortalDoor({
+  brand, title, lead, said, busy, onCode, fine,
+}: {
+  brand: Brand | null;
+  title: ReactNode;
+  lead?: ReactNode;
+  said?: string;
+  busy?: boolean;
+  onCode: (code: string) => void;
+  fine?: ReactNode;
+}) {
+  const [code, setCode] = useState("");
+  // A refusal clears the boxes, so the next attempt starts from an empty row
+  // rather than from a wrong one somebody has to delete first.
+  useEffect(() => { if (said) setCode(""); }, [said]);
+  return (
+    <PortalGate
+      brand={brand}
+      title={title}
+      lead={lead}
+      said={said}
+      onSubmit={(e) => { e.preventDefault(); if (code.length === 4) onCode(code); }}
+      fine={fine ?? ("The pharmacy gave you this code. If you have lost it, "
+                     + "ring them and they will give you a new one.")}
+    >
+      <label className="pp-label" htmlFor="pp-code-1">
+        Enter your four-digit code
+      </label>
+      {/* The same component the till unlocks with: paste, backspace,
+          auto-submit and shake-on-refusal are already right there, and a
+          second implementation of a PIN box is a second one to get wrong. */}
+      <PinInput
+        value={code}
+        onChange={setCode}
+        onComplete={onCode}
+        checking={busy}
+        invalid={!!said}
+        disabled={busy}
+      />
+    </PortalGate>
   );
 }
 

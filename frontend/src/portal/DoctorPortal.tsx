@@ -12,8 +12,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { apiBase, sentence } from "../api";
-import PortalShell, { PortalGone, PortalLoading, useBrand }
-  from "./PortalShell";
+import PortalShell, { PortalDoor, PortalGone, PortalLoading, useBrand,
+  usePortalPass } from "./PortalShell";
 import "./portal.css";
 
 interface Script {
@@ -45,8 +45,13 @@ const BLANK: Line = {
 export default function DoctorPortal() {
   const { token = "" } = useParams();
   const brand = useBrand("doctor", token);
+  const gate = usePortalPass("doctor", token);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [error, setError] = useState("");
+  // Locked until the four digits land. A prescriber's link names their
+  // patients, so a message forwarded off a practice phone should open
+  // nothing on its own.
+  const [locked, setLocked] = useState(false);
 
   // Prescribing session — separate credential, kept only in memory. A
   // prescriber writes a script and leaves; persisting this to localStorage
@@ -60,15 +65,17 @@ export default function DoctorPortal() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch(`${apiBase}/api/portal/doctor/${token}`)
+    fetch(`${apiBase}/api/portal/doctor/${token}`, { headers: gate.headers })
       .then(async (r) => {
         const data = await r.json();
+        if (r.status === 401) { setLocked(true); return; }
         if (!r.ok) throw new Error(data.detail ?? "This link could not be opened.");
+        setLocked(false);
         setOverview(data);
         setLogin((l) => ({ ...l, practice_number: data.practice_number ?? "" }));
       })
       .catch((e) => setError(e.message));
-  }, [token]);
+  }, [token, gate.pass]);
 
   async function signIn(e: FormEvent) {
     e.preventDefault();
@@ -138,6 +145,18 @@ export default function DoctorPortal() {
   // raised while signing in or sending a script is different and stays on the
   // page beside the form it came from.
   if (error && !overview) return <PortalGone brand={brand} said={error} />;
+  if (locked && !overview) {
+    return (
+      <PortalDoor
+        brand={brand}
+        title="Your scripts here"
+        lead="Enter the code the pharmacy gave you."
+        said={gate.said}
+        busy={gate.busy}
+        onCode={(code) => gate.unlock(code)}
+      />
+    );
+  }
   if (!overview) return <PortalLoading brand={brand} />;
 
   return (

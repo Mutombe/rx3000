@@ -23,9 +23,10 @@
  *  somebody who already knows the birthday, and telling a patient their own
  *  date of birth is wrong is close to the rudest thing software can say.
  */
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { apiBase } from "../api";
+import { apiBase, sentence } from "../api";
+import PinInput from "../components/PinInput";
 import PortalShell, { PortalGate, PortalGone, PortalLoading, useBrand }
   from "./PortalShell";
 import "./portal.css";
@@ -72,7 +73,6 @@ export default function PatientPortal() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"now" | "scripts" | "history">("now");
-  const box = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch(`${apiBase}/api/portal/patient/${token}`)
@@ -84,17 +84,19 @@ export default function PatientPortal() {
         || "This link is no longer valid. Please ask the pharmacy for a new one."));
   }, [token]);
 
-  useEffect(() => { if (teaser) box.current?.focus(); }, [teaser]);
-
-  async function confirm(e: FormEvent) {
-    e.preventDefault();
+  // PinInput puts the caret in the first box itself and submits on the last
+  // digit, so the common case is four keystrokes and nothing else.
+  async function confirm(e?: FormEvent, typed?: string) {
+    e?.preventDefault();
+    const digits = typed ?? code;
+    if (digits.length < 4) return;
     setBusy(true);
     setError("");
     try {
       const r = await fetch(`${apiBase}/api/portal/patient/${token}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({ code: digits }),
       });
       const body = await r.json();
       if (!r.ok) throw new Error(body.detail ?? "That did not work.");
@@ -105,7 +107,6 @@ export default function PatientPortal() {
       // guessing blindly and then ringing to complain the link is broken.
       setError(e.message);
       setCode("");
-      box.current?.focus();
     } finally {
       setBusy(false);
     }
@@ -142,21 +143,18 @@ export default function PatientPortal() {
         fine={"The pharmacy gave you this code. If you have lost it, ring them "
               + "and they will read you a new one."}
       >
-        <label className="pp-label" htmlFor="code">
-          Enter your four-digit code
-        </label>
-        <input
-          id="code"
-          ref={box}
-          className="pp-code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="[0-9]*"
-          maxLength={8}
+        <p className="pp-label">Enter your four-digit code</p>
+        {/* Four boxes, not one letter-spaced field. The same component the
+            till unlocks with: the reader can see how many digits are left
+            without counting dots, it submits itself on the last one, and a
+            wrong code shakes the row and clears it. */}
+        <PinInput
           value={code}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-          placeholder="••••"
-          aria-describedby={error ? "pp-error" : undefined}
+          onChange={setCode}
+          onComplete={(pin) => confirm(undefined, pin)}
+          checking={busy}
+          invalid={!!error}
+          disabled={busy}
         />
       </PortalGate>
     );
@@ -220,7 +218,7 @@ export default function PatientPortal() {
                   <b>{w.product}</b>
                   <span className="pp-muted">{w.quantity} · since {day(w.since)}</span>
                 </div>
-                <span className="pp-pill pp-pill-ok">ready</span>
+                <span className="pp-pill pp-pill-ok">Ready</span>
               </div>
             ))}
           </section>
@@ -237,9 +235,9 @@ export default function PatientPortal() {
                   <b>{d.product}</b>
                   <span className="pp-muted">
                     {d.overdue
-                      ? `was due ${Math.abs(d.days)} days ago`
+                      ? `Was due ${Math.abs(d.days)} days ago`
                       : d.days === 0 ? "Due today"
-                      : `due in ${d.days} days`}
+                      : `Due in ${d.days} days`}
                     {" · "}{d.left} left on the script
                   </span>
                 </div>
@@ -307,7 +305,7 @@ export default function PatientPortal() {
                   </span>
                 </div>
                 <span className={`pp-pill ${s.status === "active" ? "pp-pill-ok" : ""}`}>
-                  {s.status}
+                  {sentence(s.status)}
                 </span>
               </div>
               {s.items.map((i, n) => (

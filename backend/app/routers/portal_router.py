@@ -89,7 +89,7 @@ def issue_patient_link(patient_id: int, db: Session = Depends(get_db)):
         "share_text": (
             f"Hello {patient.first_name}, here is your {{pharmacy}} record: "
             f"{{link}}\n\nYour code is {code}. Please keep it to yourself. "
-            f"it opens your prescriptions."),
+            f"It opens your prescriptions."),
         "message": ("Link and code created. Send them to the patient's own "
                     "number, not a shared one. Together they open their "
                     "record."),
@@ -122,10 +122,16 @@ def issue_doctor_link(doctor_id: int, db: Session = Depends(get_db)):
     if not doctor:
         raise HTTPException(404, "Doctor not found")
     token = portal_tokens.issue(kind="doctor", subject_id=doctor.id)
+    code = portal_pins.issue(db, doctor)
     return {
         "token": token,
         "path": f"/portal/doctor/{token}",
+        "code": code,
         "send_to": doctor.phone or doctor.email or "",
+        "share_text": (
+            f"Good day Dr {doctor.name}. You can see what we have dispensed "
+            f"against your scripts here: {{link}}"
+            f"\n\nYour code is {code}."),
         "note": "This link shows dispensing status only. Sending a prescription "
                 "in requires the prescriber's own sign-in.",
     }
@@ -295,6 +301,142 @@ def _asking_pharmacy(db: Session) -> str:
 # true. The same shape the letterhead serves, so print and portal cannot
 # disagree about what this pharmacy is called.
 
+
+
+def _brand_resolvers() -> dict:
+    """Which function proves which kind of link.
+
+    Built at call time rather than as a module-level map: the supplier
+    resolver is defined below this point, and a map built at import would
+    bind the name before it exists.
+
+    Each resolver proves the token AND sets the tenant as a side effect, which
+    is what makes everything read afterwards belong to the right pharmacy. A
+    caller cannot therefore ask about one shop holding another's link.
+    """
+    return {
+        "patient": _patient_from,
+        "rfq": _invited_from,
+        # The quote portal's own route is /portal/quote/{token}, so it asks
+        # under the name it is read at rather than the name of the row.
+        "quote": _invited_from,
+        "doctor": _doctor_from,
+        "supplier": _supplier_from,
+    }
+
+
+# ------------------------------------------------------------ the front door
+#
+# A FOUR-DIGIT CODE ON EVERY PORTAL, INCLUDING THE WHOLESALERS.
+#
+# The link is signed, scoped and expiring, which answers forgery. It does not
+# answer FORWARDING, and forwarding is what actually happens: a quotation
+# request lands in a shared sales inbox and is passed to whoever is free, a
+# patient's SMS is read out by a relative, a driver's shift link sits in a
+# WhatsApp group. So the code goes in the body of the message and the link on
+# its own line, and forwarding the URL alone opens nothing.
+#
+# "They are a company, they have their own security" is an argument about the
+# wholesaler's front door, not about the message sitting in a mailbox six
+# people read.
+#
+# HOW IT IS CARRIED, AND WHY NOT THE CODE ITSELF.
+#
+# Entering the code mints a second signed token of its own kind — `supplier-in`
+# for a `supplier` link — which the page holds in memory and sends back on
+# every request. The alternative is posting the four digits with each call,
+# which puts them in every proxy log the request passes through on the way out
+# of Zimbabwe.
+#
+# A LINK WITH NO CODE ON IT STILL OPENS.
+#
+# Deliberately, and only for the links already in the field. Every link issued
+# from here on gets a code at the moment it is issued, so this is a shrinking
+# set and not a permanent exemption. Refusing them instead would have closed,
+# without warning, every portal link a pharmacy had already sent out.
+
+#: A working day. Long enough that a wholesaler pricing forty lines over a
+#: morning is not asked twice; short enough that a borrowed phone is not a
+#: standing key.
+UNLOCK_TTL = 12 * 3600
+
+
+def _unlock_kind(kind: str) -> str:
+    return f"{kind}-in"
+
+
+def _pin_subject(kind: str, subject, db: Session):
+    """Whose four digits open this link.
+
+    A quotation link names one `RfqSupplier` — this wholesaler, on this one
+    request — but the code belongs to the WHOLESALER, not to the request. A
+    buyer at CAPS who has been given a code for one quotation should not be
+    handed a different one a fortnight later for the next, and a pharmacy
+    should be able to close that door once rather than per request.
+    """
+    if kind in ("rfq", "quote"):
+        return getattr(subject, "supplier", None)
+    return subject
+
+
+def _needs_code(subject) -> bool:
+    return subject is not None and portal_pins.has_pin(subject)
+
+
+def _unlocked(kind: str, subject, pass_token: str, db: Session) -> None:
+    """Refuse unless the four digits were entered on this device.
+
+    Raises rather than returning False, so a caller cannot forget to look at
+    the answer — the same reason `portal_pins.check` raises.
+    """
+    subject = _pin_subject(kind, subject, db)
+    if not _needs_code(subject):
+        return
+    if not pass_token:
+        raise HTTPException(401, "Enter the code the pharmacy sent you.")
+    try:
+        named = portal_tokens.read(pass_token, expect=_unlock_kind(kind))
+    except portal_tokens.TokenError as e:
+        raise HTTPException(401, str(e))
+    if named != subject.id:
+        raise HTTPException(401, "That code was entered for a different link.")
+
+
+class Unlock(BaseModel):
+    code: str = Field(default="", max_length=8)
+
+
+@router.post("/unlock/{kind}/{token}")
+def portal_unlock(kind: str, token: str, body: Unlock,
+                  db: Session = Depends(get_db)):
+    """Four digits in, a pass for this device out.
+
+    One door for every portal. The resolver proves the token and sets the
+    tenant as it goes, exactly as the brand endpoint's does, so a code cannot
+    be tried against a subject in another pharmacy.
+    """
+    resolve = _brand_resolvers().get(kind)
+    if resolve is None:
+        raise HTTPException(404, "No such link.")
+    subject = _pin_subject(kind, resolve(token, db), db)
+
+    if not _needs_code(subject):
+        # Nothing to prove. Said plainly rather than refused, so a page written
+        # against the gate still works on a link issued before there was one.
+        return {"pass": "", "message": "This link needs no code."}
+
+    try:
+        portal_pins.check(db, subject, body.code)
+    except portal_pins.PortalPinError as e:
+        raise HTTPException(401, str(e)) from e
+
+    return {
+        "pass": portal_tokens.issue(kind=_unlock_kind(kind),
+                                    subject_id=subject.id, ttl=UNLOCK_TTL),
+        "message": "Thank you.",
+    }
+
+
 @router.get("/brand/{kind}/{token}")
 def portal_brand(kind: str, token: str, db: Session = Depends(get_db)):
     """The pharmacy behind this link: what it is called, and what it looks like.
@@ -305,23 +447,7 @@ def portal_brand(kind: str, token: str, db: Session = Depends(get_db)):
     stock, and nothing at all until the token proves which pharmacy is being
     asked about.
     """
-    # Looked up at call time rather than in a module-level map: the supplier
-    # resolver is defined below this point, and a map built at import would
-    # bind the name before it exists.
-    #
-    # Each resolver proves the token AND sets the tenant as a side effect,
-    # which is what makes the settings lookup below return anything at all. A
-    # caller cannot therefore ask for one pharmacy's brand holding another's
-    # link.
-    resolve = {
-        "patient": _patient_from,
-        "rfq": _invited_from,
-        # The quote portal's own route is /portal/quote/{token}, so it asks
-        # under the name it is read at rather than the name of the row.
-        "quote": _invited_from,
-        "doctor": _doctor_from,
-        "supplier": _supplier_from,
-    }.get(kind)
+    resolve = _brand_resolvers().get(kind)
     if resolve is None:
         raise HTTPException(404, "No such link.")
     # Sets the tenant as it goes, and raises if the link is spent. Everything
@@ -382,7 +508,8 @@ def _address_lines(*lines: str | None) -> list[str]:
 
 
 @router.get("/quote/{token}")
-def quote_form(token: str, db: Session = Depends(get_db)):
+def quote_form(token: str, db: Session = Depends(get_db),
+               x_portal_pass: str = Header(default="", alias="X-Portal-Pass")):
     """What a wholesaler sees when they open the link in the email.
 
     No sign-in, because nobody at a wholesaler will create an account to quote
@@ -391,6 +518,7 @@ def quote_form(token: str, db: Session = Depends(get_db)):
     telephone.
     """
     invited = _invited_from(token, db)
+    _unlocked("quote", invited, x_portal_pass, db)
     # Opened is not answered, and the difference is worth keeping: a
     # wholesaler who never saw the request needs it re-sending, one who read
     # it and went quiet needs ringing. Those are different phone calls.
@@ -403,7 +531,8 @@ def quote_form(token: str, db: Session = Depends(get_db)):
 
 @router.post("/quote/{token}")
 def submit_quote(token: str, body: dict = Body(default={}),
-                 db: Session = Depends(get_db)):
+                 db: Session = Depends(get_db),
+                 x_portal_pass: str = Header(default="", alias="X-Portal-Pass")):
     """The wholesaler's own prices, typed by the wholesaler.
 
     This is the whole point of the portal: a price entered by the person
@@ -415,6 +544,7 @@ def submit_quote(token: str, body: dict = Body(default={}),
     telephone call that puts a transcription step back in.
     """
     invited = _invited_from(token, db)
+    _unlocked("quote", invited, x_portal_pass, db)
     view = rfq_svc.portal_view(db, invited)
     if view["closed"]:
         raise HTTPException(409, view["closed_because"])
@@ -465,22 +595,26 @@ def _supplier_from(token: str, db: Session) -> Supplier:
 
 
 @router.get("/supplier/{token}")
-def supplier_orders(token: str, db: Session = Depends(get_db)):
+def supplier_orders(token: str, db: Session = Depends(get_db),
+                    x_portal_pass: str = Header(default="", alias="X-Portal-Pass")):
     """What a wholesaler sees: the orders this pharmacy has sent them."""
     supplier = _supplier_from(token, db)
+    _unlocked("supplier", supplier, x_portal_pass, db)
     return supplier_portal.view(db, supplier,
                                 pharmacy_name=_asking_pharmacy(db))
 
 
 @router.post("/supplier/{token}/orders/{order_id}")
 def acknowledge_order(token: str, order_id: int, body: dict = Body(default={}),
-                      db: Session = Depends(get_db)):
+                      db: Session = Depends(get_db),
+                      x_portal_pass: str = Header(default="", alias="X-Portal-Pass")):
     """The wholesaler confirms what they are sending, and when.
 
     This is the answer to the telephone call a pharmacy would otherwise make,
     given once and in writing by the person who actually knows.
     """
     supplier = _supplier_from(token, db)
+    _unlocked("supplier", supplier, x_portal_pass, db)
     order = db.get(PurchaseOrder, order_id)
     if order is None:
         raise HTTPException(404, "That order is not on file.")
@@ -504,6 +638,11 @@ def issue_supplier_link(supplier_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Supplier not found")
     token = portal_tokens.issue(kind="supplier", subject_id=supplier.id,
                                 ttl=supplier_portal.TTL)
+    # A code goes with it, and it is the wholesaler's own: it opens their
+    # orders and any quotation they are sent, and it is what stops a link
+    # forwarded round a shared sales inbox opening this pharmacy's business
+    # to whoever the message reaches.
+    code = portal_pins.issue(db, supplier)
     base = config.text(db, "portal.base_url",
                        rfq_svc.DEFAULT_PORTAL_BASE).rstrip("/")
     link = f"{base}/supplier/{token}"
@@ -512,17 +651,22 @@ def issue_supplier_link(supplier_id: int, db: Session = Depends(get_db)):
         "token": token,
         "link": link,
         "path": f"/supplier/{token}",
+        "code": code,
         "supplier": supplier.name,
         "send_to": (supplier.email or "").strip(),
         "expires_in_days": supplier_portal.TTL // 86400,
-        # Written to be sent as it stands.
+        # Written to be sent as it stands, with the code on its own line so
+        # whoever forwards the link does not forward the code with it.
         "share_text": (
             f"Good day. {pharmacy or 'We'} can now show you our orders with "
             "you online. You can confirm what you are sending and when, "
-            f"which saves us ringing: {link}"),
-        "message": (f"Link for {supplier.name} created. It lasts "
-                    f"{supplier_portal.TTL // 86400} days and shows them "
-                    "their own orders only."),
+            f"which saves us ringing: {link}"
+            f"\n\nYour code is {code}. It opens this link and any quotation "
+            "we send you."),
+        "message": (f"Link and code for {supplier.name} created. The link "
+                    f"lasts {supplier_portal.TTL // 86400} days and shows "
+                    "them their own orders only. Send the code separately if "
+                    "you can."),
     }
 
 
@@ -554,7 +698,8 @@ def _doctor_from(token: str, db: Session) -> Doctor:
 
 
 @router.get("/doctor/{token}")
-def doctor_overview(token: str, db: Session = Depends(get_db)):
+def doctor_overview(token: str, db: Session = Depends(get_db),
+                    x_portal_pass: str = Header(default="", alias="X-Portal-Pass")):
     """Read-only visibility for a prescriber, from a link.
 
     Answers the one question a prescriber actually rings the pharmacy about:
@@ -562,6 +707,7 @@ def doctor_overview(token: str, db: Session = Depends(get_db)):
     own scripts, because that is all they are entitled to see here.
     """
     doctor = _doctor_from(token, db)
+    _unlocked("doctor", doctor, x_portal_pass, db)
 
     scripts = (db.query(Prescription)
                .filter(Prescription.doctor_id == doctor.id)

@@ -27,8 +27,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
-import PortalShell, { PortalGone, PortalLoading, useBrand }
-  from "./PortalShell";
+import PortalShell, { PortalDoor, PortalGone, PortalLoading, useBrand,
+  usePortalPass } from "./PortalShell";
 import "./portal.css";
 
 interface Line {
@@ -83,15 +83,22 @@ function when(iso: string | null): string {
 export default function SupplierOrders() {
   const { token = "" } = useParams();
   const brand = useBrand("supplier", token);
+  const gate = usePortalPass("supplier", token);
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState("");
+  // Locked until the four digits land. Found out by asking rather than by a
+  // separate "does this need a code" request: a link issued before there were
+  // codes answers straight away, and one issued since answers 401.
+  const [locked, setLocked] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
 
   const load = useCallback(() => {
-    fetch(`${apiBase}/api/portal/supplier/${token}`)
+    fetch(`${apiBase}/api/portal/supplier/${token}`, { headers: gate.headers })
       .then(async (r) => {
         const data = await r.json();
+        if (r.status === 401) { setLocked(true); return; }
         if (!r.ok) throw new Error(data.detail ?? "This link could not be opened.");
+        setLocked(false);
         setView(data);
         // The one that is waiting on them opens itself, because that is what
         // they came for and a list of closed panels is a list nobody opens.
@@ -99,10 +106,23 @@ export default function SupplierOrders() {
         setOpen((was) => was ?? first?.id ?? null);
       })
       .catch((e) => setError(e.message));
-  }, [token]);
+  }, [token, gate.pass]);
   useEffect(load, [load]);
 
   if (error && !view) return <PortalGone brand={brand} said={error} />;
+  if (locked && !view) {
+    return (
+      <PortalDoor
+        brand={brand}
+        title="Your orders"
+        lead={"Enter the code we sent you with this link, and you will see "
+              + "every order we have with you."}
+        said={gate.said}
+        busy={gate.busy}
+        onCode={(code) => gate.unlock(code)}
+      />
+    );
+  }
   if (!view) return <PortalLoading brand={brand} />;
 
   return (
@@ -131,7 +151,7 @@ export default function SupplierOrders() {
           <OrderCard key={order.id} token={token} order={order}
                      open={open === order.id}
                      onToggle={() => setOpen(open === order.id ? null : order.id)}
-                     onSaved={load} />
+                     onSaved={load} headers={gate.headers} />
         ))
       )}
 
@@ -139,12 +159,14 @@ export default function SupplierOrders() {
   );
 }
 
-function OrderCard({ token, order, open, onToggle, onSaved }: {
+function OrderCard({ token, order, open, onToggle, onSaved, headers }: {
   token: string;
   order: Order;
   open: boolean;
   onToggle: () => void;
   onSaved: () => void;
+  /** The pass the four digits bought, carried on the write as on the read. */
+  headers?: Record<string, string>;
 }) {
   const [promised, setPromised] = useState(order.promised_date ?? "");
   const [note, setNote] = useState(order.supplier_note ?? "");
@@ -171,7 +193,7 @@ function OrderCard({ token, order, open, onToggle, onSaved }: {
       const r = await fetch(
         `${apiBase}/api/portal/supplier/${token}/orders/${order.id}`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(headers ?? {}) },
           body: JSON.stringify({
             promised_date: promised,
             note,

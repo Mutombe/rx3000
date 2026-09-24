@@ -621,3 +621,57 @@ html, body, #root { margin: 0; min-height: 100%; }
 .pp .pp-brand, .pp .pp-fine, .pp .pp-foot, .pp .sq-what .pp-muted,
 .pp .so-short { font-size: var(--pp-t-sm); }
 .pp h2 { font-size: var(--pp-t-sm); }
+
+/* ---------- the four digits ----------
+   `components/PinInput.tsx` is the same component the till unlocks with: one
+   box per digit, paste, backspace, auto-submit and shake-on-refusal already
+   handled. It took its colours from the staff sheet, which a patient's phone
+   no longer downloads, so the rules are restated here in the portal's own
+   tokens. The behaviour is not duplicated — only the paint. */
+.pp .pin {
+  display: flex; justify-content: center; gap: var(--pp-3);
+  margin: var(--pp-2) 0 var(--pp-4);
+}
+.pp .pin-box {
+  /* Wider and taller than the staff boxes. This is a thumb on a phone held at
+     arm's length outdoors, not a finger on a counter keyboard. */
+  width: 56px; height: 64px; padding: 0;
+  text-align: center; font-size: 1.6rem; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--pp-line); border-radius: var(--pp-r);
+  background: var(--pp-canvas); color: var(--pp-ink);
+  caret-color: var(--pp-brand);
+}
+.pp .pin-box:focus-visible {
+  outline: none; border-color: var(--pp-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pp-brand) 28%, transparent);
+}
+.pp .pin.is-invalid .pin-box { border-color: var(--pp-bad); }
+.pp .pin.is-wrong { animation: pp-pin-shake 380ms ease; }
+@keyframes pp-pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+/* Gone to the server. Disabled boxes drawn in the browser's grey read as
+   broken rather than busy, which is what makes somebody type it again. */
+.pp .pin.is-checking .pin-box {
+  opacity: 1; background: var(--pp-canvas); color: var(--pp-ink);
+  border-color: var(--pp-brand); -webkit-text-fill-color: var(--pp-ink);
+}
+.pp .pin.is-checking { animation: pp-pin-breathe 1s ease-in-out infinite; }
+@keyframes pp-pin-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .62; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pp .pin.is-wrong, .pp .pin.is-checking { animation: none; }
+}
+/* At 390px four 56px boxes and three 12px gaps come to 260px, which fits. On a
+   320px screen with the card's padding it does not, so they close up. */
+@media (max-width: 360px) {
+  .pp .pin { gap: var(--pp-2); }
+  .pp .pin-box { width: 48px; height: 58px; }
+}

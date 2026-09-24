@@ -33,7 +33,7 @@ from sqlalchemy.orm import Session
 from .. import helpers
 from ..models import (Product, PurchaseOrder, PurchaseOrderItem, Rfq, RfqLine,
                       RfqQuote, RfqSupplier, Supplier, User)
-from . import config, messaging, portal_tokens, sourcing
+from . import config, messaging, portal_pins, portal_tokens, sourcing
 
 
 #: Where a supplier's quote link points. The application's own host, because
