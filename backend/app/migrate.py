@@ -1481,6 +1481,10 @@ def _how_it_was_supplied(conn, existing_tables: set) -> int:
 def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
     """Put every sale line in the same pharmacy as its sale.
 
+    FATAL BY DESIGN: a sale line stamped to the wrong pharmacy, or to
+    none, is a row one tenant can read and another cannot account for.
+    Isolation is the one thing worse to get wrong than to be down for.
+
     The invoice importer set the pharmacy on each sale and left it off the
     lines, so the lines took whichever pharmacy the importing session happened
     to be in. On the CareXpress import that was the wrong one for 70,305 of
@@ -1510,6 +1514,9 @@ def _sale_lines_follow_their_sale(conn, existing_tables: set[str]) -> int:
 
 def _entries_follow_their_sale(conn, existing_tables: set[str]) -> int:
     """Give every posted sale entry the branch the sale was rung up at.
+
+    FATAL BY DESIGN: a ledger entry belonging to no pharmacy is money
+    that reconciles for nobody. Same reasoning as the sale lines above.
 
     `journal_entries.branch_id` is new, so without this every entry a pharmacy
     already holds is unallocated and a branch income statement starts empty on
@@ -1548,6 +1555,10 @@ def _entries_follow_their_sale(conn, existing_tables: set[str]) -> int:
 
 def _nobody_works_at_another_pharmacy(conn, existing_tables: set[str]) -> int:
     """Take away a branch that belongs to somebody else's pharmacy.
+
+    FATAL BY DESIGN: this is who may see whose data. A server that comes
+    up with staff attached to the wrong pharmacy is worse than one that
+    does not come up.
 
     A user's branch narrows what they see: their shop's takings, their shop's
     shelves, their shop's paperwork. Tenancy narrows it first, to their own
@@ -1782,17 +1793,11 @@ def run_migrations(engine: Engine) -> int:
         applied += _add_tenant_columns(conn, inspector, existing_tables)
         applied += _fill_null_text(conn, inspector, existing_tables)
         applied += _number_the_patients(conn, existing_tables)
-        applied += _hash_the_portal_codes(conn, existing_tables)
-        applied += _unmix_remittance_notes(conn, existing_tables)
         applied += _untangle_account_codes(conn, inspector, existing_tables)
         applied += _per_tenant_numbers(conn, inspector, existing_tables)
         applied += _sale_lines_follow_their_sale(conn, existing_tables)
         applied += _nobody_works_at_another_pharmacy(conn, existing_tables)
         applied += _entries_follow_their_sale(conn, existing_tables)
-        applied += _batch_costs_are_per_unit(conn, existing_tables)
-        applied += _departments_that_dispense(conn, existing_tables)
-        applied += _imported_dispensings_are_not_on_the_shelf(conn, existing_tables)
-        applied += _name_the_instruments(conn, inspector, existing_tables)
         applied += _settings_belong_to_a_pharmacy(conn, inspector, existing_tables)
         applied += _create_indexes(conn, inspector, existing_tables)
 
@@ -1822,6 +1827,19 @@ def run_migrations(engine: Engine) -> int:
         # them say "Not recorded" until it succeeds on a later boot.
         ("filling in how dispensings were supplied", "dispensings",
          lambda conn: _how_it_was_supplied(conn, existing_tables)),
+        ("naming the payment instruments", "sale_tenders",
+         lambda conn: _name_the_instruments(
+             conn, inspect(engine), existing_tables)),
+        ("hashing the patients' portal codes", "patients",
+         lambda conn, _f=_hash_the_portal_codes: _f(conn, existing_tables)),
+        ("untangling remittance notes", "remittances",
+         lambda conn, _f=_unmix_remittance_notes: _f(conn, existing_tables)),
+        ("correcting per-unit batch costs", "stock_batches",
+         lambda conn, _f=_batch_costs_are_per_unit: _f(conn, existing_tables)),
+        ("marking dispensing departments", "stock_categories",
+         lambda conn, _f=_departments_that_dispense: _f(conn, existing_tables)),
+        ("taking imported dispensings off the shelf", "dispensings",
+         lambda conn, _f=_imported_dispensings_are_not_on_the_shelf: _f(conn, existing_tables)),
     ]:
         if needs not in existing_tables:
             continue
