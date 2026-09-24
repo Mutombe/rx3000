@@ -115,11 +115,32 @@ def build() -> None:
     env["VITE_API_BASE"] = api_base
     print(f"  front end will fall back to {api_base}")
 
-    print("  building the front end…")
-    subprocess.run(["npm", "run", "build"], cwd=ROOT / "frontend",
+    # The front end is NOT built here any more. `tauri.conf.json` carries a
+    # `beforeBuildCommand` that builds it, so the bundle is rebuilt whoever
+    # starts the build — this script, `npx tauri build` by hand, or CI.
+    #
+    # It used to be built here and only here, which meant `tauri build` on its
+    # own bundled whatever `frontend/dist` happened to be lying on the disk.
+    # That is how a download ends up five days behind the repository while the
+    # person who built it is looking at today's code, and it is invisible
+    # until somebody installs it and reports screens that were changed a week
+    # ago. The environment below is passed through to that command.
+    print("  building the installers… (several minutes, front end included)")
+    subprocess.run(["npx", "--yes", "@tauri-apps/cli", "build"], cwd=TAURI,
                    check=True, shell=True, env=env)
 
-    built = sorted((ROOT / "frontend" / "dist" / "assets").glob("index-*.js"))
+    # Checked AFTER the build, against what was actually bundled.
+    #
+    # EVERY chunk, not `index-*.js`. The address lives in `api.ts`, and which
+    # chunk that lands in is Vite's business, not ours: when the staff
+    # application moved behind its own lazy boundary the entry chunk became a
+    # router and almost nothing else, and `api.ts` went to a shared chunk
+    # named after whichever module happened to be first in it. The check
+    # started failing on a bundle that was perfectly correct, which is the
+    # good failure — it stopped a publish rather than shipping something
+    # unverified — but the question it means to ask is "is the address in the
+    # bundle", and the bundle is all of these files.
+    built = sorted((ROOT / "frontend" / "dist" / "assets").glob("*.js"))
     if not any(api_base in f.read_text(encoding="utf-8", errors="replace")
                for f in built):
         raise SystemExit(
@@ -128,9 +149,17 @@ def build() -> None:
             f"as a connection failure, which sends everybody looking at the "
             f"network instead of at this.")
     print("  the address is in the bundle")
-    print("  building the installers… (several minutes)")
-    subprocess.run(["npx", "--yes", "@tauri-apps/cli", "build"], cwd=TAURI,
-                   check=True, shell=True, env=env)
+
+    # And the bundle is today's. A build that silently shipped a stale front
+    # end is the fault this check exists for: the installer is only worth
+    # handing to a pharmacy if what is inside it is what is in the repository.
+    newest = max(f.stat().st_mtime for f in built)
+    age = (datetime.now(timezone.utc).timestamp() - newest) / 60
+    if age > 30:
+        raise SystemExit(
+            f"The bundled front end is {age:.0f} minutes old, so the build did "
+            f"not rebuild it. Check `beforeBuildCommand` in tauri.conf.json.")
+    print(f"  the bundle was built {age:.0f} minute(s) ago")
 
 
 def publish(version: str) -> list[Path]:

@@ -1,48 +1,72 @@
-Adding a patient or a medicine without leaving the script.
+Dispensing is four times faster, and the screens look the part.
 
-**A medicine the catalogue has never heard of**
+**A script goes out in a quarter of the time**
 
-Search for it, and where nothing matches there is now Add it. Name, strength,
-form, classification and price, plus what arrived if you are holding the pack,
-and it lands on the script you already have open. What used to happen instead
-was a walk to the stock screens, a new line, a booking in, and starting the
-script again with an empty basket.
+Pressing Dispense took 564 milliseconds of the server's time and now takes
+122. Twenty foreign keys in the database had no index, so fetching the four
+lines of one sale meant reading all 81,935 lines the shop has ever sold —
+twice, on every dispense. Worse, it got slower on its own: the reading grows
+with your trading history, so a till that was quick in its first month was
+several times slower a year later with nothing having changed. That is fixed,
+and the same reading was slowing the patient record, the till and the reports.
 
-**The new patient form fits the dialog**
+**The medicine is the first field on the lane**
 
-Chronic conditions and Member number were being clipped to Chronic con and
-Member nu, both search boxes were cut mid word, and the dependant code was
-pushed off the right edge. Labels now sit above their fields and nothing is
-abbreviated.
+It used to be the third, sitting two thirds of the way across an empty band,
+and the patient and prescriber appeared to its LEFT once you had typed — which
+moved the screen under your hand mid-keystroke. The order is now the order of
+the work: the medicine, then who it is for, then who wrote it. No field
+changed size.
 
-**Send to till waits for you**
+**The barcode sticker prints by default**
 
-The offer to take the payment yourself used to disappear after nine seconds,
-which is nothing while labels are printing and a bag is being handed over. It
-now waits until you take it or put it down.
+Still a tick you can clear before printing, for the pack that does not need
+one.
 
-**The patient list answers a question**
+**Your patients get a portal worth sending**
 
-Seven filters above the table, each with a count: on a scheme, private,
-registered in the last month, not seen in six months, has a chronic condition,
-has a caregiver.
+Every link now carries your pharmacy's own name, logo, telephone number and
+address, not ours, and opens in about a fifth of what it used to download: a
+patient on a mobile connection was being sent the whole dispensary to find out
+whether their tablets were ready. Every portal has its own four-digit code, so
+a link forwarded to the wrong person opens nothing — including the wholesalers,
+because a quotation email lands in a shared inbox.
 
-**A branch is something you can open**
+**A driver's round, on the driver's phone**
 
-Who is accountable for it, what it may trade on and what is on its shelves, on
-one page. Each licence says what it is, who issues it and whether the shop can
-trade without it.
+A new portal shows a driver what is still out with them, with the address and
+telephone number as taps, and the patient signs for it on the screen at the
+door. The signature is kept against the waybill, which is what a disputed
+delivery is argued from. Deliveries used to be closed from the back office by
+somebody who was not there.
 
-**Nothing changed by hand goes unnoticed**
+**What happened to a dispensing, wherever you look at it**
 
-A price set at the counter, or a shelf corrected while a script was being
-dispensed, is now recorded against that script. Dispensing history marks the
-rows, and two reports list them: everything changed by hand while dispensing,
-and stock moved between branches.
+How it was supplied — counter, will-call shelf or delivery — how it was paid
+for, whether it was signed for, and what the patient thought of it. On the
+dispensing history with filters, on the patient's portal, in the script book
+and its spreadsheet, and in a new report that answers whether delivery is
+worth doing. Nothing is typed in: the till, the shelf and the waybill already
+knew, and now they say.
+
+**Patients can say how you did**
+
+One question and five stars on their own portal, after a collection. Nobody
+had ever asked them.
+
+**The look**
+
+Flat surfaces with a single fine edge instead of shadows. Thirteen-point text
+on tighter rows, so about a quarter more fits on a screen without anything
+being removed. Every table in the system is now the same table. Colour is
+spent only where it changes what you do, and a status carries a shape as well
+as a colour, so it still reads for the one person in twelve who cannot tell
+green from amber.
 
 **Also**
 
-A pharmacist can correct the count on a shelf they are standing at, and the
-dialog closes on the click. Warnings printed on a label read as sentences.
-Chips and badges across sixty screens are capitalised. The assistant's history
-panel no longer scrolls sideways.
+Searching the dispensing history for a full name now finds it. Two columns on
+the dashboard that reported the day's takings were cutting the figures off.
+Reference numbers are set in the same typeface on every machine. The
+prescriber portal was showing an empty list of scripts to prescribers whose
+patients had collected that morning.

@@ -1,11 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "RX5000",
-  "version": "1.6.26",
+  "version": "1.6.27",
   "identifier": "zw.co.bitstudio.rx3000",
   "build": {
     "frontendDist": "../../frontend/dist",
-    "devUrl": "http://localhost:5180"
+    "devUrl": "http://localhost:5180",
+    "beforeDevCommand": "npm --prefix ../frontend run dev -- --port 5180",
+    "beforeBuildCommand": "npm --prefix ../frontend run build"
   },
   "app": {
     "withGlobalTauri": true,
