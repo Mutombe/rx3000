@@ -20,6 +20,7 @@
  */
 import { useState } from "react";
 import Markdown, { markdownToHtml } from "./Markdown";
+import { printView } from "../printView";
 import { useToast } from "./Toast";
 
 interface Props {
@@ -89,19 +90,18 @@ export default function AiOutput({ text, title = "AI note", context = "", classN
   }
 
   function asPdf() {
-    const win = window.open("", "_blank", "width=820,height=1000");
-    if (!win) {
-      // The common case, and worth saying plainly rather than doing nothing.
-      toast.error("Your browser blocked the print window. Allow pop-ups for this site, then try again.");
-      return;
+    // A window where one is allowed, so the reader can look at it and save it
+    // as a PDF, and a hidden frame where it is not — which is every till
+    // running the desktop shell, where there is no pop-up setting to point
+    // somebody at. The waiting for load is `printView`'s now.
+    if (!claimAndWrite()) {
+      toast.error("This machine would not open a print view for the document.");
     }
-    win.document.write(documentHtml(title, context, markdownToHtml(text)));
-    win.document.close();
-    // Waiting for load matters: printing an empty document is the usual result
-    // of calling print() the moment after writing to it.
-    win.onload = () => { win.focus(); win.print(); };
-    // Some browsers fire load before the handler is attached on a written doc.
-    setTimeout(() => { try { win.focus(); win.print(); } catch { /* already printed */ } }, 400);
+  }
+
+  function claimAndWrite(): boolean {
+    return printView(documentHtml(title, context, markdownToHtml(text)),
+                     { reader: true, width: 820, height: 1000 });
   }
 
   return (

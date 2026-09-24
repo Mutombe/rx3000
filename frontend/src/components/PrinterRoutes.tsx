@@ -51,6 +51,7 @@ const TEST_LABEL = {
 
 export default function PrinterRoutes() {
   const [printers, setPrinters] = useState<string[]>([]);
+  const [detail, setDetail] = useState<roll.PrinterInfo[]>([]);
   const [routes, setRoutes] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<roll.LabelMode>(roll.labelMode());
@@ -83,8 +84,8 @@ export default function PrinterRoutes() {
   }
 
   useEffect(() => {
-    roll.listPrinters()
-      .then(setPrinters)
+    roll.listPrinterInfo()
+      .then((found) => { setDetail(found); setPrinters(found.map((p) => p.name)); })
       .catch(() => setPrinters([]))
       .finally(() => setLoading(false));
     const current: Record<string, string> = {};
@@ -96,6 +97,15 @@ export default function PrinterRoutes() {
     roll.routeTo(kind, name);
     setRoutes((r) => ({ ...r, [kind]: name }));
   }
+
+  // What the label roll says about itself. A driver called
+  // "ZDesigner ZD421-203dpi ZPL" has already answered the question this
+  // setting used to ask, so the answer is shown rather than requested.
+  const labelRoll = roll.printerFor("label");
+  const labelDriver = detail.find((p) => p.name === labelRoll)?.driver ?? "";
+  const spoken = labelRoll && roll.languageOf(labelRoll, labelDriver) === "zpl"
+    ? `ZPL at ${roll.dpiOf(labelRoll, labelDriver)} dpi`
+    : "";
 
   if (!roll.canPrintDirect()) {
     return (
@@ -170,21 +180,26 @@ export default function PrinterRoutes() {
             <span className="pr-name">
               The label printer speaks
               <small>
-                Almost every label printer has a Windows driver, and the driver
-                is what knows its language. Choose bytes only for a receipt
-                style roll that expects them.
+                {spoken
+                  ? `Windows calls this printer ${labelDriver || labelRoll}, `
+                    + `so the label is sent as ${spoken}. Nothing to set.`
+                  : "Worked out from the printer's own driver, which is what "
+                    + "names its language. Change it only if a test label "
+                    + "comes out blank or as rubbish."}
               </small>
             </span>
             <select value={mode} onChange={(e) => {
               const next = e.target.value as roll.LabelMode;
               roll.setLabelMode(next); setMode(next);
             }}>
-              <option value="page">Its own Windows driver (works with any printer)</option>
+              <option value="auto">Whatever it says it speaks{spoken ? ` (${spoken})` : ""}</option>
+              <option value="zpl">ZPL (Zebra and compatible)</option>
+              <option value="page">Its own Windows driver (needs a PDF reader installed)</option>
               <option value="raw">Raw ESC/POS bytes (thermal receipt rolls)</option>
             </select>
           </label>
 
-          {mode === "page" && (
+          {mode !== "raw" && (
             <label>
               <span className="pr-name">
                 Sticker size

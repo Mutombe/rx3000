@@ -29,6 +29,7 @@
  *  so the document is one file that prints identically from a browser, a saved
  *  copy, or an attachment, with or without a line to the internet.
  */
+import { claimPrintView } from "./printView";
 
 export interface Letterhead {
   display_name?: string;
@@ -413,24 +414,21 @@ function docFont(): Promise<string> {
  *  most of these are actually for.
  */
 export function printDocument(head: Letterhead, o: DocOptions) {
-  // Opened synchronously, inside the click that asked for it. A window opened
-  // after an await has lost the gesture and is a popup as far as the browser
-  // is concerned, which is a print button that silently does nothing.
-  const w = window.open("", "_blank", "width=900,height=1000");
-  if (!w) return;
-  docFont().then((fontCss) => {
-    w.document.write(renderDocument(head, o, fontCss));
-    w.document.close();
-    // Waits for the logo and the embedded face, which are both data URIs and
-    // therefore usually already decoded, but "usually" prints a blank
-    // letterhead often enough to matter.
-    //
-    // Whichever comes first, and only once: `load` can have fired already by
-    // the time this runs, and a document that is never printed because its
-    // load event was a moment early is a print button that does nothing.
-    let printed = false;
-    const go = () => { if (!printed) { printed = true; w.print(); } };
-    w.onload = () => setTimeout(go, 120);
-    setTimeout(go, 600);
-  });
+  // Claimed synchronously, inside the click that asked for it. A window opened
+  // after an await has lost the gesture and is a pop-up as far as the browser
+  // is concerned, which is a print button that silently does nothing. The font
+  // is a promise, so the place to print is taken first and written into after.
+  //
+  // `reader: true` because these are read before they are printed. Where a
+  // window is refused, which is every till running the desktop shell, this now
+  // falls back to a frame instead of returning silently as it used to.
+  const view = claimPrintView({ reader: true });
+  if (!view) return;
+  // Waits for the logo and the embedded face, which are both data URIs and
+  // therefore usually already decoded, but "usually" prints a blank letterhead
+  // often enough to matter.
+  docFont().then(
+    (fontCss) => view.write(renderDocument(head, o, fontCss)),
+    () => view.cancel(),
+  );
 }

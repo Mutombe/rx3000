@@ -57,11 +57,61 @@ mod windows_impl {
         datatype: *mut u16,
     }
 
+    /// What Windows knows about one printer.
+    ///
+    /// Level 2 rather than the level 4 this used, because level 4 carries the
+    /// name and nothing else — and the name alone cannot say what language the
+    /// printer speaks when somebody has renamed it to "Labels". The DRIVER
+    /// says: "ZDesigner ZD421-203dpi ZPL". That is what lets the application
+    /// work out how to talk to a roll instead of asking a pharmacist to pick a
+    /// printer language out of a list.
+    ///
+    /// Only the first five fields are read. The rest are declared so the
+    /// struct is the size Windows expects, because the array is walked by
+    /// stride.
     #[repr(C)]
-    struct PrinterInfo4 {
-        printer_name: *mut u16,
+    struct PrinterInfo2 {
         server_name: *mut u16,
+        printer_name: *mut u16,
+        share_name: *mut u16,
+        port_name: *mut u16,
+        driver_name: *mut u16,
+        comment: *mut u16,
+        location: *mut u16,
+        dev_mode: *mut c_void,
+        sep_file: *mut u16,
+        print_processor: *mut u16,
+        datatype: *mut u16,
+        parameters: *mut u16,
+        security_descriptor: *mut c_void,
         attributes: u32,
+        priority: u32,
+        default_priority: u32,
+        start_time: u32,
+        until_time: u32,
+        status: u32,
+        jobs: u32,
+        average_ppm: u32,
+    }
+
+    /// A printer, as the application sees it.
+    #[derive(serde::Serialize)]
+    pub struct Printer {
+        pub name: String,
+        pub driver: String,
+        pub port: String,
+    }
+
+    /// Read a null-terminated wide string Windows owns.
+    unsafe fn from_wide(ptr: *const u16) -> String {
+        if ptr.is_null() {
+            return String::new();
+        }
+        let mut len = 0usize;
+        while *ptr.add(len) != 0 {
+            len += 1;
+        }
+        String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len))
     }
 
     const PRINTER_ENUM_LOCAL: u32 = 0x0000_0002;
@@ -72,38 +122,37 @@ mod windows_impl {
     }
 
     /// Every printer this machine can see, local and networked.
-    pub fn list() -> Result<Vec<String>, String> {
+    pub fn list() -> Result<Vec<Printer>, String> {
         unsafe {
             let flags = PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS;
             let mut needed = 0u32;
             let mut returned = 0u32;
             // First call sizes the buffer; it is expected to fail.
-            EnumPrintersW(flags, std::ptr::null_mut(), 4, std::ptr::null_mut(), 0,
+            EnumPrintersW(flags, std::ptr::null_mut(), 2, std::ptr::null_mut(), 0,
                           &mut needed, &mut returned);
             if needed == 0 {
                 return Ok(Vec::new());
             }
             let mut buffer = vec![0u8; needed as usize];
-            let ok = EnumPrintersW(flags, std::ptr::null_mut(), 4, buffer.as_mut_ptr(),
+            let ok = EnumPrintersW(flags, std::ptr::null_mut(), 2, buffer.as_mut_ptr(),
                                    needed, &mut needed, &mut returned);
             if ok == 0 {
                 return Err("Windows would not list the printers on this machine.".into());
             }
-            let infos = buffer.as_ptr() as *const PrinterInfo4;
+            let infos = buffer.as_ptr() as *const PrinterInfo2;
             let mut out = Vec::with_capacity(returned as usize);
             for i in 0..returned as usize {
                 let entry = &*infos.add(i);
                 if entry.printer_name.is_null() {
                     continue;
                 }
-                let mut len = 0usize;
-                while *entry.printer_name.add(len) != 0 {
-                    len += 1;
-                }
-                let name = std::slice::from_raw_parts(entry.printer_name, len);
-                out.push(String::from_utf16_lossy(name));
+                out.push(Printer {
+                    name: from_wide(entry.printer_name),
+                    driver: from_wide(entry.driver_name),
+                    port: from_wide(entry.port_name),
+                });
             }
-            out.sort();
+            out.sort_by(|a, b| a.name.cmp(&b.name));
             Ok(out)
         }
     }
@@ -231,7 +280,14 @@ mod windows_impl {
 
 #[cfg(not(windows))]
 mod windows_impl {
-    pub fn list() -> Result<Vec<String>, String> {
+    #[derive(serde::Serialize)]
+    pub struct Printer {
+        pub name: String,
+        pub driver: String,
+        pub port: String,
+    }
+
+    pub fn list() -> Result<Vec<Printer>, String> {
         // Linux and macOS reach a thermal printer through CUPS or a device
         // node, which is a different job from this one. Reported honestly so
         // the application offers the print dialog instead of a broken button.
@@ -248,8 +304,11 @@ mod windows_impl {
 }
 
 /// Printers this machine can see. Empty means "use the print dialog".
+///
+/// Each carries its driver, because that is what says which language the
+/// printer speaks and therefore how a label has to be sent to it.
 #[tauri::command]
-pub fn list_printers() -> Result<Vec<String>, String> {
+pub fn list_printers() -> Result<Vec<windows_impl::Printer>, String> {
     windows_impl::list()
 }
 

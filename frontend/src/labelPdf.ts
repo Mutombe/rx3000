@@ -64,11 +64,19 @@ export const DEFAULT_STICKER: Sticker = { wide: 58, tall: 42 };
 const FONTS = { plain: "F1", bold: "F2", mono: "F3" } as const;
 export type FontName = keyof typeof FONTS;
 
-/** The CSS for a font, so a canvas can measure and draw what the PDF will. */
-export function cssFontFor(font: FontName, size: number): string {
-  return font === "plain" ? `${size}pt Helvetica, Arial, sans-serif`
-    : font === "bold" ? `bold ${size}pt Helvetica, Arial, sans-serif`
-    : `bold ${size}pt "Courier New", Courier, monospace`;
+/** The CSS for a font, so a canvas can measure and draw what the PDF will.
+ *
+ *  `unit` exists for the one caller that works in printer dots rather than
+ *  points: rasterising a label for a Zebra means drawing at 203 to the inch,
+ *  where a size in points would come out a third too small. It is a parameter
+ *  rather than a second copy of these three faces, because two lists of font
+ *  names is two labels that look slightly different depending on how they were
+ *  printed, and that is the drift this file exists to prevent.
+ */
+export function cssFontFor(font: FontName, size: number, unit: "pt" | "px" = "pt"): string {
+  return font === "plain" ? `${size}${unit} Helvetica, Arial, sans-serif`
+    : font === "bold" ? `bold ${size}${unit} Helvetica, Arial, sans-serif`
+    : `bold ${size}${unit} "Courier New", Courier, monospace`;
 }
 
 /** How wide a string is, in points, in the font the PDF will use.

@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAsk } from "../components/Confirm";
+import { printView } from "../printView";
 import { DetailSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import RecordPage from "../components/RecordPage";
@@ -146,9 +147,9 @@ export default function DealDetail() {
     const rows = deal.items.map((i) =>
       `<tr><td>${i.description}</td><td class="r">${i.quantity}</td><td class="r">${money(i.unit_price)}</td>` +
       `<td class="r">${i.discount_percent ? i.discount_percent + "%" : "none"}</td><td class="r">${money(i.line_total)}</td></tr>`).join("");
-    const win = window.open("", "_blank", "width=800,height=900");
-    if (!win) return;
-    win.document.write(`<!doctype html><html><head><title>${quote.quote_number}</title><style>
+    // A window where one is allowed, a hidden frame where it is not. The
+    // desktop shell refuses windows, and this used to give up silently.
+    printView(`<!doctype html><html><head><title>${quote.quote_number}</title><style>
       body{font-family:Arial,Helvetica,sans-serif;padding:36px;color:#111}
       h1{margin:0 0 4px;font-size:22px} .muted{color:#666;font-size:12px}
       table{width:100%;border-collapse:collapse;margin-top:22px;font-size:13px}
@@ -170,9 +171,8 @@ export default function DealDetail() {
         <tr><td>VAT</td><td class="r">${money(quote.vat_amount)}</td></tr>
         <tr class="grand"><td>Total</td><td class="r">${money(quote.total)}</td></tr>
       </table>
-      <div class="terms">${quote.terms}</div></body></html>`);
-    win.document.close(); win.focus();
-    setTimeout(() => { win.print(); win.close(); }, 250);
+      <div class="terms">${quote.terms}</div></body></html>`,
+      { reader: true, width: 800, height: 900 });
   }
 
   if (!deal) return <DetailSkeleton

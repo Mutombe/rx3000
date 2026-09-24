@@ -1,49 +1,46 @@
 import { Label, Sale } from "./types";
 import { money } from "./api";
 import { toast } from "./components/Toast";
+import { printView } from "./printView";
 import { code128Rects, code128Width } from "./code128";
 
-/** Open a print window with standalone HTML — keeps thermal/label output
- *  independent of the app's screen styling. */
+/** Print standalone HTML — keeps thermal/label output independent of the
+ *  app's screen styling.
+ *
+ *  AN IFRAME, NOT A POP-UP.
+ *
+ *  This opened a window. A window is a pop-up, and the desktop shell's WebView
+ *  blocks pop-ups outright with no setting to allow them, so inside the
+ *  installed application this path could not work at all — it only ever
+ *  produced "The print window was blocked. Allow pop-ups for this site", on a
+ *  till where there is no site and no pop-up blocker to find. It was also the
+ *  fallback that every other label route falls back TO, so when direct
+ *  printing failed, the dispensary's last resort was a message about a browser
+ *  setting that does not exist.
+ *
+ *  A hidden iframe prints identically, is not a pop-up, and needs no
+ *  permission from anybody. Same document, same stylesheet, same output.
+ */
 function printHtml(title: string, css: string, body: string) {
-  const win = window.open("", "_blank", "width=420,height=640");
-  if (!win) {
+  // Never a window. A receipt and a label are not read before they are
+  // printed, so a window here is one more thing to close at a counter with a
+  // queue — and in the desktop shell it is a pop-up that is simply refused.
+  const ok = printView(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>` +
+      `<style>${css}</style>` +
+      // Waits for artwork to decode before printing, otherwise the logo comes
+      // out blank. In the document rather than around it, because the frame
+      // owns its own load event and this is the only thing that has to happen
+      // between writing and printing.
+      `</head><body>${body}</body></html>`,
+  );
+  if (!ok) {
     // A toast, not `alert`. This fires exactly when somebody is standing at a
     // counter waiting for a receipt, and a native box freezes the whole
     // application until it is dismissed, so the till stops responding at the
     // one moment it must not.
-    toast.error("The print window was blocked. Allow pop-ups for this site "
-                + "and print again.");
-    return;
+    toast.error("This machine would not open a print view for the document.");
   }
-  win.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>` +
-      `<style>${css}</style></head><body>${body}</body></html>`,
-  );
-  win.document.close();
-  win.focus();
-
-  // Wait for any artwork to decode before printing, otherwise the logo can come
-  // out blank. Falls back to a fixed delay if an image never resolves.
-  const images = Array.from(win.document.images);
-  const ready = Promise.all(
-    images.map((img) =>
-      img.complete
-        ? Promise.resolve()
-        : new Promise<void>((resolve) => {
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-          }),
-    ),
-  );
-  const timeout = new Promise<void>((resolve) => setTimeout(resolve, 1500));
-
-  Promise.race([ready, timeout]).then(() => {
-    setTimeout(() => {
-      win.print();
-      win.close();
-    }, 150);
-  });
 }
 
 const RECEIPT_CSS = `

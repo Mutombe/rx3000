@@ -99,6 +99,11 @@ export default function LabelSheet({
 
   const agentRoll = canPrintLabels(agent);
   const onRoll = roll.labelsGoStraightToRoll() || agentRoll;
+  // Only an ESC/POS roll is given lines of text. A Zebra is sent the designed
+  // sticker as a picture, and a driver is sent it as a PDF, so for both of
+  // those the preview below is the sticker itself.
+  const asLinesOfText = agentRoll
+    || (roll.labelsGoStraightToRoll() && roll.resolvedLabelMode() === "raw");
   const rollName = roll.chosenPrinter()
     || agent?.printers?.label?.port || agent?.printers?.receipt?.port || "";
 
@@ -146,7 +151,15 @@ export default function LabelSheet({
     // the difference between a pharmacy downloading one thing and two.
     if (roll.labelsGoStraightToRoll()) {
       try {
-        for (const l of ready) await roll.printLines(rollLines(l), copies);
+        // THE SAME ROUTE THE DISPENSARY TAKES, decided in one place.
+        //
+        // This called `printLines` directly, which is ESC/POS bytes whatever
+        // the till is set to. On a Zebra that is a job the printer accepts and
+        // discards: the toast said the labels had printed and the roll never
+        // moved. A reprint screen is exactly where that is hardest to spot,
+        // because somebody is already reprinting something that did not come
+        // out the first time.
+        await roll.printLabelsDirect(ready, copies);
         await record();
         toast.ok(`${ready.length * copies} label(s) printed.`);
         onClose();
@@ -235,7 +248,7 @@ export default function LabelSheet({
             of text is the same lie as before, in the other direction, so when
             the roll is the destination the preview is the text the roll gets,
             in a monospaced block at the roll's own width. */}
-        {onRoll ? (
+        {asLinesOfText ? (
           <div className="lbl-preview">
             {labels.map((l, i) => (
               <pre key={i} className="lbl-roll">{asText(rollLines(l), roll.printerWidth())}</pre>

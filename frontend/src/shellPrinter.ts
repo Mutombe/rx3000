@@ -12,6 +12,7 @@
 import { labelLines, receiptLines } from "./deviceAgent";
 import { render, type Line } from "./escpos";
 import { barcodePdf, labelPdf } from "./labelPdf";
+import { labelZpl, zplBytes } from "./labelZpl";
 import { readStored, writeStored } from "./storage";
 import type { Label, Sale } from "./types";
 
@@ -92,16 +93,44 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
   return call<T>(cmd, args);
 }
 
-/** Every printer Windows can see on this machine. Empty in a browser. */
-export async function listPrinters(): Promise<string[]> {
+/** A printer as Windows describes it. The driver is what says which language
+ *  it speaks, so it is carried rather than thrown away. */
+export interface PrinterInfo { name: string; driver: string; port: string }
+
+/** What Windows last said about the printers on this machine.
+ *
+ *  Held because printing has to decide which language to speak and cannot
+ *  wait on an enumeration in the middle of a dispense. Filled the first time
+ *  the printer list is asked for, which every screen that prints does on the
+ *  way in.
+ */
+let known: PrinterInfo[] = [];
+
+export function describe(printer: string): PrinterInfo {
+  return known.find((p) => p.name === printer)
+    ?? { name: printer, driver: "", port: "" };
+}
+
+/** Every printer Windows can see on this machine, with its driver. */
+export async function listPrinterInfo(): Promise<PrinterInfo[]> {
   if (!canPrintDirect()) return [];
   try {
-    return await invoke<string[]>("list_printers");
+    const found = await invoke<PrinterInfo[]>("list_printers");
+    // An older shell answered with plain names. Accept both rather than lose
+    // the printer list to a version mismatch.
+    known = found.map((p) => typeof p === "string"
+      ? { name: p as unknown as string, driver: "", port: "" } : p);
+    return known;
   } catch {
     // A shell that cannot enumerate is not a failure worth a message: the
     // application simply offers the print dialog instead.
     return [];
   }
+}
+
+/** Every printer Windows can see on this machine. Empty in a browser. */
+export async function listPrinters(): Promise<string[]> {
+  return (await listPrinterInfo()).map((p) => p.name);
 }
 
 /** Which printer this till sends labels to, if somebody has chosen one. */
@@ -121,30 +150,75 @@ export function printerWidth(): number {
 
 /** HOW THIS TILL'S LABEL PRINTER IS DRIVEN.
  *
- *  Two ways, and which is right depends entirely on the machine:
+ *  "zpl"   the label is drawn at the printer's own resolution and sent as a
+ *          ZPL graphic, straight to the spooler in RAW mode. This is what a
+ *          Zebra speaks. Nothing has to be installed on the till for it to
+ *          work, because the driver is bypassed entirely.
  *
  *  "page"  the label is a small PDF handed to the printer's own Windows driver.
- *          Works on anything Windows can see, whatever language the printer
- *          speaks, because the driver does the talking. A Zebra on its
- *          ZDesigner driver, a TSC, a Brother, an A4 laser in a pinch.
+ *          Right in principle for any printer Windows can see — but only
+ *          reachable where something on the machine has registered the
+ *          "printto" verb for PDFs. Edge does not. See `print_page` and
+ *          `labelZpl.ts`, which is why "auto" no longer chooses this blind.
  *
  *  "raw"   the label is ESC/POS bytes written straight to the spooler. Faster
  *          and what a receipt-style thermal head wants, and complete nonsense
  *          to a printer that speaks ZPL — it prints blank or prints rubbish,
  *          and never says which.
  *
- *  The default is "page", because it is the one that is right about a printer
- *  nobody has told us anything about. A pharmacy with an ESC/POS roll can say
- *  so once and get the faster path.
+ *  "auto"  work it out from what Windows says the printer is, which is the
+ *          default and what a pharmacy should never have to think about. A
+ *          label printer announces itself: this one is called
+ *          "ZDesigner ZD421-203dpi ZPL", which names the language and the
+ *          resolution. Asking a pharmacist to pick a printer language is
+ *          asking a question the machine already knows the answer to.
  */
-export type LabelMode = "page" | "raw";
+export type LabelMode = "auto" | "zpl" | "page" | "raw";
 
 export function labelMode(): LabelMode {
-  return readStored(MODE) === "raw" ? "raw" : "page";
+  const stored = readStored(MODE);
+  return stored === "raw" || stored === "page" || stored === "zpl" ? stored : "auto";
 }
 
 export function setLabelMode(mode: LabelMode) {
   writeStored(MODE, mode);
+}
+
+/** What a printer's own name and driver say about it.
+ *
+ *  Windows names a label printer after its driver, and a label driver names
+ *  its language and usually its resolution: "ZDesigner ZD421-203dpi ZPL",
+ *  "ZDesigner GK420d (EPL)", "TSC TTP-244". So the answer is already on the
+ *  machine and nobody needs to be asked for it.
+ *
+ *  Deliberately narrow. Claiming a printer speaks ZPL when it does not means
+ *  sending it bytes it will print as rubbish, so anything not recognised is
+ *  left alone and takes the route it took before.
+ */
+export type Language = "zpl" | "unknown";
+
+export function languageOf(printer: string, driver = ""): Language {
+  const said = `${printer} ${driver}`.toLowerCase();
+  // EPL is the older Zebra language and is NOT ZPL: a printer in EPL mode
+  // ignores ZPL completely. Named first so "ZDesigner GK420d (EPL)" is not
+  // caught by the Zebra rule underneath it.
+  if (/\bepl\b|\beltron\b/.test(said)) return "unknown";
+  if (/\bzpl\b|zdesigner|zebra/.test(said)) return "zpl";
+  return "unknown";
+}
+
+/** The printer's resolution in dots per inch.
+ *
+ *  Read off the name where it says so, which a label driver almost always
+ *  does, and 203 otherwise because that is what the overwhelming majority of
+ *  label printers in a pharmacy are. Getting this wrong does not produce a
+ *  wrong label; it produces one printed at the wrong size, which is visible
+ *  immediately and fixable in the printer settings.
+ */
+export function dpiOf(printer: string, driver = ""): number {
+  const found = /(\d{3})\s*dpi/i.exec(`${printer} ${driver}`);
+  const dpi = found ? Number(found[1]) : 0;
+  return dpi === 203 || dpi === 300 || dpi === 600 ? dpi : 203;
 }
 
 /** The sticker on the roll, in millimetres. The label is drawn to this, so it
@@ -214,16 +288,45 @@ export async function printLines(lines: Line[], copies = 1,
  *  printed; throws with the printer's own complaint if it refuses, which is
  *  what the callers fall back to the print dialog on.
  */
+/** How a label will actually be sent, with "auto" worked out.
+ *
+ *  Exported because a preview has to show what the printer is about to be
+ *  given. ZPL and a PDF are both the designed sticker; ESC/POS is lines of
+ *  text and looks nothing like it.
+ */
+export function resolvedLabelMode(printer = printerFor("label")): "zpl" | "page" | "raw" {
+  const chosen = labelMode();
+  if (chosen !== "auto") return chosen;
+  return languageOf(printer, describe(printer).driver) === "zpl" ? "zpl" : "page";
+}
+
 export async function printLabelsDirect(labels: Label[], copies = 1): Promise<number> {
   const printer = printerFor("label");
   if (!printer) throw new Error("No label printer has been chosen on this till.");
-  if (labelMode() === "raw") {
+  const info = describe(printer);
+  const mode = resolvedLabelMode(printer);
+
+  if (mode === "raw") {
     let done = 0;
     for (const label of labels) done += await printLines(labelLines(label, printerWidth()));
     return done * Math.max(1, copies);
   }
+
   const paper = sticker();
   let done = 0;
+  if (mode === "zpl") {
+    const dpi = dpiOf(printer, info.driver);
+    for (let i = 0; i < Math.max(1, copies); i += 1) {
+      for (const label of labels) {
+        await invoke<number>("print_raw", {
+          printer, data: Array.from(zplBytes(labelZpl(label, paper, dpi))),
+        });
+        done += 1;
+      }
+    }
+    return done;
+  }
+
   for (let i = 0; i < Math.max(1, copies); i += 1) {
     for (const label of labels) {
       await printPage(labelPdf(label, paper), "label");
