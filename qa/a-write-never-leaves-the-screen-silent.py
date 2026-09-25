@@ -75,7 +75,7 @@ ROW = ("useOptimisticList", "useRowWork", "closeThenSave", "useDoing", "rowClass
 BUTTON = ("BusyButton",)
 #: The same thing, written by hand: a flag that disables a control or swaps its
 #: label while the request is out. Older than the component and just as real.
-FLAG = r"(busy|saving|pending|working|submitting|sending|posting)"
+FLAG = r"(busy|saving|pending|working|submitting|sending|posting|adding|asking|filing|creating|removing|deleting|closing|settling)"
 HAND = re.compile(
     # disabled={busy === "close"} — the control is out of reach while it works
     r"disabled=\{[^}]*" + FLAG
@@ -98,9 +98,20 @@ MUST_WAIT = {
     "pages/Register.tsx": "an account that claims to exist before it does is a lie with consequences",
 }
 
+#: Writes that are deliberately invisible, with the reason each one is. These
+#: are not oversights: showing them would be the fault.
+QUIET = {
+    "components/ScriptTotals.tsx":
+        "a pricing figure that cannot be worked out must not stop anybody "
+        "dispensing, so it simply does not appear",
+    "components/LabelSheet.tsx":
+        "recording that a label was reprinted must never delay the label; "
+        "a failure warns afterwards and the sticker still goes on the box",
+}
+
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 11
+CEILING = 5
 
 
 def main() -> int:
@@ -112,7 +123,7 @@ def main() -> int:
         name = path.relative_to(SRC).as_posix()
         text = path.read_text(encoding="utf-8")
         writes = len(WRITES.findall(text))
-        if not writes or name in MUST_WAIT:
+        if not writes or name in MUST_WAIT or name in QUIET:
             continue
         total += 1
         if any(h in text for h in ROW):

@@ -22,6 +22,7 @@ import DriverForm from "../components/DriverForm";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { useRowWork } from "../hooks/useRowWork";
 
 export interface Driver {
   id: number; code: string; full_name: string; phone: string;
@@ -60,6 +61,7 @@ export default function Drivers() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const toast = useToast();
+  const work = useRowWork();
 
   const TABS: TabDef<Tab>[] = [
     { key: "working", label: "Drivers", count: rows.length },
@@ -87,15 +89,12 @@ export default function Drivers() {
   useEffect(load, []);
 
   async function retire(d: Driver) {
-    try {
-      const r = await api.delete<{ message: string }>(`/api/drivers/${d.id}`);
-      toast.ok(r.message);
-      load();
-    } catch (e) {
-      // The server refuses while a driver is out with money, and says how
-      // much. Shown as written — "settle the round first" is the answer.
-      toast.error(errorText(e));
-    }
+    // The server refuses while a driver is out with money, and says how much.
+    // Shown as written: "settle the round first" is the answer.
+    await work.run(d.id, "Retiring them…",
+      () => api.delete<{ message: string }>(`/api/drivers/${d.id}`),
+      { ok: (r) => r.message,
+        failed: `${d.full_name} is still on the road.`, after: load });
   }
 
   const holding = rows.reduce((s, d) => s + d.cash_holding, 0);

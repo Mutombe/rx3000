@@ -13,6 +13,7 @@ import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { ArrowLeft } from "@phosphor-icons/react";
+import { useRowWork } from "../hooks/useRowWork";
 
 const PRIORITIES: [string, string][] = [
   ["low", "Low"], ["normal", "Normal"], ["high", "High"], ["urgent", "Urgent"],
@@ -35,6 +36,7 @@ function slaBadge(t: Ticket) {
 
 export default function CaseDetail() {
   const { id } = useParams();
+  const work = useRowWork();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [reply, setReply] = useState("");
@@ -54,19 +56,25 @@ export default function CaseDetail() {
   }, [id]);
 
   async function patch(body: any) {
-    try { setTicket(await api.put<Ticket>(`/api/helpdesk/tickets/${id}`, body)); }
-    catch (e: any) { setError(e.message); }
+    const updated = await work.run(Number(id), "Updating the case…",
+      () => api.put<Ticket>(`/api/helpdesk/tickets/${id}`, body),
+      { failed: "That case was not changed." });
+    if (updated) setTicket(updated);
   }
 
   async function sendReply(e: FormEvent) {
     e.preventDefault();
     if (!reply.trim()) return;
-    try {
-      setTicket(await api.post<Ticket>(`/api/helpdesk/tickets/${id}/messages`, {
-        body: reply, internal_note: internal, from_customer: false,
-      }));
-      setReply("");
-    } catch (err: any) { setError(err.message); }
+    // The box empties on the keystroke and the words come back if it fails,
+    // rather than sitting there looking unsent while the request is out.
+    const body = reply;
+    const note = internal;
+    setReply("");
+    const sent = await work.run(Number(id), "Sending your reply…",
+      () => api.post<Ticket>(`/api/helpdesk/tickets/${id}/messages`,
+                             { body, internal_note: note, from_customer: false }),
+      { failed: "That reply was not sent. Nothing was recorded." });
+    if (sent) setTicket(sent); else setReply(body);
   }
 
   /* The draft lands in the box as it is written, so the staff member can start
