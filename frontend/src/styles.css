@@ -3864,28 +3864,28 @@ img { -webkit-user-drag: none; user-select: none; }
   border: 1px solid var(--line); border-radius: var(--r-md);
   background: var(--surface); overflow: hidden;
 }
-.wl-stats > *, *, .ins-figures > *, .fin-stats > *,
+.wl-stats > *, .ins-figures > *, .fin-stats > *,
 .st-figures > *, .bp-figures > *, .sk-stats > * {
   border: none; border-radius: 0; background: none;
   border-left: 1px solid var(--line);
   padding: var(--s3) var(--s4);
 }
-.wl-stats > :first-child, :first-child, .ins-figures > :first-child,
+.wl-stats > :first-child, .ins-figures > :first-child,
 .fin-stats > :first-child, .st-figures > :first-child,
 .bp-figures > :first-child, .sk-stats > :first-child { border-left: none; }
 /* Two, then one. The same strip is read on a laptop at a counter. */
 @media (max-width: 1100px) {
   .wl-stats, .ins-figures, .fin-stats, .st-figures, .bp-figures,
   .sk-stats { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
-  .wl-stats > *, *, .ins-figures > *, .fin-stats > *,
+  .wl-stats > *, .ins-figures > *, .fin-stats > *,
   .st-figures > *, .bp-figures > *, .sk-stats > * {
     border-left: none; border-top: 1px solid var(--line);
   }
-  .wl-stats > :nth-child(-n+2), :nth-child(-n+2),
+  .wl-stats > :nth-child(-n+2),
   .ins-figures > :nth-child(-n+2), .fin-stats > :nth-child(-n+2),
   .st-figures > :nth-child(-n+2), .bp-figures > :nth-child(-n+2),
   .sk-stats > :nth-child(-n+2) { border-top: none; }
-  .wl-stats > :nth-child(odd), :nth-child(odd),
+  .wl-stats > :nth-child(odd),
   .ins-figures > :nth-child(odd), .fin-stats > :nth-child(odd),
   .st-figures > :nth-child(odd), .bp-figures > :nth-child(odd),
   .sk-stats > :nth-child(odd) { border-right: 1px solid var(--line); }
@@ -4547,6 +4547,10 @@ div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
    the one a driver reads. So the five declare and the address takes the
    remainder. */
 .dlv-no     { width: 8rem; }
+/* Three nodes and two hairlines: 7 + 18 + 7 + 18 + 7 = 57px, plus the
+   cell's own padding. Declared so the column does not take a share of
+   the address, which is the one column here that cannot spare any. */
+.dlv-track  { width: 6rem; }
 .dlv-who    { width: 12rem; }
 .dlv-driver { width: 10rem; }
 .dlv-cod    { width: 8rem; }
@@ -14085,3 +14089,42 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .drv-col-out     { width: 8%; }
 .drv-col-holding { width: 11%; }
 .drv-col-failed  { width: 8%; }
+
+/* ---------------------------------------------------- a journey, on the row
+ *
+ * A waybill is raised, goes out, and is signed for at a door. Shown as a word
+ * that is where it is but not how far from the end: "out" and "delivered" are
+ * the same size on the page and look equally final, so somebody scanning forty
+ * waybills for the ones still moving reads forty words.
+ *
+ * Four pixels a node and a hairline between them. Filled behind you, hollow
+ * ahead. It sits inside a 36px row without touching its neighbours, which is
+ * the only reason a dense table can carry one.
+ */
+.track {
+  display: inline-flex; align-items: center; vertical-align: middle;
+  flex: none;
+}
+.track-step {
+  position: relative; flex: none;
+  width: 7px; height: 7px; border-radius: var(--r-pill);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+}
+/* The line into a node, drawn behind it. On the element rather than between
+   them so a track of any length needs no extra markup. */
+.track-step + .track-step { margin-left: 18px; }
+.track-step + .track-step::before {
+  content: ""; position: absolute; right: 100%; top: 50%;
+  width: 18px; height: 1.5px; transform: translateY(-50%);
+  background: var(--line-strong);
+}
+/* Travelled: the node is filled and the line into it is the ink of the path. */
+.track-step.is-done { background: var(--ink-mid); box-shadow: none; }
+.track-step[data-linked="true"]::before { background: var(--ink-mid); }
+/* It left the path here. Marked, not filled: a failure drawn as an arrival is
+   the row lying about the one thing somebody is looking for. */
+.track-step.is-failed {
+  background: var(--danger-soft);
+  box-shadow: inset 0 0 0 2px var(--danger);
+}

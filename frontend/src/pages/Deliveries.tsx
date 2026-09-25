@@ -26,6 +26,7 @@ import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import { useRowWork } from "../hooks/useRowWork";
+import Track, { waybillStages } from "../components/Track";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -253,6 +254,7 @@ export default function Deliveries() {
                     street. The three that know their own size say so and the
                     address takes what is left. */}
                 <Th className="dlv-no">Waybill</Th>
+                <Th className="dlv-track">Journey</Th>
                 <Th className="dlv-who">Recipient</Th>
                 <Th>Address</Th>
                 <Th className="dlv-driver">Driver</Th>
@@ -283,6 +285,13 @@ export default function Deliveries() {
                     {w.requires_id_check && (
                       <div><span className="badge warn">Check ID at the door</span></div>
                     )}
+                  </td>
+                  {/* Raised, out, signed for. Drawn rather than named: "out"
+                      and "delivered" are the same size as words and look
+                      equally final, and somebody scanning forty waybills for
+                      the ones still moving would read forty of them. */}
+                  <td className="dlv-track">
+                    <Track stages={waybillStages(w.status)} />
                   </td>
                   <td>
                     {w.recipient}
