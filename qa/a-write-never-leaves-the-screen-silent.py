@@ -11,25 +11,35 @@ the row sat looking exactly as it had a second earlier. A row that looks
 untouched is a row somebody presses again, and on a till that means taking the
 money twice.
 
-TWO TIERS, AND A WRITE SHOULD REACH THE SECOND.
+THREE TIERS, AND A WRITE SHOULD REACH THE TOP ONE.
 
-  BusyButton          the button itself disables, spins and changes its label
-                      while it holds the promise. This is the floor: it is
-                      real feedback, and 88 files already have it. It is not
-                      the thing that was asked for, because it tells you the
-                      BUTTON is working and not what is happening to the ROW.
+  the row says it    useOptimisticList for a list whose rows come and go,
+                     useRowWork for a button ON a row that changes it in
+                     place, closeThenSave for a dialog, useDoing for work
+                     that outlives its screen. This is what was asked for.
 
-  useOptimisticList   a list whose rows are created, edited and removed.
-  useRowWork          a button ON a row that changes that row in place.
-  closeThenSave       a dialog that writes and should close on the keystroke.
-  useDoing            a job that outlives the screen that started it.
+  the button says it BusyButton holds the promise, disables, spins and swaps
+                     its label; or a page does the same by hand with a flag.
+                     Real feedback, and most of the product has it. It tells
+                     you the BUTTON is working, not what is happening to the
+                     ROW, which is the difference somebody scanning a table
+                     needs.
 
-A COUNT I GOT WRONG, RECORDED HERE.
+  nothing            the screen is unchanged until the server answers.
 
-The first version of this check did not know about BusyButton and reported a
-hundred files as giving "no sign at all". Most of them were not silent; their
-buttons spin. The honest figure is the one below: silent, and then separately
-the ones whose only feedback is the button.
+TWO COUNTS I GOT WRONG, RECORDED HERE BECAUSE THEY WENT INTO COMMITS.
+
+The first version did not know about BusyButton and called a hundred files
+silent. Most were not: their buttons spin, and 58 files use it.
+
+The second still called 39 silent, because a page can hand-roll the same
+thing — `disabled={busy === "close"}` with the label swapping to "Closing…" —
+and 22 files do exactly that. StockTake does it on all four of its actions and
+was being reported as saying nothing at all.
+
+The honest figure is 17. A number read out of a guard is worth exactly what
+the guard looks at, so this one names every tier it found rather than lumping
+everything that is not the newest mechanism into "silent".
 
 This counts files that write and reach for none of them. It is a file-level
 check: a file with six writes and one optimistic path is not something a
@@ -58,6 +68,14 @@ WRITES = re.compile(r"\bapi\.(post|put|patch|delete)\b")
 ROW = ("useOptimisticList", "useRowWork", "closeThenSave", "useDoing", "rowClass(")
 #: The button says something. Real, but about the button.
 BUTTON = ("BusyButton",)
+#: The same thing, written by hand: a flag that disables a control or swaps its
+#: label while the request is out. Older than the component and just as real.
+FLAG = r"(busy|saving|pending|working|submitting|sending|posting)"
+HAND = re.compile(
+    # disabled={busy === "close"} — the control is out of reach while it works
+    r"disabled=\{[^}]*" + FLAG
+    # busy === "close" ? "Closing…" — the label says what it is doing
+    + r"|" + FLAG + r"[^;\n]{0,70}…")
 
 #: Writes that SHOULD block, with the reason. Not skipped quietly.
 MUST_WAIT = {
@@ -67,12 +85,13 @@ MUST_WAIT = {
 
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 39
+CEILING = 17
 
 
 def main() -> int:
     silent = []
     button_only = []
+    by_hand = []
     total = 0
     for path in sorted(SRC.rglob("*.tsx")):
         name = path.relative_to(SRC).as_posix()
@@ -86,12 +105,18 @@ def main() -> int:
         if any(h in text for h in BUTTON):
             button_only.append((writes, name))
             continue
+        if HAND.search(text):
+            by_hand.append((writes, name))
+            continue
         silent.append((writes, name))
 
     silent.sort(reverse=True)
     button_only.sort(reverse=True)
-    print(f"\n{total} files write. {len(button_only)} say so on the button "
-          f"only; {len(silent)} say nothing at all (ceiling {CEILING}).\n")
+    by_hand.sort(reverse=True)
+    print(f"\n{total} files write.\n"
+          f"  {len(button_only):>3} say so on the button (BusyButton)\n"
+          f"  {len(by_hand):>3} say so on the button, written by hand\n"
+          f"  {len(silent):>3} say nothing at all (ceiling {CEILING})\n")
     for writes, name in silent[:15]:
         print(f"    {writes:>2} write(s)  {name}")
     if len(silent) > 15:
