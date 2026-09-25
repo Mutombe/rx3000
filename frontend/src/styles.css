@@ -781,6 +781,158 @@ kbd, .kbd {
    would be a second mark for one fact. */
 .badge:has(> svg)::before { content: none; }
 
+/* ---------- the quiet primitives ----------
+ *
+ * Drawn from sixteen enterprise interfaces studied side by side. What they
+ * have in common is not a style, it is a set of habits, and these are the five
+ * that do the most work. They are primitives on purpose: a page composes them,
+ * nothing re-invents them, and there is one place to change how the product
+ * states a fact.
+ */
+
+/* A STATE, SAID QUIETLY.
+ *
+ * Fifteen of the sixteen show a row's state as a coloured dot beside plain
+ * text. Only one fills a pill. The reason is density: a table is thirty rows
+ * of which two matter, and thirty filled pills is thirty things shouting at
+ * equal volume, which is the same as none of them shouting.
+ *
+ * `.badge` keeps its job — a count, a category, a schedule code, something
+ * that IS a label. A state is not a label, it is a fact about the row, and it
+ * belongs in the row's own voice with one mark of colour.
+ *
+ * The dot is the disc, the triangle and the square from `.badge`, at the same
+ * sizes and for the same reason: colour alone fails one man in twelve. */
+.state {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  font-size: var(--t-base); font-weight: 500;
+  color: var(--ink-mid); white-space: nowrap;
+}
+.state::before {
+  content: ""; flex: none;
+  width: 7px; height: 7px; border-radius: var(--r-pill);
+  background: currentColor;
+}
+.state.ok { color: var(--ok); }
+.state.warn { color: var(--warn); }
+/* Wants attention: a triangle, as on the badge. */
+.state.warn::before {
+  width: 0; height: 0; border-radius: 0; background: none;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-bottom: 7px solid currentColor;
+}
+.state.danger, .state.bad { color: var(--danger); }
+/* Stops: a square. */
+.state.danger::before, .state.bad::before { border-radius: 1px; }
+/* Nothing has happened to this row yet, which is a state and not an absence. */
+.state.idle { color: var(--ink-faint); }
+.state.idle::before { background: none; box-shadow: inset 0 0 0 1.5px currentColor; }
+/* A state somebody may change from here. The caret is the whole affordance;
+   without it an editable cell looks exactly like a read-only one. */
+.state.settable { cursor: pointer; }
+.state.settable::after {
+  content: ""; flex: none; margin-left: 2px;
+  border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor; opacity: .55;
+}
+.state.settable:hover::after { opacity: 1; }
+
+/* A NUMBER'S MOVEMENT, NEXT TO THE NUMBER.
+ *
+ * Every headline figure in every reference carries its change: an arrow, a
+ * percentage, green up and red down. A figure with no comparison is a figure
+ * nobody can act on — 92 dispensings means nothing until it means "up from
+ * 78". The arrow is drawn rather than typed so it cannot arrive as a dash. */
+.delta {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 6px 1px 4px; border-radius: var(--r-pill);
+  font-size: var(--t-xs); font-weight: 700; letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  background: var(--ok-soft); color: var(--ok);
+}
+.delta::before {
+  content: ""; flex: none;
+  border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+  border-bottom: 5px solid currentColor;
+}
+.delta.down { background: var(--danger-soft); color: var(--danger); }
+.delta.down::before { border-bottom: none; border-top: 5px solid currentColor; }
+/* Unchanged is not nothing, and it is not a dash: it is a flat line. */
+.delta.flat { background: var(--surface-sunk); color: var(--ink-faint); }
+.delta.flat::before {
+  border: none; width: 7px; height: 2px; background: currentColor; border-radius: 1px;
+}
+
+/* FIGURES IN ONE STRIP, DIVIDED BY RULES.
+ *
+ * Four floating cards for four numbers is four borders, four shadows and four
+ * paddings to say one thing. The references put them in a single bordered
+ * container split by vertical rules, which reads as one statement about the
+ * business rather than four unrelated tiles, and takes about a third less
+ * vertical space.
+ *
+ * It wraps to two and then one, and the rules follow, because the same strip
+ * is looked at on a laptop at a counter. */
+.strip {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+  border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: var(--surface); overflow: hidden;
+}
+.strip > * {
+  padding: var(--s3) var(--s4);
+  border-left: 1px solid var(--line);
+  min-width: 0;
+}
+.strip > :first-child { border-left: none; }
+.strip-label {
+  display: block;
+  font-size: var(--t-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.strip-figure {
+  display: flex; align-items: baseline; gap: var(--s2);
+  margin-top: 2px;
+  font-size: var(--t-2xl); font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.strip-say { display: block; margin-top: 2px; font-size: var(--t-sm); color: var(--ink-soft); }
+@media (max-width: 1100px) {
+  .strip { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  .strip > * { border-left: none; border-top: 1px solid var(--line); }
+  .strip > :nth-child(odd) { border-right: 1px solid var(--line); }
+  .strip > :nth-child(-n+2) { border-top: none; }
+}
+@media (max-width: 620px) {
+  .strip { grid-template-columns: 1fr; }
+  .strip > :nth-child(odd) { border-right: none; }
+  .strip > :nth-child(2) { border-top: 1px solid var(--line); }
+}
+
+/* A PROPORTION, DRAWN.
+ *
+ * "23 of 60" is arithmetic the reader has to do. A bar is the same fact
+ * already done. Inline and short, so it sits in a table cell beside the
+ * figure rather than replacing it: the bar is for the glance, the number is
+ * for the decision. */
+.meter {
+  display: inline-block; vertical-align: middle;
+  /* The figure sits beside the bar and has to be told apart from it. Carried
+     here rather than at the call sites because a bar with no air around it is
+     the same mistake every time somebody writes one. */
+  margin-inline-end: var(--s2);
+  width: 100%; max-width: 88px; height: 4px;
+  border-radius: var(--r-pill); background: var(--line-soft);
+  overflow: hidden;
+}
+.meter > span {
+  display: block; height: 100%; border-radius: inherit;
+  background: var(--ink-soft);
+}
+.meter.ok > span { background: var(--ok); }
+.meter.warn > span { background: var(--warn); }
+.meter.danger > span { background: var(--danger); }
+
 /* ---------- badges ---------- */
 /* ONE COLOUR, AND THIS IS NOT IT.
  *
