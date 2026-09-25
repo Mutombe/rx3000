@@ -28,6 +28,7 @@ import { TabStrip } from "../components/PageTabs";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { useRowWork } from "../hooks/useRowWork";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -43,6 +44,7 @@ interface Listing { laybys: LayBy[]; total: number; showing: number }
 
 export default function LayBys() {
   const toast = useToast();
+  const work = useRowWork();
   const confirm = useConfirm();
   const { guarded, prompt } = useStepUp();
 
@@ -154,16 +156,15 @@ export default function LayBys() {
       confirmLabel: "Hand over the goods",
     });
     if (!ok) return;
-    setBusy(`complete-${l.id}`);
-    try {
-      const res = await api.post<{ message: string }>(`/api/laybys/${l.id}/complete`, {});
-      toast.ok(res.message ?? `${l.layby_number} completed.`);
-      load();
-    } catch (e) {
-      toast.error(errorText(e));
-    } finally {
-      setBusy("");
-    }
+    // The row says it is handing over, where the buttons were, and the rest of
+    // the list stays usable. Disabling the button greyed it and said nothing,
+    // so the only sign anything was happening was a button that had stopped
+    // responding.
+    await work.run(l.id, "Handing it over…",
+      () => api.post<{ message: string }>(`/api/laybys/${l.id}/complete`, {}),
+      { ok: (res) => res.message ?? `${l.layby_number} completed.`,
+        failed: `${l.layby_number} was not completed. The goods are still held.`,
+        after: load });
   }
 
   async function cancel(l: LayBy) {
@@ -181,22 +182,16 @@ export default function LayBys() {
     // usual one where the customer simply changed their mind.
     const fee = await askFee(l);
     if (fee === null) return;
-    setBusy(`cancel-${l.id}`);
-    try {
-      const res = await guarded(
+    await work.run(l.id, "Cancelling it…",
+      () => guarded(
         "layby.cancel",
         (token) => api.post<{ message: string }>(
           `/api/laybys/${l.id}/cancel?fee=${fee}`, {}, token),
         l.layby_number,
-      );
-      if (res === CANCELLED) return;
-      toast.ok(res.message ?? `${l.layby_number} cancelled.`);
-      load();
-    } catch (e) {
-      toast.error(errorText(e));
-    } finally {
-      setBusy("");
-    }
+      ),
+      { ok: (res) => (res === CANCELLED ? "" : (res.message ?? `${l.layby_number} cancelled.`)),
+        failed: `${l.layby_number} was not cancelled. It stands as it was.`,
+        after: (res) => { if (res !== CANCELLED) load(); } });
   }
 
   const [feeFor, setFeeFor] = useState<LayBy | null>(null);
@@ -284,16 +279,20 @@ export default function LayBys() {
                               </button>
                               {/* Only once it is paid off. Handing goods over with a
                                   balance outstanding is a decision, not a button. */}
+                              {work.busy(l.id) ? (
+                                <span className="row-doing">{work.saidFor(l.id)}</span>
+                              ) : (<>
                               {l.balance <= 0.005 && (
-                                <button className="small" disabled={busy === `complete-${l.id}`}
+                                <button className="small"
                                   onClick={() => complete(l)}>
                                   Hand over
                                 </button>
                               )}
-                              <button className="small ghost" disabled={busy === `cancel-${l.id}`}
+                              <button className="small ghost"
                                 onClick={() => cancel(l)}>
                                 Cancel
                               </button>
+                              </>)}
                             </>
                           )}
                         </td>

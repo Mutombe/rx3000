@@ -25,6 +25,7 @@ import { Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { useRowWork } from "../hooks/useRowWork";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -62,6 +63,7 @@ export default function Deliveries() {
   const [driverId, setDriverId] = useState("");
   const [bulkDriver, setBulkDriver] = useState("");
   const toast = useToast();
+  const work = useRowWork();
   const confirm = useConfirm();
 
   const TABS: TabDef<Tab>[] = [
@@ -162,47 +164,48 @@ export default function Deliveries() {
 
   async function dispatch() {
     if (!sending) return;
-    try {
-      await api.post(`/api/waybills/${sending.id}/dispatch`, {
-        driver_profile_id: driverId ? Number(driverId) : null,
-      });
-      toast.ok(`${sending.waybill_number} is out for delivery.`);
-      setSending(null); setDriverId("");
-      load();
-    } catch (e: any) {
-      // The server refuses an expired licence and a driver already over their
-      // cash limit, and says which. Shown as written.
-      toast.error(errorText(e));
-    }
+    // The dialog goes on the keystroke and the waybill says what is happening
+    // to it where it sits. The server refuses an expired licence and a driver
+    // already over their cash limit, and says which; that arrives as a message
+    // with the row still in the list to try again.
+    const w = sending;
+    const driver = driverId ? Number(driverId) : null;
+    setSending(null); setDriverId("");
+    await work.run(w.id, "Sending it out…",
+      () => api.post(`/api/waybills/${w.id}/dispatch`, { driver_profile_id: driver }),
+      { ok: `${w.waybill_number} is out for delivery.`,
+        failed: `${w.waybill_number} was not sent out. It is still here.`,
+        after: load });
   }
 
   async function sign() {
     if (!signing) return;
-    try {
-      await api.post(`/api/waybills/${signing.id}/deliver`, {
-        received_by: receivedBy, id_number_seen: idSeen,
-        collected: signing.cod_amount
-          ? (collected === "" ? signing.cod_amount : Number(collected))
-          : null,
-      });
-      toast.ok(`${signing.waybill_number} signed for by ${receivedBy}.`);
-      setSigning(null); setReceivedBy(""); setIdSeen(""); setCollected("");
-      load();
-    } catch (e: any) {
-      toast.error(errorText(e));
-    }
+    const w = signing;
+    const by = receivedBy;
+    const body = {
+      received_by: receivedBy, id_number_seen: idSeen,
+      collected: w.cod_amount
+        ? (collected === "" ? w.cod_amount : Number(collected))
+        : null,
+    };
+    setSigning(null); setReceivedBy(""); setIdSeen(""); setCollected("");
+    await work.run(w.id, "Signing it off…",
+      () => api.post(`/api/waybills/${w.id}/deliver`, body),
+      { ok: `${w.waybill_number} signed for by ${by}.`,
+        failed: `${w.waybill_number} was not signed off. It is still out.`,
+        after: load });
   }
 
   async function markFailed() {
     if (!failing) return;
-    try {
-      await api.post(`/api/waybills/${failing.id}/fail`, { reason });
-      toast.warn(`${failing.waybill_number} did not deliver. The medicine is still ours.`);
-      setFailing(null); setReason("");
-      load();
-    } catch (e: any) {
-      toast.error(errorText(e));
-    }
+    const w = failing;
+    const why = reason;
+    setFailing(null); setReason("");
+    await work.run(w.id, "Marking it undelivered…",
+      () => api.post(`/api/waybills/${w.id}/fail`, { reason: why }),
+      { ok: `${w.waybill_number} did not deliver. The medicine is still ours.`,
+        failed: `${w.waybill_number} was not marked undelivered.`,
+        after: load });
   }
 
   const headline = useMemo(() => {
@@ -263,7 +266,9 @@ export default function Deliveries() {
                   key={w.id}
                   to={w.patient_id ? `/patients/${w.patient_id}` : `/sales/${w.sale_id}`}
                   prefetch={prefetchRoute}
-                  className={w.requires_id_check ? "row-flag" : ""}
+                  className={[work.rowClass(w.id),
+                              w.requires_id_check ? "row-flag" : ""]
+                             .filter(Boolean).join(" ")}
                 >
                   <SelectRow checked={picked.has(w.id)}
                              onChange={() => picked.toggle(w.id)} />
@@ -323,6 +328,14 @@ export default function Deliveries() {
                   </td>
                   <td>{fmtDateTime(w.created_at)}</td>
                   <RowActions>
+                    {/* While the waybill is being sent out, signed off or
+                        marked undelivered, the row says so where the buttons
+                        were. That is the cell with room for a sentence, and
+                        taking the buttons away is what stops a second press
+                        dispatching the same parcel twice. */}
+                    {work.busy(w.id) ? (
+                      <span className="row-doing">{work.saidFor(w.id)}</span>
+                    ) : (<>
                     {w.status === "pending" && (
                       <button className="btn primary sm"
                         /* The driver the dispenser already chose when the
@@ -360,6 +373,7 @@ export default function Deliveries() {
                     {w.status === "failed" && (
                       <span className="muted small">{w.failure_reason}</span>
                     )}
+                    </>)}
                   </RowActions>
                 </RowLink>
               ))}
