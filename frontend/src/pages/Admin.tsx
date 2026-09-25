@@ -693,6 +693,16 @@ export default function Admin() {
                     </tbody>
                   </table>
                 )}
+                {/* SHOWING TWENTY FIVE OF MORE IS A FACT, NOT A DETAIL.
+                    This cut the list at twenty five and stopped. A price list
+                    that ends without saying it has ended reads as the whole
+                    list, and somebody setting prices off it would believe
+                    they had seen everything. */}
+                {fromHistory && fromHistory.lines.length > 25 && (
+                  <p className="muted small">
+                    The 25 most recent of {fromHistory.lines.length.toLocaleString()}.
+                  </p>
+                )}
                 {fromHistory.lines.length > 25 && (
                   <p className="muted small">
                     The 25 most-sold are shown; {fromHistory.would_price} would be priced in all.
