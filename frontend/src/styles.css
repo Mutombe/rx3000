@@ -13737,6 +13737,44 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
             overflow: hidden; line-height: 0; }
 .blobatar svg { width: 100%; height: 100%; display: block; }
 
+/* A PERSON IN A ROW: a face, then their name.
+ *
+ * The face is 22px against a 36px row, which is the whole reason a table this
+ * dense can carry one at all: it sits inside the row's existing height and
+ * drives nothing taller.
+ *
+ * `align-items: center` and not baseline. A face has no baseline, and aligning
+ * a disc to the bottom of the letters hangs it below the line. */
+.person {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  min-width: 0; max-width: 100%;
+}
+.person-said { min-width: 0; }
+/* The name keeps the cell's own type. A person is not a different weight from
+   the row they are in; the face is what makes them findable. */
+.person-name {
+  display: block; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.person-meta {
+  display: block; margin-top: 1px;
+  font-size: var(--t-sm); line-height: 1.3; color: var(--ink-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* A ring on the larger two, so a face on a card or a header has an edge
+   against the surface behind it. A 22px face in a row does not: at that size
+   a ring is most of the face. */
+.person-list .blobatar, .person-head .blobatar {
+  box-shadow: 0 0 0 1px var(--line-soft);
+}
+.person-head { gap: var(--s3); }
+.person-head .person-name { font-size: var(--t-lg); font-weight: 600; white-space: normal; }
+/* Where the name was the row's heading before it had a face, it stays one.
+   The references set a person in the row's ordinary weight and let the face
+   carry recognition; this is for the lists that were bold first, so adopting
+   a face does not quietly restyle them. */
+.person.strong .person-name { font-weight: 600; color: var(--ink); }
+
 /* The picker. A grid of faces, each one a button, with the chosen one stated
    rather than merely tinted: a selection somebody cannot see at a glance is a
    setting they will change twice. */

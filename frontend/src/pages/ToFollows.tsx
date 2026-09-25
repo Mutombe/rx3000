@@ -25,6 +25,7 @@ import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import NewToFollow from "../components/NewToFollow";
 import { Plus } from "@phosphor-icons/react";
+import Person from "../components/Person";
 
 interface Owed {
   id: number;
@@ -250,7 +251,9 @@ export default function ToFollows() {
                 <td className="mono"><Link to={`/to-follows/${o.id}`}>{o.reference}</Link></td>
                 <td>
                   {o.patient_id ? (
-                    <EntityLink to={`/patients/${o.patient_id}`}>{o.patient_name}</EntityLink>
+                    <EntityLink to={`/patients/${o.patient_id}`}>
+                      <Person name={o.patient_name} />
+                    </EntityLink>
                   ) : (
                     <span className="muted">Walk-in</span>
                   )}

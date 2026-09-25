@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
+import Person from "../components/Person";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
@@ -156,9 +157,10 @@ export default function Patients() {
                       Allergy…" wrapped to four lines and took its row from 66px to
                       86px. Two clipped lines, each with the full value on hover. */}
                   <td>
-                    <Link to={`/patients/${p.id}`} className="clip"
+                    <Link to={`/patients/${p.id}`}
                       title={`${p.last_name}, ${p.first_name}`}>
-                      <b>{p.last_name}, {p.first_name}</b>
+                      <Person className="strong"
+                              name={`${p.last_name}, ${p.first_name}`} />
                     </Link>
                     <div className="muted clip">
                       {p.profile_number && <><span className="mono">{p.profile_number}</span> · </>}

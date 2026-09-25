@@ -7,6 +7,7 @@ import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
 import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 /** The words a teller uses, not the words the database uses. */
 const METHOD_LABEL: Record<string, string> = {
@@ -247,7 +248,9 @@ export default function Shifts() {
             {history.map((s) => (
               <RowLink key={s.id} to={`/shifts/${s.id}`}
                        prefetch={prefetchRoute}>
-                <td><EntityLink kind="staff" id={s.user_id}><b>{s.user?.full_name ?? s.user_id}</b></EntityLink></td>
+                <td><EntityLink kind="staff" id={s.user_id}>
+                  <Person className="strong" name={s.user?.full_name ?? String(s.user_id)} />
+                </EntityLink></td>
                 {/* A run number without its till is meaningless, and every shift
                     opened before runs were numbered has neither. Both absent
                     shows a dash rather than "Till  · run 0". */}

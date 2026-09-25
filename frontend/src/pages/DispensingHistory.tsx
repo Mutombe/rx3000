@@ -22,6 +22,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 interface Row {
   id: number;
@@ -274,7 +275,9 @@ export default function DispensingHistory() {
                       {r.is_repeat && <div className="muted small">repeat</div>}
                     </td>
                     <td>
-                      <EntityLink kind="patient" id={r.patient_id}>{r.patient}</EntityLink>
+                      <EntityLink kind="patient" id={r.patient_id}>
+                        <Person name={r.patient} />
+                      </EntityLink>
                       {r.prescriber && (
                         <div className="muted small">
                           <EntityLink kind="prescriber" id={r.prescriber_id}>
@@ -309,7 +312,8 @@ export default function DispensingHistory() {
                     <td className="num">{r.quantity}</td>
                     <td>
                       <EntityLink kind="staff" id={r.dispensed_by_id}>
-                        {r.dispensed_by || r.pharmacist_initial || "none"}
+                        <Person name={r.dispensed_by || r.pharmacist_initial}
+                                absent="Dispenser not recorded" />
                       </EntityLink>
                     </td>
                     {/* Paid, part paid, or owed, and by whom. The commonest

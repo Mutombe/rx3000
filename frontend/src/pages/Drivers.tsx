@@ -19,6 +19,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
+import Person from "../components/Person";
 
 export interface Driver {
   id: number; code: string; full_name: string; phone: string;
@@ -205,7 +206,7 @@ export default function Drivers() {
                   <RowLink key={d.id} to={`/drivers/${d.id}`} prefetch={prefetchRoute}
                     className={d.licence_expired || d.over_cod_limit ? "row-flag" : ""}>
                     <td>
-                      <b>{d.full_name}</b>
+                      <Person className="strong" name={d.full_name} />
                       <div className="muted small">
                         {d.phone}{d.branch && ` · ${d.branch}`}
                       </div>

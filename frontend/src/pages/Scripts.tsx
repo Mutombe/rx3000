@@ -24,6 +24,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
+import Person from "../components/Person";
 
 interface Row {
   id: number;
@@ -250,10 +251,12 @@ export default function Scripts() {
                     </td>
                     <td>
                       <EntityLink kind="patient" id={r.patient_id}>
-                        {r.patient || "none"}
+                        <Person name={r.patient} absent="No patient on this script" />
                       </EntityLink>
                     </td>
-                    <td className="muted">{r.doctor || "none"}</td>
+                    <td className="muted">
+                      <Person name={r.doctor} absent="No prescriber recorded" />
+                    </td>
                     <td className="num">{r.items}</td>
                     <td className="num">
                       {r.dispensed_count}

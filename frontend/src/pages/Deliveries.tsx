@@ -22,6 +22,7 @@ import { useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
 import NewDelivery from "../components/NewDelivery";
 import { Plus } from "@phosphor-icons/react";
+import Person from "../components/Person";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -294,9 +295,9 @@ export default function Deliveries() {
                         "ring them" or "what else are they carrying". */}
                     {w.driver_profile_id
                       ? <EntityLink kind="driver" id={w.driver_profile_id}>
-                          {w.driver}
+                          <Person name={w.driver} />
                         </EntityLink>
-                      : w.driver || <span className="muted">None</span>}
+                      : <Person name={w.driver} absent="No driver assigned" />}
                     {w.driver_phone && (
                       <div className="muted small">{w.driver_phone}</div>
                     )}
