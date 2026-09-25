@@ -1179,6 +1179,19 @@ label {
    subtraction is the header and the shell's own padding; `min()` keeps it
    sane on a short laptop screen in landscape. */
 .empty-page { min-height: min(60vh, 32rem); }
+/* INSIDE A TABLE, where a table's own answer belongs.
+   Spanning every column keeps the header above it, so a reader can still see
+   what the columns would have been — which is most of how they tell "there
+   are none of these" apart from "this screen is broken". Shorter than the
+   page-level one: a table sits inside a card that has already committed to a
+   height, and 14rem of nothing inside it reads as a fault of its own. */
+.empty-row > td { padding: 0; border-bottom: none; }
+.empty-row .empty { min-height: 8rem; padding: var(--s6) var(--s5); }
+.empty-row:hover > td { background: none; }
+/* A table cell is kept on one line so a date or a figure is never broken in
+   half. An empty state is a sentence and has to wrap, or it runs off the side
+   of the card with its measure correctly set and no way to use it. */
+.empty-row .empty, .empty-row .empty * { white-space: normal; }
 .clamp-2 {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden; line-height: 1.35;

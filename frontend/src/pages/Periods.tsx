@@ -20,6 +20,7 @@ import BusyButton from "../components/BusyButton";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { EmptyRow } from "../components/Empty";
 
 interface VatReturn {
   period_code: string; period_name: string; period_status: string;
@@ -264,7 +265,13 @@ export default function Periods() {
                 </td>
               </tr>
             ))}
-          </tbody>
+          
+              {periods.length === 0 && (
+                <EmptyRow cols={7} title="No trading period has been opened">
+                  A period is the stretch of trading that gets signed off and locked. Until one is opened, nothing can be closed off.
+                </EmptyRow>
+              )}
+            </tbody>
         </table>
         </Refreshable>
       </div>

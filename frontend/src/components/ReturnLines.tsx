@@ -25,6 +25,7 @@ import Checkbox from "./Checkbox";
 import { useToast } from "./Toast";
 import { SaleItem } from "../types";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 interface PlanLine {
   sale_item_id: number; product_id: number; description: string;
@@ -138,6 +139,12 @@ export default function ReturnLines(
                   </tr>
                 );
               })}
+            
+              {items.length === 0 && (
+                <EmptyRow cols={5} title="Nothing on this order can be returned">
+                  A line can be sent back while some of what was delivered is still unreturned. Every line here has already gone back, or none was received.
+                </EmptyRow>
+              )}
             </tbody>
           </table>
         </div>

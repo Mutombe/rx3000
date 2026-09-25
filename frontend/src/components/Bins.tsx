@@ -30,6 +30,7 @@ import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 interface Bin {
   bin: string;
@@ -271,7 +272,13 @@ export default function Bins() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
+              
+              {lines.length === 0 && (
+                <EmptyRow cols={5} title="Nothing is in this bin">
+                  A bin holds what was put away into it. Empty means the stock that was here has all been picked, or nothing has been put away here yet.
+                </EmptyRow>
+              )}
+            </tbody>
             </table>
           </div>
         </Refreshable>

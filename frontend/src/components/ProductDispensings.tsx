@@ -19,6 +19,7 @@ import { EntityLink, TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 import Person from "./Person";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 interface Row {
   id: number;
@@ -144,7 +145,13 @@ export default function ProductDispensings({ productId }: { productId: number })
                       </td>
                     </tr>
                   ))}
-                </tbody>
+                
+              {shown.length === 0 && (
+                <EmptyRow cols={6} title="This medicine has never been dispensed">
+                  Every hand-over of this line would appear here, newest first.
+                </EmptyRow>
+              )}
+            </tbody>
               </table>
             </div>
 

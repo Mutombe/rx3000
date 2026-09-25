@@ -22,6 +22,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { EmptyRow } from "../components/Empty";
 
 interface Scheme {
   id: number; name: string; scheme_code: string; currency_code: string;
@@ -284,6 +285,13 @@ export default function SchemeCalendar() {
                     </td>
                   </tr>
                 ))}
+                {schemes.length === 0 && (
+                  <EmptyRow cols={7} title="No funder has a calendar yet">
+                    A calendar is when a scheme wants its claims in and when it
+                    pays. Without one this screen cannot tell you which cut-off
+                    is next, and the dates come from the scheme's own contract.
+                  </EmptyRow>
+                )}
               </tbody>
             </table>
           </div>

@@ -25,6 +25,7 @@ import FileDrop from "./FileDrop";
 import { FilterToggle } from "./Filters";
 import { useToast } from "./Toast";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 interface Line {
   row: number; key: string; name: string; action: string; reason: string;
@@ -393,7 +394,13 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
                     <td className="wrap muted small">{l.reason}</td>
                   </tr>
                 ))}
-              </tbody>
+              
+              {shown.length === 0 && (
+                <EmptyRow cols={8} title="Nothing has been read from the file yet">
+                  Choose a spreadsheet and each row appears here with what would happen to it, before anything is written.
+                </EmptyRow>
+              )}
+            </tbody>
             </table>
           </div>
           {result.truncated && (

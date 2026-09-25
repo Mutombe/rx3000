@@ -20,6 +20,7 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { EmptyRow } from "../components/Empty";
 
 interface Deferred {
   id: number;
@@ -207,6 +208,12 @@ export default function DeferredClaims() {
                   </RowActions>
                 </RowLink>
               ))}
+              {shown.length === 0 && (
+                <EmptyRow cols={6} title="No claim is waiting to be sent">
+                  A claim lands here when the scheme could not be reached at
+                  the counter. An empty list means every one of them has gone.
+                </EmptyRow>
+              )}
             </tbody>
           </table>
           </Refreshable>

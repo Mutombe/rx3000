@@ -31,6 +31,7 @@ import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 /** What the morning sweep can find, worst first. Labelled the way a person
  *  would say them rather than the way they are stored.
@@ -282,6 +283,13 @@ export default function StockWatch() {
                   </td>
                 </tr>
               ))}
+              {items.length === 0 && (
+                <EmptyRow cols={4} title="Nothing is being watched">
+                  Stock raises a watch on its own when a batch is near its
+                  expiry or a line has gone below its reorder level. An empty
+                  list is the shelf agreeing with the system.
+                </EmptyRow>
+              )}
             </tbody>
           </table>
         </div>

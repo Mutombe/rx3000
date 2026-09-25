@@ -22,6 +22,7 @@ import { api, errorText } from "../api";
 import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
 import Th from "../components/Th";
+import { EmptyRow } from "../components/Empty";
 
 interface Waiting {
   product_id: number;
@@ -164,7 +165,13 @@ export default function RfqAuto({ onClose, onRaised }: {
                               <td className="num">{w.wanted}</td>
                             </tr>
                           ))}
-                        </tbody>
+                        
+              {auto.waiting.length === 0 && (
+                <EmptyRow cols={4} title="Nothing has fallen below its reorder level">
+                  This is the list an order would be raised from. An empty one means the shelf is above every reorder level set for it.
+                </EmptyRow>
+              )}
+            </tbody>
                       </table>
                     </div>
                     {auto.waiting.length >= auto.most_lines && (

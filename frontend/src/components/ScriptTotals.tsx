@@ -20,6 +20,7 @@ import { CaretDown, CaretRight, Warning } from "@phosphor-icons/react";
 import { api, money } from "../api";
 import { TERMS, patientOwes } from "../terms";
 import Th from "./Th";
+import { EmptyRow } from "./Empty";
 
 interface Line {
   product_id: number; description: string; quantity: number;
@@ -201,7 +202,13 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
                 </td>
               </tr>
             ))}
-          </tbody>
+          
+              {data.lines.length === 0 && (
+                <EmptyRow cols={6} title="Nothing has been dispensed on this script">
+                  The items, what they were worth and what the scheme took appear here once something goes out.
+                </EmptyRow>
+              )}
+            </tbody>
         </table>
       )}
     </div>
