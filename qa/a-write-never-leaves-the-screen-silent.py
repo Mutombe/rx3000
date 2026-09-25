@@ -11,12 +11,25 @@ the row sat looking exactly as it had a second earlier. A row that looks
 untouched is a row somebody presses again, and on a till that means taking the
 money twice.
 
-FOUR MECHANISMS, AND A WRITE SHOULD USE ONE.
+TWO TIERS, AND A WRITE SHOULD REACH THE SECOND.
+
+  BusyButton          the button itself disables, spins and changes its label
+                      while it holds the promise. This is the floor: it is
+                      real feedback, and 88 files already have it. It is not
+                      the thing that was asked for, because it tells you the
+                      BUTTON is working and not what is happening to the ROW.
 
   useOptimisticList   a list whose rows are created, edited and removed.
   useRowWork          a button ON a row that changes that row in place.
   closeThenSave       a dialog that writes and should close on the keystroke.
   useDoing            a job that outlives the screen that started it.
+
+A COUNT I GOT WRONG, RECORDED HERE.
+
+The first version of this check did not know about BusyButton and reported a
+hundred files as giving "no sign at all". Most of them were not silent; their
+buttons spin. The honest figure is the one below: silent, and then separately
+the ones whose only feedback is the button.
 
 This counts files that write and reach for none of them. It is a file-level
 check: a file with six writes and one optimistic path is not something a
@@ -41,7 +54,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "frontend" / "src"
 
 WRITES = re.compile(r"\bapi\.(post|put|patch|delete)\b")
-HAS = ("useOptimisticList", "useRowWork", "closeThenSave", "useDoing", "rowClass(")
+#: The row or the list says something.
+ROW = ("useOptimisticList", "useRowWork", "closeThenSave", "useDoing", "rowClass(")
+#: The button says something. Real, but about the button.
+BUTTON = ("BusyButton",)
 
 #: Writes that SHOULD block, with the reason. Not skipped quietly.
 MUST_WAIT = {
@@ -51,11 +67,12 @@ MUST_WAIT = {
 
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 98
+CEILING = 39
 
 
 def main() -> int:
     silent = []
+    button_only = []
     total = 0
     for path in sorted(SRC.rglob("*.tsx")):
         name = path.relative_to(SRC).as_posix()
@@ -64,12 +81,17 @@ def main() -> int:
         if not writes or name in MUST_WAIT:
             continue
         total += 1
-        if not any(h in text for h in HAS):
-            silent.append((writes, name))
+        if any(h in text for h in ROW):
+            continue
+        if any(h in text for h in BUTTON):
+            button_only.append((writes, name))
+            continue
+        silent.append((writes, name))
 
     silent.sort(reverse=True)
-    print(f"\n{len(silent)} of {total} files that write give no sign of doing "
-          f"it (ceiling {CEILING}).\n")
+    button_only.sort(reverse=True)
+    print(f"\n{total} files write. {len(button_only)} say so on the button "
+          f"only; {len(silent)} say nothing at all (ceiling {CEILING}).\n")
     for writes, name in silent[:15]:
         print(f"    {writes:>2} write(s)  {name}")
     if len(silent) > 15:

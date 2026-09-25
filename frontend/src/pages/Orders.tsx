@@ -13,6 +13,7 @@ import BusyButton from "../components/BusyButton";
 import ReceiveDelivery from "../components/ReceiveDelivery";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { useRowWork } from "../hooks/useRowWork";
 
 type Tab = "orders" | "low" | "approve";
 
@@ -46,6 +47,7 @@ export default function Orders() {
   const lowStockRows = useClientPage<Product>(lowStock, 25);
   const [expanded, setExpanded] = useState<number | null>(null);
   const toast = useToast();
+  const work = useRowWork();
   const [busy, setBusy] = useState(false);
   /** Low lines with nobody to buy them from, after the last sweep. */
   const [orphans, setOrphans] = useState<Orphan[]>([]);
@@ -65,14 +67,15 @@ export default function Orders() {
   /** Sign one off. The server refuses if you raised it yourself, which is
    *  the whole of the control, and says so. */
   async function approve(order: PurchaseOrder) {
-    try {
-      const said = await api.post<{ message: string }>(`/api/orders/${order.id}/approve`);
-      toast.ok(said.message);
-      loadApprovals();
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That order could not be approved."));
-    }
+    // An order sits in somebody's approval queue and is approved with a press.
+    // The row said nothing while the server thought about it, so a buyer
+    // clearing a queue could not tell an approved order from one they had not
+    // pressed yet.
+    await work.run(order.id, "Approving it…",
+      () => api.post<{ message: string }>(`/api/orders/${order.id}/approve`),
+      { ok: (said) => said.message,
+        failed: `${order.order_number} was not approved. It is still waiting.`,
+        after: () => { loadApprovals(); load(); } });
   }
   const [raising, setRaising] = useState(false);
   const [receiving, setReceiving] = useState<PurchaseOrder | null>(null);
@@ -133,22 +136,17 @@ export default function Orders() {
   /** Send it for real. This used to set the status to "sent" and the order
    *  never left the building. */
   async function send(order: PurchaseOrder) {
-    try {
-      const said = await api.post<{ message: string }>(`/api/orders/${order.id}/send`);
-      toast.ok(said.message);
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That order could not be sent."));
-    }
+    await work.run(order.id, "Sending it to the supplier…",
+      () => api.post<{ message: string }>(`/api/orders/${order.id}/send`),
+      { ok: (said) => said.message,
+        failed: `${order.order_number} was not sent. It is still here to send.`,
+        after: load });
   }
 
   async function setStatus(order: PurchaseOrder, status: string) {
-    try {
-      await api.post(`/api/orders/${order.id}/status?status=${status}`);
-      load();
-    } catch (e: any) {
-      toast.error(errorText(e));
-    }
+    await work.run(order.id, `Marking it ${status}…`,
+      () => api.post(`/api/orders/${order.id}/status?status=${status}`),
+      { failed: `${order.order_number} is still ${order.status}.`, after: load });
   }
 
   const badge = (s: string) =>
