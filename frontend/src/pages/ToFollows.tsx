@@ -242,7 +242,7 @@ export default function ToFollows() {
                 to={`/to-follows/${o.id}`}
                 prefetch={prefetchRoute}
                 className={[o.overdue ? "row-flag" : "",
-                            saving.has(o.id) ? "is-saving" : ""].filter(Boolean).join(" ")}
+                            saving.has(o.id) ? "row-saving" : ""].filter(Boolean).join(" ")}
               >
                 <td className="mono"><Link to={`/to-follows/${o.id}`}>{o.reference}</Link></td>
                 <td>

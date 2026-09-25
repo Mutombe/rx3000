@@ -6775,6 +6775,39 @@ table.dt.sub th { font-size: var(--t-xs); }
 }
 .row-removing { animation: row-out var(--m) var(--m-ease) both; pointer-events: none; }
 
+/* WHAT IS HAPPENING TO THIS ROW, IN WORDS.
+ *
+ * The dimming and the travelling bar say that SOMETHING is happening. They do
+ * not say what, and on a till the difference matters: a cashier who pressed
+ * "Take $14.30" needs to see that this row is taking the money, not that this
+ * row is vaguely busy. A row that looks the same as it did before the button
+ * was pressed is a row somebody presses again, and taking the money twice is
+ * the one mistake a till must not make easy.
+ *
+ * It sits inline, on the row's own line, because the row is one line and this
+ * is a continuation of it rather than a second row's worth of chrome. It is
+ * NOT a spinner: a list of five settling rows with five spinners in it is a
+ * list nobody can read, which is the same argument the optimistic rows above
+ * are already making. */
+.row-doing {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-left: var(--s2);
+  font-size: var(--t-sm); font-weight: 600; color: var(--accent);
+  white-space: nowrap;
+}
+.row-doing::before {
+  content: ""; flex: none; width: 5px; height: 5px;
+  border-radius: var(--r-pill); background: currentColor;
+  animation: row-doing-beat 1.1s ease-in-out infinite;
+}
+@keyframes row-doing-beat {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .35; transform: scale(.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-doing::before { animation: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dt tbody tr, .row-removing { animation: none; }
   .row-creating > td:first-child::before,

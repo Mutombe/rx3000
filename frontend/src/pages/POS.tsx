@@ -93,6 +93,18 @@ export default function POS() {
   // Scans from whichever scanner this workstation has, phone or wedge.
   useScanFeed("Till", (code, _format, source) => void fromPhone(code, source));
   const doing = useDoing();
+  /* SALES BEING SETTLED RIGHT NOW.
+     Held as a set of ids rather than a single "busy" flag, because the point
+     of settling without waiting is that a cashier can take the money on three
+     sales in a row while the first is still going. One flag would make the
+     second press look like it did nothing. */
+  const [settlingNow, setSettlingNow] = useState<Set<number>>(new Set());
+  const markSettling = (id: number, on: boolean) =>
+    setSettlingNow((all) => {
+      const next = new Set(all);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
   const { guarded, prompt: stepUpPrompt } = useStepUp();
   /** The sale a cashier is taking part of, if any. */
   const [partOf, setPartOf] = useState<Sale | null>(null);
@@ -851,6 +863,7 @@ export default function POS() {
     // again, and the message says so rather than assuming a form is still open
     // behind it.
     setSettling(null);
+    markSettling(sale.id, true);
     try {
       const owed = patientOwes(sale);
       const claim = sale.claim;
@@ -918,6 +931,11 @@ export default function POS() {
     } catch (e: any) {
       toast.error(errorText(
         e, `${sale.sale_number} was not settled. It is still awaiting payment.`));
+    } finally {
+      // Whichever way it went, the row stops saying it is working. On success
+      // loadPending has already taken it off the list; on failure it is still
+      // there, in its ordinary state, ready to be tried again.
+      markSettling(sale.id, false);
     }
   }
 
@@ -1025,11 +1043,13 @@ export default function POS() {
             <tbody>
               {pending.map((s) => (
                 <tr key={s.id}
-                    className={settleId === s.id ? "row-flag"
-                      : outWith[String(s.id)] ? "row-muted" : ""}>
+                    className={[settlingNow.has(s.id) ? "row-saving" : "",
+                                settleId === s.id ? "row-flag"
+                                  : outWith[String(s.id)] ? "row-muted" : ""]
+                               .filter(Boolean).join(" ")}>
                   <td className="mono">
                     <EntityLink kind="sale" id={s.id}>{s.sale_number}</EntityLink>
-                    {settleId === s.id && <div className="muted small">just dispensed</div>}
+                    {settleId === s.id && <span className="muted small"> · just dispensed</span>}
                     {/* On a driver's account. Said on the row, because the row
                         is where somebody is about to press Cash. */}
                     {outWith[String(s.id)] && (
@@ -1071,7 +1091,9 @@ export default function POS() {
                         driver collects at the door and hands it in, and that
                         hand-in is what settles it. A cashier taking it as
                         well collects the same money twice. */}
-                    {outWith[String(s.id)] ? (
+                    {settlingNow.has(s.id) ? (
+                      <span className="row-doing">Taking the money…</span>
+                    ) : outWith[String(s.id)] ? (
                       <span className="badge warn" title={
                         `${outWith[String(s.id)].driver} is to collect `
                         + `${money(outWith[String(s.id)].cod_amount)} at the door. `
