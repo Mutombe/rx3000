@@ -85,7 +85,7 @@ MUST_WAIT = {
 
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 17
+CEILING = 16
 
 
 def main() -> int:

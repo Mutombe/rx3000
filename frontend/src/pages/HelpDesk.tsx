@@ -13,6 +13,7 @@ import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
+import { useRowWork } from "../hooks/useRowWork";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -106,6 +107,7 @@ export default function HelpDesk() {
   const [companies, setCompanies] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
   const toast = useToast();
+  const work = useRowWork();
 
   function load() {
     const q = filter === "breached" ? "breached=true" : `status=${filter}`;
@@ -141,22 +143,29 @@ export default function HelpDesk() {
   async function sendReply(e: FormEvent) {
     e.preventDefault();
     if (!selected || !reply.trim()) return;
-    try {
-      const updated = await api.post<Ticket>(`/api/helpdesk/tickets/${selected.id}/messages`, {
-        body: reply, internal_note: internal,
-      });
-      setSelected(updated); setReply(""); setInternal(false);
-      load();
-    } catch (err: any) { toast.error(errorText(err)); }
+    // The box empties on the keystroke and the thread says a reply is going,
+    // rather than the text sitting there while the request is out looking like
+    // nothing was pressed. A failure says what was not sent and the words are
+    // handed back so nobody retypes them.
+    const ticket = selected;
+    const body = reply;
+    const note = internal;
+    setReply(""); setInternal(false);
+    const sent = await work.run(ticket.id, "Sending your reply…",
+      () => api.post<Ticket>(`/api/helpdesk/tickets/${ticket.id}/messages`,
+                             { body, internal_note: note }),
+      { failed: "That reply was not sent. Nothing was recorded." });
+    if (sent) { setSelected(sent); load(); }
+    else setReply(body);
   }
 
   async function patch(patchBody: Record<string, unknown>) {
     if (!selected) return;
-    try {
-      const updated = await api.put<Ticket>(`/api/helpdesk/tickets/${selected.id}`, patchBody);
-      setSelected(updated);
-      load();
-    } catch (err: any) { toast.error(errorText(err)); }
+    const ticket = selected;
+    const updated = await work.run(ticket.id, "Updating the ticket…",
+      () => api.put<Ticket>(`/api/helpdesk/tickets/${ticket.id}`, patchBody),
+      { failed: "That ticket was not changed." });
+    if (updated) { setSelected(updated); load(); }
   }
 
   const ai = useAiDraft(setReply);
@@ -313,7 +322,13 @@ export default function HelpDesk() {
                     options={[{ value: "", label: "Rate CSAT…" }, ...[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: `${n} / 5` }))]}
                   />
                 )}
-                <button type="submit" disabled={!reply.trim()}>Send</button>
+                {/* The reply is already out of the box, so this is the
+                    only thing on screen that can say where it went. */}
+                {selected && work.busy(selected.id) ? (
+                  <span className="row-doing">{work.saidFor(selected.id)}</span>
+                ) : (
+                  <button type="submit" disabled={!reply.trim()}>Send</button>
+                )}
               </div>
             </form>
 
