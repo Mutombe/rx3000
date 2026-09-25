@@ -4617,10 +4617,48 @@ main :where(div, section, form):has(> table) { overflow-x: auto; }
    the clip on the value next to it.
    `white-space: nowrap` keeps a date whole, but it also kept the "overdue" chip
    on the same line as the date, where it was the part that got clipped away —
-   the table stopped saying which of these were late. `display: block` breaks the
-   line regardless of nowrap, so the value stays intact on one line and the chip
-   sits under it, which is the layout that was there before. */
-main td > .badge { display: block; width: fit-content; margin-top: 2px; }
+   the table stopped saying which of these were late. Breaking the line
+   regardless of nowrap keeps the value intact on one line with the chip under
+   it, which is the layout that was there before.
+
+   FLEX, NOT BLOCK, AND THAT IS THE WHOLE OF IT.
+
+   This said `display: block`, which took the badge out of flex layout and
+   quietly broke the status marks on every table in the system. A badge lays
+   its mark out as a flex child; in a block box that mark becomes an inline
+   box, and an inline box ignores width and height. So the disc and the square
+   collapsed to nothing and disappeared, while the triangle — drawn with
+   borders, which inline boxes do honour — survived, sat on the text baseline,
+   and hung out below the bottom of the pill.
+
+   That is why it looked like only the amber badges were broken: the other two
+   were not misplaced, they were gone. Waiting, Overdue and queued all showed a
+   stray triangle under the pill; sent and Cancelled showed no mark at all.
+
+   `display: flex` is block level too, so the line still breaks and
+   `width: fit-content` still shrink wraps it. The mark simply stays a flex
+   child, which is what it was written as. */
+main td > .badge { display: flex; width: fit-content; margin-top: 2px; }
+
+/* A BADGE CARRYING A SENTENCE WRAPS RATHER THAN LOSES ITS END.
+ *
+ * `.badge` is `white-space: nowrap`, which is right for a badge that says one
+ * word. Thirty-four of them say a phrase: "Check ID at the door", "part
+ * delivery, order stays open", "Not captured, cannot be reconciled". In a
+ * fixed-layout table, where a column is the width it was declared and not the
+ * width of its content, nowrap means such a badge is cut off at the column
+ * edge — and the deliveries table showed a driver "Check ID at the", which is
+ * not a shorter instruction, it is a different one.
+ *
+ * Wrapping inside a cell costs a line of row height on the few badges that
+ * need it and nothing at all on the rest: a single word has no wrap
+ * opportunity, so "Waiting", "sent" and "Overdue" are untouched.
+ *
+ * The mark goes to the top on a badge that has become a paragraph, because
+ * centred against three lines it points at the middle of a sentence rather
+ * than at the state it marks. */
+main td .badge { white-space: normal; }
+main td .badge::before { align-self: flex-start; margin-top: 0.36em; }
 main td > .badge:only-child { margin-top: 0; }
 
 /* ---------- checkbox ----------
@@ -12622,6 +12660,18 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   gap: var(--s2);
 }
 .stock-scan-row > :first-child { flex: 1 1 22rem; min-width: 0; }
+/* THE PANEL STARTS WHERE THE FIELD STARTS.
+ *
+ * `.scan-catch` carries a top margin because it usually appears UNDER the
+ * thing that was scanned into. Here it appears BESIDE it, and that margin
+ * became a step: the panel's top edge sat a space lower than the top of the
+ * field it belongs to, on a row where the two are plainly meant to line up.
+ *
+ * The margin is not replaced with anything, because the row already has a
+ * gap and a flex gap is a row gap once the row wraps. So on a narrow screen,
+ * where the panel drops under the field, the separation is still there and
+ * comes from the container rather than from the panel. */
+.stock-scan-row > .scan-catch { margin-top: 0; }
 /* The label and the borrow-a-phone button share a line above the search box,
    so the control is where somebody looks when the shelf is in front of them
    and the counter is not. */
