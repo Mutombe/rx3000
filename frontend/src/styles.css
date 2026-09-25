@@ -4862,7 +4862,51 @@ main :where(div, section, form):has(> table) { overflow-x: auto; }
    `display: flex` is block level too, so the line still breaks and
    `width: fit-content` still shrink wraps it. The mark simply stays a flex
    child, which is what it was written as. */
-main td > .badge { display: flex; width: fit-content; margin-top: 2px; }
+/* ONE ROW IS ONE LINE.
+ *
+ * A hundred and fifty-eight cells in sixty-seven files put a second line
+ * underneath the value: a telephone number under a name, a payment state
+ * under an invoice number, a prescriber under a patient. Each one looked
+ * reasonable where it was written. Together they made every table in the
+ * product ragged — a row was one line tall or two depending on whether that
+ * particular record happened to have a telephone number, so the eye cannot
+ * use the row height to track across a wide table, which is the one thing
+ * row height is for.
+ *
+ * There is a detail page for every row in this product. Somebody who wants
+ * the rest clicks; the table shows what is needed to choose which row to
+ * click. So the second line becomes a continuation of the first.
+ *
+ * Scoped to `.muted` deliberately. A muted block inside a cell is a text
+ * afterthought and belongs on the line. A `div` with no class, or one holding
+ * a form row, a list or a set of actions, is real layout and is left alone —
+ * flattening those would break the thing they are arranging. */
+main td > .muted {
+  display: inline; margin-left: var(--s2);
+}
+/* A badge sits ON the line, not under it.
+ *
+ * This was `display: flex`, which is block level, so every chip in every table
+ * took a line of its own: the schedule under the medicine, "overdue" under the
+ * date, "altered" under the script number. That is the same raggedness as the
+ * muted second line above, in a different costume.
+ *
+ * `inline-flex` is the whole fix. It is a flex container, so the status mark
+ * inside it still lays out as a flex child and still appears — which is the
+ * fault a-status-mark-stays-in-its-badge exists to catch — and it is inline,
+ * so it sits beside the value it qualifies.
+ *
+ * The line break this used to force was solving a real problem: a nowrap cell
+ * kept the chip on the date's line where the chip was the part clipped away.
+ * That is handled now by letting a badge inside a cell wrap its own text
+ * rather than by giving it a line of its own. */
+main td > .badge {
+  display: inline-flex; width: auto; margin-top: 0;
+  vertical-align: middle;
+}
+/* Air between the value and the chip that qualifies it. Only when it follows
+   something, so a cell whose only content is a badge is not indented. */
+main td > .badge:not(:first-child) { margin-left: var(--s2); }
 
 /* A BADGE CARRYING A SENTENCE WRAPS RATHER THAN LOSES ITS END.
  *

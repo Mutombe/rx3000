@@ -267,17 +267,12 @@ export default function DispensingHistory() {
                       <EntityLink kind="prescription" id={r.prescription_id}>
                         {r.rx_number || "none"}
                       </EntityLink>
-                      {r.is_repeat && <div className="muted small">repeat</div>}
+                      {r.is_repeat && <span className="muted small"> · repeat</span>}
                     </td>
                     <td>
                       <EntityLink kind="patient" id={r.patient_id}>
                         <Person name={r.patient} />
                       </EntityLink>
-                      {r.prescriber && (
-                        <div className="muted small">
-                          <EntityLink kind="prescriber" id={r.prescriber_id}><Person name={r.prescriber} /></EntityLink>
-                        </div>
-                      )}
                     </td>
                     <td>
                       <EntityLink kind="product" id={r.product_id}>{r.product}</EntityLink>
@@ -292,14 +287,14 @@ export default function DispensingHistory() {
                           nothing, and this is the kind of thing somebody will
                           be asked about weeks later. */}
                       {(r.price_adjusted || r.stock_adjusted) && (
-                        <div className="disp-touched" title={r.summary || ""}>
+                        <span className="disp-touched" title={r.summary || ""}>
                           {r.price_adjusted && (
                             <span className="badge warn">Price set by hand</span>
                           )}
                           {r.stock_adjusted && (
                             <span className="badge warn">Shelf corrected</span>
                           )}
-                        </div>
+                        </span>
                       )}
                     </td>
                     <td className="num">{r.quantity}</td>
@@ -315,8 +310,7 @@ export default function DispensingHistory() {
                       <EntityLink kind="sale" id={r.sale_id}>
                         {r.sale_number || "none"}
                       </EntityLink>
-                      <div className="muted small">
-                        {r.outstanding > 0.005
+                      <span className="muted small"> · {r.outstanding > 0.005
                           ? <b>{money(r.outstanding)} owed</b>
                           : r.payment_said
                             || (r.sale_status ? sentence(r.sale_status) : "No sale")}
@@ -325,7 +319,7 @@ export default function DispensingHistory() {
                             scheme {money(r.scheme_pays)}
                           </EntityLink></>
                         ) : null}
-                      </div>
+                      </span>
                     </td>
                     <td>
                       {r.collected_at
