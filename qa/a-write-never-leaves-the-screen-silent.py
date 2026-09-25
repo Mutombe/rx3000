@@ -37,7 +37,12 @@ thing — `disabled={busy === "close"}` with the label swapping to "Closing…" 
 and 22 files do exactly that. StockTake does it on all four of its actions and
 was being reported as saying nothing at all.
 
-The honest figure is 17. A number read out of a guard is worth exactly what
+A third miss, found while fixing the screens the second count named: four of
+them apply the change at once and restore a snapshot if the server refuses,
+which is the strongest form of this and exactly what useOptimisticList
+packages. GoodsReceiptDetail is one. They are counted with the row now.
+
+The honest figure is 11. A number read out of a guard is worth exactly what
 the guard looks at, so this one names every tier it found rather than lumping
 everything that is not the newest mechanism into "silent".
 
@@ -77,6 +82,16 @@ HAND = re.compile(
     # busy === "close" ? "Closing…" — the label says what it is doing
     + r"|" + FLAG + r"[^;\n]{0,70}…")
 
+#: The screen changed at once and puts itself back if the server refuses: a
+#: snapshot taken before the write and restored in the catch. This is the
+#: pattern useOptimisticList packages, written out by hand, and it is the
+#: strongest of the lot — GoodsReceiptDetail and three others do it.
+ROLLBACK = re.compile(
+    # const was = …        the state before the write is kept,
+    r'const (was|before|previous|snapshot|prior)\b'
+    # … catch { … was … }  and put back when the server refuses.
+    r'[\s\S]{0,2000}?catch[\s\S]{0,400}?\1\b')
+
 #: Writes that SHOULD block, with the reason. Not skipped quietly.
 MUST_WAIT = {
     "pages/Login.tsx": "signing in has nothing on screen to be optimistic about",
@@ -85,7 +100,7 @@ MUST_WAIT = {
 
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 16
+CEILING = 11
 
 
 def main() -> int:
@@ -104,6 +119,8 @@ def main() -> int:
             continue
         if any(h in text for h in BUTTON):
             button_only.append((writes, name))
+            continue
+        if ROLLBACK.search(text):
             continue
         if HAND.search(text):
             by_hand.append((writes, name))

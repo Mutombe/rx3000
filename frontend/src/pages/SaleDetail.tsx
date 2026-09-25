@@ -14,6 +14,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { useConfirm } from "../components/Confirm";
 import ReturnLines from "../components/ReturnLines";
 import { useToast } from "../components/Toast";
+import { useRowWork } from "../hooks/useRowWork";
 
 /** What the tax authority holds against this sale. */
 interface FiscalReceipt {
@@ -31,6 +32,7 @@ export default function SaleDetail() {
   const { guarded, prompt } = useStepUp();
   const confirm = useConfirm();
   const toast = useToast();
+  const work = useRowWork();
 
   function load() {
     api.get<Sale>(`/api/pos/sales/${id}`).then(setSale).catch((e) => setError(e.message));
@@ -70,22 +72,25 @@ export default function SaleDetail() {
       destructive: true,
     });
     if (!ok) return;
-    try {
-      const result = await guarded(
+    // Reversing a sale puts stock back and moves money. It takes a moment, and
+    // the page said nothing while it did, so the only way to know whether it
+    // had gone was to press it again — which on a void is the worst possible
+    // second press.
+    const result = await work.run(sale.id,
+      filed ? "Filing the credit note…" : "Reversing the sale…",
+      () => guarded(
         "sale.void",
         (token) => filed
           ? api.post<any>(`/api/fiscal/credit-note/${sale.id}`, {}, token)
           : api.post<any>(`/api/pos/sales/${sale.id}/void`, {}, token),
         `${filed ? "Credit note against" : "Void"} ${sale.sale_number}`,
-      );
-      if (result === CANCELLED) return;
-      toast.ok(filed
-        ? "Credit note filed. The original receipt still stands."
-        : `${sale.sale_number} voided and the stock returned.`);
-      load();
-    } catch (e) {
-      toast.error(errorText(e, "That sale could not be reversed."));
-    }
+      ),
+      { failed: `${sale.sale_number} was not reversed. It stands as it was.` });
+    if (result === undefined || result === CANCELLED) return;
+    toast.ok(filed
+      ? "Credit note filed. The original receipt still stands."
+      : `${sale.sale_number} voided and the stock returned.`);
+    load();
   }
 
   /** Move an unpaid sale onto the customer's account.
@@ -117,17 +122,15 @@ export default function SaleDetail() {
       confirmLabel: "Put it on account",
     });
     if (!ok) return;
-    try {
-      const r = await api.post<{ message?: string }>(
-        `/api/pos/sales/${it.id}/transfer-to-account`, {});
-      toast.ok(r.message || "On account, and ageing from today.");
-      load();
-    } catch (e) {
-      // The server refuses a sale that is not pending and one with no customer
-      // attached, and says which. Shown as written: "attach the customer first"
-      // is the instruction, and rewording it here would lose it.
-      toast.error(errorText(e, "That sale could not be transferred."));
-    }
+    // The server refuses a sale that is not pending and one with no customer
+    // attached, and says which. Shown as written: "attach the customer first"
+    // is the instruction, and rewording it here would lose it.
+    await work.run(it.id, "Putting it on account…",
+      () => api.post<{ message?: string }>(
+        `/api/pos/sales/${it.id}/transfer-to-account`, {}),
+      { ok: (r) => r.message || "On account, and ageing from today.",
+        failed: "That sale could not be transferred.",
+        after: load });
   }
 
   if (error)
