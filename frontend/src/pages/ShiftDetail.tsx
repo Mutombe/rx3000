@@ -9,6 +9,7 @@ import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface SaleRow {
   id: number; sale_number: string; created_at: string;
@@ -48,7 +49,7 @@ export default function ShiftDetail() {
       eyebrow="Till session"
       title={d ? fmtDateTime(d.opened_at) : ""}
       subtitle={d && <>
-        <EntityLink kind="staff" id={d.user.id}>{d.user.name}</EntityLink>
+        <EntityLink kind="staff" id={d.user.id}><Person name={d.user.name} /></EntityLink>
         {" · "}{d.status}
       </>}
       loading={!d && !error}
@@ -68,7 +69,7 @@ export default function ShiftDetail() {
             <Panel title="The session">
               <dl className="kv">
                 <dt>Cashier</dt>
-                <dd><EntityLink kind="staff" id={d.user.id}>{d.user.name}</EntityLink></dd>
+                <dd><EntityLink kind="staff" id={d.user.id}><Person name={d.user.name} /></EntityLink></dd>
                 <dt>Counted by</dt>
                 <dd>
                   <EntityLink kind="staff" id={d.counted_by.id}>
@@ -111,9 +112,7 @@ export default function ShiftDetail() {
                       </td>
                       <td>{fmtDateTime(s.created_at)}</td>
                       <td>
-                        <EntityLink kind="patient" id={s.patient.id}>
-                          {s.patient.name}
-                        </EntityLink>
+                        <EntityLink kind="patient" id={s.patient.id}><Person name={s.patient.name} /></EntityLink>
                       </td>
                       <td>{s.payment_method}</td>
                       <td className="num">{money(s.total)}</td>

@@ -18,6 +18,7 @@ import { TableSearch, useSearch } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 interface Row {
   sale_id: number;
@@ -158,7 +159,7 @@ export default function MoneyOwed() {
                 <tr key={r.sale_id} className={r.days >= 30 ? "row-flag" : ""}>
                   <td>
                     <EntityLink kind="patient" id={r.patient_id}>
-                      <b>{r.patient}</b>
+                      <Person className="strong" name={r.patient} />
                     </EntityLink>
                     {r.phone && (
                       <div className="muted small"><Phone size={11} /> {r.phone}</div>

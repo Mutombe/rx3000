@@ -10,6 +10,7 @@ import { api, errorText, fmtDateTime, money } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Line {
   product_id: number | null; product: string; quantity: number; line_total: number;
@@ -53,8 +54,7 @@ export default function ClaimDetail() {
               { label: d?.claim_number ?? "This claim" }]}
       eyebrow="Claim"
       title={d?.claim_number ?? ""}
-      subtitle={d && <>{d.scheme.name} · <EntityLink kind="patient" id={d.patient.id}>
-        {d.patient.name}</EntityLink></>}
+      subtitle={d && <>{d.scheme.name} · <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink></>}
       loading={!d && !error}
       error={error}
       facts={d ? [
@@ -100,7 +100,7 @@ export default function ClaimDetail() {
                 <dd><span className={`badge ${TONE[d.status] ?? ""}`}>{d.status}</span></dd>
                 <dt>Patient</dt>
                 <dd>
-                  <EntityLink kind="patient" id={d.patient.id}>{d.patient.name}</EntityLink>
+                  <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
                   {d.patient.phone && <div className="muted small">{d.patient.phone}</div>}
                 </dd>
                 <dt>Scheme</dt><dd>{d.scheme.name}</dd>

@@ -17,6 +17,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Owed {
   id: number; reference: string; status: string;
@@ -83,7 +84,7 @@ export default function ToFollowDetail() {
       eyebrow="Owed to a patient"
       title={owed?.product_name ?? ""}
       subtitle={owed && (
-        <EntityLink kind="patient" id={owed.patient_id}>{owed.patient_name}</EntityLink>
+        <EntityLink kind="patient" id={owed.patient_id}><Person name={owed.patient_name} /></EntityLink>
       )}
       loading={!owed && !error}
       error={error}

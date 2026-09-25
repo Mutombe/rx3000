@@ -20,6 +20,7 @@ import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 interface Hit {
   batch_id: number; batch_number: string; product: string;
@@ -302,7 +303,7 @@ export default function Recall() {
                           <tr key={`${r.sale_number}-${i}`}>
                             <td>
                               <EntityLink kind="patient" id={r.patient_id}>
-                                <b>{r.patient}</b>
+                                <Person className="strong" name={r.patient} />
                               </EntityLink>
                               <div className="muted small">
                                 {r.phone

@@ -13,6 +13,7 @@ import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 type Tab = "compose" | "history";
 
@@ -249,7 +250,10 @@ export default function Marketing() {
               <tbody>
                 {sentMessages.map((m) => (
                   <tr key={m.id}>
-                    <td><EntityLink kind="patient" id={m.patient_id}>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</EntityLink></td>
+                    <td><EntityLink kind="patient" id={m.patient_id}>
+                      <Person name={m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : ""}
+                              absent={`Patient ${m.patient_id}`} />
+                    </EntityLink></td>
                     <td style={{ maxWidth: 380 }}>{m.body}</td>
                     <td><span className={`badge ${m.status === "sent" ? "ok" : "danger"}`}>{m.status}</span></td>
                   </tr>

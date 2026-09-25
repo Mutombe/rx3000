@@ -10,6 +10,7 @@ import Select from "../components/Select";
 
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import Person from "../components/Person";
 
 /** One label or script printed a second time. */
 interface Reprint {
@@ -184,8 +185,13 @@ export default function Register() {
                 <td><span className={`badge ${e.entry_type === "dispense" ? "warn" : e.entry_type === "receive" ? "ok" : "muted"}`}>{e.entry_type}</span></td>
                 <td className="num">{e.quantity_delta > 0 ? `+${e.quantity_delta}` : e.quantity_delta}</td>
                 <td className="num"><b>{e.balance_after}</b></td>
-                <td><EntityLink kind="patient" id={e.patient?.id}>{e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : "none"}</EntityLink></td>
-                <td><EntityLink kind="prescriber" id={e.doctor?.id}>{e.doctor?.name ?? "none"}</EntityLink></td>
+                <td><EntityLink kind="patient" id={e.patient?.id}>
+                  <Person name={e.patient ? `${e.patient.first_name} ${e.patient.last_name}` : ""}
+                          absent="No patient on this entry" />
+                </EntityLink></td>
+                <td><EntityLink kind="prescriber" id={e.doctor?.id}>
+                  <Person name={e.doctor?.name} absent="No prescriber recorded" />
+                </EntityLink></td>
                 <td className="mono">{e.reference}</td>
               </tr>
             ))}

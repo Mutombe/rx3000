@@ -9,6 +9,7 @@ import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Sibling {
   id: number; channel: string; message_type: string; status: string;
@@ -46,7 +47,7 @@ export default function MessageDetail() {
       eyebrow="Message"
       title={d?.subject || "(no subject)"}
       subtitle={d && <>
-        <EntityLink kind="patient" id={d.patient.id}>{d.patient.name}</EntityLink>
+        <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
         {d.patient.phone && ` · ${d.patient.phone}`}
       </>}
       loading={!d && !error}

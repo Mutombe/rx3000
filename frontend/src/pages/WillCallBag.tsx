@@ -20,6 +20,7 @@ import RecordPage, { Panel } from "../components/RecordPage";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Alongside {
   dispensing_id: number; product: string; quantity: number; dispensed_at: string;
@@ -117,7 +118,7 @@ export default function WillCallBag() {
       eyebrow="On the shelf"
       title={bag?.product ?? ""}
       subtitle={bag && (
-        <EntityLink kind="patient" id={bag.patient.id}>{bag.patient.name}</EntityLink>
+        <EntityLink kind="patient" id={bag.patient.id}><Person name={bag.patient.name} /></EntityLink>
       )}
       loading={!bag && !error}
       error={error}

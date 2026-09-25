@@ -13,6 +13,7 @@ import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Script {
   id: number; rx_number: string | null; status: string;
@@ -175,9 +176,7 @@ export default function PrescriberDetail() {
                         </EntityLink>
                       </td>
                       <td>
-                        <EntityLink kind="patient" id={p.patient.id}>
-                          {p.patient.name}
-                        </EntityLink>
+                        <EntityLink kind="patient" id={p.patient.id}><Person name={p.patient.name} /></EntityLink>
                       </td>
                       <td>{fmtDate(p.date_prescribed)}</td>
                       <td><span className="badge">{sentence(p.status)}</span></td>

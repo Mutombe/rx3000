@@ -31,6 +31,7 @@ import { useConfirm } from "../components/Confirm";
 import { EntityLink } from "../components/Filters";
 import { overdueTone, rateTone } from "../tone";
 import { patientOwes } from "../terms";
+import Person from "../components/Person";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -419,7 +420,9 @@ export default function Repeats() {
                       <SelectRow checked={picked.has(i.item_id)}
                                  onChange={() => picked.toggle(i.item_id)} />
                       <td>
-                        <EntityLink kind="patient" id={i.patient_id}>{i.patient_name}</EntityLink>
+                        <EntityLink kind="patient" id={i.patient_id}>
+                          <Person name={i.patient_name} />
+                        </EntityLink>
                         {i.patient_phone && (
                           <div className="muted small">{i.patient_phone}</div>
                         )}

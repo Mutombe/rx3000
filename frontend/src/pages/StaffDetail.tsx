@@ -16,6 +16,7 @@ import StaffPlacement from "../components/StaffPlacement";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Dispensed {
   id: number; dispensed_at: string; quantity: number; schedule: number;
@@ -213,9 +214,7 @@ export default function StaffDetail() {
                         {r.schedule >= 5 && <span className="badge sched">{sched(r.schedule)}</span>}
                       </td>
                       <td>
-                        <EntityLink kind="patient" id={r.patient.id}>
-                          {r.patient.name}
-                        </EntityLink>
+                        <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
                       </td>
                       <td className="mono">
                         <EntityLink kind="prescription" id={r.prescription_id}>

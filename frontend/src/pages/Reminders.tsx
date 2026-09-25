@@ -10,6 +10,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
+import Person from "../components/Person";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -124,7 +125,11 @@ export default function Reminders() {
             {messages.map((m) => (
               <RowLink key={m.id} to={`/messages/${m.id}`}
                        prefetch={prefetchRoute}>
-                <td><EntityLink kind="patient" id={m.patient_id}><b>{m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : m.patient_id}</b></EntityLink></td>
+                <td><EntityLink kind="patient" id={m.patient_id}>
+                  <Person className="strong"
+                          name={m.patient ? `${m.patient.first_name} ${m.patient.last_name}` : ""}
+                          absent={`Patient ${m.patient_id}`} />
+                </EntityLink></td>
                 <td><span className="badge muted">{m.message_type.replace("_", " ")}</span></td>
                 <td>{m.channel.toUpperCase()}</td>
                 {/* The whole text of an SMS wants 871px and there is not

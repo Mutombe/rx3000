@@ -30,6 +30,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import BusyButton from "../components/BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import Person from "../components/Person";
 
 interface Supplier {
   id: number;
@@ -184,8 +185,8 @@ export default function Suppliers() {
                         {s.notes && <div className="muted small wrap">{s.notes}</div>}
                       </td>
                       <td>
-                        {s.contact_person || <span className="muted">Not named</span>}
-                        {s.phone && <div className="muted small">{s.phone}</div>}
+                        <Person name={s.contact_person} absent="Nobody named"
+                                meta={s.phone || undefined} />
                         {/* Truncated with an ellipsis and its full value on
                             hover: an address that simply stops mid-word looks
                             broken, and one that wraps to three lines pushes

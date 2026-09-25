@@ -18,6 +18,7 @@ import { api, errorText } from "../api";
 import { ColumnChart, useSeries } from "../components/charts";
 import { Block, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Person from "../components/Person";
 
 interface Operations {
   as_of: string;
@@ -272,9 +273,9 @@ export default function DispensaryOperations() {
                     {data.open_holds.map((h) => (
                       <tr key={h.id}>
                         <td className="mono">{h.rx_number}</td>
-                        <td>{h.patient}</td>
+                        <td><Person name={h.patient} /></td>
                         <td>{h.reason}</td>
-                        <td>{h.placed_by}</td>
+                        <td><Person name={h.placed_by} absent="Not recorded" /></td>
                         <td className="num">{duration(h.hours_held * 60)}</td>
                         <td className="actions">
                           <Link to={`/dispense?rx=${h.prescription_id}`}>

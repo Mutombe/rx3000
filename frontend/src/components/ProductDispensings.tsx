@@ -17,6 +17,7 @@ import { api, errorText, fmtDateTime, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
+import Person from "./Person";
 
 interface Row {
   id: number;
@@ -103,12 +104,10 @@ export default function ProductDispensings({ productId }: { productId: number })
                     <tr key={r.id}>
                       <td className="nowrap">{fmtDateTime(r.dispensed_at)}</td>
                       <td>
-                        <EntityLink kind="patient" id={r.patient_id}>{r.patient}</EntityLink>
+                        <EntityLink kind="patient" id={r.patient_id}><Person name={r.patient} /></EntityLink>
                         {r.prescriber && (
                           <div className="muted small">
-                            <EntityLink kind="prescriber" id={r.prescriber_id}>
-                              {r.prescriber}
-                            </EntityLink>
+                            <EntityLink kind="prescriber" id={r.prescriber_id}><Person name={r.prescriber} /></EntityLink>
                           </div>
                         )}
                       </td>
@@ -133,9 +132,7 @@ export default function ProductDispensings({ productId }: { productId: number })
                       </td>
                       <td className="num">{r.quantity}</td>
                       <td>
-                        <EntityLink kind="staff" id={r.dispensed_by_id}>
-                          {r.dispensed_by}
-                        </EntityLink>
+                        <EntityLink kind="staff" id={r.dispensed_by_id}><Person name={r.dispensed_by} /></EntityLink>
                       </td>
                       <td>
                         {r.outstanding > 0.005

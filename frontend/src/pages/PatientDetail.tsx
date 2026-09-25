@@ -24,6 +24,7 @@ import { usePharmacy } from "../hooks/usePharmacy";
 import SharePortalLink, { PortalLink } from "../components/SharePortalLink";
 import PatientPortalPreview from "../components/PatientPortalPreview";
 import RepeatValue from "../components/RepeatValue";
+import Person from "../components/Person";
 type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 
 interface HistoryLine {
@@ -453,9 +454,7 @@ export default function PatientDetail() {
                     </EntityLink>
                   </td>
                   <td>
-                    <EntityLink kind="staff" id={h.dispensed_by_id}>
-                      {h.dispensed_by}
-                    </EntityLink>
+                    <EntityLink kind="staff" id={h.dispensed_by_id}><Person name={h.dispensed_by} /></EntityLink>
                   </td>
                 </RowLink>
               ))}

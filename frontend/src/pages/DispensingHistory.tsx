@@ -280,9 +280,7 @@ export default function DispensingHistory() {
                       </EntityLink>
                       {r.prescriber && (
                         <div className="muted small">
-                          <EntityLink kind="prescriber" id={r.prescriber_id}>
-                            {r.prescriber}
-                          </EntityLink>
+                          <EntityLink kind="prescriber" id={r.prescriber_id}><Person name={r.prescriber} /></EntityLink>
                         </div>
                       )}
                     </td>

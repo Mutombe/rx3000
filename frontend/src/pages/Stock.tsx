@@ -25,6 +25,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Clock, Prohibit, Warning } from "@phosphor-icons/react";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
+import Person from "../components/Person";
 
 type Tab = "products" | "watch" | "bins" | "quarantine" | "deliveries" | "returns" | "batches" | "movements" | "reconcile" | "upload";
 
@@ -442,7 +443,7 @@ export default function Stock() {
     { key: "user_name", header: "Who", sortable: true, width: 155,
       value: (m) => m.user_name ?? "",
       render: (m) => (m.user_name
-        ? <EntityLink kind="staff" id={m.user_id ?? 0}>{m.user_name}</EntityLink>
+        ? <EntityLink kind="staff" id={m.user_id ?? 0}><Person name={m.user_name} /></EntityLink>
         : <span className="muted">Not recorded</span>) },
     /* THE RECORD THAT CAUSED THE MOVEMENT.
        A movement never happens by itself: something dispensed it, sold it or

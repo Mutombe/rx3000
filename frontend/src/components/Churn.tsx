@@ -25,6 +25,7 @@ import { EntityLink, TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
+import Person from "./Person";
 
 interface Leaver {
   patient_id: number; patient: string; phone: string;
@@ -222,7 +223,7 @@ export default function Churn() {
                       <tr key={l.patient_id}>
                         <td>
                           <EntityLink kind="patient" id={l.patient_id}>
-                            {l.patient}
+                            <Person name={l.patient} />
                           </EntityLink>
                         </td>
                         <td className="mono">

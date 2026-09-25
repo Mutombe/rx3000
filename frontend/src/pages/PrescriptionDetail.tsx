@@ -29,6 +29,7 @@ import { EntityLink } from "../components/Filters";
 import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Item {
   id: number; product_id: number; dosage_instructions: string;
@@ -122,8 +123,7 @@ export default function PrescriptionDetail() {
       subtitle={d && (
         <>
           <EntityLink kind="patient" id={d.patient_id}>{patientName || "Walk-in"}</EntityLink>
-          {d.doctor && <> · <EntityLink kind="prescriber" id={d.doctor_id}>
-            {d.doctor.name}</EntityLink></>}
+          {d.doctor && <> · <EntityLink kind="prescriber" id={d.doctor_id}><Person name={d.doctor.name} /></EntityLink></>}
         </>
       )}
       loading={!d && !error}

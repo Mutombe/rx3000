@@ -13,6 +13,7 @@ import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Person from "../components/Person";
 
 interface Sent {
   id: number; status: string; channel: string;
@@ -126,9 +127,7 @@ export default function CampaignDetail() {
                   {d.messages.map((m) => (
                     <tr key={m.id}>
                       <td>
-                        <EntityLink kind="patient" id={m.patient.id}>
-                          {m.patient.name}
-                        </EntityLink>
+                        <EntityLink kind="patient" id={m.patient.id}><Person name={m.patient.name} /></EntityLink>
                       </td>
                       <td>{m.channel}</td>
                       <td>

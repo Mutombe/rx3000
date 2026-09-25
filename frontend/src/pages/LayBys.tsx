@@ -25,6 +25,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
+import Person from "../components/Person";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -268,7 +269,7 @@ export default function LayBys() {
                         </td>
                         <td>
                           <EntityLink kind="patient" id={l.patient_id}>
-                            <span className="clip" title={l.patient}>{l.patient}</span>
+                            <Person name={l.patient} title={l.patient} />
                           </EntityLink>
                         </td>
                         <td>{l.created_at ? fmtDate(l.created_at) : "No date"}</td>

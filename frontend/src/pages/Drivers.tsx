@@ -161,7 +161,7 @@ export default function Drivers() {
                       <tr key={d.driver_id ?? "none"}>
                         <td>
                           {d.driver_id
-                            ? <EntityLink kind="driver" id={d.driver_id}>{d.driver}</EntityLink>
+                            ? <EntityLink kind="driver" id={d.driver_id}><Person name={d.driver} /></EntityLink>
                             : <span className="muted">{d.driver}</span>}
                           {d.phone && <div className="muted small">{d.phone}</div>}
                         </td>

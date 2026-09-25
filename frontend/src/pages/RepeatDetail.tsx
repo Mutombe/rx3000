@@ -26,6 +26,7 @@ import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import Person from "../components/Person";
 
 interface Detail {
   item_id: number;
@@ -288,9 +289,7 @@ export default function RepeatDetail() {
                 <dt>Patient</dt>
                 <dd>
                   {r.patient.id
-                    ? <EntityLink kind="patient" id={r.patient.id}>
-                        {r.patient.name}
-                      </EntityLink>
+                    ? <EntityLink kind="patient" id={r.patient.id}><Person name={r.patient.name} /></EntityLink>
                     : r.patient.name}
                   {r.patient.phone && (
                     <div className="muted small">
@@ -311,9 +310,7 @@ export default function RepeatDetail() {
                       {r.prescription.doctor && (
                         <div className="muted small">
                           {r.prescription.doctor_id
-                            ? <EntityLink kind="prescriber" id={r.prescription.doctor_id}>
-                                {r.prescription.doctor}
-                              </EntityLink>
+                            ? <EntityLink kind="prescriber" id={r.prescription.doctor_id}><Person name={r.prescription.doctor} /></EntityLink>
                             : r.prescription.doctor}
                         </div>
                       )}

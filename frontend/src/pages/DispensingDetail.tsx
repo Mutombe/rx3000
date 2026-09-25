@@ -24,6 +24,7 @@ import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useScheduleCodes } from "../schedules";
+import Person from "../components/Person";
 
 interface Detail {
   id: number; quantity: number; dispensed_at: string; is_repeat: boolean;
@@ -243,9 +244,7 @@ export default function DispensingDetail() {
                 <dt>Patient</dt>
                 <dd>
                   {d.patient.id
-                    ? <EntityLink kind="patient" id={d.patient.id}>
-                        {d.patient.name}
-                      </EntityLink>
+                    ? <EntityLink kind="patient" id={d.patient.id}><Person name={d.patient.name} /></EntityLink>
                     : d.patient.name}
                   {d.patient.phone && (
                     <div className="muted small">{d.patient.phone}</div>
@@ -264,9 +263,7 @@ export default function DispensingDetail() {
                       {d.prescription.doctor && (
                         <div className="muted small">
                           {d.prescription.doctor_id
-                            ? <EntityLink kind="prescriber" id={d.prescription.doctor_id}>
-                                {d.prescription.doctor}
-                              </EntityLink>
+                            ? <EntityLink kind="prescriber" id={d.prescription.doctor_id}><Person name={d.prescription.doctor} /></EntityLink>
                             : d.prescription.doctor}
                         </div>
                       )}
