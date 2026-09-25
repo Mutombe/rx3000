@@ -163,13 +163,44 @@ def build() -> None:
 
 
 def _head_commit() -> str:
-    """The commit this installer was built from."""
+    """Whatever HEAD is at this moment."""
     try:
         return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
                               check=True, capture_output=True, text=True,
                               shell=False).stdout.strip()
     except Exception:
         return ""
+
+
+#: HEAD as it was when this run started, which is the code the bundle can
+#: possibly contain. Read at import so it is taken before anything is built.
+_HEAD_AT_START = _head_commit()
+
+
+def _built_from() -> str:
+    """The commit the bundle in this installer was ACTUALLY built from.
+
+    NOT HEAD at publish time. HEAD can move while a build runs — a fifteen
+    minute Rust compile is long enough to commit something else — and stamping
+    the later commit claims the installer contains code it does not.
+
+    That is the one failure qa/the-download-is-not-behind-the-code.py cannot
+    catch. It compares the stamp against the branch, so a stamp that OVERCLAIMS
+    reads as "the download is the code" while the download quietly is not. It
+    happened on 1.6.30: the bundle was built at 13:48 from 9848568 and stamped
+    ce17458, committed eight minutes into the compile.
+
+    So the stamp is HEAD as it was when this run started, and a move is said
+    out loud rather than silently resolved either way.
+    """
+    now = _head_commit()
+    if _HEAD_AT_START and now and now != _HEAD_AT_START:
+        print(f"  NOTE      the branch moved during the build "
+              f"({_HEAD_AT_START[:7]} to {now[:7]}).")
+        print(f"            Stamped {_HEAD_AT_START[:7]}, which is what these "
+              f"installers actually contain.")
+        print(f"            Build again to ship what is on the branch now.")
+    return _HEAD_AT_START or now
 
 
 def publish(version: str) -> list[Path]:
@@ -288,10 +319,10 @@ def _manifest(version: str, installer: str) -> None:
     stamp = DOWNLOADS / "published.json"
     stamp.write_text(json.dumps({
         "version": version,
-        "commit": _head_commit(),
+        "commit": _built_from(),
         "published_at": manifest["pub_date"],
     }, indent=2) + "\n", encoding="utf-8")
-    print(f"  stamped   built from {_head_commit()[:7] or 'unknown'}")
+    print(f"  stamped   built from {_built_from()[:7] or 'unknown'}")
 
 
 def main() -> int:
