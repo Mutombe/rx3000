@@ -15,6 +15,7 @@ import { useAsk, useConfirm } from "../components/Confirm";
 import BusyButton from "../components/BusyButton";
 import { Link, useParams } from "react-router-dom";
 import { useScheduleCodes } from "../schedules";
+import Th from "../components/Th";
 
 interface Recipient {
   patient_id: number | null; patient: string; phone: string; quantity: number;
@@ -190,7 +191,7 @@ export default function BatchDetail() {
             <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
               <table className="dt">
                 <thead>
-                  <tr><th>Patient</th><th className="num">Qty</th><th>When</th><th>Reference</th></tr>
+                  <tr><Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th><Th>Reference</Th></tr>
                 </thead>
                 <tbody>
                   {d.recipients.map((r, i) => (

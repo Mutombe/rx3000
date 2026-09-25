@@ -12,6 +12,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 export default function Reminders() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,7 +118,7 @@ export default function Reminders() {
             widths={["18ch", "10ch", "8ch", "26ch", "10ch", "12ch"]} />}
         >
         <table>
-          <thead><tr><th>Patient</th><th>Type</th><th>Channel</th><th>Message</th><th>Status</th><th>When</th></tr></thead>
+          <thead><tr><Th>Patient</Th><Th>Type</Th><Th>Channel</Th><Th>Message</Th><Th>Status</Th><Th>When</Th></tr></thead>
           <tbody>
             {messages.map((m) => (
               <RowLink key={m.id} to={`/messages/${m.id}`}

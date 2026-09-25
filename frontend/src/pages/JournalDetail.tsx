@@ -15,6 +15,7 @@ import RecordPage from "../components/RecordPage";
 import { EntityLink } from "../components/Filters";
 import { FormSkeleton, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Line {
   account_code: string; debit: number; credit: number;
@@ -115,8 +116,8 @@ export default function JournalDetail() {
         <table className="dt">
           <thead>
             <tr>
-              <th>Account</th><th>Description</th><th>Party</th>
-              <th className="num">Debit</th><th className="num">Credit</th>
+              <Th>Account</Th><Th>Description</Th><Th>Party</Th>
+              <Th className="num">Debit</Th><Th className="num">Credit</Th>
             </tr>
           </thead>
           <tbody>

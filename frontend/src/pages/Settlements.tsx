@@ -30,6 +30,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Funder {
   funder_id: string; funder: string;
@@ -135,13 +136,13 @@ export default function Settlements() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Funder</th>
-                    <th className="num">Claimed</th>
-                    <th className="num">Settled</th>
-                    <th className="num">Pays</th>
-                    <th className="num">Takes</th>
-                    <th className="num">Held</th>
-                    <th>What that means</th>
+                    <Th>Funder</Th>
+                    <Th className="num">Claimed</Th>
+                    <Th className="num">Settled</Th>
+                    <Th className="num">Pays</Th>
+                    <Th className="num">Takes</Th>
+                    <Th className="num">Held</Th>
+                    <Th>What that means</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,8 +228,8 @@ export default function Settlements() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Member</th><th>Claim</th><th>Service date</th>
-                    <th className="num">Claimed</th><th>Why it is held</th>
+                    <Th>Member</Th><Th>Claim</Th><Th>Service date</Th>
+                    <Th className="num">Claimed</Th><Th>Why it is held</Th>
                   </tr>
                 </thead>
                 <tbody>

@@ -18,6 +18,7 @@ import RowLink from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Line {
   entry_id: number; reference: string; entry_date: string; period_code: string;
@@ -82,9 +83,9 @@ export default function AccountLedger() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Entry</th><th>Date</th><th>Description</th><th>Party</th>
-                <th className="num">Debit</th><th className="num">Credit</th>
-                <th className="num">Balance</th>
+                <Th>Entry</Th><Th>Date</Th><Th>Description</Th><Th>Party</Th>
+                <Th className="num">Debit</Th><Th className="num">Credit</Th>
+                <Th className="num">Balance</Th>
               </tr>
             </thead>
             <tbody>

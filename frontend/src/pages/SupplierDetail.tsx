@@ -13,6 +13,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Th from "../components/Th";
 
 interface Order {
   id: number; order_number: string; status: string;
@@ -256,9 +257,9 @@ export default function SupplierDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Invoice</th><th>Dated</th><th>Due</th>
-                  <th className="num">Total</th><th className="num">Outstanding</th>
-                  <th>Status</th><th>Order</th>
+                  <Th>Invoice</Th><Th>Dated</Th><Th>Due</Th>
+                  <Th className="num">Total</Th><Th className="num">Outstanding</Th>
+                  <Th>Status</Th><Th>Order</Th>
                 </tr>
               </thead>
               <tbody>
@@ -292,13 +293,13 @@ export default function SupplierDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Order</th><th>Status</th>
+                    <Th>Order</Th><Th>Status</Th>
                     {/* What THEY said, beside what actually happened. Two
                         different facts and worth comparing: a wholesaler
                         who promises Tuesday and delivers Friday every time
                         is a different problem from one who never promises. */}
-                    <th>They said</th><th>Received</th>
-                    <th className="num">Value</th>
+                    <Th>They said</Th><Th>Received</Th>
+                    <Th className="num">Value</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -342,7 +343,7 @@ export default function SupplierDetail() {
                    empty="Nothing has been paid to this supplier.">
               <table className="dt">
                 <thead>
-                  <tr><th>Paid</th><th>Method</th><th>Reference</th><th className="num">Amount</th></tr>
+                  <tr><Th>Paid</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
                 </thead>
                 <tbody>
                   {d.payments.map((p) => (
@@ -365,7 +366,7 @@ export default function SupplierDetail() {
                  </span>}>
             <table className="dt">
               <thead>
-                <tr><th>Medicine</th><th className="num">Units received</th><th className="num">Last cost</th></tr>
+                <tr><Th>Medicine</Th><Th className="num">Units received</Th><Th className="num">Last cost</Th></tr>
               </thead>
               <tbody>
                 {d.supplies.map((s) => (

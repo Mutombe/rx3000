@@ -24,6 +24,7 @@ import BusyButton from "./BusyButton";
 import FileDrop from "./FileDrop";
 import { FilterToggle } from "./Filters";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 interface Line {
   row: number; key: string; name: string; action: string; reason: string;
@@ -332,18 +333,18 @@ export default function StockUpload({ onDone }: { onDone?: () => void }) {
             <table className="dt su-table">
               <thead>
                 <tr>
-                  <th className="col-row">Row</th>
-                  <th>Product</th>
+                  <Th className="col-row">Row</Th>
+                  <Th>Product</Th>
                   {/* col-code (7rem) cut the heading itself: a column has to be as
                       wide as the question it asks. */}
-                  <th className="col-city">What happens</th>
-                  <th className="num col-money">Cost</th>
-                  <th className="num col-money">Price</th>
-                  <th className="num col-count">Qty</th>
+                  <Th className="col-city">What happens</Th>
+                  <Th className="num col-money">Cost</Th>
+                  <Th className="num col-money">Price</Th>
+                  <Th className="num col-count">Qty</Th>
                   {/* Carries the expiry under the lot number, and "exp 30 Jun, 2028"
                       is wider than the lot is. */}
-                  <th className="col-city">Batch</th>
-                  <th>Why not</th>
+                  <Th className="col-city">Batch</Th>
+                  <Th>Why not</Th>
                 </tr>
               </thead>
               <tbody>

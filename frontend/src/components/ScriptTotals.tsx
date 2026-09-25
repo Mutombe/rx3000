@@ -19,6 +19,7 @@ import { useEffect, useState } from "react";
 import { CaretDown, CaretRight, Warning } from "@phosphor-icons/react";
 import { api, money } from "../api";
 import { TERMS, patientOwes } from "../terms";
+import Th from "./Th";
 
 interface Line {
   product_id: number; description: string; quantity: number;
@@ -179,9 +180,9 @@ export default function ScriptTotals({ items, medicalAidId, data: given, variant
         <table className="dt st-lines">
           <thead>
             <tr>
-              <th>Item</th><th className="num">Qty</th>
-              <th className="num">Gross</th><th className="num">Cost</th>
-              <th className="num">Claimed</th><th className="num">Margin</th>
+              <Th>Item</Th><Th className="num">Qty</Th>
+              <Th className="num">Gross</Th><Th className="num">Cost</Th>
+              <Th className="num">Claimed</Th><Th className="num">Margin</Th>
             </tr>
           </thead>
           <tbody>

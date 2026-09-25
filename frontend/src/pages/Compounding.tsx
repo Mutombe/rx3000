@@ -28,6 +28,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { useScheduleCodes } from "../schedules";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Ingredient {
   product_id: number; quantity: number; unit: string; note: string;
@@ -240,9 +241,9 @@ export default function Compounding() {
           <table>
             <thead>
               <tr>
-                <th>Code</th><th>Preparation</th><th>Form</th>
-                <th className="num">Yield</th><th className="num">Fee</th>
-                <th className="num">Ingredients</th><th className="num">Shelf life</th>
+                <Th>Code</Th><Th>Preparation</Th><Th>Form</Th>
+                <Th className="num">Yield</Th><Th className="num">Fee</Th>
+                <Th className="num">Ingredients</Th><Th className="num">Shelf life</Th>
               </tr>
             </thead>
             <tbody>
@@ -303,12 +304,12 @@ export default function Compounding() {
                         name where it belongs rather than in a column of its
                         own. */}
                     <tr>
-                      <th className="col-when">Made</th>
-                      <th>Preparation</th>
-                      <th className="num col-count">Yield</th>
-                      <th className="col-code">Expires</th>
-                      <th className="col-city">By</th>
-                      <th className="num col-money">At cost</th>
+                      <Th className="col-when">Made</Th>
+                      <Th>Preparation</Th>
+                      <Th className="num col-count">Yield</Th>
+                      <Th className="col-code">Expires</Th>
+                      <Th className="col-city">By</Th>
+                      <Th className="num col-money">At cost</Th>
                       <th className="actions" />
                     </tr>
                   </thead>
@@ -415,9 +416,9 @@ export default function Compounding() {
               <table>
                 <thead>
                   <tr>
-                    <th>Ingredient</th><th className="num">Needed</th>
-                    <th className="num">Unit cost</th><th className="num">Line</th>
-                    <th className="num">On hand</th><th>Schedule</th>
+                    <Th>Ingredient</Th><Th className="num">Needed</Th>
+                    <Th className="num">Unit cost</Th><Th className="num">Line</Th>
+                    <Th className="num">On hand</Th><Th>Schedule</Th>
                   </tr>
                 </thead>
                 <tbody>

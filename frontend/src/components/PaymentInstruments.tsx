@@ -27,6 +27,7 @@ import BusyButton from "./BusyButton";
 import Select from "./Select";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import Th from "./Th";
 
 interface Instrument {
   id: number; code: string; name: string; method: string;
@@ -157,11 +158,11 @@ export default function PaymentInstruments() {
         <table className="dt">
           <thead>
             <tr>
-              <th>Instrument</th><th>Counts as</th><th>Currencies</th>
-              <th>Settles to</th>
-              <th className="num">In the drawer</th>
-              <th className="num">Carried by a driver</th>
-              <th className="num">Offered</th>
+              <Th>Instrument</Th><Th>Counts as</Th><Th>Currencies</Th>
+              <Th>Settles to</Th>
+              <Th className="num">In the drawer</Th>
+              <Th className="num">Carried by a driver</Th>
+              <Th className="num">Offered</Th>
             </tr>
           </thead>
           <tbody>

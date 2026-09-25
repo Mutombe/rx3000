@@ -28,6 +28,7 @@ import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
+import Th from "./Th";
 
 interface Held {
   batch_id: number;
@@ -150,11 +151,11 @@ export default function Quarantine() {
           <table className="dt dt-wider">
             <thead>
               <tr>
-                <th>Medicine</th>
-                <th>Batch</th>
-                <th className="num">Units</th>
-                <th className="num">Value at cost</th>
-                <th className="col-why wrap-cell">Why, and since</th>
+                <Th>Medicine</Th>
+                <Th>Batch</Th>
+                <Th className="num">Units</Th>
+                <Th className="num">Value at cost</Th>
+                <Th className="col-why wrap-cell">Why, and since</Th>
                 <th className="actions" />
               </tr>
             </thead>

@@ -32,6 +32,7 @@ import { CloudArrowDown } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 type Tab = "outstanding" | "advices" | "import";
 
 interface Line {
@@ -272,9 +273,9 @@ export default function Remittances() {
                           was being clipped to "Reduced by…". The one column on
                           this table somebody actually has to read before
                           deciding who pays. */}
-                      <th>Claim</th><th>Service</th>
-                      <th className="num">Claimed</th><th className="num">Paid</th>
-                      <th className="num">Short</th><th>Scheme's reason</th><th className="actions" />
+                      <Th>Claim</Th><Th>Service</Th>
+                      <Th className="num">Claimed</Th><Th className="num">Paid</Th>
+                      <Th className="num">Short</Th><Th>Scheme's reason</Th><th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
@@ -358,10 +359,10 @@ export default function Remittances() {
               <table>
                 <thead>
                   <tr>
-                    <th>Advice</th><th>Funder</th><th>Paid on</th><th>Reference</th>
-                    <th className="num">Lines</th><th className="num">Claimed</th>
-                    <th className="num">Paid</th><th className="num">Short</th>
-                    <th>Unmatched</th>
+                    <Th>Advice</Th><Th>Funder</Th><Th>Paid on</Th><Th>Reference</Th>
+                    <Th className="num">Lines</Th><Th className="num">Claimed</Th>
+                    <Th className="num">Paid</Th><Th className="num">Short</Th>
+                    <Th>Unmatched</Th>
                   </tr>
                 </thead>
                 <tbody>

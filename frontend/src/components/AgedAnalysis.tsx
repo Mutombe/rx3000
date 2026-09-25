@@ -23,6 +23,7 @@ import { api, fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { TableSkeleton } from "./Skeleton";
+import Th from "./Th";
 
 interface Party {
   party_type: string; party_id: number | null; name: string;
@@ -161,7 +162,7 @@ export default function AgedAnalysis() {
               <table className="age-table">
                 <thead>
                   <tr>
-                    <th>Account</th>
+                    <Th>Account</Th>
                     {data.buckets.map((b) => (
                       <th
                         key={b}
@@ -170,7 +171,7 @@ export default function AgedAnalysis() {
                         {b}
                       </th>
                     ))}
-                    <th className="st-amount">Total</th>
+                    <Th className="st-amount">Total</Th>
                   </tr>
                 </thead>
                 <tbody>

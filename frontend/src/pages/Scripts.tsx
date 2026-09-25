@@ -26,6 +26,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Row {
   id: number;
@@ -198,13 +199,13 @@ export default function Scripts() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Script</th>
-                  <th>State</th>
-                  <th>Patient</th>
-                  <th>Prescriber</th>
-                  <th className="num">Items</th>
-                  <th className="num">Dispensed</th>
-                  <th>Written</th>
+                  <Th>Script</Th>
+                  <Th>State</Th>
+                  <Th>Patient</Th>
+                  <Th>Prescriber</Th>
+                  <Th className="num">Items</Th>
+                  <Th className="num">Dispensed</Th>
+                  <Th>Written</Th>
                 </tr>
               </thead>
               <tbody>

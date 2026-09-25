@@ -30,6 +30,7 @@ import { api, errorText } from "../api";
 import { Panel } from "./RecordPage";
 import { useToast } from "./Toast";
 import { useSession } from "../session";
+import Th from "./Th";
 
 interface Cell {
   allowed: boolean;
@@ -128,7 +129,7 @@ export default function RoleMatrix() {
           </caption>
           <thead>
             <tr>
-              <th scope="col">Can</th>
+              <Th scope="col">Can</Th>
               {roles.map((r) => (
                 <th key={r} scope="col" className="num">{r}</th>
               ))}

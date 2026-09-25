@@ -16,6 +16,7 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAppUpdate } from "../hooks/useAppUpdate";
 import PrinterRoutes from "../components/PrinterRoutes";
+import Th from "../components/Th";
 
 interface Licence {
   state: string; licensed_to: string; expires_on: string | null;
@@ -197,7 +198,7 @@ export default function System() {
           <div className="dt-scroll">
             <table className="dt">
               <thead>
-                <tr><th>File</th><th className="num">Size</th><th>Taken</th></tr>
+                <tr><Th>File</Th><Th className="num">Size</Th><Th>Taken</Th></tr>
               </thead>
               <tbody>
                 {backups?.files.map((f) => (
@@ -260,7 +261,7 @@ export default function System() {
           </div>
           <table className="dt">
             <thead>
-              <tr><th>Integration</th><th>State</th><th>What it needs</th></tr>
+              <tr><Th>Integration</Th><Th>State</Th><Th>What it needs</Th></tr>
             </thead>
             <tbody>
               {integrations.integrations.map((i: any) => (

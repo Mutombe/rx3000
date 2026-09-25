@@ -19,6 +19,7 @@ import {
   PhoneCall,
 } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
+import Th from "../components/Th";
 
 type Tab = "lines" | "quotes" | "activity";
 
@@ -231,7 +232,7 @@ export default function DealDetail() {
           <div className="card">
             <h3>Line items</h3>
             <table>
-              <thead><tr><th>Description</th><th className="num">Qty</th><th className="num">Unit</th><th className="num">Disc.</th><th className="num">Total</th><th className="actions" /></tr></thead>
+              <thead><tr><Th>Description</Th><Th className="num">Qty</Th><Th className="num">Unit</Th><Th className="num">Disc.</Th><Th className="num">Total</Th><th className="actions" /></tr></thead>
               <tbody>
                 {deal.items.map((i) => (
                   <tr key={i.id}>
@@ -290,7 +291,7 @@ export default function DealDetail() {
               {deal.items.length === 0 && <span className="muted">Add line items first</span>}
             </div>
             <table>
-              <thead><tr><th>Quote</th><th>Version</th><th className="num">Total</th><th>Valid until</th><th>Status</th><th className="actions" /></tr></thead>
+              <thead><tr><Th>Quote</Th><Th>Version</Th><Th className="num">Total</Th><Th>Valid until</Th><Th>Status</Th><th className="actions" /></tr></thead>
               <tbody>
                 {quotes.map((qt) => (
                   <tr key={qt.id}>

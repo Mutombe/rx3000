@@ -21,6 +21,7 @@ import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 export interface Driver {
   id: number; code: string; full_name: string; phone: string;
@@ -143,10 +144,10 @@ export default function Drivers() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Driver</th><th className="num">Out</th>
-                      <th className="num">To collect</th>
-                      <th className="num">Holding</th>
-                      <th>Longest out since</th>
+                      <Th>Driver</Th><Th className="num">Out</Th>
+                      <Th className="num">To collect</Th>
+                      <Th className="num">Holding</Th>
+                      <Th>Longest out since</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -185,12 +186,12 @@ export default function Drivers() {
             <table className="dt dt-drivers">
               <thead>
                 <tr>
-                  <th className="drv-col-who">Driver</th>
-                  <th className="drv-col-vehicle">Vehicle</th>
-                  <th className="drv-col-licence">Licence</th>
-                  <th className="num drv-col-out">Out</th>
-                  <th className="num drv-col-holding">Holding</th>
-                  <th className="num drv-col-failed">Failed</th>
+                  <Th className="drv-col-who">Driver</Th>
+                  <Th className="drv-col-vehicle">Vehicle</Th>
+                  <Th className="drv-col-licence">Licence</Th>
+                  <Th className="num drv-col-out">Out</Th>
+                  <Th className="num drv-col-holding">Holding</Th>
+                  <Th className="num drv-col-failed">Failed</Th>
                   <th className="actions" />
                 </tr>
               </thead>

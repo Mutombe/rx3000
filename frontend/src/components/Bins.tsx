@@ -29,6 +29,7 @@ import { EntityLink } from "./Filters";
 import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
+import Th from "./Th";
 
 interface Bin {
   bin: string;
@@ -234,10 +235,10 @@ export default function Bins() {
                            onChange={(e) => setPicked(e.target.checked
                              ? new Set(lines.map((l) => l.product_id)) : new Set())} />
                   </th>
-                  <th>Medicine</th>
-                  <th>Code</th>
-                  <th className="num">On hand</th>
-                  <th className="num">Value at cost</th>
+                  <Th>Medicine</Th>
+                  <Th>Code</Th>
+                  <Th className="num">On hand</Th>
+                  <Th className="num">Value at cost</Th>
                 </tr>
               </thead>
               <tbody>

@@ -27,6 +27,7 @@ import Select from "../components/Select";
 import { EntityLink } from "../components/Filters";
 import RowLink from "../components/RowLink";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface FiscalReceipt {
   id: number; sale_id: number; receipt_type: string; global_counter: number;
@@ -342,9 +343,9 @@ export default function Fiscal() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>No.</th><th>Type</th><th className="col-stamp">Filed</th>
-                    <th className="num">Total</th><th className="num">VAT</th>
-                    <th>Status</th><th className="actions" />
+                    <Th>No.</Th><Th>Type</Th><Th className="col-stamp">Filed</Th>
+                    <Th className="num">Total</Th><Th className="num">VAT</Th>
+                    <Th>Status</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -412,10 +413,10 @@ export default function Fiscal() {
             <table>
               <thead>
                 <tr>
-                  <th>Day</th><th className="col-stamp">Opened</th><th className="col-stamp">Closed</th>
-                  <th className="num">Receipts</th><th className="num">Sales</th>
-                  <th className="num">VAT</th><th className="num">Credit notes</th>
-                  <th>Z-report</th>
+                  <Th>Day</Th><Th className="col-stamp">Opened</Th><Th className="col-stamp">Closed</Th>
+                  <Th className="num">Receipts</Th><Th className="num">Sales</Th>
+                  <Th className="num">VAT</Th><Th className="num">Credit notes</Th>
+                  <Th>Z-report</Th>
                 </tr>
               </thead>
               <tbody>

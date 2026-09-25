@@ -724,6 +724,22 @@ th {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
+/* THE MARK BEFORE A COLUMN'S NAME.
+ *
+ * A header row is ten words in 10.5px uppercase, which is the hardest text on
+ * the screen to read. The icon is what lets somebody find the money column or
+ * the date column without reading any of them, and on a screen looked at for
+ * nine hours that difference compounds.
+ *
+ * Quieter than the word it marks. It is a signpost to the column, not a second
+ * heading, so it sits a step below the text in contrast and never above it. */
+.th-said {
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.th-said > svg { flex: none; color: var(--ink-faint); }
+/* A right-aligned column puts its mark on the right of the words, against the
+   figures it heads, rather than stranded at the far side of the column. */
+th.num .th-said { flex-direction: row-reverse; }
 /* EVERY TABLE IN THE PRODUCT IS THIS TABLE.
    A cell is 13px on 6px of vertical padding and 12px of horizontal, and a
    column name is 10.5px uppercase on the same padding. Nine tables used to

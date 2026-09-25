@@ -9,6 +9,7 @@ import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 /** The words a teller uses, not the words the database uses. */
 const METHOD_LABEL: Record<string, string> = {
@@ -122,8 +123,8 @@ export default function Shifts() {
               </p>
               <table>
                 <thead>
-                  <tr><th>Currency</th><th className="num">Opening float</th><th className="num">Cash (net)</th>
-                    <th className="num">Card</th><th className="num">Mobile money</th>
+                  <tr><Th>Currency</Th><Th className="num">Opening float</Th><Th className="num">Cash (net)</Th>
+                    <Th className="num">Card</Th><Th className="num">Mobile money</Th>
 </tr>
                 </thead>
                 <tbody>
@@ -156,9 +157,9 @@ export default function Shifts() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th>Instrument</th><th>Currency</th>
-                    <th className="num">Payments</th>
-                    <th className="num">Taken</th>
+                    <Th>Instrument</Th><Th>Currency</Th>
+                    <Th className="num">Payments</Th>
+                    <Th className="num">Taken</Th>
                     <th className="num">In {takings.base_currency}</th>
                   </tr>
                 </thead>
@@ -235,9 +236,9 @@ export default function Shifts() {
         <table>
           <thead>
             <tr>
-              <th>Cashier</th><th>Run</th><th>Opened</th><th>Closed</th>
-              <th className="num">Float</th><th className="num">Expected</th><th className="num">Counted</th>
-              <th className="num">Variance</th><th className="num">Sales</th><th>Notes</th>
+              <Th>Cashier</Th><Th>Run</Th><Th>Opened</Th><Th>Closed</Th>
+              <Th className="num">Float</Th><Th className="num">Expected</Th><Th className="num">Counted</Th>
+              <Th className="num">Variance</Th><Th className="num">Sales</Th><Th>Notes</Th>
             </tr>
           </thead>
           <tbody>

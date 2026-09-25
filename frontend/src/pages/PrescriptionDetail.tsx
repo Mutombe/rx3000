@@ -30,6 +30,7 @@ import RepeatValue from "../components/RepeatValue";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Item {
   id: number; product_id: number; dosage_instructions: string;
@@ -180,14 +181,14 @@ export default function PrescriptionDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Medicine</th><th>Directions</th>
-                  <th className="num">Qty</th><th className="num">Repeats</th>
+                  <Th>Medicine</Th><Th>Directions</Th>
+                  <Th className="num">Qty</Th><Th className="num">Repeats</Th>
                   {/* A script listing four repeats and no money cannot answer
                       what the script is worth if the patient keeps coming
                       back, which is the only commercial question anybody asks
                       of one. */}
-                  <th className="num">Worth</th>
-                  <th>Next due</th>
+                  <Th className="num">Worth</Th>
+                  <Th>Next due</Th>
                 </tr>
               </thead>
               <tbody>
@@ -238,8 +239,8 @@ export default function PrescriptionDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th><th>Medicine</th>
-                    <th className="num">Qty</th><th>Dispensed by</th><th></th>
+                    <Th>When</Th><Th>Medicine</Th>
+                    <Th className="num">Qty</Th><Th>Dispensed by</Th><th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -278,8 +279,8 @@ export default function PrescriptionDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th><th>Field</th><th>From</th><th>To</th>
-                    <th>Reason</th><th>By</th>
+                    <Th>When</Th><Th>Field</Th><Th>From</Th><Th>To</Th>
+                    <Th>Reason</Th><Th>By</Th>
                   </tr>
                 </thead>
                 <tbody>

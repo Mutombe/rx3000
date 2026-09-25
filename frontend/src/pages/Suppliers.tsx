@@ -32,6 +32,7 @@ import BusyButton from "../components/BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Supplier {
   id: number;
@@ -160,12 +161,12 @@ export default function Suppliers() {
               <table className="dt sup-table">
                 <thead>
                   <tr>
-                    <th className="sup-col-who">Supplier</th><th className="sup-col-contact">Contact</th>
+                    <Th className="sup-col-who">Supplier</Th><Th className="sup-col-contact">Contact</Th>
                     {/* The column a buyer renewing terms argues from. It was
                         in the purchase orders all along and had no screen. */}
-                    <th className="sup-col-arrive">How they arrive</th>
-                    <th className="sup-col-paid">Paid to</th>
-                    <th className="sup-col-terms">Terms</th><th className="actions" />
+                    <Th className="sup-col-arrive">How they arrive</Th>
+                    <Th className="sup-col-paid">Paid to</Th>
+                    <Th className="sup-col-terms">Terms</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

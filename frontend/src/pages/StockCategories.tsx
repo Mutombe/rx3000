@@ -24,6 +24,7 @@ import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import TagProducts from "../components/TagProducts";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
@@ -143,17 +144,17 @@ export default function StockCategories() {
         <table className="dt dt-wider">
           <thead>
             <tr>
-              <th className="col-med">Department</th>
-              <th className="num">Lines</th>
-              <th className="num">With stock</th>
-              <th className="num">At cost</th>
-              <th className="num">Target margin</th>
+              <Th className="col-med">Department</Th>
+              <Th className="num">Lines</Th>
+              <Th className="num">With stock</Th>
+              <Th className="num">At cost</Th>
+              <Th className="num">Target margin</Th>
               {/* Ninety days is right for tablets and useless at either end of
                   a catalogue. A fridge line with six weeks of shelf life needs
                   telling at thirty; consignment stock nobody reorders is worth
                   knowing about at six months. */}
-              <th className="num">Warn (days)</th>
-              <th className="col-when">In the dispensary</th>
+              <Th className="num">Warn (days)</Th>
+              <Th className="col-when">In the dispensary</Th>
               <th className="actions" />
             </tr>
           </thead>

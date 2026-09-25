@@ -24,6 +24,7 @@ import { ArrowLeft, UserSwitch, Warning } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDateTime } from "../api";
 import RecordPage, { Panel } from "../components/RecordPage";
+import Th from "../components/Th";
 
 interface Entry {
   id: number;
@@ -165,8 +166,8 @@ export default function AuditDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th><th>Action</th><th>Endpoint</th>
-                    <th>Answer</th><th className="actions" />
+                    <Th>When</Th><Th>Action</Th><Th>Endpoint</Th>
+                    <Th>Answer</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

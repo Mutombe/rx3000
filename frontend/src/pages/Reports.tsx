@@ -12,6 +12,7 @@ import ReportChart from "../components/ReportChart";
 import { ChartBar, Table } from "@phosphor-icons/react";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Tab = "all" | "daily" | "vat" | "valuation" | "tax";
 
@@ -232,7 +233,7 @@ export default function Reports() {
         <div className="card">
           <table>
             <thead>
-              <tr><th>Day</th><th className="num">Transactions</th><th className="num">Cash</th><th className="num">Card</th><th className="num">Medical aid</th><th className="num">VAT</th><th className="num">Total</th></tr>
+              <tr><Th>Day</Th><Th className="num">Transactions</Th><Th className="num">Cash</Th><Th className="num">Card</Th><Th className="num">Medical aid</Th><Th className="num">VAT</Th><Th className="num">Total</Th></tr>
             </thead>
             <tbody>
               {daily.map((d) => (
@@ -311,7 +312,7 @@ export default function Reports() {
 
           <div className="card" hidden={view === "chart"}>
             <table>
-              <thead><tr><th>Product</th><th className="num">On hand</th><th className="num">Cost</th><th className="num">Value at cost</th><th className="num">Value at retail</th></tr></thead>
+              <thead><tr><Th>Product</Th><Th className="num">On hand</Th><Th className="num">Cost</Th><Th className="num">Value at cost</Th><Th className="num">Value at retail</Th></tr></thead>
               <tbody>
                 {valuationRows.items.map((l: any, i: number) => (
                   <tr key={i}>
@@ -350,7 +351,7 @@ export default function Reports() {
                 <div className="card stat hero"><div className="label">Out of pocket</div><div className="value">{money(taxReport.total_out_of_pocket)}</div></div>
               </div>
               <table>
-                <thead><tr><th>Date</th><th>Invoice</th><th>Items</th><th className="num">Total</th><th className="num">Aid paid</th><th className="num">Out of pocket</th></tr></thead>
+                <thead><tr><Th>Date</Th><Th>Invoice</Th><Th>Items</Th><Th className="num">Total</Th><Th className="num">Aid paid</Th><Th className="num">Out of pocket</Th></tr></thead>
                 <tbody>
                   {taxReport.lines.map((l: any, i: number) => (
                     <tr key={i}>

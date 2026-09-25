@@ -14,6 +14,7 @@ import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Sent {
   id: number; status: string; channel: string;
@@ -121,7 +122,7 @@ export default function CampaignDetail() {
             <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
               <table className="dt">
                 <thead>
-                  <tr><th>Patient</th><th>Channel</th><th>When</th><th>Status</th></tr>
+                  <tr><Th>Patient</Th><Th>Channel</Th><Th>When</Th><Th>Status</Th></tr>
                 </thead>
                 <tbody>
                   {d.messages.map((m) => (

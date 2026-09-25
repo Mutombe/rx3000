@@ -33,6 +33,7 @@ import { overdueTone, rateTone } from "../tone";
 import { patientOwes } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -377,14 +378,14 @@ export default function Repeats() {
                 <thead>
                   <tr>
                     <SelectAll checked={picked.allChosen} onChange={picked.all} />
-                    <th className="rp-who">Patient</th>
-                    <th className="rp-what">Medicine</th><th className="rp-due">Due</th>
+                    <Th className="rp-who">Patient</Th>
+                    <Th className="rp-what">Medicine</Th><Th className="rp-due">Due</Th>
                     {/* The row already carried this figure and the table never
                         showed it. While the comment below said the question
                         being asked is "what is it worth". A queue without money
                         cannot be worked in the order that pays. */}
-                    <th className="num rp-worth">Worth</th>
-                    <th className="num rp-left">Repeats left</th>
+                    <Th className="num rp-worth">Worth</Th>
+                    <Th className="num rp-left">Repeats left</Th>
                     {/* No "In stock" column. The table's fixed layout had
                         already squeezed it to nothing, so it was rendering a
                         number nobody could see, and the fact it carried is
@@ -608,9 +609,9 @@ export default function Repeats() {
                 <table className="dt" style={{ marginTop: "var(--s4)" }}>
                   <thead>
                     <tr>
-                      <th>Where it went</th><th className="num">Repeats</th>
-                      <th className="num rp-worth">Worth</th>
-                      <th className="num">Share</th><th>What fixes it</th>
+                      <Th>Where it went</Th><Th className="num">Repeats</Th>
+                      <Th className="num rp-worth">Worth</Th>
+                      <Th className="num">Share</Th><Th>What fixes it</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -658,10 +659,10 @@ export default function Repeats() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Week</th>
-                    <th className="num">Repeats filled</th>
-                    <th className="num rp-worth">Worth</th>
-                    <th className="num">Average</th>
+                    <Th>Week</Th>
+                    <Th className="num">Repeats filled</Th>
+                    <Th className="num rp-worth">Worth</Th>
+                    <Th className="num">Average</Th>
                     <th />
                   </tr>
                 </thead>
@@ -759,9 +760,9 @@ export default function Repeats() {
                 <table className="dt dt-wider">
                   <thead>
                     <tr>
-                      <th className="rp-who">Patient</th>
-                    <th className="rp-what">Medicine</th><th className="rp-due">Due</th>
-                      <th className="num rp-worth">Worth</th><th>State</th>
+                      <Th className="rp-who">Patient</Th>
+                    <Th className="rp-what">Medicine</Th><Th className="rp-due">Due</Th>
+                      <Th className="num rp-worth">Worth</Th><Th>State</Th>
                       <th className="actions" />
                     </tr>
                   </thead>

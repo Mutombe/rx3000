@@ -27,6 +27,7 @@ import RecordPage, { Panel } from "../components/RecordPage";
 import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Line {
   id: number; claim_number: string; status: string;
@@ -211,14 +212,14 @@ export default function ClaimBatchDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Claim</th>
-                    <th>Patient</th>
-                    <th>Sale</th>
-                    <th>Status</th>
-                    <th className="num">Claimed</th>
-                    <th className="num">Approved</th>
-                    <th className="num">Settled</th>
-                    <th className="num">Short</th>
+                    <Th>Claim</Th>
+                    <Th>Patient</Th>
+                    <Th>Sale</Th>
+                    <Th>Status</Th>
+                    <Th className="num">Claimed</Th>
+                    <Th className="num">Approved</Th>
+                    <Th className="num">Settled</Th>
+                    <Th className="num">Short</Th>
                   </tr>
                 </thead>
                 <tbody>

@@ -34,6 +34,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Row {
   product_id: number; product: string; department: string; schedule: number;
@@ -169,14 +170,14 @@ export default function StockPerformance() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="col-med">Line</th>
-                    <th className="num">Out</th>
-                    <th className="num">A month</th>
-                    <th className="num">On hand</th>
-                    <th className="num">Cover</th>
-                    <th className="num">Taken</th>
-                    <th className="num">GP</th>
-                    <th className="num">GMROI</th>
+                    <Th className="col-med">Line</Th>
+                    <Th className="num">Out</Th>
+                    <Th className="num">A month</Th>
+                    <Th className="num">On hand</Th>
+                    <Th className="num">Cover</Th>
+                    <Th className="num">Taken</Th>
+                    <Th className="num">GP</Th>
+                    <Th className="num">GMROI</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -264,9 +265,9 @@ export default function StockPerformance() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="col-med">Line</th><th>Department</th>
-                    <th className="num">On hand</th>
-                    <th className="num">Tied up</th>
+                    <Th className="col-med">Line</Th><Th>Department</Th>
+                    <Th className="num">On hand</Th>
+                    <Th className="num">Tied up</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -309,13 +310,13 @@ export default function StockPerformance() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Branch</th>
-                    <th className="num">Taken</th>
-                    <th className="num">GP</th>
-                    <th className="num">Margin</th>
-                    <th className="num">GMROI</th>
-                    <th className="num">Not moving</th>
-                    <th>Its best lines</th>
+                    <Th>Branch</Th>
+                    <Th className="num">Taken</Th>
+                    <Th className="num">GP</Th>
+                    <Th className="num">Margin</Th>
+                    <Th className="num">GMROI</Th>
+                    <Th className="num">Not moving</Th>
+                    <Th>Its best lines</Th>
                   </tr>
                 </thead>
                 <tbody>

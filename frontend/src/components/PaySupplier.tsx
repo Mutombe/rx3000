@@ -24,6 +24,7 @@ import Select from "./Select";
 import { ZIM_BANKS } from "./Tenders";
 import { WALLETS, walletForNumber } from "./MobileMoney";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 export interface PayableInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -205,8 +206,8 @@ export default function PaySupplier({
         <table className="dt">
           <thead>
             <tr>
-              <th>Invoice</th><th>Due</th>
-              <th className="num">Outstanding</th><th className="num">Paying</th>
+              <Th>Invoice</Th><Th>Due</Th>
+              <Th className="num">Outstanding</Th><Th className="num">Paying</Th>
             </tr>
           </thead>
           <tbody>

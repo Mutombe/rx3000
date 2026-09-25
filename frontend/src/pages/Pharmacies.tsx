@@ -21,6 +21,7 @@ import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Pharmacy {
   id: number; name: string; trading_name: string; registration_no: string;
@@ -212,8 +213,8 @@ export default function Pharmacies() {
         <table className="dt dt-wide">
           <thead>
             <tr>
-              <th className="col-who-two">Pharmacy</th><th>City</th><th className="num">Branches</th>
-              <th className="num">People</th><th>Since</th><th>State</th>
+              <Th className="col-who-two">Pharmacy</Th><Th>City</Th><Th className="num">Branches</Th>
+              <Th className="num">People</Th><Th>Since</Th><Th>State</Th>
               <th className="actions" />
             </tr>
           </thead>
@@ -349,7 +350,7 @@ export default function Pharmacies() {
             </p>
             <table className="dt dt-wide">
               <thead>
-                <tr><th>Name</th><th>Username</th><th>Role</th><th>State</th></tr>
+                <tr><Th>Name</Th><Th>Username</Th><Th>Role</Th><Th>State</Th></tr>
               </thead>
               <tbody>
                 {people.map((u) => (

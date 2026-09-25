@@ -31,6 +31,7 @@ import { useToast } from "./Toast";
 import { useAsk } from "./Confirm";
 import { useCan } from "../session";
 import MatchToBill, { Candidate } from "./MatchToBill";
+import Th from "./Th";
 
 interface Item {
   product_id: number; product: string; batch_id: number | null; batch: string;
@@ -279,12 +280,12 @@ export default function GoodsReceipts() {
           <table className="dt gr-table">
             <thead>
               <tr>
-                <th className="col-when">Delivery</th>
-                <th>Supplier</th>
-                <th className="col-code">Against</th>
-                <th className="num col-count">Packs</th>
-                <th className="num col-money">At cost</th>
-                <th>Paperwork</th>
+                <Th className="col-when">Delivery</Th>
+                <Th>Supplier</Th>
+                <Th className="col-code">Against</Th>
+                <Th className="num col-count">Packs</Th>
+                <Th className="num col-money">At cost</Th>
+                <Th>Paperwork</Th>
                 <th className="actions" />
               </tr>
             </thead>

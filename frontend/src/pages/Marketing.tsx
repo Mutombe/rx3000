@@ -15,6 +15,7 @@ import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Tab = "compose" | "history";
 
@@ -200,8 +201,8 @@ export default function Marketing() {
                      shown={shown.length} total={campaigns.length} />
         <table>
           <thead>
-            <tr><th>Campaign</th><th>Channel</th><th>Segment</th><th className="num">Audience</th>
-              <th className="num">Sent</th><th className="num">Failed</th><th>Status</th><th>When</th><th className="actions" /></tr>
+            <tr><Th>Campaign</Th><Th>Channel</Th><Th>Segment</Th><Th className="num">Audience</Th>
+              <Th className="num">Sent</Th><Th className="num">Failed</Th><Th>Status</Th><Th>When</Th><th className="actions" /></tr>
           </thead>
           <tbody>
             {shown.map((c) => (
@@ -242,7 +243,7 @@ export default function Marketing() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Delivered messages</h2>
             <table>
-              <thead><tr><th>Patient</th><th>Message</th><th>Status</th></tr></thead>
+              <thead><tr><Th>Patient</Th><Th>Message</Th><Th>Status</Th></tr></thead>
               <tbody>
                 {sentMessages.map((m) => (
                   <tr key={m.id}>

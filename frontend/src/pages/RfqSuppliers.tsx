@@ -20,6 +20,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 export interface QuoteAnswer {
   rfq_supplier_id: number;
@@ -205,9 +206,9 @@ function RecordAnswer({ rfqId, invited, lines, onClose, onSaved }: {
           <table className="dt">
             <thead>
               <tr>
-                <th>Medicine</th><th className="num">Wanted</th>
-                <th className="num">Unit price</th><th className="num">Lead days</th>
-                <th className="num">Line total</th><th>Cannot supply</th>
+                <Th>Medicine</Th><Th className="num">Wanted</Th>
+                <Th className="num">Unit price</Th><Th className="num">Lead days</Th>
+                <Th className="num">Line total</Th><Th>Cannot supply</Th>
               </tr>
             </thead>
             <tbody>

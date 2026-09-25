@@ -19,6 +19,7 @@ import { useConfirm } from "../components/Confirm";
 import { TabStrip } from "../components/PageTabs";
 import { FilterToggle } from "../components/Filters";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -476,7 +477,7 @@ export default function Admin() {
               <span className="muted">Also runs automatically with the reminder jobs</span>
             </div>
             <table>
-              <thead><tr><th>Rule</th><th>Type</th><th>When</th><th>Then</th><th className="num">Fired</th><th>Active</th><th className="actions" /></tr></thead>
+              <thead><tr><Th>Rule</Th><Th>Type</Th><Th>When</Th><Th>Then</Th><Th className="num">Fired</Th><Th>Active</Th><th className="actions" /></tr></thead>
               <tbody>
                 {rules.map((r) => (
                   <tr key={r.id}>
@@ -552,7 +553,7 @@ export default function Admin() {
           <div className="card">
             <h3>Message templates</h3>
             <table>
-              <thead><tr><th>Name</th><th>Category</th><th>Channel</th><th>Content</th><th className="actions" /></tr></thead>
+              <thead><tr><Th>Name</Th><Th>Category</Th><Th>Channel</Th><Th>Content</Th><th className="actions" /></tr></thead>
               <tbody>
                 {templates.map((t) => (
                   <tr key={t.id}>
@@ -671,8 +672,8 @@ export default function Admin() {
                   <table className="dt">
                     <thead>
                       <tr>
-                        <th>Item</th><th className="num">Times sold</th>
-                        <th>Last sold</th><th className="num">Price</th>
+                        <Th>Item</Th><Th className="num">Times sold</Th>
+                        <Th>Last sold</Th><Th className="num">Price</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -752,13 +753,13 @@ export default function Admin() {
               <table>
                 <thead>
                   <tr>
-                    <th>Row</th><th>Key</th><th>Product</th>
-                    <th className="num">Cost</th><th className="num">Selling</th>
+                    <Th>Row</Th><Th>Key</Th><Th>Product</Th>
+                    <Th className="num">Cost</Th><Th className="num">Selling</Th>
                     {/* Shown only when the file carries them, so an ordinary
                         supplier file is not padded with two empty columns. */}
-                    {showsSep && <th className="num">SEP</th>}
-                    {showsMmap && <th className="num">MMAP</th>}
-                    <th>Result</th>
+                    {showsSep && <Th className="num">SEP</Th>}
+                    {showsMmap && <Th className="num">MMAP</Th>}
+                    <Th>Result</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -815,8 +816,8 @@ export default function Admin() {
           <table>
             <thead>
               <tr>
-                <th>Sent</th><th>Prescriber</th><th>Patient</th>
-                <th>Medicines</th><th className="actions" />
+                <Th>Sent</Th><Th>Prescriber</Th><Th>Patient</Th>
+                <Th>Medicines</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -875,9 +876,9 @@ export default function Admin() {
           <table>
             <thead>
               <tr>
-                <th>When</th><th>Transaction</th><th>Kind</th><th>Status</th>
-                <th className="num">Claimed</th><th className="num">Approved</th>
-                <th className="num">Took</th>
+                <Th>When</Th><Th>Transaction</Th><Th>Kind</Th><Th>Status</Th>
+                <Th className="num">Claimed</Th><Th className="num">Approved</Th>
+                <Th className="num">Took</Th>
               </tr>
             </thead>
             <tbody>
@@ -994,8 +995,8 @@ export default function Admin() {
           <table>
             <thead>
               <tr>
-                <th>Raised</th><th>Scope</th><th>Severity</th>
-                <th>Message</th><th>Expires</th><th>By</th>
+                <Th>Raised</Th><Th>Scope</Th><Th>Severity</Th>
+                <Th>Message</Th><Th>Expires</Th><Th>By</Th>
                 <th className="actions" />
               </tr>
             </thead>
@@ -1066,8 +1067,8 @@ export default function Admin() {
           <table className="dt">
             <thead>
               <tr>
-                <th>When</th><th>What</th><th>Asked by</th><th>Approved by</th>
-                <th>Outcome</th><th>Context</th>
+                <Th>When</Th><Th>What</Th><Th>Asked by</Th><Th>Approved by</Th>
+                <Th>Outcome</Th><Th>Context</Th>
               </tr>
             </thead>
             <tbody>
@@ -1152,7 +1153,7 @@ export default function Admin() {
               was recorded", which is the opposite of what it means. */}
           {audit.length === 0 && <TableSkeleton cols={6} rows={6} />}
           <table>
-            <thead><tr><th>When</th><th>User</th><th>Action</th><th>Endpoint</th><th>Status</th><th>IP</th><th className="actions" /></tr></thead>
+            <thead><tr><Th>When</Th><Th>User</Th><Th>Action</Th><Th>Endpoint</Th><Th>Status</Th><Th>IP</Th><th className="actions" /></tr></thead>
             <tbody>
               {audit.map((a) => (
                 <tr key={a.id}>
@@ -1228,8 +1229,8 @@ export default function Admin() {
           <table>
             <thead>
               <tr>
-                <th>File</th><th>Created</th><th className="num">Size</th>
-                <th>Restorable</th><th className="actions" />
+                <Th>File</Th><Th>Created</Th><Th className="num">Size</Th>
+                <Th>Restorable</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>

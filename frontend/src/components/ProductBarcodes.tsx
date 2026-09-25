@@ -21,6 +21,7 @@ import { Barcode, Trash } from "@phosphor-icons/react";
 import { api } from "../api";
 import BusyButton from "./BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import Th from "./Th";
 
 interface Code {
   id: number; code: string; pack_size: number | null;
@@ -70,7 +71,7 @@ export default function ProductBarcodes({ productId }: { productId: number }) {
         <table className="dt">
           <thead>
             <tr>
-              <th>Code</th><th>Pack</th><th>Label</th><th>Where it came from</th>
+              <Th>Code</Th><Th>Pack</Th><Th>Label</Th><Th>Where it came from</Th>
               <th className="actions" />
             </tr>
           </thead>

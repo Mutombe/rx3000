@@ -20,6 +20,7 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Row {
   sale_id: number;
@@ -144,9 +145,9 @@ export default function MoneyOwed() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Patient</th><th>Sale</th><th>Since</th>
-                <th className="num">Sale</th><th className="num">Paid</th>
-                <th className="num">Owed</th><th className="actions" />
+                <Th>Patient</Th><Th>Sale</Th><Th>Since</Th>
+                <Th className="num">Sale</Th><Th className="num">Paid</Th>
+                <Th className="num">Owed</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>

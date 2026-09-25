@@ -22,6 +22,7 @@ import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import type { Driver } from "./Drivers";
+import Th from "../components/Th";
 
 /** One hand-in: a round of deliveries turned into money in a till. */
 interface HandIn {
@@ -243,8 +244,8 @@ export default function DriverDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>When</th><th className="num">Deliveries</th>
-                  <th className="num">Amount</th><th>Into till</th>
+                  <Th>When</Th><Th className="num">Deliveries</Th>
+                  <Th className="num">Amount</Th><Th>Into till</Th>
                 </tr>
               </thead>
               <tbody>
@@ -278,11 +279,11 @@ export default function DriverDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Waybill</th><th>To</th><th>Status</th>
-                  <th className="num">Fee</th>
-                  <th className="num">To collect</th>
-                  <th className="num">Collected</th>
-                  <th>When</th>
+                  <Th>Waybill</Th><Th>To</Th><Th>Status</Th>
+                  <Th className="num">Fee</Th>
+                  <Th className="num">To collect</Th>
+                  <Th className="num">Collected</Th>
+                  <Th>When</Th>
                 </tr>
               </thead>
               <tbody>

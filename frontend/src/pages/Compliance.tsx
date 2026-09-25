@@ -39,6 +39,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Doc {
   id: number | null; kind: string; name: string; expected_issuer: string;
@@ -251,11 +252,11 @@ export default function Compliance() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th>Branch</th><th>Standing</th>
-                    <th className="num">Expired</th>
-                    <th className="num">Not on file</th>
-                    <th>Next renewal</th>
-                    <th className="num">Renewals a year</th>
+                    <Th>Branch</Th><Th>Standing</Th>
+                    <Th className="num">Expired</Th>
+                    <Th className="num">Not on file</Th>
+                    <Th>Next renewal</Th>
+                    <Th className="num">Renewals a year</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -351,8 +352,8 @@ export default function Compliance() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th>Document</th><th>Standing</th><th>Reference</th>
-                    <th>Expires</th><th>Scan</th><th className="actions" />
+                    <Th>Document</Th><Th>Standing</Th><Th>Reference</Th>
+                    <Th>Expires</Th><Th>Scan</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -476,8 +477,8 @@ export default function Compliance() {
               <div className="dt-scroll">
                 <table className="dt dt-wide">
                   <thead>
-                    <tr><th>Document</th><th>Reference</th><th>Expired</th>
-                      <th>Scan</th></tr>
+                    <tr><Th>Document</Th><Th>Reference</Th><Th>Expired</Th>
+                      <Th>Scan</Th></tr>
                   </thead>
                   <tbody>
                     {register.history.map((d) => (

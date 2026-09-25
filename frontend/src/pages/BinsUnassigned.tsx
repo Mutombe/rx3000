@@ -31,6 +31,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Loose {
   product_id: number;
@@ -157,10 +158,10 @@ export default function BinsUnassigned() {
                   <thead>
                     <tr>
                       <th className="bulk-tick" />
-                      <th className="col-med">Line</th>
-                      <th className="mono col-code">Code</th>
-                      <th className="num">On hand</th>
-                      <th className="num">Worth</th>
+                      <Th className="col-med">Line</Th>
+                      <Th className="mono col-code">Code</Th>
+                      <Th className="num">On hand</Th>
+                      <Th className="num">Worth</Th>
                     </tr>
                   </thead>
                   <tbody>

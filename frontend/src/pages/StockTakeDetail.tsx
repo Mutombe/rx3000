@@ -22,6 +22,7 @@ import { ArrowLeft } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money , sentence} from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import Th from "../components/Th";
 
 interface Line {
   product_id: number;
@@ -125,12 +126,12 @@ export default function StockTakeDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Medicine</th>
-                    <th className="num">Expected</th>
-                    <th className="num">Counted</th>
-                    <th className="num">Out by</th>
-                    <th className="num">Worth</th>
-                    <th>Note</th>
+                    <Th>Medicine</Th>
+                    <Th className="num">Expected</Th>
+                    <Th className="num">Counted</Th>
+                    <Th className="num">Out by</Th>
+                    <Th className="num">Worth</Th>
+                    <Th>Note</Th>
                   </tr>
                 </thead>
                 <tbody>

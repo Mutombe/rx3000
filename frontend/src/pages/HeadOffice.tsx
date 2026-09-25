@@ -37,6 +37,7 @@ import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
 import EstateStock from "../components/EstateStock";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface BranchRow {
   branch_id: number; branch: string; code: string; city: string;
@@ -237,10 +238,10 @@ export default function HeadOffice() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="col-name">Branch</th><th className="num">Taken</th>
-                    <th className="num">Sales</th>
-                    <th className="num">On the period before</th>
-                    <th>Standing</th><th className="actions" />
+                    <Th className="col-name">Branch</Th><Th className="num">Taken</Th>
+                    <Th className="num">Sales</Th>
+                    <Th className="num">On the period before</Th>
+                    <Th>Standing</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -458,8 +459,8 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
         <div className="dt-scroll">
           <table className="dt">
             <thead>
-              <tr><th>Person</th><th>Role</th><th>Till code</th>
-                <th>Also allowed</th><th>Prevented from</th></tr>
+              <tr><Th>Person</Th><Th>Role</Th><Th>Till code</Th>
+                <Th>Also allowed</Th><Th>Prevented from</Th></tr>
             </thead>
             <tbody>
               {people.people.map((p: any) => (
@@ -534,8 +535,8 @@ function WhoSignsIn({ pins, types }: {
       <div className="dt-scroll">
         <table className="dt">
           <thead>
-            <tr><th>Kind</th><th className="num">How many</th>
-              <th>How they prove it</th><th>What they reach</th></tr>
+            <tr><Th>Kind</Th><Th className="num">How many</Th>
+              <Th>How they prove it</Th><Th>What they reach</Th></tr>
           </thead>
           <tbody>
             {types.types.map((t) => (
@@ -571,8 +572,8 @@ function WhoSignsIn({ pins, types }: {
             <div className="dt-scroll">
               <table className="dt">
                 <thead>
-                  <tr><th>Nobody can tell it was them</th><th>Role</th>
-                    <th>Why it matters</th></tr>
+                  <tr><Th>Nobody can tell it was them</Th><Th>Role</Th>
+                    <Th>Why it matters</Th></tr>
                 </thead>
                 <tbody>
                   {pins.without_pin.map((u) => (

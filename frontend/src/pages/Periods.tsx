@@ -19,6 +19,7 @@ import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface VatReturn {
   period_code: string; period_name: string; period_status: string;
@@ -167,12 +168,12 @@ export default function Periods() {
         <table className="dt">
           <thead>
             <tr>
-              <th className="pe-code">Period</th>
-              <th className="col-range">Runs</th>
-              <th>Status</th>
-              <th className="num">Signed off at</th>
-              <th className="num">Transactions</th>
-              <th>Closed by</th>
+              <Th className="pe-code">Period</Th>
+              <Th className="col-range">Runs</Th>
+              <Th>Status</Th>
+              <Th className="num">Signed off at</Th>
+              <Th className="num">Transactions</Th>
+              <Th>Closed by</Th>
               <th className="actions" />
             </tr>
           </thead>

@@ -27,6 +27,7 @@ import Select from "./Select";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { TableSkeleton } from "./Skeleton";
+import Th from "./Th";
 
 interface Held {
   branch_id: number; branch: string; code: string; on_hand: number;
@@ -179,8 +180,8 @@ export default function EstateStock() {
             <div className="dt-scroll">
               <table className="dt es-shelves">
                 <thead>
-                  <tr><th>Branch</th><th className="num">On the shelf</th>
-                    <th className="num">After this move</th></tr>
+                  <tr><Th>Branch</Th><Th className="num">On the shelf</Th>
+                    <Th className="num">After this move</Th></tr>
                 </thead>
                 <tbody>
                   {holdings.branches.map((b) => {
@@ -279,8 +280,8 @@ export default function EstateStock() {
           <div className="dt-scroll">
             <table className="dt">
               <thead>
-                <tr><th>Reference</th><th>Medicine</th><th className="num">Qty</th>
-                  <th>From</th><th>To</th><th className="num">Days out</th>
+                <tr><Th>Reference</Th><Th>Medicine</Th><Th className="num">Qty</Th>
+                  <Th>From</Th><Th>To</Th><Th className="num">Days out</Th>
                   <th className="actions" /></tr>
               </thead>
               <tbody>

@@ -35,6 +35,7 @@ import { useToast } from "../components/Toast";
 import InviteSupplier from "./RfqInvite";
 import SupplierCard from "./RfqSuppliers";
 import { AwaitingApproval, AwardState, WhyNotCheapest, WhyRefused } from "./RfqAward";
+import Th from "../components/Th";
 
 interface Answer {
   rfq_supplier_id: number;
@@ -385,8 +386,8 @@ export default function RfqDetail() {
               <table className="dt rfq-grid">
                 <thead>
                   <tr>
-                    <th>Medicine</th>
-                    <th className="num">Wanted</th>
+                    <Th>Medicine</Th>
+                    <Th className="num">Wanted</Th>
                     {row.suppliers.map((s) => (
                       <th key={s.rfq_supplier_id} className="num">
                         {s.supplier}

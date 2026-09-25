@@ -20,6 +20,7 @@ import RecordPage, { Panel } from "../components/RecordPage";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useCan } from "../session";
+import Th from "../components/Th";
 
 /** The delivery a returned line came off.
  *
@@ -259,13 +260,13 @@ export default function SupplierReturnDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Medicine</th><th>Batch</th><th>Expiry</th>
+                    <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
                     {/* The delivery it came off, which is what makes the
                         claim one a wholesaler settles rather than argues. */}
-                    <th>Came off</th>
-                    <th className="num">Packs</th>
-                    <th className="num">Unit cost</th>
-                    <th className="num">Value</th>
+                    <Th>Came off</Th>
+                    <Th className="num">Packs</Th>
+                    <Th className="num">Unit cost</Th>
+                    <Th className="num">Value</Th>
                   </tr>
                 </thead>
                 <tbody>

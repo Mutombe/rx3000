@@ -31,6 +31,7 @@ import {
 import { useToast } from "./Toast";
 import { useCan } from "../session";
 import { useAsk } from "./Confirm";
+import Th from "./Th";
 
 interface Line {
   product_id: number; product: string; batch: string; expiry: string;
@@ -285,14 +286,14 @@ export default function SupplierReturns() {
           <table className="dt gr-table">
             <thead>
               <tr>
-                <th className="col-when">Reference</th>
-                <th>Supplier</th>
-                <th>Why</th>
-                <th className="num col-money">Value</th>
+                <Th className="col-when">Reference</Th>
+                <Th>Supplier</Th>
+                <Th>Why</Th>
+                <Th className="num col-money">Value</Th>
                 {/* Undeclared: the badge says "gone, credit owed" and a code
                     width cut it to "gone, credit owe". A state that cannot be
                     read in full is a state nobody trusts. */}
-                <th>Standing</th>
+                <Th>Standing</Th>
                 <th className="actions" />
               </tr>
             </thead>

@@ -30,6 +30,7 @@ import { EntityLink, FilterToggle } from "./Filters";
 import { useToast } from "./Toast";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
+import Th from "./Th";
 
 /** What the morning sweep can find, worst first. Labelled the way a person
  *  would say them rather than the way they are stored.
@@ -245,10 +246,10 @@ export default function StockWatch() {
             </colgroup>
             <thead>
               <tr>
-                <th>What</th>
-                <th>Medicine</th>
-                <th className="num">Worth</th>
-                <th>Since</th>
+                <Th>What</Th>
+                <Th>Medicine</Th>
+                <Th className="num">Worth</Th>
+                <Th>Since</Th>
                 <th className="actions" />
               </tr>
             </thead>

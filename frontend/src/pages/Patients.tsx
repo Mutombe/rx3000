@@ -11,6 +11,7 @@ import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import PatientForm from "../components/PatientForm";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -143,8 +144,8 @@ export default function Patients() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Patient</th><th>ID Number</th><th>Contact</th><th>Medical Aid</th>
-                <th>Allergies</th><th className="num">Loyalty</th><th className="actions" />
+                <Th>Patient</Th><Th>ID Number</Th><Th>Contact</Th><Th>Medical Aid</Th>
+                <Th>Allergies</Th><Th className="num">Loyalty</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>

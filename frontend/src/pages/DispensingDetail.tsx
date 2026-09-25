@@ -25,6 +25,7 @@ import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useScheduleCodes } from "../schedules";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Detail {
   id: number; quantity: number; dispensed_at: string; is_repeat: boolean;
@@ -399,8 +400,8 @@ export default function DispensingDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Medicine</th><th className="num">Qty</th>
-                    <th>Dispensed</th><th>Collected</th>
+                    <Th>Medicine</Th><Th className="num">Qty</Th>
+                    <Th>Dispensed</Th><Th>Collected</Th>
                   </tr>
                 </thead>
                 <tbody>

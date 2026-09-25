@@ -23,6 +23,7 @@ import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { useSession } from "../session";
 import { closeThenSave } from "../hooks/useOptimisticList";
+import Th from "./Th";
 
 interface BranchRow { id: number; name: string; code: string }
 
@@ -306,8 +307,8 @@ export default function StaffPlacement({ userId, name, onChanged }: {
                 <caption className="sr-only">Branches this person also covers</caption>
                 <thead>
                   <tr>
-                    <th>Also covers</th><th>Until</th><th>Why</th>
-                    <th>Added by</th><th aria-label="Actions" />
+                    <Th>Also covers</Th><Th>Until</Th><Th>Why</Th>
+                    <Th>Added by</Th><th aria-label="Actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -337,7 +338,7 @@ export default function StaffPlacement({ userId, name, onChanged }: {
               <table className="dt">
                 <caption className="sr-only">Every branch this person has worked in</caption>
                 <thead>
-                  <tr><th>Moved</th><th>From</th><th>To</th><th>Why</th><th>By</th></tr>
+                  <tr><Th>Moved</Th><Th>From</Th><Th>To</Th><Th>Why</Th><Th>By</Th></tr>
                 </thead>
                 <tbody>
                   {p.moves.map((m) => (

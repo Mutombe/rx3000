@@ -19,6 +19,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Deferred {
   id: number;
@@ -161,12 +162,12 @@ export default function DeferredClaims() {
           <table className="dt dt-wider">
             <thead>
               <tr>
-                <th>Claim</th>
-                <th>Sale</th>
-                <th>Patient</th>
-                <th>Scheme</th>
-                <th className="num">Value</th>
-                <th className="col-why wrap-cell">Why it is held</th>
+                <Th>Claim</Th>
+                <Th>Sale</Th>
+                <Th>Patient</Th>
+                <Th>Scheme</Th>
+                <Th className="num">Value</Th>
+                <Th className="col-why wrap-cell">Why it is held</Th>
                 <th className="actions" />
               </tr>
             </thead>

@@ -27,6 +27,7 @@ import { CheckCircle, Warning, XCircle } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime, money } from "../api";
 import RecordPage, { Fact, Panel } from "../components/RecordPage";
 import { EntityLink } from "../components/Filters";
+import Th from "../components/Th";
 
 interface Receipt {
   id: number; sale_id: number; receipt_counter: number; global_counter: number;
@@ -156,9 +157,9 @@ export default function FiscalDay() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Currency</th><th className="num">Receipts</th>
-                    <th className="num">Sales</th><th className="num">VAT</th>
-                    <th className="num">Credited</th>
+                    <Th>Currency</Th><Th className="num">Receipts</Th>
+                    <Th className="num">Sales</Th><Th className="num">VAT</Th>
+                    <Th className="num">Credited</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -186,8 +187,8 @@ export default function FiscalDay() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Treatment</th><th className="num">Receipts</th>
-                    <th className="num">Total</th><th className="num">VAT</th>
+                    <Th>Treatment</Th><Th className="num">Receipts</Th>
+                    <Th className="num">Total</Th><Th className="num">VAT</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -248,8 +249,8 @@ export default function FiscalDay() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="num">Receipt</th><th className="num">Global</th>
-                    <th className="num">Total</th><th>State</th><th>The authority said</th>
+                    <Th className="num">Receipt</Th><Th className="num">Global</Th>
+                    <Th className="num">Total</Th><Th>State</Th><Th>The authority said</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -280,10 +281,10 @@ export default function FiscalDay() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="num">#</th><th className="num">Global</th>
-                    <th>When</th><th>Type</th><th className="num">Total</th>
-                    <th className="num">VAT</th><th>State</th><th>Sale</th>
-                    <th>Hash</th>
+                    <th className="num">#</th><Th className="num">Global</Th>
+                    <Th>When</Th><Th>Type</Th><Th className="num">Total</Th>
+                    <Th className="num">VAT</Th><Th>State</Th><Th>Sale</Th>
+                    <Th>Hash</Th>
                   </tr>
                 </thead>
                 <tbody>

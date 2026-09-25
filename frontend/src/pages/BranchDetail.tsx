@@ -24,6 +24,7 @@ import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
+import Th from "../components/Th";
 
 interface Branch {
   id: number; code: string; name: string; registration_no: string;
@@ -257,8 +258,8 @@ export default function BranchDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Document</th><th>Reference</th><th>Issuer</th>
-                    <th>Standing</th><th className="num">Renewal</th>
+                    <Th>Document</Th><Th>Reference</Th><Th>Issuer</Th>
+                    <Th>Standing</Th><Th className="num">Renewal</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -318,10 +319,10 @@ export default function BranchDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Medicine</th>
-                  <th className="num">Here</th>
-                  <th className="num">Reorder at</th>
-                  <th className="num">Across the group</th>
+                  <Th>Medicine</Th>
+                  <Th className="num">Here</Th>
+                  <Th className="num">Reorder at</Th>
+                  <Th className="num">Across the group</Th>
                 </tr>
               </thead>
               <tbody>

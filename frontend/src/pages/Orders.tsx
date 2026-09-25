@@ -12,6 +12,7 @@ import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import ReceiveDelivery from "../components/ReceiveDelivery";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Tab = "orders" | "low" | "approve";
 
@@ -182,8 +183,8 @@ export default function Orders() {
                          shown={shown.length} total={orders.length} />
             <table>
               <thead>
-                <tr><th></th><th>Order</th><th>Supplier</th><th>Status</th><th>Raised</th>
-                  <th className="num">Lines</th><th className="num">Value</th><th className="actions" /></tr>
+                <tr><th></th><Th>Order</Th><Th>Supplier</Th><Th>Status</Th><Th>Raised</Th>
+                  <Th className="num">Lines</Th><Th className="num">Value</Th><th className="actions" /></tr>
               </thead>
               <tbody>
                 {shown.map((o) => {
@@ -266,8 +267,8 @@ export default function Orders() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Order</th><th>Supplier</th><th>Raised</th>
-                    <th className="num">Worth</th><th className="actions" />
+                    <Th>Order</Th><Th>Supplier</Th><Th>Raised</Th>
+                    <Th className="num">Worth</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -315,7 +316,7 @@ export default function Orders() {
             </div>
           )}
           <table>
-            <thead><tr><th>Product</th><th className="num">On hand</th><th className="num">Reorder level</th><th className="num">Suggested qty</th></tr></thead>
+            <thead><tr><Th>Product</Th><Th className="num">On hand</Th><Th className="num">Reorder level</Th><Th className="num">Suggested qty</Th></tr></thead>
             <tbody>
               {lowStockRows.items.map((p: Product) => (
                 <tr key={p.id}>

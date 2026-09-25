@@ -23,6 +23,7 @@ import { api, errorText, money } from "../api";
 import { EntityLink, FilterToggle } from "./Filters";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 interface Line {
   product_id: number; product: string;
@@ -228,16 +229,16 @@ export default function StockReconcile() {
                   <table className="dt rc-table">
                     <thead>
                       <tr>
-                        <th>Product</th>
+                        <Th>Product</Th>
                         {/* col-count (5.5rem) is sized for a bare figure and
                             cut every one of these headings: "Usable today"
                             lost 28px of itself. A column has to be as wide as
                             the question it asks, not as the answer. */}
-                        <th className="num col-money">Own count</th>
-                        <th className="num col-money">In batches</th>
-                        <th className="num col-money">Usable today</th>
-                        <th className="num col-money">Out by</th>
-                        <th className="num col-money">At cost</th>
+                        <Th className="num col-money">Own count</Th>
+                        <Th className="num col-money">In batches</Th>
+                        <Th className="num col-money">Usable today</Th>
+                        <Th className="num col-money">Out by</Th>
+                        <Th className="num col-money">At cost</Th>
                         <th className="actions" />
                       </tr>
                     </thead>

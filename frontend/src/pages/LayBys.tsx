@@ -27,6 +27,7 @@ import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -242,10 +243,10 @@ export default function LayBys() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th className="mono col-code">Lay-by</th><th className="col-name">Customer</th><th className="col-when">Raised</th><th className="col-when">Due</th>
-                    <th className="num col-money">Total</th>
-                    <th className="num col-money">Paid</th>
-                    <th className="num col-money">Balance</th><th className="actions" />
+                    <Th className="mono col-code">Lay-by</Th><Th className="col-name">Customer</Th><Th className="col-when">Raised</Th><Th className="col-when">Due</Th>
+                    <Th className="num col-money">Total</Th>
+                    <Th className="num col-money">Paid</Th>
+                    <Th className="num col-money">Balance</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

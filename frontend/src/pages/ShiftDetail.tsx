@@ -10,6 +10,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface SaleRow {
   id: number; sale_number: string; created_at: string;
@@ -102,7 +103,7 @@ export default function ShiftDetail() {
             <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
               <table className="dt">
                 <thead>
-                  <tr><th>Sale</th><th>When</th><th>Customer</th><th>Paid by</th><th className="num">Total</th></tr>
+                  <tr><Th>Sale</Th><Th>When</Th><Th>Customer</Th><Th>Paid by</Th><Th className="num">Total</Th></tr>
                 </thead>
                 <tbody>
                   {d.sales.map((s) => (

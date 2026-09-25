@@ -20,6 +20,7 @@ import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 interface Plan {
   applied: boolean; considered: number; placed: number;
@@ -115,9 +116,9 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Department</th>
-                  <th className="num">Lines</th>
-                  <th>New?</th>
+                  <Th>Department</Th>
+                  <Th className="num">Lines</Th>
+                  <Th>New?</Th>
                 </tr>
               </thead>
               <tbody>
@@ -207,9 +208,9 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Product</th><th>Code</th>
-                  <th className="num">On hand</th>
-                  <th className="num">At cost</th>
+                  <Th>Product</Th><Th>Code</Th>
+                  <Th className="num">On hand</Th>
+                  <Th className="num">At cost</Th>
                 </tr>
               </thead>
               <tbody>

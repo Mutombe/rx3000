@@ -9,6 +9,7 @@ import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types"
 import { TableSkeleton } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
 
@@ -293,8 +294,8 @@ export default function CrmReports() {
               }))}
             />
             <table>
-              <thead><tr><th>Month</th><th className="num">Deals</th><th className="num">Open</th>
-                <th className="num">Weighted</th><th className="num">Won</th><th className="num">Coverage</th></tr></thead>
+              <thead><tr><Th>Month</Th><Th className="num">Deals</Th><Th className="num">Open</Th>
+                <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Coverage</Th></tr></thead>
               <tbody>
                 {forecast.map((f) => (
                   <tr key={f.month}>
@@ -382,9 +383,9 @@ export default function CrmReports() {
             <div className="card-head"><h3>Workload &amp; quality</h3></div>
             <table>
               <thead>
-                <tr><th>Rep</th><th className="num">Open deals</th><th className="num">Pipeline</th>
-                  <th className="num">Weighted</th><th className="num">Won</th><th className="num">Win rate</th>
-                  <th className="num">Leads</th><th className="num">Cases</th><th className="num">Overdue</th></tr>
+                <tr><Th>Rep</Th><Th className="num">Open deals</Th><Th className="num">Pipeline</Th>
+                  <Th className="num">Weighted</Th><Th className="num">Won</Th><Th className="num">Win rate</Th>
+                  <Th className="num">Leads</Th><Th className="num">Cases</Th><Th className="num">Overdue</Th></tr>
               </thead>
               <tbody>
                 {owners.map((o) => (
@@ -444,9 +445,9 @@ export default function CrmReports() {
             <div className="card-head"><h3>Attribution detail</h3></div>
             <table>
               <thead>
-                <tr><th>Campaign</th><th>Channel</th><th className="num">Sent</th><th className="num">Leads</th>
-                  <th className="num">Response</th><th className="num">Converted</th><th className="num">Opportunities</th>
-                  <th className="num">Pipeline</th><th className="num">Won</th></tr>
+                <tr><Th>Campaign</Th><Th>Channel</Th><Th className="num">Sent</Th><Th className="num">Leads</Th>
+                  <Th className="num">Response</Th><Th className="num">Converted</Th><Th className="num">Opportunities</Th>
+                  <Th className="num">Pipeline</Th><Th className="num">Won</Th></tr>
               </thead>
               <tbody>
                 {roi.map((c) => (

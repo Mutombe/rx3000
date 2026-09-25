@@ -17,6 +17,7 @@ import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Dispensed {
   id: number; dispensed_at: string; quantity: number; schedule: number;
@@ -199,8 +200,8 @@ export default function StaffDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th><th>Medicine</th><th>Patient</th>
-                    <th>Script</th><th className="num">Qty</th>
+                    <Th>When</Th><Th>Medicine</Th><Th>Patient</Th>
+                    <Th>Script</Th><Th className="num">Qty</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -233,7 +234,7 @@ export default function StaffDetail() {
                  empty="This person has not run a till.">
             <table className="dt">
               <thead>
-                <tr><th>Opened</th><th>Closed</th><th>Status</th><th className="num">Variance</th></tr>
+                <tr><Th>Opened</Th><Th>Closed</Th><Th>Status</Th><Th className="num">Variance</Th></tr>
               </thead>
               <tbody>
                 {d.shifts.map((s) => (

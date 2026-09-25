@@ -20,6 +20,7 @@ import { Block, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Operations {
   as_of: string;
@@ -226,7 +227,7 @@ export default function DispensaryOperations() {
                 {day.dispensers.length ? (
                   <table className="ops-table">
                     <thead>
-                      <tr><th>Dispenser</th><th className="num">Scripts</th><th className="num">Lines</th></tr>
+                      <tr><Th>Dispenser</Th><Th className="num">Scripts</Th><Th className="num">Lines</Th></tr>
                     </thead>
                     <tbody>
                       {day.dispensers.map((d) => (
@@ -260,8 +261,8 @@ export default function DispensaryOperations() {
                 <table className="ops-table">
                   <thead>
                     <tr>
-                      <th>Script</th><th>Patient</th><th>Why</th><th>Held by</th>
-                      <th className="num">Held for</th><th />
+                      <Th>Script</Th><Th>Patient</Th><Th>Why</Th><Th>Held by</Th>
+                      <Th className="num">Held for</Th><th />
                     </tr>
                   </thead>
                   <tbody>

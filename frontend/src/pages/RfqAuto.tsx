@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { api, errorText } from "../api";
 import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Waiting {
   product_id: number;
@@ -148,10 +149,10 @@ export default function RfqAuto({ onClose, onRaised }: {
                       <table className="dt">
                         <thead>
                           <tr>
-                            <th>Medicine</th>
-                            <th className="num">On hand</th>
-                            <th className="num">Reorder at</th>
-                            <th className="num">Would ask for</th>
+                            <Th>Medicine</Th>
+                            <Th className="num">On hand</Th>
+                            <Th className="num">Reorder at</Th>
+                            <Th className="num">Would ask for</Th>
                           </tr>
                         </thead>
                         <tbody>

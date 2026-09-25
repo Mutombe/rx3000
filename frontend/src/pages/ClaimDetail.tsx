@@ -11,6 +11,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Line {
   product_id: number | null; product: string; quantity: number; line_total: number;
@@ -126,7 +127,7 @@ export default function ClaimDetail() {
                  empty="No sale lines are attached to this claim.">
             <table className="dt">
               <thead>
-                <tr><th>Medicine</th><th className="num">Qty</th><th className="num">Value</th></tr>
+                <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th className="num">Value</Th></tr>
               </thead>
               <tbody>
                 {d.lines.map((l, i) => (

@@ -29,6 +29,7 @@ import { EntityLink } from "../components/Filters";
 import { Block, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Trend {
   change: number | null;
@@ -273,13 +274,13 @@ export default function Dashboard() {
                       {/* The branch name is the link out of this row and was
                           the one thing cut: "RX5000 Pharmacy Central" wants
                           197px and an equal share of eight gave it 115. */}
-                      <th className="db-branch">Branch</th>
-                      <th className="num db-taken">Taken</th>
-                      <th className="num">Share</th>
-                      <th className="num">Sales</th>
-                      <th className="num db-avg">Average sale</th>
-                      <th className="num">Scripts</th>
-                      <th className="num db-drawer">Drawer</th>
+                      <Th className="db-branch">Branch</Th>
+                      <Th className="num db-taken">Taken</Th>
+                      <Th className="num">Share</Th>
+                      <Th className="num">Sales</Th>
+                      <Th className="num db-avg">Average sale</Th>
+                      <Th className="num">Scripts</Th>
+                      <Th className="num db-drawer">Drawer</Th>
                       <th style={{ width: "12rem" }} />
                     </tr>
                   </thead>

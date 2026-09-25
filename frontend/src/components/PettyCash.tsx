@@ -22,6 +22,7 @@ import { useToast } from "./Toast";
 import { TableSearch, useSearch } from "./Filters";
 import Checkbox from "./Checkbox";
 import Select from "./Select";
+import Th from "./Th";
 
 interface Entry {
   id: number; amount: number; category: string; description: string;
@@ -225,8 +226,8 @@ export default function PettyCash() {
               <table>
                 <thead>
                   <tr>
-                    <th className="col-when">When</th><th>Category</th><th className="col-why wrap-cell">What for</th>
-                    <th className="num">Amount</th><th>Receipt</th><th className="col-name">By</th>
+                    <Th className="col-when">When</Th><Th>Category</Th><Th className="col-why wrap-cell">What for</Th>
+                    <Th className="num">Amount</Th><Th>Receipt</Th><Th className="col-name">By</Th>
                   </tr>
                 </thead>
                 <tbody>

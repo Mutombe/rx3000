@@ -25,6 +25,7 @@ import MatchToBill, { Candidate } from "../components/MatchToBill";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useCan } from "../session";
+import Th from "../components/Th";
 
 interface Item {
   product_id: number;
@@ -267,10 +268,10 @@ export default function GoodsReceiptDetail() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Medicine</th><th>Batch</th><th>Expiry</th>
-                      <th className="num">Packs</th>
-                      <th className="num">Unit cost</th>
-                      <th className="num">Value</th>
+                      <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
+                      <Th className="num">Packs</Th>
+                      <Th className="num">Unit cost</Th>
+                      <Th className="num">Value</Th>
                     </tr>
                   </thead>
                   <tbody>{itemRows(damaged)}</tbody>
@@ -288,10 +289,10 @@ export default function GoodsReceiptDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Medicine</th><th>Batch</th><th>Expiry</th>
-                    <th className="num">Packs</th>
-                    <th className="num">Unit cost</th>
-                    <th className="num">Value</th>
+                    <Th>Medicine</Th><Th>Batch</Th><Th>Expiry</Th>
+                    <Th className="num">Packs</Th>
+                    <Th className="num">Unit cost</Th>
+                    <Th className="num">Value</Th>
                   </tr>
                 </thead>
                 <tbody>{itemRows(good)}</tbody>

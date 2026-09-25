@@ -12,6 +12,7 @@ import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 /** One label or script printed a second time. */
 interface Reprint {
@@ -166,9 +167,9 @@ export default function Register() {
         <table>
           <thead>
             <tr>
-              <th>Date &amp; time</th><th>Substance</th><th>Sched.</th><th>Entry</th>
-              <th className="num">Qty</th><th className="num">Balance</th>
-              <th>Patient</th><th>Prescriber</th><th>Reference</th>
+              <Th>Date &amp; time</Th><Th>Substance</Th><Th>Sched.</Th><Th>Entry</Th>
+              <Th className="num">Qty</Th><Th className="num">Balance</Th>
+              <Th>Patient</Th><Th>Prescriber</Th><Th>Reference</Th>
             </tr>
           </thead>
           <tbody>
@@ -234,7 +235,7 @@ export default function Register() {
           <table className="dt">
             <thead>
               <tr>
-                <th>When</th><th>Script</th><th>By</th><th>Why</th>
+                <Th>When</Th><Th>Script</Th><Th>By</Th><Th>Why</Th>
               </tr>
             </thead>
             <tbody>

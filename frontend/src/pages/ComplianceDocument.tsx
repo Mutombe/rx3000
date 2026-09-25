@@ -28,6 +28,7 @@ import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import RecordPage, { Fact, Panel } from "../components/RecordPage";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Row {
   id: number | null;
@@ -305,8 +306,8 @@ export default function ComplianceDocument() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Reference</th><th>Issued</th><th>Expired</th>
-                  <th>Recorded by</th><th className="num">Cost</th><th />
+                  <Th>Reference</Th><Th>Issued</Th><Th>Expired</Th>
+                  <Th>Recorded by</Th><Th className="num">Cost</Th><th />
                 </tr>
               </thead>
               <tbody>

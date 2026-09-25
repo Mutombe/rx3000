@@ -27,6 +27,7 @@ import PaySupplier from "../components/PaySupplier";
 import Remittance, { RemittanceData } from "../components/Remittance";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface AgeInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -375,7 +376,7 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="pay-supplier">Supplier</th>
+                    <Th className="pay-supplier">Supplier</Th>
                     {/* No Total column. It is the six bands added up, the
                         tile above already states the grand total, and it was
                         the column that pushed the Pay button off the right
@@ -466,10 +467,10 @@ export default function Payables() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Invoice</th><th className="pay-supplier">Supplier</th><th>Dated</th>
-                      <th>Status</th>
-                      <th className="num">Total</th>
-                      <th className="num">Outstanding</th>
+                      <Th>Invoice</Th><Th className="pay-supplier">Supplier</Th><Th>Dated</Th>
+                      <Th>Status</Th>
+                      <Th className="num">Total</Th>
+                      <Th className="num">Outstanding</Th>
                       <th className="actions" />
                     </tr>
                   </thead>
@@ -521,8 +522,8 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Invoice</th><th className="pay-supplier">Supplier</th><th>Due</th>
-                    <th className="num">Outstanding</th><th className="actions" />
+                    <Th>Invoice</Th><Th className="pay-supplier">Supplier</Th><Th>Due</Th>
+                    <Th className="num">Outstanding</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -578,8 +579,8 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="pay-supplier">Supplier</th><th>Paid</th><th>Reference</th>
-                    <th className="num">Amount</th><th className="num">On account</th>
+                    <Th className="pay-supplier">Supplier</Th><Th>Paid</Th><Th>Reference</Th>
+                    <Th className="num">Amount</Th><Th className="num">On account</Th>
                     <th className="actions" />
                   </tr>
                 </thead>
@@ -624,8 +625,8 @@ export default function Payables() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Order</th><th className="pay-supplier">Supplier</th><th>Received</th>
-                    <th className="num">Value</th>
+                    <Th>Order</Th><Th className="pay-supplier">Supplier</Th><Th>Received</Th>
+                    <Th className="num">Value</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -720,9 +721,9 @@ export default function Payables() {
                 <table className="dt sub">
                   <thead>
                     <tr>
-                      <th>Line</th><th className="num">Billed</th>
-                      <th className="num">Received</th><th className="num">At</th>
-                      <th className="num">Ordered at</th>
+                      <Th>Line</Th><Th className="num">Billed</Th>
+                      <Th className="num">Received</Th><Th className="num">At</Th>
+                      <Th className="num">Ordered at</Th>
                     </tr>
                   </thead>
                   <tbody>

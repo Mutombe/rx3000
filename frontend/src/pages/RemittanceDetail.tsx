@@ -19,6 +19,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Th from "../components/Th";
 
 interface Line {
   id: number; line_number: number; claim_reference: string;
@@ -161,7 +162,7 @@ export default function RemittanceDetail() {
                   whole story and are what goes back to the funder. */}
               <table className="dt">
                 <thead>
-                  <tr><th>Reason</th><th className="num">Lines</th><th className="num">Amount</th></tr>
+                  <tr><Th>Reason</Th><Th className="num">Lines</Th><Th className="num">Amount</Th></tr>
                 </thead>
                 <tbody>
                   {advice.by_reason.map((r) => (
@@ -184,9 +185,9 @@ export default function RemittanceDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>#</th><th>Claim</th><th>Member</th>
-                    <th className="num">Claimed</th><th className="num">Paid</th>
-                    <th className="num">Short</th><th>What happened</th>
+                    <th>#</th><Th>Claim</Th><Th>Member</Th>
+                    <Th className="num">Claimed</Th><Th className="num">Paid</Th>
+                    <Th className="num">Short</Th><Th>What happened</Th>
                     <th className="actions" />
                   </tr>
                 </thead>

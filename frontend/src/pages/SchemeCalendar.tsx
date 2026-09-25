@@ -21,6 +21,7 @@ import { useToast } from "../components/Toast";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Scheme {
   id: number; name: string; scheme_code: string; currency_code: string;
@@ -225,9 +226,9 @@ export default function SchemeCalendar() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Funder</th><th>Claims in by</th><th>Next cut-off</th>
-                  <th>Pays on</th><th>Next payment</th>
-                  <th className="num">Awaiting</th><th className="num">Held</th>
+                  <Th>Funder</Th><Th>Claims in by</Th><Th>Next cut-off</Th>
+                  <Th>Pays on</Th><Th>Next payment</Th>
+                  <Th className="num">Awaiting</Th><Th className="num">Held</Th>
                   <th className="actions" />
                 </tr>
               </thead>

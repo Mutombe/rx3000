@@ -21,6 +21,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Receipt {
   product_id: number;
@@ -307,8 +308,8 @@ export default function Samples() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th /><th>Reference</th><th>Medicine</th><th>From</th>
-                  <th>Expiry</th><th className="num">Left</th>
+                  <th /><Th>Reference</Th><Th>Medicine</Th><Th>From</Th>
+                  <Th>Expiry</Th><Th className="num">Left</Th>
                 </tr>
               </thead>
               <tbody>
@@ -346,8 +347,8 @@ export default function Samples() {
                             <table className="dt sub">
                               <thead>
                                 <tr>
-                                  <th>When</th><th>What</th><th className="num">Qty</th>
-                                  <th className="num">Balance</th><th>To</th><th>By</th>
+                                  <Th>When</Th><Th>What</Th><Th className="num">Qty</Th>
+                                  <Th className="num">Balance</Th><Th>To</Th><Th>By</Th>
                                 </tr>
                               </thead>
                               <tbody>

@@ -17,6 +17,7 @@ import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
+import Th from "./Th";
 
 interface Item {
   batch_id: number; product: string; batch_number: string;
@@ -125,8 +126,8 @@ export default function ExpiryProvision() {
       <table className="dt" style={{ marginTop: 18 }}>
         <thead>
           <tr>
-            <th>Band</th><th className="num">Batches</th><th className="num">At cost</th>
-            <th className="num">Rate</th><th className="num">Provision</th>
+            <Th>Band</Th><Th className="num">Batches</Th><Th className="num">At cost</Th>
+            <Th className="num">Rate</Th><Th className="num">Provision</Th>
           </tr>
         </thead>
         <tbody>
@@ -158,9 +159,9 @@ export default function ExpiryProvision() {
             <table className="dt sub">
               <thead>
                 <tr>
-                  <th>Medicine</th><th>Batch</th><th>Expires</th>
-                  <th className="num">Qty</th><th className="num">At cost</th>
-                  <th className="num">Provision</th>
+                  <Th>Medicine</Th><Th>Batch</Th><Th>Expires</Th>
+                  <Th className="num">Qty</Th><Th className="num">At cost</Th>
+                  <Th className="num">Provision</Th>
                 </tr>
               </thead>
               <tbody>
@@ -190,7 +191,7 @@ export default function ExpiryProvision() {
           <summary>{state.history.length} posting{state.history.length === 1 ? "" : "s"} on file</summary>
           <table className="dt sub">
             <thead>
-              <tr><th>Date</th><th>Reference</th><th className="num">Movement</th></tr>
+              <tr><Th>Date</Th><Th>Reference</Th><Th className="num">Movement</Th></tr>
             </thead>
             <tbody>
               {state.history.map((h) => (

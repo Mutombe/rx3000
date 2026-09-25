@@ -22,6 +22,7 @@ import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Hit {
   batch_id: number; batch_number: string; product: string;
@@ -157,8 +158,8 @@ export default function Recall() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Batch</th><th>Medicine</th><th>Expiry</th>
-                <th className="num">On shelf</th><th className="actions" />
+                <Th>Batch</Th><Th>Medicine</Th><Th>Expiry</Th>
+                <Th className="num">On shelf</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -289,7 +290,7 @@ export default function Recall() {
                     <table className="dt">
                       <thead>
                         <tr>
-                          <th>Patient</th><th className="num">Qty</th><th>When</th>
+                          <Th>Patient</Th><Th className="num">Qty</Th><Th>When</Th>
                         </tr>
                       </thead>
                       <tbody>

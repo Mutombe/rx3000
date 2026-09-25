@@ -24,6 +24,7 @@ import BusyButton from "./BusyButton";
 import Checkbox from "./Checkbox";
 import { useToast } from "./Toast";
 import { SaleItem } from "../types";
+import Th from "./Th";
 
 interface PlanLine {
   sale_item_id: number; product_id: number; description: string;
@@ -96,11 +97,11 @@ export default function ReturnLines(
           <table className="dt">
             <thead>
               <tr>
-                <th>Line</th>
-                <th className="num">Sold</th>
-                <th className="num">Back already</th>
-                <th className="num">Returning</th>
-                <th className="num">Worth</th>
+                <Th>Line</Th>
+                <Th className="num">Sold</Th>
+                <Th className="num">Back already</Th>
+                <Th className="num">Returning</Th>
+                <Th className="num">Worth</Th>
               </tr>
             </thead>
             <tbody>

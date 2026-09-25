@@ -25,6 +25,7 @@ import SharePortalLink, { PortalLink } from "../components/SharePortalLink";
 import PatientPortalPreview from "../components/PatientPortalPreview";
 import RepeatValue from "../components/RepeatValue";
 import Person from "../components/Person";
+import Th from "../components/Th";
 type Tab = "scripts" | "history" | "sales" | "contact" | "tax" | "consent";
 
 interface HistoryLine {
@@ -399,7 +400,7 @@ export default function PatientDetail() {
                     question a shop asks about a patient. What they are worth
                     if they keep coming back, and what walks out with them if
                     they do not. */}
-                <thead><tr><th>Medication</th><th>Dosage</th><th className="num">Qty</th><th>Repeats</th><th className="num">Worth</th><th>Next repeat</th><th>Auto-refill</th></tr></thead>
+                <thead><tr><Th>Medication</Th><Th>Dosage</Th><Th className="num">Qty</Th><Th>Repeats</Th><Th className="num">Worth</Th><Th>Next repeat</Th><Th>Auto-refill</Th></tr></thead>
                 <tbody>
                   {rx.items.map((i) => (
                     <tr key={i.id}>
@@ -427,7 +428,7 @@ export default function PatientDetail() {
       {tab === "history" && (
         <div className="card">
           <table>
-            <thead><tr><th>Date</th><th>Medication</th><th className="num">Qty</th><th>Dosage</th><th>Type</th><th>Script</th><th>By</th></tr></thead>
+            <thead><tr><Th>Date</Th><Th>Medication</Th><Th className="num">Qty</Th><Th>Dosage</Th><Th>Type</Th><Th>Script</Th><Th>By</Th></tr></thead>
             <tbody>
               {history.map((h, i) => (
                 // Every name in this row is a record. They were all printed as
@@ -467,7 +468,7 @@ export default function PatientDetail() {
       {tab === "sales" && (
         <div className="card">
           <table>
-            <thead><tr><th>Date</th><th>Invoice</th><th>Items</th><th>Payment</th><th className="num">Total</th><th>Status</th></tr></thead>
+            <thead><tr><Th>Date</Th><Th>Invoice</Th><Th>Items</Th><Th>Payment</Th><Th className="num">Total</Th><Th>Status</Th></tr></thead>
             <tbody>
               {sales.map((s) => (
                 <tr key={s.id}>
@@ -496,7 +497,7 @@ export default function PatientDetail() {
             <div className="card stat"><div className="label">Out of pocket</div><div className="value accent">{money(tax.total_out_of_pocket)}</div></div>
           </div>
           <table>
-            <thead><tr><th>Date</th><th>Invoice</th><th>Items</th><th className="num">Total</th><th className="num">Aid paid</th><th className="num">Out of pocket</th></tr></thead>
+            <thead><tr><Th>Date</Th><Th>Invoice</Th><Th>Items</Th><Th className="num">Total</Th><Th className="num">Aid paid</Th><Th className="num">Out of pocket</Th></tr></thead>
             <tbody>
               {tax.lines.map((l: any, i: number) => (
                 <tr key={i}>

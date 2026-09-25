@@ -24,6 +24,7 @@ import NewDelivery from "../components/NewDelivery";
 import { Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -248,12 +249,12 @@ export default function Deliveries() {
                     equally otherwise and gave the address 130px for 237px of
                     street. The three that know their own size say so and the
                     address takes what is left. */}
-                <th className="dlv-no">Waybill</th>
-                <th className="dlv-who">Recipient</th>
-                <th>Address</th>
-                <th className="dlv-driver">Driver</th>
-                <th className="num dlv-cod">To collect</th>
-                <th className="dlv-raised">Raised</th><th className="actions" />
+                <Th className="dlv-no">Waybill</Th>
+                <Th className="dlv-who">Recipient</Th>
+                <Th>Address</Th>
+                <Th className="dlv-driver">Driver</Th>
+                <Th className="num dlv-cod">To collect</Th>
+                <Th className="dlv-raised">Raised</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>

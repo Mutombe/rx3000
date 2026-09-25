@@ -38,6 +38,7 @@ interface PastTake {
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Scope { category: string; bin: string }
 interface Take {
@@ -661,10 +662,10 @@ export default function StockTake() {
                 <table>
                   <thead>
                     <tr>
-                      <th>Product</th>
-                      <th className="num">Counted</th><th className="num">System</th>
-                      <th className="num">Variance</th><th className="num">At cost</th>
-                      <th>Note</th>
+                      <Th>Product</Th>
+                      <Th className="num">Counted</Th><Th className="num">System</Th>
+                      <Th className="num">Variance</Th><Th className="num">At cost</Th>
+                      <Th>Note</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -719,11 +720,11 @@ export default function StockTake() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Reference</th><th>Status</th><th>Closed</th>
-                  <th className="num">Lines</th>
-                  <th className="num">Over</th>
-                  <th className="num">Short</th>
-                  <th className="num">Worth</th>
+                  <Th>Reference</Th><Th>Status</Th><Th>Closed</Th>
+                  <Th className="num">Lines</Th>
+                  <Th className="num">Over</Th>
+                  <Th className="num">Short</Th>
+                  <Th className="num">Worth</Th>
                 </tr>
               </thead>
               <tbody>

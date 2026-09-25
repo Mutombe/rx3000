@@ -15,6 +15,7 @@ import { api, fmtDateTime, errorText  } from "../api";
 import { useToast } from "./Toast";
 import { TableSkeleton } from "./Skeleton";
 import Select from "./Select";
+import Th from "./Th";
 
 interface Currency {
   code: string; symbol: string; decimals: number; rate: number; is_base: boolean;
@@ -154,10 +155,10 @@ export default function CurrencyRates() {
           <table>
             <thead>
               <tr>
-                <th>Currency</th>
+                <Th>Currency</Th>
                 <th style={{ textAlign: "right" }}>Units per base</th>
-                <th>In force from</th>
-                <th>Source</th>
+                <Th>In force from</Th>
+                <Th>Source</Th>
               </tr>
             </thead>
             <tbody>

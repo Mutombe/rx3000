@@ -28,6 +28,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
 import { Patient, Product } from "../types";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Use {
   // `created_at`, not `at`. The field was declared as `at` here and the server
@@ -349,11 +350,11 @@ export default function Authorisations() {
                       reason for refusing, which is the whole value of a
                       refusal, had 116px each to say a sentence in. The token
                       columns say their size; For and Status take the rest. */}
-                  <th className="au-ref">Reference</th>
-                  <th className="au-funder">Funder</th>
-                  <th>For</th><th>Status</th>
-                  <th className="au-when">Valid to</th>
-                  <th className="num au-left">Left</th><th className="actions" />
+                  <Th className="au-ref">Reference</Th>
+                  <Th className="au-funder">Funder</Th>
+                  <Th>For</Th><Th>Status</Th>
+                  <Th className="au-when">Valid to</Th>
+                  <Th className="num au-left">Left</Th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -479,9 +480,9 @@ export default function Authorisations() {
                       <table className="dt sub">
                         <thead>
                           <tr>
-                            <th>Reference</th><th>When</th>
-                            <th className="num">Quantity</th>
-                            <th className="num">Amount</th>
+                            <Th>Reference</Th><Th>When</Th>
+                            <Th className="num">Quantity</Th>
+                            <Th className="num">Amount</Th>
                             <th className="actions" />
                           </tr>
                         </thead>

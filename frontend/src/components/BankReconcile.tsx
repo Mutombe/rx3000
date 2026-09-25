@@ -16,6 +16,7 @@ import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
 import { TableSearch, useSearch } from "./Filters";
+import Th from "./Th";
 
 /** What comes back from `/api/ledger/bank-reconciliation`.
  *
@@ -139,8 +140,8 @@ export default function BankReconcile() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Date</th><th>What the bank calls it</th>
-                    <th className="num">Amount</th><th>Likely</th>
+                    <Th>Date</Th><Th>What the bank calls it</Th>
+                    <Th className="num">Amount</Th><Th>Likely</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -176,8 +177,8 @@ export default function BankReconcile() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Entry</th><th>Dated</th><th>Description</th>
-                    <th className="num">Amount</th>
+                    <Th>Entry</Th><Th>Dated</Th><Th>Description</Th>
+                    <Th className="num">Amount</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,8 +201,8 @@ export default function BankReconcile() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Date</th><th>Description</th><th className="num">Amount</th>
-                    <th>Entry</th><th>Matched on</th>
+                    <Th>Date</Th><Th>Description</Th><Th className="num">Amount</Th>
+                    <Th>Entry</Th><Th>Matched on</Th>
                   </tr>
                 </thead>
                 <tbody>

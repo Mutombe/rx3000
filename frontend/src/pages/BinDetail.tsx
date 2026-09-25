@@ -30,6 +30,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { Units } from "./BinsUnassigned";
 import { useToast } from "../components/Toast";
+import Th from "../components/Th";
 
 interface Line {
   product_id: number;
@@ -191,12 +192,12 @@ export default function BinDetail() {
                 <thead>
                   <tr>
                     <th className="bulk-tick" />
-                    <th className="col-med">Line</th>
-                    <th className="mono col-code">Code</th>
-                    <th className="num">On hand</th>
-                    <th className="num">Reorder at</th>
-                    <th className="num">Worth</th>
-                    <th className="col-when">Also kept in</th>
+                    <Th className="col-med">Line</Th>
+                    <Th className="mono col-code">Code</Th>
+                    <Th className="num">On hand</Th>
+                    <Th className="num">Reorder at</Th>
+                    <Th className="num">Worth</Th>
+                    <Th className="col-when">Also kept in</Th>
                   </tr>
                 </thead>
                 <tbody>

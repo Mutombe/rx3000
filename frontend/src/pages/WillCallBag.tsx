@@ -21,6 +21,7 @@ import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useNavigate, useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Alongside {
   dispensing_id: number; product: string; quantity: number; dispensed_at: string;
@@ -261,7 +262,7 @@ export default function WillCallBag() {
                  empty="Nothing else of theirs is on the shelf.">
             <table className="dt">
               <thead>
-                <tr><th>Medicine</th><th className="num">Qty</th><th>Dispensed</th></tr>
+                <tr><Th>Medicine</Th><Th className="num">Qty</Th><Th>Dispensed</Th></tr>
               </thead>
               <tbody>
                 {bag.alongside.map((a) => (

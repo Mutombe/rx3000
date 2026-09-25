@@ -30,6 +30,7 @@ import { Link } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 /** A verdict, in the badge tone it deserves. Only two of the four are alarms:
  *  a shop that may not trade, and one that cannot prove it may. */
@@ -284,9 +285,9 @@ export default function Branches() {
           <table>
             <thead>
               <tr>
-                <th className="mono">Reference</th><th>Item</th><th className="num">Quantity</th>
-                <th>From</th><th>To</th><th>Sent</th>
-                <th className="num">Days out</th><th className="actions" />
+                <Th className="mono">Reference</Th><Th>Item</Th><Th className="num">Quantity</Th>
+                <Th>From</Th><Th>To</Th><Th>Sent</Th>
+                <Th className="num">Days out</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>
@@ -330,13 +331,13 @@ export default function Branches() {
             <table>
               <thead>
                 <tr>
-                  <th className="col-code">Code</th><th className="col-name">Branch</th><th className="col-city">City</th>
-                  <th className="col-name">Responsible pharmacist</th><th className="col-name">Registration</th>
+                  <Th className="col-code">Code</Th><Th className="col-name">Branch</Th><Th className="col-city">City</Th>
+                  <Th className="col-name">Responsible pharmacist</Th><Th className="col-name">Registration</Th>
                   {/* Whether the shop may lawfully open. It was three sections
                       away under its own sidebar entry, so a manager reading
                       this table had no way to know that the branch on row two
                       has no premises licence on file. */}
-                  <th className="col-name">Licences</th><th className="actions" />
+                  <Th className="col-name">Licences</Th><th className="actions" />
                 </tr>
               </thead>
               <tbody>
@@ -433,8 +434,8 @@ export default function Branches() {
               <table>
                 <thead>
                   <tr>
-                    <th>Product</th><th className="num">Here</th>
-                    <th className="num">Group total</th><th className="num">Reorder at</th>
+                    <Th>Product</Th><Th className="num">Here</Th>
+                    <Th className="num">Group total</Th><Th className="num">Reorder at</Th>
                   </tr>
                 </thead>
                 <tbody>

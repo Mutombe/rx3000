@@ -27,6 +27,7 @@ import NewToFollow from "../components/NewToFollow";
 import { Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Owed {
   id: number;
@@ -217,12 +218,12 @@ export default function ToFollows() {
         <table className="dt dt-wider">
           <thead>
             <tr>
-              <th>Reference</th>
-              <th className="col-name">Patient</th>
-              <th className="col-med">Medicine</th>
-              <th className="num">Owed</th>
-              <th className="num">In stock</th>
-              <th className="col-when">Promised</th>
+              <Th>Reference</Th>
+              <Th className="col-name">Patient</Th>
+              <Th className="col-med">Medicine</Th>
+              <Th className="num">Owed</Th>
+              <Th className="num">In stock</Th>
+              <Th className="col-when">Promised</Th>
               <th className="actions" />
             </tr>
           </thead>

@@ -26,6 +26,7 @@ import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import Person from "./Person";
+import Th from "./Th";
 
 interface Leaver {
   patient_id: number; patient: string; phone: string;
@@ -210,12 +211,12 @@ export default function Churn() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Patient</th>
-                      <th>Telephone</th>
-                      <th>Last seen</th>
-                      <th className="num">Days away</th>
-                      <th className="num">Visits before</th>
-                      <th className="num">Per month</th>
+                      <Th>Patient</Th>
+                      <Th>Telephone</Th>
+                      <Th>Last seen</Th>
+                      <Th className="num">Days away</Th>
+                      <Th className="num">Visits before</Th>
+                      <Th className="num">Per month</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -278,11 +279,11 @@ export default function Churn() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Medicine</th>
-                      <th className="num">Established on it</th>
-                      <th className="num">Stopped</th>
-                      <th className="num">Rate</th>
-                      <th className="num">Dispensing at risk</th>
+                      <Th>Medicine</Th>
+                      <Th className="num">Established on it</Th>
+                      <Th className="num">Stopped</Th>
+                      <Th className="num">Rate</Th>
+                      <Th className="num">Dispensing at risk</Th>
                     </tr>
                   </thead>
                   <tbody>

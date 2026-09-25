@@ -25,6 +25,7 @@ import { TableSkeleton } from "./Skeleton";
 import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import Th from "./Th";
 
 interface Capability { capability: string; name: string; roles: string[] }
 interface Grant {
@@ -136,9 +137,9 @@ export default function HqPermissions() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Capability</th><th>Where</th>
-                      <th className="num">Ceiling</th>
-                      <th>When</th><th>Until</th><th>Why</th>
+                      <Th>Capability</Th><Th>Where</Th>
+                      <Th className="num">Ceiling</Th>
+                      <Th>When</Th><Th>Until</Th><Th>Why</Th>
                       <th className="actions" />
                     </tr>
                   </thead>
@@ -210,7 +211,7 @@ export default function HqPermissions() {
           <div className="dt-scroll">
             <table className="dt">
               <thead>
-                <tr><th>Can they</th><th>Answer</th><th>Why</th></tr>
+                <tr><Th>Can they</Th><Th>Answer</Th><Th>Why</Th></tr>
               </thead>
               <tbody>
                 {detail.capabilities.map((c) => (

@@ -27,6 +27,7 @@ import BusyButton from "../components/BusyButton";
 import { useAsk } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Detail {
   item_id: number;
@@ -371,8 +372,8 @@ export default function RepeatDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Dispensed</th><th className="num">Qty</th>
-                    <th>By</th><th>Collected</th><th className="actions" />
+                    <Th>Dispensed</Th><Th className="num">Qty</Th>
+                    <Th>By</Th><Th>Collected</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

@@ -25,6 +25,7 @@ import NewJournal from "../components/NewJournal";
 import ChartOfAccounts from "../components/ChartOfAccounts";
 import PastelExport from "../components/PastelExport";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -222,9 +223,9 @@ export default function Ledger() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Code</th><th>Account</th><th>Type</th>
-                  <th className="num">Debit</th><th className="num">Credit</th>
-                  <th className="num">Balance</th>
+                  <Th>Code</Th><Th>Account</Th><Th>Type</Th>
+                  <Th className="num">Debit</Th><Th className="num">Credit</Th>
+                  <Th className="num">Balance</Th>
                 </tr>
               </thead>
               <tbody>
@@ -272,8 +273,8 @@ export default function Ledger() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Reference</th><th>Date</th><th>Period</th>
-                  <th>Description</th><th>Source</th><th className="num">Total</th>
+                  <Th>Reference</Th><Th>Date</Th><Th>Period</Th>
+                  <Th>Description</Th><Th>Source</Th><Th className="num">Total</Th>
                 </tr>
               </thead>
               <tbody>
@@ -340,7 +341,7 @@ export default function Ledger() {
         <div className="dt-scroll">
           <table className="dt">
             <thead>
-              <tr><th>Sale</th><th className="num">Total</th><th className="actions" /></tr>
+              <tr><Th>Sale</Th><Th className="num">Total</Th><th className="actions" /></tr>
             </thead>
             <tbody>
               {/* Paged in the browser, because the endpoint deliberately returns
@@ -375,8 +376,8 @@ export default function Ledger() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Order</th><th>Supplier</th><th>Received</th>
-                <th className="num">Value</th><th className="actions" />
+                <Th>Order</Th><Th>Supplier</Th><Th>Received</Th>
+                <Th className="num">Value</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>

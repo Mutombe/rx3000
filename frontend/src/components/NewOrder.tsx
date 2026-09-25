@@ -20,6 +20,7 @@ import BusyButton from "./BusyButton";
 import LookupInput, { LookupItem } from "./LookupInput";
 import Select from "./Select";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 interface Supplier { id: number; name: string }
 interface Line {
@@ -162,11 +163,11 @@ export default function NewOrder({ onClose, onCreated }: {
           <table className="dt">
             <thead>
               <tr>
-                <th>Medicine</th>
-                <th className="num">On hand</th>
-                <th className="num">Order</th>
-                <th className="num">Unit cost</th>
-                <th className="num">Line</th>
+                <Th>Medicine</Th>
+                <Th className="num">On hand</Th>
+                <Th className="num">Order</Th>
+                <Th className="num">Unit cost</Th>
+                <Th className="num">Line</Th>
                 <th className="actions" />
               </tr>
             </thead>

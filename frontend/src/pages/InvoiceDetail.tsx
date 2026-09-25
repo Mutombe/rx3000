@@ -14,6 +14,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Th from "../components/Th";
 
 interface MatchLine {
   description: string; billed_quantity: number; received_quantity: number;
@@ -160,8 +161,8 @@ export default function InvoiceDetail() {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Line</th><th className="num">Qty</th>
-                  <th className="num">Unit</th><th className="num">Total</th>
+                  <Th>Line</Th><Th className="num">Qty</Th>
+                  <Th className="num">Unit</Th><Th className="num">Total</Th>
                 </tr>
               </thead>
               <tbody>

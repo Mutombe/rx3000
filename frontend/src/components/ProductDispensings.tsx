@@ -18,6 +18,7 @@ import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
 import { useToast } from "./Toast";
 import Person from "./Person";
+import Th from "./Th";
 
 interface Row {
   id: number;
@@ -91,12 +92,12 @@ export default function ProductDispensings({ productId }: { productId: number })
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th>
-                    <th>Patient</th>
-                    <th>Script</th>
-                    <th className="num">Units</th>
-                    <th>Dispensed by</th>
-                    <th>Paid</th>
+                    <Th>When</Th>
+                    <Th>Patient</Th>
+                    <Th>Script</Th>
+                    <Th className="num">Units</Th>
+                    <Th>Dispensed by</Th>
+                    <Th>Paid</Th>
                   </tr>
                 </thead>
                 <tbody>

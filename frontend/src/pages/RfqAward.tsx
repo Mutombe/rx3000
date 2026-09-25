@@ -26,6 +26,7 @@ import { useState } from "react";
 
 import { errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
+import Th from "../components/Th";
 
 export interface DearerLine {
   rfq_line_id: number;
@@ -103,8 +104,8 @@ export function AwaitingApproval({ award, onApprove, onSendBack }: {
             <table className="dt">
               <thead>
                 <tr>
-                  <th>Medicine</th><th>Chosen</th><th>Cheapest</th>
-                  <th className="num">Costs more</th>
+                  <Th>Medicine</Th><Th>Chosen</Th><Th>Cheapest</Th>
+                  <Th className="num">Costs more</Th>
                 </tr>
               </thead>
               <tbody>
@@ -198,8 +199,8 @@ export function WhyNotCheapest({ dearer, onClose, onSaid }: {
           <table className="dt">
             <thead>
               <tr>
-                <th>Medicine</th><th>Chosen</th><th>Cheapest</th>
-                <th className="num">More</th>
+                <Th>Medicine</Th><Th>Chosen</Th><Th>Cheapest</Th>
+                <Th className="num">More</Th>
               </tr>
             </thead>
             <tbody>

@@ -10,6 +10,7 @@ import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Sibling {
   id: number; channel: string; message_type: string; status: string;
@@ -81,7 +82,7 @@ export default function MessageDetail() {
                  empty="This is the only message on file for them.">
             <table className="dt">
               <thead>
-                <tr><th>Subject</th><th>Kind</th><th>Channel</th><th>When</th><th>Status</th></tr>
+                <tr><Th>Subject</Th><Th>Kind</Th><Th>Channel</Th><Th>When</Th><Th>Status</Th></tr>
               </thead>
               <tbody>
                 {d.history.map((m) => (

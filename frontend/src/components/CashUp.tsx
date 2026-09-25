@@ -20,6 +20,7 @@ import { api, money, errorText, fmtDateTime } from "../api";
 import { useToast } from "./Toast";
 import { useConfirm } from "./Confirm";
 import Select from "./Select";
+import Th from "./Th";
 
 interface Tender {
   method: string; instrument: string; label: string;
@@ -174,10 +175,10 @@ export default function CashUp(
           <table className="cu-table">
             <thead>
               <tr>
-                <th>Tender</th>
-                <th className="st-amount">Counted</th>
-                <th className="st-amount">System</th>
-                <th className="st-amount">Difference</th>
+                <Th>Tender</Th>
+                <Th className="st-amount">Counted</Th>
+                <Th className="st-amount">System</Th>
+                <Th className="st-amount">Difference</Th>
               </tr>
             </thead>
             <tbody>
@@ -297,8 +298,8 @@ export default function CashUp(
             <table className="cu-table">
               <thead>
                 <tr>
-                  <th>Invoice</th><th>Time</th><th>Status</th>
-                  <th>Tender</th><th className="st-amount">Total</th>
+                  <Th>Invoice</Th><Th>Time</Th><Th>Status</Th>
+                  <Th>Tender</Th><Th className="st-amount">Total</Th>
                 </tr>
               </thead>
               <tbody>

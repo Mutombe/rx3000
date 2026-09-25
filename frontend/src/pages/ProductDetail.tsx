@@ -18,6 +18,7 @@ import CounsellingPoints from "../components/CounsellingPoints";
 import ProductBarcodes from "../components/ProductBarcodes";
 import AdjustStock from "../components/AdjustStock";
 import Usage from "../components/Usage";
+import Th from "../components/Th";
 
 type Tab = "batches" | "movements" | "usage" | "dispensings" | "pricing" | "buying";
 
@@ -502,11 +503,11 @@ export default function ProductDetail() {
                 <table className="dt">
                   <thead>
                     <tr>
-                      <th>Supplier</th>
-                      <th className="num">Last cost</th>
-                      <th className="num">Best seen</th>
-                      <th>Record</th>
-                      <th className="num">Days</th>
+                      <Th>Supplier</Th>
+                      <Th className="num">Last cost</Th>
+                      <Th className="num">Best seen</Th>
+                      <Th>Record</Th>
+                      <Th className="num">Days</Th>
                     </tr>
                   </thead>
                   <tbody>

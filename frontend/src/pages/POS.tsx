@@ -28,6 +28,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import SettleSale from "../components/SettleSale";
 import { useDoing } from "../components/Doing";
+import Th from "../components/Th";
 
 type Tab = "till" | "pending" | "history";
 
@@ -1020,7 +1021,7 @@ export default function POS() {
               widths={["14ch", "20ch", "16ch", "10ch", "12ch"]} />}
           >
           <table>
-            <thead><tr><th>Sale</th><th>Customer</th><th>Raised</th><th className="num">Due</th><th className="actions" /></tr></thead>
+            <thead><tr><Th>Sale</Th><Th>Customer</Th><Th>Raised</Th><Th className="num">Due</Th><th className="actions" /></tr></thead>
             <tbody>
               {pending.map((s) => (
                 <tr key={s.id}
@@ -1124,8 +1125,8 @@ export default function POS() {
           <table className="dt">
             <thead>
               <tr>
-                <th>Invoice</th><th>Customer</th><th>Taken</th>
-                <th>How</th><th className="num">Total</th>
+                <Th>Invoice</Th><Th>Customer</Th><Th>Taken</Th>
+                <Th>How</Th><Th className="num">Total</Th>
               </tr>
             </thead>
             <tbody>

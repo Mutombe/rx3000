@@ -33,6 +33,7 @@ import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 type Tab = "batches" | "models" | "formularies";
 
@@ -450,8 +451,8 @@ export default function Claiming() {
                 <table>
                   <thead>
                     <tr>
-                      <th className="col-name">Pay office</th><th className="num">Claims</th>
-                      <th className="num">Value</th><th className="actions" />
+                      <Th className="col-name">Pay office</Th><Th className="num">Claims</Th>
+                      <Th className="num">Value</Th><th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
@@ -496,16 +497,16 @@ export default function Claiming() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th className="mono col-code">Batch</th><th className="cl-office">Pay office</th><th className="cl-period">Period</th><th className="col-code">Status</th>
-                    <th className="num">Claims</th>
-                    <th className="num col-money">Claimed</th>
+                    <Th className="mono col-code">Batch</Th><Th className="cl-office">Pay office</Th><Th className="cl-period">Period</Th><Th className="col-code">Status</Th>
+                    <Th className="num">Claims</Th>
+                    <Th className="num col-money">Claimed</Th>
                     {/* No Short column. It is what a settled batch was paid
                         less than it claimed, so it is empty on every batch that
                         is still open or still out, which on a real screen is
                         most of them: 120px of "none" beside the figure it is
                         derived from. It rides under the settled figure, where
                         the comparison is. */}
-                    <th className="num col-money">Settled</th><th className="actions" />
+                    <Th className="num col-money">Settled</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -642,8 +643,8 @@ export default function Claiming() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th>Formulary</th><th>What it does by default</th>
-                    <th className="num">Listed</th><th className="actions" />
+                    <Th>Formulary</Th><Th>What it does by default</Th>
+                    <Th className="num">Listed</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -711,9 +712,9 @@ export default function Claiming() {
                 <table className="dt dt-wide">
                   <thead>
                     <tr>
-                      <th>Product</th><th>Standing</th>
-                      <th className="num">Reference price</th>
-                      <th className="num">Max per dispensing</th><th>Note</th>
+                      <Th>Product</Th><Th>Standing</Th>
+                      <Th className="num">Reference price</Th>
+                      <Th className="num">Max per dispensing</Th><Th>Note</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -907,9 +908,9 @@ export default function Claiming() {
               <table className="fm-tiers">
                 <thead>
                   <tr>
-                    <th>Up to</th><th className="num">Percentage</th>
-                    <th className="num">Fixed fee</th><th className="num">Minimum</th>
-                    <th className="num">Maximum</th>
+                    <Th>Up to</Th><Th className="num">Percentage</Th>
+                    <Th className="num">Fixed fee</Th><Th className="num">Minimum</Th>
+                    <Th className="num">Maximum</Th>
                   </tr>
                 </thead>
                 <tbody>

@@ -27,6 +27,7 @@ import { Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDateTime } from "../api";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import Th from "../components/Th";
 
 interface Neighbour {
   id: number;
@@ -236,10 +237,10 @@ export default function MovementDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>When</th><th>Type</th>
+                    <Th>When</Th><Th>Type</Th>
                     <th className="num">Δ Qty</th>
-                    <th className="num">Balance</th>
-                    <th>Reference</th><th className="actions" />
+                    <Th className="num">Balance</Th>
+                    <Th>Reference</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

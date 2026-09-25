@@ -34,6 +34,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -165,12 +166,12 @@ export default function Seasons() {
                   <table className="dt">
                     <thead>
                       <tr>
-                        <th>Branch</th>
-                        <th className="num">Repeats</th>
-                        <th className="num">Line</th>
-                        <th className="num">Basket</th>
-                        <th className="num">Multiple</th>
-                        <th className="num">Buy extras</th>
+                        <Th>Branch</Th>
+                        <Th className="num">Repeats</Th>
+                        <Th className="num">Line</Th>
+                        <Th className="num">Basket</Th>
+                        <Th className="num">Multiple</Th>
+                        <Th className="num">Buy extras</Th>
                       </tr>
                     </thead>
                     <tbody>
@@ -220,12 +221,12 @@ export default function Seasons() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Line</th>
-                    <th className="num">Times out</th>
-                    <th>Busiest</th>
-                    <th className="num">vs a typical month</th>
-                    <th>The year</th>
-                    <th>What to do</th>
+                    <Th>Line</Th>
+                    <Th className="num">Times out</Th>
+                    <Th>Busiest</Th>
+                    <Th className="num">vs a typical month</Th>
+                    <Th>The year</Th>
+                    <Th>What to do</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -307,9 +308,9 @@ export default function Seasons() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Branch</th><th className="num">Year</th>
-                    <th>Busiest</th><th>Quietest</th>
-                    <th className="num">Swing</th><th>The year</th>
+                    <Th>Branch</Th><Th className="num">Year</Th>
+                    <Th>Busiest</Th><Th>Quietest</Th>
+                    <Th className="num">Swing</Th><Th>The year</Th>
                   </tr>
                 </thead>
                 <tbody>

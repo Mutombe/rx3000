@@ -20,6 +20,7 @@ import { useToast } from "../components/Toast";
 import { Product } from "../types";
 import RfqAuto from "./RfqAuto";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface RfqRow {
   id: number;
@@ -145,9 +146,9 @@ export default function Rfqs() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <th>Reference</th><th>Status</th><th>Raised</th>
-                    <th className="num">Lines</th>
-                    <th>Replies</th><th>Closes</th>
+                    <Th>Reference</Th><Th>Status</Th><Th>Raised</Th>
+                    <Th className="num">Lines</Th>
+                    <Th>Replies</Th><Th>Closes</Th>
                   </tr>
                 </thead>
                 <tbody>

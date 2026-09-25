@@ -11,6 +11,7 @@
 import { fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
+import Th from "./Th";
 
 export interface RemittanceData {
   payment_id: number; supplier: string; paid_on: string; amount: number;
@@ -79,8 +80,8 @@ export default function Remittance({ data, onClose }: {
         <table className="dt">
           <thead>
             <tr>
-              <th>Invoice</th><th>Dated</th>
-              <th className="num">Invoice total</th><th className="num">Paid</th>
+              <Th>Invoice</Th><Th>Dated</Th>
+              <Th className="num">Invoice total</Th><Th className="num">Paid</Th>
             </tr>
           </thead>
           <tbody>

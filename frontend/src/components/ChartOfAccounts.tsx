@@ -27,6 +27,7 @@ import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
+import Th from "./Th";
 
 interface Row {
   code: string; name: string; type: string; section: string;
@@ -243,7 +244,7 @@ export default function ChartOfAccounts() {
                 <thead>
                   <tr>
                     <th style={{ width: "8rem" }}>Code</th>
-                    <th>Account</th>
+                    <Th>Account</Th>
                     <th style={{ width: "12rem" }}>Notes</th>
                     <th style={{ width: "8rem" }} title="The number this account carries in the pharmacy's own Pastel books">
                       In Pastel

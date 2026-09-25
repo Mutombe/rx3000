@@ -26,6 +26,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Bag {
   dispensing_id: number;
@@ -229,8 +230,8 @@ export default function WillCall() {
               <table className="dt dt-wide">
                 <thead>
                   <tr>
-                    <th className="col-name">Patient</th><th className="col-med">Medicine</th><th className="num">Qty</th>
-                    <th>Bagged</th><th>Waiting</th><th className="actions" />
+                    <Th className="col-name">Patient</Th><Th className="col-med">Medicine</Th><Th className="num">Qty</Th>
+                    <Th>Bagged</Th><Th>Waiting</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>

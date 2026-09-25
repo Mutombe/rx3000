@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { api, fmtDate } from "../api";
 import type { Patient, Prescription } from "../types";
+import Th from "./Th";
 
 interface HistoryLine {
   id: number;
@@ -130,8 +131,8 @@ export default function PatientHistoryModal({ patient, onClose }: {
                 <table className="pt-table">
                   <thead>
                     <tr>
-                      <th>When</th><th>Medicine</th><th className="num">Qty</th>
-                      <th>Directions</th><th>Type</th><th>Rx</th><th>By</th>
+                      <Th>When</Th><Th>Medicine</Th><Th className="num">Qty</Th>
+                      <Th>Directions</Th><Th>Type</Th><Th>Rx</Th><Th>By</Th>
                     </tr>
                   </thead>
                   <tbody>
@@ -163,8 +164,8 @@ export default function PatientHistoryModal({ patient, onClose }: {
                 <table className="pt-table">
                   <thead>
                     <tr>
-                      <th>Date</th><th>Rx</th><th>Prescriber</th>
-                      <th>Medicines</th><th className="num">Repeats</th><th>Status</th>
+                      <Th>Date</Th><Th>Rx</Th><Th>Prescriber</Th>
+                      <Th>Medicines</Th><Th className="num">Repeats</Th><Th>Status</Th>
                     </tr>
                   </thead>
                   <tbody>

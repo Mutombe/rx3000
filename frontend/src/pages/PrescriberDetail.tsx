@@ -14,6 +14,7 @@ import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Person from "../components/Person";
+import Th from "../components/Th";
 
 interface Script {
   id: number; rx_number: string | null; status: string;
@@ -141,7 +142,7 @@ export default function PrescriberDetail() {
           <Panel title="What they prescribe most" count={d.most_prescribed.length}
                  empty="No script from this prescriber has been captured.">
             <table className="dt">
-              <thead><tr><th>Medicine</th><th className="num">Times</th></tr></thead>
+              <thead><tr><Th>Medicine</Th><Th className="num">Times</Th></tr></thead>
               <tbody>
                 {d.most_prescribed.map((m) => (
                   <tr key={m.product_id}>
@@ -165,7 +166,7 @@ export default function PrescriberDetail() {
             <div className="dt-scroll" style={{ maxHeight: "50vh" }}>
               <table className="dt">
                 <thead>
-                  <tr><th>Script</th><th>Patient</th><th>Written</th><th>Status</th></tr>
+                  <tr><Th>Script</Th><Th>Patient</Th><Th>Written</Th><Th>Status</Th></tr>
                 </thead>
                 <tbody>
                   {d.prescriptions.map((p) => (

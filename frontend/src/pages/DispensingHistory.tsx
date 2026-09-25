@@ -24,6 +24,7 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import Th from "../components/Th";
 
 interface Row {
   id: number;
@@ -252,9 +253,9 @@ export default function DispensingHistory() {
             <table className="dt dt-widest">
               <thead>
                 <tr>
-                  <th>When</th><th>Script</th><th>Patient</th><th>Medicine</th>
-                  <th className="num">Qty</th><th>Checked by</th>
-                  <th>Money</th><th>Collected</th><th className="actions" />
+                  <Th>When</Th><Th>Script</Th><Th>Patient</Th><Th>Medicine</Th>
+                  <Th className="num">Qty</Th><Th>Checked by</Th>
+                  <Th>Money</Th><Th>Collected</Th><th className="actions" />
                 </tr>
               </thead>
               <tbody>

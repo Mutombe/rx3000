@@ -12,6 +12,7 @@ import BusyButton from "../components/BusyButton";
 import { useAsk, useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
+import Th from "../components/Th";
 
 interface Item {
   product_id: number; product: string; quantity: number; unit_price: number;
@@ -182,7 +183,7 @@ export default function LayByDetail() {
                  empty="Nothing is recorded against this lay-by.">
             <table className="dt">
               <thead>
-                <tr><th>Item</th><th className="num">Qty</th><th className="num">Unit</th><th className="num">Value</th></tr>
+                <tr><Th>Item</Th><Th className="num">Qty</Th><Th className="num">Unit</Th><Th className="num">Value</Th></tr>
               </thead>
               <tbody>
                 {d.items.map((i, n) => (
@@ -203,7 +204,7 @@ export default function LayByDetail() {
                  empty="Nothing has been paid against this lay-by yet.">
             <table className="dt">
               <thead>
-                <tr><th>When</th><th>Method</th><th>Reference</th><th className="num">Amount</th></tr>
+                <tr><Th>When</Th><Th>Method</Th><Th>Reference</Th><Th className="num">Amount</Th></tr>
               </thead>
               <tbody>
                 {payments.map((p, n) => (

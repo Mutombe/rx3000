@@ -20,6 +20,7 @@ import { api, errorText, money } from "../api";
 import BusyButton from "./BusyButton";
 import Select from "./Select";
 import { useToast } from "./Toast";
+import Th from "./Th";
 
 interface Account { code: string; name: string; type: string }
 interface Line { account_code: string; debit: string; credit: string; description: string }
@@ -114,8 +115,8 @@ export default function NewJournal({ accounts, onClose, onPosted }: {
         <table className="dt">
           <thead>
             <tr>
-              <th>Account</th><th>Narration</th>
-              <th className="num">Debit</th><th className="num">Credit</th>
+              <Th>Account</Th><Th>Narration</Th>
+              <Th className="num">Debit</Th><Th className="num">Credit</Th>
               <th className="actions" />
             </tr>
           </thead>
