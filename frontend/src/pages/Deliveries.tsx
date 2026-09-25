@@ -23,6 +23,7 @@ import BusyButton from "../components/BusyButton";
 import NewDelivery from "../components/NewDelivery";
 import { Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -212,20 +213,16 @@ export default function Deliveries() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Deliveries</h1>
-          <div className="sub">{headline}</div>
-        </div>
+      <PageHead title="Deliveries" sub={headline}>
         {/* Deliveries only ever arrived here already made. The request usually
-            arrives by telephone, and the endpoint to raise one has existed
-            since deliveries were built with nothing calling it. */}
-        <div className="page-actions">
-          <button className="btn" onClick={() => setRaising(true)}>
-            <Plus size={14} weight="bold" /> New delivery
-          </button>
-        </div>
-      </header>
+                    arrives by telephone, and the endpoint to raise one has existed
+                    since deliveries were built with nothing calling it. */}
+                <div className="page-actions">
+                  <button className="btn" onClick={() => setRaising(true)}>
+                    <Plus size={14} weight="bold" /> New delivery
+                  </button>
+                </div>
+      </PageHead>
 
       {raising && (
         <NewDelivery onClose={() => setRaising(false)} onRaised={load} />

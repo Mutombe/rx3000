@@ -38,6 +38,7 @@ import { useConfirm } from "../components/Confirm";
 import { Link, useSearchParams } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
+import PageHead from "../components/PageHead";
 
 interface Doc {
   id: number | null; kind: string; name: string; expected_issuer: string;
@@ -201,15 +202,8 @@ export default function Compliance() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Licences &amp; compliance</h1>
-          <div className="sub">
-            {overview?.headline
-              ?? "What each branch must hold to trade, and when it expires."}
-          </div>
-        </div>
-      </header>
+      <PageHead title="Licences &amp; compliance" sub={overview?.headline
+              ?? "What each branch must hold to trade, and when it expires."} />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

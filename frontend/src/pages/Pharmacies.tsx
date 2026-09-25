@@ -20,6 +20,7 @@ import BusyButton from "../components/BusyButton";
 import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface Pharmacy {
   id: number; name: string; trading_name: string; registration_no: string;
@@ -168,24 +169,20 @@ export default function Pharmacies() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Pharmacies</h1>
-          <div className="sub">Every business on this deployment, and who belongs to which</div>
-        </div>
+      <PageHead title="Pharmacies" sub="Every business on this deployment, and who belongs to which">
         {/* The standard group, not an inline style. Five pages each had their
-            own idea of how a header's actions are spaced, which is five
-            places to change when the answer moves and one of them always
-            gets missed. */}
-        <div className="page-actions">
-          <button className="btn secondary" onClick={load}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-          </button>
-          <button className="btn" onClick={() => setAdding(true)}>
-            <Buildings size={15} /> New pharmacy
-          </button>
-        </div>
-      </div>
+                    own idea of how a header's actions are spaced, which is five
+                    places to change when the answer moves and one of them always
+                    gets missed. */}
+                <div className="page-actions">
+                  <button className="btn secondary" onClick={load}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+                  </button>
+                  <button className="btn" onClick={() => setAdding(true)}>
+                    <Buildings size={15} /> New pharmacy
+                  </button>
+                </div>
+      </PageHead>
 
       {list.error && <div className="alert error">{list.error}</div>}
 

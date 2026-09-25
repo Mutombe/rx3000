@@ -641,6 +641,37 @@ a:hover { opacity: 0.75; }
   padding-bottom: var(--s5); border-bottom: 1px solid var(--line);
 }
 .page-head .sub { color: var(--ink-soft); margin-top: var(--s1); font-size: var(--t-base); }
+/* The half of the head that says what the page is. Its own box so the title
+   and subtitle stay together when the actions wrap beneath them on a narrow
+   screen, instead of the subtitle being orphaned across the row. */
+.page-head-said { min-width: 0; }
+/* What kind of thing this page is about. Detail pages have had one through
+   RecordPage; list pages never did. */
+.page-eyebrow {
+  font-size: var(--t-xs); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--ink-faint); margin-bottom: 2px;
+}
+/* HOW BIG IS THIS LIST.
+   Every one of the interfaces studied states it beside the name: "120
+   Results", "324 Customer". It answers the first question anybody has about a
+   list without them scrolling to the bottom to count, and it gives the page
+   somewhere honest to say "50 of 4,812" when that is what it is showing.
+   Beside the title and not inside it: a count is not part of the name. */
+.page-count {
+  display: inline-block; vertical-align: middle;
+  margin-left: var(--s3); padding: 2px var(--s2);
+  border-radius: var(--r-sm); background: var(--surface-sunk);
+  border: 1px solid var(--line-soft);
+  font-size: var(--t-sm); font-weight: 600; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; color: var(--ink-soft);
+}
+/* Actions sit together. Dropping bare buttons into the head and relying on
+   `space-between` pushes two of them to opposite ends of the row and strands a
+   third in the middle of the title. */
+.page-head .page-actions {
+  display: flex; align-items: center; gap: var(--s2); flex: 0 0 auto;
+}
 
 /* ---------- glass cards ---------- */
 .card {

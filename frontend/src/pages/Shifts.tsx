@@ -8,6 +8,7 @@ import { Shift, ShiftTakings } from "../types";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 /** The words a teller uses, not the words the database uses. */
 const METHOD_LABEL: Record<string, string> = {
@@ -69,12 +70,7 @@ export default function Shifts() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Cash Office</h1>
-          <div className="sub">Opening float, takings by tender and end-of-shift cash-up</div>
-        </div>
-      </div>
+      <PageHead title="Cash Office" sub="Opening float, takings by tender and end-of-shift cash-up" />
 
       {current ? (
         <>

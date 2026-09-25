@@ -19,6 +19,7 @@ import { ColumnChart, useSeries } from "../components/charts";
 import { Block, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Operations {
   as_of: string;
@@ -136,18 +137,12 @@ export default function DispensaryOperations() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Dispensary operations</h1>
-          <div className="sub">
-            Today, as it happens
-            {day && <> · updated {day.updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>}
-          </div>
-        </div>
+      <PageHead title="Dispensary operations" sub={<>Today, as it happens
+            {day && <> · updated {day.updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>}</>}>
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>
-          <ArrowsClockwise size={14} weight="bold" /> Refresh
-        </button>
-      </div>
+                  <ArrowsClockwise size={14} weight="bold" /> Refresh
+                </button>
+      </PageHead>
 
       <Refreshable
         loading={loading}

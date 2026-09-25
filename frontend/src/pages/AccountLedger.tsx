@@ -17,6 +17,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import RowLink from "../components/RowLink";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import PageHead from "../components/PageHead";
 
 interface Line {
   entry_id: number; reference: string; entry_date: string; period_code: string;
@@ -60,20 +61,11 @@ export default function AccountLedger() {
         ]}
       />
 
-      <header className="page-head">
-        <div>
-          <h1>
-            <span className="mono">{view?.code ?? code}</span> {view?.name ?? ""}
-          </h1>
-          <div className="sub">
-            {view
+      <PageHead title={<><span className="mono">{view?.code ?? code}</span> {view?.name ?? ""}</>} sub={view
               ? `${view.type}${view.subledger ? ` · ${view.subledger} control` : ""} · ` +
                 `${view.line_count} movement${view.line_count === 1 ? "" : "s"} · ` +
                 `balance ${money(view.balance)}`
-              : ""}
-          </div>
-        </div>
-      </header>
+              : ""} />
 
       <Refreshable
         loading={loading}

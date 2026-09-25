@@ -26,6 +26,7 @@ import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import PaySupplier from "../components/PaySupplier";
 import Remittance, { RemittanceData } from "../components/Remittance";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface AgeInvoice {
   invoice_id: number; invoice_number: string; invoice_date: string;
@@ -273,38 +274,34 @@ export default function Payables() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Creditors</h1>
-          <div className="sub">What was billed, what arrived, and what is still owed</div>
-        </div>
+      <PageHead title="Creditors" sub="What was billed, what arrived, and what is still owed">
         {/* THE WORK THIS PAGE LEADS TO.
-            The bar carried Refresh and nothing else, on the screen a pharmacy
-            opens to decide who gets paid this week. Everything it could
-            already do was buried a row at a time, or on a reports screen
-            somebody had to know existed. */}
-        <div className="page-actions">
-          <Select
-            value=""
-            placeholder="Reports…"
-            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
-            options={[
-              // The aged analysis is this table as a document, and it is
-              // where the spreadsheet comes from: a second export button
-              // beside it would be a second set of figures to keep true.
-              { value: "aged_analysis", label: "Aged analysis, and the spreadsheet" },
-              { value: "creditor_statements", label: "Creditor statements" },
-              { value: "purchases_by_supplier", label: "Purchases by supplier" },
-              { value: "supplier_performance", label: "Supplier performance" },
-              { value: "goods_received_not_invoiced", label: "Delivered and not billed" },
-            ]}
-          />
-          <button className="btn secondary" onClick={load}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-            Refresh
-          </button>
-        </div>
-      </div>
+                    The bar carried Refresh and nothing else, on the screen a pharmacy
+                    opens to decide who gets paid this week. Everything it could
+                    already do was buried a row at a time, or on a reports screen
+                    somebody had to know existed. */}
+                <div className="page-actions">
+                  <Select
+                    value=""
+                    placeholder="Reports…"
+                    onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
+                    options={[
+                      // The aged analysis is this table as a document, and it is
+                      // where the spreadsheet comes from: a second export button
+                      // beside it would be a second set of figures to keep true.
+                      { value: "aged_analysis", label: "Aged analysis, and the spreadsheet" },
+                      { value: "creditor_statements", label: "Creditor statements" },
+                      { value: "purchases_by_supplier", label: "Purchases by supplier" },
+                      { value: "supplier_performance", label: "Supplier performance" },
+                      { value: "goods_received_not_invoiced", label: "Delivered and not billed" },
+                    ]}
+                  />
+                  <button className="btn secondary" onClick={load}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+                    Refresh
+                  </button>
+                </div>
+      </PageHead>
 
       {/* "Working out what is owed…" is a sentence where a table is about to
           be, so the page jumps when it arrives. The skeleton holds the shape. */}

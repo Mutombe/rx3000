@@ -58,6 +58,7 @@ import BusyButton from "../components/BusyButton";
 import { ArrowRight, CaretRight, CircleNotch, ClockCounterClockwise, PencilSimple, Printer,
   ShieldCheck, ShieldWarning, Trash, Warning, X, Check, Info, MagnifyingGlass, IdentificationCard, FirstAidKit, Tag, Truck, FileText, Sticker, Signature, Barcode, CalendarBlank } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
+import PageHead from "../components/PageHead";
 import InsuranceStanding from "../components/InsuranceStanding";
 import RepeatsDue, { DueRepeat } from "../components/RepeatsDue";
 import PatientForm, { draftFrom } from "../components/PatientForm";
@@ -3197,12 +3198,7 @@ export default function Dispense() {
   if (session.known && !mayDispense) {
     return (
       <>
-        <div className="page-head">
-          <div>
-            <h1>Dispensary</h1>
-            <div className="sub">Nothing on this screen is yours to use</div>
-          </div>
-        </div>
+        <PageHead title="Dispensary" sub="Nothing on this screen is yours to use" />
         <div className="card empty-state">
           <p>
             Your account carries none of the dispensing permissions, so there

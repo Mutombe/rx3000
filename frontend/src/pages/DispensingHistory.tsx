@@ -23,6 +23,7 @@ import Select from "../components/Select";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Row {
   id: number;
@@ -150,19 +151,12 @@ export default function DispensingHistory() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Dispensing history</h1>
-          <div className="sub">
-            What has gone out, who checked it, whether it was paid for and
-            whether it has been collected
-          </div>
-        </div>
+      <PageHead title="Dispensing history" sub="What has gone out, who checked it, whether it was paid for and whether it has been collected">
         <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-          Refresh
-        </button>
-      </div>
+                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+                  Refresh
+                </button>
+      </PageHead>
 
       <div className="card">
         <div className="filter-bar">

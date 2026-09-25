@@ -31,6 +31,7 @@ import { useToast } from "../components/Toast";
 import BusyButton from "../components/BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Supplier {
   id: number;
@@ -126,17 +127,11 @@ export default function Suppliers() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Suppliers</h1>
-          <div className="sub">Who this pharmacy buys from, and how they are paid</div>
-        </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => setAdding(true)}>
-            <Plus size={14} weight="bold" /> New supplier
-          </button>
-        </div>
-      </div>
+      <PageHead title="Suppliers" sub="Who this pharmacy buys from, and how they are paid">
+        <button className="btn primary" onClick={() => setAdding(true)}>
+                    <Plus size={14} weight="bold" /> New supplier
+                  </button>
+      </PageHead>
 
       <div className="card">
         <div className="toolbar">

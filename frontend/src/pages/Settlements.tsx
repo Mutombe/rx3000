@@ -29,6 +29,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
+import PageHead from "../components/PageHead";
 
 interface Funder {
   funder_id: string; funder: string;
@@ -84,19 +85,11 @@ export default function Settlements() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Settlements</h1>
-          <div className="sub">
-            {report?.headline ?? "What each funder actually paid, and when."}
-          </div>
-        </div>
-        <div className="page-actions">
-          <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-            options={[90, 180, 365].map((d) => ({
-              value: String(d), label: `Last ${d} days` }))} />
-        </div>
-      </header>
+      <PageHead title="Settlements" sub={report?.headline ?? "What each funder actually paid, and when."}>
+        <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+                    options={[90, 180, 365].map((d) => ({
+                      value: String(d), label: `Last ${d} days` }))} />
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

@@ -29,6 +29,7 @@ import { EntityLink } from "../components/Filters";
 import { Link } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
+import PageHead from "../components/PageHead";
 
 /** A verdict, in the badge tone it deserves. Only two of the four are alarms:
  *  a shop that may not trade, and one that cannot prove it may. */
@@ -257,23 +258,14 @@ export default function Branches() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Branches</h1>
-          <div className="sub">
-            Each branch, who is accountable for it, what is on its shelves, and
-            stock moving between them
-          </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => {
-            setMoving(true);
-            setFromId(branches?.find((b) => b.is_default)?.id ?? "");
-          }}>
-            Transfer stock
-          </button>
-        </div>
-      </div>
+      <PageHead title="Branches" sub="Each branch, who is accountable for it, what is on its shelves, and stock moving between them">
+        <button className="btn primary" onClick={() => {
+                    setMoving(true);
+                    setFromId(branches?.find((b) => b.is_default)?.id ?? "");
+                  }}>
+                    Transfer stock
+                  </button>
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

@@ -28,6 +28,7 @@ import { ColumnChart, Donut, Legend, useSeries } from "../components/charts";
 import { EntityLink } from "../components/Filters";
 import { Block, Refreshable } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import PageHead from "../components/PageHead";
 
 interface Trend {
   change: number | null;
@@ -113,22 +114,16 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Command Centre</h1>
-          <div className="sub">
-            {data
+      <PageHead title="Command Centre" sub={data
               ? <>The last {data.days} days, to {fmtDate(data.as_at)}</>
-              : "Loading the morning's figures"}
-          </div>
-        </div>
+              : "Loading the morning's figures"}>
         <div className="row-actions">
-          <button className="btn secondary" onClick={load}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-          </button>
-          <Link to="/pos" className="btn primary">New sale</Link>
-        </div>
-      </div>
+                  <button className="btn secondary" onClick={load}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+                  </button>
+                  <Link to="/pos" className="btn primary">New sale</Link>
+                </div>
+      </PageHead>
 
       <Refreshable
         loading={spinning || !data}

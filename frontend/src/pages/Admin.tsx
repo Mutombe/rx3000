@@ -18,6 +18,7 @@ import PaymentInstruments from "../components/PaymentInstruments";
 import { useConfirm } from "../components/Confirm";
 import { TabStrip } from "../components/PageTabs";
 import { FilterToggle } from "../components/Filters";
+import PageHead from "../components/PageHead";
 
 const RULE_TYPES = [
   ["lead_assignment", "Lead assignment"],
@@ -454,14 +455,7 @@ export default function Admin() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Control Panel</h1>
-          <div className="sub">
-            Global settings, supplier price files, user activity audit, database backups, CRM automation rules and message templates
-          </div>
-        </div>
-      </div>
+      <PageHead title="Control Panel" sub="Global settings, supplier price files, user activity audit, database backups, CRM automation rules and message templates" />
 
       <TabStrip>
         {TABS.map(([t, label]) => (

@@ -37,6 +37,7 @@ interface PastTake {
 }
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface Scope { category: string; bin: string }
 interface Take {
@@ -385,14 +386,7 @@ export default function StockTake() {
   return (
     <>
       {prompt}
-      <div className="page-head">
-        <div>
-          <h1>Stock take</h1>
-          <div className="sub">
-            Count what is on the shelf. Nothing is adjusted until the count is closed
-          </div>
-        </div>
-      </div>
+      <PageHead title="Stock take" sub="Count what is on the shelf. Nothing is adjusted until the count is closed" />
 
       {!take ? (
         <div className="card">

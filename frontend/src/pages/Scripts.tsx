@@ -25,6 +25,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Row {
   id: number;
@@ -137,19 +138,12 @@ export default function Scripts() {
 
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h1>Scripts</h1>
-          <div className="page-sub">
-            Every script on file, by its number. What is on it, what has gone
-            out, and what has been altered since capture
-          </div>
-        </div>
+      <PageHead title="Scripts" sub="Every script on file, by its number. What is on it, what has gone out, and what has been altered since capture">
         <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-          Refresh
-        </button>
-      </div>
+                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+                  Refresh
+                </button>
+      </PageHead>
 
       <div className="card">
         <div className="filter-bar">

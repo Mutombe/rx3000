@@ -33,6 +33,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import PageHead from "../components/PageHead";
 
 interface Row {
   product_id: number; product: string; department: string; schedule: number;
@@ -110,20 +111,12 @@ export default function StockPerformance() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Stock performance</h1>
-          <div className="sub">
-            {report?.headline ?? "What moves, what it earns, and how long the "
-              + "shelf lasts."}
-          </div>
-        </div>
-        <div className="page-actions">
-          <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-            options={[30, 90, 180, 365].map((d) => ({
-              value: String(d), label: `Last ${d} days` }))} />
-        </div>
-      </header>
+      <PageHead title="Stock performance" sub={report?.headline ?? "What moves, what it earns, and how long the "
+              + "shelf lasts."}>
+        <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+                    options={[30, 90, 180, 365].map((d) => ({
+                      value: String(d), label: `Last ${d} days` }))} />
+      </PageHead>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

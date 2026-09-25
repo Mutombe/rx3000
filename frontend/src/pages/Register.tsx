@@ -11,6 +11,7 @@ import Select from "../components/Select";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 /** One label or script printed a second time. */
 interface Reprint {
@@ -135,16 +136,10 @@ export default function Register() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Controlled Register</h1>
-          <div className="sub">
-            Fully electronic {scheduleRange(5, 6)} controlled-substance
-            register, immutable audit trail
-          </div>
-        </div>
+      <PageHead title="Controlled Register" sub={<>Fully electronic {scheduleRange(5, 6)} controlled-substance
+            register, immutable audit trail</>}>
         <button className="secondary" onClick={printRegister}>Print register</button>
-      </div>
+      </PageHead>
 
       <div className="card">
         <div className="toolbar">

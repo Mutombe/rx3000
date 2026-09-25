@@ -20,6 +20,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 export interface Driver {
   id: number; code: string; full_name: string; phone: string;
@@ -100,23 +101,15 @@ export default function Drivers() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Drivers</h1>
-          <div className="sub">
-            {rows.length
+      <PageHead title="Drivers" sub={rows.length
               ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
                 + (road?.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
                 + (holding ? `, ${money(holding)} of shop money being carried` : "")
-              : "Nobody is set up to deliver yet."}
-          </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn" onClick={() => setAdding(true)}>
-            <Plus size={14} weight="bold" /> New driver
-          </button>
-        </div>
-      </header>
+              : "Nobody is set up to deliver yet."}>
+        <button className="btn" onClick={() => setAdding(true)}>
+                    <Plus size={14} weight="bold" /> New driver
+                  </button>
+      </PageHead>
 
       {adding && (
         <DriverForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />

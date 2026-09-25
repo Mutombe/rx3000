@@ -7,6 +7,7 @@ import { EntityLink } from "../components/Filters";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { CardReconciliationReport, ReconMatch, ReconStatementLine, ReconUnbanked } from "../types";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 type Tab = "matched" | "mismatched" | "missing_system" | "missing_statement";
 
@@ -92,12 +93,7 @@ export default function CardReconciliation() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Card Reconciliation</h1>
-          <div className="sub">Match an acquirer settlement file against the card takings on record</div>
-        </div>
-      </div>
+      <PageHead title="Card Reconciliation" sub="Match an acquirer settlement file against the card takings on record" />
 
       <div className="card">
         <h3>Settlement file</h3>

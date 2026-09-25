@@ -27,6 +27,7 @@ import { useToast } from "../components/Toast";
 import Pagination, { Paged } from "../components/Pagination";
 import { useDebounced } from "../hooks/useDebounced";
 import { Patient, Product } from "../types";
+import PageHead from "../components/PageHead";
 
 interface Use {
   // `created_at`, not `at`. The field was declared as `at` here and the server
@@ -305,20 +306,11 @@ export default function Authorisations() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Authorisations</h1>
-          <div className="sub">
-            What each funder has agreed to cover, what has been drawn against it,
-            and what is left
-          </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => setAsking(true)}>
-            Request an authorisation
-          </button>
-        </div>
-      </div>
+      <PageHead title="Authorisations" sub="What each funder has agreed to cover, what has been drawn against it, and what is left">
+        <button className="btn primary" onClick={() => setAsking(true)}>
+                    Request an authorisation
+                  </button>
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

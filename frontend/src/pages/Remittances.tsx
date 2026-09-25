@@ -31,6 +31,7 @@ import { EntityLink } from "../components/Filters";
 import { CloudArrowDown } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import { TabStrip } from "../components/PageTabs";
+import PageHead from "../components/PageHead";
 type Tab = "outstanding" | "advices" | "import";
 
 interface Line {
@@ -216,24 +217,18 @@ export default function Remittances() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Remittances</h1>
-          <div className="sub">
-            What each scheme actually paid, and where the difference went
-          </div>
-        </div>
+      <PageHead title="Remittances" sub="What each scheme actually paid, and where the difference went">
         {/* Advices arrive two ways: a CSV somebody downloads and imports, and
-            the switch, where the funder publishes them. The second has existed
-            since the gateway was written and nothing called it, so every
-            pharmacy on a live switch was still importing by hand. */}
-        <div className="page-actions">
-          <BusyButton className="btn" onClick={fetchFromSwitch}
-                      busyLabel="Asking the switch…">
-            <CloudArrowDown size={15} /> Fetch from the switch
-          </BusyButton>
-        </div>
-      </div>
+                    the switch, where the funder publishes them. The second has existed
+                    since the gateway was written and nothing called it, so every
+                    pharmacy on a live switch was still importing by hand. */}
+                <div className="page-actions">
+                  <BusyButton className="btn" onClick={fetchFromSwitch}
+                              busyLabel="Asking the switch…">
+                    <CloudArrowDown size={15} /> Fetch from the switch
+                  </BusyButton>
+                </div>
+      </PageHead>
 
       <TabStrip>
         <button className={tab === "outstanding" ? "active" : ""}

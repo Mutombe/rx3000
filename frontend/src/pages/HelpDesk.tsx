@@ -12,6 +12,7 @@ import ClaudeIcon from "../components/ClaudeIcon";
 import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { TabStrip } from "../components/PageTabs";
+import PageHead from "../components/PageHead";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -184,13 +185,9 @@ export default function HelpDesk() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Cases</h1>
-          <div className="sub">Customer service tickets with SLA targets, threaded replies and CSAT</div>
-        </div>
+      <PageHead title="Cases" sub="Customer service tickets with SLA targets, threaded replies and CSAT">
         <button onClick={() => setShowNew(true)}>+ New Ticket</button>
-      </div>
+      </PageHead>
 
       {stats && (
         <div className="grid cols-4">

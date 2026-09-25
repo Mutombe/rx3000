@@ -8,6 +8,7 @@ import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 import { TableSkeleton } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
+import PageHead from "../components/PageHead";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
 
@@ -233,13 +234,9 @@ export default function CrmReports() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Revenue Intelligence</h1>
-          <div className="sub">Forecast, conversion economics, rep performance and campaign attribution</div>
-        </div>
+      <PageHead title="Revenue Intelligence" sub="Forecast, conversion economics, rep performance and campaign attribution">
         <button className="secondary" onClick={printTab}>Print report</button>
-      </div>
+      </PageHead>
 
       <TabStrip>
         {TABS.map(([t, label]) => (

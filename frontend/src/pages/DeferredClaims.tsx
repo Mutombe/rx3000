@@ -18,6 +18,7 @@ import { EntityLink , TableSearch, useSearch } from "../components/Filters";
 import RowLink, { RowActions } from "../components/RowLink";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface Deferred {
   id: number;
@@ -114,17 +115,13 @@ export default function DeferredClaims() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Claims held</h1>
-          <div className="sub">{headline}</div>
-        </div>
+      <PageHead title="Claims held" sub={headline}>
         {!!rows.length && (
-          <button className="btn primary" disabled={busy !== null} onClick={submitAll}>
-            {busy === "all" ? "Sending…" : `Send everything held (${rows.length})`}
-          </button>
-        )}
-      </header>
+                  <button className="btn primary" disabled={busy !== null} onClick={submitAll}>
+                    {busy === "all" ? "Sending…" : `Send everything held (${rows.length})`}
+                  </button>
+                )}
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

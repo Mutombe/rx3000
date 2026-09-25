@@ -32,6 +32,7 @@ import { EntityLink } from "../components/Filters";
 import { overdueTone, rateTone } from "../tone";
 import { patientOwes } from "../terms";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface DueItem {
   prescription_id: number; rx_number: string; item_id: number;
@@ -311,19 +312,12 @@ export default function Repeats() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Repeats</h1>
-          <div className="sub">
-            {due
+      <PageHead title="Repeats" sub={due
               ? due.count
                 ? `${due.count} due within ${horizon} days` +
                   (due.overdue ? `, ${due.overdue} already overdue.` : ".")
                 : "Nobody is due."
-              : ""}
-          </div>
-        </div>
-      </header>
+              : ""} />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

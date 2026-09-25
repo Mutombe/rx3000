@@ -23,6 +23,7 @@ import { EntityLink } from "../components/Filters";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import TagProducts from "../components/TagProducts";
+import PageHead from "../components/PageHead";
 
 interface Category {
   id: number; code: string; name: string; target_margin: number;
@@ -91,22 +92,18 @@ export default function StockCategories() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Stock departments</h1>
-          <div className="sub">How this pharmacy groups what it sells</div>
-        </div>
+      <PageHead title="Stock departments" sub="How this pharmacy groups what it sells">
         {/* The standard group, not an inline style. Five pages each had their
-            own idea of how a header's actions are spaced, which is five
-            places to change when the answer moves and one of them always
-            gets missed. */}
-        <div className="page-actions">
-          <button className="btn secondary" onClick={refresh}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-          </button>
-          <button className="btn" onClick={() => setAdding(true)}>New department</button>
-        </div>
-      </div>
+                    own idea of how a header's actions are spaced, which is five
+                    places to change when the answer moves and one of them always
+                    gets missed. */}
+                <div className="page-actions">
+                  <button className="btn secondary" onClick={refresh}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+                  </button>
+                  <button className="btn" onClick={() => setAdding(true)}>New department</button>
+                </div>
+      </PageHead>
 
       {list.error && <div className="alert error">{list.error}</div>}
 

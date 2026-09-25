@@ -52,6 +52,12 @@ def check(said, ok, detail=""):
 def head_of(text: str) -> str | None:
     """The header block, bounded by its OWN indentation.
 
+    A page that has adopted `<PageHead>` has no block to measure and no way to
+    get these wrong: the component decides the element, the subtitle class and
+    the action group. Those pages are counted as headers and skipped by the
+    checks below, which is why the count is of ADOPTERS PLUS hand-rolled
+    blocks rather than of blocks alone.
+
     An earlier version looked for the first `\\n      </div>` at six spaces.
     Dispensing opens its header at eight, so the block ran past the header and
     swallowed the card beneath it: the guard then reported a paragraph in an
@@ -72,9 +78,14 @@ def head_of(text: str) -> str | None:
 print("\n  every page header is one shape\n")
 
 pages = sorted(PAGES.glob("*.tsx"))
-heads = {p.name: head_of(p.read_text(encoding="utf-8")) for p in pages}
+read = {p.name: p.read_text(encoding="utf-8") for p in pages}
+# A page using the component is already one shape, by construction.
+shared = sorted(n for n, t in read.items() if "<PageHead" in t)
+heads = {n: head_of(t) for n, t in read.items() if n not in shared}
 heads = {n: h for n, h in heads.items() if h}
-check(f"there are page headers to check ({len(heads)})", len(heads) > 30)
+check(f"there are page headers to check "
+      f"({len(shared)} on the shared component, {len(heads)} hand-rolled)",
+      len(shared) + len(heads) > 30)
 
 muted = [n for n, h in heads.items() if '<p className="muted"' in h]
 check("the subtitle is written one way", not muted,

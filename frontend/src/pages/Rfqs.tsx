@@ -19,6 +19,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { Product } from "../types";
 import RfqAuto from "./RfqAuto";
+import PageHead from "../components/PageHead";
 
 interface RfqRow {
   id: number;
@@ -89,20 +90,14 @@ export default function Rfqs() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Quotes</h1>
-          <div className="sub">Ask several wholesalers, compare, then buy</div>
-        </div>
-        <div className="page-actions">
-          <button className="btn secondary" onClick={() => setAuto(true)}>
-            <Robot size={14} /> Asking by itself
-          </button>
-          <button className="btn primary" onClick={() => setRaising(true)}>
-            <Plus size={14} weight="bold" /> Ask for prices
-          </button>
-        </div>
-      </div>
+      <PageHead title="Quotes" sub="Ask several wholesalers, compare, then buy">
+        <button className="btn secondary" onClick={() => setAuto(true)}>
+                    <Robot size={14} /> Asking by itself
+                  </button>
+                  <button className="btn primary" onClick={() => setRaising(true)}>
+                    <Plus size={14} weight="bold" /> Ask for prices
+                  </button>
+      </PageHead>
 
       {queue.length > 0 && (
         <div className="card rfq-queue">

@@ -26,6 +26,7 @@ import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
 import { EntityLink } from "../components/Filters";
 import RowLink from "../components/RowLink";
+import PageHead from "../components/PageHead";
 
 interface FiscalReceipt {
   id: number; sale_id: number; receipt_type: string; global_counter: number;
@@ -187,15 +188,7 @@ export default function Fiscal() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Fiscalisation</h1>
-          <div className="sub">
-            The trading day, the receipts filed with the authority, and proof that
-            none has been altered
-          </div>
-        </div>
-      </div>
+      <PageHead title="Fiscalisation" sub="The trading day, the receipts filed with the authority, and proof that none has been altered" />
 
       {!status.required && (
         <p className="st-note">

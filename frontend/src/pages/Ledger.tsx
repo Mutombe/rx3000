@@ -24,6 +24,7 @@ import { EntityLink } from "../components/Filters";
 import NewJournal from "../components/NewJournal";
 import ChartOfAccounts from "../components/ChartOfAccounts";
 import PastelExport from "../components/PastelExport";
+import PageHead from "../components/PageHead";
 
 interface TbLine {
   code: string; name: string; type: string; subledger: string;
@@ -163,40 +164,32 @@ export default function Ledger() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>General ledger</h1>
-          <div className="sub">
-            {tb
+      <PageHead title="General ledger" sub={tb
               ? tb.balanced
                 ? `Balanced. ${money(tb.total_debit)} debits against ${money(tb.total_credit)} credits.`
                 : tb.message
-              : ""}
-          </div>
-        </div>
-        <div className="page-actions">
-          {/* Almost everything here is posted by something else, and that is
-              right, but a bank charge nothing raised, a correction, an owner's
-              drawing all need a hand. The endpoint has existed since the ledger
-              was written and the only way to reach it was curl. */}
-          <button className="btn" onClick={() => setJournalling(true)}>
-            New journal
-          </button>
-        {/* An accountant does not read a trial balance on a screen; they take
-            it away and tie it to something else. Which dataset leaves follows
-            whichever tab is open, so the button is never a guess. */}
-        {(tab === "trial" || tab === "journal" || tab === "recon"
-          || tab === "chart") && (
-          <ExportButton
-            dataset={tab === "journal" ? "journal"
-              : (tab === "recon" || tab === "chart") ? "accounts" : "trial-balance"}
-            label={tab === "journal" ? "Journal as a spreadsheet"
-              : (tab === "recon" || tab === "chart") ? "Chart as a spreadsheet"
-                : "Trial balance as a spreadsheet"}
-          />
-        )}
-        </div>
-      </header>
+              : ""}>
+        {/* Almost everything here is posted by something else, and that is
+                      right, but a bank charge nothing raised, a correction, an owner's
+                      drawing all need a hand. The endpoint has existed since the ledger
+                      was written and the only way to reach it was curl. */}
+                  <button className="btn" onClick={() => setJournalling(true)}>
+                    New journal
+                  </button>
+                {/* An accountant does not read a trial balance on a screen; they take
+                    it away and tie it to something else. Which dataset leaves follows
+                    whichever tab is open, so the button is never a guess. */}
+                {(tab === "trial" || tab === "journal" || tab === "recon"
+                  || tab === "chart") && (
+                  <ExportButton
+                    dataset={tab === "journal" ? "journal"
+                      : (tab === "recon" || tab === "chart") ? "accounts" : "trial-balance"}
+                    label={tab === "journal" ? "Journal as a spreadsheet"
+                      : (tab === "recon" || tab === "chart") ? "Chart as a spreadsheet"
+                        : "Trial balance as a spreadsheet"}
+                  />
+                )}
+      </PageHead>
 
       {journalling && (
         <NewJournal

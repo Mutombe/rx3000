@@ -14,6 +14,7 @@ import { useAiDraft } from "../hooks/useAiStream";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 type Tab = "compose" | "history";
 
@@ -106,12 +107,7 @@ export default function Marketing() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Campaigns</h1>
-          <div className="sub">Segment your patient base and run SMS or email campaigns, consent-aware</div>
-        </div>
-      </div>
+      <PageHead title="Campaigns" sub="Segment your patient base and run SMS or email campaigns, consent-aware" />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

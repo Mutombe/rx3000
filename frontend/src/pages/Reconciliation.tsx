@@ -24,6 +24,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import SectionNav from "../components/SectionNav";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
+import PageHead from "../components/PageHead";
 
 interface Area {
   key: string; label: string;
@@ -54,14 +55,7 @@ export default function Reconciliation() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Reconciliation</h1>
-          <div className="sub">
-            {data?.headline ?? "Two records of one thing, and the difference."}
-          </div>
-        </div>
-      </header>
+      <PageHead title="Reconciliation" sub={data?.headline ?? "Two records of one thing, and the difference."} />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

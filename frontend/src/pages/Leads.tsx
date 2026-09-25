@@ -9,6 +9,7 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 const SOURCES = [
   ["referral", "Referral"], ["event", "Event / expo"], ["campaign", "Campaign"],
@@ -205,13 +206,9 @@ export default function Leads() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Leads</h1>
-          <div className="sub">Scored and routed on capture, qualify, then convert into an account, contact and opportunity</div>
-        </div>
+      <PageHead title="Leads" sub="Scored and routed on capture, qualify, then convert into an account, contact and opportunity">
         <button onClick={() => setShowForm(true)}>+ New Lead</button>
-      </div>
+      </PageHead>
 
       <div className="grid cols-4">
         <div className="card stat hero">

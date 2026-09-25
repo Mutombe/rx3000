@@ -21,6 +21,7 @@ import RowLink, { RowActions } from "../components/RowLink";
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Hit {
   batch_id: number; batch_number: string; product: string;
@@ -118,14 +119,7 @@ export default function Recall() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Recall</h1>
-          <div className="sub">
-            Trace a batch to who received it, and to where it came from
-          </div>
-        </div>
-      </div>
+      <PageHead title="Recall" sub="Trace a batch to who received it, and to where it came from" />
 
       <div className="card">
         <label className="field">

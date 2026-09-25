@@ -9,6 +9,7 @@ import Select from "../components/Select";
 import { XCircle } from "@phosphor-icons/react";
 import { TableSkeleton } from "../components/Skeleton";
 import { Block } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 /** Days since a date, used to flag deals going stale in a stage. */
 function ageDays(iso: string) {
@@ -112,13 +113,9 @@ export default function Pipeline() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Opportunities</h1>
-          <div className="sub">Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal</div>
-        </div>
+      <PageHead title="Opportunities" sub="Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal">
         <button onClick={() => setShowForm(true)}>+ New Deal</button>
-      </div>
+      </PageHead>
 
       {stats && (
         <div className="grid cols-4">

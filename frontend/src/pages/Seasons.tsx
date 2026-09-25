@@ -33,6 +33,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import PageHead from "../components/PageHead";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -109,22 +110,15 @@ export default function Seasons() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Basket &amp; seasons</h1>
-          <div className="sub">
-            What a repeat patient is worth beyond the line, and what to have on
-            the shelf before the month that sells it.
-          </div>
-        </div>
+      <PageHead title="Basket &amp; seasons" sub="What a repeat patient is worth beyond the line, and what to have on the shelf before the month that sells it.">
         {tab === "basket" && (
-          <div className="page-actions">
-            <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-              options={[30, 90, 180, 365].map((d) => ({
-                value: String(d), label: `Last ${d} days` }))} />
-          </div>
-        )}
-      </header>
+                  <div className="page-actions">
+                    <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+                      options={[30, 90, 180, 365].map((d) => ({
+                        value: String(d), label: `Last ${d} days` }))} />
+                  </div>
+                )}
+      </PageHead>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

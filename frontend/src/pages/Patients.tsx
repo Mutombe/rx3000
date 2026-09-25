@@ -10,6 +10,7 @@ import { MedicalAid, Patient } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import PatientForm from "../components/PatientForm";
+import PageHead from "../components/PageHead";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -102,13 +103,9 @@ export default function Patients() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Patients</h1>
-          <div className="sub">Profiles, medical aid membership, allergies and loyalty</div>
-        </div>
+      <PageHead title="Patients" sub="Profiles, medical aid membership, allergies and loyalty">
         <button onClick={openNew}>+ New Patient</button>
-      </div>
+      </PageHead>
       <div className="card">
         <div className="toolbar">
           <input type="search" placeholder="Search name, ID number, phone, member no…" value={q} onChange={(e) => setQ(e.target.value)} />

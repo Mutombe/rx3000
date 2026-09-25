@@ -26,6 +26,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import NewToFollow from "../components/NewToFollow";
 import { Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Owed {
   id: number;
@@ -175,22 +176,16 @@ export default function ToFollows() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>To follows</h1>
-          <div className="sub">{headline}</div>
-        </div>
-        <div className="page-actions">
-          {/* Most of these are raised by a dispensing that came up short. This
-              is the other half: asked for at the counter, promised for Friday,
-              and until now written on whatever was to hand, which is the
-              paper list this feature exists to replace. */}
-          <button className="btn" onClick={() => setPromising(true)}>
-            <Plus size={14} weight="bold" /> Owe something
-          </button>
-          <ExportButton dataset="to-follows" label="Spreadsheet" />
-        </div>
-      </header>
+      <PageHead title="To follows" sub={headline}>
+        {/* Most of these are raised by a dispensing that came up short. This
+                      is the other half: asked for at the counter, promised for Friday,
+                      and until now written on whatever was to hand, which is the
+                      paper list this feature exists to replace. */}
+                  <button className="btn" onClick={() => setPromising(true)}>
+                    <Plus size={14} weight="bold" /> Owe something
+                  </button>
+                  <ExportButton dataset="to-follows" label="Spreadsheet" />
+      </PageHead>
 
       {promising && (
         <NewToFollow onClose={() => setPromising(false)} onPromised={load} />

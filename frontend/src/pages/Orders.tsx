@@ -11,6 +11,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import ReceiveDelivery from "../components/ReceiveDelivery";
+import PageHead from "../components/PageHead";
 
 type Tab = "orders" | "low" | "approve";
 
@@ -154,20 +155,14 @@ export default function Orders() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Procurement</h1>
-          <div className="sub">Purchase orders fully integrated with stock control</div>
-        </div>
-        <div className="page-actions">
-          {/* The sweep covers the routine. This covers every reason a pharmacy
-              actually telephones a wholesaler, none of which is routine. */}
-          <button className="btn primary" onClick={() => setRaising(true)}>
-            <Plus size={15} weight="bold" /> New order
-          </button>
-          <button className="secondary" onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
-        </div>
-      </div>
+      <PageHead title="Procurement" sub="Purchase orders fully integrated with stock control">
+        {/* The sweep covers the routine. This covers every reason a pharmacy
+                      actually telephones a wholesaler, none of which is routine. */}
+                  <button className="btn primary" onClick={() => setRaising(true)}>
+                    <Plus size={15} weight="bold" /> New order
+                  </button>
+                  <button className="secondary" onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
+      </PageHead>
 
       {raising && (
         <NewOrder onClose={() => setRaising(false)} onCreated={load} />

@@ -20,6 +20,7 @@ import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface Scheme {
   id: number; name: string; scheme_code: string; currency_code: string;
@@ -160,20 +161,12 @@ export default function SchemeCalendar() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Claiming calendar</h1>
-          <div className="sub">
-            When each funder wants its claims, and when it settles
-          </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn secondary" onClick={load}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-            Refresh
-          </button>
-        </div>
-      </div>
+      <PageHead title="Claiming calendar" sub="When each funder wants its claims, and when it settles">
+        <button className="btn secondary" onClick={load}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+                    Refresh
+                  </button>
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

@@ -27,6 +27,7 @@ import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { useScheduleCodes } from "../schedules";
+import PageHead from "../components/PageHead";
 
 interface Ingredient {
   product_id: number; quantity: number; unit: string; note: string;
@@ -209,20 +210,11 @@ export default function Compounding() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Compounding</h1>
-          <div className="sub">
-            The formula book: what goes into each preparation, what it costs, and
-            making it up
-          </div>
-        </div>
-        <div className="page-actions">
-          <button className="btn primary" onClick={() => setAdding(true)}>
-            Add a formula
-          </button>
-        </div>
-      </div>
+      <PageHead title="Compounding" sub="The formula book: what goes into each preparation, what it costs, and making it up">
+        <button className="btn primary" onClick={() => setAdding(true)}>
+                    Add a formula
+                  </button>
+      </PageHead>
 
       {/* Two halves of one job, and only one of them existed. */}
       <div className="seg cmp-tabs" role="group" aria-label="Compounding">

@@ -11,6 +11,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import ReportChart from "../components/ReportChart";
 import { ChartBar, Table } from "@phosphor-icons/react";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 type Tab = "all" | "daily" | "vat" | "valuation" | "tax";
 
@@ -170,13 +171,9 @@ export default function Reports() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Analytics</h1>
-          <div className="sub">Automated daily totals, VAT, stock valuation and patient tax statements</div>
-        </div>
+      <PageHead title="Analytics" sub="Automated daily totals, VAT, stock valuation and patient tax statements">
         <button className="secondary" onClick={printTab}>Print report</button>
-      </div>
+      </PageHead>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

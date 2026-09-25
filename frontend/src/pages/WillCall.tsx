@@ -25,6 +25,7 @@ import { TableSearch, useSearch } from "../components/Filters";
 import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
 import { TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface Bag {
   dispensing_id: number;
@@ -153,14 +154,7 @@ export default function WillCall() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Will call</h1>
-          <div className="sub">
-            Dispensed, bagged and not yet collected. Oldest first
-          </div>
-        </div>
-      </div>
+      <PageHead title="Will call" sub="Dispensed, bagged and not yet collected. Oldest first" />
 
       {failed && <div className="alert error">{failed}</div>}
 

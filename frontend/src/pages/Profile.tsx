@@ -29,6 +29,7 @@ import { Block } from "../components/Skeleton";
 import PinInput from "../components/PinInput";
 import Blobatar, { choicesFor, defaultSeed } from "../components/Blobatar";
 import { useSession } from "../session";
+import PageHead from "../components/PageHead";
 
 interface Me {
   id: number; username: string; full_name: string;
@@ -243,12 +244,7 @@ export default function Profile() {
   return (
     <div className="page">
       {/* Static: known before any request, so it never waits. */}
-      <header className="page-head">
-        <div>
-          <h1>Profile</h1>
-          <div className="sub">Your account and the pharmacy you are signed in to.</div>
-        </div>
-      </header>
+      <PageHead title="Profile" sub="Your account and the pharmacy you are signed in to." />
 
       <section className="card">
         <h3 className="card-title"><UserCircle size={18} /> Your details</h3>

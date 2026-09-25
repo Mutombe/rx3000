@@ -19,6 +19,7 @@ import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 interface Row {
   sale_id: number;
@@ -97,18 +98,12 @@ export default function MoneyOwed() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Money owed</h1>
-          <div className="sub">
-            Medicine that has gone out and has not been paid for in full
-          </div>
-        </div>
+      <PageHead title="Money owed" sub="Medicine that has gone out and has not been paid for in full">
         <button className="btn secondary" onClick={load}>
-          <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-          Refresh
-        </button>
-      </div>
+                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+                  Refresh
+                </button>
+      </PageHead>
 
       {failed && <div className="alert error">{failed}</div>}
 

@@ -26,6 +26,7 @@ import IconButton from "../components/IconButton";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 import Person from "../components/Person";
+import PageHead from "../components/PageHead";
 
 type Status = "open" | "completed" | "cancelled";
 
@@ -210,18 +211,11 @@ export default function LayBys() {
   return (
     <>
       {prompt}
-      <div className="page-head">
-        <div>
-          <h1>Lay-bys</h1>
-          <div className="sub">
-            Goods held for a customer and paid off over time. The stock leaves the
-            shelf when the lay-by is raised
-          </div>
-        </div>
+      <PageHead title="Lay-bys" sub="Goods held for a customer and paid off over time. The stock leaves the shelf when the lay-by is raised">
         <button className="btn primary" onClick={() => setRaising(true)}>
-          Raise a lay-by
-        </button>
-      </div>
+                  Raise a lay-by
+                </button>
+      </PageHead>
 
       <TabStrip>
         {(["open", "completed", "cancelled"] as Status[]).map((s) => (

@@ -8,19 +8,12 @@
 import BankReconcile from "../components/BankReconcile";
 import SectionNav from "../components/SectionNav";
 import { RECON_TABS } from "../reconTabs";
+import PageHead from "../components/PageHead";
 
 export default function BankReconciliation() {
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Bank reconciliation</h1>
-          <div className="sub">
-            What the bank says against what the ledger says. The two never agree
-            line for line, and the difference is the point of the exercise.
-          </div>
-        </div>
-      </header>
+      <PageHead title="Bank reconciliation" sub="What the bank says against what the ledger says. The two never agree line for line, and the difference is the point of the exercise." />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

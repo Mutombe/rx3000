@@ -20,6 +20,7 @@ import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
+import PageHead from "../components/PageHead";
 
 interface Receipt {
   product_id: number;
@@ -192,17 +193,11 @@ export default function Samples() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Sample register</h1>
-          <div className="sub">
-            Medicine left by representatives. Not stock, and accountable all the same
-          </div>
-        </div>
+      <PageHead title="Sample register" sub="Medicine left by representatives. Not stock, and accountable all the same">
         <button onClick={() => setAdding((a) => !a)}>
-          <Plus size={14} weight="bold" /> Book in samples
-        </button>
-      </div>
+                  <Plus size={14} weight="bold" /> Book in samples
+                </button>
+      </PageHead>
 
       {failed && <div className="alert error">{failed}</div>}
 

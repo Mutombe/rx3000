@@ -10,6 +10,7 @@ import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import ClaudeIcon from "../components/ClaudeIcon";
+import PageHead from "../components/PageHead";
 
 type Tab = "companies" | "contacts";
 
@@ -223,16 +224,12 @@ export default function Accounts() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Accounts &amp; Contacts</h1>
-          <div className="sub">Corporate customers, clinics and the people behind them</div>
-        </div>
+      <PageHead title="Accounts &amp; Contacts" sub="Corporate customers, clinics and the people behind them">
         {/* the primary action follows the visible tab, so there is only ever one */}
-        {tab === "companies"
-          ? <button onClick={() => { setEditingCo(null); setCoForm({ ...EMPTY_CO }); setShowCo(true); }}>+ New Account</button>
-          : <button onClick={() => setShowCt(true)}>+ New Contact</button>}
-      </div>
+                {tab === "companies"
+                  ? <button onClick={() => { setEditingCo(null); setCoForm({ ...EMPTY_CO }); setShowCo(true); }}>+ New Account</button>
+                  : <button onClick={() => setShowCt(true)}>+ New Contact</button>}
+      </PageHead>
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

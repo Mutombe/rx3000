@@ -19,6 +19,7 @@ import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
 import { rateTone } from "../tone";
+import PageHead from "../components/PageHead";
 
 interface Money { count: number; amount: number }
 interface Branch {
@@ -92,22 +93,18 @@ export default function Scorecard() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Branch scorecard</h1>
-          <div className="sub">Which shop is working, and which is quietly not</div>
-        </div>
+      <PageHead title="Branch scorecard" sub="Which shop is working, and which is quietly not">
         {/* The standard group, not an inline style. Five pages each had their
-            own idea of how a header's actions are spaced, which is five
-            places to change when the answer moves and one of them always
-            gets missed. */}
-        <div className="page-actions">
-          <Select value={days} onChange={setDays} options={WINDOWS} />
-          <button className="btn secondary" onClick={load}>
-            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-          </button>
-        </div>
-      </div>
+                    own idea of how a header's actions are spaced, which is five
+                    places to change when the answer moves and one of them always
+                    gets missed. */}
+                <div className="page-actions">
+                  <Select value={days} onChange={setDays} options={WINDOWS} />
+                  <button className="btn secondary" onClick={load}>
+                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+                  </button>
+                </div>
+      </PageHead>
 
       {error && <div className="alert error">{error}</div>}
 

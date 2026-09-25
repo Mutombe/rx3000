@@ -36,6 +36,7 @@ import { useToast } from "../components/Toast";
 import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
 import EstateStock from "../components/EstateStock";
+import PageHead from "../components/PageHead";
 
 interface BranchRow {
   branch_id: number; branch: string; code: string; city: string;
@@ -192,14 +193,7 @@ export default function HeadOffice() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Head office</h1>
-          <div className="sub">
-            {estate?.headline ?? "The estate, and the controls above it."}
-          </div>
-        </div>
-      </header>
+      <PageHead title="Head office" sub={estate?.headline ?? "The estate, and the controls above it."} />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

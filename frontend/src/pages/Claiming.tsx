@@ -32,6 +32,7 @@ import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
+import PageHead from "../components/PageHead";
 
 type Tab = "batches" | "models" | "formularies";
 
@@ -409,20 +410,11 @@ export default function Claiming() {
   return (
     <>
       {prompt}
-      <div className="page-head">
-        <div>
-          <h1>Claiming</h1>
-          <div className="sub">
-            Group claims into batches, send them, record what came back, and set
-            how a claim is priced
-          </div>
-        </div>
-        <div className="page-actions">
-          {/* A pharmacy reconciles what a funder paid against what was claimed
-              in Excel, whatever the software offers. */}
-          <ExportButton dataset="claims" label="Claims as a spreadsheet" />
-        </div>
-      </div>
+      <PageHead title="Claiming" sub="Group claims into batches, send them, record what came back, and set how a claim is priced">
+        {/* A pharmacy reconciles what a funder paid against what was claimed
+                      in Excel, whatever the software offers. */}
+                  <ExportButton dataset="claims" label="Claims as a spreadsheet" />
+      </PageHead>
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

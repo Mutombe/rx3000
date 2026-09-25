@@ -18,6 +18,7 @@ import { useStepUp, CANCELLED } from "../components/StepUp";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
+import PageHead from "../components/PageHead";
 
 interface VatReturn {
   period_code: string; period_name: string; period_status: string;
@@ -148,16 +149,9 @@ export default function Periods() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <div>
-          <h1>Trading periods</h1>
-          <div className="sub">
-            {current
+      <PageHead title="Trading periods" sub={current
               ? `Currently trading in ${current.name}. ${current.live?.transactions ?? 0} transactions, ${money(current.live?.sales)}.`
-              : ""}
-          </div>
-        </div>
-      </header>
+              : ""} />
 
       <div className="dt-scroll">
         <Refreshable
