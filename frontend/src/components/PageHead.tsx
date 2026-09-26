@@ -28,7 +28,7 @@
 import { ReactNode } from "react";
 
 export default function PageHead({
-  title, sub, count, children, eyebrow,
+  title, sub, count, children, eyebrow, bring, take, also, primary,
 }: {
   title: ReactNode;
   /** One line saying what this screen is for. */
@@ -38,10 +38,50 @@ export default function PageHead({
   count?: ReactNode;
   /** What kind of thing this page is about, above the title. */
   eyebrow?: ReactNode;
-  /** The page's actions. Always grouped, so two buttons sit together instead
-   *  of being pushed to opposite ends of the row. */
+
+  /* FOUR SLOTS, IN ONE ORDER, AND A PAGE FILLS THE ONES IT HAS.
+   *
+   * The space between the title and the far edge was empty on twenty pages
+   * and held a single button on twenty-six more, and the commonest thing in
+   * it across the whole product was Refresh — a control that says the page
+   * might be stale and you should not trust it, sitting where the eye goes
+   * first.
+   *
+   * Filling it by hand, page by page, is how fifty-six headers end up in
+   * fifty-six arrangements, which is the drift this component was written to
+   * stop. So the slots are named and ordered here, and a page chooses what
+   * goes in them rather than where.
+   *
+   * Left to right, quietest to loudest, because the last thing before the
+   * edge is the thing somebody came to do:
+   *
+   *   bring    work arriving from outside: import, receive, fetch.
+   *   take     work leaving: export, print. ONE control, not three.
+   *   also     the second thing somebody would start here.
+   *   primary  the one thing this page exists to let you start.
+   *
+   * TWO THINGS THAT DO NOT BELONG HERE, AND WHY.
+   *
+   * An action on ROWS goes in the bulk bar, which appears when something is
+   * ticked. "Export selected" in the header would be a button that is wrong
+   * most of the time it is visible.
+   *
+   * An action that NARROWS the list goes in the rail above the table with
+   * the search and the count. A filter in the header reads as something that
+   * changes the records rather than the view of them.
+   */
+  bring?: ReactNode;
+  take?: ReactNode;
+  also?: ReactNode;
+  primary?: ReactNode;
+
+  /** The old shape: a page passing its actions as children. Kept so the
+   *  fifty-odd pages that have not been given slots yet still render, and
+   *  rendered in the same place, so the two can be told apart only by
+   *  reading the source rather than by looking at the screen. */
   children?: ReactNode;
 }) {
+  const slots = [bring, take, also, primary].filter(Boolean);
   return (
     <header className="page-head">
       <div className="page-head-said">
@@ -53,7 +93,15 @@ export default function PageHead({
         </h1>
         {sub ? <div className="sub">{sub}</div> : null}
       </div>
-      {children ? <div className="page-actions">{children}</div> : null}
+      {slots.length > 0 || children ? (
+        <div className="page-actions">
+          {bring}
+          {take}
+          {also}
+          {primary}
+          {children}
+        </div>
+      ) : null}
     </header>
   );
 }

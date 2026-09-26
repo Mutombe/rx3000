@@ -12,6 +12,7 @@ import IconButton from "../components/IconButton";
 import PatientForm from "../components/PatientForm";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import ExportButton from "../components/ExportButton";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -104,9 +105,17 @@ export default function Patients() {
 
   return (
     <>
-      <PageHead title="Patients" sub="Profiles, medical aid membership, allergies and loyalty">
-        <button onClick={openNew}>+ New Patient</button>
-      </PageHead>
+      <PageHead
+        title="Patients"
+        sub="Profiles, medical aid membership, allergies and loyalty"
+        count={meta ? `${meta.total.toLocaleString()} on file` : undefined}
+        // The list leaves as a spreadsheet: a recall list, a mail merge for a
+        // scheme's annual renewal, and the migration off this system if they
+        // ever go. The last one is why it carries everything.
+        take={<ExportButton dataset="patients" label="Spreadsheet" />}
+        // What somebody walking up to this screen in a hurry is here to do.
+        primary={<button onClick={openNew}>New patient</button>}
+      />
       <div className="card">
         <div className="toolbar">
           <input type="search" placeholder="Search name, ID number, phone, member no…" value={q} onChange={(e) => setQ(e.target.value)} />

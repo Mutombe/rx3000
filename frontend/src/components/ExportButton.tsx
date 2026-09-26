@@ -19,7 +19,7 @@ import { useToast } from "./Toast";
 /** The datasets the server will produce. Named here so a typo is a build
  *  error rather than a 404 somebody meets at the end of a long month. */
 export type Dataset =
-  | "products" | "batches" | "claims" | "to-follows"
+  | "products" | "batches" | "claims" | "to-follows" | "patients"
   | "journal" | "trial-balance" | "accounts";
 
 export default function ExportButton({

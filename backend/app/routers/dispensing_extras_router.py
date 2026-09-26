@@ -765,7 +765,8 @@ def export(dataset: str, db: Session = Depends(get_db)):
     rather than a real workbook: it opens in everything, needs no dependency,
     and nobody has ever failed to import one.
     """
-    from ..models import Account, Claim, JournalEntry, OwedItem, StockBatch
+    from ..models import (Account, Claim, JournalEntry, OwedItem, Patient,
+                          StockBatch)
 
     stamp = date.today()
     if dataset == "products":
@@ -773,6 +774,29 @@ def export(dataset: str, db: Session = Depends(get_db)):
                  "schedule": p.schedule, "on_hand": p.quantity_on_hand,
                  "cost_price": p.cost_price, "unit_price": p.unit_price}
                 for p in db.query(Product).filter(Product.active).all()]
+    elif dataset == "patients":
+        # WHAT A PHARMACY ACTUALLY DOES WITH THIS.
+        #
+        # A recall list, a mail merge for a scheme's annual renewal, and the
+        # migration off this system if they ever leave. The last one is the
+        # reason it carries everything that identifies a person rather than a
+        # pretty subset: an export somebody has to ask for twice is one that
+        # makes them feel held.
+        #
+        # Allergies and chronic conditions are included because a recall or a
+        # renewal letter is precisely where they matter, and the file is
+        # generated for the pharmacy's own staff, on their own patients.
+        rows = [{"last_name": p.last_name, "first_name": p.first_name,
+                 "id_number": p.id_number, "date_of_birth": p.date_of_birth,
+                 "phone": p.phone, "email": p.email, "address": p.address,
+                 "medical_aid": p.medical_aid.name if p.medical_aid else "",
+                 "member_number": p.medical_aid_number,
+                 "dependent_code": p.dependent_code,
+                 "allergies": p.allergies,
+                 "chronic_conditions": p.chronic_conditions,
+                 "caregiver": p.caregiver_name, "caregiver_phone": p.caregiver_phone,
+                 "registered": p.created_at}
+                for p in db.query(Patient).order_by(Patient.last_name).limit(20000).all()]
     elif dataset == "batches":
         rows = [{"product": b.product.name if b.product else "", "batch": b.batch_number,
                  "expiry": b.expiry_date, "remaining": b.quantity_remaining,
