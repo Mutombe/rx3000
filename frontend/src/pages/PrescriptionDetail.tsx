@@ -279,7 +279,7 @@ export default function PrescriptionDetail() {
               <table className="dt">
                 <thead>
                   <tr>
-                    <Th>When</Th><Th>Field</Th><Th>From</Th><Th>To</Th>
+                    <Th>When</Th><Th>Field</Th><Th>Change</Th>
                     <Th>Reason</Th><Th>By</Th>
                   </tr>
                 </thead>
@@ -288,11 +288,18 @@ export default function PrescriptionDetail() {
                     <tr key={a.id}>
                       <td>{fmtDateTime(a.changed_at)}</td>
                       <td>{FIELD_NAMES[a.field] ?? a.field}</td>
-                      {/* The old value in full. "Directions changed" is exactly
-                          the note that is useless when somebody asks what they
-                          used to say. */}
-                      <td className="muted">{a.old_value || <em>blank</em>}</td>
-                      <td><b>{a.new_value || <em>blank</em>}</b></td>
+                      {/* THE CHANGE AS ONE THING, NOT TWO COLUMNS.
+                          From and To sat apart and the reader compared them
+                          across a gap, on a screen where the answer to "what
+                          did it used to say" is the whole reason for looking.
+                          Struck through and replaced, it reads as a sentence.
+                          The old value in full: "Directions changed" is
+                          exactly the note that is useless afterwards. */}
+                      <td className="chg">
+                        <del>{a.old_value || <em>blank</em>}</del>
+                        <span className="chg-to" aria-label="became">→</span>
+                        <b>{a.new_value || <em>blank</em>}</b>
+                      </td>
                       <td>{a.reason || <span className="muted">None</span>}</td>
                       <td className="muted">{a.changed_by || "none"}</td>
                     </tr>

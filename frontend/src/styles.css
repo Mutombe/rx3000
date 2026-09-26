@@ -14142,3 +14142,31 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
   background: var(--danger-soft);
   box-shadow: inset 0 0 0 2px var(--danger);
 }
+
+/* ------------------------------------------------- a change, as one thing
+ *
+ * An alteration is "it said this, now it says that", and split across a From
+ * column and a To column the reader compares them across a gap — on the one
+ * screen where what it used to say is the whole reason for looking.
+ *
+ * Struck through and replaced, it reads as a sentence. The old value stays
+ * legible rather than being dimmed away: it is evidence, and this table is
+ * read when something has gone wrong.
+ */
+/* THE ONE TABLE THAT MAY TAKE TWO LINES.
+   Rows in this product are one line, and a cell too long for its column
+   clips. This cell must not: it is what a script used to say and what it says
+   now, read when a dose is in question, and a clipped "TAKE ON…" is worse
+   than useless because it looks like the whole value. Evidence wraps. */
+.chg {
+  display: flex; align-items: baseline; gap: var(--s2); min-width: 0;
+  flex-wrap: wrap; white-space: normal;
+}
+.chg > * { white-space: normal; }
+.chg del {
+  text-decoration-color: var(--danger);
+  text-decoration-thickness: 1px;
+  color: var(--ink-soft);
+}
+.chg-to { flex: none; color: var(--ink-faint); font-size: var(--t-sm); }
+.chg b { color: var(--ink); }
