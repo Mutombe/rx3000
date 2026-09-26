@@ -11,10 +11,30 @@ REGISTER_SCHEDULE_MIN = 5  # S5 and S6 substances go into the electronic registe
 DEFAULT_SHELF_LIFE_DAYS = 730  # assumed expiry when none is supplied at receipt
 
 
-def next_number(db: Session, model, prefix: str, field: str) -> str:
+def next_number(db: Session, model, prefix: str, field: str,
+                *, period: str = "%y%m", width: int = 5) -> str:
     """The next document number for this pharmacy, this month.
 
     Read from the numbers already issued, not from a count of rows.
+
+    FOUR SERVICES NEVER GOT THIS AND WENT ON COUNTING ROWS.
+
+    Claims, authorisations, to-follows and branch transfers each kept their own
+    `count() + 1`, which is the exact fault described below, and all four of
+    their fields carry a per-pharmacy unique index. A dispensing to a medical
+    aid on the demonstration database fails with "Something went wrong at our
+    end" for that reason today: CLM260900374 is already taken, because claims
+    have been reversed and the count walked backwards over numbers that were
+    already issued.
+
+    They were missed because the note beside `PER_TENANT_NUMBERS` in migrate.py
+    said this function counts rows, so four services doing the same looked
+    consistent with the shared one rather than left behind by it.
+
+    `period` and `width` exist so those four keep the number format they have
+    always had: a branch transfer is TRF-20260926-0001, stamped by the day and
+    four digits wide, and a fix that renumbered every document in the product
+    would be a worse change than the bug.
 
     Counting rows is wrong whenever a number is issued without adding a row, or
     a row is added without taking a number, and this system does both:
@@ -42,7 +62,7 @@ def next_number(db: Session, model, prefix: str, field: str) -> str:
     the query is filtered before it reaches the database, which is the same
     boundary the unique index is drawn on.
     """
-    stamp = f"{prefix}{datetime.utcnow():%y%m}"
+    stamp = f"{prefix}{datetime.utcnow():{period}}"
     column = getattr(model, field)
     # Two requests reading the same highest number issued the same next one, and
     # the second insert broke the unique index. Held until this transaction ends,
@@ -61,7 +81,7 @@ def next_number(db: Session, model, prefix: str, field: str) -> str:
     # Walk forward off any number already taken. Bounded, because an unbounded
     # loop against a database is how a slow page becomes a hung one.
     for _ in range(1000):
-        candidate = f"{stamp}{n:05d}"
+        candidate = f"{stamp}{n:0{width}d}"
         if not db.query(column).filter(column == candidate).first():
             return candidate
         n += 1

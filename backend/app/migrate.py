@@ -789,14 +789,24 @@ def _untangle_account_codes(conn, inspector, existing_tables: set) -> int:
 
 #: Document numbers that belong to one pharmacy, not to the estate.
 #:
-#: Every one of these is produced by counting that pharmacy's OWN rows —
-#: `helpers.next_number` does `count() + 1` under the tenant filter, and the
-#: ledger's `next_reference` scans that tenant's highest. So two pharmacies with
-#: the same number of sales in the same month both generate `INV260800001`, and
-#: because the index was unique across the whole database the second one was
-#: refused. Two brand-new pharmacies making their first sale in the same month
-#: is not an edge case; it is opening week, and the failure lands at the till
-#: in the middle of serving somebody.
+#: Every one of these is scoped to that pharmacy's OWN rows, so two pharmacies
+#: reaching the same point in the same month both generate `INV260800001`.
+#:
+#: THIS NOTE USED TO SAY `helpers.next_number` DOES `count() + 1`. IT DOES NOT.
+#:
+#: That was true when this was written and stopped being true when the helper
+#: was fixed to read back the highest number already issued. The stale sentence
+#: then did real damage: four services — claims, authorisations, to-follows and
+#: branch transfers — kept their own `count() + 1`, and to anybody reading this
+#: note they looked consistent with the shared helper rather than left behind by
+#: it. They were converted months later, after a dispensing to a medical aid
+#: failed at a counter. A comment that has gone stale is worse than no comment,
+#: because it is evidence.
+#:
+#: Because the index was unique across the whole database, the second pharmacy
+#: to reach a number was refused. Two brand-new pharmacies making their first
+#: sale in the same month is not an edge case; it is opening week, and the
+#: failure lands at the till in the middle of serving somebody.
 #:
 #: `users.username` is deliberately absent: signing in names a user without
 #: naming a pharmacy, so it has to stay unique everywhere. So are the switch's

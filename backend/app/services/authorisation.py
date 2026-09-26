@@ -170,8 +170,15 @@ def release(db: Session, reference: str = "", claim_id: int | None = None) -> in
 
 
 def next_reference(db: Session) -> str:
-    count = db.query(Authorisation).count() + 1
-    return f"AUTH{datetime.utcnow():%y%m}{count:05d}"
+    """The next authorisation reference. See `helpers.next_number`.
+
+    Counted rows until now, so a cancelled authorisation handed its number to
+    the next one and `authorisations.reference` — which is unique per pharmacy
+    — refused it. The format is unchanged: AUTH, the year and month, five
+    digits.
+    """
+    from ..helpers import next_number
+    return next_number(db, Authorisation, "AUTH", "reference")
 
 
 def summarise(db: Session, auth: Authorisation, today: date | None = None) -> dict:

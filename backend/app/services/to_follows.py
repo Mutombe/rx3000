@@ -38,8 +38,14 @@ class OwedError(ValueError):
 
 
 def next_reference(db: Session) -> str:
-    count = db.query(OwedItem).count() + 1
-    return f"TF{datetime.utcnow():%y%m}{count:05d}"
+    """The next to-follow reference. See `helpers.next_number`.
+
+    Counting rows is worse here than almost anywhere: a to-follow is settled
+    and cleared away constantly, so the count walks backwards all day and the
+    numbers it hands out have usually been used already.
+    """
+    from ..helpers import next_number
+    return next_number(db, OwedItem, "TF", "reference")
 
 
 def record(db: Session, *, product: Product, quantity_owed: int,

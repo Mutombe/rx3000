@@ -224,9 +224,17 @@ def stock_at(db: Session, branch_id: int, *, low_only: bool = False) -> list[dic
 
 
 def _next_reference(db: Session) -> str:
-    stamp = datetime.utcnow().strftime("%Y%m%d")
-    n = db.query(BranchTransfer).count() + 1
-    return f"TRF-{stamp}-{n:04d}"
+    """The next transfer reference. See `helpers.next_number`.
+
+    The format is kept exactly: TRF, the full date, four digits. It counted
+    every transfer ever made rather than the ones made today, so the number
+    after the date bore no relation to it — TRF-20260926-0412 on the first
+    transfer of the morning — and two pharmacies at the same total collided on
+    a field that is unique per pharmacy.
+    """
+    from ..helpers import next_number
+    return next_number(db, BranchTransfer, "TRF-", "reference",
+                       period="%Y%m%d-", width=4)
 
 
 def despatch(db: Session, *, from_branch_id: int, to_branch_id: int,

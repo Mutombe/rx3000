@@ -119,6 +119,25 @@ def licence() -> dict:
     }
 
 
+def _peek(db, model, prefix: str, field: str) -> int:
+    """The number the next document WOULD take, without taking it.
+
+    Deliberately not `helpers.next_number`: that one serialises on a lock and
+    is meant to be followed by a write. This is a figure on a status panel, and
+    a screen refresh must not queue behind somebody finishing a script.
+    """
+    from sqlalchemy import func
+
+    stamp = f"{prefix}{datetime.utcnow():%y%m}"
+    column = getattr(model, field)
+    highest = (db.query(func.max(column))
+               .filter(column.like(f"{stamp}%")).scalar())
+    if not highest:
+        return 1
+    tail = str(highest)[len(stamp):]
+    return int(tail) + 1 if tail.isdigit() else 1
+
+
 def info(db=None) -> dict:
     """The panel the incumbent keeps on screen, and the support call it saves."""
     from ..models import Prescription, Sale
@@ -127,8 +146,18 @@ def info(db=None) -> dict:
     period = None
     if db is not None:
         from . import periods
-        next_rx = db.query(Prescription).count() + 1
-        next_sale = db.query(Sale).count() + 1
+        # WHAT THE NEXT NUMBER WOULD BE, NOT HOW MANY THERE ARE.
+        #
+        # These are shown on the till's status panel as "the next script" and
+        # "the next sale", and they were a count of every script and every
+        # sale ever made. On a shop in its ninth month that is a number four
+        # thousand away from the one the next capture will actually get, shown
+        # under a label that says otherwise.
+        #
+        # Read the same way the issuer reads it, without taking the number: no
+        # lock, nothing written, and it is a display rather than an allocation.
+        next_rx = _peek(db, Prescription, "RX", "rx_number")
+        next_sale = _peek(db, Sale, "INV", "sale_number")
         period = periods.current(db).code
 
     return {

@@ -12,8 +12,19 @@ from ..models import Claim, Patient, Sale
 
 
 def _next_claim_number(db: Session) -> str:
-    count = db.query(Claim).count() + 1
-    return f"CLM{datetime.utcnow():%y%m}{count:05d}"
+    """The next claim number, read from what has been issued.
+
+    This counted claims and added one, which is the fault `helpers.next_number`
+    was written to end and which its docstring describes at length. Claims were
+    never moved over. A claim that is reversed leaves its number behind and
+    drops the count, so the next dispensing to a medical aid is handed a number
+    that already exists, the per-pharmacy unique index refuses the insert, and
+    a pharmacist at the counter is told "Something went wrong at our end" in
+    the middle of serving somebody. Reproduced on the demonstration database:
+    CLM260900374, on an ordinary script for a scheme patient.
+    """
+    from ..helpers import next_number
+    return next_number(db, Claim, "CLM", "claim_number")
 
 
 def claimable_lines(sale: Sale) -> list:
