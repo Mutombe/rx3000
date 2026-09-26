@@ -4739,9 +4739,23 @@ td.lb-actions {
    These were a single grey line with dots between the values, so nothing
    said which number was the profile number and the eye had to parse the
    format of each one to find out. */
+/* HOW A RECORD IS IDENTIFIED, IN COLUMNS RATHER THAN A WRAPPED ROW.
+ *
+ * These were laid out with flex-wrap, so the pairs packed left to right and
+ * broke wherever they ran out of width: a supplier with four identifiers and
+ * one with six put their labels in different places, and two records of the
+ * same kind read as two different screens. Nothing lined up with the record
+ * below it either.
+ *
+ * A grid of even columns is what every profile in the references does. The
+ * pairs sit in the same places on every record of every kind, so the eye
+ * learns where the telephone number is once. `auto-fit` with a floor means a
+ * record with three identifiers does not stretch them across the page. */
 .rp-meta {
-  display: flex; flex-wrap: wrap; gap: var(--s2) var(--s5);
-  margin: var(--s3) 0 0;
+  display: grid; gap: var(--s3) var(--s5);
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 12rem));
+  margin: var(--s4) 0 0;
+  padding-top: var(--s3); border-top: 1px solid var(--line-soft);
 }
 .rp-meta > div { min-width: 0; }
 .rp-meta dt {
