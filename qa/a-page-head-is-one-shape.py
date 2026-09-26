@@ -101,5 +101,109 @@ inline = [n for n, h in heads.items() if 'style={{ display: "flex"' in h]
 check("no header hand-rolls its action group", not inline,
       'use .page-actions rather than an inline flex style: ' + ", ".join(inline))
 
+
+# ---------------------------------------------------------------------------
+# And the same three faults, INSIDE the shared component
+# ---------------------------------------------------------------------------
+#
+# WHY THIS HALF WAS MISSING, AND WHAT GOT THROUGH BECAUSE OF IT.
+#
+# Everything above skips a page that uses `<PageHead>` on the grounds that the
+# component decides its shape. That was true of the element and the subtitle
+# and stopped being true the moment the component took `children`: nine pages
+# passed a whole `<div className="page-actions">` of their own through it, so
+# the rendered header had one flex row nested inside another and drew its gap
+# from the inner one. Deliveries had that AND its slots filled, which is two
+# action groups on one header, and every check above reported it as fine.
+#
+# `children` is gone from the component now, so TypeScript refuses the shape
+# outright. This catches the version of it that TypeScript cannot see — a page
+# passing the group through one of the four slots instead — and it reads the
+# whole element rather than the six-space block, because a slot's markup is
+# indented past anything `head_of` bounds.
+
+
+def tag_end(text: str, start: int) -> tuple[int, bool]:
+    """Where the opening `<PageHead ...>` tag ends, and whether it self-closes.
+
+    Counted rather than searched for. A slot holds JSX, so the tag contains
+    `>` and `/>` of its own — `<Plus size={14} />` inside a button inside
+    `primary={...}` — and the first `/>` after the tag start belongs to a child
+    a dozen times over. So this walks the braces: depth zero is the tag's own
+    attribute list, and the `>` that matters is the one found there.
+
+    Strings are skipped because an attribute value can hold either character,
+    and a page does write `placeholder="Reports…"` and `sub="...>..."`.
+    """
+    i, depth = start + len("<PageHead"), 0
+    while i < len(text):
+        two = text[i:i + 2]
+        # Comments first. Every header in this product carries its reasoning,
+        # and that prose is full of apostrophes — "the header's cascade",
+        # "a debtors' list" — each of which would open a string that never
+        # closes and send this walking to the end of the file.
+        if two == "/*":
+            i = text.find("*/", i)
+            if i == -1:
+                return len(text), False
+            i += 2
+            continue
+        if two == "//":
+            i = text.find("\n", i)
+            if i == -1:
+                return len(text), False
+            continue
+        c = text[i]
+        if c in "\"'`":
+            i += 1
+            while i < len(text) and text[i] != c:
+                i += 2 if text[i] == "\\" else 1
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+        elif depth == 0 and c == ">":
+            return i + 1, text[i - 1] == "/"
+        i += 1
+    return len(text), False
+
+
+def heads_of(text: str) -> list[str]:
+    """Every `<PageHead ...>` element in a file, opening tag to close.
+
+    A self-closing one ends where its tag ends; one with children ends at its
+    own `</PageHead>`. Two pages open a header in an early return and another
+    in the ordinary path, so each is measured from its own start.
+    """
+    out = []
+    for m in re.finditer(r"<PageHead\b", text):
+        end, closed = tag_end(text, m.start())
+        if closed:
+            out.append(text[m.start():end])
+        else:
+            shut = text.find("</PageHead>", end)
+            out.append(text[m.start(): shut if shut != -1 else end])
+    return out
+
+
+slotted = {n: heads_of(t) for n, t in read.items() if "<PageHead" in t}
+GROUPS = re.compile(r'className="(?:page-actions|row-actions|toolbar|ax-page-acts)"')
+nested = sorted({n for n, blocks in slotted.items()
+                 for b in blocks if GROUPS.search(b)})
+check("no page passes its own action group through the component", not nested,
+      "PageHead already renders .page-actions; a second one inside it nests "
+      "one flex row in another and the spacing stops matching: "
+      + ", ".join(nested))
+
+# A page that fills no slot at all is not a fault — Profile and Fiscal have
+# nothing to offer up there and an invented button would be worse. A page that
+# fills them in the wrong ORDER is invisible on screen, because the component
+# renders them in its own order whatever order they are written in, so there is
+# nothing to check there either.
+filled = sorted(n for n, blocks in slotted.items()
+                for b in blocks if re.search(r"\b(bring|take|also|primary)=", b))
+check(f"the slots are being used ({len(filled)} pages fill at least one)",
+      len(filled) > 30)
+
 print(f"\n  {passed} passed, {failed} failed\n")
 sys.exit(1 if failed else 0)

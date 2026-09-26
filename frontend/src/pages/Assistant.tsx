@@ -38,21 +38,24 @@ export default function Assistant() {
 
   return (
     <>
-      <PageHead title="RX-Assistant" sub="Where things are in RX5000, how they are done, and what the codes mean. It can draw you the steps and take you there.">
-        <div className="ax-page-acts">
-                  {/* The thread is kept now: across the dock, this page, a reload and
-                      a shift. So putting one down has to be something somebody does on
-                      purpose, not something that happens to them. */}
-                  {thread.length > 0 && (
-                    <button className="btn secondary" onClick={clearThread}>
-                      <NotePencil size={15} /> New conversation
-                    </button>
-                  )}
-                  <button className="btn secondary" onClick={() => setHistory(true)}>
-                    Past questions
-                  </button>
-                </div>
-      </PageHead>
+      <PageHead
+        title="RX-Assistant"
+        sub="Where things are in RX5000, how they are done, and what the codes mean. It can draw you the steps and take you there."
+        // What has been asked before, which is where most answers already are.
+        also={
+          <button className="btn secondary" onClick={() => setHistory(true)}>
+            Past questions
+          </button>
+        }
+        /* The thread is kept now: across the dock, this page, a reload and a
+           shift. So putting one down has to be something somebody does on
+           purpose, not something that happens to them. */
+        primary={thread.length > 0 ? (
+          <button className="btn secondary" onClick={clearThread}>
+            <NotePencil size={15} /> New conversation
+          </button>
+        ) : undefined}
+      />
 
       <div className="card ax-page">
         <AssistantChat />

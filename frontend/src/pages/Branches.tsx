@@ -30,6 +30,7 @@ import { Link } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 /** A verdict, in the badge tone it deserves. Only two of the four are alarms:
@@ -259,14 +260,22 @@ export default function Branches() {
 
   return (
     <>
-      <PageHead title="Branches" sub="Each branch, who is accountable for it, what is on its shelves, and stock moving between them">
-        <button className="btn primary" onClick={() => {
-                    setMoving(true);
-                    setFromId(branches?.find((b) => b.is_default)?.id ?? "");
-                  }}>
-                    Transfer stock
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Branches"
+        sub="Each branch, who is accountable for it, what is on its shelves, and stock moving between them"
+        count={branches?.length ? `${branches.length} branches` : undefined}
+        // Who is accountable for which premises, which is what a group is
+        // asked for and what it cannot produce from a screen.
+        take={<ExportButton dataset="branches" />}
+        primary={
+          <button className="btn primary" onClick={() => {
+            setMoving(true);
+            setFromId(branches?.find((b) => b.is_default)?.id ?? "");
+          }}>
+            Transfer stock
+          </button>
+        }
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

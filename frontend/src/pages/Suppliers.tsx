@@ -32,6 +32,7 @@ import BusyButton from "../components/BusyButton";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Supplier {
@@ -128,11 +129,18 @@ export default function Suppliers() {
 
   return (
     <>
-      <PageHead title="Suppliers" sub="Who this pharmacy buys from, and how they are paid">
-        <button className="btn primary" onClick={() => setAdding(true)}>
-                    <Plus size={14} weight="bold" /> New supplier
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Suppliers"
+        sub="Who this pharmacy buys from, and how they are paid"
+        // Account numbers and terms, which is what a bookkeeper setting up
+        // payments asks for and what a new branch is opened with.
+        take={<ExportButton dataset="suppliers" />}
+        primary={
+          <button className="btn primary" onClick={() => setAdding(true)}>
+            <Plus size={14} weight="bold" /> New supplier
+          </button>
+        }
+      />
 
       <div className="card">
         <div className="toolbar">

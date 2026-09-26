@@ -13,6 +13,7 @@ import AiPhase from "../components/AiPhase";
 import { useAiDraft } from "../hooks/useAiStream";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import { useRowWork } from "../hooks/useRowWork";
 import BusyButton from "../components/BusyButton";
 
@@ -225,9 +226,19 @@ export default function HelpDesk() {
 
   return (
     <>
-      <PageHead title="Cases" sub="Customer service tickets with SLA targets, threaded replies and CSAT">
-        <button onClick={() => setShowNew(true)}>+ New Ticket</button>
-      </PageHead>
+      <PageHead
+        title="Cases"
+        sub="Customer service tickets with SLA targets, threaded replies and CSAT"
+        count={stats ? `${stats.open} open` : undefined}
+        // Response times and satisfaction, which is what a monthly review is
+        // argued from.
+        take={<ExportButton dataset="tickets" />}
+        primary={
+          <button className="btn primary" onClick={() => setShowNew(true)}>
+            New case
+          </button>
+        }
+      />
 
       {stats && (
         <div className="grid cols-4">

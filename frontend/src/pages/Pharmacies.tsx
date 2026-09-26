@@ -170,20 +170,21 @@ export default function Pharmacies() {
 
   return (
     <>
-      <PageHead title="Pharmacies" sub="Every business on this deployment, and who belongs to which">
-        {/* The standard group, not an inline style. Five pages each had their
-                    own idea of how a header's actions are spaced, which is five
-                    places to change when the answer moves and one of them always
-                    gets missed. */}
-                <div className="page-actions">
-                  <button className="btn secondary" onClick={load}>
-                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-                  </button>
-                  <button className="btn" onClick={() => setAdding(true)}>
-                    <Buildings size={15} /> New pharmacy
-                  </button>
-                </div>
-      </PageHead>
+      <PageHead
+        title="Pharmacies"
+        sub="Every business on this deployment, and who belongs to which"
+        count={rows.length ? `${rows.length} on this deployment` : undefined}
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+          </button>
+        }
+        primary={
+          <button className="btn primary" onClick={() => setAdding(true)}>
+            <Buildings size={15} /> New pharmacy
+          </button>
+        }
+      />
 
       {list.error && <div className="alert error">{list.error}</div>}
 

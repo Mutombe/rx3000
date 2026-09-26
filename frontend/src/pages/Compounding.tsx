@@ -27,6 +27,7 @@ import { Product } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import { useScheduleCodes } from "../schedules";
+import { Plus } from "@phosphor-icons/react";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 
@@ -211,11 +212,16 @@ export default function Compounding() {
 
   return (
     <>
-      <PageHead title="Compounding" sub="The formula book: what goes into each preparation, what it costs, and making it up">
-        <button className="btn primary" onClick={() => setAdding(true)}>
-                    Add a formula
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Compounding"
+        sub="The formula book: what goes into each preparation, what it costs, and making it up"
+        count={mixtures?.length ? `${mixtures.length} formulae` : undefined}
+        primary={
+          <button className="btn primary" onClick={() => setAdding(true)}>
+            <Plus size={14} weight="bold" /> Add a formula
+          </button>
+        }
+      />
 
       {/* Two halves of one job, and only one of them existed. */}
       <div className="seg cmp-tabs" role="group" aria-label="Compounding">

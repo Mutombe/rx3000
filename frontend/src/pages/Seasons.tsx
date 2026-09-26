@@ -111,15 +111,15 @@ export default function Seasons() {
 
   return (
     <div className="page">
-      <PageHead title="Basket &amp; seasons" sub="What a repeat patient is worth beyond the line, and what to have on the shelf before the month that sells it.">
-        {tab === "basket" && (
-                  <div className="page-actions">
-                    <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-                      options={[30, 90, 180, 365].map((d) => ({
-                        value: String(d), label: `Last ${d} days` }))} />
-                  </div>
-                )}
-      </PageHead>
+      <PageHead
+        title="Basket and seasons"
+        sub="What a repeat patient is worth beyond the line, and what to have on the shelf before the month that sells it."
+        also={tab === "basket" ? (
+          <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+            options={[30, 90, 180, 365].map((d) => ({
+              value: String(d), label: `Last ${d} days` }))} />
+        ) : undefined}
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

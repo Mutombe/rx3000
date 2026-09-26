@@ -21,6 +21,7 @@ import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Receipt {
@@ -194,11 +195,18 @@ export default function Samples() {
 
   return (
     <>
-      <PageHead title="Sample register" sub="Medicine left by representatives. Not stock, and accountable all the same">
-        <button onClick={() => setAdding((a) => !a)}>
-                  <Plus size={14} weight="bold" /> Book in samples
-                </button>
-      </PageHead>
+      <PageHead
+        title="Sample register"
+        sub="Medicine left by representatives. Not stock, and accountable all the same"
+        // The register an inspector asks to see, which is a document rather
+        // than a screen.
+        take={<ExportButton dataset="samples" />}
+        primary={
+          <button className="btn primary" onClick={() => setAdding((a) => !a)}>
+            <Plus size={14} weight="bold" /> Book in samples
+          </button>
+        }
+      />
 
       {failed && <div className="alert error">{failed}</div>}
 

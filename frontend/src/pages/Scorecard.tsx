@@ -93,18 +93,21 @@ export default function Scorecard() {
 
   return (
     <>
-      <PageHead title="Branch scorecard" sub="Which shop is working, and which is quietly not">
-        {/* The standard group, not an inline style. Five pages each had their
-                    own idea of how a header's actions are spaced, which is five
-                    places to change when the answer moves and one of them always
-                    gets missed. */}
-                <div className="page-actions">
-                  <Select value={days} onChange={setDays} options={WINDOWS} />
-                  <button className="btn secondary" onClick={load}>
-                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-                  </button>
-                </div>
-      </PageHead>
+      <PageHead
+        title="Branch scorecard"
+        sub="Which shop is working, and which is quietly not"
+        /* The period IS the subject on a comparison page rather than a filter
+           over a list, so it sits with the actions rather than in a rail the
+           page does not have. */
+        also={
+          <>
+            <Select value={days} onChange={setDays} options={WINDOWS} />
+            <button className="btn secondary" onClick={load}>
+              <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+            </button>
+          </>
+        }
+      />
 
       {error && <div className="alert error">{error}</div>}
 

@@ -218,18 +218,20 @@ export default function Remittances() {
 
   return (
     <>
-      <PageHead title="Remittances" sub="What each scheme actually paid, and where the difference went">
-        {/* Advices arrive two ways: a CSV somebody downloads and imports, and
-                    the switch, where the funder publishes them. The second has existed
-                    since the gateway was written and nothing called it, so every
-                    pharmacy on a live switch was still importing by hand. */}
-                <div className="page-actions">
-                  <BusyButton className="btn" onClick={fetchFromSwitch}
-                              busyLabel="Asking the switch…">
-                    <CloudArrowDown size={15} /> Fetch from the switch
-                  </BusyButton>
-                </div>
-      </PageHead>
+      <PageHead
+        title="Remittances"
+        sub="What each scheme actually paid, and where the difference went"
+        /* Advices arrive two ways: a CSV somebody downloads and imports, and
+           the switch, where the funder publishes them. The second has existed
+           since the gateway was written and nothing called it, so every
+           pharmacy on a live switch was still importing by hand. */
+        bring={
+          <BusyButton className="btn secondary" onClick={fetchFromSwitch}
+                      busyLabel="Asking the switch…">
+            <CloudArrowDown size={15} /> Fetch from the switch
+          </BusyButton>
+        }
+      />
 
       <TabStrip>
         <button className={tab === "outstanding" ? "active" : ""}

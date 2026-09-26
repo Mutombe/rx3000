@@ -17,7 +17,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import (
     Driver, MedicalAid, Patient, Pharmacy, Prescription, PriceOverride, Product,
-    Sale, Shift, StockMovement, User, Waybill,
+    Sale, Shift, StockMovement, Supplier, User, Waybill,
 )
 from ..services import supply_facts
 from ..services import (pricing, branches, churn, deliveries as delivery_svc,
@@ -914,11 +914,233 @@ def export(
     elif dataset == "accounts":
         rows = [{"code": a.code, "name": a.name, "type": a.type,
                  "subledger": a.subledger} for a in db.query(Account).all()]
+
+    # -- THE REST OF THE GRIDS ------------------------------------------------
+    #
+    # Ten datasets were reachable and forty screens were not, which made the
+    # docstring above a promise kept on a tenth of the product. What follows is
+    # the same work, per screen, and the shape of each one is decided by what
+    # the sheet is FOR rather than by what the table happens to show: a call
+    # sheet carries telephone numbers, a count sheet carries a blank column to
+    # write in, and a register carries the running balance an inspector checks.
+    elif dataset == "scripts":
+        from ..models import Prescription as Rx
+        rows = [{"script": r.rx_number, "status": r.status,
+                 "patient": (f"{r.patient.first_name} {r.patient.last_name}"
+                             if r.patient else ""),
+                 "prescriber": r.doctor.name if r.doctor else "",
+                 "prescribed": r.date_prescribed, "captured": r.created_at,
+                 "items": len(r.items), "notes": r.notes}
+                for r in db.query(Rx).order_by(Rx.created_at.desc())
+                           .limit(5000).all()]
+    elif dataset == "dispensings":
+        # What went out. This is the file a scheme audit is answered from and
+        # the one a pharmacist reaches for when somebody asks what a patient
+        # was given in March, so it carries who checked it as well as what it
+        # was.
+        from ..models import Dispensing, PrescriptionItem
+        rows = []
+        for d in (db.query(Dispensing)
+                    .options(joinedload(Dispensing.prescription_item)
+                             .joinedload(PrescriptionItem.product),
+                             joinedload(Dispensing.prescription_item)
+                             .joinedload(PrescriptionItem.prescription)
+                             .joinedload(Prescription.patient),
+                             joinedload(Dispensing.dispensed_by))
+                    .order_by(Dispensing.dispensed_at.desc()).limit(10000).all()):
+            item = d.prescription_item
+            rx = item.prescription if item else None
+            rows.append({
+                "when": d.dispensed_at,
+                "script": rx.rx_number if rx else "",
+                "patient": (f"{rx.patient.first_name} {rx.patient.last_name}"
+                            if rx and rx.patient else "Walk-in"),
+                "medicine": item.product.name if item and item.product else "",
+                "quantity": d.quantity, "schedule": d.schedule,
+                "dispensed_by": d.dispensed_by.full_name if d.dispensed_by else "",
+                "supplied": d.supply_type, "paid_by": d.payment_type,
+                "collected": d.collected_at, "collected_by": d.collected_name,
+            })
+    elif dataset == "will-call":
+        # The shelf, as the sheet a morning of telephone calls is worked from.
+        # Days waiting and the telephone number are the whole point of it off
+        # screen; the directions are there because the call often ends with
+        # "and how do I take it".
+        from ..services import willcall
+        rows = [{"patient": r["patient"], "phone": r["phone"],
+                 "medicine": r["product"], "quantity": r["quantity"],
+                 "script": r["rx_number"], "dispensed": r["dispensed_at"],
+                 "days_waiting": r["days_waiting"], "what_to_do": r["action"],
+                 "still_to_pay": r["outstanding"],
+                 "directions": r["directions"]}
+                for r in willcall.waiting(db, limit=500)["items"]]
+    elif dataset == "repeats-due":
+        # The call sheet, in the order somebody would telephone it: overdue
+        # first, and whether the shelf can actually serve them, because a call
+        # that ends in "we do not have it" is worse than no call.
+        rows = [{"patient": r["patient_name"], "phone": r["patient_phone"],
+                 "medicine": r["product"], "quantity": r["quantity"],
+                 "due_on": r["due_on"], "days_overdue": r["days_overdue"],
+                 "repeats_left": r["repeats_left"], "value": r["value"],
+                 "on_shelf": r["in_stock"], "can_supply": r["can_supply"],
+                 "script": r["rx_number"]}
+                for r in repeats_call_sheet(within_days=60, db=db)["items"]]
+    elif dataset == "suppliers":
+        rows = [{"name": s.name, "contact": s.contact_person, "phone": s.phone,
+                 "email": s.email, "account_number": s.account_number,
+                 "terms": s.payment_terms, "buying_from_them": s.active,
+                 "notes": s.notes}
+                for s in db.query(Supplier).order_by(Supplier.name).all()]
+    elif dataset == "orders":
+        from ..models import PurchaseOrder
+        rows = [{"order": o.order_number, "supplier": o.supplier.name if o.supplier else "",
+                 "status": o.status, "raised": o.created_at, "sent": o.sent_at,
+                 "promised": o.promised_date, "received": o.received_at,
+                 "lines": len(o.items),
+                 "value": round(sum((i.quantity_ordered or 0) * (i.unit_cost or 0)
+                                    for i in o.items), 2),
+                 "notes": o.notes}
+                for o in db.query(PurchaseOrder)
+                           .order_by(PurchaseOrder.created_at.desc()).limit(5000).all()]
+    elif dataset == "lay-bys":
+        from ..models import LayBy
+        rows = [{"lay_by": l.layby_number, "status": l.status,
+                 "customer": (f"{l.patient.first_name} {l.patient.last_name}"
+                              if l.patient else ""),
+                 "total": l.total,
+                 "paid": round(sum(p.amount for p in l.payments), 2),
+                 "outstanding": round((l.total or 0)
+                                      - sum(p.amount for p in l.payments), 2),
+                 "due_date": l.due_date, "raised": l.created_at,
+                 "completed": l.completed_at}
+                for l in db.query(LayBy)
+                           .order_by(LayBy.created_at.desc()).limit(5000).all()]
+    elif dataset == "drivers":
+        from ..models import Driver
+        rows = [{"code": d.code, "name": d.full_name, "phone": d.phone,
+                 "national_id": d.national_id, "vehicle": d.vehicle_type,
+                 "registration": d.vehicle_registration,
+                 "licence": d.licence_number, "licence_expires": d.licence_expiry,
+                 "cash_limit": d.cod_limit, "still_delivering": d.active}
+                for d in db.query(Driver).order_by(Driver.full_name).all()]
+    elif dataset == "shifts":
+        from ..models import Shift
+        rows = [{"opened": s.opened_at, "closed": s.closed_at,
+                 "who": s.user.full_name if s.user else "", "till": s.till_no,
+                 "float": s.opening_float, "expected": s.expected_cash,
+                 "counted": s.counted_cash, "over_or_short": s.variance,
+                 "card": s.card_total, "scheme": s.medical_aid_total,
+                 "sales": s.sales_count, "status": s.status}
+                for s in db.query(Shift)
+                           .order_by(Shift.opened_at.desc()).limit(2000).all()]
+    elif dataset == "payables":
+        from ..models import SupplierInvoice
+        rows = [{"invoice": i.invoice_number,
+                 "supplier": i.supplier.name if i.supplier else "",
+                 "invoice_date": i.invoice_date, "due": i.due_date,
+                 "total": i.total, "vat": i.vat_total, "currency": i.currency_code,
+                 "status": i.status, "against_order": i.order.order_number if i.order else "",
+                 "query": i.query_note}
+                for i in db.query(SupplierInvoice)
+                           .order_by(SupplierInvoice.invoice_date.desc())
+                           .limit(5000).all()]
+    elif dataset == "compliance":
+        from ..models import ComplianceDocument
+        rows = [{"branch": c.branch.name if c.branch else "", "kind": c.kind,
+                 "title": c.title, "reference": c.reference, "issuer": c.issuer,
+                 "issued": c.issued_on, "expires": c.expires_on,
+                 "renewal_cost": c.renewal_cost,
+                 "scan_on_file": bool(c.file_name), "notes": c.notes}
+                for c in db.query(ComplianceDocument)
+                           .filter(ComplianceDocument.active)
+                           .order_by(ComplianceDocument.expires_on).all()]
+    elif dataset == "register":
+        # The controlled register. An inspector reads the running balance, so
+        # the sheet carries it rather than leaving it to be added up.
+        from ..models import RegisterEntry
+        rows = [{"when": e.created_at, "schedule": e.schedule,
+                 "medicine": e.product.name if e.product else "",
+                 "movement": e.entry_type, "quantity": e.quantity_delta,
+                 "balance": e.balance_after,
+                 "patient": (f"{e.patient.first_name} {e.patient.last_name}"
+                             if e.patient else ""),
+                 "prescriber": e.doctor.name if e.doctor else "",
+                 "pharmacist": e.user.full_name if e.user else "",
+                 "reference": e.reference}
+                for e in db.query(RegisterEntry)
+                           .order_by(RegisterEntry.created_at.desc())
+                           .limit(20000).all()]
+    elif dataset == "samples":
+        from ..models import SampleReceipt
+        rows = [{"reference": s.reference,
+                 "medicine": s.product.name if s.product else "",
+                 "supplier": s.supplier_name, "representative": s.representative,
+                 "batch": s.batch_number, "expires": s.expiry_date,
+                 "received": s.quantity_received, "left": s.quantity_remaining,
+                 "when": s.received_at,
+                 "booked_in_by": s.received_by.full_name if s.received_by else ""}
+                for s in db.query(SampleReceipt)
+                           .order_by(SampleReceipt.received_at.desc()).all()]
+    elif dataset == "count-sheet":
+        # A BLANK COLUMN, ON PURPOSE.
+        #
+        # A stock take is counted on paper in every pharmacy that has ever done
+        # one, because somebody is up a ladder. The sheet therefore carries
+        # what the system believes and an empty column to write the real number
+        # in, and the expected figure is last so it can be folded out of sight
+        # by a manager who does not want the counter influenced by it.
+        rows = [{"code": p.nappi_code, "medicine": p.name, "strength": p.strength,
+                 "pack": p.pack_size, "where": p.bin_location,
+                 "counted": "", "system_says": p.quantity_on_hand}
+                for p in db.query(Product).filter(Product.active)
+                           .order_by(Product.name).all()]
+    elif dataset == "branches":
+        # The estate, with the responsible pharmacist against each shop. That
+        # column is the reason this leaves as a sheet: it is what a group
+        # submits when it is asked who is accountable for which premises.
+        from ..models import Branch
+        rows = [{"code": b.code, "name": b.name, "city": b.city,
+                 "address": b.address, "phone": b.phone, "email": b.email,
+                 "registration": b.registration_no,
+                 "responsible_pharmacist": b.responsible_pharmacist,
+                 "trading": b.active and not b.frozen,
+                 "frozen_because": b.frozen_reason if b.frozen else "",
+                 "opened": b.created_at}
+                for b in db.query(Branch).order_by(Branch.name).all()]
+    elif dataset == "leads":
+        from ..models import Lead
+        rows = [{"name": f"{l.first_name} {l.last_name}".strip(),
+                 "company": l.company_name, "job": l.job_title,
+                 "email": l.email, "phone": l.phone, "source": l.source,
+                 "status": l.status, "score": l.score, "value": l.estimated_value,
+                 "owner": l.owner.full_name if l.owner else "",
+                 "captured": l.created_at, "converted": l.converted_at}
+                for l in db.query(Lead).order_by(Lead.created_at.desc()).all()]
+    elif dataset == "deals":
+        from ..models import Deal
+        rows = [{"deal": d.title, "account": d.company.name if d.company else "",
+                 "value": d.value, "stage": d.stage, "likelihood": d.probability,
+                 "expected_close": d.expected_close_date,
+                 "owner": d.owner.full_name if d.owner else "",
+                 "opened": d.created_at, "closed": d.closed_at,
+                 "lost_because": d.lost_reason}
+                for d in db.query(Deal).order_by(Deal.created_at.desc()).all()]
+    elif dataset == "tickets":
+        from ..models import Ticket
+        rows = [{"case": t.ticket_number, "subject": t.subject,
+                 "category": t.category, "priority": t.priority,
+                 "status": t.status, "channel": t.channel,
+                 "patient": (f"{t.patient.first_name} {t.patient.last_name}"
+                             if t.patient else ""),
+                 "assigned_to": t.assigned_to.full_name if t.assigned_to else "",
+                 "raised": t.created_at, "due": t.due_at,
+                 "first_reply": t.first_response_at, "resolved": t.resolved_at,
+                 "satisfaction": t.satisfaction}
+                for t in db.query(Ticket).order_by(Ticket.created_at.desc()).all()]
     else:
         raise HTTPException(
             status_code=404,
-            detail="Nothing exports under that name. Available: products, batches, "
-                   "claims, to-follows, journal, trial-balance, accounts.")
+            detail=f"Nothing exports under the name {dataset!r}.")
     name = f"rx5000-{dataset}-{stamp}"
     return (_csv(rows, f"{name}.csv", db) if format == "csv"
             else _xlsx(rows, f"{name}.xlsx", db))

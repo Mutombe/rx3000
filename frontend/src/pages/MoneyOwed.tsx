@@ -17,6 +17,7 @@ import { EntityLink } from "../components/Filters";
 import { TableSearch, useSearch } from "../components/Filters";
 import PartPayment, { PartPaymentChoice } from "../components/PartPayment";
 import { useToast } from "../components/Toast";
+import { useConfirm } from "../components/Confirm";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
@@ -49,6 +50,7 @@ export default function MoneyOwed() {
   const [collecting, setCollecting] = useState<Row | null>(null);
   const [currencyState, setCurrencyState] = useState<any>(null);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [loading, setLoading] = useState(true);
 
@@ -92,6 +94,85 @@ export default function MoneyOwed() {
     }
   }
 
+  /** Remind everybody in view what they owe.
+   *
+   *  WHAT THIS SCREEN IS ACTUALLY FOR, AND WHAT IT COULD NOT DO.
+   *
+   *  A debtors' list exists to be worked. The working is a morning of telephone
+   *  calls, and the calls do not happen: there are eighty names, each one is an
+   *  awkward conversation, and the awkward conversation about forty dollars is
+   *  the one that gets postponed until the debt is a year old and written off.
+   *
+   *  A message is not an awkward conversation. It states the amount and the
+   *  sale it belongs to, which is most of what the call was going to say, and
+   *  the ones who then walk in have settled themselves.
+   *
+   *  It goes to whoever is in view, so the filter above decides who is asked:
+   *  the usual thing somebody wants is everybody past thirty days, and that is
+   *  a search away rather than a second button.
+   *
+   *  Sent one at a time because there is no bulk endpoint, and counted, so a
+   *  number that fails is named.
+   */
+  async function remindEveryone() {
+    const reachable = shown.filter((r) => r.phone?.trim() && r.patient_id);
+    const without = shown.length - reachable.length;
+    if (!reachable.length) {
+      toast.warn(shown.length
+        ? "None of these have a telephone number on file, so they have to be rung by hand."
+        : "There is nobody here to remind.");
+      return;
+    }
+    const owed = reachable.reduce((sum, r) => sum + r.balance, 0);
+    const ok = await confirm({
+      title: `Remind ${reachable.length} `
+           + `${reachable.length === 1 ? "person" : "people"} of ${money(owed)}?`,
+      body: (
+        <>
+          <p>
+            Each of them gets one message with their own balance and the sale it
+            belongs to, asking them to settle it. It goes to the number on their
+            profile.
+          </p>
+          {without > 0 && (
+            <p className="muted">
+              {without} of the {shown.length} have no number on file and are
+              skipped. They stay on the list to be rung by hand.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: `Send ${reachable.length}`,
+    });
+    if (!ok) return;
+
+    let sent = 0;
+    const failedFor: string[] = [];
+    for (const r of reachable) {
+      try {
+        await api.post("/api/messages", {
+          patient_id: r.patient_id,
+          channel: "sms",
+          subject: "Your pharmacy account",
+          body: `Good day ${r.patient}. Our records show ${money(r.balance)} `
+              + `still owing on ${r.sale_number}. Please settle it at the `
+              + `pharmacy when you can, or telephone us if this does not look `
+              + `right.`,
+        });
+        sent += 1;
+      } catch {
+        failedFor.push(r.patient);
+      }
+    }
+    if (failedFor.length) {
+      toast.warn(`${sent} reminded. ${failedFor.length} did not go: `
+                 + failedFor.slice(0, 3).join(", ")
+                 + (failedFor.length > 3 ? ` and ${failedFor.length - 3} more.` : "."));
+    } else {
+      toast.ok(`${sent} ${sent === 1 ? "person has" : "people have"} been reminded.`);
+    }
+  }
+
   const rows = data?.items ?? [];
   /* Every unpaid sale in the shop. Somebody rings about THEIR bill, so
      the question is always one name in a list that only grows. */
@@ -106,13 +187,22 @@ export default function MoneyOwed() {
         // The debtors' list is worked from a sheet as often as from a screen:
         // it is what a morning of follow-up calls is read off, and it is
         // reconciled in a spreadsheet whatever the software offers.
-        take={<ExportButton dataset="money-owed" label="Spreadsheet" />}
+        take={<ExportButton dataset="money-owed" />}
         also={
           <button className="btn secondary" onClick={load}>
             <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
             Refresh
           </button>
         }
+        /* The loudest thing on a debtors' screen should be collecting the debt.
+           Whoever is in view is who gets asked, so narrowing the list above
+           narrows who is reminded. */
+        primary={shown.length ? (
+          <BusyButton className="btn primary" onClick={remindEveryone}
+                      busyLabel="Reminding them…">
+            <Phone size={14} /> Remind {shown.length} to pay
+          </BusyButton>
+        ) : undefined}
       />
 
       {failed && <div className="alert error">{failed}</div>}

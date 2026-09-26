@@ -124,7 +124,7 @@ export default function Patients() {
             <UploadSimple size={14} /> Import
           </button>
         }
-        take={<ExportButton dataset="patients" label="Export" />}
+        take={<ExportButton dataset="patients" />}
         // What somebody walking up to this screen in a hurry is here to do.
         primary={<button onClick={openNew}>New patient</button>}
       />

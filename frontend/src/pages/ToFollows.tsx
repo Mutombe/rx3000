@@ -177,16 +177,21 @@ export default function ToFollows() {
 
   return (
     <div className="page">
-      <PageHead title="To follows" sub={headline}>
-        {/* Most of these are raised by a dispensing that came up short. This
-                      is the other half: asked for at the counter, promised for Friday,
-                      and until now written on whatever was to hand, which is the
-                      paper list this feature exists to replace. */}
-                  <button className="btn" onClick={() => setPromising(true)}>
-                    <Plus size={14} weight="bold" /> Owe something
-                  </button>
-                  <ExportButton dataset="to-follows" label="Spreadsheet" />
-      </PageHead>
+      <PageHead
+        title="To follows"
+        sub={headline}
+        // What is owed, as the sheet the counter keeps beside the telephone.
+        take={<ExportButton dataset="to-follows" />}
+        // Most of these are raised by a dispensing that came up short. This is
+        // the other half: asked for at the counter, promised for Friday, and
+        // until now written on whatever was to hand, which is the paper list
+        // this feature exists to replace.
+        primary={
+          <button className="btn primary" onClick={() => setPromising(true)}>
+            <Plus size={14} weight="bold" /> Owe something
+          </button>
+        }
+      />
 
       {promising && (
         <NewToFollow onClose={() => setPromising(false)} onPromised={load} />

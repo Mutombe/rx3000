@@ -28,7 +28,7 @@
 import { ReactNode } from "react";
 
 export default function PageHead({
-  title, sub, count, children, eyebrow, bring, take, also, primary,
+  title, sub, count, eyebrow, bring, take, also, primary,
 }: {
   title: ReactNode;
   /** One line saying what this screen is for. */
@@ -75,11 +75,21 @@ export default function PageHead({
   also?: ReactNode;
   primary?: ReactNode;
 
-  /** The old shape: a page passing its actions as children. Kept so the
-   *  fifty-odd pages that have not been given slots yet still render, and
-   *  rendered in the same place, so the two can be told apart only by
-   *  reading the source rather than by looking at the screen. */
-  children?: ReactNode;
+  /* THERE IS NO `children` ANY MORE, AND THAT IS THE POINT.
+   *
+   * It existed for one pass, while fifty-six pages were moved over, and every
+   * page is now on the slots. Leaving it would leave the drift a door: a page
+   * added next month would pass its actions as children, land in the same
+   * visual place, and be indistinguishable on screen from a page using the
+   * slots — which is exactly how sixty-one hand-rolled headers happened the
+   * first time. Nine of those pages had ALSO wrapped their children in a
+   * second `.page-actions`, nesting one flex row inside another, so the gap
+   * between their buttons came from the inner one and did not match the rest
+   * of the product.
+   *
+   * A page with an action that fits none of the four names is a page that has
+   * found a fifth kind of action, and that is worth a name here rather than an
+   * escape hatch. */
 }) {
   const slots = [bring, take, also, primary].filter(Boolean);
   return (
@@ -93,13 +103,12 @@ export default function PageHead({
         </h1>
         {sub ? <div className="sub">{sub}</div> : null}
       </div>
-      {slots.length > 0 || children ? (
+      {slots.length > 0 ? (
         <div className="page-actions">
           {bring}
           {take}
           {also}
           {primary}
-          {children}
         </div>
       ) : null}
     </header>

@@ -163,12 +163,16 @@ export default function SchemeCalendar() {
 
   return (
     <>
-      <PageHead title="Claiming calendar" sub="When each funder wants its claims, and when it settles">
-        <button className="btn secondary" onClick={load}>
-                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-                    Refresh
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Claiming calendar"
+        sub="When each funder wants its claims, and when it settles"
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        }
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

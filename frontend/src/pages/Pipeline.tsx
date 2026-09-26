@@ -10,6 +10,7 @@ import { XCircle } from "@phosphor-icons/react";
 import { TableSkeleton } from "../components/Skeleton";
 import { Block } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 
 /** Days since a date, used to flag deals going stale in a stage. */
 function ageDays(iso: string) {
@@ -113,9 +114,18 @@ export default function Pipeline() {
 
   return (
     <>
-      <PageHead title="Opportunities" sub="Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal">
-        <button onClick={() => setShowForm(true)}>+ New Deal</button>
-      </PageHead>
+      <PageHead
+        title="Opportunities"
+        sub="Supply contracts, wellness programmes and corporate opportunities. Drag cards to move a deal"
+        count={stats ? `${stats.open_deals} open` : undefined}
+        // The forecast, in the spreadsheet it is actually argued over.
+        take={<ExportButton dataset="deals" />}
+        primary={
+          <button className="btn primary" onClick={() => setShowForm(true)}>
+            New deal
+          </button>
+        }
+      />
 
       {stats && (
         <div className="grid cols-4">

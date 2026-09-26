@@ -9,6 +9,7 @@ import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 /** The words a teller uses, not the words the database uses. */
@@ -71,7 +72,16 @@ export default function Shifts() {
 
   return (
     <>
-      <PageHead title="Cash Office" sub="Opening float, takings by tender and end-of-shift cash-up" />
+      <PageHead
+        title="Cash Office"
+        sub="Opening float, takings by tender and end-of-shift cash-up"
+        count={current ? "A shift is open" : undefined}
+        /* EVERY CASH-UP, WHICH IS WHERE A SHORTAGE IS FOUND.
+           One cash-up on a screen says whether tonight balanced. Forty of them
+           in a sheet say which till, and which person, is short every Friday,
+           and that is a question no single screen can answer. */
+        take={<ExportButton dataset="shifts" />}
+      />
 
       {current ? (
         <>

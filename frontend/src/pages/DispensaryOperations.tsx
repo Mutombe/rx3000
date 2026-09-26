@@ -138,12 +138,18 @@ export default function DispensaryOperations() {
 
   return (
     <>
-      <PageHead title="Dispensary operations" sub={<>Today, as it happens
-            {day && <> · updated {day.updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>}</>}>
-        <button type="button" className="btn secondary" onClick={load} disabled={loading}>
-                  <ArrowsClockwise size={14} weight="bold" /> Refresh
-                </button>
-      </PageHead>
+      <PageHead
+        title="Dispensary operations"
+        sub={<>Today, as it happens
+          {day && <> · updated {day.updated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>}</>}
+        also={
+          <button type="button" className="btn secondary" onClick={load} disabled={loading}>
+            <ArrowsClockwise size={14} weight="bold" /> Refresh
+          </button>
+        }
+        // Somebody watching the day usually arrives because of a queue.
+        primary={<Link className="btn primary" to="/dispense">Dispense a script</Link>}
+      />
 
       <Refreshable
         loading={loading}

@@ -11,7 +11,9 @@ import Select from "../components/Select";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import { Printer } from "@phosphor-icons/react";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 /** One label or script printed a second time. */
@@ -137,10 +139,21 @@ export default function Register() {
 
   return (
     <>
-      <PageHead title="Controlled Register" sub={<>Fully electronic {scheduleRange(5, 6)} controlled-substance
-            register, immutable audit trail</>}>
-        <button className="secondary" onClick={printRegister}>Print register</button>
-      </PageHead>
+      <PageHead
+        title="Controlled Register"
+        sub={<>Fully electronic {scheduleRange(5, 6)} controlled-substance
+            register, immutable audit trail</>}
+        /* AN INSPECTOR TAKES THIS AWAY.
+           Printing was the only way it could leave, and a printed register
+           cannot be searched or totalled. The sheet carries the running
+           balance rather than leaving it to be added up. */
+        take={<ExportButton dataset="register" />}
+        also={
+          <button className="btn secondary" onClick={printRegister}>
+            <Printer size={14} /> Print register
+          </button>
+        }
+      />
 
       <div className="card">
         <div className="toolbar">

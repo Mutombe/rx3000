@@ -24,6 +24,8 @@ import { useToast } from "../components/Toast";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
+import { Link } from "react-router-dom";
 import Th from "../components/Th";
 
 interface Row {
@@ -152,12 +154,25 @@ export default function DispensingHistory() {
 
   return (
     <>
-      <PageHead title="Dispensing history" sub="What has gone out, who checked it, whether it was paid for and whether it has been collected">
-        <button className="btn secondary" onClick={load}>
-                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-                  Refresh
-                </button>
-      </PageHead>
+      <PageHead
+        title="Dispensing history"
+        sub="What has gone out, who checked it, whether it was paid for and whether it has been collected"
+        count={data ? `${data.total.toLocaleString()} dispensings` : undefined}
+        // THE FILE A SCHEME AUDIT IS ANSWERED FROM.
+        // A funder asks what a patient was given in March and expects it in a
+        // sheet, not a screenshot. It carries who checked each one, because
+        // that is the question after the first one.
+        take={<ExportButton dataset="dispensings" />}
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        }
+        // Somebody reading history is usually about to dispense: they came to
+        // check what this patient had last time.
+        primary={<Link className="btn primary" to="/dispense">Dispense a script</Link>}
+      />
 
       <div className="card">
         <div className="filter-bar">

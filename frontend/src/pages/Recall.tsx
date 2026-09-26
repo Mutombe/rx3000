@@ -17,6 +17,8 @@ import { useScheduleCodes } from "../schedules";
 import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { useToast } from "../components/Toast";
+import BusyButton from "../components/BusyButton";
+import { useConfirm } from "../components/Confirm";
 import RowLink, { RowActions } from "../components/RowLink";
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
@@ -59,6 +61,7 @@ export default function Recall() {
   const [tracing, setTracing] = useState<number | null>(null);
   const traceRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
+  const confirm = useConfirm();
 
   const search = useCallback(async (term: string) => {
     if (!term.trim()) { setHits([]); return; }
@@ -114,6 +117,89 @@ export default function Recall() {
     navigator.clipboard?.writeText(
       `Recall ${trace.batch.batch_number}: ${trace.batch.product}\n` + lines.join("\n"));
     toast.ok(`${lines.length} number(s) copied.`);
+  }
+
+  /** Tell everybody holding this batch, in one go.
+   *
+   *  THE ONE THING A RECALL IS MEASURED ON.
+   *
+   *  A manufacturer withdraws a batch and the pharmacy has to reach the people
+   *  holding it the same afternoon. This screen could find them, list them and
+   *  copy their numbers to the clipboard, and then the copying was the end of
+   *  what software did: forty names went to a person with a telephone, and the
+   *  fortieth was rung the next morning if at all.
+   *
+   *  A message reaches all of them in the time it takes to ring one. It does
+   *  not replace the call for a schedule 5 or 6 item, and it says so in the
+   *  prompt, because the point of the call there is to hear the patient answer.
+   *
+   *  Sent one at a time because there is no bulk endpoint, and counted, so a
+   *  number that fails is named rather than folded into a total.
+   */
+  async function textEveryone() {
+    if (!trace) return;
+    const reachable = trace.recipients.filter((r) => r.phone && r.patient_id);
+    if (!reachable.length) {
+      toast.warn("None of these have a telephone number on file, so every one "
+                 + "of them has to be reached by hand.");
+      return;
+    }
+    const controlled = (trace.batch.schedule ?? 0) >= 5;
+    const ok = await confirm({
+      title: `Tell ${reachable.length} `
+           + `${reachable.length === 1 ? "person" : "people"} to stop taking it?`,
+      body: (
+        <>
+          <p>
+            Each of them gets one message naming {trace.batch.product} and
+            asking them to stop taking it and come back to the pharmacy. It goes
+            to the number on their profile.
+          </p>
+          {trace.no_phone > 0 && (
+            <p className="muted">
+              {trace.no_phone} of them have no number on file and are not
+              reached by this. They still have to be found another way.
+            </p>
+          )}
+          {controlled && (
+            <p className="muted">
+              This is a controlled item, so the message is a first contact and
+              not the whole of it. Each of these people still has to be spoken
+              to.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: `Send ${reachable.length}`,
+    });
+    if (!ok) return;
+    let sent = 0;
+    const failedFor: string[] = [];
+    for (const r of reachable) {
+      try {
+        await api.post("/api/messages", {
+          patient_id: r.patient_id,
+          channel: "sms",
+          subject: "Important: medicine recall",
+          body: `Good day ${r.patient}. Please stop taking the `
+              + `${trace.batch.product} you collected from us and bring it back `
+              + `to the pharmacy. The batch has been recalled by the `
+              + `manufacturer. We will replace it. Please telephone us if you `
+              + `have any questions.`,
+        });
+        sent += 1;
+      } catch {
+        failedFor.push(r.patient);
+      }
+    }
+    if (failedFor.length) {
+      toast.warn(`${sent} told. ${failedFor.length} did not go and must be `
+                 + `reached by hand: ` + failedFor.slice(0, 3).join(", ")
+                 + (failedFor.length > 3 ? ` and ${failedFor.length - 3} more.` : "."));
+    } else {
+      toast.ok(`${sent} ${sent === 1 ? "person has" : "people have"} been told to `
+               + `stop taking it.`);
+    }
   }
 
   const qty = trace?.quantities;
@@ -266,9 +352,18 @@ export default function Recall() {
               <div className="card-head">
                 <h3>Who to telephone</h3>
                 {trace.to_call > 0 && (
-                  <button className="btn secondary small" onClick={copyCallList}>
-                    Copy the call list
-                  </button>
+                  <div className="page-actions">
+                    <button className="btn secondary small" onClick={copyCallList}>
+                      Copy the call list
+                    </button>
+                    {/* Loudest control on the screen, because reaching these
+                        people is the whole job and the clock is the
+                        manufacturer's. */}
+                    <BusyButton className="btn primary small" onClick={textEveryone}
+                                busyLabel="Telling them…">
+                      <Phone size={13} /> Tell all {trace.to_call} now
+                    </BusyButton>
+                  </div>
                 )}
               </div>
               {trace.recipients.length === 0 ? (

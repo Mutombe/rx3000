@@ -307,11 +307,15 @@ export default function Authorisations() {
 
   return (
     <>
-      <PageHead title="Authorisations" sub="What each funder has agreed to cover, what has been drawn against it, and what is left">
-        <button className="btn primary" onClick={() => setAsking(true)}>
-                    Request an authorisation
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Authorisations"
+        sub="What each funder has agreed to cover, what has been drawn against it, and what is left"
+        primary={
+          <button className="btn primary" onClick={() => setAsking(true)}>
+            Request an authorisation
+          </button>
+        }
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

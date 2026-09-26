@@ -224,12 +224,26 @@ export default function Accounts() {
 
   return (
     <>
-      <PageHead title="Accounts &amp; Contacts" sub="Corporate customers, clinics and the people behind them">
-        {/* the primary action follows the visible tab, so there is only ever one */}
-                {tab === "companies"
-                  ? <button onClick={() => { setEditingCo(null); setCoForm({ ...EMPTY_CO }); setShowCo(true); }}>+ New Account</button>
-                  : <button onClick={() => setShowCt(true)}>+ New Contact</button>}
-      </PageHead>
+      <PageHead
+        title="Accounts and Contacts"
+        sub="Corporate customers, clinics and the people behind them"
+        count={tab === "companies"
+          ? (companies.length ? `${companies.length} accounts` : undefined)
+          : (contacts.length ? `${contacts.length} contacts` : undefined)}
+        // the primary action follows the visible tab, so there is only ever one
+        primary={tab === "companies"
+          ? (
+            <button className="btn primary" onClick={() => {
+              setEditingCo(null); setCoForm({ ...EMPTY_CO }); setShowCo(true);
+            }}>
+              New account
+            </button>
+          ) : (
+            <button className="btn primary" onClick={() => setShowCt(true)}>
+              New contact
+            </button>
+          )}
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

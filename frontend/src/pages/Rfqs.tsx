@@ -91,14 +91,20 @@ export default function Rfqs() {
 
   return (
     <>
-      <PageHead title="Quotes" sub="Ask several wholesalers, compare, then buy">
-        <button className="btn secondary" onClick={() => setAuto(true)}>
-                    <Robot size={14} /> Asking by itself
-                  </button>
-                  <button className="btn primary" onClick={() => setRaising(true)}>
-                    <Plus size={14} weight="bold" /> Ask for prices
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Quotes"
+        sub="Ask several wholesalers, compare, then buy"
+        also={
+          <button className="btn secondary" onClick={() => setAuto(true)}>
+            <Robot size={14} /> Asking by itself
+          </button>
+        }
+        primary={
+          <button className="btn primary" onClick={() => setRaising(true)}>
+            <Plus size={14} weight="bold" /> Ask for prices
+          </button>
+        }
+      />
 
       {queue.length > 0 && (
         <div className="card rfq-queue">

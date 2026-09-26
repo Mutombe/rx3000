@@ -30,6 +30,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Funder {
@@ -86,11 +87,20 @@ export default function Settlements() {
 
   return (
     <div className="page">
-      <PageHead title="Settlements" sub={report?.headline ?? "What each funder actually paid, and when."}>
-        <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-                    options={[90, 180, 365].map((d) => ({
-                      value: String(d), label: `Last ${d} days` }))} />
-      </PageHead>
+      <PageHead
+        title="Settlements"
+        sub={report?.headline ?? "What each funder actually paid, and when."}
+        // What was claimed against what was paid, which is reconciled in a
+        // spreadsheet whatever the software offers.
+        take={<ExportButton dataset="claims" />}
+        /* The period IS the subject on a settlement report rather than a filter
+           over a list, so it sits with the actions. */
+        also={
+          <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+                  options={[90, 180, 365].map((d) => ({
+                    value: String(d), label: `Last ${d} days` }))} />
+        }
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

@@ -26,6 +26,7 @@ import { useClientPage } from "../hooks/useClientPage";
 import { useToast } from "../components/Toast";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Bag {
@@ -153,9 +154,107 @@ export default function WillCall() {
     }
   }
 
+  /** Tell everybody in view that their medicine is waiting.
+   *
+   *  THE ACTION THIS SCREEN ALREADY ADVISES AND COULD NOT TAKE.
+   *
+   *  Every row on this shelf carries a sentence telling the reader what to do
+   *  about it, and past a week that sentence is "worth a telephone call". A
+   *  hundred and forty of them is a morning nobody has, so it was not done,
+   *  and a bag nobody rang about becomes a bag returned to stock and a claim
+   *  reversed. The message costs a few cents and saves the dispensing.
+   *
+   *  Sent one at a time rather than as one call, because there is no bulk
+   *  endpoint and inventing one to save a round trip would hide a partial
+   *  failure. Counted, so what comes back is the truth.
+   */
+  async function textEveryone() {
+    const reachable = rows.filter((b) => b.phone.trim());
+    const without = rows.length - reachable.length;
+    if (!reachable.length) {
+      toast.warn(rows.length
+        ? "None of these have a telephone number on file, so they have to be rung by hand."
+        : "There is nobody on the shelf to tell.");
+      return;
+    }
+    const ok = await ask({
+      title: `Tell ${reachable.length} ${reachable.length === 1 ? "person" : "people"} their medicine is ready?`,
+      body: (
+        <>
+          <p>
+            Each of them gets one message saying what is bagged for them and
+            asking them to come in. It goes to the number on their profile.
+          </p>
+          {without > 0 && (
+            <p className="muted">
+              {without} of the {rows.length} have no number on file and are
+              skipped. They stay on the list to be rung by hand.
+            </p>
+          )}
+          {/* THE SHELF IS BIGGER THAN THE PAGE, AND THIS SAYS SO.
+              The list holds the two hundred oldest bags and the tile above
+              counts the whole shelf, so a button reading "Tell 200" on a shelf
+              of 658 is one somebody presses believing everybody has been told.
+              Which 200 is not a detail: they are the oldest, which is the
+              right two hundred, and that is worth saying out loud. */}
+          {shelf?.more && (
+            <p className="muted">
+              These are the {rows.length} that have been waiting longest, of{" "}
+              {shelf.total} on the shelf. Telling the rest means asking again
+              once these are handed over, or narrowing to a band above.
+            </p>
+          )}
+        </>
+      ),
+      confirmLabel: `Send ${reachable.length}`,
+    });
+    if (!ok) return;
+
+    let sent = 0;
+    const failedFor: string[] = [];
+    for (const bag of reachable) {
+      try {
+        await api.post("/api/messages", {
+          patient_id: bag.patient_id,
+          channel: "sms",
+          subject: "Your medicine is ready",
+          body: `Good day ${bag.patient}. Your ${bag.product} is bagged and `
+              + `waiting for you at the pharmacy. Please come in when you can.`,
+        });
+        sent += 1;
+      } catch {
+        failedFor.push(bag.patient);
+      }
+    }
+    if (failedFor.length) {
+      toast.warn(`${sent} sent. ${failedFor.length} did not go: `
+                 + failedFor.slice(0, 3).join(", ")
+                 + (failedFor.length > 3 ? ` and ${failedFor.length - 3} more.` : "."));
+    } else {
+      toast.ok(`${sent} ${sent === 1 ? "person has" : "people have"} been told.`);
+    }
+  }
+
   return (
     <>
-      <PageHead title="Will call" sub="Dispensed, bagged and not yet collected. Oldest first" />
+      <PageHead
+        title="Will call"
+        sub="Dispensed, bagged and not yet collected. Oldest first"
+        count={shelf ? `${shelf.total.toLocaleString()} on the shelf` : undefined}
+        // The shelf as the sheet a morning of telephone calls is worked from,
+        // with the number, the days waiting and what the label says on it. A
+        // pharmacy works this list away from the screen more often than on it.
+        take={<ExportButton dataset="will-call" />}
+        /* Whoever is in view is who gets told, so a band tile or the search
+           above narrows it. The count is in the label because "tell them" on a
+           shelf of six hundred is a button nobody dares press. */
+        also={rows.length ? (
+          <BusyButton className="btn secondary" onClick={textEveryone}
+                      busyLabel="Telling them…">
+            <Phone size={14} /> Tell {rows.length} it is ready
+          </BusyButton>
+        ) : undefined}
+      />
 
       {failed && <div className="alert error">{failed}</div>}
 

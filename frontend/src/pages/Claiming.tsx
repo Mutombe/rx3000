@@ -30,6 +30,7 @@ import { CLAIMING_TABS } from "../reconTabs";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
+import { Stack } from "@phosphor-icons/react";
 import { EntityLink } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
@@ -302,6 +303,59 @@ export default function Claiming() {
     }
   }
 
+  /** Batch every funder that has claims waiting, in one go.
+   *
+   *  THE WEEKLY ROUND, WHICH IS WHAT THIS PAGE IS FOR.
+   *
+   *  Batching is per funder because a batch belongs to one funder, and that is
+   *  right. But a pharmacy does not batch one funder on a Monday: it batches
+   *  the eleven that have claims waiting, and doing that meant eleven presses
+   *  and eleven confirmations, each restating what the row already said. The
+   *  one that gets skipped is the small funder at the bottom, whose claims then
+   *  miss a cut-off nobody was watching.
+   *
+   *  One confirmation, stating the whole of it. Sent one at a time because the
+   *  endpoint takes one funder, and counted, so a funder that refuses is named
+   *  rather than folded into a cheerful total.
+   */
+  async function batchEverything() {
+    const waiting = unbatched ?? [];
+    if (!waiting.length) return;
+    const claims = waiting.reduce((n, r) => n + r.claims, 0);
+    const value = waiting.reduce((n, r) => n + r.value, 0);
+    const ok = await confirm({
+      title: `Batch ${claims} claim${claims === 1 ? "" : "s"} across `
+           + `${waiting.length} funder${waiting.length === 1 ? "" : "s"}?`,
+      body: `${money(value)} is grouped into ${waiting.length} `
+          + `batch${waiting.length === 1 ? "" : "es"}, one for each funder, ready `
+          + `to send. Nothing is sent yet, and claims already in a batch are not `
+          + `touched.`,
+      confirmLabel: `Make ${waiting.length} batch${waiting.length === 1 ? "" : "es"}`,
+    });
+    if (!ok) return;
+    setBusy("batch-all");
+    let made = 0;
+    const refused: string[] = [];
+    for (const row of waiting) {
+      try {
+        await api.post<Batch>("/api/claiming/batches",
+                              { pay_office_id: row.pay_office_id });
+        made += 1;
+      } catch {
+        refused.push(row.pay_office);
+      }
+    }
+    setBusy("");
+    if (refused.length) {
+      toast.warn(`${made} batched. ${refused.length} would not: `
+                 + refused.slice(0, 3).join(", ")
+                 + (refused.length > 3 ? ` and ${refused.length - 3} more.` : "."));
+    } else {
+      toast.ok(`${made} batch${made === 1 ? "" : "es"} made, ready to send.`);
+    }
+    load();
+  }
+
   async function submit(batch: Batch) {
     const ok = await confirm({
       title: `Send batch ${batch.batch_number}?`,
@@ -411,11 +465,25 @@ export default function Claiming() {
   return (
     <>
       {prompt}
-      <PageHead title="Claiming" sub="Group claims into batches, send them, record what came back, and set how a claim is priced">
-        {/* A pharmacy reconciles what a funder paid against what was claimed
-                      in Excel, whatever the software offers. */}
-                  <ExportButton dataset="claims" label="Claims as a spreadsheet" />
-      </PageHead>
+      <PageHead
+        title="Claiming"
+        sub="Group claims into batches, send them, record what came back, and set how a claim is priced"
+        count={open.length
+          ? `${open.length} batch${open.length === 1 ? "" : "es"} open`
+          : undefined}
+        // A pharmacy reconciles what a funder paid against what was claimed in
+        // Excel, whatever the software offers.
+        take={<ExportButton dataset="claims" />}
+        // The whole week's batching, rather than eleven presses in which the
+        // small funder at the bottom is the one that gets missed.
+        primary={unbatched && unbatched.length > 0 ? (
+          <BusyButton className="btn primary" onClick={batchEverything}
+                      busyLabel="Batching…">
+            <Stack size={14} weight="bold" /> Batch all{" "}
+            {unbatched.reduce((n, r) => n + r.claims, 0)} waiting
+          </BusyButton>
+        ) : undefined}
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

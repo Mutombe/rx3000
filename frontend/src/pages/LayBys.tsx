@@ -27,6 +27,7 @@ import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { TabStrip } from "../components/PageTabs";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 import { useRowWork } from "../hooks/useRowWork";
 
@@ -207,11 +208,19 @@ export default function LayBys() {
   return (
     <>
       {prompt}
-      <PageHead title="Lay-bys" sub="Goods held for a customer and paid off over time. The stock leaves the shelf when the lay-by is raised">
-        <button className="btn primary" onClick={() => setRaising(true)}>
-                  Raise a lay-by
-                </button>
-      </PageHead>
+      <PageHead
+        title="Lay-bys"
+        sub="Goods held for a customer and paid off over time. The stock leaves the shelf when the lay-by is raised"
+        count={list ? `${list.total.toLocaleString()} ${status}` : undefined}
+        // What is held, what has been paid and what is still owed on each. The
+        // list a manager works through before a lay-by goes stale.
+        take={<ExportButton dataset="lay-bys" />}
+        primary={
+          <button className="btn primary" onClick={() => setRaising(true)}>
+            Raise a lay-by
+          </button>
+        }
+      />
 
       <TabStrip>
         {(["open", "completed", "cancelled"] as Status[]).map((s) => (

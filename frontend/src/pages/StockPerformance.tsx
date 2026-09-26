@@ -34,6 +34,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Row {
@@ -112,12 +113,19 @@ export default function StockPerformance() {
 
   return (
     <div className="page">
-      <PageHead title="Stock performance" sub={report?.headline ?? "What moves, what it earns, and how long the "
-              + "shelf lasts."}>
-        <Select value={String(days)} onChange={(v) => setDays(Number(v))}
-                    options={[30, 90, 180, 365].map((d) => ({
-                      value: String(d), label: `Last ${d} days` }))} />
-      </PageHead>
+      <PageHead
+        title="Stock performance"
+        sub={report?.headline ?? "What moves, what it earns, and how long the "
+          + "shelf lasts."}
+        // The catalogue with its cost and its price, which is what a buyer
+        // negotiates from.
+        take={<ExportButton dataset="products" />}
+        also={
+          <Select value={String(days)} onChange={(v) => setDays(Number(v))}
+                  options={[30, 90, 180, 365].map((d) => ({
+                    value: String(d), label: `Last ${d} days` }))} />
+        }
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

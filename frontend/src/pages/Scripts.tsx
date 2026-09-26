@@ -26,6 +26,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 import { Link } from "react-router-dom";
 
@@ -144,6 +145,10 @@ export default function Scripts() {
         title="Scripts"
         sub="Every script on file, by its number. What is on it, what has gone out, and what has been altered since capture"
         count={data ? `${data.total.toLocaleString()} on file` : undefined}
+        /* WHAT A SCHEME OR AN INSPECTOR ASKS FOR.
+           Never "show me your screen": a list of scripts over a period, with
+           the prescriber and what was on each one. */
+        take={<ExportButton dataset="scripts" />}
         // Refresh was the ONLY thing in this header, in the loudest position
         // on the page. A refresh button says the screen might be stale and you
         // should not trust it, which is not what somebody should be told first

@@ -220,16 +220,22 @@ export default function Deliveries() {
   return (
     <div className="page">
       <PageHead
-        take={<ExportButton dataset="deliveries" label="The round as a sheet" />} title="Deliveries" sub={headline}>
-        {/* Deliveries only ever arrived here already made. The request usually
-                    arrives by telephone, and the endpoint to raise one has existed
-                    since deliveries were built with nothing calling it. */}
-                <div className="page-actions">
-                  <button className="btn" onClick={() => setRaising(true)}>
-                    <Plus size={14} weight="bold" /> New delivery
-                  </button>
-                </div>
-      </PageHead>
+        title="Deliveries"
+        sub={headline}
+        count={list.length ? `${list.length} on this tab` : undefined}
+        // The round, as the sheet a supervisor carries or a driver is handed.
+        // The address and the telephone number are the whole point of it off
+        // screen.
+        take={<ExportButton dataset="deliveries" />}
+        // Deliveries only ever arrived here already made. The request usually
+        // arrives by telephone, and the endpoint to raise one has existed
+        // since deliveries were built with nothing calling it.
+        primary={
+          <button className="btn primary" onClick={() => setRaising(true)}>
+            <Plus size={14} weight="bold" /> New delivery
+          </button>
+        }
+      />
 
       {raising && (
         <NewDelivery onClose={() => setRaising(false)} onRaised={load} />

@@ -38,6 +38,7 @@ interface PastTake {
 import { EntityLink } from "../components/Filters";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Scope { category: string; bin: string }
@@ -387,7 +388,22 @@ export default function StockTake() {
   return (
     <>
       {prompt}
-      <PageHead title="Stock take" sub="Count what is on the shelf. Nothing is adjusted until the count is closed" />
+      <PageHead
+        title="Stock take"
+        sub="Count what is on the shelf. Nothing is adjusted until the count is closed"
+        /* How far the count has got, not what it is called. The reference is
+           on the card below with the rest of the count's own facts; a chip
+           beside the title that reads ST260800003 answers a question nobody
+           standing on a ladder is asking. */
+        count={take ? `${take.counted_lines} counted` : undefined}
+        /* THE COUNT SHEET, BECAUSE SOMEBODY IS UP A LADDER.
+           Every pharmacy that has ever done a stock take has counted it on
+           paper first, and this screen offered no way to get one. The sheet
+           carries the bin, the medicine and an empty column to write the real
+           number in, with what the system believes last so a manager can fold
+           it out of sight and not influence the count. */
+        take={<ExportButton dataset="count-sheet" label="Count sheet" />}
+      />
 
       {!take ? (
         <div className="card">

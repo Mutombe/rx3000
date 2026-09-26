@@ -10,6 +10,7 @@ import Select from "../components/Select";
 import BusyButton from "../components/BusyButton";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 
 const SOURCES = [
   ["referral", "Referral"], ["event", "Event / expo"], ["campaign", "Campaign"],
@@ -206,9 +207,17 @@ export default function Leads() {
 
   return (
     <>
-      <PageHead title="Leads" sub="Scored and routed on capture, qualify, then convert into an account, contact and opportunity">
-        <button onClick={() => setShowForm(true)}>+ New Lead</button>
-      </PageHead>
+      <PageHead
+        title="Leads"
+        sub="Scored and routed on capture, qualify, then convert into an account, contact and opportunity"
+        count={stats.open ? `${stats.open} open` : undefined}
+        take={<ExportButton dataset="leads" />}
+        primary={
+          <button className="btn primary" onClick={() => setShowForm(true)}>
+            New lead
+          </button>
+        }
+      />
 
       <div className="grid cols-4">
         <div className="card stat hero">

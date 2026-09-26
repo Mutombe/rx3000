@@ -22,7 +22,7 @@ import { useScanFeed } from "../components/ScannerHub";
 import Checkbox from "../components/Checkbox";
 import Select from "../components/Select";
 import { Link, useNavigate } from "react-router-dom";
-import { Clock, Prohibit, Warning } from "@phosphor-icons/react";
+import { Clock, Plus, Prohibit, Warning } from "@phosphor-icons/react";
 import IconButton from "../components/IconButton";
 import BusyButton from "../components/BusyButton";
 import Person from "../components/Person";
@@ -582,47 +582,52 @@ export default function Stock() {
 
   return (
     <>
-      <PageHead title="Inventory" sub="Products, quantities, movements and reorder levels">
-        {/* THE REPORTS, FROM WHERE THE QUESTION IS ASKED.
-                      There are twenty six stock reports and every one of them was
-                      reachable only through a nav item labelled "Analytics", gated on
-                      a money capability, with no link from this page at all. So they
-                      existed and could not be found, which for a user is the same as
-                      not existing.
+      <PageHead
+        title="Inventory"
+        sub="Products, quantities, movements and reorder levels"
+        /* Which dataset leaves follows the tab, so the button is never a guess.
+           The format is asked for rather than assumed: the counter machine has
+           Excel open, and something else has to swallow a CSV. */
+        take={<ExportButton dataset={tab === "batches" ? "batches" : "products"} />}
+        /* THE REPORTS, FROM WHERE THE QUESTION IS ASKED.
 
-                      Offered per tab, because the report that answers "what is about
-                      to expire" is not the one that answers "where did this go", and
-                      a list of twenty six is its own kind of hiding.
+           There are twenty six stock reports and every one of them was
+           reachable only through a nav item labelled "Analytics", gated on a
+           money capability, with no link from this page at all. So they existed
+           and could not be found, which for a user is the same as not existing.
 
-                      THIS WAS A NATIVE SELECT, AND WHY IT IS NOT ANY MORE
+           Offered per tab, because the report that answers "what is about to
+           expire" is not the one that answers "where did this go", and a list
+           of twenty six is its own kind of hiding.
 
-                      The app's own combobox rendered here as a 208 by 224 empty
-                      panel, and the note that replaced it blamed "something in this
-                      header's cascade" and said no other screen put one in a page
-                      head. Both were wrong. Five other screens do, and every one of
-                      them works.
+           THIS WAS A NATIVE SELECT, AND WHY IT IS NOT ANY MORE
 
-                      208 pixels is 13rem, which was the width on `.stock-reports-pick`
-                      — a class written for a native select, with a fixed width and a
-                      fixed height, put on a control that sizes itself. The panel was
-                      clipped to the box the class gave it, so the options were
-                      rendered and could not be seen.
+           The app's own combobox rendered here as a 208 by 224 empty panel, and
+           the note that replaced it blamed "something in this header's cascade"
+           and said no other screen put one in a page head. Both were wrong.
+           Five other screens do, and every one of them works.
 
-                      The same shape as the `.lbl` bug: a class written for one
-                      control worn by another. Neither is a cascade problem and
-                      neither is mysterious once the numbers are read. */}
-                  <Select
-                    value=""
-                    placeholder="Reports…"
-                    onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
-                    options={(REPORTS_FOR[tab] ?? REPORTS_FOR.products)
-                      .map((r) => ({ value: r.value, label: r.label }))}
-                  />
-                  <ExportButton dataset={tab === "batches" ? "batches" : "products"}
-                                label={tab === "batches" ? "Batches as a spreadsheet"
-                                                         : "Catalogue as a spreadsheet"} />
-                  <button onClick={openNew}>+ New Product</button>
-      </PageHead>
+           208 pixels is 13rem, which was the width on `.stock-reports-pick` — a
+           class written for a native select, with a fixed width and a fixed
+           height, put on a control that sizes itself. The panel was clipped to
+           the box the class gave it, so the options were rendered and could not
+           be seen. The same shape as the `.lbl` bug: a class written for one
+           control worn by another. */
+        also={
+          <Select
+            value=""
+            placeholder="Reports…"
+            onChange={(key) => { if (key) navigate(`/reports?report=${key}`); }}
+            options={(REPORTS_FOR[tab] ?? REPORTS_FOR.products)
+              .map((r) => ({ value: r.value, label: r.label }))}
+          />
+        }
+        primary={
+          <button className="btn primary" onClick={openNew}>
+            <Plus size={14} weight="bold" /> New product
+          </button>
+        }
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

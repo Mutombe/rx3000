@@ -5,7 +5,7 @@ import { api, fmtDateTime, errorText, prefetchRoute } from "../api";
 import { Message, Patient } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
-import { ArrowsClockwise } from "@phosphor-icons/react";
+import { ArrowsClockwise, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import { EntityLink } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
@@ -88,21 +88,23 @@ export default function Reminders() {
 
   return (
     <>
-      <PageHead title="Patient Adherence" sub="SMS &amp; email for repeat prescriptions, birthdays and free-type messages">
-        {/* The standard group, not an inline style. Five pages each had their
-                    own idea of how a header's actions are spaced, which is five
-                    places to change when the answer moves and one of them always
-                    gets missed. */}
-                <div className="page-actions">
-                  {/* The glyph was a literal ⟳ in the label. It is an icon now, and it
-                      turns while the jobs are actually running. */}
-                  <BusyButton className="btn secondary" onClick={runJobs}
-                              icon={ArrowsClockwise} busyLabel="Running…">
-                    Run reminder jobs now
-                  </BusyButton>
-                  <button onClick={() => setShowCompose(true)}>+ Compose message</button>
-                </div>
-      </PageHead>
+      <PageHead
+        title="Patient Adherence"
+        sub="SMS and email for repeat prescriptions, birthdays and free-type messages"
+        /* The glyph was a literal in the label. It is an icon now, and it turns
+           while the jobs are actually running. */
+        also={
+          <BusyButton className="btn secondary" onClick={runJobs}
+                      icon={ArrowsClockwise} busyLabel="Running…">
+            Run reminder jobs now
+          </BusyButton>
+        }
+        primary={
+          <button className="btn primary" onClick={() => setShowCompose(true)}>
+            <Plus size={14} weight="bold" /> Compose message
+          </button>
+        }
+      />
 
       <TabStrip>
         {[["", "All"], ["repeat", "Repeat reminders"], ["birthday", "Birthdays"], ["custom", "Free-type"]].map(([v, l]) => (

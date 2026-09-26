@@ -22,10 +22,14 @@ import { useToast } from "./Toast";
 export type Dataset =
   | "products" | "batches" | "claims" | "to-follows" | "patients"
   | "money-owed" | "deliveries"
-  | "journal" | "trial-balance" | "accounts";
+  | "journal" | "trial-balance" | "accounts"
+  | "scripts" | "dispensings" | "will-call" | "repeats-due"
+  | "suppliers" | "orders" | "lay-bys" | "drivers" | "shifts"
+  | "payables" | "compliance" | "register" | "samples" | "count-sheet"
+  | "leads" | "deals" | "tickets" | "branches";
 
 export default function ExportButton({
-  dataset, label = "Spreadsheet", className = "btn secondary small",
+  dataset, label = "Export", className = "btn secondary small",
 }: {
   dataset: Dataset;
   label?: string;

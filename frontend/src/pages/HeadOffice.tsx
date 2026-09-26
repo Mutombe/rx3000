@@ -37,6 +37,7 @@ import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
 import EstateStock from "../components/EstateStock";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface BranchRow {
@@ -194,7 +195,15 @@ export default function HeadOffice() {
 
   return (
     <div className="page">
-      <PageHead title="Head office" sub={estate?.headline ?? "The estate, and the controls above it."} />
+      <PageHead
+        title="Head office"
+        sub={estate?.headline ?? "The estate, and the controls above it."}
+        count={estate?.branches?.length
+          ? `${estate.branches.length} shops` : undefined}
+        // The estate as a sheet, which is what a group owner takes to a bank or
+        // a regulator. A screen cannot be attached to either.
+        take={<ExportButton dataset="branches" />}
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

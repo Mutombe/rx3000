@@ -12,6 +12,7 @@ import { Lightning, Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import ReceiveDelivery from "../components/ReceiveDelivery";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 import { useRowWork } from "../hooks/useRowWork";
 
@@ -154,14 +155,27 @@ export default function Orders() {
 
   return (
     <>
-      <PageHead title="Procurement" sub="Purchase orders fully integrated with stock control">
-        {/* The sweep covers the routine. This covers every reason a pharmacy
-                      actually telephones a wholesaler, none of which is routine. */}
-                  <button className="btn primary" onClick={() => setRaising(true)}>
-                    <Plus size={15} weight="bold" /> New order
-                  </button>
-                  <button className="secondary" onClick={generate} disabled={busy}>{busy ? "Working…" : <><Lightning size={15} weight="fill" /> Generate from reorder levels</>}</button>
-      </PageHead>
+      <PageHead
+        title="Procurement"
+        sub="Purchase orders fully integrated with stock control"
+        // What was ordered, what it cost and what has not arrived. A buyer
+        // argues with a wholesaler from a sheet, not from a screen.
+        take={<ExportButton dataset="orders" />}
+        // The sweep covers the routine.
+        also={
+          <BusyButton className="btn secondary" onClick={generate}
+                      busyLabel="Working...">
+            <Lightning size={15} weight="fill" /> Generate from reorder levels
+          </BusyButton>
+        }
+        // This covers every reason a pharmacy actually telephones a
+        // wholesaler, none of which is routine.
+        primary={
+          <button className="btn primary" onClick={() => setRaising(true)}>
+            <Plus size={15} weight="bold" /> New order
+          </button>
+        }
+      />
 
       {raising && (
         <NewOrder onClose={() => setRaising(false)} onCreated={load} />

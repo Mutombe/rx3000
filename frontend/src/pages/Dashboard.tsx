@@ -115,16 +115,18 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHead title="Command Centre" sub={data
-              ? <>The last {data.days} days, to {fmtDate(data.as_at)}</>
-              : "Loading the morning's figures"}>
-        <div className="row-actions">
-                  <button className="btn secondary" onClick={load}>
-                    <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
-                  </button>
-                  <Link to="/pos" className="btn primary">New sale</Link>
-                </div>
-      </PageHead>
+      <PageHead
+        title="Command Centre"
+        sub={data
+          ? <>The last {data.days} days, to {fmtDate(data.as_at)}</>
+          : "Loading the morning's figures"}
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} /> Refresh
+          </button>
+        }
+        primary={<Link to="/pos" className="btn primary">New sale</Link>}
+      />
 
       <Refreshable
         loading={spinning || !data}

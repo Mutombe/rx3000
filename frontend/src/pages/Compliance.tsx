@@ -39,6 +39,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface Doc {
@@ -203,8 +204,19 @@ export default function Compliance() {
 
   return (
     <div className="page">
-      <PageHead title="Licences &amp; compliance" sub={overview?.headline
-              ?? "What each branch must hold to trade, and when it expires."} />
+      <PageHead
+        title="Licences and compliance"
+        sub={overview?.headline
+          ?? "What each branch must hold to trade, and when it expires."}
+        count={overview && (overview.expired || overview.missing)
+          ? `${overview.expired + overview.missing} need attention`
+          : undefined}
+        /* WHAT AN INSPECTION ACTUALLY ASKS FOR.
+           Not a screen: a list of what each branch holds, its reference, who
+           issued it and when it runs out. It is also what an insurer wants
+           annually, and what a pharmacy renewing twelve licences works from. */
+        take={<ExportButton dataset="compliance" />}
+      />
 
       {/* The family this page belongs to. It used to sit in the
           page's action slot beside a primary button, and on Authorisations

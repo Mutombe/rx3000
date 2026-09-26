@@ -8,7 +8,9 @@ import { BarList, ColumnChart, Donut, FunnelChart, Legend, useSeries } from "../
 import { CampaignROI, ForecastMonth, FunnelReport, OwnerReport } from "../types";
 import { TableSkeleton } from "../components/Skeleton";
 import { TabStrip } from "../components/PageTabs";
+import { Printer } from "@phosphor-icons/react";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 type Tab = "forecast" | "funnel" | "owners" | "campaigns";
@@ -235,9 +237,17 @@ export default function CrmReports() {
 
   return (
     <>
-      <PageHead title="Revenue Intelligence" sub="Forecast, conversion economics, rep performance and campaign attribution">
-        <button className="secondary" onClick={printTab}>Print report</button>
-      </PageHead>
+      <PageHead
+        title="Revenue Intelligence"
+        sub="Forecast, conversion economics, rep performance and campaign attribution"
+        // The forecast, in the spreadsheet a board paper is built from.
+        take={<ExportButton dataset="deals" />}
+        also={
+          <button className="btn secondary" onClick={printTab}>
+            <Printer size={14} /> Print report
+          </button>
+        }
+      />
 
       <TabStrip>
         {TABS.map(([t, label]) => (

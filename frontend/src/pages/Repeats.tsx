@@ -33,6 +33,7 @@ import { overdueTone, rateTone } from "../tone";
 import { patientOwes } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 
 interface DueItem {
@@ -313,12 +314,23 @@ export default function Repeats() {
 
   return (
     <div className="page">
-      <PageHead title="Repeats" sub={due
-              ? due.count
-                ? `${due.count} due within ${horizon} days` +
-                  (due.overdue ? `, ${due.overdue} already overdue.` : ".")
-                : "Nobody is due."
-              : ""} />
+      <PageHead
+        title="Repeats"
+        sub={due
+          ? due.count
+            ? `${due.count} due within ${horizon} days` +
+              (due.overdue ? `, ${due.overdue} already overdue.` : ".")
+            : "Nobody is due."
+          : ""}
+        count={due?.count ? `${money(due.due_value)} due` : undefined}
+        /* THE CALL SHEET, OFF THE SCREEN.
+           This list is telephoned from, and a person on a telephone is not
+           also scrolling a table: they work down a printed sheet and tick it.
+           It carries the number, how overdue each one is and whether the shelf
+           can serve them, because a call that ends in "we do not have it" is
+           worse than no call. */
+        take={<ExportButton dataset="repeats-due" />}
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 

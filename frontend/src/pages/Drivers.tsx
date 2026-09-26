@@ -21,6 +21,7 @@ import { useToast } from "../components/Toast";
 import DriverForm from "../components/DriverForm";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
+import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
 import { useRowWork } from "../hooks/useRowWork";
 
@@ -101,15 +102,22 @@ export default function Drivers() {
 
   return (
     <div className="page">
-      <PageHead title="Drivers" sub={rows.length
-              ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
-                + (road?.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
-                + (holding ? `, ${money(holding)} of shop money being carried` : "")
-              : "Nobody is set up to deliver yet."}>
-        <button className="btn" onClick={() => setAdding(true)}>
-                    <Plus size={14} weight="bold" /> New driver
-                  </button>
-      </PageHead>
+      <PageHead
+        title="Drivers"
+        sub={rows.length
+          ? `${rows.length} driver${rows.length === 1 ? "" : "s"}`
+            + (road?.deliveries ? `, ${road.deliveries} delivery(ies) out` : "")
+            + (holding ? `, ${money(holding)} of shop money being carried` : "")
+          : "Nobody is set up to deliver yet."}
+        // Licence numbers and expiry dates. An inspector asks for this list,
+        // and so does an insurer after a knock.
+        take={<ExportButton dataset="drivers" />}
+        primary={
+          <button className="btn primary" onClick={() => setAdding(true)}>
+            <Plus size={14} weight="bold" /> New driver
+          </button>
+        }
+      />
 
       {adding && (
         <DriverForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load(); }} />

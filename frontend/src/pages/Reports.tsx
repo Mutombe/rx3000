@@ -9,7 +9,7 @@ import { Patient } from "../types";
 import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import ReportChart from "../components/ReportChart";
-import { ChartBar, Table } from "@phosphor-icons/react";
+import { ChartBar, Printer, Table } from "@phosphor-icons/react";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
@@ -172,9 +172,15 @@ export default function Reports() {
 
   return (
     <>
-      <PageHead title="Analytics" sub="Automated daily totals, VAT, stock valuation and patient tax statements">
-        <button className="secondary" onClick={printTab}>Print report</button>
-      </PageHead>
+      <PageHead
+        title="Analytics"
+        sub="Automated daily totals, VAT, stock valuation and patient tax statements"
+        also={
+          <button className="btn secondary" onClick={printTab}>
+            <Printer size={14} /> Print report
+          </button>
+        }
+      />
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />
 
