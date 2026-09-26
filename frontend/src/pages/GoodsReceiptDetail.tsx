@@ -70,6 +70,11 @@ export default function GoodsReceiptDetail() {
   const mayReceive = useCan("stock.receive");
 
   function reload(rid: number) {
+    // Deliberately silent: this runs after a write that has already succeeded
+    // and whose result is already on the screen. It is here to pick up what
+    // the server worked out — the new totals, the matched lines — and if it
+    // cannot, what is shown is still true. A second red toast after a green
+    // one teaches people to distrust the green one.
     api.get<Receipt>(`/api/goods-receipts/${rid}`).then(setRow).catch(() => {});
   }
 

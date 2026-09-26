@@ -106,6 +106,9 @@ export default function SupplierReturnDetail() {
       const said = await api.post<{ message: string }>(
         `/api/supplier-returns/${row.id}/${what}`, {});
       toast.ok(said.message);
+      // Deliberately silent: the write has succeeded and `stand()` has already
+      // put the right status on the screen. This only refreshes what the
+      // server derived, and a failure here changes nothing the reader can see.
       api.get<Return>(`/api/supplier-returns/${row.id}`).then(setRow).catch(() => {});
     } catch (e) {
       stand(was);
@@ -134,6 +137,9 @@ export default function SupplierReturnDetail() {
       const said = await api.post<{ message: string }>(
         `/api/supplier-returns/${row.id}/credit`, { credit_note: value.trim() });
       toast.ok(said.message);
+      // Deliberately silent, for the same reason as the approval above: the
+      // credit is recorded and shown, and this is the server's own view of it
+      // arriving afterwards.
       api.get<Return>(`/api/supplier-returns/${row.id}`).then(setRow).catch(() => {});
     } catch (e) {
       stand(was.status, { credit_note: was.credit_note });

@@ -199,6 +199,12 @@ export default function StockTake() {
         setLastCount(null);
         window.setTimeout(() => countBox.current?.focus(), 0);
       })
+      // Deliberately silent: a link carrying a product that has since been
+      // retired, or a number somebody typed into the address bar, leaves the
+      // count screen open with nothing picked — which is exactly what it looks
+      // like when you arrive here without a link, and the search box below is
+      // right there. A toast about a stale bookmark would be shouting about
+      // the one thing on this screen that does not matter.
       .catch(() => {});
     return () => { live = false; };
   }, []);
