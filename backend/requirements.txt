@@ -18,6 +18,21 @@ psycopg[binary]>=3.2.10
 # pharmacy server should not need GTK installed to produce a one-page sheet.
 reportlab>=4.0
 
+# EVERY WORKBOOK THIS PRODUCT PRODUCES, AND IT WAS NEVER DECLARED.
+#
+# `services/reports/engine.py` writes real xlsx, `services/spreadsheet.py`
+# reads one, and the export endpoint writes one for every grid. All three
+# import openpyxl, none of them declared it, and it was installed on the
+# machine it was written on — so the tests passed, the guards passed, and on
+# the hosted deployment every one of those downloads answered 500 while CSV
+# answered 200. Both routes default to xlsx, so the commonest press was the
+# broken one.
+#
+# It had been failing since reports were written. Nobody reported it because a
+# 500 from a download link looks like the internet, not like the software, and
+# because the developer's laptop has openpyxl and always will.
+openpyxl>=3.1
+
 # Off-machine backups to an S3-compatible bucket (DigitalOcean Spaces here;
 # Backblaze, MinIO and AWS all speak the same protocol). Optional at runtime:
 # with no credentials set, services/objects.py is inert and a pharmacy running
