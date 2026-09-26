@@ -27,6 +27,7 @@ import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import { useRowWork } from "../hooks/useRowWork";
 import Track, { waybillStages } from "../components/Track";
+import ExportButton from "../components/ExportButton";
 
 interface Waybill {
   id: number; waybill_number: string; status: string;
@@ -218,7 +219,8 @@ export default function Deliveries() {
 
   return (
     <div className="page">
-      <PageHead title="Deliveries" sub={headline}>
+      <PageHead
+        take={<ExportButton dataset="deliveries" label="The round as a sheet" />} title="Deliveries" sub={headline}>
         {/* Deliveries only ever arrived here already made. The request usually
                     arrives by telephone, and the endpoint to raise one has existed
                     since deliveries were built with nothing calling it. */}

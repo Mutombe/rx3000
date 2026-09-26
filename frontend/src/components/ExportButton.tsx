@@ -20,6 +20,7 @@ import { useToast } from "./Toast";
  *  error rather than a 404 somebody meets at the end of a long month. */
 export type Dataset =
   | "products" | "batches" | "claims" | "to-follows" | "patients"
+  | "money-owed" | "deliveries"
   | "journal" | "trial-balance" | "accounts";
 
 export default function ExportButton({

@@ -766,7 +766,7 @@ def export(dataset: str, db: Session = Depends(get_db)):
     and nobody has ever failed to import one.
     """
     from ..models import (Account, Claim, JournalEntry, OwedItem, Patient,
-                          StockBatch)
+                          Sale, StockBatch, Waybill)
 
     stamp = date.today()
     if dataset == "products":
@@ -797,6 +797,31 @@ def export(dataset: str, db: Session = Depends(get_db)):
                  "caregiver": p.caregiver_name, "caregiver_phone": p.caregiver_phone,
                  "registered": p.created_at}
                 for p in db.query(Patient).order_by(Patient.last_name).limit(20000).all()]
+    elif dataset == "money-owed":
+        # The debtors' list, which is reconciled in a spreadsheet whatever the
+        # software offers, and is what a follow-up call is worked from.
+        rows = [{"sale": s.sale_number, "when": s.created_at,
+                 "patient": (f"{s.patient.first_name} {s.patient.last_name}"
+                             if s.patient else ""),
+                 "phone": s.patient.phone if s.patient else "",
+                 "total": s.total,
+                 "scheme_pays": round(s.claim.amount_approved or 0, 2) if s.claim else 0,
+                 "owed": round((s.total or 0)
+                               - ((s.claim.amount_approved or 0) if s.claim else 0), 2)}
+                for s in db.query(Sale)
+                           .filter(Sale.status == "pending")
+                           .order_by(Sale.created_at).limit(5000).all()]
+    elif dataset == "deliveries":
+        # A round, as a sheet a driver or a supervisor can carry. The address
+        # and the telephone number are the whole point of it off screen.
+        rows = [{"waybill": w.waybill_number, "status": w.status,
+                 "recipient": w.recipient, "phone": w.phone,
+                 "address": w.address, "instructions": w.instructions,
+                 "driver": w.driver.full_name if w.driver else "",
+                 "to_collect": w.cod_amount, "collected": w.cod_collected,
+                 "raised": w.created_at}
+                for w in db.query(Waybill)
+                           .order_by(Waybill.created_at.desc()).limit(5000).all()]
     elif dataset == "batches":
         rows = [{"product": b.product.name if b.product else "", "batch": b.batch_number,
                  "expiry": b.expiry_date, "remaining": b.quantity_remaining,

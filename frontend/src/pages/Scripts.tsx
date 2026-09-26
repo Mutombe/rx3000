@@ -27,6 +27,7 @@ import { DRAFT_SCRIPT, DRAFT_SCRIPT_PLURAL } from "../terms";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import { Link } from "react-router-dom";
 
 interface Row {
   id: number;
@@ -139,12 +140,30 @@ export default function Scripts() {
 
   return (
     <div className="page">
-      <PageHead title="Scripts" sub="Every script on file, by its number. What is on it, what has gone out, and what has been altered since capture">
-        <button className="btn secondary" onClick={load}>
-                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-                  Refresh
-                </button>
-      </PageHead>
+      <PageHead
+        title="Scripts"
+        sub="Every script on file, by its number. What is on it, what has gone out, and what has been altered since capture"
+        count={data ? `${data.total.toLocaleString()} on file` : undefined}
+        // Refresh was the ONLY thing in this header, in the loudest position
+        // on the page. A refresh button says the screen might be stale and you
+        // should not trust it, which is not what somebody should be told first
+        // — and this list reloads itself whenever a filter changes anyway. It
+        // keeps its place as the quieter of the two.
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        }
+        // WHAT SOMEBODY ARRIVING HERE IN A HURRY IS ACTUALLY DOING.
+        //
+        // They are holding a piece of paper. This screen finds a script by its
+        // number, and the other half of that job — putting a new one on file —
+        // lived on a different screen with no way to reach it from this one.
+        primary={
+          <Link className="btn primary" to="/dispense">Capture a script</Link>
+        }
+      />
 
       <div className="card">
         <div className="filter-bar">

@@ -21,6 +21,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
+import ExportButton from "../components/ExportButton";
 
 interface Row {
   sale_id: number;
@@ -99,12 +100,20 @@ export default function MoneyOwed() {
 
   return (
     <>
-      <PageHead title="Money owed" sub="Medicine that has gone out and has not been paid for in full">
-        <button className="btn secondary" onClick={load}>
-                  <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
-                  Refresh
-                </button>
-      </PageHead>
+      <PageHead
+        title="Money owed"
+        sub="Medicine that has gone out and has not been paid for in full"
+        // The debtors' list is worked from a sheet as often as from a screen:
+        // it is what a morning of follow-up calls is read off, and it is
+        // reconciled in a spreadsheet whatever the software offers.
+        take={<ExportButton dataset="money-owed" label="Spreadsheet" />}
+        also={
+          <button className="btn secondary" onClick={load}>
+            <ArrowClockwise size={15} className={spinning ? "spin" : ""} />
+            Refresh
+          </button>
+        }
+      />
 
       {failed && <div className="alert error">{failed}</div>}
 
