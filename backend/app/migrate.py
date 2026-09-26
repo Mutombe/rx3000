@@ -892,8 +892,29 @@ def _per_tenant_numbers(conn, inspector, existing_tables: set) -> int:
             # number unique across a database holding one pharmacy is unique
             # within that pharmacy. Rebuilding a live table at startup to fix
             # something that cannot happen there is the riskier choice.
-            log.info("%s.%s stays estate-wide on SQLite; it is a table "
-                     "constraint, and one file holds one pharmacy", table, column)
+            #
+            # AND WHEN THE ASSUMPTION IS FALSE, SAY SO RATHER THAN LEAVE IT.
+            #
+            # A developer's file accumulates pharmacies — every demonstration
+            # sign-up makes one — and then the sentence above is simply untrue
+            # of that file. What follows is a dispensing to a medical aid
+            # answering 500 with "Something went wrong at our end", because a
+            # claim number free in THIS pharmacy is taken in another one, and
+            # nothing anywhere connects the failure to this decision. That
+            # cost an afternoon once.
+            shops = conn.execute(text("SELECT COUNT(*) FROM pharmacies")).scalar()
+            if (shops or 0) > 1:
+                log.warning(
+                    "%s.%s stays unique across the WHOLE of this SQLite file, "
+                    "which holds %d pharmacies. A number free in one of them "
+                    "may be taken in another, and the insert will be refused. "
+                    "This does not happen on Postgres, where the estate-wide "
+                    "constraint is dropped. Use a fresh file per pharmacy, or "
+                    "run against Postgres.", table, column, shops)
+            else:
+                log.info("%s.%s stays estate-wide on SQLite; it is a table "
+                         "constraint, and one file holds one pharmacy",
+                         table, column)
             continue
         else:
             plain = next((n for n, i in indexes.items()
@@ -1891,4 +1912,43 @@ def run_migrations(engine: Engine) -> int:
                 applied += fix(conn)
         except Exception:  # noqa: BLE001 - advisory, never worth the server
             log.exception("Skipped %s; the server is starting anyway", label)
+
+    _say_if_sqlite_holds_an_estate(engine)
     return applied
+
+
+def _say_if_sqlite_holds_an_estate(engine: Engine) -> None:
+    """Warn when this file breaks the assumption the numbering rests on.
+
+    `PER_TENANT_NUMBERS` above moves every document number to a per-pharmacy
+    index, and on SQLite it cannot drop the estate-wide one that was there
+    first: a table constraint needs the table rebuilt, and the reasoning for
+    leaving it is that a SQLite file here serves one pharmacy.
+
+    A developer's file does not. Every demonstration sign-up makes another
+    pharmacy, and after a few dozen the file holds an estate while still
+    carrying constraints that are unique across all of it. What follows is a
+    dispensing to a medical aid answering 500 with "Something went wrong at our
+    end", because a claim number free in THIS pharmacy is taken in another —
+    and nothing connects that failure to this decision, which is how it cost an
+    afternoon.
+
+    Said on every boot rather than during the migration that made the choice,
+    because that migration runs once and this stays true afterwards.
+    """
+    if not engine.dialect.name.startswith("sqlite"):
+        return
+    try:
+        with engine.begin() as conn:
+            shops = conn.execute(text("SELECT COUNT(*) FROM pharmacies")).scalar()
+    except Exception:  # noqa: BLE001 - a fresh file has no table yet
+        return
+    if (shops or 0) > 1:
+        log.warning(
+            "This SQLite file holds %d pharmacies. Document numbers are still "
+            "unique across the WHOLE file here — SQLite cannot drop the "
+            "estate-wide constraint without rebuilding the table — so a number "
+            "free in one pharmacy may be refused because another holds it. A "
+            "dispensing to a scheme can answer 500 for that reason and no "
+            "other. It does not happen on Postgres. One file per pharmacy, or "
+            "run against Postgres.", shops)
