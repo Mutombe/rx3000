@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import date, datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Response
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session, joinedload
 
@@ -756,8 +756,73 @@ def _csv(rows: list[dict], filename: str, db: Session | None = None) -> Response
     )
 
 
+def _xlsx(rows: list[dict], filename: str, db: Session | None = None) -> Response:
+    """The same dataset as a real spreadsheet rather than a CSV renamed.
+
+    A pharmacy's taskbar has Excel permanently open, and a CSV arrives as text
+    that has to be cleaned up before it can be used: money left-aligned as a
+    string, dates read as American, a header that scrolls away on row four
+    hundred. Reports have exported proper xlsx for a while; this gives every
+    other grid the same, because "export" meaning two different qualities of
+    file depending which screen you were on is its own small betrayal.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.utils import get_column_letter
+
+    book = Workbook()
+    sheet = book.active
+    sheet.title = "Export"
+    columns = list(rows[0].keys()) if rows else []
+
+    for i, name in enumerate(columns, start=1):
+        cell = sheet.cell(row=1, column=i, value=name.replace("_", " ").title())
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(vertical="center")
+    for r, row in enumerate(rows, start=2):
+        for c, name in enumerate(columns, start=1):
+            sheet.cell(row=r, column=c, value=_plain(row.get(name)))
+
+    # The header stays put on row four hundred, and a column is as wide as what
+    # is in it rather than eight characters of ####.
+    sheet.freeze_panes = "A2"
+    for i, name in enumerate(columns, start=1):
+        widest = max([len(str(name))] +
+                     [len(str(_plain(row.get(name)))) for row in rows[:400]] or [0])
+        sheet.column_dimensions[get_column_letter(i)].width = min(48, widest + 3)
+
+    buffer = io.BytesIO()
+    book.save(buffer)
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _plain(value):
+    """What openpyxl can write. A date stays a date so Excel sorts it."""
+    from decimal import Decimal
+    if isinstance(value, Decimal):
+        return float(value)
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool, date, datetime)):
+        return value
+    return str(value)
+
+
 @router.get("/export/{dataset}")
-def export(dataset: str, db: Session = Depends(get_db)):
+def export(
+    dataset: str,
+    # WHICH FILE, ASKED RATHER THAN ASSUMED.
+    #
+    # The button used to say "Spreadsheet" and hand over a CSV, which is two
+    # untruths at once: it is not a spreadsheet, and nobody was asked. Excel
+    # is the default because that is what is open on the counter machine.
+    format: str = Query("xlsx", pattern="^(xlsx|csv)$"),
+    db: Session = Depends(get_db),
+):
     """Every grid leaves as a spreadsheet.
 
     A pharmacy manager reconciles in Excel whatever the software offers, so a
@@ -854,7 +919,9 @@ def export(dataset: str, db: Session = Depends(get_db)):
             status_code=404,
             detail="Nothing exports under that name. Available: products, batches, "
                    "claims, to-follows, journal, trial-balance, accounts.")
-    return _csv(rows, f"rx5000-{dataset}-{stamp}.csv", db)
+    name = f"rx5000-{dataset}-{stamp}"
+    return (_csv(rows, f"{name}.csv", db) if format == "csv"
+            else _xlsx(rows, f"{name}.xlsx", db))
 
 
 # ---------------------------------------------------------------------------

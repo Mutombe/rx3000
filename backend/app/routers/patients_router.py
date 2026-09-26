@@ -1,7 +1,8 @@
 import logging
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
+                     UploadFile)
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
@@ -390,3 +391,162 @@ def retire_doctor(doctor_id: int, db: Session = Depends(get_db)):
     return {"ok": True,
             "message": (f"{doctor.name} will not appear when capturing a "
                         f"script. Their name stays on the ones they wrote.")}
+
+
+# ---------------------------------------------------------------- bringing a
+# ---------------------------------------------------------------- list in
+#
+# A pharmacy arriving on this system has its patients somewhere already: the
+# system it is leaving, a spreadsheet a receptionist has kept for nine years,
+# or a scheme's membership file. Typing four thousand of them in is not a
+# migration plan, it is a reason to stay where they are.
+#
+# TWO PHASES, THE SAME AS STOCK.
+#
+# `apply=false` reads the file and says what WOULD happen, row by row, and
+# writes nothing. `apply=true` does it. A bulk write nobody can preview is one
+# nobody dares run, and the preview is most of the value: it is where somebody
+# discovers that column D is a date in American order.
+
+def _rows_from(raw: bytes, filename: str) -> list[dict]:
+    """The uploaded file as dictionaries, whatever shape it arrived in."""
+    import csv as _csv
+    import io as _io
+
+    from ..services import spreadsheet
+
+    text, _sheet, _n = spreadsheet.read_any(raw, filename or "")
+    reader = _csv.DictReader(_io.StringIO(text))
+    return [{(k or "").strip().lower().replace(" ", "_"): (v or "").strip()
+             for k, v in row.items()} for row in reader]
+
+
+#: What a column may be called in somebody else's system. The left is ours.
+ALIASES = {
+    "last_name": ("last_name", "surname", "lastname", "family_name"),
+    "first_name": ("first_name", "firstname", "given_name", "name", "forename"),
+    "id_number": ("id_number", "id", "national_id", "identity_number"),
+    "date_of_birth": ("date_of_birth", "dob", "birthday", "birth_date"),
+    "phone": ("phone", "mobile", "cell", "telephone", "contact"),
+    "email": ("email", "e_mail", "email_address"),
+    "address": ("address", "street", "residential_address"),
+    "medical_aid": ("medical_aid", "scheme", "funder", "medical_scheme"),
+    "medical_aid_number": ("medical_aid_number", "member_number", "membership_number"),
+    "dependent_code": ("dependent_code", "dependant_code", "suffix"),
+    "allergies": ("allergies", "allergy"),
+    "chronic_conditions": ("chronic_conditions", "chronic", "conditions"),
+}
+
+
+def _pick(row: dict, field: str) -> str:
+    for name in ALIASES[field]:
+        if row.get(name):
+            return row[name]
+    return ""
+
+
+@router.post("/patients/import")
+async def import_patients(
+    file: UploadFile = File(...),
+    apply: bool = Form(default=False),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Read a list of patients, say what would happen, and on request do it."""
+    raw = await file.read()
+    try:
+        rows = _rows_from(raw, file.filename or "")
+    except Exception as exc:
+        raise HTTPException(400, f"That file could not be read: {exc}") from exc
+    if not rows:
+        raise HTTPException(400, "That file has no rows in it.")
+
+    aids = {a.name.strip().lower(): a for a in db.query(MedicalAid).all()}
+    plan: list[dict] = []
+    made = 0
+
+    for n, row in enumerate(rows, start=2):   # 2: row 1 is the header
+        last = _pick(row, "last_name")
+        first = _pick(row, "first_name")
+        ident = _pick(row, "id_number")
+
+        if not last and not first:
+            plan.append({"row": n, "what": "skipped", "who": "",
+                         "why": "No name in this row."})
+            continue
+
+        # The identity number is the only thing in a pharmacy's data that is
+        # meant to be unique to a person, so it is what a second import is
+        # matched on. Without one, a row is taken at face value: guessing that
+        # two Tendai Moyos are the same person is a worse mistake than two
+        # records somebody can merge.
+        existing = (db.query(Patient).filter(Patient.id_number == ident).first()
+                    if ident else None)
+        who = f"{first} {last}".strip()
+        if existing:
+            plan.append({"row": n, "what": "already on file", "who": who,
+                         "why": f"{ident} is {existing.first_name} "
+                                f"{existing.last_name} already."})
+            continue
+
+        # A row with no identity number cannot be checked against what is
+        # already here, so importing the same file twice would make a second
+        # copy of this person. Said in the preview, where somebody can still
+        # do something about it, rather than discovered afterwards in a list
+        # with two of everybody.
+        plan.append({"row": n, "what": "new patient", "who": who,
+                     "why": "" if ident else
+                            "No identity number, so this one cannot be checked "
+                            "against the list. Importing this file again would "
+                            "add them a second time."})
+        if apply:
+            aid = aids.get(_pick(row, "medical_aid").strip().lower())
+            born = _pick(row, "date_of_birth")
+            db.add(Patient(
+                first_name=first, last_name=last, id_number=ident,
+                date_of_birth=_a_date(born), phone=_pick(row, "phone"),
+                email=_pick(row, "email"), address=_pick(row, "address"),
+                allergies=_pick(row, "allergies"),
+                chronic_conditions=_pick(row, "chronic_conditions"),
+                medical_aid_id=aid.id if aid else None,
+                medical_aid_number=_pick(row, "medical_aid_number"),
+                dependent_code=_pick(row, "dependent_code") or "00",
+            ))
+            made += 1
+
+    if apply:
+        db.commit()
+        log.info("Imported %s patient(s) from %s", made, file.filename)
+
+    return {
+        "applied": apply,
+        "rows": len(rows),
+        "new": sum(1 for p in plan if p["what"] == "new patient"),
+        "already": sum(1 for p in plan if p["what"] == "already on file"),
+        "skipped": sum(1 for p in plan if p["what"] == "skipped"),
+        "unchecked": sum(1 for p in plan
+                         if p["what"] == "new patient" and p["why"]),
+        # The whole plan, not a sample. Somebody about to write four thousand
+        # records is entitled to read all four thousand lines first.
+        "plan": plan,
+    }
+
+
+def _a_date(said: str):
+    """A date written however the other system wrote it, or nothing.
+
+    Deliberately refuses rather than guesses between 03/04 and 04/03: a date of
+    birth six months out is worse than a blank one, because a blank is asked
+    about and a wrong one is trusted.
+    """
+    from datetime import date as _date
+
+    said = (said or "").strip()
+    if not said:
+        return None
+    for shape in ("%Y-%m-%d", "%d %b %Y", "%d %B %Y"):
+        try:
+            return datetime.strptime(said, shape).date()
+        except ValueError:
+            continue
+    return None

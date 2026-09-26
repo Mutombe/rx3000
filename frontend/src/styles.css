@@ -14170,3 +14170,47 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 }
 .chg-to { flex: none; color: var(--ink-faint); font-size: var(--t-sm); }
 .chg b { color: var(--ink); }
+
+/* --------------------------------------------------- export, with a choice
+ *
+ * The button said "Spreadsheet" and handed over a CSV: not a spreadsheet, and
+ * nobody asked. The menu is two lines because the difference between them is
+ * not the extension, it is what you are about to do with the file.
+ */
+.exp { position: relative; display: inline-flex; }
+.exp-caret { margin-left: 4px; opacity: .6; }
+.exp-menu {
+  position: absolute; top: calc(100% + 4px); right: 0; z-index: 40;
+  display: flex; flex-direction: column; min-width: 15rem;
+  padding: var(--s1); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  box-shadow: 0 8px 24px rgba(20, 20, 26, 0.12);
+}
+.exp-menu button {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  width: 100%; padding: var(--s2) var(--s3); text-align: left;
+  background: none; border: 0; border-radius: var(--r-sm);
+  font-size: var(--t-base); font-weight: 500; color: var(--ink); cursor: pointer;
+}
+.exp-menu button:hover { background: var(--hover); }
+.exp-menu small { font-size: var(--t-sm); font-weight: 400; color: var(--ink-faint); }
+
+/* ------------------------------------------------- bringing a list in
+ *
+ * A file chooser that looks like a file chooser, and a plan somebody reads
+ * before four thousand records are written. The plan is scrollable and the
+ * counts above it are not: the decision is made on the counts, and the lines
+ * are there for the row nobody believes.
+ */
+.imp { max-width: 56rem; width: 92vw; }
+.imp-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); }
+.imp-drop {
+  display: flex; align-items: center; gap: var(--s3);
+  margin: var(--s4) 0; padding: var(--s5);
+  border: 1px dashed var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface-sunk); cursor: pointer; color: var(--ink-mid);
+}
+.imp-drop:hover { border-color: var(--ink-faint); background: var(--hover); }
+.imp-drop input { display: none; }
+.imp-counts { margin: var(--s4) 0; }
+.imp-lines { max-height: 22rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); }

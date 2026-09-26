@@ -13,6 +13,8 @@ import PatientForm from "../components/PatientForm";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import ExportButton from "../components/ExportButton";
+import ImportPatients from "../components/ImportPatients";
+import { UploadSimple } from "@phosphor-icons/react";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -48,6 +50,7 @@ export default function Patients() {
   const [aids, setAids] = useState<MedicalAid[]>([]);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Patient | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const toast = useToast();
@@ -112,7 +115,16 @@ export default function Patients() {
         // The list leaves as a spreadsheet: a recall list, a mail merge for a
         // scheme's annual renewal, and the migration off this system if they
         // ever go. The last one is why it carries everything.
-        take={<ExportButton dataset="patients" label="Spreadsheet" />}
+        // Work arriving from outside. A pharmacy joining this system has its
+        // patients in the one it is leaving, or in a spreadsheet somebody has
+        // kept for nine years, and typing four thousand of them in is not a
+        // migration plan, it is a reason to stay where they are.
+        bring={
+          <button className="btn secondary" onClick={() => setImporting(true)}>
+            <UploadSimple size={14} /> Import
+          </button>
+        }
+        take={<ExportButton dataset="patients" label="Export" />}
         // What somebody walking up to this screen in a hurry is here to do.
         primary={<button onClick={openNew}>New patient</button>}
       />
@@ -228,6 +240,9 @@ export default function Patients() {
         )}
       </div>
 
+      {importing && (
+        <ImportPatients onClose={() => setImporting(false)} onDone={load} />
+      )}
       {showForm && (
         <PatientForm
           open={showForm}
