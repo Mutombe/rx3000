@@ -115,6 +115,25 @@ for (const route of ROUTES) {
   // what is measured is what a person actually sees.
   await page.evaluate(() => document.fonts.ready);
   // Rows arrive after the shell; a skeleton has nothing to clip.
+  //
+  // AND THE SERVER HAS TO BE WARM. READ THIS BEFORE COMPARING TWO RUNS.
+  //
+  // 1400ms is enough against a dev server whose module graph is already built.
+  // It is not enough against a cold one, and the difference is invisible in
+  // the output: a screen measured mid-compile reports its columns as "column
+  // 1", "column 2" — no header text, because the header is still a skeleton —
+  // and those measurements are of the skeleton rather than of the table.
+  //
+  // This cost an hour. Comparing a branch against `git stash` gave six screens
+  // that looked newly broken, including two the commit had not touched at all:
+  // the stash made vite rebuild, and the run started before it had. The same
+  // happened again with a second dev server on a fresh worktree, which reported
+  // first nothing and then a page of "column N" findings from the same code.
+  //
+  // So: a before-and-after comparison is only worth anything if BOTH servers
+  // have already served every route once. A finding whose column is named
+  // "column N" rather than by its heading is a cold-server artefact, not a
+  // clipped cell.
   await page.waitForTimeout(1400);
   // And one more frame, so the relayout the swap caused has happened.
   await page.evaluate(() => new Promise(requestAnimationFrame));

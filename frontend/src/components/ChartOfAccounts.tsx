@@ -25,6 +25,7 @@ import Checkbox from "./Checkbox";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
 import Select from "./Select";
 import { Refreshable, TableSkeleton } from "./Skeleton";
+import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Th from "./Th";
@@ -254,6 +255,13 @@ export default function ChartOfAccounts() {
                   </tr>
                 </thead>
                 <tbody>
+                  {shown.filter((a) => a.section === g.section).length === 0 && (
+                    <EmptyRow cols={6} title={`No ${g.section.toLowerCase()} accounts`}>
+                      This section of the chart is empty. Nothing posts to it until an
+                      account exists here, so a figure you expect on the statements will
+                      be missing rather than nought.
+                    </EmptyRow>
+                  )}
                   {shown.filter((a) => a.section === g.section).map((a) => (
                     <tr key={accounts.stateOf(a) === "settled" ? a.code : `pending-${a.code}`}
                         className={[

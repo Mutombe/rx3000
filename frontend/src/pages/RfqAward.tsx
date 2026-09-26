@@ -26,6 +26,7 @@ import { useState } from "react";
 
 import { errorText, fmtDateTime, money } from "../api";
 import BusyButton from "../components/BusyButton";
+import { EmptyRow } from "../components/Empty";
 import Th from "../components/Th";
 
 export interface DearerLine {
@@ -204,6 +205,11 @@ export function WhyNotCheapest({ dearer, onClose, onSaid }: {
               </tr>
             </thead>
             <tbody>
+              {dearer.length === 0 && (
+                <EmptyRow cols={4} title="The cheapest quote won every line">
+                  Nothing on this award costs more than it had to.
+                </EmptyRow>
+              )}
               {dearer.map((d) => (
                 <tr key={d.rfq_line_id}>
                   <td>{d.product}</td>

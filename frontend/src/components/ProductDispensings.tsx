@@ -71,7 +71,7 @@ export default function ProductDispensings({ productId }: { productId: number })
 
   return (
     <>
-      <p className="muted small pd-note">
+      <p className="muted small">
         Every time this medicine was handed over, newest first. The same record
         the dispensing history screen shows, asked about one line.
       </p>

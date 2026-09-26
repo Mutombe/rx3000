@@ -59,7 +59,7 @@ function SkeletonTable({ tab }: { tab: Tab }) {
       </thead>
       <tbody>
         {Array.from({ length: 8 }).map((_, r) => (
-          <tr key={r} className="is-skel">
+          <tr key={r}>
             {shape.widths.map((w, i) => (
               <td key={i} className={shape.num.includes(i) ? "num" : undefined}>
                 <span className="skel" style={{ width: w }} />

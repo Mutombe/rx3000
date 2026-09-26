@@ -474,7 +474,7 @@ export default function ProductDetail() {
 
       {tab === "pricing" && (
         <>
-          <p className="muted small pd-note">
+          <p className="muted small">
             Cost and selling on one timeline, because the margin between them
             can only be read that way. A figure that did not move leaves no
             row, so saving the product screen after correcting a spelling does
@@ -543,7 +543,7 @@ export default function ProductDetail() {
               </div>
             </section>
           )}
-          <p className="muted small pd-note">
+          <p className="muted small">
             Ordered newest first rather than by arrival, because an order that
             has not arrived is the interesting one when a shelf is empty.
           </p>

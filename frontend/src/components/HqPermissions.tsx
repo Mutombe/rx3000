@@ -23,6 +23,7 @@ import Checkbox from "./Checkbox";
 import Select from "./Select";
 import { TableSkeleton } from "./Skeleton";
 import { useConfirm } from "./Confirm";
+import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { useOptimisticList, rowClass } from "../hooks/useOptimisticList";
 import Th from "./Th";
@@ -214,6 +215,14 @@ export default function HqPermissions() {
                 <tr><Th>Can they</Th><Th>Answer</Th><Th>Why</Th></tr>
               </thead>
               <tbody>
+                {detail.capabilities.length === 0 && (
+                  <EmptyRow cols={3} title="No capabilities are defined here">
+                    This answers what a person may do by listing every capability and
+                    the reason for each answer. With none defined there is nothing to
+                    answer, which is a setup matter rather than a person with no
+                    access.
+                  </EmptyRow>
+                )}
                 {detail.capabilities.map((c) => (
                   <tr key={c.capability}>
                     <td>

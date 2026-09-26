@@ -28,6 +28,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, errorText } from "../api";
 import { Panel } from "./RecordPage";
+import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { useSession } from "../session";
 import Th from "./Th";
@@ -136,6 +137,18 @@ export default function RoleMatrix() {
             </tr>
           </thead>
           <tbody>
+            {/* A LOAD THAT FAILED LOOKS EXACTLY LIKE THIS.
+                `.catch(() => setRows([]))` above means a refused request and an
+                empty matrix render identically, and a permissions screen that
+                silently shows nothing is one somebody trusts. */}
+            {rows.length === 0 && (
+              <EmptyRow cols={roles.length + 1}
+                        title="The permission matrix could not be read">
+                Either no capabilities are defined for this pharmacy, or the list
+                could not be fetched. Reload the screen; if it stays empty, whoever
+                administers this installation needs to look at the roles.
+              </EmptyRow>
+            )}
             {rows.map((row) => (
               <tr key={row.capability}>
                 <th scope="row">

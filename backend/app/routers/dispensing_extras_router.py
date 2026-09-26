@@ -938,16 +938,42 @@ def export(
         # the one a pharmacist reaches for when somebody asks what a patient
         # was given in March, so it carries who checked it as well as what it
         # was.
+        #
+        # AND THE FOUR FACTS, BECAUSE THIS IS WHERE A CLAIM IS ARGUED FROM.
+        #
+        # How it reached them, how it was paid, whether it was signed for and
+        # what they thought of it were added to the dispensing record, to the
+        # history screen, to the patient's portal and to two reports, and then
+        # stopped at the one place the argument actually happens. A funder
+        # disputing a delivery is not shown a screen; they are sent a file, and
+        # a file that cannot say "signed for at the door" loses the dispute.
+        #
+        # Said in words rather than in the stored code: `will_call` and
+        # `mobile_money` are how this system spells them, not how a person
+        # reads them, and nobody receiving this sheet has our code book.
+        #
+        # Whether there IS a signature rather than the signature itself. It is
+        # a data URI several kilobytes long, it is shown and never sorted, and
+        # a column of them would make the sheet unreadable and enormous. The
+        # waybill's own screen is where the mark is looked at.
         from ..models import Dispensing, PrescriptionItem
+        listed = (db.query(Dispensing)
+                  .options(joinedload(Dispensing.prescription_item)
+                           .joinedload(PrescriptionItem.product),
+                           joinedload(Dispensing.prescription_item)
+                           .joinedload(PrescriptionItem.prescription)
+                           .joinedload(Prescription.patient),
+                           joinedload(Dispensing.dispensed_by))
+                  .order_by(Dispensing.dispensed_at.desc()).limit(10000).all())
+        # Which sales were signed for, in one query rather than one a row. Ten
+        # thousand rows against a hosted database is ten thousand round trips
+        # otherwise, which is a download that times out rather than arrives.
+        signed = {sale_id for (sale_id,) in
+                  db.query(Waybill.sale_id)
+                    .filter(Waybill.sale_id.isnot(None),
+                            Waybill.signature != "").all()}
         rows = []
-        for d in (db.query(Dispensing)
-                    .options(joinedload(Dispensing.prescription_item)
-                             .joinedload(PrescriptionItem.product),
-                             joinedload(Dispensing.prescription_item)
-                             .joinedload(PrescriptionItem.prescription)
-                             .joinedload(Prescription.patient),
-                             joinedload(Dispensing.dispensed_by))
-                    .order_by(Dispensing.dispensed_at.desc()).limit(10000).all()):
+        for d in listed:
             item = d.prescription_item
             rx = item.prescription if item else None
             rows.append({
@@ -958,7 +984,13 @@ def export(
                 "medicine": item.product.name if item and item.product else "",
                 "quantity": d.quantity, "schedule": d.schedule,
                 "dispensed_by": d.dispensed_by.full_name if d.dispensed_by else "",
-                "supplied": d.supply_type, "paid_by": d.payment_type,
+                "how_it_reached_them": supply_facts.SUPPLY_SAID.get(
+                    d.supply_type or "", "Not recorded"),
+                "how_it_was_paid": supply_facts.PAYMENT_SAID.get(
+                    d.payment_type or "", "Not recorded"),
+                "signed_for": "Yes" if d.sale_id in signed else "",
+                "rating": f"{d.rating} of 5" if d.rating else "",
+                "what_they_said": d.review_note or "",
                 "collected": d.collected_at, "collected_by": d.collected_name,
             })
     elif dataset == "will-call":

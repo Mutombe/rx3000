@@ -200,7 +200,7 @@ export default function LabelSheet({
               {/* Said before anybody presses Print, not discovered on the roll:
                   which box will be left without a sticker, and why. */}
               {held.length > 0 && (
-                <div className="alert warn lbl-held">
+                <div className="alert warn">
                   <b>{held.length === 1 ? "One label won't print." : `${held.length} labels won't print.`}</b>
                   <ul>
                     {held.map((h) => (

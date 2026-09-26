@@ -181,7 +181,7 @@ export default function NewMedicine({ draft, onClose, onAdded, onRefused }: {
     <div className="modal-backdrop" role="dialog" aria-modal="true"
          aria-label="Add a medicine"
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <form className="modal modal-wide patient-form med-form" onSubmit={save}
+      <form className="modal modal-wide patient-form" onSubmit={save}
             onClick={(e) => e.stopPropagation()}>
         <h2>New medicine</h2>
         <p className="muted med-sub">

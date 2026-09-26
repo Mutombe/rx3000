@@ -26,6 +26,7 @@ import { ArrowCounterClockwise, CloudArrowUp, DownloadSimple, Warning }
   from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import RecordPage, { Fact, Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import Th from "../components/Th";
@@ -188,9 +189,10 @@ export default function ComplianceDocument() {
             <CloudArrowUp size={15} /> Record a renewal
           </Link>
           {doc.active && (
-            <button className="btn ghost" onClick={retire}>
+            <BusyButton className="btn ghost" onClick={retire}
+                        busyLabel="Taking it off…">
               Take off the register
-            </button>
+            </BusyButton>
           )}
         </>
       ) : undefined}

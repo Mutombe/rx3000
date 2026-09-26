@@ -24,6 +24,7 @@ import { api, errorText, fmtDate, fmtDateTime, money } from "../api";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { EntityLink } from "../components/Filters";
+import { EmptyRow } from "../components/Empty";
 import Th from "../components/Th";
 
 interface Branch {
@@ -243,12 +244,6 @@ export default function BranchDetail() {
             </div>
           )}
 
-          {!loading && docs.length === 0 && (
-            <p className="muted">
-              Nothing is on file for this branch. The premises licence and the
-              practice certificate are the two an inspector asks for first.
-            </p>
-          )}
           <Refreshable
             loading={loading}
             hasData={docs.length > 0}
@@ -263,6 +258,12 @@ export default function BranchDetail() {
                   </tr>
                 </thead>
                 <tbody>
+                  {docs.length === 0 && (
+                    <EmptyRow cols={5} title="Nothing is on file for this branch">
+                      The premises licence and the practice certificate are the
+                      two an inspector asks for first.
+                    </EmptyRow>
+                  )}
                   {docs.map((d) => {
                     const s = standing(d);
                     return (
@@ -302,9 +303,6 @@ export default function BranchDetail() {
       {/* ---- what is on its shelves ---- */}
       <section className="card">
         <h3><Package size={15} /> On these shelves</h3>
-        {!loading && lines.length === 0 && (
-          <p className="muted">Nothing is held at this branch.</p>
-        )}
         {shelf && shelf.below_reorder > 0 && (
           <p className="muted small">
             {shelf.below_reorder} line(s) here are at or below their reorder level.
@@ -326,6 +324,12 @@ export default function BranchDetail() {
                 </tr>
               </thead>
               <tbody>
+                {lines.length === 0 && (
+                  <EmptyRow cols={4} title="Nothing is held at this branch">
+                    Stock arrives here when a delivery is booked in against it
+                    or a transfer is sent to it from another shop.
+                  </EmptyRow>
+                )}
                 {lines.slice(0, 25).map((row) => (
                   <tr key={row.product_id} className={row.below_reorder ? "row-flag" : undefined}>
                     <td>

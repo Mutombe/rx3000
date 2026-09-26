@@ -15,6 +15,7 @@
  */
 import { useEffect, useState } from "react";
 import { api, errorText, money } from "../api";
+import { EmptyRow } from "./Empty";
 import { TableSkeleton } from "./Skeleton";
 
 interface Line { label: string; amount: number; note?: string }
@@ -83,6 +84,15 @@ export default function CashFlow() {
                 ))}
               </tbody>
             ))}
+            {data.sections.length === 0 && (
+              <tbody>
+                <EmptyRow cols={2} title="No cash moved in this period">
+                  Nothing has been posted up to this date, so there is no
+                  movement to show between the opening and closing balances
+                  below. A date before the books were opened does this too.
+                </EmptyRow>
+              </tbody>
+            )}
             <tfoot>
               <tr>
                 <td>Cash at {data.from}</td>

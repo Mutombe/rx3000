@@ -11,6 +11,7 @@ import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import { EntityLink } from "../components/Filters";
 import RecordPage, { Panel } from "../components/RecordPage";
+import BusyButton from "../components/BusyButton";
 import { useToast } from "../components/Toast";
 import { useParams } from "react-router-dom";
 import Th from "../components/Th";
@@ -173,9 +174,10 @@ export default function SupplierDetail() {
               This lets the wholesaler answer it once, in writing, on their
               own link, and the answer lands beside the order instead of on
               somebody's scrap of paper. */}
-          <button className="btn secondary" onClick={portalLink}>
-            <LinkSimple size={15} /> Their order link
-          </button>
+          <BusyButton className="btn secondary" onClick={portalLink}
+                      icon={LinkSimple} iconSize={15} busyLabel="Making it…">
+            Their order link
+          </BusyButton>
           <button className="btn secondary" onClick={printStatement} disabled={printing}>
             <Printer size={15} /> {printing ? "Preparing…" : "Statement"}
           </button>

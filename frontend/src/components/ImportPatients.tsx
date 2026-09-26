@@ -18,12 +18,20 @@ import { useState } from "react";
 import { UploadSimple, X } from "@phosphor-icons/react";
 import { api, errorText } from "../api";
 import BusyButton from "./BusyButton";
+import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 
-interface Line { row: number; what: string; who: string; why: string }
+interface Line {
+  row: number; what: string; who: string; why: string;
+  /** No identity number, so a second import would make a second copy. */
+  unchecked?: boolean;
+  /** The date of birth in the file could not be read, so this row arrives
+   *  without one. */
+  no_date?: boolean;
+}
 interface Plan {
   applied: boolean; rows: number; new: number; already: number;
-  skipped: number; unchecked: number; plan: Line[];
+  skipped: number; unchecked: number; no_date: number; plan: Line[];
 }
 
 export default function ImportPatients({ onClose, onDone }: {
@@ -111,12 +119,35 @@ export default function ImportPatients({ onClose, onDone }: {
               <div className={`wl-stat${plan.unchecked ? " wc-stale" : ""}`}>
                 <b>{plan.unchecked}</b><span>cannot be checked for duplicates</span>
               </div>
+              {/* AND THE ONE THAT USED TO HAPPEN IN SILENCE.
+                  A date the reader will not guess at — 03/04 is April here and
+                  March elsewhere — was dropped without a word, so a list came
+                  in and a few hundred people had no date of birth and nothing
+                  had said so. A preview that does not mention what it is about
+                  to lose is not a preview. */}
+              <div className={`wl-stat${plan.no_date ? " wc-stale" : ""}`}>
+                <b>{plan.no_date}</b><span>arriving with no date of birth</span>
+              </div>
             </div>
 
             <div className="imp-lines">
               <table className="dt">
                 <thead><tr><th>Row</th><th>Who</th><th>What happens</th></tr></thead>
                 <tbody>
+                  {/* A FILE THAT READ AS NOTHING IS THE COMMONEST WAY THIS
+                      GOES WRONG, AND IT LOOKED LIKE A BROKEN SCREEN.
+                      A workbook whose first sheet is a cover page, or a CSV
+                      exported with the header two rows down, produces no rows
+                      and a table header above a void. The counts above all say
+                      nought, which is true and answers nothing. */}
+                  {plan.plan.length === 0 && (
+                    <EmptyRow cols={3} title="Nothing in this file read as a patient">
+                      Every row was blank, or the column names are on a
+                      different row from the one that was read. A workbook is
+                      read from its first sheet, and the first row of that
+                      sheet has to be the column names.
+                    </EmptyRow>
+                  )}
                   {plan.plan.map((l) => (
                     <tr key={l.row}>
                       <td className="mono">{l.row}</td>

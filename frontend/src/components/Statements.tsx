@@ -21,6 +21,7 @@ import { Printer } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, money } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
+import { EmptyRow } from "./Empty";
 import { TableSkeleton } from "./Skeleton";
 import Checkbox from "./Checkbox";
 
@@ -254,6 +255,20 @@ export default function Statements({ kind }: { kind: "income" | "balance" }) {
         <>
           <table className="st-table">
             <SectionRows sections={data.sections} />
+            {data.sections.length === 0 && (
+              <tbody>
+                <EmptyRow cols={2}
+                          title={hideZero
+                            ? "Every section on this statement is nought"
+                            : "Nothing has been posted up to this date"}>
+                  {hideZero
+                    ? "Hide empty sections is on, and there is nothing else to "
+                      + "show. Untick it to see the headings with their noughts."
+                    : "A statement is drawn from the ledger, and nothing has "
+                      + "reached it yet for this period."}
+                </EmptyRow>
+              </tbody>
+            )}
             <tfoot>
               {kind === "income" && income && (
                 <>

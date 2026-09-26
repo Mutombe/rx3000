@@ -1,5 +1,6 @@
 import logging
-from datetime import datetime, timedelta
+import re
+from datetime import date, datetime, timedelta
 
 from fastapi import (APIRouter, Body, Depends, File, Form, HTTPException,
                      UploadFile)
@@ -494,17 +495,33 @@ async def import_patients(
         # copy of this person. Said in the preview, where somebody can still
         # do something about it, rather than discovered afterwards in a list
         # with two of everybody.
+        unchecked = not ident
+        said = ["No identity number, so this one cannot be checked against the "
+                "list. Importing this file again would add them a second time."
+                ] if unchecked else []
+
+        # THE DATE IS READ DURING THE PREVIEW, NOT ONLY WHEN WRITING.
+        #
+        # It used to be parsed inside the `if apply` below, so a date the
+        # parser refused was dropped and the preview — the one screen whose
+        # job is to say what WOULD happen — never mentioned it. Somebody
+        # imported four thousand patients, three hundred of them arrived with
+        # no date of birth, and nothing anywhere had said so.
+        born, why_not = _a_date(_pick(row, "date_of_birth"))
+        if why_not:
+            said.append(why_not)
+
         plan.append({"row": n, "what": "new patient", "who": who,
-                     "why": "" if ident else
-                            "No identity number, so this one cannot be checked "
-                            "against the list. Importing this file again would "
-                            "add them a second time."})
+                     "why": " ".join(said),
+                     # Kept apart from the sentence, because the count above is
+                     # about duplicates and the sentence now carries dates too.
+                     "unchecked": unchecked,
+                     "no_date": bool(why_not)})
         if apply:
             aid = aids.get(_pick(row, "medical_aid").strip().lower())
-            born = _pick(row, "date_of_birth")
             db.add(Patient(
                 first_name=first, last_name=last, id_number=ident,
-                date_of_birth=_a_date(born), phone=_pick(row, "phone"),
+                date_of_birth=born, phone=_pick(row, "phone"),
                 email=_pick(row, "email"), address=_pick(row, "address"),
                 allergies=_pick(row, "allergies"),
                 chronic_conditions=_pick(row, "chronic_conditions"),
@@ -524,29 +541,102 @@ async def import_patients(
         "new": sum(1 for p in plan if p["what"] == "new patient"),
         "already": sum(1 for p in plan if p["what"] == "already on file"),
         "skipped": sum(1 for p in plan if p["what"] == "skipped"),
-        "unchecked": sum(1 for p in plan
-                         if p["what"] == "new patient" and p["why"]),
+        "unchecked": sum(1 for p in plan if p.get("unchecked")),
+        # Rows that will arrive without a date of birth because the one in the
+        # file could not be read. Counted separately: it is a different problem
+        # with a different fix, and both are worth knowing before pressing.
+        "no_date": sum(1 for p in plan if p.get("no_date")),
         # The whole plan, not a sample. Somebody about to write four thousand
         # records is entitled to read all four thousand lines first.
         "plan": plan,
     }
 
 
-def _a_date(said: str):
-    """A date written however the other system wrote it, or nothing.
+def _a_date(said: str) -> tuple[object, str]:
+    """A date written however the other system wrote it, and what was refused.
 
-    Deliberately refuses rather than guesses between 03/04 and 04/03: a date of
-    birth six months out is worse than a blank one, because a blank is asked
-    about and a wrong one is trusted.
+    Returns the date, or None and a sentence saying why not. The sentence is
+    the point: the first version of this returned None on its own, so a date it
+    could not read was dropped in silence — in a preview whose entire job is to
+    say what WOULD happen. A record arriving with no date of birth, and nothing
+    anywhere saying one was thrown away, is the worst of the three outcomes.
+
+    WHAT IT REFUSES, AND WHAT IT STOPPED REFUSING.
+
+    03/04/1990 is refused, because it is April in one country and March in
+    another and a date of birth six months out is worse than a blank one: a
+    blank is asked about and a wrong one is trusted.
+
+    25/12/1985 is NOT refused. The first version refused it too, which was
+    over-refusal dressed up as caution: twenty-five cannot be a month, so
+    there is only one reading, and a pharmacy in Harare writes most of its
+    dates that way. Refusing those would have quietly dropped the date of
+    birth on the majority of every list imported here.
+
+    A two-digit year is refused. '65 is 1965 to a person and 2065 to a
+    computer, and the computer cannot be told which by looking.
     """
-    from datetime import date as _date
+    # What a spreadsheet hands back when the cell held a real date. openpyxl
+    # gives a datetime, and stringifying that to re-parse it is how a perfectly
+    # good date becomes a refused one. Checked before anything is stripped,
+    # because a datetime has nothing to strip.
+    if isinstance(said, datetime):
+        return said.date(), ""
+    if isinstance(said, date):
+        return said, ""
 
     said = (said or "").strip()
     if not said:
-        return None
-    for shape in ("%Y-%m-%d", "%d %b %Y", "%d %B %Y"):
+        return None, ""
+
+    # No two-figure-year shapes here on purpose: `%d %b %y` reads "01 Jan 65"
+    # as 2065, which is the guess this function exists to refuse.
+    for shape in ("%Y-%m-%d", "%d %b %Y", "%d %B %Y", "%B %d, %Y"):
         try:
-            return datetime.strptime(said, shape).date()
+            return datetime.strptime(said, shape).date(), ""
         except ValueError:
             continue
-    return None
+
+    parts = re.split(r"[/.\-\s]+", said.strip())
+    if len(parts) == 3 and all(p.isdigit() for p in parts):
+        a, b, c = (int(p) for p in parts)
+        if len(parts[0]) == 4:                      # 1985/12/25, unambiguous
+            year, first, second = a, b, c
+        elif len(parts[2]) == 4:
+            year, first, second = c, a, b
+        else:
+            return None, (f"\"{said}\" has a two-figure year, which is 1965 to "
+                          f"a person and 2065 to a computer. Written with four "
+                          f"figures it reads straight in.")
+        if len(parts[0]) == 4:
+            day, month = second, first
+        elif first > 12 and second <= 12:
+            day, month = first, second              # 25/12 can only be d/m
+        elif second > 12 and first <= 12:
+            day, month = second, first              # 12/25 can only be m/d
+        elif first == second:
+            day, month = first, second              # 03/03 reads the same way
+        else:
+            # THE ADVICE MUST NOT TAKE THE SIDE THE CHECK REFUSES TO TAKE.
+            #
+            # This used to end "Written as 1990-03-04 it reads straight in",
+            # built by putting the two figures back in the order they arrived.
+            # For 03/04/1990 that names the fourth of March — which is the m/d
+            # reading, chosen silently, by the very function whose whole
+            # purpose is to refuse to choose. Somebody following that advice
+            # would have written down a date six months out and believed the
+            # software had checked it.
+            #
+            # So the sentence teaches the shape and says what the shape means,
+            # and leaves the day to the person who has the file.
+            return None, (f"\"{said}\" could be either day and month order, so "
+                          f"it has been left blank rather than guessed at. "
+                          f"Year, then month, then day is read the same way "
+                          f"everywhere: {year}-04-03 is the third of April.")
+        try:
+            return date(year, month, day), ""
+        except ValueError:
+            return None, f"\"{said}\" is not a date that exists."
+
+    return None, (f"\"{said}\" could not be read as a date. Year, month and day "
+                  f"separated by hyphens is understood everywhere.")

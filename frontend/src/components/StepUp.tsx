@@ -425,7 +425,7 @@ export default function StepUp({ action, context = "", onGranted, onCancel }: Pr
              that is typing. It was a default height field under a small label:
              the same dialog asking for the same thing, and one of the two
              looked like an afterthought. */
-          <div className="su-pin su-pass">
+          <div className="su-pin">
             <span className="su-pin-label">
               {needsSecondPerson ? "Approver's password" : "Your password"}
             </span>

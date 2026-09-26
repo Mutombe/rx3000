@@ -14,7 +14,11 @@ import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import ExportButton from "../components/ExportButton";
 import ImportPatients from "../components/ImportPatients";
-import { UploadSimple } from "@phosphor-icons/react";
+import { ChatCircleText, UploadSimple } from "@phosphor-icons/react";
+import BulkBar, { SelectAll, SelectRow } from "../components/BulkBar";
+import { useSelection } from "../hooks/useSelection";
+import MessageThese from "../components/MessageThese";
+import { EmptyRow } from "../components/Empty";
 
 const EMPTY = {
   first_name: "", last_name: "", id_number: "", date_of_birth: "",
@@ -106,6 +110,21 @@ export default function Patients() {
   }
 
 
+  /* WHY SELECTION BELONGS HERE AND NOT ON A SEGMENT SCREEN.
+   *
+   * Patient Adherence composes to a segment: everybody on a scheme, everybody
+   * with a birthday this month. That is right for a campaign and wrong for the
+   * thing a pharmacy needs at four o'clock, which is "these eleven" — the ones
+   * somebody has just been reading about and recognised by name. No segment
+   * can express eleven people picked out by eye, so the ticking has to be on
+   * the list where the recognising happens.
+   *
+   * Ticked rows that leave the list are dropped by the hook, which matters
+   * here more than anywhere: this list is paged by the server, so without it
+   * a message would go to a page somebody scrolled past. */
+  const picked = useSelection(patients, (row) => row.id);
+  const [messaging, setMessaging] = useState(false);
+
   return (
     <>
       <PageHead
@@ -157,21 +176,38 @@ export default function Patients() {
           loading={loading}
           hasData={patients.length > 0}
           skeleton={
-            <TableSkeleton cols={7} rows={9} rowHeight={70}
-              widths={["22ch", "14ch", "16ch", "16ch", "14ch", "8ch", "10ch"]} />
+            <TableSkeleton cols={8} rows={9} rowHeight={70}
+              widths={["3ch", "22ch", "14ch", "16ch", "16ch", "14ch", "8ch", "10ch"]} />
           }
         >
         <div className="dt-scroll">
           <table className="dt">
             <thead>
               <tr>
+                <SelectAll checked={picked.allChosen} onChange={picked.all} />
                 <Th>Patient</Th><Th>ID Number</Th><Th>Contact</Th><Th>Medical Aid</Th>
                 <Th>Allergies</Th><Th className="num">Loyalty</Th><th className="actions" />
               </tr>
             </thead>
             <tbody>
+              {/* Inside the table, so the columns stay above it. It used to be
+                  a block underneath, which left a header row over a void with
+                  a sentence below it — and that reads as a screen that failed
+                  rather than as a search with no answer. */}
+              {!loading && patients.length === 0 && (
+                <EmptyRow cols={8}
+                          title={q.trim() || view
+                            ? "No patient matches that"
+                            : "No patients are on file yet"}>
+                  {q.trim() || view
+                    ? "Clear the search, or choose Everyone above, to see the whole list."
+                    : "Add the first one, or bring an existing list in from the system you are leaving."}
+                </EmptyRow>
+              )}
               {patients.map((p) => (
                 <RowLink key={p.id} to={`/patients/${p.id}`} prefetch={prefetchRoute}>
+                  <SelectRow checked={picked.has(p.id)}
+                             onChange={() => picked.toggle(p.id)} />
                   {/* The name was the cell making rows ragged: "Probe 02872A,
                       Allergy…" wrapped to four lines and took its row from 66px to
                       86px. Two clipped lines, each with the full value on hover. */}
@@ -232,13 +268,39 @@ export default function Patients() {
             />
           )}
         </Refreshable>
-        {/* Only once the search has actually answered. "No patients found" on
-            the first paint tells somebody their patient is not on file, a
-            moment before the file appears. */}
-        {!loading && patients.length === 0 && (
-          <div className="empty">No patients found</div>
-        )}
       </div>
+
+      {/* WHAT A PHARMACY DOES WITH A HANDFUL OF PATIENTS IT HAS PICKED OUT.
+          Tells them something. A recall that is not a batch recall, a scheme
+          changing its rules, the shop shutting on Monday for a stock take.
+          Every one of those is a list somebody reads down and recognises, and
+          until now it was a list they wrote on paper and rang one at a time. */}
+      <BulkBar count={picked.count} noun="patient" onClear={picked.clear}>
+        <button className="btn primary sm" onClick={() => setMessaging(true)}>
+          <ChatCircleText size={13} /> Message them
+        </button>
+        {/* Said before the message is written, not after it is sent: a number
+            that cannot be reached is a person somebody still has to telephone,
+            and that is worth knowing while the list is still on screen. */}
+        {picked.rows.some((row) => !row.phone?.trim()) && (
+          <span className="bulk-count">
+            <b>{picked.rows.filter((row) => !row.phone?.trim()).length}</b>{" "}
+            with no number
+          </span>
+        )}
+      </BulkBar>
+
+      {messaging && (
+        <MessageThese
+          people={picked.rows.map((row) => ({
+            id: row.id,
+            name: `${row.first_name} ${row.last_name}`.trim(),
+            phone: row.phone ?? "",
+          }))}
+          onClose={() => setMessaging(false)}
+          onSent={() => picked.clear()}
+        />
+      )}
 
       {importing && (
         <ImportPatients onClose={() => setImporting(false)} onDone={load} />

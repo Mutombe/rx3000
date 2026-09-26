@@ -40,6 +40,7 @@ import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
+import { EmptyRow } from "../components/Empty";
 import Th from "../components/Th";
 
 interface Doc {
@@ -272,6 +273,16 @@ export default function Compliance() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* A group with no branches on it is a deployment that has not been set
+                      up rather than one that is compliant, and a blank table under a
+                      heading reads as the second. */}
+                  {overview.branches.length === 0 && (
+                    <EmptyRow cols={6} title="No branches are set up yet">
+                      A licence belongs to premises, so there is nothing to hold one
+                      until a branch exists. Add the shop on the Branches screen and its
+                      register appears here.
+                    </EmptyRow>
+                  )}
                   {overview.branches.map((b) => (
                     // A plain row, not a RowLink: this opens the branch's
                     // register below rather than navigating, so somebody
@@ -369,6 +380,16 @@ export default function Compliance() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* This register lists what the branch SHOULD hold as well as what it
+                      does, so empty means the expected set itself is empty. That is a
+                      setup answer, not a clean bill of health. */}
+                  {docs.items.length === 0 && (
+                    <EmptyRow cols={6} title="Nothing is expected of this branch yet">
+                      The list of what a pharmacy must hold to trade is kept on the
+                      Control Panel. Until something is on it, this register cannot tell
+                      you whether the branch is covered.
+                    </EmptyRow>
+                  )}
                   {docs.items.map((d) => (
                     <tr key={d.kind}
                         className={[

@@ -101,6 +101,16 @@ MUST_WAIT = {
 #: Writes that are deliberately invisible, with the reason each one is. These
 #: are not oversights: showing them would be the fault.
 QUIET = {
+    "pages/Pipeline.tsx":
+        "both writes are already answered by the screen rather than by the "
+        "button: dragging a deal moves the card on the click and puts it back "
+        "if the server refuses, and saving a new deal closes the form first "
+        "and lets the list it appears in be the confirmation",
+    "components/ScannerHub.tsx":
+        "the hub is a provider with no buttons of its own. It hands `asking` "
+        "to whoever draws one, and ScannerChip disables the control while a "
+        "pairing code is being made. The feedback is real and this file "
+        "cannot see it",
     "components/ScriptTotals.tsx":
         "a pricing figure that cannot be worked out must not stop anybody "
         "dispensing, so it simply does not appear",
@@ -111,7 +121,13 @@ QUIET = {
 
 #: What the sweep has reached. It comes down as screens are done; a rise means
 #: a new screen was written that writes without saying so.
-CEILING = 5
+#:
+#: Nought. Every write in the product now answers the press, and the two that
+#: answer it somewhere this file cannot see are named in QUIET above with the
+#: reason. Five fell to nought by fixing three screens — the certificate coming
+#: off a register, a wholesaler's order link being minted, and both actions on
+#: held stock — and by writing down why the other two were never faults.
+CEILING = 0
 
 
 def main() -> int:
@@ -160,6 +176,12 @@ def main() -> int:
         print(f"\n  Fewer than the ceiling of {CEILING}. Lower CEILING to "
               f"{len(silent)} so it cannot climb back.")
         return 1
+    if not silent:
+        # The sweep is finished, so this is a ratchet rather than a worklist.
+        print("\n  Every write in the product answers the press. The two that "
+              "answer it\n  somewhere this file cannot see are named in QUIET, "
+              "with the reason.")
+        return 0
     print("\n  Held at the ceiling. Every one of these is a screen where "
           "pressing a\n  button that writes shows nothing until the server "
           "answers.")

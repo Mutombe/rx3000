@@ -3199,7 +3199,7 @@ export default function Dispense() {
     return (
       <>
         <PageHead title="Dispensary" sub="Nothing on this screen is yours to use" />
-        <div className="card empty-state">
+        <div className="card empty">
           <p>
             Your account carries none of the dispensing permissions, so there
             is nothing here you could hand over. That is a setting, not a
@@ -3275,7 +3275,7 @@ export default function Dispense() {
               it, before anything has gone out (cancel). Only on a saved script;
               a new capture is cleared with New script. */}
           {fromRx && !fromRx.draft && (
-            <button className="btn secondary disp-cancel-open"
+            <button className="btn secondary"
                     disabled={!mayCancelScript}
                     title={mayCancelScript
                       ? "Take this script off the worklist, with the reason"
@@ -3490,12 +3490,12 @@ export default function Dispense() {
                                   onAdd={addDueRepeat} variant="icon"
                                   onOpen={() => setLaneOpen("repeats")} />
                     )}
-                    <button type="button" className="lane-tool is-history"
+                    <button type="button" className="lane-tool"
                             title="Prescription history" aria-label="Prescription history"
                             onClick={() => setLaneOpen("history")}>
                       <ClockCounterClockwise size={17} />
                     </button>
-                    <button type="button" className="lane-tool is-details"
+                    <button type="button" className="lane-tool"
                             title="Patient details" aria-label="Patient details"
                             onClick={() => setLaneOpen("details")}>
                       <IdentificationCard size={17} />
@@ -3838,7 +3838,7 @@ export default function Dispense() {
                                 margin it should make, and whether it outlives
                                 this script. A field here and a dialog on the
                                 table would be two rules for one act. */}
-                            <div className="field ed-price">
+                            <div className="field">
                               <label>Price each</label>
                               <div className="ed-price-row">
                                 <button type="button" className="btn secondary small"
@@ -4776,7 +4776,7 @@ ${d.action}`}
                         )}
 
                         {expiryNeeded.length > 0 && (
-                          <section className="fin-group fin-expiry" id="finish-expiry">
+                          <section className="fin-group" id="finish-expiry">
                             <h4>Expiry from the pack</h4>
                             <p className="fin-note">
                               This stock came in with no expiry date recorded. Enter the date
@@ -4940,7 +4940,7 @@ ${d.action}`}
                       </div>
                     ) : (
                       <div className={`fin-grid${needsCompliance ? " is-three" : ""}`}>
-                        <section className="finish-sec fin-pay" id="finish-pay">
+                        <section className="finish-sec" id="finish-pay">
                           <h4>How it is paid</h4>
                           <div className="seg fin-seg" role="radiogroup" aria-label="How this is paid for">
                             {PAY_CHOICES.map((c) => (
@@ -5001,7 +5001,7 @@ ${d.action}`}
                                          placeholder="From the card"
                                          onChange={(e) => setAidMember(e.target.value)} />
                                 </div>
-                                <div className="field fin-aid-dep">
+                                <div className="field">
                                   <label htmlFor="aid-dep">Dep.</label>
                                   <input id="aid-dep" value={aidDep} maxLength={10} placeholder="00"
                                          title="Dependant code. 00 for the principal member"
@@ -5081,7 +5081,7 @@ ${d.action}`}
                               {patient && aidScheme !== "" && aidMember.trim()
                                 && (patient.medical_aid_id !== aidScheme
                                   || (patient.medical_aid_number ?? "") !== aidMember.trim()) && (
-                                <p className="fin-note fin-aid-record">
+                                <p className="fin-note">
                                   {patient.medical_aid_id
                                     ? "Differs from the patient's record, which is updated to this card."
                                     : "Saved to the patient's record when dispensed."}
@@ -5212,7 +5212,7 @@ ${d.action}`}
                         </section>
 
                         <aside className="fin-side">
-                          <section className="finish-sec fin-bill">
+                          <section className="finish-sec">
                             <h4>The bill</h4>
                             <dl className="ed-facts fin-facts">
                               <dt>Lines</dt><dd>{items.length}</dd>
@@ -5384,7 +5384,7 @@ ${d.action}`}
                         <button type="button" className="btn secondary" onClick={() => setFinishing(null)}>
                           Back to the script
                         </button>
-                        <button type="button" className="btn primary fin-proceed"
+                        <button type="button" className="btn primary"
                                 disabled={!!held} onClick={proceedToPay}>
                           Proceed to payment <ArrowRight size={14} weight="bold" />
                         </button>

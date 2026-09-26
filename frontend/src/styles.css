@@ -14214,3 +14214,108 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .imp-drop input { display: none; }
 .imp-counts { margin: var(--s4) 0; }
 .imp-lines { max-height: 22rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-md); }
+
+/* ---------------------------------------------------------------------------
+   EIGHT CLASSES THE MARKUP ASKED FOR AND NOBODY WROTE
+
+   `qa/dead-classes.py` found twenty-eight of these. Twenty were hooks on
+   elements that already had a working class, and they have been taken out of
+   the markup rather than given a rule, because a class that matches nothing
+   reads exactly like a class that matches something.
+
+   These eight are different: each is the ONLY class on its element, so what it
+   asked for was the whole of that element's appearance and it got the
+   browser's defaults instead.
+   --------------------------------------------------------------------------- */
+
+/* THE ONE WITH ITS OWN FIX WRITTEN ABOVE IT AND NEVER APPLIED.
+   `StepUp.tsx` carries a comment saying the password field is "given the same
+   weight as the code boxes, and the same width, so swapping between them does
+   not resize the dialog under the hand that is typing", and that "it was a
+   default height field under a small label: the same dialog asking for the
+   same thing, and one of the two looked like an afterthought." The comment
+   described the intention. The rule was never written, so it stayed a default
+   height field, and the dialog jumped by about forty pixels when a demo
+   visitor switched from the PIN to a password. */
+.su-pass-box {
+  width: 15rem; height: 80px;
+  padding: 0 var(--s4);
+  text-align: center; letter-spacing: .35em;
+  font-size: var(--t-2xl); font-family: var(--font-mono);
+  border-radius: var(--r-lg); border: 2px solid var(--line);
+  background: var(--surface); color: var(--ink);
+}
+.su-pass-box:focus-visible {
+  outline: 0; border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+@media (max-width: 420px) {
+  .su-pass-box { width: 13rem; height: 70px; font-size: var(--t-xl); }
+}
+
+/* A quantity in a formula, in a 6rem column of a grid. Right aligned with
+   figures that line up, because the column is read down for "how much of
+   each" and ragged left-aligned decimals cannot be. The spinners go: this is
+   a measured amount, not something to nudge one at a time. */
+.mix-qty {
+  text-align: right; font-variant-numeric: tabular-nums;
+}
+.mix-qty::-webkit-outer-spin-button,
+.mix-qty::-webkit-inner-spin-button { appearance: none; margin: 0; }
+
+/* Lines where a wholesaler charged above the published maximum. A bare <ul>
+   takes the browser's bullets and forty pixels of indent, inside a card that
+   has neither — so the one list in the product that is about money being
+   overcharged was the one that looked unfinished. */
+.rd-breaches {
+  list-style: none; margin: var(--s2) 0 0; padding: 0;
+  display: grid; gap: 2px;
+}
+.rd-breaches li {
+  display: flex; align-items: baseline; gap: 6px;
+  font-size: var(--t-sm);
+  padding: 4px 0; border-top: 1px solid var(--line);
+}
+.rd-breaches li:first-child { border-top: 0; }
+/* The figure being argued for, pushed to the edge so a column of them can be
+   added up by eye before anybody telephones the wholesaler. */
+.rd-breach-over {
+  margin-left: auto; flex: 0 0 auto;
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  color: var(--warn);
+}
+
+/* What one step of a route says to do. Inside an inline-flex `.ax-step`, so
+   without this it cannot wrap and a long instruction pushed the keyboard
+   shortcut off the end of the chip. */
+.ax-step-label { flex: 1 1 auto; min-width: 0; }
+
+/* The one line standing above the counter's messages, saying what they add up
+   to. A bare <p> keeps the browser's margins, which put it further from the
+   messages it summarises than from the heading above it. */
+.counter-messages-summary {
+  margin: 0 0 var(--s2); color: var(--ink-mid); font-size: var(--t-sm);
+}
+
+/* The block the usage chart lives in, on a product's own tab. Every piece
+   inside it was styled and the container was not, so the summary line, the
+   window picker and the bars were three things sitting on top of each other
+   with the browser's idea of spacing between them. Layout only, deliberately:
+   it is dropped straight into a record page that draws its own card, and a
+   border here would be a second one around the same thing. */
+.usage { display: grid; gap: var(--s3); }
+
+/* A supplier's name in the ageing table, which carries `title` so the full
+   name is available on hover. That only helps if the cell actually clips, and
+   without a width it never did: the name simply pushed the six money columns
+   sideways until the oldest bucket left the screen. */
+.pay-name {
+  max-width: 19rem;
+}
+.pay-name > a { display: block; overflow: hidden; text-overflow: ellipsis;
+                white-space: nowrap; }
+
+/* The sentence beside the shield on the dispensary's confirmation line. It
+   sits in a flex row next to a fixed icon, so without a shrink it pushes the
+   icon off the left of its own strip on a narrow till rather than wrapping. */
+.disp-done-text { flex: 1 1 auto; min-width: 0; }

@@ -318,7 +318,7 @@ export default function WillCall() {
                 are how somebody reaches the rest, so the line that admits the
                 limit is also the line that points at the way round it. */}
             {shelf?.more && (
-              <p className="muted small wc-more">
+              <p className="muted small">
                 Showing the oldest {all.length} of{" "}
                 {band ? `${shelf.bands?.[band] ?? "more"} in this band`
                       : `${shelf.total} on the shelf`}.

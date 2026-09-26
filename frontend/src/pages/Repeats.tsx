@@ -494,7 +494,7 @@ export default function Repeats() {
                             keeps its name; these two say theirs on the hover,
                             as the creditors row already does with its
                             statement printer. */}
-                        <button className="btn ghost sm rp-icon"
+                        <button className="btn ghost sm"
                           title="Open the script in the dispensary to change it"
                           aria-label="Alter this script"
                           onClick={(e) => {
@@ -508,7 +508,7 @@ export default function Repeats() {
                             people who have not come in, and telephoning them is
                             the work, so the message is here rather than on a
                             screen somebody has to remember to open. */}
-                        <BusyButton className="btn ghost sm rp-icon"
+                        <BusyButton className="btn ghost sm"
                                     title={i.patient_phone
                                       ? `Send a reminder to ${i.patient_phone}`
                                       : "No telephone number on file"}

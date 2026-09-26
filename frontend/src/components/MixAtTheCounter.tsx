@@ -226,7 +226,7 @@ export default function MixAtTheCounter(
             <b>{quote ? (quote.effective_schedule
               ? sched(quote.effective_schedule) : "unscheduled") : "none"}</b>
           </div>
-          <div className="field mix-price">
+          <div className="field">
             <label htmlFor="mix-price">Price</label>
             <input id="mix-price" type="number" min="0" step="0.01" value={price}
                    placeholder={quote ? (quote.total_cost * 2).toFixed(2) : "0.00"}

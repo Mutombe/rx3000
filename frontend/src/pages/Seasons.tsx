@@ -34,6 +34,7 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import PageHead from "../components/PageHead";
+import { EmptyRow } from "../components/Empty";
 import Th from "../components/Th";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -175,6 +176,13 @@ export default function Seasons() {
                       </tr>
                     </thead>
                     <tbody>
+                      {basket.branches.length === 0 && (
+                        <EmptyRow cols={6} title="Nobody came back twice in this period">
+                          A repeat visit is the same patient returning, so a short window can
+                          hold none of them while a longer one holds plenty. Try a wider
+                          period above before concluding the shop has no repeat trade.
+                        </EmptyRow>
+                      )}
                       {basket.branches.map((b) => (
                         <tr key={b.branch_id ?? "none"}>
                           <td><b>{b.branch}</b></td>
@@ -230,6 +238,27 @@ export default function Seasons() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* TWO DIFFERENT EMPTIES, AND THEY ARE DIFFERENT ANSWERS.
+                      Nothing dispensed at all is a new shop. Plenty dispensed and none
+                      of it seasonal is a real finding about the trade, and a pharmacist
+                      told "no results" cannot tell those apart. The counts to say it
+                      with are already on the payload. */}
+                  {seasons.products.filter((p) => p.seasonal).length === 0 && (
+                    seasons.counted === 0 ? (
+                      <EmptyRow cols={6} title="Nothing has been dispensed yet">
+                        A season is a shape in a year of dispensings. Until there are
+                        some, there is no shape to find.
+                      </EmptyRow>
+                    ) : (
+                      <EmptyRow cols={6}
+                                title={`Nothing in ${seasons.counted.toLocaleString()} lines moves with the calendar`}>
+                        Every line sells at about the same rate all year, so there is
+                        nothing to stock up for. That is an answer rather than a gap, and
+                        it is worth re-reading once there is a second year to compare
+                        against.
+                      </EmptyRow>
+                    )
+                  )}
                   {seasons.products.filter((p) => p.seasonal).map((p) => (
                     <tr key={p.product_id}>
                       <td>
@@ -314,6 +343,12 @@ export default function Seasons() {
                   </tr>
                 </thead>
                 <tbody>
+                  {group.branches.length === 0 && (
+                    <EmptyRow cols={6} title="There is no trading year to draw yet">
+                      This compares each branch's months against the group's. It needs a
+                      branch with sales in it before there is anything to compare.
+                    </EmptyRow>
+                  )}
                   {group.branches.map((b) => {
                     const top = Math.max(...b.months.map((m) => m.value), 1);
                     return (

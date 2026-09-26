@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
 import { Refreshable, TableSkeleton } from "./Skeleton";
 import { EntityLink , TableSearch, useSearch } from "./Filters";
+import BusyButton from "./BusyButton";
 import { useToast } from "./Toast";
 import { useCan } from "../session";
 import Th from "./Th";
@@ -181,19 +182,28 @@ export default function Quarantine() {
                     </div>
                   </td>
                   <td className="actions">
+                    {/* RAISING A RETURN IS THE ONE THAT NEEDS A BUSY STATE.
+                        Releasing is optimistic: the row goes on the click,
+                        because it has gone, and that is louder than any
+                        spinner. Raising a return leaves the row exactly where
+                        it was — the goods stay held until somebody approves
+                        the write-off — so without this the screen answers a
+                        press with nothing at all, and the return gets raised
+                        twice. */}
                     {mayReturn && l.supplier_id && !l.on_return && (
-                      <button type="button" className="btn small ghost"
-                              onClick={() => sendBack(l)}
-                              title={`Raise a return to ${l.supplier}. The goods stay held until it is approved.`}>
+                      <BusyButton className="btn small ghost"
+                                  onClick={() => sendBack(l)}
+                                  busyLabel="Raising it…"
+                                  title={`Raise a return to ${l.supplier}. The goods stay held until it is approved.`}>
                         Return to supplier
-                      </button>
+                      </BusyButton>
                     )}
                     {mayRelease && (
-                      <button type="button" className="btn small ghost"
-                              onClick={() => release(l)}
-                              title="Put this batch back on the shelf. It can be dispensed again.">
+                      <BusyButton className="btn small ghost"
+                                  onClick={() => release(l)}
+                                  title="Put this batch back on the shelf. It can be dispensed again.">
                         Release
-                      </button>
+                      </BusyButton>
                     )}
                   </td>
                 </tr>

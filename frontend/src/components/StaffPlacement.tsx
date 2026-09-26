@@ -23,6 +23,7 @@ import { useConfirm } from "./Confirm";
 import { useToast } from "./Toast";
 import { useSession } from "../session";
 import { closeThenSave } from "../hooks/useOptimisticList";
+import { EmptyRow } from "./Empty";
 import Th from "./Th";
 
 interface BranchRow { id: number; name: string; code: string }
@@ -333,14 +334,24 @@ export default function StaffPlacement({ userId, name, onChanged }: {
             </div>
           )}
 
-          {p.moves.length > 0 && (
-            <div className="dt-scroll" style={{ maxHeight: "30vh" }}>
-              <table className="dt">
-                <caption className="sr-only">Every branch this person has worked in</caption>
+          <div className="dt-scroll" style={{ maxHeight: "30vh" }}>
+            <table className="dt">
+              <caption className="sr-only">Every branch this person has worked in</caption>
                 <thead>
                   <tr><Th>Moved</Th><Th>From</Th><Th>To</Th><Th>Why</Th><Th>By</Th></tr>
                 </thead>
                 <tbody>
+                  {/* NEVER MOVED IS AN ANSWER, AND IT USED TO BE SILENCE.
+                      This whole table disappeared when somebody had no moves,
+                      which on the one screen written to answer "who was
+                      working here on the fourteenth" is indistinguishable from
+                      a pharmacy that kept no record. */}
+                  {p.moves.length === 0 && (
+                    <EmptyRow cols={5} title="Never moved branch">
+                      This person has worked in {p.branch ? p.branch.name : "one shop"} since
+                      their account was made, so there is no transfer to show.
+                    </EmptyRow>
+                  )}
                   {p.moves.map((m) => (
                     <tr key={m.id}>
                       <td>{m.on ? fmtDate(m.on) : "No date"}</td>
@@ -352,8 +363,7 @@ export default function StaffPlacement({ userId, name, onChanged }: {
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+          </div>
         </>
       )}
     </Panel>

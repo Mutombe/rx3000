@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
 import BusyButton from "./BusyButton";
 import { useConfirm } from "./Confirm";
+import { EmptyRow } from "./Empty";
 import { useToast } from "./Toast";
 import { EntityLink, TableSearch, useSearch } from "./Filters";
 import Th from "./Th";
@@ -131,6 +132,14 @@ export default function ExpiryProvision() {
           </tr>
         </thead>
         <tbody>
+          {/* Nothing short-dated is the best answer this table can give, and a
+              blank one reads as the worst. */}
+          {Object.keys(state.bands).length === 0 && (
+            <EmptyRow cols={5} title="Nothing on the shelf is close to expiry">
+              No batch falls in any band, so no provision is being made. The
+              bands fill themselves as stock ages.
+            </EmptyRow>
+          )}
           {Object.entries(state.bands).map(([label, b]) => (
             <tr key={label}>
               <td>
@@ -165,6 +174,15 @@ export default function ExpiryProvision() {
                 </tr>
               </thead>
               <tbody>
+                {/* This section only exists when there ARE batches, so an empty list
+                    here is always the search and never the shelf. */}
+                {shown.length === 0 && (
+                  <EmptyRow cols={6} title="No batch matches that">
+                    {state.items.length.toLocaleString()} short-dated
+                    batch{state.items.length === 1 ? " is" : "es are"} behind this
+                    figure. Clear the search above to see them.
+                  </EmptyRow>
+                )}
                 {shown.map((i) => (
                   <tr key={i.batch_id}>
                     <td>{i.product}</td>
