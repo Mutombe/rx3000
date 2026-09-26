@@ -14,6 +14,7 @@ import { useAiDraft } from "../hooks/useAiStream";
 import { TabStrip } from "../components/PageTabs";
 import PageHead from "../components/PageHead";
 import { useRowWork } from "../hooks/useRowWork";
+import BusyButton from "../components/BusyButton";
 
 const CATEGORIES = [
   ["query", "General query"], ["complaint", "Complaint"], ["refund", "Refund"],
@@ -159,6 +160,36 @@ export default function HelpDesk() {
     else setReply(body);
   }
 
+  /** Close several cases at once.
+   *
+   *  One request each, against the endpoint that already exists, rather than
+   *  a bulk route invented for this. Twelve cases is twelve small writes and
+   *  the list is reloaded once at the end; a bulk endpoint would be a second
+   *  way for a case to be closed and a second place for the rules about
+   *  closing one to live.
+   *
+   *  What failed is named. "Some cases could not be closed" is the message
+   *  that makes somebody re-tick all twelve to find out which.
+   */
+  async function closeMany(ids: number[], clear: () => void) {
+    const failed: number[] = [];
+    for (const id of ids) {
+      try {
+        await api.put<Ticket>(`/api/helpdesk/tickets/${id}`, { status: "closed" });
+      } catch { failed.push(id); }
+    }
+    clear();
+    load();
+    if (!failed.length) {
+      toast.ok(`${ids.length} case${ids.length === 1 ? "" : "s"} closed.`);
+    } else {
+      const shut = ids.length - failed.length;
+      toast.warn(
+        `${shut} closed. ${failed.length} could not be: `
+        + `${failed.map((id) => `#${id}`).join(", ")}.`);
+    }
+  }
+
   async function patch(patchBody: Record<string, unknown>) {
     if (!selected) return;
     const ticket = selected;
@@ -240,6 +271,19 @@ export default function HelpDesk() {
         rowHref={(t) => `/cases/${t.id}`}
         initialSort={{ key: "created_at", dir: "desc" }}
         empty="No cases in this view"
+        // A help desk fills up with cases answered at the counter and never
+        // closed. One at a time nobody closes them; they are closed in a batch
+        // on a quiet afternoon, or not at all.
+        select={{
+          id: (c) => c.id,
+          noun: "case",
+          actions: (ids, clear) => (
+            <BusyButton className="small" busyLabel="Closing…"
+                        onClick={() => closeMany(ids, clear)}>
+              Close {ids.length === 1 ? "it" : "them"}
+            </BusyButton>
+          ),
+        }}
         toolbar={
           <FilterBar
             value={filters} onChange={setFilters} placeholder="Search subject, number, customer…"

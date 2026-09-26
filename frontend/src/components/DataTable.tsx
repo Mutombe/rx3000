@@ -11,6 +11,8 @@ import Select from "./Select";
 import { readStored, writeStored } from "../storage";
 import { CaretDown, CaretUp, CaretUpDown } from "@phosphor-icons/react";
 import { TableSkeleton } from "./Skeleton";
+import BulkBar, { SelectAll, SelectRow } from "./BulkBar";
+import { useSelection } from "../hooks/useSelection";
 
 export interface Column<T> {
   key: string;
@@ -150,7 +152,7 @@ function defaultValue<T>(row: T, key: string) {
 export default function DataTable<T>({
   columns, rows, rowKey, rowHref, onRowClick, empty = "Nothing to show",
   toolbar, totals = false, initialSort, pageSize: initialPageSize = 25, dense, server,
-  loading = false,
+  loading = false, select,
 }: {
   /** True until the first answer lands.
    *
@@ -173,6 +175,24 @@ export default function DataTable<T>({
   empty?: ReactNode;
   /** Filter controls rendered above the table. */
   toolbar?: ReactNode;
+  /** TICKING ROWS AND DOING ONE THING TO ALL OF THEM.
+   *
+   *  Opt in, because most tables in this product are a list to read rather
+   *  than a list to act on, and a tick box with no action behind it is
+   *  decoration that costs a column.
+   *
+   *  `id` says which number identifies a row for the hook that holds the
+   *  ticks; `noun` is what the bar calls them ("3 deliveries selected");
+   *  `actions` is what can be done, given the ids. The component owns the
+   *  column, the header tick, the bar and the dropping of ticks for rows that
+   *  leave the list — which is the part every hand-rolled version forgets,
+   *  and the one that matters, because an action reaching a row the operator
+   *  can no longer see is the worst way for this to fail. */
+  select?: {
+    id: (row: T) => number;
+    noun: string;
+    actions: (ids: number[], clear: () => void) => ReactNode;
+  };
   totals?: boolean;
   initialSort?: { key: string; dir: "asc" | "desc" };
   pageSize?: number;
@@ -276,6 +296,10 @@ export default function DataTable<T>({
     if (rowHref) navigate(rowHref(row));
   }
 
+  // Held against the rows on screen, so a filter or a page turn drops the
+  // ticks for anything that left. `useSelection` does that, and doing it here
+  // rather than in nine pages is the whole reason this lives in the component.
+  const picked = useSelection(view, select?.id ?? (() => 0));
   const clickable = Boolean(rowHref || onRowClick);
 
   return (
@@ -311,6 +335,9 @@ export default function DataTable<T>({
         >
           <thead>
             <tr>
+              {select && (
+                <SelectAll checked={picked.allChosen} onChange={picked.all} />
+              )}
               {columns.map((c) => (
                 <th
                   key={c.key}
@@ -348,6 +375,10 @@ export default function DataTable<T>({
                 className={clickable ? "row-click" : undefined}
                 onClick={clickable ? () => open(row) : undefined}
               >
+                {select && (
+                  <SelectRow checked={picked.has(select.id(row))}
+                             onChange={() => picked.toggle(select.id(row))} />
+                )}
                 {columns.map((c) => {
                   const raw = c.render
                     ? c.render(row)
@@ -397,6 +428,15 @@ export default function DataTable<T>({
 
       {/* Said only once it is known to be true. */}
       {sorted.length === 0 && !loading && <div className="empty">{empty}</div>}
+
+      {/* The bar appears when something is ticked and not before. A bulk
+          action that lives in a menu is one nobody finds, and tick boxes with
+          nothing visible to do are decoration. */}
+      {select && (
+        <BulkBar count={picked.count} noun={select.noun} onClear={picked.clear}>
+          {select.actions(picked.ids, picked.clear)}
+        </BulkBar>
+      )}
 
       {/* Server-paged: always shown, even on a single page, because the count is
           the thing that confirms nothing is hidden. Client-paged: only when
