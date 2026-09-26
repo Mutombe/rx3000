@@ -9,9 +9,25 @@ reader lands on the dashboard: no error, no missing-page screen, just the
 wrong screen and somebody assuming they misclicked. That is the worst shape a
 broken link can take, because nothing anywhere reports it.
 
-It had been wrong for journals: the map said `/ledger/journal/:id` and
-App.tsx routes `/ledger/entries/:id`, so every link to a ledger entry in the
+It had been wrong for journals: the map said `/ledger/journal/:id` and the
+router declares `/ledger/entries/:id`, so every link to a ledger entry in the
 product went to the dashboard.
+
+AND THEN THIS GUARD ITSELF WENT WRONG, WHICH IS WORTH MORE THAN THE BUG.
+
+It read `App.tsx`, because that is where every route lived when it was
+written. The portal work then moved the authenticated routes into `Staff.tsx`
+— deliberately, so a patient opening a link on a phone does not download the
+whole dispensary — and left six portal routes behind in App.tsx.
+
+So the guard found six routes, failed to resolve all twenty-eight kinds, and
+reported every link in the product as broken. Every one of them works. A guard
+that reports twenty-eight faults where there are none gets read once, disbelieved,
+and never read again, which costs more than the thing it was watching for.
+
+It reads wherever the routes are now, and it FAILS if it finds too few of them
+rather than quietly reporting the consequence — a route file that has moved
+again should say so in its own words rather than as a wall of broken links.
 """
 import pathlib
 import re
@@ -41,9 +57,20 @@ def shape(path: str) -> str:
 
 print("\n  every entity kind has somewhere to go\n")
 
-app = (SRC / "App.tsx").read_text(encoding="utf-8")
-routes = {shape(p) for p in re.findall(r'path="([^"]+)"', app)}
-check(f"the router declares routes ({len(routes)})", len(routes) > 20)
+# Every file that declares routes, not one named file. The split between the
+# portal shell and the staff shell is the point of that design, and a guard
+# that knows about only one half of it is a guard reporting on half a product.
+declaring = sorted(p for p in SRC.glob("*.tsx")
+                   if 'path="' in p.read_text(encoding="utf-8"))
+routes = set()
+for path in declaring:
+    routes |= {shape(m) for m in
+               re.findall(r'path="([^"]+)"', path.read_text(encoding="utf-8"))}
+check(f"the router declares routes ({len(routes)} across "
+      f"{', '.join(p.name for p in declaring)})", len(routes) > 20,
+      "too few to be the whole router. The routes have moved again: find the "
+      "file that declares them and make sure it is under frontend/src/*.tsx, "
+      "because everything below this line is measured against them.")
 
 kinds = re.findall(r"(\w+): \(id: Id\) => `([^`]+)`",
                    (SRC / "entityRoutes.ts").read_text(encoding="utf-8"))
