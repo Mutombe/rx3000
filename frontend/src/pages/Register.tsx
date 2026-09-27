@@ -182,12 +182,24 @@ export default function Register() {
           skeleton={<TableSkeleton cols={9} rows={10} rowHeight={49}
             widths={["16ch", "18ch", "6ch", "8ch", "6ch", "8ch", "16ch", "14ch", "10ch"]} />}
         >
-        <table>
+        {/* The controlled register: nine columns wanting 1,168px in a
+            1,002px card, and not one of them droppable — this is the page an
+            inspector reads. The schedule, the entry kind, the two figures and
+            the reference say what they want; the timestamp, the substance, the
+            patient and the prescriber share the rest, and the table carries a
+            floor so none of the four is squeezed below a name. */}
+        <table className="reg-table">
           <thead>
             <tr>
-              <Th>Date &amp; time</Th><Th>Substance</Th><Th>Sched.</Th><Th>Entry</Th>
-              <Th className="num">Qty</Th><Th className="num">Balance</Th>
-              <Th>Patient</Th><Th>Prescriber</Th><Th>Reference</Th>
+              <Th>Date &amp; time</Th>
+              <Th>Substance</Th>
+              <Th className="reg-sched">Sched.</Th>
+              <Th className="reg-entry">Entry</Th>
+              <Th className="num reg-qty">Qty</Th>
+              <Th className="num reg-balance">Balance</Th>
+              <Th>Patient</Th>
+              <Th>Prescriber</Th>
+              <Th className="reg-ref">Reference</Th>
             </tr>
           </thead>
           <tbody>

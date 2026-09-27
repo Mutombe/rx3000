@@ -510,7 +510,7 @@ export default function Admin() {
                         {r.active ? "on" : "off"}
                       </BusyButton>
                     </td>
-                    <td className="right"><IconButton action="delete" danger title="Delete this rule" onClick={() => deleteRule(r)} /></td>
+                    <td className="actions"><IconButton action="delete" danger title="Delete this rule" onClick={() => deleteRule(r)} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -867,7 +867,7 @@ export default function Admin() {
                       </div>
                     ))}
                   </td>
-                  <td className="right">
+                  <td className="actions">
                     <BusyButton className="btn primary small" onClick={() => acceptScript(r.id)}>
                       Accept
                     </BusyButton>
@@ -1276,7 +1276,7 @@ export default function Admin() {
                       </span>
                     )}
                   </td>
-                  <td className="right">
+                  <td className="actions">
                     <BusyButton className="small ghost" onClick={() => recheck(b.filename)}>
                       Check
                     </BusyButton>

@@ -1115,7 +1115,7 @@ export default function POS() {
                       </div>
                     )}
                   </td>
-                  <td className="right" style={{ whiteSpace: "nowrap" }}>
+                  <td className="actions">
                     {/* No "Claim aid" button: the claim was raised when the
                         script was dispensed. What is left here is collecting
                         the levy, in whatever the customer is paying with. */}

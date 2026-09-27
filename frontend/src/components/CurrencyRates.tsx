@@ -166,7 +166,7 @@ export default function CurrencyRates() {
             <thead>
               <tr>
                 <Th>Currency</Th>
-                <th style={{ textAlign: "right" }}>Units per base</th>
+                <Th className="num">Units per base</Th>
                 <Th>In force from</Th>
                 <Th>Source</Th>
               </tr>
@@ -175,7 +175,12 @@ export default function CurrencyRates() {
               {history.map((r) => (
                 <tr key={r.id}>
                   <td>{r.currency_code}</td>
-                  <td className="mono" style={{ textAlign: "right" }}>
+                  {/* `num`, not an inline style. These were the only two
+                      hand-placed alignments left in the product, and they
+                      right-aligned without the lining, tabular figures every
+                      other numeric column gets — so a rate column did not
+                      line up with itself. */}
+                  <td className="num mono">
                     {r.units_per_base.toFixed(4)}
                   </td>
                   <td>{fmtDateTime(r.effective_from)}</td>

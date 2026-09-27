@@ -230,7 +230,7 @@ export default function Marketing() {
                 <td className="num">{c.failed_count > 0 ? <span className="badge danger">{c.failed_count}</span> : 0}</td>
                 <td><span className={`badge ${c.status === "sent" ? "ok" : "muted"}`}>{c.status}</span></td>
                 <td className="muted">{c.sent_at ? fmtDateTime(c.sent_at) : fmtDateTime(c.created_at)}</td>
-                <td className="right">
+                <td className="actions">
                   {c.status === "sent" && <IconButton action="view" onClick={() => viewMessages(c)} />}
                 </td>
               </tr>

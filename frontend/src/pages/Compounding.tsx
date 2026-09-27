@@ -247,9 +247,17 @@ export default function Compounding() {
           <table>
             <thead>
               <tr>
-                <Th>Code</Th><Th>Preparation</Th><Th>Form</Th>
-                <Th className="num">Yield</Th><Th className="num">Fee</Th>
-                <Th className="num">Ingredients</Th><Th className="num">Shelf life</Th>
+                {/* Same shape: the code, the form, the yield, the fee, the
+                    ingredient count and the shelf life all know their size.
+                    "Calamine lotion, fortified" does not, and it is what the
+                    row is recognised by. */}
+                <Th className="col-code">Code</Th>
+                <Th>Preparation</Th>
+                <Th className="cmp-form">Form</Th>
+                <Th className="num cmp-yield">Yield</Th>
+                <Th className="num col-money">Fee</Th>
+                <Th className="num cmp-count">Ingredients</Th>
+                <Th className="num cmp-life">Shelf life</Th>
               </tr>
             </thead>
             <tbody>

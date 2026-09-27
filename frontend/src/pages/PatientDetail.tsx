@@ -446,12 +446,26 @@ export default function PatientDetail() {
                     question a shop asks about a patient. What they are worth
                     if they keep coming back, and what walks out with them if
                     they do not. */}
-                <thead><tr><Th>Medication</Th><Th>Dosage</Th><Th className="num">Qty</Th><Th>Repeats</Th><Th className="num">Worth</Th><Th>Next repeat</Th><Th>Auto-refill</Th></tr></thead>
+                <thead><tr>{/* The count, the repeats, the date and the refill setting know their
+                      size. The medicine and its directions do not, and the
+                      directions are the longest text on this screen. */}
+                  <Th>Medication</Th>
+                  <Th className="wrap">Dosage</Th>
+                  <Th className="num rx-qty">Qty</Th>
+                  <Th className="rx-repeats">Repeats</Th>
+                  <Th className="num">Worth</Th>
+                  <Th className="rx-next">Next repeat</Th>
+                  <Th className="rx-refill">Auto-refill</Th>
+                </tr></thead>
                 <tbody>
                   {rx.items.map((i) => (
                     <tr key={i.id}>
                       <td><EntityLink kind="product" id={i.product_id}>{i.product?.name} {i.product?.strength}</EntityLink></td>
-                      <td>{i.dosage_instructions || "none"}</td>
+                      {/* Directions are a sentence, not a value. Truncated to
+                          fit a column they lose the half that says when and
+                          how, so this one wraps — the opt-out the table system
+                          keeps for exactly this. */}
+                      <td className="wrap">{i.dosage_instructions || "none"}</td>
                       <td className="num">{i.quantity}</td>
                       <td>{i.repeats_used}/{i.repeats_allowed}</td>
                       <td className="num">

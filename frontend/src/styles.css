@@ -4414,8 +4414,41 @@ button.wl-stat:disabled:hover {
 
    Fixed layout is therefore applied to `.dt` — the one governed table component,
    which already supports a per-column width, and not to hand-written tables
-   elsewhere, whose columns would be redistributed for no reason. */
+   elsewhere, whose columns would be redistributed for no reason.
+
+   THAT LAST SENTENCE WAS WRONG, AND THIS IS WHY.
+
+   "Hand-written tables elsewhere" is sixty-four of them, against a hundred and
+   fifty-nine `.dt`. Better than a quarter of the product's tables, and a reader
+   cannot tell which kind they are looking at — which is the whole problem. In
+   an auto-layout table the column widths are computed from the rows that
+   happen to be on screen, so the same table puts its columns in different
+   places on page one and page two, and a column that was 180px wide yesterday
+   is 90px today because nobody's name was long. There is no vertical line to
+   run your eye down, because the line moves.
+
+   "Redistributed for no reason" had it backwards. The reason is the reason
+   `.dt` is laid out fixed: a table must look the same however its data is
+   ordered. Redistribution is not a side effect to be avoided, it is the
+   property being bought.
+
+   So the two rules that make a column a column — a width that does not depend
+   on the data, and a truncation when the data is too long for it — now apply
+   to every table in the product. `:where()` gives them zero specificity, so
+   every existing rule, including all nine hand-written table styles, still
+   wins over them exactly as before. Nothing that had an opinion loses it;
+   only the tables that had none gain one. */
 .dt { table-layout: fixed; width: 100%; }
+
+:where(main table) { table-layout: fixed; }
+:where(main table) th, :where(main table) td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The same opt-out `.dt` has had, available to every table now that every
+   table clips: prose in a cell wraps rather than losing its end. */
+:where(main table) td.wrap, :where(main table) th.wrap { white-space: normal; }
 
 /* A TABLE WITH TOO MANY COLUMNS FOR THE CARD SCROLLS RATHER THAN STARVES.
  *
@@ -4476,6 +4509,59 @@ button.wl-stat:disabled:hover {
 .cl-batch  { width: 6.5rem; }
 .col-city  { width: 8.5rem; }  /* a town name */
 .col-count { width: 5.5rem; }  /* a plain count: packs, units, lines */
+
+/* THREE TABLES THAT WERE LEFT TO SIZE THEMSELVES AND NOW CANNOT.
+ *
+ * They had no class, so they were laid out `auto` and the browser sized every
+ * column from whatever rows were on screen. That is why they looked acceptable
+ * and were not: the columns moved between one page of data and the next.
+ *
+ * Now that every table is laid out fixed, each of these has to say what its
+ * columns want. Every number below was measured, not guessed — it is what the
+ * column asked for when the table was briefly allowed to size itself again,
+ * rounded up to the nearest half-rem. In each case the wordy column declares
+ * nothing and takes the remainder, which is the rule the deliveries table
+ * above already follows. */
+.ord-open  { width: 2.5rem; }   /* the expand chevron: 35px */
+.ord-state { width: 6.5rem; }   /* "part delivery" and the rest: 97px */
+.cmp-form  { width: 6.5rem; }   /* "suspension": 98px */
+.cmp-yield { width: 6rem; }     /* "200 mL": 94px */
+.cmp-count { width: 8rem; }     /* the heading is longer than the number: 120px */
+.cmp-life  { width: 8rem; }     /* "30 days", under a two-word heading: 124px */
+/* The shift history: ten columns wanting 1,128px in a 1,002px card. Nothing a
+   distribution can fix, so it scrolls — which this file argues is worse than a
+   shortened cell and better than one that simply stops, and right now all ten
+   of them stop. The honest fix is a column fewer; that is a decision about the
+   screen rather than about its alignment, and it is left to be taken. */
+table.sh-history { min-width: 72rem; }
+.sh-run-col { width: 8rem; }    /* "Till 1 · run 1": 123px */
+.sh-when    { width: 10rem; }   /* "17 Aug, 2026, 15:16": 149px */
+.sh-float   { width: 5.5rem; }
+.sh-money   { width: 6rem; }
+.sh-var     { width: 7rem; }    /* carries a sign and sometimes a badge */
+.sh-sales   { width: 5rem; }
+/* The purchase orders list. The three trimmed here were over-served by the
+   shared classes — 176px for a date wanting 151, 120 for a value wanting 91 —
+   and every pixel they were holding belongs to the supplier's name. */
+.ord-no    { width: 6.5rem; }
+.ord-when  { width: 10rem; }
+.ord-value { width: 6.5rem; }
+/* A patient's repeats. The directions are the longest text on the record and
+   the only column here that cannot say how wide it is. */
+.rx-qty     { width: 5rem; }
+.rx-repeats { width: 6rem; }
+.rx-next    { width: 9.5rem; }
+.rx-refill  { width: 8rem; }
+/* The controlled register. Four columns declare, four share, and the floor
+   stops the four that share from falling below a person's name — this is the
+   page an inspector is shown, and a prescriber's name cut in half on it is
+   worse than a card that scrolls. */
+table.reg-table   { min-width: 76rem; }
+.reg-sched   { width: 5rem; }
+.reg-entry   { width: 7rem; }
+.reg-qty     { width: 5rem; }
+.reg-balance { width: 6.5rem; }
+.reg-ref     { width: 7.5rem; }
 .col-row   { width: 4.5rem; }  /* a row number in an uploaded file */
 
 /* Left at 19rem. Narrowing it to buy width for the six ageing bands beside it
@@ -4528,9 +4614,9 @@ button.wl-stat:disabled:hover {
  * `max-width: 100%` matters: without it the parent grows to fit the table
  * and the PAGE scrolls instead of the card, which is the failure the
  * wrapper existed to prevent in the first place. */
-div:has(> .dt.dt-wide),
-div:has(> .dt.dt-wider),
-div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
+div:has(> .dt-wide),
+div:has(> .dt-wider),
+div:has(> .dt-widest) { overflow-x: auto; max-width: 100%; }
 
 /* LEFT AS FLAT MINIMUMS, DELIBERATELY, AND HERE IS THE WORKING.
    Wrapping these in `min(_, 100%)` does stop the sideways scroll: every table
@@ -4543,8 +4629,18 @@ div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
    the first and better than the second.
    Where a table genuinely does not fit, the fix is one column fewer or one
    sentence shorter, which is what was done to the trading periods below. */
-.dt.dt-wide   { min-width: 68rem; }
-.dt.dt-wider  { min-width: 78rem; }
+/* Scoped to `.dt` when only `.dt` was laid out fixed. Now that every table is,
+   every table can need the same escape hatch, so the variants answer to the
+   name alone.
+
+   `table.` rather than a bare class, and this is not decoration. `.dt` sets
+   `min-width: 0` further down the file, so as a bare class these tied with it
+   on specificity and lost on source order — the floor silently stopped
+   applying and the to-follows table squeezed three of its columns to 30px for
+   headings wanting 86, 106 and 118. An element plus a class outranks a class,
+   and the order of two rules in a 14,000-line file stops mattering. */
+table.dt-wide   { min-width: 68rem; }
+table.dt-wider  { min-width: 78rem; }
 /* The deliveries table: a waybill number, a name, a driver, a figure and a
    date all know roughly how wide they are; the address does not, and it is
    the one a driver reads. So the five declare and the address takes the
@@ -4559,7 +4655,7 @@ div:has(> .dt.dt-widest) { overflow-x: auto; max-width: 100%; }
 .dlv-cod    { width: 8rem; }
 /* "30 Aug, 2026, 06:32" is 149px and this was 144. */
 .dlv-raised { width: 10rem; }
-.dt.dt-widest { min-width: 94rem; }
+table.dt-widest { min-width: 94rem; }
 /* With fixed layout a cell can no longer be sized by its content, so every cell
    clips unless its column opts out.
 
@@ -4949,8 +5045,42 @@ main :where(div, section, form):has(> table) { overflow-x: auto; }
  * a form row, a list or a set of actions, is real layout and is left alone —
  * flattening those would break the thing they are arranging. */
 main td > .muted {
-  display: inline; margin-left: var(--s2);
+  display: inline;
 }
+/* THE INDENT THAT MADE EVERY COLUMN'S LEFT EDGE RAGGED.
+ *
+ * The margin below used to be on the rule above, unconditionally. It is right
+ * air between a value and the quieter note that follows it — and wrong, by
+ * exactly 8px, for a cell whose ONLY content is muted.
+ *
+ * Which is most of them, because this product never prints a dash: an unknown
+ * value is a sentence in its own words, and that sentence is muted. So in any
+ * column where some rows have a value and some do not, every "Not on file",
+ * "None recorded", "No driver assigned" started 8px right of the rows above
+ * it, and 8px right of its own column heading. A reader's eye follows the left
+ * edge of a column; this put a kink in it on precisely the rows that were
+ * already the odd ones out.
+ *
+ * `:not(:first-child)` is the same fix the badge rule below already carries,
+ * for the same reason, written down there a while ago and never applied here. */
+main td > .muted:not(:first-child) { margin-left: var(--s2); }
+
+/* AND IN A NUMERIC COLUMN, THE NOTE TAKES ITS OWN LINE.
+ *
+ * Flattening the note onto the value's line is right for a column read from
+ * the left: the value is still the first thing on it, so the column's edge is
+ * unmoved. In a column read from the RIGHT it is the opposite. The last thing
+ * on the line is what sits on the alignment edge, so the note lands there and
+ * pushes the number left by the note's own width — which is different on every
+ * row, because the note is a sentence.
+ *
+ * Measured on Stock: `2,075` ended at x=570 and `397` at x=644 in the same
+ * column. Seventy-four pixels apart, on the one kind of column whose entire
+ * purpose is that the digits line up and you can run your eye down them.
+ *
+ * So in a `.num` cell the note goes under, still flush right. It costs a line
+ * of height on the rows that carry a note and nothing on the rest. */
+main td.num > .muted { display: block; margin-left: 0; }
 /* A badge sits ON the line, not under it.
  *
  * This was `display: flex`, which is block level, so every chip in every table

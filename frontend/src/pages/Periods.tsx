@@ -212,7 +212,13 @@ export default function Periods() {
               <Th className="pe-code">Period</Th>
               <Th className="col-range">Runs</Th>
               <Th>Status</Th>
-              <Th className="num">Signed off at</Th>
+              {/* This said "Signed off at" over a column of money. When the
+                  timestamp moved under "Closed by" — where the person and the
+                  moment belong together — its heading stayed behind and the
+                  sales figure inherited it. A right-aligned column of dollars
+                  under a heading about a date is the exact opposite of a
+                  table you can read at a glance. */}
+              <Th className="num">Sales</Th>
               <Th className="num">Transactions</Th>
               <Th>Closed by</Th>
               <th className="actions" />

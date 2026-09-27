@@ -384,7 +384,7 @@ export default function DealDetail() {
                     <td className="num">{money(i.unit_price)}</td>
                     <td className="num">{i.discount_percent ? `${i.discount_percent}%` : "none"}</td>
                     <td className="num"><b>{money(i.line_total)}</b></td>
-                    <td className="right"><IconButton action="remove" danger title="Remove this line" onClick={() => removeLine(i.id)} /></td>
+                    <td className="actions"><IconButton action="remove" danger title="Remove this line" onClick={() => removeLine(i.id)} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -447,7 +447,7 @@ export default function DealDetail() {
                         : qt.status === "declined" || qt.status === "expired" ? "danger"
                         : qt.status === "sent" ? "warn" : "muted"}`}>{qt.status}</span>
                     </td>
-                    <td className="right" style={{ whiteSpace: "nowrap" }}>
+                    <td className="actions">
                       <button className="ghost small" onClick={() => printQuote(qt)}>🖨</button>
                       {qt.status === "draft" && <BusyButton className="ghost small" onClick={() => setQuoteStatus(qt, "sent")}>Send</BusyButton>}
                       {qt.status === "sent" && (

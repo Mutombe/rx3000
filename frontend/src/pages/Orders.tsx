@@ -201,8 +201,22 @@ export default function Orders() {
                          shown={shown.length} total={orders.length} />
             <table>
               <thead>
-                <tr><th></th><Th>Order</Th><Th>Supplier</Th><Th>Status</Th><Th>Raised</Th>
-                  <Th className="num">Lines</Th><Th className="num">Value</Th><th className="actions" /></tr>
+                <tr>
+                  {/* Measured: the chevron wants 35px, the order number 95,
+                      the status 97, the date 149, the count 74 and the value
+                      89. They say so, and the supplier takes the rest —
+                      "UPD (United Pharmaceutical Distributors)" is the
+                      longest value in the table and the one nobody can do
+                      without. Equal shares gave it 108px. */}
+                  <th className="ord-open" />
+                  <Th className="ord-no">Order</Th>
+                  <Th>Supplier</Th>
+                  <Th className="ord-state">Status</Th>
+                  <Th className="ord-when">Raised</Th>
+                  <Th className="num col-count">Lines</Th>
+                  <Th className="num ord-value">Value</Th>
+                  <th className="actions" />
+                </tr>
               </thead>
               <tbody>
                 {shown.map((o) => {

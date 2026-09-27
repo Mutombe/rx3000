@@ -250,12 +250,23 @@ export default function Shifts() {
           skeleton={<TableSkeleton cols={10} rows={5}
             widths={["14ch", "8ch", "12ch", "12ch", "8ch", "8ch", "8ch", "8ch", "8ch", "10ch"]} />}
         >
-        <table>
+        {/* Ten columns wanting 1,128px in a 1,002px card. Everything that
+            knows its width says so; the cashier's name and the note take what
+            is left, and the table carries a floor so the two of them are not
+            squeezed to 45px each. */}
+        <table className="sh-history">
           <thead>
             <tr>
-              <Th>Cashier</Th><Th>Run</Th><Th>Opened</Th><Th>Closed</Th>
-              <Th className="num">Float</Th><Th className="num">Expected</Th><Th className="num">Counted</Th>
-              <Th className="num">Variance</Th><Th className="num">Sales</Th><Th>Notes</Th>
+              <Th>Cashier</Th>
+              <Th className="sh-run-col">Run</Th>
+              <Th className="sh-when">Opened</Th>
+              <Th className="sh-when">Closed</Th>
+              <Th className="num sh-float">Float</Th>
+              <Th className="num sh-money">Expected</Th>
+              <Th className="num sh-money">Counted</Th>
+              <Th className="num sh-var">Variance</Th>
+              <Th className="num sh-sales">Sales</Th>
+              <Th>Notes</Th>
             </tr>
           </thead>
           <tbody>
