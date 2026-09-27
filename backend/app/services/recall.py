@@ -169,6 +169,14 @@ def trace(db: Session, batch_id: int) -> dict:
 
     received = batch.quantity_received or 0
     remaining = batch.quantity_remaining or 0
+    # Held stock is still owned and still counted; it simply cannot go
+    # anywhere. `StockBatch.held` is the model's own answer — read from it
+    # rather than comparing the status string here, so this stays right if the
+    # statuses ever grow. Reached by name and not by `getattr(..., False)`: a
+    # default swallows a rename and reports every held batch as loose on the
+    # shelf, which on this screen is the wrong answer in the dangerous
+    # direction.
+    held = bool(batch.held)
     # What left the shelf but no allocation accounts for. Stock received before
     # allocations were recorded, or written off, or dispensed without a batch.
     unaccounted = max(0, received - remaining - traced_units)
@@ -186,7 +194,19 @@ def trace(db: Session, batch_id: int) -> dict:
         "origin": _origin(db, batch),
         "quantities": {
             "received": received,
-            "on_shelf": remaining,
+            # WHAT IS ON THE SHELF AND WHAT IS MERELY LEFT ARE NOT THE SAME.
+            #
+            # This reported `remaining` as "still on the shelf" whatever the
+            # batch's status, so a batch that had just been quarantined — the
+            # first thing this screen tells you to do — went on reporting every
+            # unit as still reachable. The figure that matters in a recall is
+            # what could still reach a person, and held stock cannot: it is on
+            # the books, and it cannot be dispensed, sold or transferred.
+            #
+            # Reading the same number after taking the action is how somebody
+            # concludes the action did not work and does it again.
+            "on_shelf": 0 if held else remaining,
+            "held": remaining if held else 0,
             "traced_to_a_patient": traced_units - anonymous_units,
             "sold_to_a_walk_in": anonymous_units,
             # Named, not hidden. A recall report that quietly omits what it
@@ -197,9 +217,12 @@ def trace(db: Session, batch_id: int) -> dict:
         "to_call": len({r["patient_id"] for r in recipients if r["phone"]}),
         "no_phone": len([r for r in recipients if not r["phone"]]),
         "value_on_shelf": round(remaining * (batch.unit_cost or 0), 2),
+        "is_held": held,
         "value_dispensed": round(traced_units * (batch.unit_cost or 0), 2),
-        "warnings": _warnings(remaining, unaccounted, anonymous_units,
-                              [r for r in recipients if not r["phone"]]),
+        "warnings": _warnings(0 if held else remaining, unaccounted,
+                              anonymous_units,
+                              [r for r in recipients if not r["phone"]],
+                              held=remaining if held else 0),
     }
 
 
@@ -219,12 +242,20 @@ def _has_allocations(db: Session) -> bool:
         return False
 
 
-def _warnings(remaining: int, unaccounted: int, anonymous: int, unreachable: list) -> list[str]:
+def _warnings(remaining: int, unaccounted: int, anonymous: int,
+              unreachable: list, *, held: int = 0) -> list[str]:
     out = []
     if remaining:
         out.append(f"{remaining} unit(s) are still on the shelf. Quarantine them "
                    "before anything else, because that is the part still capable "
                    "of reaching somebody.")
+    if held:
+        # The one line here that is not a warning. Somebody who has just held
+        # the stock should be told it worked in the same place they were told
+        # to do it, rather than having to notice a figure elsewhere change.
+        out.append(f"{held} unit(s) are held and cannot be dispensed, sold or "
+                   "transferred. They stay on the books until somebody with "
+                   "the approval capability releases or writes them off.")
     if unaccounted:
         out.append(f"{unaccounted} unit(s) left the shelf with no batch recorded "
                    "against the sale, so who received them cannot be established "

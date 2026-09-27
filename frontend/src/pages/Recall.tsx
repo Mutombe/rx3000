@@ -14,7 +14,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useScheduleCodes } from "../schedules";
-import { MagnifyingGlass, Phone, Warning } from "@phosphor-icons/react";
+import { MagnifyingGlass, Phone, Prohibit, Warning } from "@phosphor-icons/react";
 import { api, errorText, fmtDate, fmtDateTime, money, prefetchRoute } from "../api";
 import { useToast } from "../components/Toast";
 import BusyButton from "../components/BusyButton";
@@ -40,12 +40,15 @@ interface Trace {
            schedule: number | null; expiry_date: string | null; unit_cost: number };
   origin: { order_number: string; ordered_on: string | null; received_on: string | null;
             supplier: string; supplier_phone: string; supplier_email: string; certain: boolean };
-  quantities: { received: number; on_shelf: number; traced_to_a_patient: number;
+  quantities: { received: number; on_shelf: number; held: number;
+                traced_to_a_patient: number;
                 sold_to_a_walk_in: number; unaccounted: number };
   recipients: Recipient[];
   to_call: number;
   no_phone: number;
   value_on_shelf: number;
+  /** Whether what is left has been taken out of circulation. */
+  is_held: boolean;
   value_dispensed: number;
   warnings: string[];
 }
@@ -117,6 +120,38 @@ export default function Recall() {
     navigator.clipboard?.writeText(
       `Recall ${trace.batch.batch_number}: ${trace.batch.product}\n` + lines.join("\n"));
     toast.ok(`${lines.length} number(s) copied.`);
+  }
+
+  /** Take what is left of this batch out of circulation.
+   *
+   *  THE ONLY STEP THAT STOPS IT REACHING SOMEBODY ELSE.
+   *
+   *  Everything else a recall involves is about people who already have the
+   *  medicine. This is about the ones who would get it next, and it is the
+   *  cheapest thing on the page: the stock stays on the books, nothing is
+   *  written off, and it cannot be dispensed, sold or transferred while it is
+   *  held. Reversible by somebody with the approval capability, which is why
+   *  holding it asks less of the presser than releasing it does.
+   *
+   *  Not a confirmation. A confirmation on this would be asking somebody to
+   *  agree that a recalled batch should stop being dispensed.
+   */
+  async function holdWhatIsLeft() {
+    if (!trace) return;
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/stock/batches/${trace.batch.batch_id}/quarantine`,
+        { reason: "recalled",
+          note: `Recall of ${trace.batch.batch_number}. Held from the recall screen.` });
+      toast.ok(said.message);
+      // Traced again rather than patched: holding changes what is on the
+      // shelf, and the figures above are the reason somebody is here.
+      const got = await api.get<Trace>(
+        `/api/recall/batches/${trace.batch.batch_id}`);
+      setTrace(got);
+    } catch (e) {
+      toast.error(errorText(e, "That batch could not be held."));
+    }
   }
 
   /** Tell everybody holding this batch, in one go.
@@ -286,12 +321,37 @@ export default function Recall() {
               <ul>
                 {trace.warnings.map((w, i) => <li key={i}>{w}</li>)}
               </ul>
+              {/* THE ADVICE ABOVE, WITH A WAY TO TAKE IT.
+                  This screen has told the reader since it was written that
+                  holding what is left is the first thing to do and the only
+                  step that stops the batch reaching somebody else. The
+                  endpoint to do it has existed just as long, carries its own
+                  `recalled` reason, and nothing in the product called it. So
+                  the instruction was followed by walking to the shelf, and on
+                  a busy afternoon it was followed after the telephone calls,
+                  or not at all. */}
+              {(qty?.on_shelf ?? 0) > 0 && (
+                <BusyButton className="btn primary" onClick={holdWhatIsLeft}
+                            busyLabel="Holding it…">
+                  <Prohibit size={14} weight="bold" /> Hold the{" "}
+                  {qty?.on_shelf} still on the shelf
+                </BusyButton>
+              )}
             </div>
           )}
 
           <div className="wc-bands">
             <div className="wl-stat"><b>{qty?.received}</b><span>Received</span></div>
-            <div className="wl-stat wc-abandoned"><b>{qty?.on_shelf}</b><span>Still on the shelf</span></div>
+            {/* Two different states, never both. Stock that is loose on the
+                shelf is the part still capable of reaching somebody, and held
+                stock is the part that has been stopped. Showing the same
+                figure under the same words after holding it is how somebody
+                concludes the hold did not work. */}
+            {trace.is_held ? (
+              <div className="wl-stat"><b>{qty?.held}</b><span>Held, cannot go out</span></div>
+            ) : (
+              <div className="wl-stat wc-abandoned"><b>{qty?.on_shelf}</b><span>Still on the shelf</span></div>
+            )}
             <div className="wl-stat"><b>{qty?.traced_to_a_patient}</b><span>Traced to a patient</span></div>
             <div className="wl-stat"><b>{qty?.sold_to_a_walk_in}</b><span>Sold to a walk-in</span></div>
             <div className={`wl-stat${qty?.unaccounted ? " wc-stale" : ""}`}>

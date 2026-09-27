@@ -61,7 +61,28 @@ def create(product_id: int = Body(...), quantity: int = Body(...),
            promised_for: date | None = Body(default=None),
            notes: str = Body(default=""),
            db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """Record a debt raised outside the dispensing flow, an OTC short supply."""
+    """Record a promise made at the counter.
+
+    Most to-follows are raised by a dispensing that came up short, and that is
+    the common case. This is the other one: somebody asks for something the
+    shelf does not have, is told it will be in on Friday, and walks out. Until
+    this existed that promise lived on whatever the pharmacy writes it on,
+    which is the paper list this whole feature exists to replace.
+
+    THERE WERE TWO OF THESE, AND ONLY ONE OF THEM RAN.
+
+    A second `@router.post("")` was declared below this one, with the docstring
+    above and a body that was this one minus `sale_id`. FastAPI matches routes
+    in the order they are registered, so every request has always been served
+    here — while the OpenAPI schema, which is a dict keyed by path and method,
+    kept the LAST declaration and published the other one.
+
+    So the contract said one thing, the server did another, and the difference
+    was invisible: the two bodies agreed except for a field, and the one the
+    schema omitted is the one that ties a short supply to the sale it came
+    from. Anybody editing the dead handler would have watched their change do
+    nothing.
+    """
     product = db.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -76,39 +97,6 @@ def create(product_id: int = Body(...), quantity: int = Body(...),
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     # The whole unit of work here is this one record, so this is where it is
     # committed — `record` no longer does it for everybody.
-    db.commit()
-    db.refresh(owed)
-    return to_follows.summarise(owed)
-
-
-@router.post("")
-def promise(product_id: int = Body(...), quantity: int = Body(...),
-            patient_id: int | None = Body(default=None),
-            promised_for: date | None = Body(default=None),
-            notes: str = Body(default=""),
-            db: Session = Depends(get_db),
-            user: User = Depends(get_current_user)):
-    """Record a promise made at the counter.
-
-    Most of these are raised by a dispensing that came up short, and that is
-    the common case. This is the other one: somebody asks for something the
-    shelf does not have, is told it will be in on Friday, and walks out. Until
-    now that promise lived in whatever the pharmacy writes it on, which is the
-    paper list this whole feature exists to replace, so the one route into it
-    that a person actually uses was the one that was missing.
-    """
-    product = db.get(Product, product_id)
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    if patient_id and not db.get(Patient, patient_id):
-        raise HTTPException(status_code=404, detail="Patient not found")
-    try:
-        owed = to_follows.record(
-            db, product=product, quantity_owed=int(quantity),
-            patient_id=patient_id, user_id=user.id,
-            promised_for=promised_for, notes=notes.strip())
-    except to_follows.OwedError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
     db.refresh(owed)
     return to_follows.summarise(owed)

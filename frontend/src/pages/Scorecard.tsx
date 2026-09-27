@@ -19,6 +19,7 @@ import { EntityLink } from "../components/Filters";
 import Select from "../components/Select";
 import { TableSkeleton } from "../components/Skeleton";
 import { rateTone } from "../tone";
+import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
 
 interface Money { count: number; amount: number }
@@ -206,21 +207,36 @@ export default function Scorecard() {
                   || b.claims.rejected > 0 || b.dispensing.uncollected > 0
                   || b.deliveries.failed > 0 || b.buying.outstanding > 0
                   || b.cashup.total_variance > 0.005) && (
+                  /* NAMED, AND NOW WITH SOMEWHERE TO GO.
+                     Seven findings, every one of them the subject of a screen
+                     that can do something about it, and not one of them was a
+                     link. A manager read "14 uncollected" here and then went
+                     looking for the will call shelf through the navigation,
+                     which is the moment most of these stop being acted on.
+                     The dashboard already does it this way: the sentence and
+                     the route it leads to, together. */
                   <ul className="bp-flags">
                     {b.sales.pending > 0 && (
-                      <li><b>{b.sales.pending}</b> sales unpaid</li>)}
+                      <li><Link to="/money-owed">
+                        <b>{b.sales.pending}</b> sales unpaid</Link></li>)}
                     {b.cashup.total_variance > 0.005 && (
-                      <li><b>{money(b.cashup.total_variance)}</b> out at cash-up</li>)}
+                      <li><Link to="/reconciliation">
+                        <b>{money(b.cashup.total_variance)}</b> out at cash-up</Link></li>)}
                     {b.stock.short_dated > 0 && (
-                      <li><b>{b.stock.short_dated}</b> short dated</li>)}
+                      <li><Link to="/stock?tab=batches">
+                        <b>{b.stock.short_dated}</b> short dated</Link></li>)}
                     {b.claims.rejected > 0 && (
-                      <li><b>{b.claims.rejected}</b> claims rejected</li>)}
+                      <li><Link to="/claiming">
+                        <b>{b.claims.rejected}</b> claims rejected</Link></li>)}
                     {b.dispensing.uncollected > 0 && (
-                      <li><b>{b.dispensing.uncollected}</b> uncollected</li>)}
+                      <li><Link to="/will-call">
+                        <b>{b.dispensing.uncollected}</b> uncollected</Link></li>)}
                     {b.deliveries.failed > 0 && (
-                      <li><b>{b.deliveries.failed}</b> deliveries failed</li>)}
+                      <li><Link to="/deliveries?tab=failed">
+                        <b>{b.deliveries.failed}</b> deliveries failed</Link></li>)}
                     {b.buying.outstanding > 0 && (
-                      <li><b>{b.buying.outstanding}</b> orders outstanding</li>)}
+                      <li><Link to="/orders">
+                        <b>{b.buying.outstanding}</b> orders outstanding</Link></li>)}
                   </ul>
                 )}
               </article>

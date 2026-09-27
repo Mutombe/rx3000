@@ -7066,6 +7066,18 @@ table.dt.sub th { font-size: var(--t-xs); }
   font-size: var(--t-sm); color: var(--ink-mid);
 }
 .bp-flags b { color: var(--warn); font-variant-numeric: tabular-nums; }
+/* Each finding leads to the screen that can do something about it, so it has
+   to look like it leads somewhere. Underlined on hover rather than always: a
+   strip of seven underlined phrases reads as a link farm, and the point of the
+   strip is to be skimmed for the number. */
+.bp-flags a {
+  color: inherit; text-decoration: none;
+  border-radius: var(--r-sm);
+}
+.bp-flags a:hover { color: var(--ink); text-decoration: underline; }
+.bp-flags a:focus-visible {
+  outline: 0; box-shadow: 0 0 0 3px var(--accent-ring);
+}
 
 /* The detail page: facts with their denominators, because "12 exact" means
    nothing until it says "of 26". */

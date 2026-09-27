@@ -1082,6 +1082,43 @@ export default function Dispense() {
     });
   }
 
+  /** Write down the balance this dispensing could not supply.
+   *
+   *  THE COMMON CASE THE COMMON CASE WAS NOT WIRED TO.
+   *
+   *  `NewToFollow` says in its own docstring that a to-follow raised by a
+   *  dispensing that came up short is "the common case and already handled".
+   *  It was not handled anywhere: the string "to-follow" does not appear in
+   *  this file. The dispenser saw "Only 12 in stock", handed over twelve, and
+   *  carried the other eighteen in their head to a paper list.
+   *
+   *  It asks for nothing because it needs nothing. The medicine, the patient
+   *  and the shortfall are all on the screen already, and a dialogue that made
+   *  somebody search for a product they are looking at is the friction that
+   *  stops it being used at the one moment it is worth using.
+   *
+   *  No promised date. A date is the best part of a to-follow and it is also
+   *  a guess at a counter with somebody waiting: the To follows screen is
+   *  where a date is set, once the order is placed and there is something
+   *  honest to promise.
+   */
+  async function promiseTheRest(line: any, onHand: number) {
+    const short = (line.quantity || 0) - onHand;
+    if (short <= 0) return;
+    try {
+      await api.post("/api/to-follows", {
+        product_id: line.product.id,
+        quantity: short,
+        patient_id: patient?.id ?? null,
+        notes: `Short on dispensing. ${onHand} of ${line.quantity} supplied.`,
+      });
+      toast.ok(`${short} ${line.product.name} owed${patient ? ` to ${patient.first_name}` : ""}. `
+               + "It is on the To follows list.");
+    } catch (e) {
+      toast.error(errorText(e, "That promise could not be written down."));
+    }
+  }
+
   async function openHoldDialog() {
     if (holdReasons.length === 0) {
       try {
@@ -4110,9 +4147,35 @@ export default function Dispense() {
                               )}
                             </dl>
                             {onHand < (it.quantity || 0) && (
-                              <p className="ed-dose is-major">
-                                <Warning size={14} weight="fill" /> Only {onHand} in stock.
-                              </p>
+                              <>
+                                <p className="ed-dose is-major">
+                                  <Warning size={14} weight="fill" /> Only {onHand} in stock.
+                                </p>
+                                {/* THE SENTENCE WAS THE WHOLE OF IT, ON THE
+                                    SCREEN WHERE THE PATIENT IS STANDING.
+
+                                    A to-follow is a promise to supply the
+                                    balance, and its own component says "most
+                                    of these are raised by a dispensing that
+                                    came up short, and that is the common case
+                                    and already handled". It was not handled
+                                    here: the word to-follow appears nowhere in
+                                    this file. The dispenser was told the shelf
+                                    was short and left to remember it, which is
+                                    the paper list the feature exists to
+                                    replace.
+
+                                    Everything it needs is already on screen,
+                                    so it asks for nothing: this medicine, this
+                                    patient, and the difference between what
+                                    was written and what there is. */}
+                                <BusyButton className="btn small secondary"
+                                            busyLabel="Writing it down…"
+                                            onClick={() => promiseTheRest(it, onHand)}>
+                                  <Plus size={12} weight="bold" /> Promise the
+                                  other {(it.quantity || 0) - onHand}
+                                </BusyButton>
+                              </>
                             )}
                           </section>
                           <section className="ed-sec">

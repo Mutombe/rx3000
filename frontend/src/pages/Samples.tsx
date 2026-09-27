@@ -401,14 +401,36 @@ export default function Samples() {
                                 <span className="field-hint">Required. A sample handed over with no name is the one you get asked about.</span>
                               </label>
                             )}
-                            {move.movement === "destroyed" && (
+                            {/* THE ADVICE AT THE TOP OF THIS PAGE COULD NOT BE
+                                FOLLOWED, AND IT IS THE COMPLIANCE ONE.
+
+                                The alert above says an expired receipt still
+                                on the register is a finding, and to "write it
+                                off with a witness". The movement named for
+                                exactly that is "Written off, out of date" —
+                                and this field only appeared for "Destroyed",
+                                so choosing the one the alert names recorded no
+                                witness at all. The instruction was unfollowable
+                                as written, on the screen an inspector reads.
+
+                                Offered for both now. Still REQUIRED only for
+                                destruction, which is where the server draws
+                                the line: saying medicine was destroyed is a
+                                claim about a thing nobody can check
+                                afterwards, and a date on a box is not. */}
+                            {(move.movement === "destroyed"
+                              || move.movement === "expired") && (
                               <label className="field">
                                 Witnessed by
                                 <Select value={witness} onChange={setWitness}
                                         placeholder="a second person"
                                         options={staff.map((u) => ({
                                           value: String(u.id), label: u.full_name }))} />
-                                <span className="field-hint">Required. One person deciding alone is the gap every stock loss goes through.</span>
+                                <span className="field-hint">
+                                  {move.movement === "destroyed"
+                                    ? "Required. One person deciding alone is the gap every stock loss goes through."
+                                    : "Worth naming. A write-off nobody else saw is the one you get asked about."}
+                                </span>
                               </label>
                             )}
                             <label className="field span-2">

@@ -24,7 +24,8 @@ import BusyButton from "../components/BusyButton";
 import Pagination from "../components/Pagination";
 import { useClientPage } from "../hooks/useClientPage";
 import NewToFollow from "../components/NewToFollow";
-import { Plus } from "@phosphor-icons/react";
+import MessageThese from "../components/MessageThese";
+import { Phone, Plus } from "@phosphor-icons/react";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
@@ -62,6 +63,7 @@ type Tab = "ready" | "all" | "settled";
 export default function ToFollows() {
   const [ready, setReady] = useState<Owed[]>([]);
   const [promising, setPromising] = useState(false);
+  const [telling, setTelling] = useState(false);
   const [all, setAll] = useState<Owed[]>([]);
   const [settled, setSettled] = useState<Owed[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
@@ -182,6 +184,19 @@ export default function ToFollows() {
         sub={headline}
         // What is owed, as the sheet the counter keeps beside the telephone.
         take={<ExportButton dataset="to-follows" />}
+        /* THE WHOLE PREMISE OF THIS SCREEN, AND IT HAD NO CONTROL.
+           The default tab's own hint reads "Owed, and now in stock, the
+           patients to telephone", and the docstring says this list is "the
+           reason to open this screen in the morning rather than when somebody
+           complains". It then showed the telephone number as grey text and
+           offered nothing to do with it. Will call, Repeats, Money owed and
+           Recall can all tell a list of people something; the one screen that
+           IS a list of people to tell could not. */
+        also={tab === "ready" && ready.length > 0 ? (
+          <button className="btn secondary" onClick={() => setTelling(true)}>
+            <Phone size={14} /> Tell {ready.filter((o) => o.patient_phone).length} it is in
+          </button>
+        ) : undefined}
         // Most of these are raised by a dispensing that came up short. This is
         // the other half: asked for at the counter, promised for Friday, and
         // until now written on whatever was to hand, which is the paper list
@@ -195,6 +210,19 @@ export default function ToFollows() {
 
       {promising && (
         <NewToFollow onClose={() => setPromising(false)} onPromised={load} />
+      )}
+
+      {telling && (
+        <MessageThese
+          people={ready
+            .filter((o) => o.patient_id && o.patient_phone)
+            .map((o) => ({
+              id: o.patient_id as number,
+              name: o.patient_name,
+              phone: o.patient_phone,
+            }))}
+          onClose={() => setTelling(false)}
+        />
       )}
 
       <PageTabs tabs={TABS} tab={tab} setTab={setTab} />

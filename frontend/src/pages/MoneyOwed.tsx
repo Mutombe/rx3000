@@ -173,11 +173,28 @@ export default function MoneyOwed() {
     }
   }
 
-  const rows = data?.items ?? [];
+  const all = data?.items ?? [];
+  const stale = all.filter((r) => r.days >= 30);
+
+  /* THE BAND IS THE FILTER, AND IT HAD TO BECOME ONE.
+   *
+   * A comment on the reminder below said the usual thing somebody wants is
+   * everybody past thirty days, "and that is a search away rather than a
+   * second button". It was not. The only narrowing was a free text search
+   * over names, telephone numbers and sale numbers, and the thirty day figure
+   * was a tile nobody could press. So "Remind 80 to pay" meant everybody,
+   * including the person who took their medicine this morning and is not late
+   * at all, and a reminder to somebody who owes nothing yet is worse than no
+   * reminder: it is the pharmacy looking as though it does not know.
+   *
+   * The tile was already there and already carried the number. Making it the
+   * control adds nothing to the screen.
+   */
+  const [olderThan, setOlderThan] = useState(0);
+  const rows = olderThan ? all.filter((r) => r.days >= olderThan) : all;
   /* Every unpaid sale in the shop. Somebody rings about THEIR bill, so
      the question is always one name in a list that only grows. */
   const { q, setQ, shown } = useSearch(rows, (r) => [r.patient, r.phone, r.sale_number]);
-  const stale = rows.filter((r) => r.days >= 30);
 
   return (
     <>
@@ -215,10 +232,16 @@ export default function MoneyOwed() {
           <div className="wl-stat">
             <b>{data.patients}</b><span>patient{data.patients === 1 ? "" : "s"}</span>
           </div>
-          <div className={`wl-stat${stale.length ? " wc-stale" : ""}`}>
+          <button
+            className={`wl-stat${stale.length ? " wc-stale" : ""}`
+                       + (olderThan ? " is-on" : "")}
+            onClick={() => setOlderThan(olderThan ? 0 : 30)}
+            title={olderThan
+              ? "Show everything owed again"
+              : "Show only what has been owed longer than a month"}>
             <b>{money(stale.reduce((s, r) => s + r.balance, 0))}</b>
             <span>Owing more than a month</span>
-          </div>
+          </button>
         </div>
       )}
 
@@ -241,6 +264,18 @@ export default function MoneyOwed() {
           <TableSearch value={q} onChange={setQ}
                        placeholder="Find a patient, a phone number or a sale…"
                        shown={shown.length} total={rows.length} />
+          {/* Said where the list is, not only on the tile, because what is on
+              screen is now a part of what is owed and everything below reads
+              differently for it. */}
+          {olderThan > 0 && (
+            <p className="muted small">
+              Showing the {rows.length} owed longer than a month, of{" "}
+              {all.length}.{" "}
+              <button className="linkish" onClick={() => setOlderThan(0)}>
+                Show everything owed
+              </button>
+            </p>
+          )}
           <table className="dt">
             <thead>
               <tr>
