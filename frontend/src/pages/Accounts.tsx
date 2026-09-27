@@ -161,7 +161,13 @@ export default function Accounts() {
   function load() {
     api.get<Company[]>(`/api/crm/companies?q=${encodeURIComponent(q)}`).then(setCompanies).catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<Contact[]>(`/api/crm/contacts?q=${encodeURIComponent(q)}`).then(setContacts);
+    api.get<Contact[]>(`/api/crm/contacts?q=${encodeURIComponent(q)}`)
+      .then(setContacts)
+      // The companies half of this screen toasts its failure; the contacts
+      // half was silent, so half a directory looked like the whole of one.
+      .catch((e) => toast.error(errorText(e,
+        "The contacts could not be read. The accounts beside them are still "
+        + "the real list.")));
   }
 
   useEffect(load, [q]);

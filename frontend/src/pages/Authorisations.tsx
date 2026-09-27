@@ -19,6 +19,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import SectionNav from "../components/SectionNav";
 import { CLAIMING_TABS } from "../reconTabs";
 import { api, errorText, fmtDate, money } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import { useConfirm } from "../components/Confirm";
 import LookupInput, { LookupItem } from "../components/LookupInput";
 import { TableSkeleton } from "../components/Skeleton";
@@ -92,8 +93,10 @@ export default function Authorisations() {
   const [asking, setAsking] = useState(false);
   const [funder, setFunder] = useState("CIMAS_ZW");
   const [policy, setPolicy] = useState("");
-  const [patientQ, setPatientQ] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [productQ, setProductQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -136,12 +139,6 @@ export default function Authorisations() {
     if (firstSearch.current) { firstSearch.current = false; return; }
     setPage(1);
   }, [settled]);
-
-  useEffect(() => {
-    if (patientQ.trim().length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`)
-      .then(setPatients).catch(() => setPatients([]));
-  }, [patientQ]);
 
   useEffect(() => {
     if (productQ.trim().length < 2) { setProducts([]); return; }
@@ -578,12 +575,18 @@ export default function Authorisations() {
               <ul className="st-results">
                 {patients.map((p) => (
                   <li key={p.id}>
-                    <button type="button" onClick={() => { setPatient(p); setPatients([]); }}>
+                    <button type="button" onClick={() => { setPatient(p); clearPatients(); }}>
                       {p.first_name} {p.last_name}
                     </button>
                   </li>
                 ))}
               </ul>
+            )}
+            {patientsFailed && (
+              <p className="hint is-warn">
+                That lookup could not be run, so this says nothing about whether
+                they are on file. Type the name again.
+              </p>
             )}
 
             <label>

@@ -56,10 +56,28 @@ export default function PatientDetail() {
   const [log, setLog] = useState<TimelineEntry[]>([]);
   const [logForm, setLogForm] = useState(
     { activity_type: "call", subject: "", body: "", due_at: "" });
+  /* FIVE READS, NOT ONE OF THEM CAUGHT.
+   *
+   *  This is a patient's clinical record, and its three tabs said "No
+   *  prescriptions on file", "Nothing dispensed yet" and "No purchases yet"
+   *  whether the answer was nought or the question was never asked. A dispenser
+   *  checks this screen before handing medicine over; being told a patient has
+   *  had nothing when they have had six months of it is the worst sentence in
+   *  this product. The tab counts read nought for the same reason, so nobody
+   *  even opened the tab to find out.
+   *
+   *  `missing` names the parts that could not be read, so each section can say
+   *  so in its own words and the counts can go blank rather than lie. */
+  const [missing, setMissing] = useState<Record<string, boolean>>({});
+  const lost = (part: string) => () => setMissing((m) => ({ ...m, [part]: true }));
+
   const TABS: TabDef<Tab>[] = [
-    { key: "scripts", label: "Prescriptions", count: scripts.length },
-    { key: "history", label: "Dispensing history", count: history.length },
-    { key: "sales", label: "Purchases", count: sales.length },
+    { key: "scripts", label: "Prescriptions",
+      count: missing.scripts ? undefined : scripts.length },
+    { key: "history", label: "Dispensing history",
+      count: missing.history ? undefined : history.length },
+    { key: "sales", label: "Purchases",
+      count: missing.sales ? undefined : sales.length },
     // Every conversation this pharmacy has had with them. The record of the
     // medicine was here; the record of the phone calls about it was not, so
     // "I rang her twice about that repeat" lived in one person's memory.
@@ -72,13 +90,27 @@ export default function PatientDetail() {
   const [tab, setTab] = usePageTabs<Tab>(TABS, "scripts");
 
   useEffect(() => {
-    api.get<Patient>(`/api/patients/${id}`).then(setPatient);
-    api.get<Prescription[]>(`/api/prescriptions?patient_id=${id}`).then(setScripts);
-    api.get<Sale[]>(`/api/patients/${id}/sales`).then(setSales);
-    api.get<HistoryLine[]>(`/api/reports/patient/${id}/history`).then(setHistory);
-    api.get(`/api/reports/patient/${id}/tax`).then(setTax);
+    setMissing({});
+    api.get<Patient>(`/api/patients/${id}`).then(setPatient).catch(lost("patient"));
+    api.get<Prescription[]>(`/api/prescriptions?patient_id=${id}`)
+      .then(setScripts).catch(lost("scripts"));
+    api.get<Sale[]>(`/api/patients/${id}/sales`).then(setSales).catch(lost("sales"));
+    api.get<HistoryLine[]>(`/api/reports/patient/${id}/history`)
+      .then(setHistory).catch(lost("history"));
+    api.get(`/api/reports/patient/${id}/tax`).then(setTax).catch(lost("tax"));
     loadLog();
   }, [id]);
+
+  if (!patient && missing.patient)
+    return (
+      <div className="page">
+        <div className="alert error">This patient&rsquo;s record could not be read.</div>
+        <p className="muted pad">
+          Nothing on this screen is a statement about them. Check the connection
+          and open the record again.
+        </p>
+      </div>
+    );
 
   if (!patient) return <DetailSkeleton
         trail={[{ label: "Dashboard", to: "/" }, { label: "Patients", to: "/patients" }, { label: "Loading" }]}
@@ -365,7 +397,14 @@ export default function PatientDetail() {
 
       {tab === "scripts" && (
         <div className="card">
-          {scripts.length === 0 && <div className="empty">No prescriptions on file</div>}
+          {missing.scripts ? (
+            <div className="empty">
+              The prescriptions could not be read. This is not a statement that
+              they have none on file.
+            </div>
+          ) : scripts.length === 0 && (
+            <div className="empty">No prescriptions on file</div>
+          )}
           {scripts.map((rx) => (
             <div key={rx.id} style={{ marginBottom: 18 }}>
               {/* The number was plain text on the one screen where somebody is
@@ -386,12 +425,18 @@ export default function PatientDetail() {
               )}
               {" · "}{fmtDate(rx.date_prescribed)} · {rx.doctor?.name}
               <button className="ghost small" onClick={() =>
-                api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`).then((labels) => {
-                  // Held-back labels are named rather than silently missing
-                  // from the sheet: somebody is standing there with the box.
-                  const { refused } = printLabels(labels);
-                  if (refused.length) toast.warn(refusedSummary(refused));
-                })}>
+                api.get<Label[]>(`/api/prescriptions/${rx.id}/labels`)
+                  .then((labels) => {
+                    // Held-back labels are named rather than silently missing
+                    // from the sheet: somebody is standing there with the box.
+                    const { refused } = printLabels(labels);
+                    if (refused.length) toast.warn(refusedSummary(refused));
+                  })
+                  // Pressing Labels and having nothing happen is the whole
+                  // complaint this button exists to answer.
+                  .catch(() => toast.error(
+                    "The labels for this prescription could not be built, so "
+                    + "nothing was sent to the printer."))}>
                 🖨 Labels
               </button>
               <table style={{ marginTop: 6 }}>
@@ -462,7 +507,14 @@ export default function PatientDetail() {
               ))}
             </tbody>
           </table>
-          {history.length === 0 && <div className="empty">Nothing dispensed yet</div>}
+          {missing.history ? (
+            <div className="empty">
+              The dispensing history could not be read. Do not treat this as a
+              patient who has had nothing; reload before dispensing.
+            </div>
+          ) : history.length === 0 && (
+            <div className="empty">Nothing dispensed yet</div>
+          )}
         </div>
       )}
 
@@ -485,10 +537,23 @@ export default function PatientDetail() {
               ))}
             </tbody>
           </table>
-          {sales.length === 0 && <div className="empty">No purchases yet</div>}
+          {missing.sales ? (
+            <div className="empty">
+              The purchases could not be read, so this is not a statement that
+              they have bought nothing.
+            </div>
+          ) : sales.length === 0 && (
+            <div className="empty">No purchases yet</div>
+          )}
         </div>
       )}
 
+      {tab === "tax" && !tax && missing.tax && (
+        <div className="empty">
+          The tax statement could not be produced. Nothing here is a figure
+          about what they have spent.
+        </div>
+      )}
       {tab === "tax" && tax && (
         <div className="card">
           <h3>Medical expense statement, tax year {tax.tax_year}</h3>

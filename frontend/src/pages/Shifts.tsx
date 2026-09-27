@@ -22,6 +22,7 @@ const METHOD_LABEL: Record<string, string> = {
 export default function Shifts() {
   const [current, setCurrent] = useState<Shift | null>(null);
   const [history, setHistory] = useState<Shift[]>([]);
+  const [historyUnknown, setHistoryUnknown] = useState(false);
   const [loading, setLoading] = useState(true);
   const [openFloat, setOpenFloat] = useState("500");
   const [till, setTill] = useState("1");
@@ -44,7 +45,11 @@ export default function Shifts() {
         setTakings(null);
       }
     }).catch((e) => toast.error(errorText(e)));
-    api.get<Shift[]>("/api/shifts").then(setHistory)
+    api.get<Shift[]>("/api/shifts")
+      .then((r) => { setHistory(r); setHistoryUnknown(false); })
+      // A `.finally` is not a `.catch`: the skeleton went away and an empty
+      // table took its place, saying this till has never been cashed up.
+      .catch(() => { setHistory([]); setHistoryUnknown(true); })
       .finally(() => setLoading(false));
   }
 
@@ -307,7 +312,16 @@ export default function Shifts() {
             ))}
           </tbody>
         </table>
-        {history.length === 0 && !loading && (
+        {historyUnknown && !loading && (
+          <div className="empty">
+            <b>The shift history could not be read</b>
+            <p>
+              This is not a statement that no till has ever been cashed up.
+              Reload the page before checking a cash-up against it.
+            </p>
+          </div>
+        )}
+        {!historyUnknown && history.length === 0 && !loading && (
           <div className="empty">
             <b>No shifts recorded yet</b>
             <p>

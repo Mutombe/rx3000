@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { DetailSkeleton } from "../components/Skeleton";
 import RecordPage from "../components/RecordPage";
 import { Link, useParams } from "react-router-dom";
-import { api, fmtDate, money } from "../api";
+import { api, errorText, fmtDate, money } from "../api";
 import DataTable, { Column } from "../components/DataTable";
 import { EntityLink } from "../components/Filters";
 import { Highlights } from "../components/record";
@@ -13,11 +13,17 @@ export default function ContactDetail() {
   const { id } = useParams();
   const [contact, setContact] = useState<Contact | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [dealsUnknown, setDealsUnknown] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.get<Contact>(`/api/crm/contacts/${id}`).then(setContact).catch((e) => setError(e.message));
-    api.get<Deal[]>("/api/crm/deals").then((all) => setDeals(all.filter((d) => d.contact_id === Number(id))));
+    api.get<Contact>(`/api/crm/contacts/${id}`).then(setContact)
+      .catch((e) => setError(errorText(e, "This contact could not be read.")));
+    api.get<Deal[]>("/api/crm/deals")
+      .then((all) => { setDeals(all.filter((d) => d.contact_id === Number(id))); setDealsUnknown(false); })
+      // Unhandled before this, so an empty opportunities table read as "we have
+      // never quoted them" on the record of somebody being chased for business.
+      .catch(() => { setDeals([]); setDealsUnknown(true); });
   }, [id]);
 
   if (error)
@@ -100,7 +106,10 @@ export default function ContactDetail() {
         rowHref={(d) => `/deals/${d.id}`}
         totals
         initialSort={{ key: "value", dir: "desc" }}
-        empty="No opportunities linked to this contact"
+        empty={dealsUnknown
+          ? "The opportunities could not be read. This is not a statement "
+            + "that none are linked to this contact."
+          : "No opportunities linked to this contact"}
       />
     </RecordPage>
   );

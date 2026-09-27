@@ -62,6 +62,7 @@ export default function DeferredClaims() {
     [c.claim_number, c.patient_name, c.medical_aid, c.sale_number]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [summaryUnknown, setSummaryUnknown] = useState(false);
   const toast = useToast();
   const [busy, setBusy] = useState<number | "all" | null>(null);
   const [failures, setFailures] = useState<BatchResult["failed"]>([]);
@@ -70,7 +71,9 @@ export default function DeferredClaims() {
     api.get<Deferred[]>("/api/claims/deferred").then(setRows)
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<Summary>("/api/claims/deferred/summary").then(setSummary).catch(() => undefined);
+    api.get<Summary>("/api/claims/deferred/summary")
+      .then((s) => { setSummary(s); setSummaryUnknown(false); })
+      .catch(() => { setSummary(null); setSummaryUnknown(true); });
   }
 
   useEffect(load, []);
@@ -111,10 +114,13 @@ export default function DeferredClaims() {
   }
 
   const headline = useMemo(() => {
+    // Blank rather than "Every claim has been sent", which is what the line
+    // below would otherwise assert about money nobody has claimed.
+    if (summaryUnknown) return "What is held could not be read.";
     if (!summary) return "";
     if (!summary.held) return "Nothing is held. Every claim has been sent.";
     return summary.message;
-  }, [summary]);
+  }, [summary, summaryUnknown]);
 
   return (
     <div className="page">

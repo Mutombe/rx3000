@@ -85,6 +85,7 @@ export default function PatientForm({
 }) {
   const [form, setForm] = useState<PatientDraft>({ ...EMPTY_PATIENT });
   const [aids, setAids] = useState<MedicalAid[]>([]);
+  const [aidsUnknown, setAidsUnknown] = useState(false);
   const toast = useToast();
   /** Who on file may already be this person — null until asked.
    *
@@ -114,7 +115,14 @@ export default function PatientForm({
 
   useEffect(() => {
     if (!open) return;
-    api.get<MedicalAid[]>("/api/medical-aids").then(setAids).catch(() => setAids([]));
+    // An empty list and an unread list look identical in a dropdown, and the
+    // dropdown's own first option says "Private (none)". So a failed read
+    // filed a scheme member as a cash patient, and their claims were never
+    // raised. The field has to say which of the two it is.
+    setAidsUnknown(false);
+    api.get<MedicalAid[]>("/api/medical-aids")
+      .then(setAids)
+      .catch(() => { setAids([]); setAidsUnknown(true); });
   }, [open]);
 
   if (!open) return null;
@@ -294,6 +302,19 @@ export default function PatientForm({
               options={[{ value: "", label: "Private (none)" },
                         ...aids.map((a) => ({ value: String(a.id), label: a.name }))]}
             />
+            {aidsUnknown && (
+              <p className="hint is-warn">
+                The schemes on file could not be read, so this list is empty for
+                a reason that has nothing to do with this patient. Save the rest
+                and set the scheme once the list comes back.
+              </p>
+            )}
+            {!aidsUnknown && aids.length === 0 && (
+              <p className="hint">
+                No schemes are on file yet. Add them under Medical Aids and this
+                list fills itself.
+              </p>
+            )}
           </div>
           <div className="field span-4"><label>Member number</label>
             <input value={form.medical_aid_number} onChange={set("medical_aid_number")} /></div>

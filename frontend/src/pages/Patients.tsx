@@ -6,7 +6,7 @@ import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Pagination, { Paged } from "../components/Pagination";
 import { Link } from "react-router-dom";
 import { api, fmtDate, prefetchRoute, errorText  } from "../api";
-import { MedicalAid, Patient } from "../types";
+import { Patient } from "../types";
 import Select from "../components/Select";
 import IconButton from "../components/IconButton";
 import PatientForm from "../components/PatientForm";
@@ -51,7 +51,6 @@ export default function Patients() {
   const [meta, setMeta] = useState<Paged<Patient> | null>(null);
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
-  const [aids, setAids] = useState<MedicalAid[]>([]);
   const [q, setQ] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -86,7 +85,6 @@ export default function Patients() {
       .then(setCounts)
       .catch(() => setCounts(null));
   }, [q]);
-  useEffect(() => { api.get<MedicalAid[]>("/api/medical-aids").then(setAids); }, []);
 
   function openNew() {
     setEditing(null);

@@ -4,6 +4,7 @@ import Tenders, { TenderLine, currencyWorld, inBase } from "../components/Tender
 import DispensaryWorklist, { WorklistPanel } from "../components/DispensaryWorklist";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, fmtDate, fmtDateTime, money, errorText, fmtWhen } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import { useSession } from "../session";
 import { clearScriptDraft, readScriptDraft, writeScriptDraft } from "../hooks/scriptDraft";
 import { printDocument } from "../document";
@@ -407,18 +408,20 @@ export default function Dispense() {
 
   const [policies, setPolicies] = useState<SchedulePolicy[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorsUnknown, setDoctorsUnknown] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const toast = useToast();
   const askConfirm = useConfirm();
 
   // shared patient picker
-  const [patientQ, setPatientQ] = useState("");
   /** What is typed into the prescriber search. */
   const [doctorQ, setDoctorQ] = useState("");
   /** The lane search the cursor is in. Its placeholder turns from the field's
    *  name into what to type. */
   const [laneFocus, setLaneFocus] = useState<"patient" | "doctor" | "product" | null>(null);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // The patient lane, shared with the six other screens that look one up.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch(8);
   const [patient, setPatient] = useState<Patient | null>(null);
 
   // script capture
@@ -619,8 +622,16 @@ export default function Dispense() {
   }, []);
 
   useEffect(() => {
-    api.get<SchedulePolicy[]>("/api/dispensing/policy").then(setPolicies);
-    api.get<Doctor[]>("/api/doctors").then(setDoctors);
+    // No message, deliberately, and the only read on this screen that earns
+    // that: without the policies the schedule decides and every verification is
+    // asked for, so a failure here costs the dispenser keystrokes rather than
+    // letting anything through. The `.catch` is still needed — an unhandled
+    // rejection is not a decision.
+    api.get<SchedulePolicy[]>("/api/dispensing/policy")
+      .then(setPolicies).catch(() => setPolicies([]));
+    api.get<Doctor[]>("/api/doctors")
+      .then(setDoctors)
+      .catch(() => { setDoctors([]); setDoctorsUnknown(true); });
     api.get<User[]>("/api/auth/roster").then(setUsers)
       .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded.")));
   }, []);
@@ -650,15 +661,11 @@ export default function Dispense() {
    *
    *  `stale` closes over this run of the effect. The cleanup sets it before the
    *  next run starts, so an answer to a question nobody is asking any more is
-   *  dropped instead of rendered. Same guard on all three lanes. */
-  useEffect(() => {
-    if (patientQ.length < 2) { setPatients([]); return; }
-    let stale = false;
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=8`)
-      .then((found) => { if (!stale) setPatients(found); })
-      .catch(() => { if (!stale) setPatients([]); });
-    return () => { stale = true; };
-  }, [patientQ]);
+   *  dropped instead of rendered. Same guard on all three lanes.
+   *
+   *  The patient lane now lives in `usePatientSearch`, which is where the six
+   *  other screens that look a patient up got the same guard, and a `failed`
+   *  flag none of them had. */
 
 
   useEffect(() => {
@@ -2304,7 +2311,7 @@ export default function Dispense() {
       .then((p) => {
         setPatient(p);
         setPatientQ("");
-        setPatients([]);
+        clearPatients();
       })
       .catch(() => toast.error("That patient could not be opened."))
       .finally(() => {
@@ -3585,7 +3592,21 @@ export default function Dispense() {
                       person is standing there with a script, and the dispenser
                       had to leave for the patient register, type the name
                       again, and come back to an empty basket. */}
-                  {patientQ.trim().length >= 2 && patients.length === 0 && (
+                  {/* THE SEARCH THAT NEVER RAN, WITH A BUTTON BESIDE IT.
+                      "Nobody on file matches" and an Add them button, over a
+                      lookup that failed, is how a patient gets a second record.
+                      The history the next dispenser reads is then the half of
+                      it that sits under the other one. */}
+                  {patientsFailed && patientQ.trim().length >= 2 && (
+                    <div className="pick-none">
+                      <span>
+                        That lookup could not be run, so this says nothing about
+                        whether they are on file. Type the name again before
+                        registering them.
+                      </span>
+                    </div>
+                  )}
+                  {!patientsFailed && patientQ.trim().length >= 2 && patients.length === 0 && (
                     <div className="pick-none">
                       <span>Nobody on file matches &ldquo;{patientQ.trim()}&rdquo;.</span>
                       <button type="button" className="btn small"
@@ -3596,7 +3617,7 @@ export default function Dispense() {
                   )}
                   {patients.map((p) => (
                     <div key={p.id} className="product-pick"
-                      onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); setIdNumber(p.id_number); }}>
+                      onClick={() => { setPatient(p); clearPatients(); setIdNumber(p.id_number); }}>
                       <span>
                         <b>{p.last_name}, {p.first_name}</b>
                         {p.profile_number && <span className="muted mono"> {p.profile_number}</span>}
@@ -3672,6 +3693,20 @@ export default function Dispense() {
                   .filter((d) => `${d.name} ${d.practice_number ?? ""} ${d.ahfoz_number ?? ""}`
                     .toLowerCase().includes(q))
                   .slice(0, 8);
+                if (hits.length === 0 && doctorsUnknown) {
+                  /* "No prescriber matches" plus an Add them button, on a list
+                     that was never read, is how a duplicate prescriber gets
+                     created — and a claim then goes out against a fresh record
+                     with no practice number on it. */
+                  return (
+                    <div className="pick-none">
+                      <span>
+                        The prescribers could not be read, so nothing here says
+                        this one is not on file. Reload before adding them.
+                      </span>
+                    </div>
+                  );
+                }
                 if (hits.length === 0) {
                   return (
                     <div className="pick-none">
@@ -4774,7 +4809,8 @@ ${d.action}`}
                 + expiryNeeded.filter((l) => !packExpiry[l.product_id]
                     || packExpiry[l.product_id] < localIsoDate()).length;
               const worthKnowing = advisoryMsgs.length + (notCovered ? 1 : 0)
-                + (needsAuth ? 1 : 0) + (coverageUnknown ? 1 : 0);
+                + (needsAuth ? 1 : 0) + (coverageUnknown ? 1 : 0)
+                + (doseScreen.failed ? 1 : 0);
               const held = settleBlocks();
               const why = blockedBecause();
               const fee = payHow === "delivery" ? (Number(deliveryFee) || 0) : 0;
@@ -5029,6 +5065,29 @@ ${d.action}`}
                                       has been checked against their formulary. Dispensing is
                                       allowed; a line they do not cover will come back as a
                                       shortfall on the claim rather than being caught now.
+                                    </p>
+                                  </div>
+                                  <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
+                                </li>
+                              )}
+                              {/* THE DOSE CHECK THAT NEVER RAN.
+                                  The same fault, one floor up: the gate is on
+                                  `doseScreen.major`, which is nought both when
+                                  every dose is safe and when nothing was
+                                  checked. A clinical check is the one thing on
+                                  this screen that must not fail quietly. */}
+                              {doseScreen.failed && (
+                                <li className="fin-item is-warn">
+                                  <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">Doses</span>
+                                      <span className="badge muted">Not checked</span>
+                                    </div>
+                                    <p>
+                                      The doses could not be checked against the maximums this
+                                      system holds, so nothing here has been read as safe. Check
+                                      the directions yourself before dispensing.
                                     </p>
                                   </div>
                                   <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
@@ -5899,7 +5958,7 @@ ${d.action}`}
         open={newPatient}
         initial={draftFrom(patientQ)}
         onClose={() => setNewPatient(false)}
-        onSaved={(p) => { setPatient(p); setPatients([]); setPatientQ(""); }}
+        onSaved={(p) => { setPatient(p); clearPatients(); }}
       />
 
       {altering && (

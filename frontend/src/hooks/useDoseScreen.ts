@@ -53,6 +53,10 @@ export interface DoseScreenResult {
   /** How many are over a maximum. The page gates the dispense on this. */
   major: number;
   busy: boolean;
+  /** The check could not be run. Nought findings and an unrun check are the
+   *  same shape, and the page gates on `major`, so without this a failed
+   *  screen dispensed as quietly as a clean one. */
+  failed: boolean;
 }
 
 export function useDoseScreen(
@@ -61,6 +65,7 @@ export function useDoseScreen(
 ): DoseScreenResult {
   const [screen, setScreen] = useState<Screen | null>(null);
   const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const productIds = lines.map((l) => l.product_id);
   /* Keyed on the directions as well as the products: changing "1 t od" to
@@ -72,6 +77,7 @@ export function useDoseScreen(
   useEffect(() => {
     if (!lines.length) {
       setScreen(null);
+      setFailed(false);
       return;
     }
     let live = true;
@@ -89,8 +95,8 @@ export function useDoseScreen(
           quantity: l.quantity,
         })),
       })
-        .then((r) => { if (live) setScreen(r); })
-        .catch(() => { if (live) setScreen(null); })
+        .then((r) => { if (live) { setScreen(r); setFailed(false); } })
+        .catch(() => { if (live) { setScreen(null); setFailed(true); } })
         .finally(() => { if (live) setBusy(false); });
     }, 350);
     return () => { live = false; window.clearTimeout(t); };
@@ -108,5 +114,5 @@ export function useDoseScreen(
     if (line) byProduct.set(line.product_id, f);
   }
 
-  return { byProduct, major: screen?.doses?.major ?? 0, busy };
+  return { byProduct, major: screen?.doses?.major ?? 0, busy, failed };
 }

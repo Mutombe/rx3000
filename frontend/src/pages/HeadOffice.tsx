@@ -84,6 +84,7 @@ export default function HeadOffice() {
   const [loading, setLoading] = useState(true);
   const [pins, setPins] = useState<PinReport | null>(null);
   const [types, setTypes] = useState<Directory | null>(null);
+  const [loginsUnknown, setLoginsUnknown] = useState(false);
   const toast = useToast();
   const confirm = useConfirm();
   const ask = useAsk();
@@ -115,8 +116,13 @@ export default function HeadOffice() {
 
   const load = useCallback(() => {
     setLoading(true);
-    api.get<PinReport>("/api/hq/pins").then(setPins).catch(() => undefined);
-    api.get<Directory>("/api/hq/user-types").then(setTypes).catch(() => undefined);
+    // `types` being null is what draws the skeleton on the Who signs in tab, so
+    // a failed read left it loading for ever.
+    setLoginsUnknown(false);
+    api.get<PinReport>("/api/hq/pins")
+      .then(setPins).catch(() => setLoginsUnknown(true));
+    api.get<Directory>("/api/hq/user-types")
+      .then(setTypes).catch(() => setLoginsUnknown(true));
     api.get<Estate>(`/api/hq/overview?days=${days}`)
       .then(setEstate)
       .catch((e) => toast.error(errorText(e)))
@@ -325,7 +331,9 @@ export default function HeadOffice() {
             makes sense once you can see what they already had. */}
         {tab === "authority" && <RoleMatrix />}
         {tab === "authority" && <HqPermissions />}
-        {tab === "logins" && <WhoSignsIn pins={pins} types={types} />}
+        {tab === "logins" && (
+          <WhoSignsIn pins={pins} types={types} unknown={loginsUnknown} />
+        )}
       </Refreshable>
     </div>
   );
@@ -628,9 +636,18 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
  *  recorded against whoever opened the till that morning, so the controlled
  *  register names the wrong person on every line they touched.
  */
-function WhoSignsIn({ pins, types }: {
-  pins: PinReport | null; types: Directory | null;
+function WhoSignsIn({ pins, types, unknown }: {
+  pins: PinReport | null; types: Directory | null; unknown: boolean;
 }) {
+  if (!types && unknown) {
+    return (
+      <div className="empty">
+        Who can sign in could not be read. This screen is the one place that
+        says which staff have no PIN, so it is worth reloading rather than
+        reading as "everybody has one".
+      </div>
+    );
+  }
   if (!types) return <TableSkeleton cols={4} rows={5} />;
   return (
     <>
@@ -663,6 +680,19 @@ function WhoSignsIn({ pins, types }: {
         </table>
       </div>
       <p className="muted small">{types.note}</p>
+
+      {!pins && unknown && (
+        <>
+          <h4 className="cu-section">Signing in their own name</h4>
+          <div className="alert warn">
+            <Warning size={16} weight="fill" />
+            <span>
+              Who has no PIN could not be read. Its absence here is not the
+              answer that everybody has one.
+            </span>
+          </div>
+        </>
+      )}
 
       {pins && (
         <>

@@ -58,6 +58,10 @@ interface UnpostedReceipts {
 
 type Tab = "chart" | "trial" | "income" | "balance" | "cash" | "ageing" | "journal" | "recon" | "bank" | "unposted" | "provision" | "pastel";
 
+/** The four control accounts a pharmacy's books are argued from. Named here so
+ *  the screen can tell a reconciliation that failed from one it never had. */
+const RECONCILIATIONS = ["debtors", "creditors", "stock", "vat"];
+
 export default function Ledger() {
   const [tb, setTb] = useState<TrialBalance | null>(null);
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -65,12 +69,14 @@ export default function Ledger() {
   const [jPage, setJPage] = useState(1);
   const [jSize, setJSize] = useState(50);
   const [recon, setRecon] = useState<Record<string, Recon>>({});
+  const [reconFailed, setReconFailed] = useState<string[]>([]);
   const [unposted, setUnposted] = useState<Unposted | null>(null);
   /* The count and the total beside this table are computed over the whole set by
      the endpoint, never over the visible page. A footer that quietly totals one
      page is the most misleading thing a ledger screen can do. */
   const unpostedPage = useClientPage(unposted?.sales ?? [], 25);
   const [receipts, setReceipts] = useState<UnpostedReceipts | null>(null);
+  const [postingUnknown, setPostingUnknown] = useState(false);
   const receiptPage = useClientPage(receipts?.orders ?? [], 25);
   const [journalling, setJournalling] = useState(false);
   /* The chart, for the journal form. The trial balance already carries every
@@ -104,7 +110,11 @@ export default function Ledger() {
     { key: "bank", label: "Bank statement",
       hint: "What the bank says against what the ledger says" },
     { key: "unposted", label: "Not posted",
-      count: (unposted?.count ?? 0) + (receipts?.count ?? 0),
+      // No badge at all rather than a nought, when either half could not be
+      // read. A nought on this tab is the reason a manager never opens it.
+      count: postingUnknown
+        ? undefined
+        : (unposted?.count ?? 0) + (receipts?.count ?? 0),
       hint: "Sales and deliveries the ledger has not caught up with" },
     // Last, because it is what happens after everything else is right. The
     // pharmacy's accountant keeps the financials in Pastel and wants a file,
@@ -126,17 +136,26 @@ export default function Ledger() {
         if (r.page !== jPage) setJPage(r.page);
       })
       .catch((e) => toast.error(errorText(e)));
-    api.get<Unposted>("/api/ledger/unposted").then(setUnposted).catch(() => undefined);
+    // Both halves were silent, and both empty states assert that everything has
+    // reached the ledger. The comment below is about asking only half the
+    // question; a failed read answered the whole of it wrongly.
+    setPostingUnknown(false);
+    api.get<Unposted>("/api/ledger/unposted")
+      .then(setUnposted).catch(() => setPostingUnknown(true));
     // The purchase-side twin. Its own docstring says the two together answer
     // "is the ledger a complete picture of the business" — this screen was
     // asking only the sales half, so a manager reading "nothing outstanding"
     // was reading half a sentence.
     api.get<UnpostedReceipts>("/api/ledger/unposted-receipts")
-      .then(setReceipts).catch(() => undefined);
-    for (const name of ["debtors", "creditors", "stock", "vat"]) {
+      .then(setReceipts).catch(() => setPostingUnknown(true));
+    // Four reconciliations, and a failed one used simply to leave its card out.
+    // Three cards where four belong is not something anybody counts, so the
+    // check that was never run looked like a check that passed.
+    setReconFailed([]);
+    for (const name of RECONCILIATIONS) {
       api.get<Recon>(`/api/ledger/subledgers/${name}/reconcile`)
         .then((r) => setRecon((all) => ({ ...all, [name]: r })))
-        .catch(() => undefined);
+        .catch(() => setReconFailed((f) => (f.includes(name) ? f : [...f, name])));
     }
   }
   useEffect(load, [jPage, jSize]);
@@ -326,6 +345,15 @@ export default function Ledger() {
               </dl>
             </div>
           ))}
+          {reconFailed.map((name) => (
+            <div key={name} className="card card-flag">
+              <h3>{name}</h3>
+              <p className="alert warn small">
+                This one could not be reconciled, so nothing here says the
+                control account and the subledger agree. Reload the page.
+              </p>
+            </div>
+          ))}
         </div>
       )}
 
@@ -361,7 +389,12 @@ export default function Ledger() {
                   </RowActions>
                 </tr>
               ))}
-              {!unposted?.count && (
+              {postingUnknown ? (
+                <tr><td colSpan={3} className="muted pad">
+                  What has not been posted could not be read, so this is not a
+                  statement that everything has. Reload the page.
+                </td></tr>
+              ) : !unposted?.count && (
                 <tr><td colSpan={3} className="muted pad">
                   Every settled sale has reached the ledger.
                 </td></tr>
@@ -397,7 +430,11 @@ export default function Ledger() {
                   </RowActions>
                 </tr>
               ))}
-              {!receipts?.count && (
+              {postingUnknown ? (
+                <tr><td colSpan={5} className="muted pad">
+                  The deliveries waiting to be posted could not be read either.
+                </td></tr>
+              ) : !receipts?.count && (
                 <tr><td colSpan={5} className="muted pad">
                   Every delivery has reached the ledger.
                 </td></tr>

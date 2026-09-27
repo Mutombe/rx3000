@@ -44,6 +44,7 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
   const [lowStock, setLowStock] = useState<Product[]>([]);
+  const [lowUnknown, setLowUnknown] = useState(false);
   // A reorder sheet needs every shortfall to decide from; the DOM does not.
   const lowStockRows = useClientPage<Product>(lowStock, 25);
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -83,7 +84,8 @@ export default function Orders() {
 
   const TABS: TabDef<Tab>[] = [
     { key: "orders", label: "Purchase orders", count: orders.length },
-    { key: "low", label: "Reorder needs", count: lowStock.length,
+    { key: "low", label: "Reorder needs",
+      count: lowUnknown ? undefined : lowStock.length,
       hint: "Products at or below their reorder level" },
     /* THE QUEUE. Without one, approval is a thing somebody discovers at the
        moment they try to send — the worst time, and usually the wrong
@@ -108,7 +110,11 @@ export default function Orders() {
       })
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<Product[]>("/api/products?low_stock=true").then(setLowStock);
+    api.get<Product[]>("/api/products?low_stock=true")
+      .then((r) => { setLowStock(r); setLowUnknown(false); })
+      // What is low is the reason somebody opened this screen. An empty list
+      // read as "nothing needs ordering", which is how a shelf runs out.
+      .catch(() => { setLowStock([]); setLowUnknown(true); });
   }
 
   useEffect(load, [page, perPage]);
@@ -341,7 +347,14 @@ export default function Orders() {
             </tbody>
           </table>
           <Pagination meta={lowStockRows.meta} onPage={lowStockRows.setPage} noun="products" />
-          {lowStock.length === 0 && <div className="empty">Nothing is at or below its reorder level</div>}
+          {lowUnknown ? (
+            <div className="empty">
+              What is low could not be read, so this is not a statement that
+              nothing needs ordering. Reload the page.
+            </div>
+          ) : lowStock.length === 0 && (
+            <div className="empty">Nothing is at or below its reorder level</div>
+          )}
         </div>
       )}
 

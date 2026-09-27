@@ -3,6 +3,7 @@ import { useScheduleCodes } from "../schedules";
 import { useToast } from "../components/Toast";
 import { Hotkey, useHotkeys } from "../hooks/useHotkeys";
 import { api, fmtDate, fmtDateTime, money, errorText, prefetchRoute, Refused } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { ScanBar, ScanResult } from "../components/Scanner";
 import { useScanFeed } from "../components/ScannerHub";
@@ -64,15 +65,19 @@ export default function POS() {
   const pharmacy = usePharmacy();
   const [scan, setScan] = useState("");
   const [results, setResults] = useState<Product[]>([]);
+  const [scanFailed, setScanFailed] = useState(false);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [patientQ, setPatientQ] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [payMethod, setPayMethod] = useState("cash");
   const [tendered, setTendered] = useState("");
   const [redeem, setRedeem] = useState("0");
   const [receipt, setReceipt] = useState<Sale | null>(null);
   const [pending, setPending] = useState<Sale[]>([]);
+  const [pendingUnknown, setPendingUnknown] = useState(false);
   const [history, setHistory] = useState<Sale[]>([]);
   const [historyQ, setHistoryQ] = useState("");
   /** The sale the dispensary sent over, so the till opens on it. */
@@ -85,7 +90,8 @@ export default function POS() {
      bar. */
   const TABS: TabDef<Tab>[] = [
     { key: "till", label: "Till" },
-    { key: "pending", label: "Awaiting payment", count: pending.length },
+    { key: "pending", label: "Awaiting payment",
+      count: pendingUnknown ? undefined : pending.length },
     { key: "history", label: "History" },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "till");
@@ -176,7 +182,11 @@ export default function POS() {
 
   function loadPending() {
     api.get<Sale[]>("/api/pos/sales?status=pending&limit=20")
-      .then(setPending)
+      .then((r) => { setPending(r); setPendingUnknown(false); })
+      // A `.finally` is not a `.catch`. This one turned the spinner off and
+      // left an empty list behind, which on a till reads as "nothing is
+      // waiting to be paid for" — and the sale sits unsettled all day.
+      .catch(() => { setPending([]); setPendingUnknown(true); })
       .finally(() => setPendingLoading(false));
     api.get<typeof outWith>("/api/deliveries/out-sales")
       .then(setOutWith)
@@ -217,7 +227,11 @@ export default function POS() {
     // keeps the medicine out of the basket in the first place.
     api.get<Product[]>(
       `/api/products?q=${encodeURIComponent(scan)}&limit=8&counter_only=true`)
-      .then(setResults);
+      // Unhandled before this, so a failed lookup at a till was a blank result
+      // list: a cashier with a queue behind them reads that as "we do not
+      // stock it" and sends the customer away.
+      .then((r) => { setResults(r); setScanFailed(false); })
+      .catch(() => { setResults([]); setScanFailed(true); });
   }, [scan]);
 
   // What they owe, looked up when they are linked.
@@ -254,11 +268,6 @@ export default function POS() {
     return () => { dropped = true; };
   }, [patient]);
 
-  useEffect(() => {
-    if (patientQ.length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
-  }, [patientQ]);
-
   /** A scan came back resolved. Warnings are already on screen as toasts. */
   /** A code that arrived from a phone rather than from the box in this page.
    *
@@ -284,7 +293,15 @@ export default function POS() {
     if (!result.found || !result.product) {
       // Exactly one candidate is not a guess, it is the answer.
       if (result.suggestions.length === 1) {
-        api.get<Product>(`/api/products/${result.suggestions[0].id}`).then(addToCart);
+        api.get<Product>(`/api/products/${result.suggestions[0].id}`)
+          .then(addToCart)
+          // A scan that vanishes is the complaint this feature exists to
+          // answer, and this branch was the one place it could still vanish:
+          // the code resolved, the product did not load, nothing was said and
+          // nothing reached the basket.
+          .catch(() => toast.error(
+            "That code was recognised but the product could not be loaded. "
+            + "Nothing was added. Scan it again."));
       }
       return;
     }
@@ -1037,9 +1054,11 @@ export default function POS() {
           </button>
           <span className="muted small">
             {tab === "till"
-              ? (pending.length
-                  ? `${pending.length} dispensary sale${pending.length === 1 ? "" : "s"} waiting to be settled`
-                  : "Nothing is waiting to be settled")
+              ? (pendingUnknown
+                  ? "What is waiting to be settled could not be read"
+                  : pending.length
+                    ? `${pending.length} dispensary sale${pending.length === 1 ? "" : "s"} waiting to be settled`
+                    : "Nothing is waiting to be settled")
               : "Ringing up over the counter"}
           </span>
         </div>
@@ -1137,7 +1156,16 @@ export default function POS() {
               ))}
             </tbody>
           </table>
-          {pending.length === 0 && !pendingLoading && (
+          {pendingUnknown && !pendingLoading && (
+            <div className="empty">
+              <b>This list could not be read</b>
+              <p>
+                Nothing here says every invoice has been settled. Reload the
+                page before telling anybody their sale is paid for.
+              </p>
+            </div>
+          )}
+          {!pendingUnknown && pending.length === 0 && !pendingLoading && (
             <div className="empty">
               <b>Nothing awaiting payment</b>
               <p>
@@ -1254,6 +1282,12 @@ export default function POS() {
                 <span className="muted">{money(p.unit_price)} · {p.category === "airtime" ? "∞" : p.quantity_on_hand}</span>
               </div>
             ))}
+            {scanFailed && (
+              <p className="hint is-warn">
+                That lookup could not be run, so this says nothing about whether
+                the shop stocks it. Scan again.
+              </p>
+            )}
           </div>
 
           {/* The basket, ruled to the floor like the dispensary's script.
@@ -1385,11 +1419,17 @@ export default function POS() {
               <>
                 <input type="search" placeholder="Link a patient (optional)…" value={patientQ} onChange={(e) => setPatientQ(e.target.value)} />
                 {patients.map((p) => (
-                  <div key={p.id} className="product-pick" onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); }}>
+                  <div key={p.id} className="product-pick" onClick={() => { setPatient(p); clearPatients(); setPatientQ(""); }}>
                     <span>{p.last_name}, {p.first_name}</span>
                     <span className="muted">{p.loyalty_points} pts</span>
                   </div>
                 ))}
+                {patientsFailed && (
+                  <p className="hint is-warn">
+                    That lookup could not be run, so this says nothing about
+                    whether they are on file. Type the name again.
+                  </p>
+                )}
               </>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, fmtDateTime, errorText  } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import DraftEditor from "../components/DraftEditor";
 import DataTable, { Column, Truncate } from "../components/DataTable";
 import { applyFilters, emptyFilters, EntityLink, FilterBar, FilterState } from "../components/Filters";
@@ -36,6 +37,7 @@ export default function HelpDesk() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<HelpdeskStats | null>(null);
+  const [statsUnknown, setStatsUnknown] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [filter, setFilter] = useState("open");
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
@@ -94,8 +96,10 @@ export default function HelpDesk() {
   const [reply, setReply] = useState("");
   const [internal, setInternal] = useState(false);
   const [showNew, setShowNew] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [patientQ, setPatientQ] = useState("");
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [form, setForm] = useState<any>({
     subject: "", description: "", category: "query", priority: "normal",
     channel: "walk_in", patient_id: null as number | null,
@@ -108,6 +112,7 @@ export default function HelpDesk() {
   });
   const [companies, setCompanies] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
+  const [crmUnknown, setCrmUnknown] = useState(false);
   const toast = useToast();
   const work = useRowWork();
 
@@ -115,7 +120,12 @@ export default function HelpDesk() {
     const q = filter === "breached" ? "breached=true" : `status=${filter}`;
     api.get<Ticket[]>(`/api/helpdesk/tickets?${q}`).then(setTickets).catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<HelpdeskStats>("/api/helpdesk/stats").then(setStats);
+    // No catch here at all, so a failed read was an unhandled rejection and the
+    // four tiles simply were not drawn. One of them counts breached response
+    // times, which is the number this screen exists to put in front of somebody.
+    api.get<HelpdeskStats>("/api/helpdesk/stats")
+      .then((s) => { setStats(s); setStatsUnknown(false); })
+      .catch(() => { setStats(null); setStatsUnknown(true); });
   }
 
   useEffect(load, [filter]);
@@ -123,20 +133,18 @@ export default function HelpDesk() {
     .catch((e) => toast.error(errorText(e, "The list of colleagues could not be loaded."))); }, []);
   useEffect(() => {
     api.get<any>("/api/crm/companies?limit=200")
-      .then((d) => setCompanies(d.items ?? d ?? [])).catch(() => setCompanies([]));
+      .then((d) => setCompanies(d.items ?? d ?? []))
+      // The comment below says filing a case against nobody is how it stops
+      // being anybody's. An empty picker is exactly how that happens.
+      .catch(() => { setCompanies([]); setCrmUnknown(true); });
   }, []);
   // The people at the account this case belongs to, so the picker never offers
   // somebody from a different company.
   useEffect(() => {
     if (!form.company_id) { setContacts([]); return; }
     api.get<any>(`/api/crm/contacts?company_id=${form.company_id}&limit=100`)
-      .then((d) => setContacts(d.items ?? d ?? [])).catch(() => setContacts([]));
+      .then((d) => setContacts(d.items ?? d ?? [])).catch(() => { setContacts([]); setCrmUnknown(true); });
   }, [form.company_id]);
-  useEffect(() => {
-    if (patientQ.length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
-  }, [patientQ]);
-
   async function open(t: Ticket) {
     const full = await api.get<Ticket>(`/api/helpdesk/tickets/${t.id}`);
     setSelected(full); setReply(""); setInternal(false);
@@ -216,7 +224,7 @@ export default function HelpDesk() {
       const t = await api.post<Ticket>("/api/helpdesk/tickets", form);
       setForm({ subject: "", description: "", category: "query", priority: "normal",
                 channel: "walk_in", patient_id: null, company_id: null, contact_id: null });
-      setPatientQ("");
+      clearPatients();
       load();
       open(t);
     } catch (err: any) { toast.error(errorText(err)); }
@@ -239,6 +247,13 @@ export default function HelpDesk() {
           </button>
         }
       />
+
+      {statsUnknown && (
+        <p className="hint is-warn">
+          How many cases are open, and how many have missed their reply time,
+          could not be read. The list below is still the real list.
+        </p>
+      )}
 
       {stats && (
         <div className="grid cols-4">
@@ -442,11 +457,18 @@ export default function HelpDesk() {
                       onChange={(e) => setPatientQ(e.target.value)} />
                     {patients.map((p) => (
                       <div key={p.id} className="product-pick"
-                        onClick={() => { setForm({ ...form, patient_id: p.id }); setPatientQ(""); }}>
+                        onClick={() => { setForm({ ...form, patient_id: p.id }); clearPatients(); }}>
                         <span>{p.last_name}, {p.first_name}</span>
                         <span className="muted">{p.phone}</span>
                       </div>
                     ))}
+                    {patientsFailed && (
+                      <p className="hint is-warn">
+                        That search could not be run, so this says nothing about
+                        whether the patient is on file. File the case and link
+                        them later.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -468,6 +490,13 @@ export default function HelpDesk() {
                             ...companies.map((c: any) => ({
                               value: String(c.id), label: c.name }))]}
                 />
+                {crmUnknown && (
+                  <p className="hint is-warn">
+                    The accounts could not be read, so this list is empty for a
+                    reason that has nothing to do with who you deal with. File
+                    the case and set the account once it comes back.
+                  </p>
+                )}
               </div>
               {form.company_id && contacts.length > 0 && (
                 <div className="field">

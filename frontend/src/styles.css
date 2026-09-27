@@ -1119,6 +1119,9 @@ label {
 .field { margin-bottom: var(--s4); min-width: 0; }
 .field .hint { font-size: var(--t-xs); color: var(--ink-soft); margin-top: var(--s1); }
 .field .err { font-size: var(--t-xs); color: var(--danger); margin-top: var(--s1); }
+/* A hint that is telling you the field is not showing you the truth: the list
+   under it could not be read. Not an error, because nothing was refused. */
+.hint.is-warn { font-size: var(--t-xs); color: var(--warn); margin-top: var(--s1); }
 .field.invalid input, .field.invalid textarea, .field.invalid .sel-trigger { border-color: var(--danger); }
 
 /* Form rows are a grid, so a field can declare how much room it needs rather

@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
 import { api, fmtDateTime, errorText, prefetchRoute } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import { Message, Patient } from "../types";
 import Pagination, { Paged } from "../components/Pagination";
 import Select from "../components/Select";
@@ -20,8 +21,10 @@ export default function Reminders() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("");
   const [showCompose, setShowCompose] = useState(false);
-  const [patientQ, setPatientQ] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [channel, setChannel] = useState("sms");
   const [subject, setSubject] = useState("");
@@ -47,11 +50,6 @@ export default function Reminders() {
   // Changing the filter changes the set, so the page number no longer means
   // anything — page 40 of the birthdays is not page 40 of everything.
   useEffect(() => { setPage(1); }, [typeFilter]);
-
-  useEffect(() => {
-    if (patientQ.length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
-  }, [patientQ]);
 
   async function runJobs() {
     setBusy(true);
@@ -175,11 +173,17 @@ export default function Reminders() {
                   <>
                     <input type="search" placeholder="Search patient…" value={patientQ} onChange={(e) => setPatientQ(e.target.value)} />
                     {patients.map((p) => (
-                      <div key={p.id} className="product-pick" onClick={() => { setPatient(p); setPatients([]); setPatientQ(""); }}>
+                      <div key={p.id} className="product-pick" onClick={() => { setPatient(p); clearPatients(); setPatientQ(""); }}>
                         <span>{p.last_name}, {p.first_name}</span>
                         <span className="muted">{p.phone || p.email || "no contact"}</span>
                       </div>
                     ))}
+                    {patientsFailed && (
+                      <p className="hint is-warn">
+                        That lookup could not be run, so this says nothing about
+                        whether they are on file. Type the name again.
+                      </p>
+                    )}
                   </>
                 )}
               </div>

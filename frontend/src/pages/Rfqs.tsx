@@ -68,6 +68,7 @@ export default function Rfqs() {
   const [raising, setRaising] = useState(false);
   const [auto, setAuto] = useState(false);
   const [queue, setQueue] = useState<Awaiting[]>([]);
+  const [queueUnknown, setQueueUnknown] = useState(false);
 
   const load = useCallback(() => {
     api.get<{ rfqs: RfqRow[] }>("/api/rfqs")
@@ -85,9 +86,10 @@ export default function Rfqs() {
   useEffect(() => {
     api.get<{ rfqs: Awaiting[] }>("/api/rfqs/awaiting-approval")
       .then((r) => setQueue(r.rfqs))
-      // Quiet: the list below still works, and a toast about a queue nobody
-      // asked for is noise on a screen somebody opened for something else.
-      .catch(() => setQueue([]));
+      // Still no toast: a screen somebody opened for something else should not
+      // shout. But the banner cannot simply vanish, because its absence is how
+      // this screen says "nothing is waiting", and that was a lie.
+      .catch(() => { setQueue([]); setQueueUnknown(true); });
   }, []);
 
   /** Send the request, which is also how it is chased.
@@ -126,6 +128,18 @@ export default function Rfqs() {
           </button>
         }
       />
+
+      {queueUnknown && (
+        <div className="card rfq-queue">
+          <div className="rfq-queue-head">
+            <b>Whether anything is waiting to be signed off could not be read</b>
+            <span className="muted small">
+              An award sitting here unsigned is an order nobody placed, so this
+              is worth a reload rather than a shrug.
+            </span>
+          </div>
+        </div>
+      )}
 
       {queue.length > 0 && (
         <div className="card rfq-queue">
@@ -270,6 +284,8 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
   const toast = useToast();
   const [low, setLow] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<SupplierLite[]>([]);
+  const [lowUnknown, setLowUnknown] = useState(false);
+  const [suppliersUnknown, setSuppliersUnknown] = useState(false);
   const [wanted, setWanted] = useState<Record<number, number>>({});
   const [asking, setAsking] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState("");
@@ -286,15 +302,13 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
                          (p.reorder_level || 0) - (p.quantity_on_hand || 0)),
         ])));
       })
-      .catch(() => {
-        // Deliberately silent: the list simply comes up empty and a person
-        // can still raise a request and add nothing, which the server refuses
-        // with a sentence that explains it.
-      });
-    api.get<SupplierLite[]>("/api/suppliers").then(setSuppliers).catch(() => {
-      // Deliberately silent: without it there is nobody to tick, and the
-      // server says so on save.
-    });
+      // It was silent, and the empty state below said "Nothing is at its
+      // reorder level" — a cause asserted from a failure. On this screen that
+      // sentence is the reason somebody closes the modal and does not order.
+      .catch(() => setLowUnknown(true));
+    api.get<SupplierLite[]>("/api/suppliers")
+      .then(setSuppliers)
+      .catch(() => setSuppliersUnknown(true));
   }, []);
 
   const chosen = useMemo(
@@ -328,7 +342,13 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
           <div>
             <label className="field-label">What to ask about</label>
             <div className="rfq-new-list">
-              {low.length === 0 && (
+              {lowUnknown && (
+                <p className="hint is-warn">
+                  What is low could not be read, so this is not an answer about
+                  your shelves. Reload the page before deciding not to order.
+                </p>
+              )}
+              {!lowUnknown && low.length === 0 && (
                 <p className="muted small">Nothing is at its reorder level.</p>
               )}
               {low.map((p) => (
@@ -345,6 +365,18 @@ function NewRfq({ onClose, onRaised }: { onClose: () => void; onRaised: () => vo
           <div>
             <label className="field-label">Who to ask</label>
             <div className="rfq-new-list">
+              {suppliersUnknown && (
+                <p className="hint is-warn">
+                  The suppliers could not be read. This is not the list of who
+                  you deal with. Reload the page.
+                </p>
+              )}
+              {!suppliersUnknown && suppliers.length === 0 && (
+                <p className="muted small">
+                  No suppliers are on file yet. Add them under Suppliers and
+                  they appear here to tick.
+                </p>
+              )}
               {suppliers.map((s) => (
                 <label key={s.id} className="rfq-new-line">
                   <span>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import { api, money, errorText  } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
@@ -34,8 +35,10 @@ export default function Reports() {
   const [view, setView] = useState<"table" | "chart">("table");
   // Totals come from the endpoint, over every line; only the render is paged.
   const valuationRows = useClientPage<any>(valuation?.lines ?? [], 25);
-  const [patientQ, setPatientQ] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [taxReport, setTaxReport] = useState<any>(null);
   const toast = useToast();
   const [loading, setLoading] = useState(true);
@@ -50,13 +53,8 @@ export default function Reports() {
     if (tab === "valuation") api.get(`/api/reports/stock-valuation`).then(setValuation).catch((e) => toast.error(errorText(e)));
   }, [tab, dateFrom, dateTo]);
 
-  useEffect(() => {
-    if (patientQ.length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`).then(setPatients);
-  }, [patientQ]);
-
   function loadTax(p: Patient) {
-    setPatients([]);
+    clearPatients();
     setPatientQ("");
     api.get(`/api/reports/patient/${p.id}/tax`).then(setTaxReport).catch((e) => toast.error(errorText(e)));
   }
@@ -347,6 +345,12 @@ export default function Reports() {
                 <span className="muted">{p.medical_aid?.name ?? "Private"}</span>
               </div>
             ))}
+            {patientsFailed && (
+              <p className="hint is-warn">
+                That lookup could not be run, so this says nothing about whether
+                they are on file. Type the name again.
+              </p>
+            )}
           </div>
           {taxReport && (
             <div className="card">

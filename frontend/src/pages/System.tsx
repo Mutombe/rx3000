@@ -53,6 +53,7 @@ export default function System() {
   const update = useAppUpdate();
   const [info, setInfo] = useState<Info | null>(null);
   const [integrations, setIntegrations] = useState<any>(null);
+  const [integrationsUnknown, setIntegrationsUnknown] = useState(false);
   const [backups, setBackups] = useState<{ status: BackupStatus; files: BackupFile[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -62,7 +63,11 @@ export default function System() {
   function load() {
     setLoading(true);
     api.get<Info>("/api/system/info").then(setInfo).catch((e) => toast.error(errorText(e)));
-    api.get<any>("/api/integrations").then(setIntegrations).catch(() => undefined);
+    api.get<any>("/api/integrations")
+      .then((r) => { setIntegrations(r); setIntegrationsUnknown(false); })
+      // The whole block vanished, badge and all, so "ready for production" and
+      // "could not be asked" looked the same: like nothing was there to say.
+      .catch(() => { setIntegrations(null); setIntegrationsUnknown(true); });
     api
       .get<{ status: BackupStatus; files: BackupFile[] }>("/api/system/backups")
       .then(setBackups)
@@ -250,6 +255,19 @@ export default function System() {
           worked" is not evidence that anything was filed with a funder or a
           revenue authority, and this is the answer that decides whether a
           pharmacy can go live. It was published and unreadable. */}
+      {integrationsUnknown && (
+        <section className="card">
+          <div className="card-head">
+            <h3>What is connected</h3>
+            <span className="badge warn">Could not be read</span>
+          </div>
+          <p className="muted">
+            Whether this pharmacy is ready to trade could not be read, which is
+            not the same answer as no. Reload the page.
+          </p>
+        </section>
+      )}
+
       {integrations && (
         <section className="card">
           <div className="card-head">

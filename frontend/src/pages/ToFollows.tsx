@@ -67,6 +67,7 @@ export default function ToFollows() {
   const [all, setAll] = useState<Owed[]>([]);
   const [settled, setSettled] = useState<Owed[]>([]);
   const [totals, setTotals] = useState<Totals | null>(null);
+  const [sideUnknown, setSideUnknown] = useState(false);
   const toast = useToast();
   const [cancelling, setCancelling] = useState<Owed | null>(null);
   const [reason, setReason] = useState("");
@@ -82,8 +83,12 @@ export default function ToFollows() {
       count: ready.length,
       hint: "Owed, and now in stock, the patients to telephone",
     },
-    { key: "all", label: "Everything owed", count: all.length },
-    { key: "settled", label: "Settled", count: settled.length },
+    // Undefined rather than nought when the read failed, so the tab carries no
+    // badge instead of a figure that says the pharmacy owes nobody anything.
+    { key: "all", label: "Everything owed",
+      count: sideUnknown ? undefined : all.length },
+    { key: "settled", label: "Settled",
+      count: sideUnknown ? undefined : settled.length },
   ];
   const [tab, setTab] = usePageTabs<Tab>(TABS, "ready");
 
@@ -94,9 +99,15 @@ export default function ToFollows() {
       .then(setReady)
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<Owed[]>("/api/to-follows").then(setAll).catch(() => undefined);
-    api.get<Owed[]>("/api/to-follows?status=settled").then(setSettled).catch(() => undefined);
-    api.get<Totals>("/api/to-follows/summary").then(setTotals).catch(() => undefined);
+    // Three quiet reads that each fill a tab. They were silent, and their tabs
+    // then said "Nothing here." about debts to patients that do exist.
+    setSideUnknown(false);
+    api.get<Owed[]>("/api/to-follows")
+      .then(setAll).catch(() => setSideUnknown(true));
+    api.get<Owed[]>("/api/to-follows?status=settled")
+      .then(setSettled).catch(() => setSideUnknown(true));
+    api.get<Totals>("/api/to-follows/summary")
+      .then(setTotals).catch(() => setSideUnknown(true));
   }
 
   useEffect(load, []);
@@ -167,6 +178,7 @@ export default function ToFollows() {
   }
 
   const headline = useMemo(() => {
+    if (sideUnknown && !totals) return "What is owed could not be read.";
     if (!totals) return "";
     if (!totals.outstanding_items) return "Nothing is owed.";
     const parts = [
@@ -175,7 +187,7 @@ export default function ToFollows() {
     if (totals.ready_to_hand_over) parts.push(`${totals.ready_to_hand_over} ready now`);
     if (totals.overdue) parts.push(`${totals.overdue} past the promised date`);
     return parts.join(" · ");
-  }, [totals]);
+  }, [totals, sideUnknown]);
 
   return (
     <div className="page">
@@ -334,7 +346,14 @@ export default function ToFollows() {
             {!rows.length && tab !== "ready" && (
               <tr>
                 <td colSpan={7} className="muted pad">
-                  Nothing here.
+                  {sideUnknown
+                    ? "This list could not be read, so it is not a statement "
+                      + "that nobody is owed anything. Reload the page."
+                    : tab === "settled"
+                      ? "Nothing has been handed over yet. What is settled "
+                        + "moves here as soon as the patient collects."
+                      : "Nobody is waiting on medicine. A short supply at the "
+                        + "counter puts a line here."}
                 </td>
               </tr>
             )}

@@ -470,7 +470,10 @@ export default function Stock() {
   }
 
   useEffect(load, [q, lowOnly]);
-  useEffect(() => { api.get<Supplier[]>("/api/suppliers").then(setSuppliers); }, []);
+  useEffect(() => {
+    api.get<Supplier[]>("/api/suppliers")
+      .then(setSuppliers).catch(() => setSuppliers([]));
+  }, []);
   // Only the count. The list itself is the Needs attention tab's own business.
   useEffect(() => {
     api.get<{ items: unknown[] }>("/api/stock/alerts")

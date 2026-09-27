@@ -49,13 +49,19 @@ export default function Pipeline() {
     api.get<Deal[]>("/api/crm/deals").then(setDeals)
       .catch((e) => toast.error(errorText(e)))
       .finally(() => setLoading(false));
-    api.get<CrmDashboard>("/api/crm/dashboard").then(setStats);
+    api.get<CrmDashboard>("/api/crm/dashboard")
+      .then(setStats)
+      // The board below still loads, and it is the real answer. The figures
+      // above it simply were not there, which looked like a quiet month.
+      .catch(() => setStats(null));
   }
 
   useEffect(() => {
     load();
-    api.get<Company[]>("/api/crm/companies").then(setCompanies);
-    api.get<Contact[]>("/api/crm/contacts").then(setContacts);
+    api.get<Company[]>("/api/crm/companies")
+      .then(setCompanies).catch(() => setCompanies([]));
+    api.get<Contact[]>("/api/crm/contacts")
+      .then(setContacts).catch(() => setContacts([]));
   }, []);
 
   async function moveDeal(dealId: number, stage: string) {

@@ -124,6 +124,8 @@ export default function Fiscal() {
   const confirm = useConfirm();
   const [status, setStatus] = useState<Status | null>(null);
   const [days, setDays] = useState<Day[]>([]);
+  const [daysUnknown, setDaysUnknown] = useState(false);
+  const [receiptsUnknown, setReceiptsUnknown] = useState(false);
   const [busy, setBusy] = useState("");
   const [receipts, setReceipts] = useState<Paged<FiscalReceipt> | null>(null);
   const [filter, setFilter] = useState("");
@@ -134,8 +136,8 @@ export default function Fiscal() {
       .then(setStatus)
       .catch((e) => toast.error(errorText(e, "The fiscal status could not be read.")));
     api.get<Day[]>(`/api/fiscal/days?limit=${DAY_LIMIT}`)
-      .then(setDays)
-      .catch(() => undefined);
+      .then((d) => { setDays(d); setDaysUnknown(false); })
+      .catch(() => { setDays([]); setDaysUnknown(true); });
   }, [toast]);
 
   useEffect(load, [load]);
@@ -150,7 +152,8 @@ export default function Fiscal() {
     if (kind === "status") q.set("status_filter", value);
     if (kind === "type") q.set("receipt_type", value);
     api.get<Paged<FiscalReceipt>>(`/api/fiscal/receipts/paged?${q}`)
-      .then(setReceipts).catch(() => setReceipts(null));
+      .then((r) => { setReceipts(r); setReceiptsUnknown(false); })
+      .catch(() => { setReceipts(null); setReceiptsUnknown(true); });
   }, [filter, page]);
 
   async function act(what: string, path: string, done: string) {
@@ -331,7 +334,16 @@ export default function Fiscal() {
                   onChange={(v) => { setFilter(v); setPage(1); }}
                   options={FILTERS} />
         </div>
-        {!receipts || receipts.items.length === 0 ? (
+        {receiptsUnknown ? (
+          /* "No receipt has been filed yet." was what this said when the read
+             failed, on the one screen where that sentence is an answer to the
+             revenue authority. It is the most dangerous false statement in the
+             product, and it was one `.catch(() => setReceipts(null))` away. */
+          <div className="empty">
+            The register could not be read. This is not a statement about what
+            has been filed. Reload the page before answering anybody from it.
+          </div>
+        ) : !receipts || receipts.items.length === 0 ? (
           <div className="empty">
             {filter
               ? "No receipt matches that."
@@ -396,7 +408,12 @@ export default function Fiscal() {
 
       <div className="card">
         <h3>Closed days</h3>
-        {days.length === 0 ? (
+        {daysUnknown ? (
+          <div className="empty">
+            The closed days could not be read. Whether a day is still open is
+            answered above, from the status, and that is the part to trust here.
+          </div>
+        ) : days.length === 0 ? (
           <div className="empty">No fiscal days yet.</div>
         ) : (
           <>

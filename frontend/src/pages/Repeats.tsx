@@ -134,15 +134,20 @@ export default function Repeats() {
   const [daily, setDaily] = useState<any[]>([]);
   const [weekly, setWeekly] = useState<any[]>([]);
   const [perfDays, setPerfDays] = useState("30");
+  const [valueUnknown, setValueUnknown] = useState(false);
 
   useEffect(() => {
     if (tab !== "value") return;
+    // `perf` being null is what draws the skeleton, so a failed read left this
+    // tab loading for ever. A skeleton that never resolves is the one failure
+    // state nobody reports, because it looks like patience is all it needs.
+    setValueUnknown(false);
     api.get<any>(`/api/repeats/performance?days=${perfDays}`)
-      .then(setPerf).catch(() => setPerf(null));
+      .then(setPerf).catch(() => { setPerf(null); setValueUnknown(true); });
     api.get<any>("/api/repeats/daily?days=14")
-      .then((d) => setDaily(d.days ?? [])).catch(() => setDaily([]));
+      .then((d) => setDaily(d.days ?? [])).catch(() => { setDaily([]); setValueUnknown(true); });
     api.get<any>("/api/repeats/weekly?weeks=8")
-      .then((d) => setWeekly(d.weeks ?? [])).catch(() => setWeekly([]));
+      .then((d) => setWeekly(d.weeks ?? [])).catch(() => { setWeekly([]); setValueUnknown(true); });
   }, [tab, perfDays]);
 
 
@@ -550,7 +555,13 @@ export default function Repeats() {
                                 { value: "90", label: "Last quarter" }]} />
             </div>
 
-            {!perf ? <TableSkeleton cols={4} rows={3} /> : (
+            {!perf && valueUnknown ? (
+              <p className="hint is-warn">
+                What the repeat book is worth could not be read. Nothing here is
+                a figure about this pharmacy. Change the period or reload the
+                page to ask again.
+              </p>
+            ) : !perf ? <TableSkeleton cols={4} rows={3} /> : (
               <>
                 <div className="wc-bands">
                   <div className="wl-stat">

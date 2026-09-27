@@ -16,6 +16,7 @@
  */
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { api, errorText, fmtDate, money } from "../api";
+import { usePatientSearch } from "../hooks/usePatientSearch";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
@@ -60,8 +61,10 @@ export default function LayBys() {
 
   // raising
   const [raising, setRaising] = useState(false);
-  const [patientQ, setPatientQ] = useState("");
-  const [patients, setPatients] = useState<Patient[]>([]);
+  // One hook for all seven screens that look a patient up by name: it
+  // catches the failure and drops answers that arrive out of order.
+  const { q: patientQ, setQ: setPatientQ, hits: patients,
+          failed: patientsFailed, clear: clearPatients } = usePatientSearch();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [productQ, setProductQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
@@ -82,12 +85,6 @@ export default function LayBys() {
   }, [status, toast]);
 
   useEffect(load, [load]);
-
-  useEffect(() => {
-    if (patientQ.trim().length < 2) { setPatients([]); return; }
-    api.get<Patient[]>(`/api/patients?q=${encodeURIComponent(patientQ)}&limit=6`)
-      .then(setPatients).catch(() => setPatients([]));
-  }, [patientQ]);
 
   useEffect(() => {
     if (productQ.trim().length < 2) { setProducts([]); return; }
@@ -375,13 +372,19 @@ export default function LayBys() {
               <ul className="st-results">
                 {patients.map((p) => (
                   <li key={p.id}>
-                    <button type="button" onClick={() => { setPatient(p); setPatients([]); }}>
+                    <button type="button" onClick={() => { setPatient(p); clearPatients(); }}>
                       {p.first_name} {p.last_name}
                       <span className="muted"> {p.phone}</span>
                     </button>
                   </li>
                 ))}
               </ul>
+            )}
+            {patientsFailed && (
+              <p className="hint is-warn">
+                That lookup could not be run, so this says nothing about whether
+                they are on file. Type the name again.
+              </p>
             )}
 
             <label>

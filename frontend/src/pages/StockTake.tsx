@@ -146,11 +146,16 @@ export default function StockTake() {
      shelf. Both are on file; both are offered. */
   const [bins, setBins] = useState<{ bin: string; lines: number }[]>([]);
   const [departments, setDepartments] = useState<{ id: number; name: string }[]>([]);
+  const [scopeUnknown, setScopeUnknown] = useState(false);
   useEffect(() => {
     api.get<{ bins: { bin: string; lines: number }[] }>("/api/stock/bins")
       .then((r) => setBins(Array.isArray(r?.bins)
         ? r.bins.filter((b) => b.bin) : []))
-      .catch(() => setBins([]));
+      // An empty picker reads as "this shop has no shelves", and the option
+      // left standing is "Every shelf". So a failed read turned a count of one
+      // shelf into a count of the whole shop, which is the difference between
+      // a quiet afternoon and closing the doors.
+      .catch(() => { setBins([]); setScopeUnknown(true); });
     // `/api/stock-categories` answers `{items, untagged}`, not a bare list.
     // This read the response as an array because that is what it was typed
     // as, and a type annotation on `api.get` is an assertion rather than a
@@ -163,12 +168,14 @@ export default function StockTake() {
     // is a screen somebody can still work; a white page is not.
     api.get<{ items: { id: number; name: string }[] }>("/api/stock-categories")
       .then((r) => setDepartments(Array.isArray(r?.items) ? r.items : []))
-      .catch(() => setDepartments([]));
+      .catch(() => { setDepartments([]); setScopeUnknown(true); });
   }, []);
 
   // counting
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Product[]>([]);
+  const [searchFailed, setSearchFailed] = useState(false);
+  const [answered, setAnswered] = useState("");
   const [picked, setPicked] = useState<Product | null>(null);
   const [counted, setCounted] = useState("");
   const [note, setNote] = useState("");
@@ -253,10 +260,19 @@ export default function StockTake() {
   useEffect(load, [load]);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); return; }
+    if (query.trim().length < 2) {
+      setResults([]); setSearchFailed(false); setAnswered("");
+      return;
+    }
     api.get<Product[]>(`/api/products?q=${encodeURIComponent(query)}&limit=8`)
-      .then(setResults)
-      .catch(() => setResults([]));
+      // `answered` is the query these results are an answer to, so the line
+      // below the box never says "nothing matches" about a search still in
+      // flight. There is no debounce here; every keystroke asks again.
+      .then((r) => { setResults(r); setSearchFailed(false); setAnswered(query); })
+      // Somebody is standing at a shelf holding the box. A blank list told them
+      // the catalogue does not have it, and the next thing they do is walk away
+      // from a line that needed counting.
+      .catch(() => { setResults([]); setSearchFailed(true); });
   }, [query]);
 
   async function open() {
@@ -440,6 +456,13 @@ export default function StockTake() {
                           }))]} />
             </div>
           </div>
+          {scopeUnknown && (
+            <p className="hint is-warn">
+              The departments and shelves could not be read, so both boxes are
+              empty for a reason that has nothing to do with this shop. Opening
+              now counts everything. Reload the page to narrow it.
+            </p>
+          )}
           <div className="cu-actions">
             <button className="btn primary" disabled={busy === "open"} onClick={open}>
               {busy === "open" ? "Opening…" : "Open a stock take"}
@@ -663,6 +686,18 @@ export default function StockTake() {
                       </li>
                     ))}
                   </ul>
+                )}
+                {searchFailed && (
+                  <p className="hint is-warn">
+                    That search could not be run, so this is not an answer about
+                    the catalogue. Type it again, or reload the page.
+                  </p>
+                )}
+                {!searchFailed && answered === query && results.length === 0 && (
+                  <p className="hint">
+                    Nothing in the catalogue matches that. Try fewer letters, or
+                    the brand name.
+                  </p>
                 )}
               </>
             )}

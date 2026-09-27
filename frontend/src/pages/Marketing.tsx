@@ -37,6 +37,7 @@ export default function Marketing() {
   const [body, setBody] = useState("");
   const [goal, setGoal] = useState("");
   const [preview, setPreview] = useState<Patient[]>([]);
+  const [previewUnknown, setPreviewUnknown] = useState(false);
   const [sentMessages, setSentMessages] = useState<Message[] | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
@@ -58,14 +59,21 @@ export default function Marketing() {
       .then((res) => {
         setCampaigns(res.items); setCampaignMeta(res);
         if (res.page !== campaignPage) setCampaignPage(res.page);
-      });
+      })
+      .catch((e) => toast.error(errorText(e,
+        "The campaigns already sent could not be read. Nothing below is a "
+        + "record of what has gone out.")));
   }
 
   useEffect(loadSegments, [channel]);
   useEffect(loadCampaigns, []);
   useEffect(() => {
     api.get<Patient[]>(`/api/marketing/segments/${segment}/preview?channel=${channel}&limit=8`)
-      .then(setPreview).catch(() => setPreview([]));
+      // The sample under the segment is the only place anybody checks that a
+      // campaign is about to reach who they think. Its absence is not proof the
+      // segment is empty, and the segment's own count is still shown beside it.
+      .then((r) => { setPreview(r); setPreviewUnknown(false); })
+      .catch(() => { setPreview([]); setPreviewUnknown(true); });
   }, [segment, channel]);
 
   const chosen = segments.find((s) => s.key === segment);
@@ -149,6 +157,12 @@ export default function Marketing() {
               Sample: {preview.map((p) => `${p.first_name} ${p.last_name}`).join(", ")}
               {chosen && chosen.size > preview.length ? ` … +${chosen.size - preview.length} more` : ""}
             </div>
+          )}
+          {previewUnknown && (
+            <p className="hint is-warn">
+              A sample of who this reaches could not be read, so nobody has
+              checked this segment yet. The count beside it still stands.
+            </p>
           )}
         </div>
 

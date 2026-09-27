@@ -73,14 +73,23 @@ export default function DealDetail() {
 
   function load() {
     api.get<Deal>(`/api/crm/deals/${id}`).then(setDeal).catch((e) => toast.error(errorText(e)));
-    api.get<Quote[]>(`/api/crm/deals/${id}/quotes`).then(setQuotes);
-    api.get<TimelineEntry[]>(`/api/crm/timeline?deal_id=${id}`).then(setTimeline);
+    api.get<Quote[]>(`/api/crm/deals/${id}/quotes`)
+      .then(setQuotes)
+      .catch(() => toast.error(
+        "The quotations on this opportunity could not be read, so none are "
+        + "shown. That is not the same as none existing."));
+    api.get<TimelineEntry[]>(`/api/crm/timeline?deal_id=${id}`)
+      .then(setTimeline)
+      .catch(() => toast.error(
+        "The history of this opportunity could not be read. An empty "
+        + "timeline here does not mean nothing has happened."));
   }
   useEffect(load, [id]);
 
   useEffect(() => {
     if (productQ.length < 2) { setProducts([]); return; }
-    api.get<Product[]>(`/api/products?q=${encodeURIComponent(productQ)}&limit=8`).then(setProducts);
+    api.get<Product[]>(`/api/products?q=${encodeURIComponent(productQ)}&limit=8`)
+      .then(setProducts).catch(() => setProducts([]));
   }, [productQ]);
 
   async function addLine(e: FormEvent) {
