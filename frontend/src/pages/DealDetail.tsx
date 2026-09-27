@@ -11,6 +11,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import { Highlights, Path } from "../components/record";
 import { Deal, Product, Quote, TimelineEntry } from "../types";
 import IconButton from "../components/IconButton";
+import Select from "../components/Select";
 import {
   ArrowLeft,
   CalendarBlank,
@@ -35,6 +36,14 @@ const PATH_STAGES = [
 export default function DealDetail() {
   const { id } = useParams();
   const [deal, setDeal] = useState<Deal | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    title: "", value: "", expected_close_date: "", probability: "", owner_id: "",
+  });
+  /** Who a deal can belong to. The roster rather than the admin user list:
+   *  naming an owner is an ordinary question and does not need an
+   *  administrator to answer it. */
+  const [staff, setStaff] = useState<{ id: number; full_name: string }[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -44,6 +53,15 @@ export default function DealDetail() {
   const [taskSubject, setTaskSubject] = useState("");
   const [taskDue, setTaskDue] = useState("");
   const toast = useToast();
+
+  useEffect(() => {
+    api.get<{ id: number; full_name: string }[]>("/api/auth/roster")
+      .then(setStaff)
+      // Deliberately silent: the picker falls back to nobody, which is what it
+      // shows for an unowned deal anyway, and a toast about a staff list is
+      // noise on a screen somebody opened to read about a deal.
+      .catch(() => setStaff([]));
+  }, []);
   const ask = useAsk();
 
   const TABS: TabDef<Tab>[] = [
@@ -82,6 +100,37 @@ export default function DealDetail() {
   async function removeLine(itemId: number) {
     try { setDeal(await api.delete<Deal>(`/api/crm/deals/${id}/items/${itemId}`)); }
     catch (e: any) { toast.error(errorText(e)); }
+  }
+
+  /** Write the corrected facts back.
+   *
+   *  A whole-object PUT, which is what the endpoint takes, so everything the
+   *  form does not show has to be carried through untouched — the account,
+   *  the contact, the source, the stage. Sending a partial body here would
+   *  silently clear four fields nobody was editing.
+   */
+  async function saveDeal() {
+    if (!deal) return;
+    try {
+      const updated = await api.put<Deal>(`/api/crm/deals/${deal.id}`, {
+        title: form.title.trim() || deal.title,
+        value: Number(form.value) || 0,
+        probability: Number(form.probability) || 0,
+        expected_close_date: form.expected_close_date || null,
+        owner_id: form.owner_id ? Number(form.owner_id) : null,
+        // Carried, not edited. The endpoint replaces the record.
+        company_id: deal.company_id,
+        contact_id: deal.contact_id,
+        stage: deal.stage,
+        source: deal.source,
+        notes: deal.notes,
+      });
+      setDeal(updated);
+      setEditing(false);
+      toast.ok(`${updated.title} saved.`);
+    } catch (e) {
+      toast.error(errorText(e, "That could not be saved."));
+    }
   }
 
   async function moveStage(stage: string) {
@@ -191,6 +240,33 @@ export default function DealDetail() {
               { label: deal.title }]}
       eyebrow="Opportunity"
       title={deal.title}
+      /* A DEAL COULD BE DRAGGED AND NEVER CORRECTED.
+       *
+       * `PUT /api/crm/deals/{id}` has existed since deals were written and had
+       * no caller anywhere: not the board, not the reports, not this page. So
+       * a deal captured at the wrong value, or with the wrong person on it,
+       * stayed that way for its whole life, and the only thing anybody could
+       * change about it was which column it sat in.
+       *
+       * The close date is the one that costs something. Revenue Intelligence
+       * says, in so many words, "a forecast is built from deals with an
+       * expected close date. Give the open ones a date and they will appear
+       * here" — and nothing in the product could give one. The forecast was
+       * quietly missing every deal somebody had captured in a hurry.
+       */
+      actions={
+        <button className="btn secondary" onClick={() => {
+          setForm({
+            title: deal.title, value: String(deal.value),
+            expected_close_date: deal.expected_close_date ?? "",
+            probability: String(deal.probability),
+            owner_id: deal.owner_id ? String(deal.owner_id) : "",
+          });
+          setEditing(true);
+        }}>
+          <PencilSimpleLine size={15} /> Correct it
+        </button>
+      }
       meta={[
         { label: "Account",
           value: deal.company
@@ -207,6 +283,64 @@ export default function DealDetail() {
             ?? <span className="muted">Unassigned</span> },
       ]}
     >
+
+      {editing && (
+        <div className="modal-backdrop" onClick={() => setEditing(false)}>
+          <form className="modal" onClick={(e) => e.stopPropagation()}
+                onSubmit={saveDeal}>
+            <h2>Correct {deal.title}</h2>
+            <p className="muted">
+              Moving it between stages is on the board. This is for the facts:
+              what it is worth, when it is expected, and whose it is.
+            </p>
+            <label className="field">
+              What it is called
+              <input value={form.title} required maxLength={160}
+                     onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            </label>
+            <div className="form-row">
+              <label className="field">
+                What it is worth
+                <input value={form.value} inputMode="decimal"
+                       onChange={(e) => setForm({ ...form, value: e.target.value })} />
+              </label>
+              <label className="field">
+                Expected close
+                <input type="date" value={form.expected_close_date}
+                       onChange={(e) => setForm({
+                         ...form, expected_close_date: e.target.value })} />
+                <span className="field-hint">
+                  The forecast is built from this. A deal with no date is not
+                  in it at all.
+                </span>
+              </label>
+              <label className="field">
+                Likelihood
+                <input value={form.probability} inputMode="numeric"
+                       onChange={(e) => setForm({
+                         ...form, probability: e.target.value })} />
+                <span className="field-hint">Per cent. What the weighted figure uses.</span>
+              </label>
+            </div>
+            <label className="field">
+              Whose it is
+              <Select value={form.owner_id} onChange={(v) => setForm({ ...form, owner_id: v })}
+                      placeholder="Nobody yet"
+                      options={staff.map((u) => ({
+                        value: String(u.id), label: u.full_name }))} />
+              <span className="field-hint">
+                An unowned deal is one nobody chases.
+              </span>
+            </label>
+            <div className="modal-actions">
+              <button type="button" className="btn ghost"
+                      onClick={() => setEditing(false)}>Leave it</button>
+              <BusyButton className="btn primary" onClick={saveDeal}
+                          busyLabel="Saving…">Save it</BusyButton>
+            </div>
+          </form>
+        </div>
+      )}
 
       <div className="card record-hero">
         <Path stages={PATH_STAGES} current={deal.stage} lostKey="lost" onPick={moveStage} />

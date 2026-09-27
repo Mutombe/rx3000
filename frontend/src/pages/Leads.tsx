@@ -57,6 +57,8 @@ export default function Leads() {
   const [checked, setChecked] = useState<number[]>([]);
   const [explain, setExplain] = useState<LeadScoreExplanation | null>(null);
   const [showForm, setShowForm] = useState(false);
+  /** The lead being corrected, or null when the form is capturing a new one. */
+  const [editing, setEditing] = useState<Lead | null>(null);
   const [form, setForm] = useState<any>({ ...EMPTY });
   const [dupes, setDupes] = useState<DuplicateWarning[]>([]);
   const [converting, setConverting] = useState<Lead | null>(null);
@@ -129,6 +131,33 @@ export default function Leads() {
       // or edited costs a click if it fails, and the list is what
       // confirms it either way.
       setShowForm(false);
+
+      /* CORRECTING ONE, WHICH NOTHING COULD DO.
+       *
+       * `PUT /api/crm/leads/{id}` has existed since leads were written and had
+       * no caller anywhere, so a telephone number taken down wrong at the
+       * counter stayed wrong until the lead was converted or thrown away. The
+       * score is recalculated by the server on every save, which is the reason
+       * to correct one rather than capture a second: an estimated value typed
+       * as 400 instead of 4000 puts a hot lead at the bottom of the list.
+       *
+       * The same form, because the fields are the same fields. A second one
+       * for the same nine is a second place for them to drift.
+       */
+      if (editing) {
+        const was = editing;
+        setEditing(null);
+        const lead = await api.put<Lead>(`/api/crm/leads/${was.id}`, {
+          ...form, estimated_value: Number(form.estimated_value) || 0,
+        });
+        toast.ok(`${lead.first_name} ${lead.last_name} corrected, `
+                 + `now scoring ${lead.score}/100 (${lead.rating}).`);
+        setForm({ ...EMPTY });
+        setDupes([]);
+        load();
+        return;
+      }
+
       const lead = await api.post<Lead>("/api/crm/leads", {
         ...form, estimated_value: Number(form.estimated_value) || 0,
       });
@@ -387,6 +416,24 @@ export default function Leads() {
                 ) : (
                   <>
                     <button className="small" onClick={() => openConvert(selected)}>Convert</button>
+                    <button className="secondary small" onClick={() => {
+                      setEditing(selected);
+                      setForm({
+                        first_name: selected.first_name ?? "",
+                        last_name: selected.last_name ?? "",
+                        company_name: selected.company_name ?? "",
+                        job_title: selected.job_title ?? "",
+                        email: selected.email ?? "",
+                        phone: selected.phone ?? "",
+                        source: selected.source ?? "referral",
+                        interest: selected.interest ?? "",
+                        estimated_value: selected.estimated_value ?? 0,
+                        marketing_opt_in: !!selected.marketing_opt_in,
+                      });
+                      setShowForm(true);
+                    }}>
+                      Correct it
+                    </button>
                     {selected.status === "new" &&
                       <BusyButton className="secondary small" onClick={() => setStatusOf(selected, "working")}>Start working</BusyButton>}
                     {selected.status !== "nurturing" &&
@@ -465,9 +512,16 @@ export default function Leads() {
       </div>
 
       {showForm && (
-        <div className="modal-backdrop" onClick={() => setShowForm(false)}>
+        <div className="modal-backdrop"
+             onClick={() => { setShowForm(false); setEditing(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>New lead</h2>
+            <h2>{editing ? "Correct this lead" : "New lead"}</h2>
+            {editing && (
+              <p className="muted">
+                Saving re-scores it. A value typed as 400 instead of 4000 is
+                why a hot lead sits at the bottom of the list.
+              </p>
+            )}
             <form onSubmit={save}>
               <div className="form-row">
                 <div className="field"><label>First name</label><input required value={form.first_name} onChange={set("first_name")} /></div>
