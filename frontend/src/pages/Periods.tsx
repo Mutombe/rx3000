@@ -62,6 +62,8 @@ export default function Periods() {
   const [current, setCurrent] = useState<Period | null>(null);
   const toast = useToast();
   const [reopening, setReopening] = useState<Period | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [month, setMonth] = useState("");
   const [reason, setReason] = useState("");
   const { guarded, prompt } = useStepUp();
   // The VAT return for one period. Reached from the period it belongs to rather
@@ -78,6 +80,38 @@ export default function Periods() {
   }
 
   useEffect(load, []);
+
+  /** Open a month, so figures that predate this system have somewhere to live.
+   *
+   *  THE EMPTY STATE SAID TO DO THIS AND NOTHING COULD.
+   *
+   *  "Until one is opened, nothing can be closed off" was the answer a new
+   *  pharmacy got, on a screen with no way to open one. `POST /periods/{code}/
+   *  open` has existed all along and no screen in the product called it, so a
+   *  pharmacy switching systems in March could not make January exist and had
+   *  nowhere to put January's figures.
+   *
+   *  Asked for as a month rather than a code. YYYYMM is what the server wants
+   *  and 202601 is not what anybody calls January, so the month picker does
+   *  the translation: a date input set to a month is a control every browser
+   *  already draws.
+   */
+  async function openMonth() {
+    const code = month.replace("-", "");
+    if (code.length !== 6) {
+      toast.warn("Choose the month to open.");
+      return;
+    }
+    try {
+      await api.post(`/api/periods/${code}/open`, {});
+      toast.ok(`${month} is open. Anything dated in it can be posted now.`);
+      setOpening(false);
+      setMonth("");
+      load();
+    } catch (e) {
+      toast.error(errorText(e, "That period could not be opened."));
+    }
+  }
 
   async function act(period: Period, verb: "close" | "lock", body: unknown = {}) {
         try {
@@ -151,7 +185,13 @@ export default function Periods() {
 
   return (
     <div className="page">
-      <PageHead title="Trading periods" sub={current
+      <PageHead
+        primary={
+          <button className="btn primary" onClick={() => setOpening(true)}>
+            Open a month
+          </button>
+        }
+        title="Trading periods" sub={current
               ? `Currently trading in ${current.name}. ${current.live?.transactions ?? 0} transactions, ${money(current.live?.sales)}.`
               : ""} />
 
@@ -275,6 +315,38 @@ export default function Periods() {
         </table>
         </Refreshable>
       </div>
+
+      {opening && (
+        <div className="modal-backdrop" onClick={() => setOpening(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Open a month</h2>
+            <p className="muted">
+              A pharmacy that moved to this system part way through a year
+              needs its earlier months to exist, so the figures from before
+              have somewhere to live. Opening one creates it if it has never
+              existed and reopens it if it was closed.
+            </p>
+            <label className="field">
+              Which month
+              <input type="month" value={month}
+                     onChange={(e) => setMonth(e.target.value)} />
+              <span className="field-hint">
+                The month itself, not a date in it. Trading is signed off a
+                month at a time.
+              </span>
+            </label>
+            <div className="modal-actions">
+              <button className="btn ghost" onClick={() => setOpening(false)}>
+                Not now
+              </button>
+              <BusyButton className="btn primary" onClick={openMonth}
+                          disabled={!month} busyLabel="Opening it…">
+                Open it
+              </BusyButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {reopening && (
         <div className="modal-backdrop" onClick={() => setReopening(null)}>

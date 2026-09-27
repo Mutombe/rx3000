@@ -17,7 +17,7 @@
  *  the shortfall when it never turns up.
  */
 import { useCallback, useEffect, useState } from "react";
-import { api, errorText, fmtDate , sentence} from "../api";
+import { api, errorText, fmtDate , sentence, money } from "../api";
 import { useConfirm } from "../components/Confirm";
 import { TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
@@ -29,6 +29,8 @@ import { EntityLink } from "../components/Filters";
 import { Link } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
+import { Plus } from "@phosphor-icons/react";
+import BusyButton from "../components/BusyButton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -74,11 +76,17 @@ interface Transit {
   product: string; quantity: number;
   despatched_at: string | null; days_in_transit: number;
 }
+interface Asked {
+  id: number; reference: string; from_branch: string; to_branch: string;
+  product_id: number; product: string; quantity: number;
+  notes: string; value: number;
+}
 
 export default function Branches() {
   const toast = useToast();
   const confirm = useConfirm();
   const [transit, setTransit] = useState<Transit[]>([]);
+  const [asked, setAsked] = useState<Asked[]>([]);
   const [busy, setBusy] = useState("");
 
   const [viewing, setViewing] = useState<number | null>(null);
@@ -105,6 +113,8 @@ export default function Branches() {
 
   const load = useCallback(() => {
     list.reload();
+    api.get<Asked[]>("/api/branches/transfers/awaiting-approval")
+      .then(setAsked).catch(() => setAsked([]));
     api.get<Transit[]>("/api/branches/transfers/in-transit")
       .then(setTransit).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -162,6 +172,24 @@ export default function Branches() {
         address: form.address ?? "", city: form.city ?? "",
         responsible_pharmacist: form.responsible_pharmacist ?? "",
       };
+
+      /* A BRANCH COULD BE EDITED, FROZEN, PINNED AND CLOSED, BUT NOT MADE.
+       *
+       * `POST /api/branches` has existed all along with no caller anywhere,
+       * so the second shop a pharmacy opened had to be inserted by whoever
+       * ran the database. The form is the same one that edits: the endpoint
+       * takes exactly the fields this modal already collects, and a second
+       * form for the same eight fields is a second place for them to drift.
+       */
+      if (!editing.id) {
+        await api.post<Branch>("/api/branches", patch);
+        setEditing(null);
+        toast.ok(`${patch.name} is open. Stock can be transferred to it and `
+                 + "its licences are expected from today.");
+        load();
+        return;
+      }
+
       const was = editing;
       setEditing(null);
       // The row shows the new name straight away and goes back to the old one
@@ -173,6 +201,28 @@ export default function Branches() {
       if (!ok) setEditing(was);
     } finally {
       setBusy("");
+    }
+  }
+
+  /** Agree to a transfer, or turn it down.
+   *
+   *  Both answers are one press and neither asks for a confirmation. Agreeing
+   *  sends stock that somebody has already decided to send and which can be
+   *  refused at the far end; refusing moves nothing at all, which is what the
+   *  endpoint's own docstring says: "Nothing moved, so nothing has to move
+   *  back." A dialogue in front of either would be asking somebody to agree
+   *  with the button they have just pressed.
+   */
+  async function decide(a: Asked, how: "approve" | "refuse") {
+    try {
+      const said = await api.post<{ message: string }>(
+        `/api/branches/transfers/${a.id}/${how}`, {});
+      toast.ok(said.message);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, how === "approve"
+        ? "That transfer could not be sent."
+        : "That transfer could not be refused."));
     }
   }
 
@@ -267,6 +317,13 @@ export default function Branches() {
         // Who is accountable for which premises, which is what a group is
         // asked for and what it cannot produce from a screen.
         take={<ExportButton dataset="branches" />}
+        also={
+          <button className="btn secondary" onClick={() => {
+            setForm({}); setEditing({ id: 0 } as Branch);
+          }}>
+            <Plus size={14} weight="bold" /> New branch
+          </button>
+        }
         primary={
           <button className="btn primary" onClick={() => {
             setMoving(true);
@@ -283,6 +340,66 @@ export default function Branches() {
           shared one corner and wrapped the header to 176px against 76 on an
           ordinary page. Navigation is not an action. */}
       <SectionNav tabs={BRANCH_TABS} end="/branches" />
+
+      {/* A QUEUE A PHARMACY CREATES BY TURNING ON A SETTING.
+          `stock.transfer_threshold` makes a transfer above a certain value a
+          request rather than a despatch, which is the right control: moving
+          four hundred dollars of stock between shops should be somebody's
+          decision. The endpoints to approve or refuse one have existed since
+          that was written and nothing listed the requests, so on any pharmacy
+          that set the threshold a valuable transfer went into "requested" and
+          stayed there. The stock never moved, and the screen that sent it
+          reported nothing wrong. */}
+      {asked.length > 0 && (
+        <div className="card">
+          <h3>Waiting to be agreed</h3>
+          <p className="muted">
+            Worth more than this pharmacy moves without asking, so nothing has
+            left the shelf yet. Agreeing sends it; refusing costs nothing,
+            because nothing has moved.
+          </p>
+          <div className="cu-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <Th className="mono">Reference</Th><Th>Item</Th>
+                  <Th className="num">Quantity</Th><Th className="num">Worth</Th>
+                  <Th>From</Th><Th>To</Th><th className="actions" />
+                </tr>
+              </thead>
+              <tbody>
+                {asked.map((a) => (
+                  <tr key={a.id}>
+                    <td className="mono">{a.reference}</td>
+                    <td>
+                      <EntityLink kind="product" id={a.product_id}>
+                        {a.product}
+                      </EntityLink>
+                      {a.notes && <div className="muted small">{a.notes}</div>}
+                    </td>
+                    <td className="num">{a.quantity}</td>
+                    <td className="num">{money(a.value)}</td>
+                    <td>{a.from_branch}</td>
+                    <td>{a.to_branch}</td>
+                    <td className="actions">
+                      <BusyButton className="btn sm primary"
+                                  busyLabel="Sending it…"
+                                  onClick={() => decide(a, "approve")}>
+                        Agree and send
+                      </BusyButton>
+                      <BusyButton className="btn sm ghost"
+                                  busyLabel="Refusing…"
+                                  onClick={() => decide(a, "refuse")}>
+                        Refuse
+                      </BusyButton>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {transit.length > 0 && (
         <div className="card">
@@ -468,7 +585,14 @@ export default function Branches() {
       {editing && (
         <div className="modal-backdrop" onClick={() => setEditing(null)}>
           <form className="modal" onClick={(e) => e.stopPropagation()} onSubmit={save}>
-            <h2>{editing.name}</h2>
+            <h2>{editing.id ? editing.name : "New branch"}</h2>
+            {!editing.id && (
+              <p className="muted">
+                A code and a name are enough to open it. The responsible
+                pharmacist matters more than it looks: a branch with nobody
+                named is a compliance gap rather than a missing nicety.
+              </p>
+            )}
             <div className="form-row">
               <div className="field">
                 <label>Code</label>

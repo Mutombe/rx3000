@@ -500,6 +500,52 @@ def receive(db: Session, *, transfer_id: int, user_id: int | None,
     return transfer
 
 
+def awaiting_approval(db: Session) -> list[dict]:
+    """Transfers asked for and not yet agreed.
+
+    A TRAP A PHARMACY SETS FOR ITSELF WITHOUT KNOWING.
+
+    `stock.transfer_threshold` turns a transfer above a certain value into a
+    request rather than a despatch, which is the right control: moving four
+    hundred dollars of stock between shops should be somebody's decision. The
+    endpoints to approve or refuse one have existed since that was written and
+    NOTHING in the product listed the requests, so on any pharmacy that set the
+    threshold, a valuable transfer went into "requested" and stayed there for
+    ever. Nobody was told, the stock never moved, and the screen that sends
+    stock reported nothing wrong.
+
+    Same shape as `in_transit` above, and unscoped for the same reason: a
+    request belongs to two branches and is decided by somebody standing at
+    neither.
+    """
+    from . import valuation
+    rows = (db.query(BranchTransfer)
+            .options(joinedload(BranchTransfer.from_branch),
+                     joinedload(BranchTransfer.to_branch),
+                     joinedload(BranchTransfer.product))
+            .filter(BranchTransfer.status == "requested")
+            .order_by(BranchTransfer.id.desc()).all())
+    out = []
+    for t in rows:
+        out.append({
+            "id": t.id, "reference": t.reference,
+            "from_branch": t.from_branch.name if t.from_branch else "",
+            "to_branch": t.to_branch.name if t.to_branch else "",
+            "product_id": t.product_id,
+            "product": t.product.name if t.product else "",
+            "quantity": t.quantity,
+            # No timestamp is written when a request is raised, so the
+            # reference is what orders them: it carries the date it was made.
+            "reference_date": t.reference,
+            "notes": t.notes or "",
+            # What it is worth, which is the only reason it is being asked
+            # about rather than simply sent.
+            "value": round(valuation.at_cost(t.product, t.quantity), 2)
+                     if t.product else 0.0,
+        })
+    return out
+
+
 def in_transit(db: Session) -> list[dict]:
     """Stock that has left one branch and not arrived at another.
 

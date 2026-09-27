@@ -14,6 +14,7 @@ import { useAiDraft } from "../hooks/useAiStream";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import Person from "../components/Person";
+import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 
@@ -226,12 +227,31 @@ export default function Marketing() {
         {loading && campaigns.length === 0 && (
           <TableSkeleton cols={9} rows={4} />
         )}
+        {/* IT TOLD PEOPLE TO DO A THING THAT DOES NOT EXIST.
+              "Build the segment first" described a control nobody ever wrote:
+              the eight audiences are fixed queries on the server, consent
+              aware by construction, and there is no segment builder anywhere
+              in the product. Somebody reading that sentence went looking for
+              a screen that was never there.
+
+              The audiences are on the tab beside this one and need no
+              building, and the case the fixed list cannot cover — these
+              eleven, picked out by name — is what the patient list does. Both
+              routes are real; the sentence now names them instead of a third
+              one that is not. */}
         {!loading && campaigns.length === 0 && (
           <div className="empty">
             <b>No campaigns yet</b>
             <p>
-              A campaign goes to a segment. A group of patients the pharmacy
-              has a reason to write to. Build the segment first.
+              A campaign goes to an audience: chronic patients, birthdays this
+              month, anybody who has not been in for ninety days. They are
+              ready on the New campaign tab, and each one counts itself before
+              anything is sent.
+            </p>
+            <p className="muted">
+              For a handful of people rather than a group, tick them on the{" "}
+              <Link to="/patients">patient list</Link> and message them from
+              there.
             </p>
           </div>
         )}

@@ -386,6 +386,29 @@ export default function WillCall() {
                         <BusyButton className="btn small" onClick={() => collect(b)}>
                           Handed over
                         </BusyButton>
+                        {/* "OVER A MONTH. RETURN IT TO STOCK AND REVERSE THE
+                            CLAIM IF ONE WAS MADE."
+
+                            That has been the advice on this band since the
+                            shelf was written, and neither half had anywhere to
+                            go. Both are one act: voiding the sale puts the
+                            stock back and takes the claim with it.
+
+                            Deliberately a route rather than a button. A void
+                            needs a second person's password, and it is decided
+                            on the sale's own figures — what was claimed, what
+                            was tendered, whether the receipt has been filed —
+                            none of which is on a shelf row. A destructive
+                            step-up action one click from a list of six hundred
+                            is the wrong shape whatever it is called. */}
+                        {b.band === "abandoned" && b.sale_id && (
+                          <Link className="btn small ghost"
+                                to={`/sales/${b.sale_id}`}
+                                onClick={(e) => e.stopPropagation()}
+                                title="Voiding the sale puts the stock back and reverses the claim">
+                            Put it back
+                          </Link>
+                        )}
                       </RowActions>
                     </RowLink>
                   ))}

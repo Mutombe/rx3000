@@ -175,6 +175,13 @@ def branch_stock(branch_id: int, low_only: bool = False,
     }
 
 
+@router.get("/transfers/awaiting-approval")
+def transfers_awaiting_approval(db: Session = Depends(get_db)):
+    """Transfers asked for and not yet agreed. See `branches.awaiting_approval`."""
+    with every_branch():
+        return branches.awaiting_approval(db)
+
+
 @router.get("/transfers/in-transit")
 def transfers_in_transit(db: Session = Depends(get_db)):
     # Across every branch on purpose: stock in transit belongs to neither shop
