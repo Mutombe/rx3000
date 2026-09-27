@@ -50,6 +50,7 @@ import {
 } from "@phosphor-icons/react";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import ActingAs from "./ActingAs";
 import Blobatar from "./Blobatar";
 import { routeTone } from "../entityTone";
 import { viewBranch, viewingBranch } from "../api";
@@ -724,6 +725,10 @@ export default function Layout({ children }: { children: ReactNode }) {
             )}
           </div>
         )}
+
+        {/* Above everything, on every screen, because the whole point is that
+            it cannot be missed or navigated away from. */}
+        <ActingAs />
 
         <main className="main">{children}</main>
       </div>

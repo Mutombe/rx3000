@@ -25,14 +25,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Snowflake, Warning } from "@phosphor-icons/react";
-import { api, errorText, money } from "../api";
+import { Eye, Snowflake, Warning } from "@phosphor-icons/react";
+import { api, errorText, getToken, money, setToken } from "../api";
 import BusyButton from "../components/BusyButton";
 import PageTabs, { TabDef, TabStrip, usePageTabs } from "../components/PageTabs";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useAsk, useConfirm } from "../components/Confirm";
+import { OWN_SESSION } from "../components/ActingAs";
+import { writeStored } from "../storage";
 import { CANCELLED, useStepUp } from "../components/StepUp";
 import { useToast } from "../components/Toast";
+import { useSession } from "../session";
 import HqPermissions from "../components/HqPermissions";
 import RoleMatrix from "../components/RoleMatrix";
 import EstateStock from "../components/EstateStock";
@@ -69,6 +72,11 @@ interface Estate {
 }
 
 type Tab = "map" | "stock" | "people" | "authority" | "logins";
+
+/** How long an acting-as session lasts, matching `hq.IMPERSONATION_MINUTES`.
+ *  Stated here so the prompt and the banner agree with the server rather than
+ *  each guessing. */
+const ACTING_MINUTES = 30;
 
 export default function HeadOffice() {
   const [estate, setEstate] = useState<Estate | null>(null);
@@ -403,6 +411,10 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
   const [people, setPeople] = useState<any | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
+  const ask = useAsk();
+  // Who is looking, so the list never offers to sign in as the person already
+  // signed in, and never offers at all to somebody who may not.
+  const { me, can } = useSession();
   const { guarded, prompt: stepUpPrompt } = useStepUp();
 
   const load = useCallback(() => {
@@ -421,6 +433,73 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
    *  a manager can do: choosing somebody's code would mean an action carrying
    *  their name proved nothing, which is the whole point of having one.
    */
+  /** Sign in as somebody, to see what they see.
+   *
+   *  THE FEATURE THIS FILE'S DOCSTRING LEADS WITH.
+   *
+   *  "It does not work on my screen" is unanswerable from head office, and the
+   *  alternative — asking a branch for their password — is how a pharmacy ends
+   *  up with four people sharing one login. The endpoint has been in the server
+   *  since head office was written and had no caller anywhere, so the only
+   *  trace of the feature in the interface was an audit filter for rows it
+   *  could never produce.
+   *
+   *  THE REASON IS NOT A FORMALITY.
+   *
+   *  The server refuses without one, and says why: acting as somebody else is
+   *  the one thing in this system that can make the audit trail lie. It is
+   *  asked for here in the same words, so the prompt and the refusal agree.
+   *
+   *  THE WAY BACK IS ARRANGED BEFORE THE WAY IN.
+   *
+   *  Head office's own session is put aside first, under its own key, and the
+   *  banner across the top of every screen puts it back. Swapping the token
+   *  without keeping the old one would strand somebody as a cashier in
+   *  Bulawayo until they signed in again, which on a shared machine means
+   *  finding an administrator.
+   */
+  async function actAs(person: any) {
+    const answer = await ask({
+      title: `Sign in as ${person.full_name}?`,
+      body: (
+        <>
+          <p>
+            You see exactly what they see, for {ACTING_MINUTES} minutes. Every
+            row written while it lasts records both names, so the trail says
+            you did it as them rather than saying they did it.
+          </p>
+          <p className="muted">
+            Their password is not needed and is never shown. Come back with the
+            button in the bar at the top, which stays there for as long as this
+            lasts.
+          </p>
+        </>
+      ),
+      field: "Why",
+      placeholder: "the till will not print a label for her",
+      required: true,
+      maxLength: 200,
+      confirmLabel: `Act as ${person.full_name.split(" ")[0]}`,
+    });
+    if (!answer.ok) return;
+
+    try {
+      const said = await api.post<{ access_token: string; message: string }>(
+        `/api/hq/impersonate/${person.id}`, { reason: answer.value });
+      // Kept BEFORE the swap. If this failed afterwards there would be no way
+      // back at all.
+      writeStored(OWN_SESSION, getToken());
+      setToken(said.access_token);
+      toast.ok(said.message);
+      // A whole reload rather than a route change: every cached list, every
+      // capability and the sidebar itself belong to the old session, and a
+      // half-swapped screen is worse than a slow one.
+      window.location.href = "/";
+    } catch (e) {
+      toast.error(errorText(e, "That session could not be started."));
+    }
+  }
+
   async function clearCode(person: any) {
     const ok = await confirm({
       title: `Clear ${person.full_name}'s till code?`,
@@ -469,7 +548,8 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
           <table className="dt">
             <thead>
               <tr><Th>Person</Th><Th>Role</Th><Th>Till code</Th>
-                <Th>Also allowed</Th><Th>Prevented from</Th></tr>
+                <Th>Also allowed</Th><Th>Prevented from</Th>
+                <th className="actions" /></tr>
             </thead>
             <tbody>
               {people.people.map((p: any) => (
@@ -511,6 +591,19 @@ function BranchPeople({ branches }: { branches: BranchRow[] }) {
                     {p.denied.length
                       ? <span className="badge bad">{p.denied.join(", ")}</span>
                       : <span className="muted">None</span>}
+                  </td>
+                  <td className="actions">
+                    {/* Never offered against a stopped login or against
+                        yourself: the server refuses both and explains why, and
+                        a button that exists to be refused is a button that
+                        teaches people to ignore refusals. */}
+                    {p.active && p.id !== me?.id && can("hq.impersonate") && (
+                      <button type="button" className="btn sm ghost"
+                              onClick={() => actAs(p)}
+                              title={`See what ${p.full_name} sees`}>
+                        <Eye size={13} /> Act as them
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

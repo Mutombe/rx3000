@@ -14331,3 +14331,26 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
    sits in a flex row next to a fixed icon, so without a shrink it pushes the
    icon off the left of its own strip on a narrow till rather than wrapping. */
 .disp-done-text { flex: 1 1 auto; min-width: 0; }
+
+/* ---------------------------------------------------------------------------
+   ACTING AS SOMEBODY ELSE
+
+   Loud on purpose, and it stays loud. This is the one state in the product
+   where the audit trail can be made to say something misleading, and the thing
+   that stops it being routine is that nobody can forget they are in it. Not a
+   toast, not a chip in the corner: a bar across the top of every screen for as
+   long as it lasts.
+   --------------------------------------------------------------------------- */
+.acting-as {
+  display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+  padding: var(--s2) var(--s4);
+  background: var(--warn-soft); color: var(--warn);
+  border-bottom: 2px solid var(--warn);
+  font-size: var(--t-sm); font-weight: 600;
+}
+.acting-as b { color: inherit; }
+.acting-as > span:first-of-type { flex: 1 1 22rem; min-width: 0; }
+/* How long is left, in figures that do not jump as they count down. */
+.acting-left {
+  flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .85;
+}
