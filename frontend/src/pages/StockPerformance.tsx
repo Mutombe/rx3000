@@ -33,6 +33,7 @@ import PageTabs, { TabDef, usePageTabs } from "../components/PageTabs";
 import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -275,7 +276,7 @@ export default function StockPerformance() {
                   <tr>
                     <Th className="col-med">Line</Th><Th>Department</Th>
                     <Th className="num">On hand</Th>
-                    <Th className="num">Tied up</Th>
+                    <Th className="num">Tied up</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -289,10 +290,26 @@ export default function StockPerformance() {
                       <td className="muted small">{p.department || "none"}</td>
                       <td className="num">{p.on_hand.toLocaleString()}</td>
                       <td className="num mono"><b>{money(p.held_at_cost)}</b></td>
+                      {/* THE DECISION THIS SCREEN NAMES AND COULD NOT REACH.
+                          It prices dead stock to the cent and then says the
+                          decision "belongs to somebody who knows the shop",
+                          with nowhere for that person to go. The commonest
+                          decision about a line that will not move here is that
+                          it moves somewhere it does, and the transfer screen
+                          can already show what every branch holds of it. The
+                          deciding still happens there, in front of both
+                          shelves. */}
+                      <td className="actions">
+                        <Link className="btn sm ghost"
+                              to={`/branches?move=${p.product_id}`}
+                              title="Open the transfer form on this line, with every branch's holding">
+                          Move it
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                   {!report.dead.length && (
-                    <tr><td colSpan={4} className="muted pad">
+                    <tr><td colSpan={5} className="muted pad">
                       Everything on the shelf has moved in this period.
                     </td></tr>
                   )}

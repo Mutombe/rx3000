@@ -29,6 +29,8 @@ import Select from "../components/Select";
 import { Refreshable, TableSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { RECON_TABS } from "../reconTabs";
+import { Link } from "react-router-dom";
+import { EntityLink } from "../components/Filters";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
 import Th from "../components/Th";
@@ -51,8 +53,10 @@ interface Report {
 }
 interface Held {
   count: number; value: number;
-  lines: { id: number; remittance_number: string; funder_id: string;
-           claim_reference: string; member_name: string; policy_number: string;
+  lines: { id: number; remittance_number: string; remittance_id: number | null;
+           funder_id: string;
+           claim_id: number | null; claim_reference: string;
+           member_name: string; policy_number: string;
            service_date: string | null; amount_claimed: number;
            reason_code: string; reason: string }[];
 }
@@ -249,9 +253,35 @@ export default function Settlements() {
                         <b>{l.member_name || "none"}</b>
                         <div className="muted small mono">{l.policy_number}</div>
                       </td>
+                      {/* TWO REFERENCES THAT WENT NOWHERE, ON THE LIST THAT
+                          NEEDS THEM MOST.
+
+                          This tab says these are not rejections: the funder is
+                          holding them pending a query and "they pay when it is
+                          answered". Answering one starts with reading what was
+                          claimed and what the funder actually said, and both
+                          were printed here as text.
+
+                          Deliberately NOT a bill-or-write-off control, which
+                          is what the resolve endpoint offers for these same
+                          line ids. This tab's own warning is that "a held
+                          claim billed to a patient is a bill for something
+                          their scheme was always going to settle", and a
+                          button that does the thing the paragraph above it
+                          warns against is worse than no button. */}
                       <td className="mono small">
-                        {l.claim_reference || "none"}
-                        <div className="muted">{l.remittance_number}</div>
+                        {l.claim_id ? (
+                          <EntityLink kind="claim" id={l.claim_id}>
+                            {l.claim_reference || "none"}
+                          </EntityLink>
+                        ) : (l.claim_reference || "none")}
+                        <div className="muted">
+                          {l.remittance_id ? (
+                            <Link to={`/remittances/${l.remittance_id}`}>
+                              {l.remittance_number}
+                            </Link>
+                          ) : l.remittance_number}
+                        </div>
                       </td>
                       <td>
                         {l.service_date ? fmtDate(l.service_date)

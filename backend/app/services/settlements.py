@@ -213,6 +213,11 @@ def held_lines(db: Session, *, funder_id: str = "", limit: int = 200) -> dict:
         "lines": [{
             "id": l.id,
             "remittance_number": l.remittance.remittance_number if l.remittance else "",
+            # The advice's own id, so the number on screen can be opened. The
+            # screen that lists held claims says they "pay when it is
+            # answered", and answering starts with reading what the funder
+            # actually said, which is on the advice.
+            "remittance_id": l.remittance_id,
             "funder_id": l.remittance.funder_id if l.remittance else "",
             "claim_id": l.claim_id,
             "claim_reference": l.claim_reference,

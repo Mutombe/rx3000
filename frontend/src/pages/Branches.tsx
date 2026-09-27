@@ -29,6 +29,7 @@ import { EntityLink } from "../components/Filters";
 import { Link } from "react-router-dom";
 import SectionNav from "../components/SectionNav";
 import { BRANCH_TABS } from "../branchTabs";
+import { useSearchParams } from "react-router-dom";
 import { Plus } from "@phosphor-icons/react";
 import BusyButton from "../components/BusyButton";
 import PageHead from "../components/PageHead";
@@ -99,6 +100,20 @@ export default function Branches() {
   const [moving, setMoving] = useState(false);
   const [fromId, setFromId] = useState<number | "">("");
   const [toId, setToId] = useState<number | "">("");
+  /* ARRIVING HERE WITH A PRODUCT ALREADY IN MIND.
+   *
+   * Stock performance prices dead stock in real money and then says "the
+   * decision belongs to somebody who knows the shop" — with no way to take
+   * one. The commonest decision about a line that will not move here is that
+   * it moves somewhere it does: the medicine exists, it is in the wrong shop,
+   * and the fix is a transfer this afternoon rather than an order next week.
+   *
+   * So this screen accepts the product as a question it has been asked, and
+   * opens the transfer form on it with every branch's holding beside it. The
+   * deciding still happens here, by somebody looking at both shelves.
+   */
+  const [params] = useSearchParams();
+  const askedFor = Number(params.get("move") || 0);
   const [productQ, setProductQ] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
@@ -225,6 +240,23 @@ export default function Branches() {
         : "That transfer could not be refused."));
     }
   }
+
+  useEffect(() => {
+    if (!askedFor) return;
+    api.get<{ product: Product }>(`/api/products/${askedFor}`)
+      .then((r) => {
+        if (!r.product) return;
+        setProduct(r.product);
+        setMoving(true);
+        setFromId(branches?.find((b) => b.is_default)?.id ?? "");
+      })
+      // Deliberately silent: a link carrying a product that has since been
+      // retired opens the transfer form with nothing picked, which is exactly
+      // what it looks like when somebody opens it from the header.
+      .catch(() => undefined);
+    // Once, on arrival. Re-running it would reopen the form somebody closed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askedFor]);
 
   async function makeDefault(b: Branch) {
     setBusy(`default-${b.id}`);

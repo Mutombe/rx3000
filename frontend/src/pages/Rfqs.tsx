@@ -10,6 +10,7 @@
  *  chasing, and one everybody has replied to needs deciding.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Plus, Robot } from "@phosphor-icons/react";
 
 import { api, errorText, fmtDate, money , sentence} from "../api";
@@ -89,6 +90,26 @@ export default function Rfqs() {
       .catch(() => setQueue([]));
   }, []);
 
+  /** Send the request, which is also how it is chased.
+   *
+   *  The endpoint emails everybody invited who has an address, and says how
+   *  many went and who was skipped for want of one. That second half matters
+   *  on this screen: a wholesaler with no email address is one somebody has to
+   *  telephone, and a chase that quietly reached four of five suppliers is a
+   *  chase that looks done and is not.
+   */
+  async function sendOut(r: RfqRow) {
+    try {
+      const said = await api.post<{ message?: string; sent?: number }>(
+        `/api/rfqs/${r.id}/send`, {});
+      toast.ok(said.message
+               ?? `${r.reference} sent to ${said.sent ?? 0} supplier(s).`);
+      load();
+    } catch (e) {
+      toast.error(errorText(e, `${r.reference} could not be sent.`));
+    }
+  }
+
   return (
     <>
       <PageHead
@@ -154,7 +175,7 @@ export default function Rfqs() {
                   <tr>
                     <Th>Reference</Th><Th>Status</Th><Th>Raised</Th>
                     <Th className="num">Lines</Th>
-                    <Th>Replies</Th><Th>Closes</Th>
+                    <Th>Replies</Th><Th>Closes</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -190,6 +211,37 @@ export default function Rfqs() {
                         {r.closes_at
                           ? fmtDate(r.closes_at)
                           : <span className="muted">No date</span>}
+                      </td>
+                      {/* THE ONE THING THIS SCREEN SAYS IS ACTIONABLE.
+                          Its own docstring: "a request nobody has replied to
+                          needs chasing, and one everybody has replied to needs
+                          deciding". The table had no actions column at all, so
+                          the answer to both was to open the request and come
+                          back. Sending is the chase — the endpoint emails
+                          everybody invited who has an address — and it is the
+                          same act whether it has gone out once or three
+                          times. */}
+                      <td className="actions">
+                        {r.status === "draft" && (
+                          <BusyButton className="btn sm primary"
+                                      busyLabel="Sending…"
+                                      onClick={() => sendOut(r)}>
+                            Send it
+                          </BusyButton>
+                        )}
+                        {r.status === "sent" && r.waiting_on > 0 && (
+                          <BusyButton className="btn sm"
+                                      busyLabel="Chasing…"
+                                      onClick={() => sendOut(r)}>
+                            Chase {r.waiting_on}
+                          </BusyButton>
+                        )}
+                        {r.status === "sent" && r.answered > 0
+                          && r.waiting_on === 0 && (
+                          <Link className="btn sm primary" to={`/rfqs/${r.id}`}>
+                            Compare and award
+                          </Link>
+                        )}
                       </td>
                     </tr>
                   ))}
