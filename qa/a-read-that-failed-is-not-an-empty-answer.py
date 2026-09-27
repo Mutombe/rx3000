@@ -24,10 +24,17 @@ asked.
 
 WHAT THIS GUARD CHECKS.
 
-One thing, mechanically: an `api.*(...)` chain that has a `.then` and no
-`.catch`. A promise chain with a `.then` and no `.catch` rejects into nothing,
-which is never a decision anybody made. `.finally` does not count — three sites
-had one, and all it did was turn the skeleton off so the lie showed sooner.
+One thing, mechanically: a `.then` with no `.catch` on the same chain. A promise
+chain that rejects into nothing is never a decision anybody made. `.finally`
+does not count — three sites had one, and all it did was turn the skeleton off
+so the lie showed sooner.
+
+It started as `api.*` only, and six chains walked straight past it: the
+abbreviation book the dispensary's directions expand through (without it "1 t
+od" stays "1 t od" on a label a patient reads at home), two file reads where an
+empty box looks like an empty file, the printer probe, the pharmacy's own
+letterhead and the portal preview's brand. None of them is called `api.get`, and
+every one of them is a read that can fail.
 
 WHAT IT DOES NOT CHECK.
 
@@ -42,13 +49,19 @@ Where the answer is a confident sentence, the screen needs a second state. The
 pattern the product settled on is a `somethingUnknown` flag beside the data,
 named in the field's own words, per `never-a-dash-for-missing-data`.
 
-TWO EXEMPTIONS, BOTH EARNED.
+THREE EXEMPTIONS, ALL EARNED.
 
 `Promise.all([...])` — a rejection inside the array propagates to the outer
 chain, so the `.catch` belongs there and the guard looks for it there.
 
 `await` in a `try` — the `catch` block is the handler. This guard only looks at
 `.then` chains.
+
+`RETURNED` — a `.then` chain a function hands back to its caller, where the
+caller is what decides. Four sites: `offline/db.ts` builds one promise per
+IndexedDB request and `Doing.tsx` stores the job's `run` and catches at the
+place it is started. Each is listed by name below with the reason, so the
+exemption is a decision on the record rather than a pattern in a regex.
 
 HOW IT WAS PROVED.
 
@@ -67,7 +80,30 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "frontend" / "src"
 
-CALL = re.compile(r"\bapi\.(?:get|post|put|patch|del|delete)\b")
+CALL = re.compile(r"\b([A-Za-z_$][\w$.]*)\s*\(")
+
+# Words that look like a call and are not one.
+KEYWORDS = {
+    "if", "for", "while", "switch", "catch", "function", "return", "typeof",
+    "await", "new", "delete", "void", "in", "of", "do", "else", "case",
+}
+
+# A `.then` chain handed back to whoever called the function, which is where the
+# decision belongs. Keyed by file and the name of the call, with the reason.
+RETURNED = {
+    ("offline/db.ts", "open"):
+        "one promise per IndexedDB request; `run` and its callers catch",
+    ("offline/db.ts", "request"):
+        "the same, one level down",
+    ("components/Doing.tsx", "run"):
+        "the job's own work, stored on the job; Doing.tsx:107 catches it and "
+        "puts the job into its failed state",
+    ("components/AssistantDiagram.tsx", "import"):
+        "the lazy mermaid import, kept in `mermaidReady`; the render at :53 "
+        "catches and the component says the diagram could not be drawn",
+    ("components/AssistantDiagram.tsx", "mermaid"):
+        "the same promise, read by the render that catches it",
+}
 
 
 def blanked(src: str) -> str:
@@ -159,32 +195,42 @@ def promise_all_around(text: str, at: int) -> str | None:
     return None
 
 
-def offenders() -> list[tuple[pathlib.Path, int]]:
-    found = []
+def offenders() -> list[tuple[pathlib.Path, int, str]]:
+    found, seen = [], set()
     for path in sorted(SRC.rglob("*.ts")) + sorted(SRC.rglob("*.tsx")):
         raw = path.read_text(encoding="utf-8")
         text = blanked(raw)
+        rel = path.relative_to(SRC).as_posix()
         for m in CALL.finditer(text):
+            name = m.group(1)
+            if name in KEYWORDS or (rel, name.split(".")[-1]) in RETURNED:
+                continue
             chain = chain_from(text, m.start())
-            if ".then(" not in chain:
+            at = chain.find(".then(")
+            if at < 0 or ".catch(" in chain:
                 continue
-            if ".catch(" in chain:
+            # The `.then` has to hang off THIS call rather than off something
+            # nested inside its arguments, or every outer call in a chain of
+            # three reports the same fault three times.
+            if chain[:at].count("(") != chain[:at].count(")"):
                 continue
-            outer = promise_all_around(text, m.start())
-            if outer and ".catch(" in outer:
+            line = raw[:m.start()].count("\n") + 1
+            if (path, line) in seen:
                 continue
-            found.append((path, raw[:m.start()].count("\n") + 1))
+            seen.add((path, line))
+            found.append((path, line, name))
     return found
 
 
 def report(found) -> int:
     if not found:
-        print(f"ok  every api.* chain with a .then has a .catch "
-              f"({len(list(SRC.rglob('*.ts*')))} files)")
+        print(f"ok  every .then chain has a .catch "
+              f"({len(list(SRC.rglob('*.ts*')))} files, "
+              f"{len(RETURNED)} named exemptions)")
         return 0
     print(f"FAIL  {len(found)} request(s) with nothing to do when they fail:")
-    for path, line in found:
-        print(f"  {path.relative_to(ROOT)}:{line}")
+    for path, line, name in found:
+        print(f"  {path.relative_to(ROOT)}:{line}  {name}(...)")
     print()
     print("  A .then with no .catch rejects into nothing. Add one, and then ask")
     print("  what the screen says when the list is empty — if it is a confident")
@@ -203,7 +249,7 @@ def plant() -> int:
     try:
         victim.write_text(original.replace(anchor, fault), encoding="utf-8")
         found = offenders()
-        hit = [(p, n) for p, n in found if p == victim]
+        hit = [row for row in found if row[0] == victim]
         if not hit:
             print("FAIL  the guard did not see a planted uncaught read")
             return 1

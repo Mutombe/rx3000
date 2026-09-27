@@ -55,6 +55,7 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [chapter, setChapter] = useState("");
   const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [askFailed, setAskFailed] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
 
   // Resolve an existing code to its description so the line reads properly.
@@ -69,27 +70,36 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
   // "fetched once and kept" and the effect fetched it again every time a
   // picker appeared — which is every line on every script. The chapter list
   // is the ICD-10 headings; they change when the WHO says so.
-  useEffect(() => { chapterBook().then(setChapters); }, []);
+  // No catch: an unhandled rejection, and the body-system select silently
+  // absent for somebody who does not already know the code.
+  useEffect(() => { chapterBook().then(setChapters).catch(() => setChapters([])); }, []);
 
   useEffect(() => {
-    if (query.trim().length < 2) { setResults([]); setVerdict(null); return; }
+    if (query.trim().length < 2) {
+      setResults([]); setVerdict(null); setAskFailed(false);
+      return;
+    }
     const t = setTimeout(() => {
       const q = new URLSearchParams({ q: query.trim() });
       if (chapter) q.set("chapter", chapter);
       api.get<DiagnosisCode[]>(`/api/claiming/diagnoses?${q}`)
         .then((r) => {
-          setResults(r); setActive(0);
+          setResults(r); setActive(0); setAskFailed(false);
           // Nothing found locally is not the same as nothing valid. Ask what
           // the code actually is before telling somebody they cannot use it.
           if (r.length === 0) {
             api.get<Verdict>(
               `/api/claiming/diagnoses/validate?code=${encodeURIComponent(query.trim())}`)
-              .then(setVerdict).catch(() => setVerdict(null));
+              .then((v) => { setVerdict(v); setAskFailed(false); })
+              .catch(() => { setVerdict(null); setAskFailed(true); });
           } else {
             setVerdict(null);
           }
         })
-        .catch(() => setResults([]));
+        // "No matching diagnosis" is what stops somebody coding a claim. Said
+        // off a failed lookup it condemns a code that may be perfectly valid,
+        // and the line goes out uncoded or coded wrongly.
+        .catch(() => { setResults([]); setAskFailed(true); });
     }, 180);
     return () => clearTimeout(t);
   }, [query, chapter]);
@@ -180,7 +190,10 @@ export default function DiagnosisPicker({ value, onChange, autoFocus }: {
                     ? "That is not the shape of an ICD-10 code."
                     : verdict && !verdict.chapter
                       ? "That code sits in no ICD-10 chapter."
-                      : "No matching diagnosis"}
+                      : askFailed
+                        ? "That could not be checked against the code book. "
+                          + "This is not a verdict on the code."
+                        : "No matching diagnosis"}
                 </div>
               )}
             </div>

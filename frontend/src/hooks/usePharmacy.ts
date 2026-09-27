@@ -40,7 +40,12 @@ export function usePharmacy(): PharmacyIdentity {
   const [identity, setIdentity] = useState<PharmacyIdentity>(FALLBACK);
   useEffect(() => {
     let live = true;
-    pharmacyIdentity().then((v) => { if (live) setIdentity(v); });
+    pharmacyIdentity()
+      .then((v) => { if (live) setIdentity(v); })
+      // FALLBACK is already the honest answer when the shop's own details are
+      // not known, so there is nothing to change here — but an unhandled
+      // rejection is not how a screen chooses a fallback.
+      .catch(() => undefined);
     return () => { live = false; };
   }, []);
   return identity;

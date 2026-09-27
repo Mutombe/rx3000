@@ -44,7 +44,10 @@ export default function PatientPortalPreview(
       email: l.email || "",
       registration_no: l.registration_no || "",
       address: l.address || [],
-    }));
+    }))
+      // Unbranded is better than blank, and better than an unhandled
+      // rejection. The preview is of the patient's page, not of ours.
+      .catch(() => setBrand(null));
   }, []);
 
   return (

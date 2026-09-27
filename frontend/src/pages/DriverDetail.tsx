@@ -62,6 +62,7 @@ export default function DriverDetail() {
   const [counted, setCounted] = useState("");
   const toast = useToast();
   const [handIns, setHandIns] = useState<HandIn[] | null>(null);
+  const [handInsUnknown, setHandInsUnknown] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -73,8 +74,10 @@ export default function DriverDetail() {
     // driver record is what the page needs to render at all, and a hand-in
     // history that cannot be fetched must not blank the page.
     api.get<{ hand_ins: HandIn[] }>(`/api/drivers/${id}/account`)
-      .then((a) => setHandIns(a.hand_ins ?? []))
-      .catch(() => setHandIns([]));
+      .then((a) => { setHandIns(a.hand_ins ?? []); setHandInsUnknown(false); })
+      // "Nothing has been handed in yet" is an accusation when it is wrong,
+      // and it was being made off a read that failed.
+      .catch(() => { setHandIns([]); setHandInsUnknown(true); });
   }, [id]);
   useEffect(load, [load]);
 
@@ -233,7 +236,14 @@ export default function DriverDetail() {
           </span>
         </div>
         {handIns === null ? <TableSkeleton cols={4} rows={3} />
-          : handIns.length === 0 ? (
+          : handInsUnknown ? (
+            <div className="empty">
+              <p>
+                What this driver has handed in could not be read. Nothing here
+                says they have brought nothing back.
+              </p>
+            </div>
+          ) : handIns.length === 0 ? (
             <div className="empty">
               <p>
                 Nothing has been handed in yet. Money collected at a door sits

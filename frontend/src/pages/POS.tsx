@@ -79,6 +79,7 @@ export default function POS() {
   const [pending, setPending] = useState<Sale[]>([]);
   const [pendingUnknown, setPendingUnknown] = useState(false);
   const [history, setHistory] = useState<Sale[]>([]);
+  const [historyUnknown, setHistoryUnknown] = useState(false);
   const [historyQ, setHistoryQ] = useState("");
   /** The sale the dispensary sent over, so the till opens on it. */
   const [params, setParams] = useSearchParams();
@@ -145,7 +146,9 @@ export default function POS() {
 
   useEffect(() => { loadPending(); }, []);
   // Optional hardware — absent agent simply means manual capture and browser printing
-  useEffect(() => { deviceAgent.probe().then(setAgent); }, []);
+  useEffect(() => {
+    deviceAgent.probe().then(setAgent).catch(() => setAgent(null));
+  }, []);
   useEffect(() => {
     api.get<CurrencyState>("/api/currency").then((c) => {
       setCurrencyState(c);
@@ -200,7 +203,9 @@ export default function POS() {
     setHistoryLoading(true);
     api.get<Sale[]>(`/api/pos/sales?status=paid&limit=50`
       + (historyQ ? `&q=${encodeURIComponent(historyQ)}` : ""))
-      .then(setHistory).catch(() => setHistory([]))
+      .then((r) => { setHistory(r); setHistoryUnknown(false); })
+      // "Nothing taken yet" is what a teller checks their float against.
+      .catch(() => { setHistory([]); setHistoryUnknown(true); })
       .finally(() => setHistoryLoading(false));
   }
 
@@ -1214,11 +1219,16 @@ export default function POS() {
           </table>
           {history.length === 0 && !historyLoading && (
             <div className="empty">
-              <b>{historyQ ? "No sale matches that" : "Nothing taken yet"}</b>
+              <b>{historyUnknown
+                ? "This till's sales could not be read"
+                : historyQ ? "No sale matches that" : "Nothing taken yet"}</b>
               <p>
-                {historyQ
-                  ? "Search by the invoice number on the slip, or the customer's name."
-                  : "Every sale settled at this till appears here, newest first."}
+                {historyUnknown
+                  ? "Nothing here is a statement about what has been taken. Do "
+                    + "not count a float against it."
+                  : historyQ
+                    ? "Search by the invoice number on the slip, or the customer's name."
+                    : "Every sale settled at this till appears here, newest first."}
               </p>
             </div>
           )}

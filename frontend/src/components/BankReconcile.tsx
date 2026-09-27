@@ -80,7 +80,13 @@ export default function BankReconcile() {
                  onChange={(e) => {
                    const file = e.target.files?.[0];
                    if (!file) return;
-                   file.text().then(setStatement);
+                   // Reading the file can fail, and an empty box after choosing
+                   // one looks exactly like a file that had nothing in it.
+                   file.text()
+                     .then(setStatement)
+                     .catch(() => toast.error(
+                       "That file could not be read. Nothing was loaded. Try "
+                       + "saving it again as CSV, or paste it below."));
                  }} />
         </div>
         <div className="field">

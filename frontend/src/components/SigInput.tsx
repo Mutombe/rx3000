@@ -75,15 +75,26 @@ interface Entry {
   meaning: string;
   caution?: string;
 }
-interface Book { count: number; groups: Record<string, Entry[]> }
+interface Book {
+  count: number;
+  groups: Record<string, Entry[]>;
+  /** The book was asked for and did not arrive. An empty book and an unread
+   *  one behave identically — nothing expands — so without this the field
+   *  cannot tell "this deployment has no abbreviations" from "nobody
+   *  looked", and it is the second one that puts "1 t od" on a label. */
+  unread?: boolean;
+}
 
 /** Fetched once for the whole session and shared: the book changes perhaps
  *  yearly, and every script line would otherwise ask for it. */
 let bookPromise: Promise<Book> | null = null;
 function loadBook(): Promise<Book> {
   if (!bookPromise) {
+    // Still never rejects — every script line calls this, and a rejected
+    // shared promise would have each of them handling the same failure. It
+    // says so in the book instead.
     bookPromise = api.get<Book>("/api/dosage-abbreviations")
-      .catch(() => ({ count: 0, groups: {} }));
+      .catch(() => ({ count: 0, groups: {}, unread: true }));
   }
   return bookPromise;
 }
@@ -172,6 +183,7 @@ export default function SigInput({
   onBlur?: () => void;
 }) {
   const [book, setBook] = useState<Book | null>(null);
+  const [bookUnknown, setBookUnknown] = useState(false);
   const [showBook, setShowBook] = useState(false);
   const [filter, setFilter] = useState("");
   const [expandedFrom, setExpandedFrom] = useState("");
@@ -196,7 +208,16 @@ export default function SigInput({
     // 200 — a bug that only exists in development, which is where the panel was
     // being looked at.
     live.current = true;
-    loadBook().then((b) => { if (live.current) setBook(b); });
+    loadBook()
+      .then((b) => {
+        if (!live.current) return;
+        setBook(b);
+        setBookUnknown(!!b.unread);
+      })
+      // Without the book nothing expands, so "1 t od" stays "1 t od" and the
+      // line that shows what the label will read never appears. Silent, and
+      // the label is the one thing in this product a patient reads at home.
+      .catch(() => { if (live.current) setBookUnknown(true); });
     return () => { live.current = false; };
   }, []);
 
@@ -539,6 +560,21 @@ export default function SigInput({
               Not in the book, printed as typed: {unknown.join(", ")}
             </span>
           )}
+        </p>
+      )}
+
+      {/* The book never arrived, so nothing on this field expands and the
+          preview above cannot be shown. Said out loud, because the directions
+          are what gets printed on a label somebody reads at home.
+          Shown in the compact form too, unlike the preview: the compact one is
+          the line editor, which is where a dispenser actually types directions,
+          and "1 t od" staying "1 t od" all the way onto the label is the whole
+          failure. Everything else this component hides when compact is a
+          convenience; this is the one thing that is not. */}
+      {bookUnknown && (
+        <p className="sig-note">
+          The abbreviation book could not be read, so nothing typed here will be
+          expanded. Write the directions out in full.
         </p>
       )}
 

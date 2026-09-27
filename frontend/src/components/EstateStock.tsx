@@ -53,12 +53,16 @@ export default function EstateStock() {
   const [notes, setNotes] = useState("");
 
   const [transit, setTransit] = useState<Transit[] | null>(null);
+  const [transitUnknown, setTransitUnknown] = useState(false);
   const toast = useToast();
   const confirm = useConfirm();
 
   const loadTransit = useCallback(() => {
     api.get<Transit[]>("/api/branches/transfers/in-transit")
-      .then(setTransit).catch(() => setTransit([]));
+      .then((t) => { setTransit(t); setTransitUnknown(false); })
+      // Stock off one shelf and not yet on the other. "Every transfer has
+      // been booked in" is how a lost consignment stops being looked for.
+      .catch(() => { setTransit([]); setTransitUnknown(true); });
   }, []);
   useEffect(loadTransit, [loadTransit]);
 
@@ -271,7 +275,15 @@ export default function EstateStock() {
           group total on the product record counts it, and neither branch does.
         </p>
         {!transit ? <TableSkeleton cols={6} rows={3} rowHeight={48} />
-         : transit.length === 0 ? (
+         : transitUnknown ? (
+          <div className="empty">
+            <b>What is in transit could not be read.</b>
+            <p>
+              Nothing here says every transfer has been booked in at the other
+              end. Reload before deciding a consignment arrived.
+            </p>
+          </div>
+         ) : transit.length === 0 ? (
           <div className="empty">
             <b>Nothing is in transit.</b>
             <p>Every transfer that has been sent has been booked in at the other end.</p>

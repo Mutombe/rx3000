@@ -36,6 +36,7 @@ export default function Register() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(50);
   const [reprints, setReprints] = useState<Reprint[]>([]);
+  const [reprintsUnknown, setReprintsUnknown] = useState(false);
   /** The reprint log has its own request, so it needs its own answer. Sharing
    *  the register's flag would have said "nothing reprinted" while the register
    *  had loaded and this had not. */
@@ -70,7 +71,11 @@ export default function Register() {
   // add up", and the count that does not add up is the one on this page.
   useEffect(() => {
     api.get<Reprint[]>("/api/reprints?kind=label&limit=50")
-      .then(setReprints).catch(() => setReprints([]))
+      .then((r) => { setReprints(r); setReprintsUnknown(false); })
+      // The reprint trail is read when a balance disagrees with the shelf.
+      // "Every dispensing was labelled once" is the answer that ends that
+      // enquiry, and it was being given without being established.
+      .catch(() => { setReprints([]); setReprintsUnknown(true); })
       .finally(() => setReprintsLoading(false));
   }, []);
 
@@ -239,6 +244,12 @@ export default function Register() {
         {reprintsLoading ? (
           <TableSkeleton cols={4} rows={5} rowHeight={49}
                          widths={["14ch", "12ch", "12ch", "24ch"]} />
+        ) : reprintsUnknown ? (
+          <div className="empty">
+            The reprints could not be read, so this is not a statement that
+            every dispensing was labelled once. Reload before settling a
+            disagreement with it.
+          </div>
         ) : reprints.length === 0 ? (
           <div className="empty">
             No label has been reprinted. Every dispensing on the register was

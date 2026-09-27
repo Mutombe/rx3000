@@ -80,6 +80,7 @@ export default function PrescriptionDetail() {
   const navigate = useNavigate();
   const [d, setD] = useState<Data | null>(null);
   const [trail, setTrail] = useState<Trail | null>(null);
+  const [trailUnknown, setTrailUnknown] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -92,11 +93,16 @@ export default function PrescriptionDetail() {
     // built, and hanging an alteration history off it would make that request
     // carry a trail nobody is looking at yet.
     setTrail(null);
+    setTrailUnknown(false);
     api.get<Trail>(`/api/prescriptions/${id}/full`)
       .then(setTrail)
       // The trail is an addition to this page, not the page. Failing to load it
       // must not blank a script somebody opened to read.
-      .catch(() => setTrail(null));
+      //
+      // But it must not vanish either. The panel it fills is the only thing on
+      // this screen that says what has left the shelf, and a script whose
+      // supply history is simply absent is a script that gets dispensed twice.
+      .catch(() => { setTrail(null); setTrailUnknown(true); });
   }, [id]);
 
   const patientName = d?.patient
@@ -233,6 +239,15 @@ export default function PrescriptionDetail() {
 
           {/* What has actually left the shelf. A script and a supply are not
               the same thing, and this page said nothing about the difference. */}
+          {trailUnknown && (
+            <Panel title="What has gone out">
+              <p className="muted pad">
+                What has been dispensed against this script could not be read.
+                Do not read this as a script nothing has gone out on. Reload
+                the page before supplying it.
+              </p>
+            </Panel>
+          )}
           {trail && (
             <Panel title="What has gone out" count={trail.dispensings.length}
                    empty="Nothing on this script has been dispensed yet.">

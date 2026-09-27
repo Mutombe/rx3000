@@ -74,6 +74,7 @@ export default function Pharmacies() {
   const [form, setForm] = useState({ ...BLANK });
   const [open, setOpen] = useState<Pharmacy | null>(null);
   const [people, setPeople] = useState<Person[]>([]);
+  const [peopleUnknown, setPeopleUnknown] = useState(false);
   const [loose, setLoose] = useState<Person[]>([]);
   const [moving, setMoving] = useState("");
   const toast = useToast();
@@ -96,8 +97,8 @@ export default function Pharmacies() {
     setOpen(p);
     setMoving("");
     api.get<{ items: Person[] }>(`/api/pharmacies/${p.id}/users`)
-      .then((d) => setPeople(d.items ?? []))
-      .catch(() => setPeople([]));
+      .then((d) => { setPeople(d.items ?? []); setPeopleUnknown(false); })
+      .catch(() => { setPeople([]); setPeopleUnknown(true); });
   }
 
   async function create() {
@@ -371,7 +372,13 @@ export default function Pharmacies() {
                 ))}
               </tbody>
             </table>
-            {people.length === 0 && (
+            {peopleUnknown && (
+              <div className="empty">
+                Who belongs here could not be read. That is not the same as
+                nobody belonging here.
+              </div>
+            )}
+            {!peopleUnknown && people.length === 0 && (
               <div className="empty">Nobody belongs to this pharmacy yet.</div>
             )}
 

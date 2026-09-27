@@ -30,6 +30,7 @@ export default function CurrencyRates() {
   const toast = useToast();
   const [state, setState] = useState<State | null>(null);
   const [history, setHistory] = useState<Rate[] | null>(null);
+  const [historyUnknown, setHistoryUnknown] = useState(false);
   const [code, setCode] = useState("");
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
@@ -44,7 +45,11 @@ export default function CurrencyRates() {
     // Deliberately silent: this screen is only reachable where currencies
     // are already configured, and it renders its own empty state.
     }).catch(() => {});
-    api.get<Rate[]>("/api/currency/rates?limit=25").then(setHistory).catch(() => setHistory([]));
+    api.get<Rate[]>("/api/currency/rates?limit=25")
+      .then((r) => { setHistory(r); setHistoryUnknown(false); })
+      // "No rate has been published yet" on the screen a shop's whole price
+      // list hangs off is not a sentence to say on a guess.
+      .catch(() => { setHistory([]); setHistoryUnknown(true); });
   }
   useEffect(load, []);
 
@@ -149,6 +154,11 @@ export default function CurrencyRates() {
         <h3>Rate history</h3>
         {history === null ? (
           <TableSkeleton rows={5} cols={4} />
+        ) : historyUnknown ? (
+          <div className="empty">
+            The rate history could not be read. That is not the same as no
+            rate having been published.
+          </div>
         ) : history.length === 0 ? (
           <div className="empty">No rate has been published yet</div>
         ) : (

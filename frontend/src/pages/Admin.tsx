@@ -402,7 +402,11 @@ export default function Admin() {
   function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    file.text().then((t) => { setCsv(t); setResult(null); });
+    file.text()
+      .then((t) => { setCsv(t); setResult(null); })
+      .catch(() => toast.error(
+        "That file could not be read, so nothing was loaded. Paste its "
+        + "contents into the box instead."));
   }
 
   async function runImport(apply: boolean) {

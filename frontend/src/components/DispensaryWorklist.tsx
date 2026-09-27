@@ -112,6 +112,7 @@ export default function DispensaryWorklist({
    *  no Rx number yet, and the only person who knows is whoever walked away
    *  from it. */
   const [drafts, setDrafts] = useState<any[]>([]);
+  const [draftsUnknown, setDraftsUnknown] = useState(false);
   const [ownPanel, setOwnPanel] = useState<Panel>("queue");
   const panel = panelProp ?? ownPanel;
   const setPanel = (next: Panel) => { setOwnPanel(next); onPanelChange?.(next); };
@@ -128,7 +129,10 @@ export default function DispensaryWorklist({
     // is opened: the count is on the tab, and a tab that says nothing until
     // you press it is a tab nobody presses.
     api.get<any[]>("/api/prescriptions/queue/unfinished?limit=50")
-      .then(setDrafts).catch(() => setDrafts([]));
+      .then((d) => { setDrafts(d); setDraftsUnknown(false); })
+      // A half-captured script is somebody still waiting. Saying every one
+      // was finished, on a read that failed, is how they keep waiting.
+      .catch(() => { setDrafts([]); setDraftsUnknown(true); });
     return api.get<Worklist>("/api/dispensary/worklist")
       .then((w) => { setData(w); setFailed(""); })
       .catch((e) => setFailed(errorText(e, "The worklist could not be loaded.")));
@@ -235,7 +239,13 @@ export default function DispensaryWorklist({
 
       {panel === "drafts" && (
         <div className="wl-list">
-          {drafts.length === 0 && (
+          {draftsUnknown && (
+            <p className="wl-empty">
+              What was left half-captured could not be read, so this is not a
+              statement that every script was finished.
+            </p>
+          )}
+          {!draftsUnknown && drafts.length === 0 && (
             <p className="wl-empty">
               Nothing was left half-captured. Every script started has been
               finished or cancelled.
