@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useToast } from "../components/Toast";
 import RowLink, { RowActions } from "../components/RowLink";
+import { X } from "@phosphor-icons/react";
 import PettyCash from "../components/PettyCash";
 import CashUp from "../components/CashUp";
 import { api, fmtDateTime, money, errorText, prefetchRoute } from "../api";
@@ -29,6 +30,7 @@ export default function Shifts() {
   const [takings, setTakings] = useState<ShiftTakings | null>(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [counting, setCounting] = useState<Shift | null>(null);
 
   function load() {
     api.get<Shift | null>("/api/shifts/current").then((shift) => {
@@ -268,7 +270,27 @@ export default function Shifts() {
                     : "none"}
                 </td>
                 <td>{fmtDateTime(s.opened_at)}</td>
-                <td>{s.closed_at ? fmtDateTime(s.closed_at) : <span className="badge">Open</span>}</td>
+                <td>
+                  {s.closed_at ? fmtDateTime(s.closed_at) : (
+                    /* A SHIFT LEFT OPEN, AND THE ONLY SCREEN THAT COULD SAY SO.
+                       Reconciliation counts these and calls them "run(s) closed
+                       without the drawer being counted", and its card points
+                       here. Here they were an inert badge. Counting one is a
+                       shift that ended without anybody counting the money:
+                       somebody went home, the till rolled over, the count was
+                       never taken. The endpoint has always accepted any shift
+                       id and `CashUp` has always taken one as a prop; this
+                       screen simply never passed anything but its own. */
+                    <span className="row-actions">
+                      <span className="badge">Open</span>
+                      <button className="btn sm" onClick={(e) => {
+                        e.preventDefault(); e.stopPropagation(); setCounting(s);
+                      }}>
+                        Count it
+                      </button>
+                    </span>
+                  )}
+                </td>
                 <td className="num">{money(s.opening_float)}</td>
                 <td className="num">{money(s.expected_cash)}</td>
                 <td className="num">{money(s.counted_cash)}</td>
@@ -296,6 +318,33 @@ export default function Shifts() {
         )}
         </Refreshable>
       </div>
+
+      {/* Counting somebody else's shift, in a dialogue that says whose it was.
+          A blind count is still a blind count: `CashUp` shows the drawer's
+          expected figure only after the count is committed, and the server
+          refuses a second one. */}
+      {counting && (
+        <div className="modal-backdrop" onClick={() => setCounting(null)}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="imp-head">
+              <h2>
+                Count {counting.user?.full_name ?? "that"}&rsquo;s drawer
+              </h2>
+              <button className="btn ghost sm" onClick={() => setCounting(null)}
+                      aria-label="Close">
+                <X size={14} />
+              </button>
+            </div>
+            <p className="muted">
+              Opened {fmtDateTime(counting.opened_at)} and never counted. The
+              count stands on its own: what was expected is shown once it is
+              committed, and it cannot be taken twice.
+            </p>
+            <CashUp shiftId={counting.id}
+                    onCounted={() => { setCounting(null); load(); }} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

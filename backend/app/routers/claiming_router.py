@@ -483,9 +483,34 @@ def unbatched_summary(db: Session = Depends(get_db)):
         .group_by(PayOffice.id, PayOffice.name, PayOffice.code)
         .all()
     )
+    # THE DEADLINE, ON THE SCREEN THAT DOES THE BATCHING.
+    #
+    # The claiming calendar knows when each funder's cut-off falls and says, in
+    # so many words, that "anything not submitted by then waits a whole cycle".
+    # It cannot batch anything. This screen batches and had no idea a deadline
+    # existed, so the order of work was whatever order the funders happened to
+    # come back in, and the one that got missed was the small funder at the
+    # bottom whose cut-off was on Thursday.
+    #
+    # The join already exists: a scheme names its pay office. The soonest
+    # cut-off among the schemes that pay through an office is that office's
+    # deadline, because it is the first one that costs anybody a cycle.
+    today = date.today()
+    soonest: dict[int, date] = {}
+    for office_id, cutoff_day in (
+            db.query(MedicalAid.pay_office_id, MedicalAid.claim_cutoff_day)
+              .filter(MedicalAid.pay_office_id.isnot(None),
+                      MedicalAid.claim_cutoff_day > 0).all()):
+        when = _next_on(cutoff_day or 0, today)
+        if when and (office_id not in soonest or when < soonest[office_id]):
+            soonest[office_id] = when
+
     return [
         {"pay_office_id": pid, "pay_office": name, "code": code,
-         "claims": count, "value": round(value, 2)}
+         "claims": count, "value": round(value, 2),
+         "next_cutoff": soonest.get(pid),
+         "days_to_cutoff": ((soonest[pid] - today).days
+                            if pid in soonest else None)}
         for pid, name, code, count, value in rows
     ]
 

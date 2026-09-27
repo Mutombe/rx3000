@@ -19,7 +19,7 @@ import { api, errorText, fmtDate, money, prefetchRoute } from "../api";
 import { printDocument } from "../document";
 import { letterhead } from "../letterhead";
 import BusyButton from "../components/BusyButton";
-import RowLink from "../components/RowLink";
+import RowLink, { RowActions } from "../components/RowLink";
 import { useConfirm } from "../components/Confirm";
 import { useToast } from "../components/Toast";
 import { EntityLink, TableSearch, useSearch } from "../components/Filters";
@@ -28,6 +28,7 @@ import Remittance, { RemittanceData } from "../components/Remittance";
 import { TableSkeleton } from "../components/Skeleton";
 import PageHead from "../components/PageHead";
 import ExportButton from "../components/ExportButton";
+import RecordTheBill, { AwaitingBill } from "../components/RecordTheBill";
 import Th from "../components/Th";
 
 interface AgeInvoice {
@@ -95,6 +96,7 @@ export default function Payables() {
   const [queryNote, setQueryNote] = useState("");
   const [failed, setFailed] = useState("");
   const [paying, setPaying] = useState<AgeSupplier | null>(null);
+  const [billing, setBilling] = useState<AwaitingBill | null>(null);
   const [payments, setPayments] = useState<RemittanceData[]>([]);
   const [advice, setAdvice] = useState<RemittanceData | null>(null);
   const [spinning, setSpinning] = useState(false);
@@ -633,7 +635,7 @@ export default function Payables() {
                 <thead>
                   <tr>
                     <Th>Order</Th><Th className="pay-supplier">Supplier</Th><Th>Received</Th>
-                    <Th className="num">Value</Th>
+                    <Th className="num">Value</Th><th className="actions" />
                   </tr>
                 </thead>
                 <tbody>
@@ -652,6 +654,19 @@ export default function Payables() {
                         )}
                       </td>
                       <td className="num">{money(w.value)}</td>
+                      {/* THE VERB THIS CARD HAS ALWAYS NEEDED.
+                          It calls each of these "a debt that has not been
+                          recorded" and could not record one: the endpoint had
+                          no caller anywhere in the product. Opened from the
+                          delivery rather than from a blank form, so the
+                          supplier and the order cannot be got wrong and the
+                          figure that was expected is beside the box where the
+                          billed one is typed. */}
+                      <RowActions>
+                        <button className="btn sm" onClick={() => setBilling(w)}>
+                          Record the bill
+                        </button>
+                      </RowActions>
                     </tr>
                   ))}
                 </tbody>
@@ -659,6 +674,14 @@ export default function Payables() {
             )}
           </div>
         </>
+      )}
+
+      {billing && (
+        <RecordTheBill
+          against={billing}
+          onClose={() => setBilling(null)}
+          onRecorded={load}
+        />
       )}
 
       {paying && (

@@ -20,6 +20,7 @@ import { EntityLink } from "../components/Filters";
 import { useToast } from "../components/Toast";
 import { useStepUp, CANCELLED } from "../components/StepUp";
 import { TableSkeleton } from "../components/Skeleton";
+import { Link } from "react-router-dom";
 import PageHead from "../components/PageHead";
 import Th from "../components/Th";
 import { EmptyRow } from "../components/Empty";
@@ -204,7 +205,11 @@ export default function SchemeCalendar() {
               <span>
                 {dueSoon.map((s) => `${s.name} (${when(s.days_to_cutoff, s.next_cutoff)})`)
                   .join(", ")}
-                {". "}Anything not submitted by then waits a whole cycle.
+                {". "}Anything not submitted by then waits a whole cycle.{" "}
+                {/* The deadline now leads to the screen that can meet it. This
+                    alert has always been the most urgent sentence in the
+                    claiming section and the only one with nowhere to go. */}
+                <Link to="/claiming">Batch what is waiting</Link>.
               </span>
             </div>
           )}
@@ -278,8 +283,13 @@ export default function SchemeCalendar() {
                       )}
                     </td>
                     <td className="num">
+                      {/* Held claims are, in this endpoint's own words, "the
+                          ones that miss a cut-off, because nothing about them
+                          is on anybody's list". They were a number on the
+                          screen that knows the deadline, with no way to the
+                          screen that sends them. */}
                       {s.held > 0
-                        ? <b>{s.held}</b>
+                        ? <Link to="/claims-held"><b>{s.held}</b></Link>
                         : <span className="muted">None</span>}
                     </td>
                     <td className="actions">

@@ -17,7 +17,7 @@
  *  the fix stayed half delivered.
  */
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, errorText, fmtDate, money , sentence} from "../api";
 import { useConfirm } from "../components/Confirm";
 import { useStepUp, CANCELLED } from "../components/StepUp";
@@ -41,6 +41,9 @@ type Tab = "batches" | "models" | "formularies";
 interface Unbatched {
   pay_office_id: number; pay_office: string; code: string;
   claims: number; value: number;
+  /** When this funder's claims have to be in by. */
+  next_cutoff: string | null;
+  days_to_cutoff: number | null;
 }
 interface Batch {
   id: number; batch_number: string; pay_office_id: number; status: string;
@@ -520,11 +523,17 @@ export default function Claiming() {
                   <thead>
                     <tr>
                       <Th className="col-name">Pay office</Th><Th className="num">Claims</Th>
-                      <Th className="num">Value</Th><th className="actions" />
+                      <Th className="num">Value</Th><Th>In by</Th>
+                      <th className="actions" />
                     </tr>
                   </thead>
                   <tbody>
-                    {unbatched.map((row) => (
+                    {/* Soonest deadline first. A funder with no agreed date
+                        sits at the bottom rather than at the top, because an
+                        unknown deadline is not an urgent one. */}
+                    {[...unbatched].sort((a, b) =>
+                      (a.days_to_cutoff ?? 9999) - (b.days_to_cutoff ?? 9999)
+                    ).map((row) => (
                       <tr key={row.pay_office_id}>
                         <td>
                           <b>{row.pay_office}</b>
@@ -532,6 +541,31 @@ export default function Claiming() {
                         </td>
                         <td className="num">{row.claims}</td>
                         <td className="num">{money(row.value)}</td>
+                        {/* THE DEADLINE, WHERE THE BATCHING HAPPENS.
+                            The claiming calendar has always known this and
+                            says a missed cut-off "waits a whole cycle"; it
+                            cannot batch. This screen batches and had no idea
+                            a deadline existed, so the order of work was
+                            whatever order the funders came back in. */}
+                        <td>
+                          {row.next_cutoff ? (
+                            <>
+                              {fmtDate(row.next_cutoff)}
+                              {row.days_to_cutoff !== null
+                                && row.days_to_cutoff <= 3 && (
+                                <span className="badge warn">
+                                  {row.days_to_cutoff === 0 ? "today"
+                                    : row.days_to_cutoff === 1 ? "tomorrow"
+                                      : `${row.days_to_cutoff} days`}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <Link to="/claiming-calendar" className="muted">
+                              No agreed date
+                            </Link>
+                          )}
+                        </td>
                         <td className="num">
                           <button
                             className="small"
