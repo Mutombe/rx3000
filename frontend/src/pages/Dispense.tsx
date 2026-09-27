@@ -1925,9 +1925,9 @@ export default function Dispense() {
     // with the patient left waiting on this one.
     { combo: "F1", label: "Mix", group: "Capture",
       run: () => setMixing(true) },
-    { combo: "F2", label: "Find patient", group: "Capture",
+    { combo: "F2", label: "Find patient", short: "Patient", group: "Capture",
       run: () => document.querySelector<HTMLInputElement>("[data-hk='patient']")?.focus() },
-    { combo: "F3", label: "Add medicine", group: "Capture",
+    { combo: "F3", label: "Add medicine", short: "Add line", group: "Capture",
       run: () => document.querySelector<HTMLInputElement>("[data-hk='product']")?.focus() },
     // Opens the line being worked on with the cursor in its diagnosis. It used
     // to focus `[data-hk='dx']`, which nothing on the page carried, so F4 did

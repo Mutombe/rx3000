@@ -4024,9 +4024,15 @@ button.wl-stat:disabled:hover {
 
 /* The dispensary becomes work-plus-worklist above a laptop width, and stacks
    below it — a 300px column on a phone leaves no room for the work itself. */
+/* The worklist's width, named once. It was a literal here and nowhere else,
+   which was fine while nothing else needed to know it — and the key strip along
+   the foot does, because it has to stop where the work column stops rather than
+   run on underneath the list. Two places, one number. */
 .disp-with-worklist { display: grid; gap: var(--s4); grid-template-columns: 1fr; }
 @media (min-width: 1180px) {
-  .disp-with-worklist { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+  /* The fallback is for the same layout used outside the console, where there
+     is no `.disp-dense` above it to declare the width. */
+  .disp-with-worklist { grid-template-columns: minmax(0, 1fr) var(--wl-w, 320px); align-items: start; }
 }
 
 /* A draft that can be previewed. The preview sits in the same box as the
@@ -8859,6 +8865,7 @@ table.dt.sub th { font-size: var(--t-xs); }
    `min-height: 0` on every link in the chain is what lets the constraint
    travel. It is the least obvious line in this file and the one holding the
    whole layout up. */
+.disp-dense { --wl-w: 320px; }
 .disp-dense .disp-with-worklist {
   flex: 1 1 auto; min-height: 0; overflow: hidden;
   align-items: stretch;
@@ -9273,16 +9280,72 @@ table.dt.sub th { font-size: var(--t-xs); }
   border-top: 1px solid var(--line);
 }
 
-/* The function keys along the foot of the window, and they do not move.
-   They were at the bottom of the safety band, inside a scrolling region, so the
-   strip a dispenser glances down at sat wherever the warnings had pushed it —
-   often off the screen. A key strip that moves is one nobody learns. */
+/* ========================================================================
+   THE KEY STRIP ALONG THE FOOT OF THE CONSOLE — one rule, not seven.
+   ========================================================================
+
+   It arrived at the bottom of the safety band, inside a region that scrolls, so
+   the strip a dispenser glances down at sat wherever the warnings had pushed it
+   and often off the screen. A key strip that moves is one nobody learns. Fixing
+   that took a rule. Making it a row of its own rather than a line under the bar
+   took another. Boxing it took a third, a fourth turned the box into a well,
+   and a fifth zeroed the top margin to kill a variable gap that an `auto`
+   margin was opening. Seven rules in the end, each one written against the side
+   effect of the one before, spread over three thousand lines.
+
+   The measured result was that the strip's top edge sat at y=872 and the
+   commit bar's bottom edge sat at y=872. Touching, to the pixel. The last rule
+   in the file had zeroed the very gap the fourth one declared, and nothing
+   about either rule said the other existed.
+
+   So: one rule, stating what the strip is.
+
+   IT STOPS WHERE THE WORK COLUMN STOPS.
+
+   It ran the full 1,190px of the console, which put it under the worklist as
+   well — and since the worklist's own bottom edge lands on the same line, the
+   strip read as the list's bottom border rather than as the work column's
+   footer. Every key on it belongs to the script: Mix, Find patient, Add
+   medicine, Diagnosis. None of them belongs to the list.
+
+   `margin-right` takes it back to the work column's edge, using the same
+   `--wl-w` the grid lays the list out with, so the two cannot drift apart. The
+   list now ends above clear page instead of on a strip of function keys. */
 .disp-dense > .keybar {
-  flex: 0 0 auto; margin: 0; padding: var(--s2) 0 0;
-  border-top: 1px solid var(--line-strong, var(--line));
-  gap: var(--s1);
+  flex: 0 0 auto;
+  position: sticky; bottom: 0; z-index: 4;
+  /* Clear of the commit bar above it, clear of the page below it, and stopping
+     short of the worklist beside it. */
+  margin: var(--s3) calc(var(--wl-w, 320px) + var(--s4)) var(--s2) 0;
+  padding: 2px; gap: 2px;
+  align-items: center;
+  background: var(--surface-sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
 }
-.disp-dense > .keybar .keybar-item { height: 26px; font-size: var(--t-sm); }
+/* Below the width where the list moves under the work, there is no list beside
+   the strip and nothing to keep clear of. */
+@media (max-width: 1179px) {
+  .disp-dense > .keybar { margin-right: 0; }
+}
+/* Tighter, because the strip is now the work column's footer rather than the
+   whole console's, and it has 852px where it had 1,190. The nine keys wanted
+   909 at the old spacing and the last one — F12 Finish, the one key on the
+   strip that ends a dispensing — wrapped onto a second row on its own.
+   4px off each side of a key and 3px between its cap and its word gives back
+   63px, which is the 57 needed and six to spare. Nothing is smaller to read:
+   the cap and the label keep their size, they simply stop sitting in so much
+   air. */
+.disp-dense > .keybar .keybar-item {
+  height: 26px; font-size: var(--t-sm);
+  padding: 0 5px; gap: 4px;
+}
+/* The cap is a printed key, not a button; 8px either side of two characters is
+   button padding it never needed. At 4px the nine keys want 687px and the
+   1366 laptop — the tightest case, full sidebar and worklist both — gives the
+   strip 706. Nineteen pixels of slack, so a longer word on one of them does
+   not tip the whole strip onto a second row. */
+.disp-dense > .keybar .keycap { padding: 2px 4px; }
 /* The cap carries the number; the word carries the meaning. Both, because a
    dispenser new to this reads the word and one from the old system reads the
    number. */
@@ -9296,10 +9359,6 @@ table.dt.sub th { font-size: var(--t-xs); }
    The bands give up 32px between them and the strip is always the last thing
    visible. */
 .disp-dense { padding-bottom: 0; }
-.disp-dense > .keybar {
-  position: sticky; bottom: 0; z-index: 4;
-  background: var(--surface); margin-top: auto;
-}
 .disp-dense .card.sec-go { max-height: 17vh; }
 .disp-dense .card.sec-patient { max-height: 17vh; }
 
@@ -10244,7 +10303,6 @@ button.fin-ack { cursor: pointer; }
    strip keeps a gap instead, so it never sits on the part above it.
    ======================================================================== */
 .disp-dense .disp-head { border-bottom: 0; }
-.disp-dense > .keybar { border-top: 0; padding-top: 6px; }
 
 /* A quantity cell is 60px wide, and the browser's up/down arrows took most of
    it, leaving the figure being edited a sliver. The arrow keys still step it. */
@@ -10269,10 +10327,6 @@ button.fin-ack { cursor: pointer; }
    THE KEY STRIP, boxed: a border above and below and even space either side,
    so it is its own row and never touches the bar. The page reserves its height.
    ======================================================================== */
-.disp-dense > .keybar {
-  margin: 8px 0 6px; padding: 4px 2px; align-items: center;
-  border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong);
-}
 .disp-dense {
   height: calc(100vh - var(--topbar-h, 56px) - var(--s5) - 52px);
 }
@@ -10712,14 +10766,6 @@ button.fin-ack { cursor: pointer; }
 .disp-dense .disp-bar .disp-commit-row > .field { margin-right: 6px; }
 .disp-dense .disp-bar .disp-commit-row > .field input { height: 26px; background: var(--surface); }
 
-/* The key strip: a well closed on all four sides. */
-.disp-dense > .keybar {
-  background: var(--surface-sunk);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  padding: 2px; gap: 2px;
-  margin: 8px 0 6px;
-}
 .disp-dense > .keybar .keybar-item { height: 26px; border-radius: var(--r-sm); }
 .disp-dense > .keybar .keybar-item:hover:not(:disabled) {
   background: var(--surface); color: var(--ink); box-shadow: var(--e1);
@@ -11665,11 +11711,6 @@ button.fin-ack { cursor: pointer; }
   display: flex; flex-direction: column;
   min-height: 0; overflow-y: auto; overscroll-behavior: contain;
 }
-/* And the strip no longer pushes itself away from what is above it. The list
-   above fills the column, so the strip is already at the bottom; the auto
-   margin only had an effect when something left space over, which is exactly
-   the case that produced the gap. */
-.disp-dense > .keybar { margin-top: 0; }
 .disp-dense .disp-commit {
   margin: var(--s3) 0 0; padding-top: var(--s3);
   background: var(--surface);

@@ -25,10 +25,11 @@ export function KeyBar({ keys }: { keys: Hotkey[] }) {
           className="keybar-item"
           onClick={k.run}
           disabled={k.disabled}
+          // The full wording is still one hover away.
           title={k.label}
         >
           <KeyCap combo={k.combo} />
-          <span className="keybar-label">{k.label}</span>
+          <span className="keybar-label">{k.short ?? k.label}</span>
         </button>
       ))}
     </div>

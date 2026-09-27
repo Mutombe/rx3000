@@ -19,6 +19,19 @@ export interface Hotkey {
   /** "F2", "Ctrl+R", "Escape", "?" */
   combo: string;
   label: string;
+  /** What the foot strip shows, when the full label is too long for it.
+   *
+   *  The overlay and the strip are read at different moments and want
+   *  different lengths. The overlay is opened to find out what a key does and
+   *  has a column to say it in. The strip is glanced at by somebody who
+   *  already knows, in whatever room is left beside the worklist — 706px at a
+   *  1366 laptop, against 765px of "Find patient" and "Add medicine" and seven
+   *  others, which wrapped the strip onto a second row.
+   *
+   *  So the strip gets a shorter word where one exists, and the overlay keeps
+   *  the sentence. `Repts` and `Hist` were already abbreviated on both; this
+   *  is the same idea with the two halves told apart. */
+  short?: string;
   run: () => void;
   disabled?: boolean;
   /** Group heading in the key map overlay. */
