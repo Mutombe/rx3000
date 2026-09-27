@@ -35,7 +35,7 @@
  */
 import { useEffect, useState } from "react";
 import { ShieldWarning, Warning } from "@phosphor-icons/react";
-import { api } from "../api";
+import { api, errorText } from "../api";
 
 export interface Finding {
   severity: "major" | "moderate" | "minor";
@@ -91,6 +91,10 @@ export default function InteractionPanel({
   onScreened: (major: number) => void;
 }) {
   const [screen, setScreen] = useState<Screen | null>(null);
+  /** Why the check did not run, when it did not. Kept apart from `screen`
+   *  because "no findings" and "no answer" are different things and had been
+   *  sharing one falsy value. */
+  const [failed, setFailed] = useState("");
   const [busy, setBusy] = useState(false);
   /* Keyed on the directions as well as the products: changing "1 t od" to
      "3 tabs qds" is a different question, and a check that only watched the
@@ -118,8 +122,29 @@ export default function InteractionPanel({
         // Only a dose over the maximum holds the dispense now. Interactions
         // are the AI check's job, and it is a deliberate press rather than a
         // gate.
-        .then((r) => { if (live) { setScreen(r); onScreened(r.doses?.major ?? 0); } })
-        .catch(() => { if (live) { setScreen(null); onScreened(0); } })
+        .then((r) => { if (live) { setScreen(r); setFailed(""); onScreened(r.doses?.major ?? 0); } })
+        /* A CHECK THAT DID NOT RUN IS NOT A CHECK THAT PASSED.
+         *
+         * This set the screen to null, which made `doses` undefined, which
+         * made `findings` empty, which rendered the clean line below: "No dose
+         * here exceeds a maximum this system holds." That is a positive
+         * clinical statement, made when nothing had been checked at all,
+         * because the server was unreachable for two seconds.
+         *
+         * A pharmacist reading it has no way to tell it apart from a real
+         * answer. It is the worst shape a failure can take in this product.
+         *
+         * It still reports nought outstanding, so a dispense is not blocked:
+         * a checker that is down must not stop a pharmacy trading, and
+         * pharmacists dispensed safely for a century without one. What
+         * changes is that the screen says so, and the reader applies their own
+         * judgement knowing they have to. */
+        .catch((e) => {
+          if (!live) return;
+          setScreen(null);
+          setFailed(errorText(e, "The dose check could not be reached."));
+          onScreened(0);
+        })
         .finally(() => { if (live) setBusy(false); });
     }, 350);
     return () => { live = false; window.clearTimeout(t); };
@@ -141,6 +166,21 @@ export default function InteractionPanel({
   const notJudged = (doses?.found ?? [])
     .filter((f) => f.severity === "unknown").map((f) => f.product);
   const unchecked = [...notJudged, ...(doses?.not_covered ?? [])];
+
+  // The check did not run. Said before anything else, and worded so it cannot
+  // be read as a result: this is the absence of an answer, not an answer.
+  if (!busy && failed) {
+    return (
+      <p className="ix-clear is-unchecked">
+        <ShieldWarning size={13} weight="fill" />
+        <span>
+          <b>The doses on this script have not been checked.</b> {failed}{" "}
+          Nothing here has been cleared or flagged, so the usual judgement
+          applies as though this system were not running.
+        </span>
+      </p>
+    );
+  }
 
   // Nothing to report: one line, not a panel. It still refuses to say "safe".
   if (!busy && findings.length === 0) {

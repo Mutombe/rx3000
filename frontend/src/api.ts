@@ -476,8 +476,37 @@ export class Refused extends Error {
   }
 }
 
+/** An error whose message was written FOR the person who will read it.
+ *
+ *  WHY THIS TYPE HAD TO EXIST.
+ *
+ *  `errorText` below recognised two kinds of failure and replaced everything
+ *  else with a generic sentence. That was right for a `TypeError` — nobody
+ *  should be shown "Cannot read properties of undefined" — and wrong for the
+ *  several places in this product that raise a plain `Error` carrying a
+ *  sentence somebody had carefully written.
+ *
+ *  The clearest casualty: `shellPrinter.noPrinter()` says "No printer is set
+ *  for the claim copy on this till. Choose one under This till, Printers." It
+ *  names the document, it names the setting, and it names the screen. Nobody
+ *  has ever seen it. It was replaced, every time, by "The label printer did
+ *  not take it" — which blames hardware for a setting that was never chosen,
+ *  and sends a pharmacist to look behind the printer.
+ *
+ *  A subclass rather than a guess at which strings look like prose: whether a
+ *  message is meant for a reader is something the thrower knows and a regular
+ *  expression does not.
+ */
+export class Said extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "Said";
+  }
+}
+
 export function errorText(cause: unknown, fallback = "That did not work. Please try again."): string {
   if (cause instanceof ApiError) return cause.message;
+  if (cause instanceof Said) return cause.message;
   if (cause instanceof Refused) return cause.message;
   if (typeof cause === "string" && cause.trim()) return cause;
   // Anything else is ours, and is a defect rather than a condition.
@@ -512,15 +541,38 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
-      // An error body here is JSON, not a file, and it usually contains the
-      // one sentence explaining what was wrong with the parameters.
-      let detail = statusWording(res.status);
+      /* THREE FAULTS IN FIVE LINES, AND ALL THREE LOSE THE SENTENCE.
+       *
+       * The comment below was right about what matters — the body carries the
+       * one sentence explaining what was wrong — and the code then threw it
+       * away three separate ways.
+       *
+       *   `readableDetail(await res.json())` passed the WHOLE body where the
+       *   function expects `.detail`. Handed `{detail: "…"}` it looks for a
+       *   `.message` or a `.msg`, finds neither, and returns null. So the
+       *   sentence was read out of the response and dropped on the floor.
+       *
+       *   `statusWording(res.status)` was called without the path, and the
+       *   path is what tells that helper whether a 404 means "that record is
+       *   gone" or "this is a fault on our side". An export URL is not a
+       *   record, so every failed download said the record no longer exists.
+       *
+       *   `throw new Error(...)` rather than `ApiError`, and `errorText`
+       *   unwraps only `ApiError` and `Refused`. So even a detail that HAD
+       *   been read correctly was discarded at the call site, replaced by the
+       *   caller's generic fallback, and logged to the console as an
+       *   "unhandled failure" — a server condition reported as a defect.
+       *
+       * Every export, statement, certificate and label download in the product
+       * goes through here.
+       */
+      let detail = statusWording(res.status, path);
       try {
-        detail = readableDetail(await res.json()) || detail;
+        detail = readableDetail((await res.json())?.detail) || detail;
       } catch {
         /* not JSON; the status wording stands */
       }
-      throw new Error(detail);
+      throw new ApiError(res.status, detail);
     }
     const disposition = res.headers.get("Content-Disposition") || "";
     const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);

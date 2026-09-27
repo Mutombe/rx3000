@@ -31,6 +31,7 @@
  *  free, so the same file is crisp on both, and a 58mm sticker is small enough
  *  that a bitmap at the wrong density is visibly soft.
  */
+import { Said } from "./api";
 import { code128Rects, code128Width } from "./code128";
 import type { Label } from "./types";
 
@@ -451,7 +452,7 @@ export function barcodePdf(text: string, below: string,
   const W = sticker.wide * PT;
   const H = sticker.tall * PT;
   const modules = code128Width(text);
-  if (!modules) throw new Error("There is nothing to encode in that barcode.");
+  if (!modules) throw new Said("There is nothing to encode in that barcode.");
 
   // The module width is what decides whether it scans. A hand scanner wants
   // about 0.25mm and will not read much under 0.19; a symbol wider than the
@@ -460,7 +461,7 @@ export function barcodePdf(text: string, below: string,
   const usable = (sticker.wide - PAD_X * 2) * PT;
   const module = usable / modules;
   if (module * (25.4 / 72) < 0.19) {
-    throw new Error(
+    throw new Said(
       `"${text}" needs a wider sticker to scan: at ${sticker.wide}mm its bars `
       + "come out under 0.19mm and most scanners will not read them.");
   }

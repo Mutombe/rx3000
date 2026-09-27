@@ -9,6 +9,7 @@
  *  roll is plugged into this till and called whatever Windows calls it here.
  *  It is kept in local storage for that reason, and nowhere near the database.
  */
+import { Said } from "./api";
 import { labelLines, receiptLines } from "./deviceAgent";
 import { render, type Line } from "./escpos";
 import { barcodePdf, labelPdf } from "./labelPdf";
@@ -60,7 +61,7 @@ function keyFor(kind: DocKind): string {
 function noPrinter(kind: DocKind): Error {
   const said = DOC_KINDS.find((d) => d.kind === kind)?.name.toLowerCase()
     ?? "document";
-  return new Error(
+  return new Said(
     `No printer is set for the ${said} on this till. `
     + `Choose one under This till, Printers.`);
 }
@@ -104,7 +105,7 @@ export function canPrintDirect(): boolean {
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const shell = bridge();
   const call = shell?.core?.invoke ?? shell?.invoke;
-  if (!call) throw new Error("This is not the desktop application.");
+  if (!call) throw new Said("This is not the desktop application.");
   return call<T>(cmd, args);
 }
 

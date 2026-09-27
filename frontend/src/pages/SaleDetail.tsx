@@ -28,6 +28,9 @@ export default function SaleDetail() {
   const [sale, setSale] = useState<Sale | null>(null);
   const [error, setError] = useState("");
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
+  /** Whether the filing could not be read. An empty list means "never filed",
+   *  which is a different thing and decides which reversal is offered. */
+  const [receiptsUnknown, setReceiptsUnknown] = useState(false);
   const [returning, setReturning] = useState(false);
   const { guarded, prompt } = useStepUp();
   const confirm = useConfirm();
@@ -39,7 +42,16 @@ export default function SaleDetail() {
     // Whether this sale was filed decides how it can be reversed, so it is
     // read before anybody presses anything rather than discovered from a 400.
     api.get<FiscalReceipt[]>(`/api/fiscal/receipts?sale_id=${id}`)
-      .then(setReceipts).catch(() => setReceipts([]));
+      .then((r) => { setReceipts(r); setReceiptsUnknown(false); })
+      /* AN EMPTY LIST IS "NEVER FILED", AND THAT ROUTES THE REVERSAL.
+       *
+       * The comment above says these are read before anybody presses anything
+       * precisely so the right reversal is offered. A failed read produced an
+       * empty list, which means the same thing as a sale that was never filed
+       * with the revenue authority — so the screen would offer a void on a
+       * receipt that has been filed, which is the one reversal that is not
+       * allowed once it has. */
+      .catch(() => { setReceipts([]); setReceiptsUnknown(true); });
   }
   useEffect(load, [id]);
 
@@ -58,6 +70,22 @@ export default function SaleDetail() {
    */
   async function reverse() {
     if (!sale) return;
+    /* WHETHER IT WAS FILED DECIDES WHICH REVERSAL IS LEGAL, SO NOT KNOWING
+     * HAS TO STOP HERE.
+     *
+     * Everywhere else in this pass a failed read is surfaced and the work
+     * carries on, because a checker being down must not stop a pharmacy
+     * trading. This one is different: the two reversals are not
+     * interchangeable, offering a void on a filed receipt is the one thing
+     * ZIMRA does not allow, and the consequence of guessing is a refusal
+     * nobody can undo rather than a figure somebody can look up.
+     */
+    if (receiptsUnknown) {
+      toast.error("Whether this sale was filed with ZIMRA could not be read, "
+                  + "and that decides whether it is voided or credited. "
+                  + "Reload the page and try again.");
+      return;
+    }
     const ok = await confirm({
       title: filed ? "File a credit note?" : "Void this sale?",
       body: filed

@@ -110,6 +110,9 @@ export default function POS() {
   const [partOf, setPartOf] = useState<Sale | null>(null);
   /** What this customer already owes from a previous visit. */
   const [owes, setOwes] = useState<{ balance: number; oldest: string } | null>(null);
+  /** Whether what they owe could not be read, as against their owing nothing.
+   *  Both were null, and they mean opposite things at a till. */
+  const [owesUnknown, setOwesUnknown] = useState(false);
   const [busy, setBusy] = useState(false);
   const [agent, setAgent] = useState<deviceAgent.AgentStatus | null>(null);
   const [terminalState, setTerminalState] = useState("");
@@ -230,12 +233,24 @@ export default function POS() {
       `/api/pos/owed?patient_id=${patient.id}`)
       .then((d) => {
         if (dropped) return;
+        setOwesUnknown(false);
         setOwes(d.total_owed > 0.005
           ? { balance: d.total_owed,
               oldest: d.items[0]?.created_at ?? "" }
           : null);
       })
-      .catch(() => { if (!dropped) setOwes(null); });
+      /* NULL IS WHAT "OWES NOTHING" LOOKS LIKE HERE.
+       *
+       * So a lookup that failed served the next customer as though their
+       * account were clear. At a till, on the one screen where somebody is
+       * about to be handed medicine and asked for money, that is the wrong
+       * answer in the expensive direction: the balance goes unmentioned and
+       * unpaid, and nobody finds out until the debtors' list is worked.
+       *
+       * It does not block the sale. A lookup being down must not stop a
+       * pharmacy serving, and the cashier can see the account on the patient's
+       * own record. It says that it does not know. */
+      .catch(() => { if (!dropped) { setOwes(null); setOwesUnknown(true); } });
     return () => { dropped = true; };
   }, [patient]);
 
@@ -1350,6 +1365,17 @@ export default function POS() {
                       <b>Owes {money(owes.balance)}</b>
                       {owes.oldest ? ` from ${fmtDate(owes.oldest)}` : ""} ·{" "}
                       <Link to="/money-owed">collect it</Link>
+                    </div>
+                  )}
+                  {/* Said rather than assumed. Nothing here is what "owes
+                      nothing" looks like, so silence after a failed lookup
+                      served the next customer as though their account were
+                      clear. */}
+                  {owesUnknown && (
+                    <div className="muted small">
+                      Whether they owe anything could not be read.{" "}
+                      <Link to="/money-owed">Check the list</Link> before
+                      taking payment.
                     </div>
                   )}
                 </div>

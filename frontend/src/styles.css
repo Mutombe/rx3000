@@ -14354,3 +14354,18 @@ body:has(.modal-backdrop) .ax-dock { display: none; }
 .acting-left {
   flex: 0 0 auto; font-variant-numeric: tabular-nums; opacity: .85;
 }
+
+/* A SAFETY CHECK THAT DID NOT RUN, WHICH MUST NOT LOOK LIKE ONE THAT PASSED.
+   `.ix-clear` is the quiet grey line that says no dose exceeds a maximum. The
+   same element carries the "not checked" state, and the two have to be told
+   apart across a counter at a glance, so this one takes the warning colour and
+   a rule down its edge. */
+.ix-clear.is-unchecked {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+  align-items: flex-start;
+}
+.ix-clear.is-unchecked b { color: inherit; }

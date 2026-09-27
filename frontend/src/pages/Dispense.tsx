@@ -981,13 +981,22 @@ export default function Dispense() {
   useEffect(() => { patientRef.current = patient; }, [patient]);
   const [holdReasons, setHoldReasons] = useState<{ code: string; label: string }[]>([]);
   const [holding, setHolding] = useState(false);
+  /** Whether the hold could not be read at all, which is different from there
+   *  being none and had been sharing a null with it. */
+  const [holdUnknown, setHoldUnknown] = useState(false);
   const [holdReason, setHoldReason] = useState("");
   const [holdNote, setHoldNote] = useState("");
   const loadHold = useCallback((rxId: number | null) => {
     if (!rxId) { setHold(null); return; }
     api.get<HoldSummary[]>(`/api/prescriptions/${rxId}/holds`)
-      .then((all) => setHold(all.find((h) => h.open) ?? null))
-      .catch(() => setHold(null));
+      .then((all) => { setHold(all.find((h) => h.open) ?? null); setHoldUnknown(false); })
+      /* A HOLD THAT COULD NOT BE READ IS NOT THE ABSENCE OF A HOLD.
+       *
+       * This set it to null, which is exactly what a script with no hold looks
+       * like: the banner does not appear and the script dispenses. A hold is
+       * placed to stop a script being dispensed, so the one thing a failure
+       * here must not do is make a held script look free to go. */
+      .catch(() => { setHold(null); setHoldUnknown(true); });
   }, []);
   useEffect(() => {
     loadHold(fromRx && !fromRx.draft ? fromRx.id : null);
@@ -1306,6 +1315,9 @@ export default function Dispense() {
   // A blocking counter message stops the dispense. The server enforces this
   // too; the button is disabled so the pharmacist is not invited to try.
   const [blocked, setBlocked] = useState(false);
+  /** Whether the scheme check could not be reached, as opposed to finding
+   *  nothing to say. */
+  const [coverageUnknown, setCoverageUnknown] = useState(false);
 
   // Check the scheme's formulary while the script is being built, not at claim
   // time — by then the medicine has left the shelf and the patient has gone.
@@ -1315,7 +1327,13 @@ export default function Dispense() {
       api.post<CoverageReport>("/api/claiming/coverage", {
         medical_aid_id: patient.medical_aid_id,
         items: items.map((i) => ({ product_id: i.product.id, quantity: i.quantity })),
-      }).then(setCoverage).catch(() => setCoverage(null));
+      }).then((r) => { setCoverage(r); setCoverageUnknown(false); })
+        /* Same shape as the hold above: null is what "the scheme covers
+         * everything" looks like on this screen, so a formulary check that
+         * never ran rendered as a clean one. The whole reason it runs here,
+         * per the comment above, is that at claim time the medicine has left
+         * the shelf and the patient has gone. */
+        .catch(() => { setCoverage(null); setCoverageUnknown(true); });
     }, 350);
     return () => clearTimeout(t);
   }, [patient?.medical_aid_id, items.map((i) => `${i.product.id}:${i.quantity}`).join(",")]);
@@ -4677,10 +4695,19 @@ ${d.action}`}
                     Release hold
                   </BusyButton>
                 ) : (
-                  <button type="button" className="btn secondary disp-hold"
-                          title="Put this script down, with the reason, until it can go out"
+                  <button type="button"
+                          className={`btn secondary disp-hold${holdUnknown ? " is-unknown" : ""}`}
+                          title={holdUnknown
+                            /* The button is the only place on this screen that
+                               says anything about holds, so it is where the
+                               doubt has to live. A held script whose hold could
+                               not be read looks exactly like a free one, and
+                               this is the difference a pharmacist can see. */
+                            ? "Whether this script is on hold could not be read. "
+                              + "Reload before dispensing if you were expecting one."
+                            : "Put this script down, with the reason, until it can go out"}
                           onClick={openHoldDialog}>
-                    Hold
+                    {holdUnknown ? "Hold not known" : "Hold"}
                   </button>
                 ))}
                 {/* Put it down and come back to it. Not while quoting: a quote
@@ -4746,7 +4773,8 @@ ${d.action}`}
                 + (doseMajors.length > 0 && !ixAcknowledged ? 1 : 0)
                 + expiryNeeded.filter((l) => !packExpiry[l.product_id]
                     || packExpiry[l.product_id] < localIsoDate()).length;
-              const worthKnowing = advisoryMsgs.length + (notCovered ? 1 : 0) + (needsAuth ? 1 : 0);
+              const worthKnowing = advisoryMsgs.length + (notCovered ? 1 : 0)
+                + (needsAuth ? 1 : 0) + (coverageUnknown ? 1 : 0);
               const held = settleBlocks();
               const why = blockedBecause();
               const fee = payHow === "delivery" ? (Number(deliveryFee) || 0) : 0;
@@ -4976,6 +5004,31 @@ ${d.action}`}
                                       {coverage!.blocked_count} line{coverage!.blocked_count === 1 ? " is" : "s are"} not
                                       covered by {coverage!.formulary}. Dispensing is allowed; the patient pays
                                       for {coverage!.blocked_count === 1 ? "it" : "them"} and the scheme will not.
+                                    </p>
+                                  </div>
+                                  <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
+                                </li>
+                              )}
+                              {/* THE SCHEME CHECK THAT NEVER RAN.
+                                  Nothing said and nothing shown is exactly
+                                  what full cover looks like on this screen, so
+                                  a formulary check that failed read as a clean
+                                  one — on the last screen before the medicine
+                                  leaves the shelf, which is the whole reason
+                                  it runs here rather than at claim time. */}
+                              {coverageUnknown && (
+                                <li className="fin-item is-warn">
+                                  <span className="fin-item-icon"><Warning size={16} weight="fill" /></span>
+                                  <div className="fin-item-body">
+                                    <div className="fin-item-meta">
+                                      <span className="badge">Scheme</span>
+                                      <span className="badge muted">Not checked</span>
+                                    </div>
+                                    <p>
+                                      What the scheme covers could not be read, so nothing here
+                                      has been checked against their formulary. Dispensing is
+                                      allowed; a line they do not cover will come back as a
+                                      shortfall on the claim rather than being caught now.
                                     </p>
                                   </div>
                                   <div className="fin-item-act"><span className="fin-item-note">Advisory</span></div>
