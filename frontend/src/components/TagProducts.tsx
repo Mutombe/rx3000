@@ -62,7 +62,8 @@ export default function TagProducts({ onDone }: { onDone?: () => void }) {
       toast.ok(r.message);
       onDone?.();
     } catch (e) {
-      toast.error(errorText(e, "Nothing was filed."));
+      toast.error(errorText(e, "Nothing was filed. The rule was not applied "
+        + "and no product changed department."));
     }
   }
 

@@ -109,10 +109,16 @@ def bulk_assign(body: schemas.LeadBulkAssign, db: Session = Depends(get_db)):
     """Reassign several leads to one owner in a single action."""
     owner = db.get(User, body.owner_id)
     if not owner:
-        raise HTTPException(status_code=400, detail="Owner not found")
+        raise HTTPException(
+            status_code=400,
+            detail="Nobody on file has that id, so the leads were not "
+                   "reassigned.")
     leads = db.query(Lead).filter(Lead.id.in_(body.lead_ids)).all()
     if not leads:
-        raise HTTPException(status_code=400, detail="No matching leads")
+        raise HTTPException(
+            status_code=400,
+            detail="None of those leads is still open, so there was nothing "
+                   "to reassign.")
     for lead in leads:
         if lead.status == "converted":
             continue

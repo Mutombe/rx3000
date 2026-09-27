@@ -129,7 +129,16 @@ export default function Branches() {
   const load = useCallback(() => {
     list.reload();
     api.get<Asked[]>("/api/branches/transfers/awaiting-approval")
-      .then(setAsked).catch(() => setAsked([]));
+      .then(setAsked)
+      /* An empty queue is the ordinary state and the card simply does not
+         appear, so a failed read hides work somebody is waiting on. The card
+         is new enough that nobody has learned to distrust it yet, which is
+         exactly when to get this right. */
+      .catch((e) => {
+        setAsked([]);
+        toast.error(errorText(e, "Transfers waiting to be agreed could not be "
+            + "read, so any that exist are not shown."));
+      });
     api.get<Transit[]>("/api/branches/transfers/in-transit")
       .then(setTransit).catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps

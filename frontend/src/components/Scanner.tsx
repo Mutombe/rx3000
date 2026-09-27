@@ -806,7 +806,10 @@ export function ScanBar({
         }
         onResolved(result);
       } catch (e: any) {
-        toast.error(errorText(e, "That scan could not be checked. Try again."));
+        // "Try again" is advice that cannot work: a barcode this system does
+      // not hold does not become known on the second scan.
+      toast.error(errorText(e, "That barcode could not be checked against the "
+        + "catalogue. It may not be one this pharmacy holds."));
       } finally {
         setBusy(false);
         inputRef.current?.focus();

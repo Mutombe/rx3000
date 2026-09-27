@@ -136,7 +136,11 @@ def create_user(
     _: User = Depends(auth.require_role("admin")),
 ):
     if auth.find_by_username(db, body.username):
-        raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(
+            status_code=400,
+            detail="Somebody already signs in with that username. Usernames "
+                   "are unique across this deployment, so add a surname or an "
+                   "initial.")
     # CHECKED ON THE WAY IN, LIKE THE EDIT BESIDE IT.
     #
     # Creating validated nothing while renaming validated against ROLES, so a

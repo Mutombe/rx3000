@@ -130,7 +130,9 @@ export default function Payables() {
     try {
       setOpen(await api.get<Invoice>(`/api/payables/invoices/${invoiceId}`));
     } catch (e) {
-      toast.error(errorText(e, "That invoice could not be opened. Nothing was saved."));
+      // `show()` is a read. Nothing was being saved, so saying nothing was
+      // saved answers a question nobody asked.
+      toast.error(errorText(e, "That invoice could not be opened."));
     }
   }
 
@@ -179,7 +181,15 @@ export default function Payables() {
       api.get<{ items: Invoice[] }>(
         `/api/payables/invoices?q=${encodeURIComponent(term)}&limit=25`)
         .then((r) => setHits(r.items))
-        .catch(() => setHits([]));
+        /* An empty result means "no invoice by that number", which on this
+           box is a real and useful answer — and exactly the wrong one to give
+           for a search that never ran. The supplier is usually on the
+           telephone while somebody types here. */
+        .catch((e) => {
+          setHits([]);
+          toast.error(errorText(e, "That search could not be run, so this is "
+            + "not an answer about the invoice."));
+        });
     }, 250);
     return () => window.clearTimeout(t);
   }, [find]);
@@ -264,7 +274,7 @@ export default function Payables() {
           || "Please quote the account number shown above on every remittance.",
       });
     } catch (e) {
-      toast.error(errorText(e, "That statement could not be produced. Nothing was saved."));
+      toast.error(errorText(e, "That statement could not be produced."));
     }
   }
 

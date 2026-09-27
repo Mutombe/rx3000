@@ -99,7 +99,12 @@ export default function ComplianceDocument() {
   const load = useCallback(() => {
     api.get<Doc>(`/api/compliance/documents/${id}`)
       .then((d) => { setDoc(d); setFailed(""); })
-      .catch((e) => setFailed(errorText(e, "That document is not on file.")))
+      /* A CAUSE ASSERTED FROM A FAILURE.
+          A 500, a refusal and a dead connection were all told the licence does
+          not exist, which sends somebody looking for a document that is
+          sitting there. The fallback says what is true of every one of them:
+          it could not be read. */
+      .catch((e) => setFailed(errorText(e, "That document could not be read.")))
       .finally(() => setLoading(false));
   }, [id]);
   useEffect(load, [load]);

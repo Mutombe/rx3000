@@ -49,7 +49,15 @@ export default function LabelSheet({
   // and called whatever Windows calls it here, so it is kept on the machine.
   const [printers, setPrinters] = useState<string[]>([]);
   const [picked, setPicked] = useState(roll.chosenPrinter());
-  useEffect(() => { roll.listPrinters().then(setPrinters).catch(() => setPrinters([])); }, []);
+  /* "No printers on this machine" and "the list could not be read" look the
+     same to somebody who has opened this to print a label, and the second is
+     the one where pressing again works. */
+  const [printersUnknown, setPrintersUnknown] = useState(false);
+  useEffect(() => {
+    roll.listPrinters()
+      .then((ps) => { setPrinters(ps); setPrintersUnknown(false); })
+      .catch(() => { setPrinters([]); setPrintersUnknown(true); });
+  }, []);
 
   const cb = useRef({ onClose, toast });
   cb.current = { onClose, toast };
@@ -284,6 +292,16 @@ export default function LabelSheet({
               ))}
             </select>
           </label>
+        )}
+        {/* The picker hides itself when the list is empty, which is right for
+            a machine with no printers and wrong for a list that could not be
+            read: on a till that prints labels every few minutes, the control
+            simply vanishing is the least helpful thing this dialog can do. */}
+        {roll.canPrintDirect() && printersUnknown && (
+          <p className="muted small">
+            The printers on this machine could not be listed, so there is
+            nothing to choose from. Printing still works through the dialog.
+          </p>
         )}
 
         <label className="lbl-copies">

@@ -189,7 +189,9 @@ export default function Samples() {
       await openRow(r);           // and reopens with the new movement
       await load();
     } catch (e) {
-      toast.error(errorText(e, "That movement was refused. Nothing was saved."));
+      // "Refused" asserts a decision. A timeout is not a refusal, and the
+      // register is the one screen where the difference matters.
+      toast.error(errorText(e, "That movement was not recorded."));
     }
   }
 

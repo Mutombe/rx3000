@@ -177,7 +177,8 @@ export default function PatientDetail() {
       setPatient(saved);
       toast.ok("Updated.");
     } catch (e) {
-      toast.error(errorText(e, "That could not be saved. Nothing was saved."));
+      // Said once. The second half repeated the first and added nothing.
+      toast.error(errorText(e, "That could not be saved."));
     }
   }
 

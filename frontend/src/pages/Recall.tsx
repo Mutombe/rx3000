@@ -74,7 +74,11 @@ export default function Recall() {
         `/api/recall/batches?q=${encodeURIComponent(term)}`);
       setHits(r.items);
     } catch (e) {
-      toast.error(errorText(e, "The search failed."));
+      // A verdict with no way forward, on the screen with the shortest clock
+      // in the product.
+      toast.error(errorText(e,
+        "The batch search could not be run. Try the medicine's name, or "
+        + "reload the page."));
     } finally { setBusy(false); }
   }, [toast]);
 

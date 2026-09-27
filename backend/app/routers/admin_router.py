@@ -112,7 +112,10 @@ def price_import(
     """
     text = body.csv_text.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="No CSV content supplied")
+        raise HTTPException(
+            status_code=400,
+            detail="No price file arrived. Choose the supplier's CSV, or "
+                   "paste its contents into the box.")
 
     try:
         dialect = csv.Sniffer().sniff(text[:2000], delimiters=",;\t|")
@@ -120,7 +123,10 @@ def price_import(
         dialect = csv.excel
     reader = csv.DictReader(io.StringIO(text), dialect=dialect)
     if not reader.fieldnames:
-        raise HTTPException(status_code=400, detail="CSV has no header row")
+        raise HTTPException(
+            status_code=400,
+            detail="That file has no column names on its first row, so there "
+                   "is no way to tell which column holds the price.")
 
     field_map = {}
     for column in reader.fieldnames:
@@ -490,8 +496,17 @@ def verify_backup(filename: str, _: User = Depends(require_platform_admin)):
 def download_backup(filename: str, _: User = Depends(require_platform_admin)):
     # filenames are server-generated; reject anything that isn't a plain name
     if "/" in filename or "\\" in filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
+        # Deliberately not "that file does not exist": the name failed the
+        # safety check rather than the lookup, and the two want different
+        # answers from whoever reads this.
+        raise HTTPException(
+            status_code=400,
+            detail="That is not a backup file name. Download it from the list "
+                   "on this screen rather than by typing an address.")
     path = (BACKUP_DIR / filename).resolve()
     if not path.is_file() or path.parent != BACKUP_DIR.resolve():
-        raise HTTPException(status_code=404, detail="Backup not found")
+        raise HTTPException(
+            status_code=404,
+            detail="That backup is no longer on this machine. Older ones are "
+                   "swept up as newer ones are taken.")
     return FileResponse(path, filename=filename, media_type="application/octet-stream")

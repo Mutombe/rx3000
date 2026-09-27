@@ -178,9 +178,23 @@ export default function Claiming() {
   const load = useCallback(() => {
     api.get<Unbatched[]>("/api/claiming/unbatched").then(setUnbatched)
       .catch((e) => toast.error(errorText(e, "The unbatched claims could not be listed.")));
-    api.get<Batch[]>("/api/claiming/batches").then(setBatches).catch(() => undefined);
-    api.get<FeeModel[]>("/api/claiming/fee-models").then(setModels).catch(() => undefined);
-    api.get<PayOffice[]>("/api/claiming/pay-offices").then(setOffices).catch(() => undefined);
+    /* THREE OF THESE FOUR SAID NOTHING, AND THE FOURTH TOASTS.
+     *
+     * An empty batch list reads as "everything is sent", which is the
+     * congratulatory version of the answer and the wrong one. Said once
+     * rather than three times: a page whose loads all fail should not raise
+     * three toasts, and which of the three it was does not change what the
+     * reader does about it. */
+    let quiet = false;
+    const sayOnce = (e: unknown) => {
+      if (quiet) return;
+      quiet = true;
+      toast.error(errorText(e, "Some of this screen could not be loaded, so "
+            + "what is shown may be short."));
+    };
+    api.get<Batch[]>("/api/claiming/batches").then(setBatches).catch(sayOnce);
+    api.get<FeeModel[]>("/api/claiming/fee-models").then(setModels).catch(sayOnce);
+    api.get<PayOffice[]>("/api/claiming/pay-offices").then(setOffices).catch(sayOnce);
   }, [toast]);
 
   useEffect(load, [load]);
@@ -423,7 +437,9 @@ export default function Claiming() {
         `/api/claiming/fee-models/${model.id}/quote?base=${base}`);
       setQuoted((q) => ({ ...q, [model.id]: r }));
     } catch (e) {
-      toast.error(errorText(e, "That could not be priced. Nothing was saved."));
+      // A quote is arithmetic against the fee model. It writes nothing, and
+      // nothing about it could ever have been saved.
+      toast.error(errorText(e, "That could not be priced."));
     }
   }
 

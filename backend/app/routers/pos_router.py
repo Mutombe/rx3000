@@ -334,7 +334,10 @@ def create_sale(body: schemas.SaleCreate, db: Session = Depends(get_db),
                 x_step_up: str = Header(default="")):
     """Direct POS sale: builds the basket, moves stock, settles payment."""
     if not body.items:
-        raise HTTPException(status_code=400, detail="Basket is empty")
+        raise HTTPException(
+            status_code=400,
+            detail="There is nothing on this sale. Add a line before taking "
+                   "payment.")
 
     # A till replaying a sale it took while the line was down sends the same
     # reference every time. If this one has been seen, the sale is already on
@@ -702,7 +705,10 @@ def void_sale(sale_id: int, db: Session = Depends(get_db),
     if not sale:
         raise HTTPException(status_code=404, detail="Sale not found")
     if sale.status == "void":
-        raise HTTPException(status_code=400, detail="Sale already voided")
+        raise HTTPException(
+            status_code=400,
+            detail="This sale has already been voided, so there is nothing "
+                   "left to reverse.")
     if fiscal.is_locked(db, sale):
         # A receipt filed with the revenue authority cannot be withdrawn.
         raise HTTPException(

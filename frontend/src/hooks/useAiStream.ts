@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiBase, getToken } from "../api";
+import { apiBase, getToken, Said } from "../api";
 import type { Phase } from "../components/AiPhase";
 import { useTypewriter } from "./useTypewriter";
 
@@ -49,7 +49,17 @@ export function useAiStream() {
         body: body === undefined ? undefined : JSON.stringify(body),
         signal: controller.signal,
       });
-      if (!res.ok || !res.body) throw new Error(`The assistant is not reachable (${res.status}).`);
+      if (!res.ok || !res.body) {
+        /* A STATUS NUMBER IS NOT AN EXPLANATION.
+           "The assistant is not reachable (403)" is a sentence for whoever
+           wrote this. The server says why — no key configured, out of credit,
+           a capability the reader does not hold — and none of it was read. */
+        let said = "";
+        try { said = (await res.json())?.detail || ""; } catch { /* not JSON */ }
+        throw new Said(said || (res.status === 503
+          ? "The assistant is not switched on for this pharmacy."
+          : "The assistant did not answer. Nothing you typed was lost."));
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();

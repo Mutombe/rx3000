@@ -265,7 +265,9 @@ def otc_sale(
             pack_expiry=body.pack_expiry, batch_id=body.batch_id,
             batch_reason=body.batch_reason, batch_note=body.batch_note)]
     if not lines:
-        raise HTTPException(status_code=400, detail="Nothing to sell")
+        raise HTTPException(
+            status_code=400,
+            detail="There is nothing on this sale to dispense.")
 
     # ---- every refusal first, before the shelf is touched -------------------
     #

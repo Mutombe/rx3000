@@ -272,7 +272,10 @@ def coverage(body: schemas.PriceRequest, db: Session = Depends(get_db)):
     if body.medical_aid_id and not scheme:
         raise HTTPException(status_code=404, detail="Medical aid not found")
     if not body.items:
-        raise HTTPException(status_code=400, detail="Nothing to check")
+        raise HTTPException(
+            status_code=400,
+            detail="No lines were sent, so there is nothing to check against "
+                   "the scheme.")
 
     # Every product in one query, not one query a line.
     #

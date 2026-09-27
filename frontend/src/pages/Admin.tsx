@@ -429,7 +429,9 @@ export default function Admin() {
       if (b.verified) toast.ok(`${filename} opened cleanly and can be restored.`);
       else toast.error(b.problem || `${filename} could not be verified.`);
     } catch (e: any) {
-      toast.error(errorText(e, "That backup could not be checked. Nothing was saved."));
+      // Checking a backup reads it. The reassurance that belongs here is
+      // about the backup, not about a write that never happened.
+      toast.error(errorText(e, "That backup could not be checked. It is still on file."));
     }
   }
 
@@ -446,7 +448,16 @@ export default function Admin() {
     const res = await fetch(`${apiBase}/api/admin/backups/${filename}/download`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) { toast.error("Download failed"); return; }
+    if (!res.ok) {
+      /* Two words, and the server had a sentence. `admin_router` tells a
+         filename it will not serve apart from a backup that is not there, and
+         those are different problems: one is a link somebody has tampered
+         with, the other is a file that has been swept up. */
+      let said = "That backup could not be downloaded.";
+      try { said = (await res.json())?.detail || said; } catch { /* not JSON */ }
+      toast.error(said);
+      return;
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
