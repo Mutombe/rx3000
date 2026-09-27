@@ -20,9 +20,31 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 def login(body: schemas.LoginRequest, db: Session = Depends(get_db)):
     user = auth.find_by_username(db, body.username)
     if not user or not auth.verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+        # ONE SENTENCE FOR BOTH, AND IT SAYS WHAT TO DO NEXT.
+        #
+        # Deliberately not "there is no such account" or "that password is
+        # wrong". Telling them apart tells anybody at the login screen which
+        # usernames are real, and a pharmacy's usernames are its staff list:
+        # somebody guessing learns it one attempt at a time. The pharmacist who
+        # has genuinely mistyped is no better served by knowing WHICH half is
+        # wrong than by being told to check both.
+        #
+        # What they were missing was not the distinction, it was a way forward.
+        # "Invalid username or password" is a verdict; this is a verdict and an
+        # answer to "so what do I do now".
+        raise HTTPException(
+            status_code=401,
+            detail="That username and password do not match. Check the "
+                   "spelling of both. If you have forgotten the password, "
+                   "whoever administers this pharmacy can set a new one.")
     if not user.active:
-        raise HTTPException(status_code=403, detail="Account disabled")
+        # A stopped login is worth saying plainly: it is not a mistake the
+        # person can fix by trying harder, and "invalid" would send them round
+        # the same loop typing a password that is perfectly correct.
+        raise HTTPException(
+            status_code=403,
+            detail="That account has been stopped, so it cannot sign in. "
+                   "Whoever administers this pharmacy can start it again.")
     if demo.is_expired(user):
         raise HTTPException(
             status_code=403,
@@ -501,7 +523,10 @@ def reset_with_pin(username: str = Body(...), pin: str = Body(...),
     user = auth.find_by_username(db, username.strip())
     # The same answer whether the name is wrong or the PIN is: a reset form that
     # distinguishes them is a list of valid usernames.
-    generic = "That username and PIN were not accepted."
+    generic = ("That username and PIN do not match. The PIN is the four "
+               "figures you use to unlock the till, not your password. If you "
+               "have forgotten it, an administrator can clear it and you set a "
+               "new one yourself.")
     if not user or not user.active:
         raise HTTPException(status_code=403, detail=generic)
     if not user.pin_hash:

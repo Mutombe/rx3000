@@ -347,22 +347,61 @@ async function request<T>(
     // that was just raised. The message looked like it "disappeared fast" —
     // it was not short-lived, it was killed by the navigation underneath it.
     // Already being on the login screen means there is nowhere to send anybody.
+
+    /* AND A THIRD, WHICH IS THE ONE PEOPLE ACTUALLY MET.
+     *
+     * This branch threw its own sentence away over the server's and never read
+     * the body at all. So somebody typing the wrong password was told "Please
+     * sign in." — which is not an answer to anything they did. They were
+     * signing in. That is what they were doing when it said that.
+     *
+     * A 401 answers two completely different questions and they must not share
+     * a sentence:
+     *
+     *   asking to be let in   the server is telling you about the credentials
+     *                         you just offered. That sentence is the whole
+     *                         value of the response, and there is no session
+     *                         to end and nowhere to redirect to.
+     *
+     *   already inside        the token is dead. The person is somewhere in
+     *                         the product, and needs the session explained and
+     *                         a way back to the login screen.
+     *
+     * The path is what tells them apart: only the sign-in routes carry
+     * credentials, so only they can be the first kind.
+     */
+    const askingToBeLetIn = /^\/api\/auth\/(login|pin|demo|refresh)/.test(path);
+
+    let said = "";
+    try {
+      said = readableDetail((await res.json())?.detail) ?? "";
+    } catch {
+      /* not JSON — the wording below carries it instead */
+    }
+
+    if (askingToBeLetIn) {
+      // No session to clear and nowhere to send them: they are at the door.
+      // The server's own sentence, because it is the answer to the question
+      // they just asked.
+      throw new ApiError(401, said || "That username and password were not accepted.");
+    }
+
     const hadSession = !!getToken();
     setToken(null);
     const onLogin = window.location.pathname.startsWith("/login");
+    const ended = said || (hadSession
+      ? "Your session has ended. Please sign in again."
+      : "Please sign in.");
     if (!onLogin) {
       // Carried across the reload, since the toast cannot survive it.
       if (hadSession) {
         try {
-          sessionStorage.setItem("rx5000_signed_out",
-                                 "Your session has ended. Please sign in again.");
+          sessionStorage.setItem("rx5000_signed_out", ended);
         } catch { /* private mode: the redirect still happens */ }
       }
       window.location.href = "/login";
     }
-    throw new ApiError(401, hadSession
-      ? "Your session has ended. Please sign in again."
-      : "Please sign in.");
+    throw new ApiError(401, ended);
   }
   if (!res.ok) {
     let detail = "";
