@@ -1,107 +1,93 @@
-Every screen says what you can do on it, and every list leaves as a spreadsheet.
+Screens that told you what to do now let you do it.
 
-**Export, and it asks which file**
+**The one with a clock on it**
 
-The button said Spreadsheet and handed over a CSV, which is two untruths at
-once: a CSV is not a spreadsheet, and nobody was asked. It says Export now, and
-you choose an Excel workbook or a CSV. The workbook is a real one: bold
-headings frozen in place so they survive row four hundred, columns as wide as
-what is in them, and dates written as dates so Excel sorts them.
+A recall has always said, at the top of the screen, that holding what is left
+on the shelf is the first thing to do and the only step that stops another
+person receiving it. There was no way to do it. Now there is one button, and
+what is held stops being counted as on the shelf, so the figures say what
+happened.
 
-It is on twenty eight screens rather than ten. Scripts, dispensing history, the
-will call shelf, the repeats call sheet, suppliers, orders, lay bys, drivers,
-cash ups, creditors, licences, the controlled register, samples, your branches
-and the rest.
+**Writing off an expired sample now takes the witness it asks for**
 
-Each one is shaped by what the sheet is for. The call sheet carries telephone
-numbers and whether the shelf can actually serve them, because a call that ends
-in "we do not have it" is worse than no call. The stock take sheet carries an
-empty column to write the count in, with the system's own figure last so a
-manager can fold it out of sight and not influence whoever is up the ladder.
-The register carries the running balance an inspector checks.
+The sample register warns that an expired receipt still on the register is a
+finding, and says to write it off with a witness. The witness field only
+appeared for Destroyed, so following that instruction recorded no witness at
+all. It appears on both now. It is still only required for destruction, because
+saying medicine was destroyed is a claim nobody can check afterwards and a date
+on a box is not.
 
-**Excel downloads were failing, and had been for a long time**
+**Telling people something, from the screen that knows who they are**
 
-Asking for any report as Excel answered "Something went wrong at our end", on
-the server, since reports were written. CSV worked, and Excel is what the
-button offers first, so the commonest press was the broken one. It was a
-missing library on the server, installed on the machine the software is written
-on and nowhere else, which is why nothing caught it. Every Excel download now
-works.
+The will call shelf can tell everybody in view that their medicine is ready.
+Money owed can remind everybody who owes. To follows can tell the people whose
+order has come in. A recall can tell everybody holding the batch to stop taking
+it. All four say how many have no telephone number before the message is
+written rather than after it is sent, because those are the ones somebody still
+has to ring.
 
-**Bring a patient list in**
+**Money owed now filters to what is actually late**
 
-A pharmacy joining this system has its patients in the one it is leaving, or in
-a spreadsheet somebody has kept for nine years. Typing four thousand of them in
-is not a migration plan.
+The thirty day figure was a tile nobody could press, so Remind them meant
+everybody, including the person who took their medicine this morning. It is the
+filter now.
 
-Choose an Excel file or a CSV. The columns can be named whatever the other
-system called them: surname, DOB, member number and the rest are all
-recognised. Nothing is written until you have read what would happen, row by
-row, and pressed the button that says how many.
+**The short supply gets written down**
 
-It tells you what it cannot do as well as what it can. A row with no identity
-number cannot be checked against the list, so importing the same file twice
-would add that person twice, and it says so before you press rather than after.
-A date it cannot read without guessing is named: 03/04 is April here and March
-elsewhere, and a date of birth six months out is worse than a blank one,
-because a blank gets asked about and a wrong one gets trusted.
+Dispensing said Only 12 in stock and left the other eighteen in the dispenser's
+head. One press promises the balance against that patient, with no form to fill
+in: the medicine, the person and the shortfall are already on the screen.
 
-**Telling a lot of people one thing**
+**Recording what the wholesaler actually billed**
 
-Three screens gave advice they could not act on.
+Creditors lists deliveries with no bill behind them and calls each one a debt
+that has not been recorded. It could not record one. Now it can, opened from
+the delivery so the supplier and the order cannot be got wrong, and it tells
+you at the moment you type the figure if the bill is more than the goods that
+arrived.
 
-The will call shelf tells you, on every bag past a week, that it is worth a
-telephone call. A hundred and forty of those is a morning nobody has, so it was
-not done, and a bag nobody rang about becomes stock returned and a claim
-reversed. One button now tells everybody in view that their medicine is ready.
+**A till nobody counted**
 
-The debtors list exists to be worked, and the working is a morning of awkward
-conversations about forty dollars each. A message is not an awkward
-conversation. It states the amount and the sale it belongs to, and the ones who
-walk in have settled themselves.
+A shift left open, by somebody who went home, could not be counted by anybody.
+It can now, from the history, by whoever notices.
 
-A recall could find the forty one people holding a withdrawn batch, list them,
-and copy their numbers to the clipboard. That was the end of what the software
-did: forty one names went to one person with a telephone, and the last of them
-was rung the next morning if at all. There is one button beside that list now.
-For a controlled item it says plainly that the message is a first contact and
-not the whole of it.
+**Claiming leads with the deadline**
 
-All three act on whoever is in view, so narrowing the list above narrows who is
-asked, and all three name the number in the button rather than saying "them".
+Each funder's cut off is on the list of claims waiting to be batched, soonest
+first, with a mark on anything inside three days. The funder with a hundred and
+thirty claims due tomorrow is at the top instead of in the middle.
 
-**Pick out a few patients and tell them something**
+**Stock transfers that were waiting for nobody**
 
-Tick them on the patient list. It is for the eleven you have just been reading
-down and recognised by name, which no audience or segment can express. It says
-how many of them have no telephone number before the message is written rather
-than after it is sent.
+A pharmacy that sets a value above which transfers need agreeing was creating a
+queue it could not see. Valuable transfers went in and stayed there, the stock
+never moved, and nothing said so. The queue is on the branches screen now, with
+what each transfer is worth, and both answers are one press.
 
-**The week's claiming in one press**
+**Things that could not be corrected**
 
-Batching is per funder, because a batch belongs to one funder. But a pharmacy
-does not batch one funder on a Monday, it batches the eleven that have claims
-waiting, and the one that gets skipped is always the small funder at the bottom
-whose claims then miss a cut off nobody was watching.
+A lead, a deal, a branch, a trading period. A lead captured with the wrong
+telephone number stayed wrong for its whole life. A deal could be dragged
+between six columns and never edited, which is why the forecast quietly missed
+every deal somebody had captured in a hurry: it is built from the expected
+close date, and nothing could set one.
 
-**A dispensing to a medical aid could fail**
+**The settlements screen is back**
 
-Claim numbers were worked out by counting claims, so a claim that was reversed
-left its number behind and handed it to the next one. The second dispensing to
-a scheme was then refused and the screen said "Something went wrong at our
-end", in the middle of serving somebody. Authorisations, to follows and stock
-transfers between branches had the same fault. All four read back the last
-number issued now.
+What each funder paid, and the claims a funder is holding, have both been
+answering an error. A broken line in the software stopped that screen loading
+at all while every other screen worked.
 
-The till's status panel also said "next script" and "next sale" and showed a
-count of every script and every sale ever made, which on a shop in its ninth
-month is four thousand away from the truth.
+**Seeing what somebody else sees**
+
+Head office can sign in as a member of staff for thirty minutes to see what
+they see, which is the honest answer to it does not work on my screen. It takes
+a written reason, their password is never needed or shown, and a bar across
+every screen says whose session it is and offers the way back. Everything done
+while it lasts is recorded against both names.
 
 **Also**
 
-Every page carries what you can do on it in the same place, in the same order,
-left to right from quietest to loudest, so the thing you came to do is nearest
-the edge. A table with nothing in it says which nothing it is: none yet, or
-none matching what you asked for. And the password box on the approval dialogue
-no longer changes size when you switch to it from the code boxes.
+Quotes can be sent and chased from the list. Dead stock can be moved to a
+branch that sells it. A branch scorecard's findings open the screen that deals
+with them. Held claims open the claim and the advice behind them.
