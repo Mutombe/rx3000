@@ -1225,8 +1225,24 @@ label > :is(input:not([type="checkbox"]):not([type="radio"]),
 }
 .form-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 
-.toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
-.toolbar input[type="text"], .toolbar input[type="search"] { max-width: 340px; }
+/* THE RAIL THIS USED TO BE.
+ *
+ * `.filter-bar`, `.dt-filters` and `.toolbar` were unified into one bordered
+ * rail further down this file, and that rule supersedes every line of the
+ * declaration that used to be here — same flex row, same wrap, same 16px
+ * below, and a gap of nought rather than 8px because the segments are divided
+ * by hairlines now instead of by air.
+ *
+ * All of it was superseded except one line, and that line was the fault: a
+ * 340px cap on the search. A capped search does not take the room, so on
+ * Suppliers the search and the Show retired toggle sat together in the first
+ * 462px of an 1,148px rail with 686px of empty bar beside them, and on
+ * Patients a lone search box sat in the first third of a rail with 807px of
+ * nothing after it. They read as controls dropped in rather than placed.
+ *
+ * The cap on `.filter-search` further down is the one that survives, and it
+ * earns its keep: 46rem, so a search does not run the full width of a 2,000px
+ * monitor. 340px is not that; 340px is a leftover. */
 .toolbar select { width: auto; }
 .spacer { flex: 1; }
 
@@ -8012,6 +8028,42 @@ table.dt.sub th { font-size: var(--t-xs); }
 .filter-search {
   flex: 1 1 18rem; min-width: 12rem; max-width: 46rem;
   height: var(--control);
+}
+/* A SEARCH IN A RAIL TAKES THE ROOM WHETHER OR NOT SOMEBODY NAMED IT.
+ *
+ * `.filter-search` is what makes the box grow, and half the rails in the
+ * product never applied it — they drop a bare `<input type="search">` into the
+ * rail and let it size itself. A bare search input is 341px wide by default,
+ * so on Suppliers the search and the Show retired toggle sat jammed together
+ * in the first 462px of an 1,148px rail with 686px of empty bar beside them,
+ * and on Patients a lone search box sat in the first third of the rail with
+ * 807px of nothing after it. They read as controls dropped in rather than
+ * placed, which is exactly what they were.
+ *
+ * The search grows, so everything after it is carried to the right edge and
+ * the rail is full from end to end — which is what the rails built through
+ * `DataTable` have always done, and why those ones look placed. No cap here:
+ * the cap on `.filter-search` above stops a search running the full width of a
+ * 2,000px monitor, and it only earns that when there is something else in the
+ * rail for the leftover width to belong to. */
+:is(.filter-bar, .dt-filters, .toolbar) > input[type="search"] {
+  flex: 1 1 18rem; min-width: 12rem;
+}
+/* A RAIL WITH NOTHING TO GROW IS THE SIZE OF WHAT IS IN IT.
+ *
+ * Two rails hold no search at all: the repeats screen has a period picker and
+ * one tick, and the controlled register has a schedule and two dates. Nothing
+ * in either wants the room, so they drew a full-width bordered bar with 937px
+ * and 643px of nothing in it.
+ *
+ * Stretching them would mean inventing a gap to push things apart with, and a
+ * rail with two controls at opposite ends of a metre of empty bar is not
+ * better than one with two controls in the middle of it. A rail is an
+ * instrument: it should be the size of the instrument. So where there is
+ * nothing to absorb the width, it stops taking it. */
+:is(.filter-bar, .dt-filters, .toolbar):not(
+    :has(input[type="search"], .filter-search, .dt-count)) {
+  width: fit-content; max-width: 100%;
 }
 /* A dropdown sized to its own content rather than stretched by the flex row —
    "Any schedule" and "Last 7 days" are different widths and should look it. */
