@@ -16,7 +16,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, ArrowsClockwise } from "@phosphor-icons/react";
 import { api, errorText } from "../api";
 import { ColumnChart, useSeries } from "../components/charts";
-import { Block, Refreshable } from "../components/Skeleton";
+import { Block, Figure, GhostRows } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import Person from "../components/Person";
 import PageHead from "../components/PageHead";
@@ -151,150 +151,184 @@ export default function DispensaryOperations() {
         primary={<Link className="btn primary" to="/dispense">Dispense a script</Link>}
       />
 
-      <Refreshable
-        loading={loading}
-        hasData={!!day}
-        skeleton={
-          <div className="grid ops-tiles">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="card stat"><Block h={64} round="md" /></div>
-            ))}
+      {/* SCOPED LOADING.
+       *
+       * This screen used to hold its whole body behind one `Refreshable` and
+       * draw five blank cards while it waited. Everything below was therefore
+       * absent on arrival and appeared at once: five labels, five hints, two
+       * panel headings with their descriptions, two table heads and a section
+       * title. None of that is fetched. It is written here, it is the same on
+       * every visit, and withholding it made the page arrive twice, the second
+       * time about 800px taller.
+       *
+       * So the frame is unconditional, down to the last card, and the only
+       * things that pulse are the figures. One `ready` flag rather than one
+       * per card, because they all come from one request: a card that says it
+       * is still waiting when its answer is already in hand is the same lie in
+       * the other direction. */}
+      <div className="grid ops-tiles">
+        <div className="card stat hero">
+          <div className="label">Scripts dispensed today</div>
+          <div className="value accent">
+            <Figure ready={!!day} w="2ch">{day?.scripts}</Figure>
           </div>
-        }
-      >
-        {day && data && (
-          <>
-            <div className="grid ops-tiles">
-              <div className="card stat hero">
-                <div className="label">Scripts dispensed today</div>
-                <div className="value accent">{day.scripts}</div>
-                <div className="hint">
-                  {day.lines} line{day.lines === 1 ? "" : "s"} · {day.patients} patient{day.patients === 1 ? "" : "s"}
-                </div>
-              </div>
-              <div className="card stat">
-                <div className="label">Lines waiting</div>
-                <div className="value">{data.queue_lines}</div>
-                <div className="hint">
-                  <Link to="/dispense">to the dispensary <ArrowRight size={12} weight="bold" /></Link>
-                </div>
-              </div>
-              <div className="card stat">
-                <div className="label">Median wait today</div>
-                <div className="value">
-                  {day.medianWait === null
-                    ? <span className="muted">Nothing dispensed yet</span>
-                    : duration(day.medianWait)}
-                </div>
-                <div className="hint">
-                  Capture to dispensed · {day.waitedCount} waited, {day.sameVisit} same visit
-                </div>
-              </div>
-              <div className="card stat">
-                <div className="label">On hold now</div>
-                <div className={`value${data.open_holds.length ? " warn" : ""}`}>{data.open_holds.length}</div>
-                <div className="hint">{day.holdsPlacedToday} placed today</div>
-              </div>
-              <div className="card stat">
-                <div className="label">Dispensed sales voided today</div>
-                <div className="value">{day.voidsToday}</div>
-                <div className="hint">Whole sales. A single dispensing can&rsquo;t be reversed yet</div>
-              </div>
+          <div className="hint">
+            <Figure ready={!!day} w="2ch">{day?.lines}</Figure>
+            {" "}line{day && day.lines === 1 ? "" : "s"}{" \u00b7 "}
+            <Figure ready={!!day} w="2ch">{day?.patients}</Figure>
+            {" "}patient{day && day.patients === 1 ? "" : "s"}
+          </div>
+        </div>
+        <div className="card stat">
+          <div className="label">Lines waiting</div>
+          <div className="value">
+            <Figure ready={!!data} w="2ch">{data?.queue_lines}</Figure>
+          </div>
+          <div className="hint">
+            <Link to="/dispense">to the dispensary <ArrowRight size={12} weight="bold" /></Link>
+          </div>
+        </div>
+        <div className="card stat">
+          <div className="label">Median wait today</div>
+          <div className="value">
+            <Figure ready={!!day} w="6ch">
+              {day && (day.medianWait === null
+                ? <span className="muted">Nothing dispensed yet</span>
+                : duration(day.medianWait))}
+            </Figure>
+          </div>
+          <div className="hint">
+            {"Capture to dispensed \u00b7 "}
+            <Figure ready={!!day} w="2ch">{day?.waitedCount}</Figure> waited,{" "}
+            <Figure ready={!!day} w="2ch">{day?.sameVisit}</Figure> same visit
+          </div>
+        </div>
+        <div className="card stat">
+          <div className="label">On hold now</div>
+          <div className={`value${data && data.open_holds.length ? " warn" : ""}`}>
+            <Figure ready={!!data} w="2ch">{data?.open_holds.length}</Figure>
+          </div>
+          <div className="hint">
+            <Figure ready={!!day} w="2ch">{day?.holdsPlacedToday}</Figure> placed today
+          </div>
+        </div>
+        <div className="card stat">
+          <div className="label">Dispensed sales voided today</div>
+          <div className="value">
+            <Figure ready={!!day} w="2ch">{day?.voidsToday}</Figure>
+          </div>
+          <div className="hint">Whole sales. A single dispensing can&rsquo;t be reversed yet</div>
+        </div>
+      </div>
+
+      <div className="grid cols-2">
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <h3>Scripts, hour by hour</h3>
+              <span className="muted small">
+                Each script counted in the hour its first line went out.
+              </span>
             </div>
+          </div>
+          {/* The plot is the dynamic spot, so the plot is what pulses, at the
+              height the chart will occupy. Note the order of the three arms:
+              the "nothing yet today" sentence is only reachable once the
+              figures are in hand, because a screen that has not been told
+              anything must not report that there is nothing. */}
+          {!day ? (
+            <Block h={220} round="md" />
+          ) : day.scripts ? (
+            <ColumnChart height={220} columns={day.columns}
+              // Scripts are counted whole. On a quiet morning the scale steps
+              // in halves, and rounding the half labelled the axis "1, 1, 0";
+              // a tick between whole scripts is left unlabelled instead.
+              format={(n) => (Number.isInteger(n) ? String(n) : "")} />
+          ) : (
+            <p className="muted ops-empty">Nothing has been dispensed yet today.</p>
+          )}
+        </div>
 
-            <div className="grid cols-2">
-              <div className="card">
-                <div className="card-head">
-                  <div>
-                    <h3>Scripts, hour by hour</h3>
-                    <span className="muted small">
-                      Each script counted in the hour its first line went out.
-                    </span>
-                  </div>
-                </div>
-                {day.scripts ? (
-                  <ColumnChart height={220} columns={day.columns}
-                    // Scripts are counted whole. On a quiet morning the scale steps
-                    // in halves, and rounding the half labelled the axis "1, 1, 0";
-                    // a tick between whole scripts is left unlabelled instead.
-                    format={(n) => (Number.isInteger(n) ? String(n) : "")} />
-                ) : (
-                  <p className="muted ops-empty">Nothing has been dispensed yet today.</p>
-                )}
-              </div>
-
-              <div className="card">
-                <div className="card-head">
-                  <div>
-                    <h3>Who dispensed what</h3>
-                    <span className="muted small">Today, by the person who dispensed it.</span>
-                  </div>
-                </div>
-                {day.dispensers.length ? (
-                  <table className="ops-table">
-                    <thead>
-                      <tr><Th>Dispenser</Th><Th className="num">Scripts</Th><Th className="num">Lines</Th></tr>
-                    </thead>
-                    <tbody>
-                      {day.dispensers.map((d) => (
-                        <tr key={d.name}>
-                          <td>{d.name}</td>
-                          <td className="num">{d.scripts}</td>
-                          <td className="num">{d.lines}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p className="muted ops-empty">Nobody has dispensed yet today.</p>
-                )}
-              </div>
+        <div className="card">
+          <div className="card-head">
+            <div>
+              <h3>Who dispensed what</h3>
+              <span className="muted small">Today, by the person who dispensed it.</span>
             </div>
-
-            <div className="card">
-              <div className="card-head">
-                <div>
-                  <h3>On hold</h3>
-                  <span className="muted small">
-                    Longest held first. Each is a patient still waiting for something.
-                  </span>
-                </div>
-                <Link className="btn ghost sm" to="/reports?report=dispensing_holds">
-                  The holds report <ArrowRight size={12} weight="bold" />
-                </Link>
-              </div>
-              {data.open_holds.length ? (
-                <table className="ops-table">
-                  <thead>
-                    <tr>
-                      <Th>Script</Th><Th>Patient</Th><Th>Why</Th><Th>Held by</Th>
-                      <Th className="num">Held for</Th><th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.open_holds.map((h) => (
-                      <tr key={h.id}>
-                        <td className="mono">{h.rx_number}</td>
-                        <td><Person name={h.patient} /></td>
-                        <td>{h.reason}</td>
-                        <td><Person name={h.placed_by} absent="Not recorded" /></td>
-                        <td className="num">{duration(h.hours_held * 60)}</td>
-                        <td className="actions">
-                          <Link to={`/dispense?rx=${h.prescription_id}`}>
-                            Open <ArrowRight size={12} weight="bold" />
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          </div>
+          {/* The head is written down, so the head is drawn. Only the rows
+              under it are waiting on anybody. */}
+          {!day || day.dispensers.length ? (
+            <table className="ops-table">
+              <thead>
+                <tr><Th>Dispenser</Th><Th className="num">Scripts</Th><Th className="num">Lines</Th></tr>
+              </thead>
+              {!day ? (
+                <GhostRows cols={3} rows={4} widths={["60%", "30%", "30%"]} />
               ) : (
-                <p className="muted ops-empty">Nothing is on hold.</p>
+                <tbody>
+                  {day.dispensers.map((d) => (
+                    <tr key={d.name}>
+                      <td>{d.name}</td>
+                      <td className="num">{d.scripts}</td>
+                      <td className="num">{d.lines}</td>
+                    </tr>
+                  ))}
+                </tbody>
               )}
-            </div>
-          </>
+            </table>
+          ) : (
+            <p className="muted ops-empty">Nobody has dispensed yet today.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
+          <div>
+            <h3>On hold</h3>
+            <span className="muted small">
+              Longest held first. Each is a patient still waiting for something.
+            </span>
+          </div>
+          <Link className="btn ghost sm" to="/reports?report=dispensing_holds">
+            The holds report <ArrowRight size={12} weight="bold" />
+          </Link>
+        </div>
+        {!data || data.open_holds.length ? (
+          <table className="ops-table">
+            <thead>
+              <tr>
+                <Th>Script</Th><Th>Patient</Th><Th>Why</Th><Th>Held by</Th>
+                <Th className="num">Held for</Th><th />
+              </tr>
+            </thead>
+            {!data ? (
+              <GhostRows cols={6} rows={3}
+                         widths={["70%", "60%", "80%", "55%", "40%", "30%"]} />
+            ) : (
+              <tbody>
+                {data.open_holds.map((h) => (
+                  <tr key={h.id}>
+                    <td className="mono">{h.rx_number}</td>
+                    <td><Person name={h.patient} /></td>
+                    <td>{h.reason}</td>
+                    <td><Person name={h.placed_by} absent="Not recorded" /></td>
+                    <td className="num">{duration(h.hours_held * 60)}</td>
+                    <td className="actions">
+                      <Link to={`/dispense?rx=${h.prescription_id}`}>
+                        Open <ArrowRight size={12} weight="bold" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+        ) : (
+          <p className="muted ops-empty">Nothing is on hold.</p>
         )}
-      </Refreshable>
+      </div>
     </>
   );
 }

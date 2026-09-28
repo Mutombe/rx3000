@@ -2612,6 +2612,15 @@ td.actions > * + * { margin-left: var(--s2); }
 
 /* The skeleton table must occupy the same footprint as the real one, so it
  * reuses .dt and only the cell contents differ. */
+/* A figure that has not landed, inline in the line it will land in.
+   `1em` in the Block's own style takes the size from whatever type it sits in,
+   so one component is right in a 26px stat value and a 13px cell. The nudge
+   puts its box on the text baseline rather than the line box, which is where
+   the digits would have been. */
+.sk-val {
+  display: inline-block;
+  vertical-align: -0.12em;
+}
 .sk-table td, .sk-table th { vertical-align: middle; }
 /* The quieter line under a cell's first, matching the real `.muted.small`
    second lines. Blocked out so the ghost row is exactly as tall as the row it
@@ -4136,6 +4145,11 @@ button.wl-stat:disabled:hover {
   cursor: pointer;
 }
 .wl-row:hover { background: var(--accent-soft); }
+/* A row that has not arrived. The same box as a real one, so the rail does not
+   change height when the queue lands, and no pointer, because there is nothing
+   under it to open yet. */
+.wl-row-ghost { cursor: default; gap: var(--s2); }
+.wl-row-ghost:hover { background: var(--surface-sunk); }
 .wl-row-top { display: flex; justify-content: space-between; gap: var(--s2); align-items: baseline; }
 .wl-patient { font-weight: 600; font-size: var(--t-base); }
 .wl-qty { font-family: var(--font-mono); font-size: var(--t-sm); color: var(--ink-soft); }

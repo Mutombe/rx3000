@@ -11,7 +11,7 @@
  */
 import type { ReactNode } from "react";
 import Breadcrumbs, { Crumb } from "./Breadcrumbs";
-import { DetailSkeleton } from "./Skeleton";
+import { Block } from "./Skeleton";
 import { Highlights } from "./record";
 import { labelTone } from "../entityTone";
 
@@ -80,9 +80,19 @@ export default function RecordPage({
       </>
     );
   }
-  if (loading) {
-    return <DetailSkeleton trail={trail} eyebrow={eyebrow} cards={2} />;
-  }
+  /* A RECORD PAGE IS NOT A DIFFERENT PAGE WHILE IT LOADS.
+   *
+   * This used to hand the whole header and body to `DetailSkeleton`, which
+   * drew the trail and the record type for real and then two grey cards where
+   * the record goes. So the page arrived as one shape and was replaced by
+   * another: the identifiers, the highlights, the panel titles and the actions
+   * all appeared at once, on twenty eight record pages.
+   *
+   * The frame is the same frame now, loaded or not. Three things on it are
+   * genuinely unknown before the answer comes back, and those three pulse: the
+   * record's name, its subtitle, and the values beside the identifier labels.
+   * Everything else — the trail, the type, the labels themselves, the actions,
+   * the cards below — is drawn at once because it was always known. */
   return (
     <>
       <Breadcrumbs trail={trail} />
@@ -97,14 +107,26 @@ export default function RecordPage({
           {/* The record type, in its family colour. The word above a record
               page is where somebody confirms what they are looking at. */}
           <div className={`eyebrow ${labelTone(eyebrow)}`.trim()}>{eyebrow}</div>
-          <h1>{title}</h1>
-          {subtitle && <div className="sub">{subtitle}</div>}
+          <h1>{loading ? <Block w="18ch" h="1em" className="sk-val" /> : title}</h1>
+          {/* The subtitle's line is held open whether or not there is one yet,
+              so the identifiers below do not move when it arrives. */}
+          {(loading || subtitle) && (
+            <div className="sub">
+              {loading ? <Block w="26ch" h="1em" className="sk-val" /> : subtitle}
+            </div>
+          )}
           {meta && meta.length > 0 && (
             <dl className="rp-meta">
               {meta.map((m) => (
                 <div key={m.label}>
+                  {/* The label is written down by the caller and is the same
+                      for every record of this kind. Only its value waits. */}
                   <dt>{m.label}</dt>
-                  <dd className={m.mono ? "mono" : undefined}>{m.value}</dd>
+                  <dd className={m.mono ? "mono" : undefined}>
+                    {loading
+                      ? <Block w="8ch" h="1em" className="sk-val" />
+                      : m.value}
+                  </dd>
                 </div>
               ))}
             </dl>

@@ -50,8 +50,20 @@ export function Block({ w = "100%", h = 14, round = "sm", className = "" }: Bloc
 /** A table that will have `cols` columns and `rows` rows. Match both to the real
  *  table or the swap will shift the page. */
 export function TableSkeleton({ cols, rows = 6, widths, secondLine, head = true,
-                               rowHeight }: {
+                               rowHeight, headers }: {
   cols: number;
+  /** The REAL column names, when the caller knows them.
+   *
+   *  It nearly always does: a table declares its headings a few lines below
+   *  the skeleton that stands in for it, and they are the same on every visit.
+   *  Ghosting them meant a reader waiting on a slow answer could not even see
+   *  what they were waiting for, which is the one thing the screen could have
+   *  told them for free.
+   *
+   *  Given, the head is drawn for real and only the rows pulse. Omitted, the
+   *  old grey head is drawn, because a few tables really are shaped by their
+   *  answer and inventing names for those would be worse. */
+  headers?: string[];
   rows?: number;
   /** Per-column widths, so a narrow numeric column does not ghost as a wide one. */
   widths?: (string | number)[];
@@ -83,7 +95,11 @@ export function TableSkeleton({ cols, rows = 6, widths, secondLine, head = true,
         <thead>
           <tr>
             {Array.from({ length: cols }).map((_, i) => (
-              <th key={i}><Block w={widths?.[i] ?? "60%"} h={12} /></th>
+              <th key={i}>
+                {headers?.[i] !== undefined
+                  ? headers[i]
+                  : <Block w={widths?.[i] ?? "60%"} h={12} />}
+              </th>
             ))}
           </tr>
         </thead>
@@ -106,12 +122,88 @@ export function TableSkeleton({ cols, rows = 6, widths, secondLine, head = true,
   );
 }
 
-export function StatsSkeleton({ tiles = 4 }: { tiles?: number }) {
+/** One figure that has not arrived yet, and nothing else.
+ *
+ *  THIS IS THE WHOLE OF SCOPED LOADING, IN ONE COMPONENT.
+ *
+ *  A stat card is a label, a figure and a hint. Two of those three are written
+ *  in the source and are true before the request is sent: "Lines waiting" is
+ *  going to say "Lines waiting" whatever the server answers. Ghosting the card
+ *  ghosts all three, so opening a screen shows a grid of grey rectangles that
+ *  say nothing, and then the words arrive as if they had been fetched. They
+ *  had not. They were always there and were being withheld.
+ *
+ *  So the label stays, the hint stays, the card stays, and the figure alone
+ *  pulses. `height: 1em` means the block is the size of the type it stands in,
+ *  so the same component is right inside a 26px stat value and a 13px table
+ *  cell without being told which it is.
+ *
+ *  `w` is the width of the number that is coming, in `ch`, so the block is the
+ *  size of its answer rather than a generic bar. Give it the widest plausible
+ *  value: a queue depth is 3ch, a money figure 8ch. Too narrow and the card
+ *  twitches when the figure lands, which is the one thing a skeleton exists to
+ *  prevent.
+ */
+export function Figure({ ready, w = "3ch", children }: {
+  /** True once the value below is real. */
+  ready: boolean;
+  w?: string | number;
+  children: ReactNode;
+}) {
+  if (ready) return <>{children}</>;
+  return <Block w={w} h="1em" className="sk-val" />;
+}
+
+/** Ghost rows for a table that has already drawn its own head.
+ *
+ *  `TableSkeleton` draws a head of grey blocks, which is right when the table
+ *  itself is not on the screen yet and wrong the moment it is: column headings
+ *  are written in the source, like every other label, and a table that knows
+ *  it has a Patient column knows it before the patients arrive. This goes
+ *  inside the real `<table>`, under the real `<thead>`, so the reader can read
+ *  what is coming while it comes.
+ */
+export function GhostRows({ cols, rows = 6, widths, secondLine, rowHeight }: {
+  cols: number;
+  rows?: number;
+  widths?: (string | number)[];
+  secondLine?: number[];
+  rowHeight?: number;
+}) {
+  const under = new Set(secondLine ?? []);
+  return (
+    <tbody aria-busy="true">
+      {Array.from({ length: rows }).map((_, r) => (
+        <tr key={r} style={rowHeight ? { height: `${rowHeight}px` } : undefined}>
+          {Array.from({ length: cols }).map((_, c) => (
+            <td key={c}>
+              <Block w={widths?.[c] ?? "80%"} />
+              {under.has(c) && <Block w="55%" h={10} className="sk-under" />}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+export function StatsSkeleton({ tiles = 4, labels }: {
+  tiles?: number;
+  /** The REAL tile labels. "Owed to suppliers" is going to say "Owed to
+   *  suppliers" whatever the server answers, so it is drawn, and only the
+   *  figure under it pulses. `tiles` is ignored when these are given: the
+   *  number of tiles is the number of labels, which is one fewer thing that
+   *  can be told wrong. */
+  labels?: string[];
+}) {
+  const n = labels?.length ?? tiles;
   return (
     <div className="sk-stats" aria-busy="true">
-      {Array.from({ length: tiles }).map((_, i) => (
+      {Array.from({ length: n }).map((_, i) => (
         <div key={i} className="card sk-stat">
-          <Block w="45%" h={11} />
+          {labels?.[i] !== undefined
+            ? <div className="label">{labels[i]}</div>
+            : <Block w="45%" h={11} />}
           <Block w="70%" h={26} />
         </div>
       ))}

@@ -16,6 +16,7 @@ import { ArrowsClockwise, Phone, XCircle } from "@phosphor-icons/react";
 import BusyButton from "./BusyButton";
 import RepeatValue from "./RepeatValue";
 import { DRAFT_SCRIPT_PLURAL } from "../terms";
+import { Block, Figure } from "./Skeleton";
 import { useScheduleCodes } from "../schedules";
 
 interface QueueRow {
@@ -161,18 +162,19 @@ export default function DispensaryWorklist({
     );
   }
 
-  if (!data) {
-    return (
-      <aside className="wl">
-        <div className="wl-head"><span>Worklist</span></div>
-        <div className="wl-skeleton" aria-hidden="true">
-          {Array.from({ length: 6 }).map((_, i) => <span key={i} />)}
-        </div>
-      </aside>
-    );
-  }
-
-  const { counts } = data;
+  /* SCOPED LOADING.
+   *
+   * There was a branch here that returned the rail with the word Worklist and
+   * six grey bars. So on arrival there was no refresh button, no Waiting tile,
+   * no Queue tab: the reader was shown a panel that did not say what it was
+   * for, and then a different panel. None of that furniture is fetched. The
+   * three tiles are labelled in this file and they are also the panel's
+   * filters, so withholding them withheld controls as well as words.
+   *
+   * The frame is unconditional now and `counts` is read through `data?`, so
+   * the labels and the tabs are there from the first frame and only the
+   * figures pulse. */
+  const counts = data?.counts;
 
   return (
     <aside className="wl">
@@ -195,21 +197,21 @@ export default function DispensaryWorklist({
           className={`wl-stat${panel === "queue" ? " is-on" : ""}`}
           onClick={() => setPanel("queue")}
         >
-          <b>{counts.waiting}</b>
+          <b><Figure ready={!!counts} w="3ch">{counts?.waiting}</Figure></b>
           <span>Waiting</span>
         </button>
         <button
-          className={`wl-stat${panel === "queue" ? "" : ""}${counts.time_critical ? " is-urgent" : ""}`}
+          className={`wl-stat${panel === "queue" ? "" : ""}${counts?.time_critical ? " is-urgent" : ""}`}
           onClick={() => setPanel("queue")}
         >
-          <b>{counts.time_critical}</b>
+          <b><Figure ready={!!counts} w="3ch">{counts?.time_critical}</Figure></b>
           <span>Time-Critical</span>
         </button>
         <button
-          className={`wl-stat${panel === "due" ? " is-on" : ""}${counts.overdue_repeats ? " is-urgent" : ""}`}
+          className={`wl-stat${panel === "due" ? " is-on" : ""}${counts?.overdue_repeats ? " is-urgent" : ""}`}
           onClick={() => setPanel("due")}
         >
-          <b>{counts.overdue_repeats}</b>
+          <b><Figure ready={!!counts} w="3ch">{counts?.overdue_repeats}</Figure></b>
           <span>Overdue</span>
         </button>
       </div>
@@ -219,20 +221,26 @@ export default function DispensaryWorklist({
           keeping them apart lets the number stay legible when the rail is
           narrow enough to clip the word. */}
       <div className="wl-tabs">
-        {([["queue", "Queue", counts.waiting],
-           ["chronics", "Chronic", data.chronics.length],
+        {/* The four names are written here and the four counts are not, so the
+            names are drawn and the counts wait. A tab whose word is a grey bar
+            is a tab nobody can decide to press. */}
+        {([["queue", "Queue", counts?.waiting],
+           ["chronics", "Chronic", data?.chronics.length],
            // The whole repeat book, not the page of it that was sent.
-           ["due", "Due", counts.due ?? data.reminders.length],
-           ["drafts", DRAFT_SCRIPT_PLURAL, drafts.length]] as [Panel, string, number][])
+           ["due", "Due", counts ? counts.due ?? data?.reminders.length : undefined],
+           ["drafts", DRAFT_SCRIPT_PLURAL, drafts.length]] as
+             [Panel, string, number | undefined][])
           .map(([key, label, n]) => (
           <button
             key={key}
             className={panel === key ? "on" : ""}
             onClick={() => setPanel(key)}
-            title={`${label}: ${n}`}
+            title={n === undefined ? label : `${label}: ${n}`}
           >
             <span>{label}</span>
-            <span className="wl-tab-n">{n}</span>
+            <span className="wl-tab-n">
+              <Figure ready={n !== undefined} w="2ch">{n}</Figure>
+            </span>
           </button>
         ))}
       </div>
@@ -279,8 +287,17 @@ export default function DispensaryWorklist({
 
       {panel === "queue" && (
         <div className="wl-list">
-          {data.queue.length === 0 && <p className="wl-empty">Nothing waiting to be dispensed.</p>}
-          {data.queue.map((row) => (
+          {/* The rail's shape while the queue is on its way. Rows are the one
+              genuinely fetched thing in this panel, so rows are what pulse,
+              at the count the rail usually holds. */}
+          {!data && Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-${i}`} className="wl-row wl-row-ghost" aria-hidden="true">
+              <Block w="62%" h={13} />
+              <Block w="40%" h={11} />
+            </div>
+          ))}
+          {data && data.queue.length === 0 && <p className="wl-empty">Nothing waiting to be dispensed.</p>}
+          {data?.queue.map((row) => (
             // One wrapper per line: the row opens the script, and the cancel
             // control beside it cannot live inside it — a button inside a
             // button is not allowed, and the click would open the script too.
@@ -337,14 +354,14 @@ export default function DispensaryWorklist({
               <button type="button" className="wl-row-cancel"
                       title={`Cancel ${row.rx_number}`}
                       aria-label={`Cancel ${row.rx_number} for ${row.patient}`}
-                      onClick={() => onCancel(row, data.queue.filter(
+                      onClick={() => onCancel(row, data!.queue.filter(
                         (q) => q.prescription_id === row.prescription_id).length)}>
                 <XCircle size={16} />
               </button>
             )}
             </div>
           ))}
-          {counts.showing < counts.waiting && (
+          {counts && counts.showing < counts.waiting && (
             // Said plainly. A list that quietly shows 200 of 258 is the same
             // lie as a total that reports its own cap.
             <p className="wl-empty">
@@ -356,8 +373,17 @@ export default function DispensaryWorklist({
 
       {panel === "chronics" && (
         <div className="wl-list">
-          {data.chronics.length === 0 && <p className="wl-empty">No chronic patients on file.</p>}
-          {data.chronics.map((row) => (
+          {/* The rail's shape while the queue is on its way. Rows are the one
+              genuinely fetched thing in this panel, so rows are what pulse,
+              at the count the rail usually holds. */}
+          {!data && Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-${i}`} className="wl-row wl-row-ghost" aria-hidden="true">
+              <Block w="62%" h={13} />
+              <Block w="40%" h={11} />
+            </div>
+          ))}
+          {data && data.chronics.length === 0 && <p className="wl-empty">No chronic patients on file.</p>}
+          {data?.chronics.map((row) => (
             <div key={row.patient_id} className={`wl-row wl-state-${row.state.replace(/\s+/g, "-")}`}>
               <span className="wl-row-top">
                 <span className="wl-patient">{row.patient}</span>
@@ -381,7 +407,16 @@ export default function DispensaryWorklist({
 
       {panel === "due" && (
         <div className="wl-list">
-          {data.reminders.length === 0 && (
+          {/* The rail's shape while the queue is on its way. Rows are the one
+              genuinely fetched thing in this panel, so rows are what pulse,
+              at the count the rail usually holds. */}
+          {!data && Array.from({ length: 6 }).map((_, i) => (
+            <div key={`sk-${i}`} className="wl-row wl-row-ghost" aria-hidden="true">
+              <Block w="62%" h={13} />
+              <Block w="40%" h={11} />
+            </div>
+          ))}
+          {data && data.reminders.length === 0 && (
             <p className="wl-empty">No repeats due in the next fortnight.</p>
           )}
           {/* A button, like every other row in this rail. These were <div>s: the
@@ -390,7 +425,7 @@ export default function DispensaryWorklist({
               patient by hand. Clicking now loads the line into the form, where
               the checking pharmacist's initials are captured, which is why the
               old shortcut button could never have worked. */}
-          {data.reminders.map((row, i) => (
+          {data?.reminders.map((row, i) => (
             <button
               key={`${row.patient_id}-${i}`}
               className={`wl-row${row.overdue ? " wl-band-1" : ""}`}
