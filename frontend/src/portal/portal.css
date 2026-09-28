@@ -703,10 +703,79 @@ html, body, #root { margin: 0; min-height: 100%; }
   display: flex; align-items: center; justify-content: space-between;
   gap: var(--pp-3);
 }
-.pp .dp-drop { padding: 0; overflow: hidden; }
-/* A controlled medicine gets an edge, because the identity check is the one
-   thing on this screen a driver cannot make good afterwards. */
-.pp .dp-drop.is-id { border-left: 3px solid var(--pp-warn); }
+/* No `overflow: hidden`. It was here to clip the head button's corners back
+   when the head was a button; the head is a plain block now and clips nothing.
+   Leaving it cost the thing below: an ancestor that clips becomes the
+   containing block for `position: sticky`, so the two decisions declared
+   sticky to the foot of the scrolling region stuck to a card that does not
+   scroll, which is to say they did not stick at all. */
+.pp .dp-drop { padding: 0; }
+/* The coloured edge a controlled drop used to carry is gone with the rest of
+   the slabs. The identity check is still the one thing on this screen a driver
+   cannot make good afterwards, and it is said where it is read: a warning
+   block, in words, above the box they have to type the number into. */
+
+/* WHERE THE DOOR IS.
+   The address is the largest thing on a driver's screen because finding the
+   door is the job; the name is who to ask for once they are there. It used to
+   be the other way round, with the address as grey sub-text under a name. */
+.pp .dp-where {
+  display: grid; gap: var(--pp-1);
+  padding: var(--pp-4) var(--pp-4) var(--pp-3);
+  border-bottom: 1px solid var(--pp-line);
+}
+.pp .dp-where-n {
+  font-size: var(--pp-t-sm); font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--pp-faint);
+}
+.pp .dp-addr {
+  font-size: 1.35rem; line-height: 1.25; font-weight: 700;
+  color: var(--pp-ink); letter-spacing: -0.015em;
+}
+.pp .dp-who { font-size: var(--pp-t); color: var(--pp-mid); }
+.pp .dp-collect {
+  justify-self: start; margin-top: var(--pp-2);
+  padding: 6px var(--pp-3); border-radius: var(--pp-r-pill);
+  background: var(--pp-warn-bg); color: var(--pp-warn);
+  font-size: var(--pp-t-sm); font-weight: 700;
+}
+
+/* A stop in the round. Numbered, because a round is a sequence and "which one
+   is this" is the question a driver asks the list. */
+.pp .dp-stop {
+  width: 100%; display: flex; align-items: center; gap: var(--pp-3);
+  min-height: var(--pp-tap); padding: var(--pp-3) 0;
+  background: none; border: 0; border-bottom: 1px solid var(--pp-line);
+  border-radius: 0; text-align: left; cursor: pointer;
+  color: var(--pp-ink); font: inherit;
+}
+.pp .dp-stop:last-child { border-bottom: 0; }
+.pp .dp-stop-n {
+  flex: none; display: grid; place-items: center;
+  width: 26px; height: 26px; border-radius: var(--pp-r-pill);
+  background: var(--pp-canvas); border: 1px solid var(--pp-line);
+  font-size: 0.8rem; font-weight: 700; color: var(--pp-mid);
+}
+.pp .dp-stop.on .dp-stop-n {
+  background: var(--pp-brand); border-color: var(--pp-brand); color: #fff;
+}
+.pp .dp-stop-said { display: grid; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.pp .dp-stop-said b { font-size: var(--pp-t); overflow-wrap: anywhere; }
+.pp .dp-stop-said .pp-muted { font-size: var(--pp-t-sm); }
+.pp .dp-stop .pp-pill { flex: none; }
+
+/* What they are carrying, on the bar. Red once it is over the limit, because
+   past that the shop wants them back before the next door. */
+.pp .dp-purse-chip {
+  flex: none; margin-left: auto;
+  padding: 5px var(--pp-3); border-radius: var(--pp-r-pill);
+  background: var(--pp-canvas); border: 1px solid var(--pp-line);
+  font-size: var(--pp-t-sm); font-weight: 700; color: var(--pp-mid);
+}
+.pp .dp-purse-chip.over {
+  background: var(--pp-warn-bg); border-color: var(--pp-warn-bg);
+  color: var(--pp-warn);
+}
 .pp .dp-head {
   width: 100%; min-height: var(--pp-tap);
   display: flex; align-items: center; justify-content: space-between;
@@ -732,7 +801,24 @@ html, body, #root { margin: 0; min-height: 100%; }
 
 /* ---------- the signature ----------
    The first place in this product where anybody signs anything. */
-.pp .dp-sign { margin: var(--pp-4) 0; }
+/* The two decisions, on the glass. Sticky to the foot of the scrolling
+   region rather than sitting at the end of the form: a driver is at a door
+   with a bag in one hand, and the answer to "what happened" should never be
+   somewhere they have to go looking for. The ground is opaque so the form
+   scrolls under it rather than showing through. */
+.pp .dp-decide {
+  position: sticky; bottom: 0; z-index: 2;
+  display: grid; gap: var(--pp-2);
+  margin: var(--pp-4) calc(var(--pp-4) * -1) calc(var(--pp-4) * -1);
+  padding: var(--pp-3) var(--pp-4) var(--pp-4);
+  background: var(--pp-card);
+  border-top: 1px solid var(--pp-line);
+}
+/* Clearance under the signature pad, so the sticky decisions never cover the
+   thing somebody is trying to sign. The bar is the last child of the form, so
+   at the bottom of the scroll it settles inline and this space is what keeps
+   the pad — and the identity field above it — fully on the glass. */
+.pp .dp-sign { margin: var(--pp-4) 0 calc(var(--pp-7) + var(--pp-5)); }
 .pp .dp-sign > .pp-label { display: block; margin-bottom: var(--pp-2); }
 /* The way out sits under the pad, not beside the label: side by side it
    squeezed "Ask them to sign here" onto two lines the moment it appeared. */

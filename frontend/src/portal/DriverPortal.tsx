@@ -24,8 +24,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import { apiBase } from "../api";
-import PortalShell, { PortalDoor, PortalGone, PortalLoading, useBrand,
-  usePortalPass } from "./PortalShell";
+import { PortalApp, PortalBy, PortalDoor, PortalGone, PortalLoading,
+  PortalMark, PortalNav, PortalNone, useBrand, usePortalPass } from "./PortalShell";
 import SignaturePad from "./SignaturePad";
 import "./portal.css";
 
@@ -64,6 +64,7 @@ export default function DriverPortal() {
   const [error, setError] = useState("");
   const [locked, setLocked] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
+  const [tab, setTab] = useState<"stop" | "round" | "shop">("stop");
 
   const load = useCallback(() => {
     fetch(`${apiBase}/api/portal/driver/${token}`, { headers: gate.headers })
@@ -96,65 +97,183 @@ export default function DriverPortal() {
   }
   if (!run) return <PortalLoading brand={brand} />;
 
+  /* The stop being worked on, and the rest of the round. A driver is standing
+     at one door: that door is the screen, and the round is a tap away. The
+     list used to be the screen, with every stop's card stacked down 1,751px of
+     page and the two buttons that close a delivery at the bottom of the open
+     one — under the signature pad, which is the tallest thing on it. */
+  const stop = run.drops.find((d) => d.id === open) ?? run.drops[0] ?? null;
+  const done = run.done_today;
+  const left = run.drops.length;
+
+  const tabs = [
+    { key: "stop" as const, label: "This stop", icon: <IconDoor />,
+      badge: stop && stop.to_collect > 0 ? undefined : undefined },
+    { key: "round" as const, label: "The round", icon: <IconList />,
+      badge: left },
+    { key: "shop" as const, label: "Pharmacy", icon: <IconShop /> },
+  ];
+
   return (
-    <PortalShell
-      brand={brand}
-      title={run.driver}
-      sub={run.says}
-      foot={"Every delivery you close here is signed for at the door and "
-            + "stamped with the time. Ring the pharmacy if anything looks wrong."}
+    <PortalApp
+      bar={
+        <>
+          <PortalMark brand={brand} small />
+          <span className="pp-appbar-said">
+            <b className="pp-appbar-shop">{run.driver}</b>
+            <span className="pp-appbar-who">{run.says}</span>
+          </span>
+          {/* What they are carrying, on the bar rather than on a card that
+              scrolls away. It is the one number the shop and the driver argue
+              about at the end of a round, and a driver who can see it coming
+              can head back before the limit. */}
+          {run.holding > 0 && (
+            <span className={`dp-purse-chip${
+              run.cod_limit > 0 && run.holding > run.cod_limit ? " over" : ""}`}>
+              {money(run.holding)}
+            </span>
+          )}
+        </>
+      }
+      nav={<PortalNav tabs={tabs} tab={tab} setTab={setTab} />}
     >
       {error && <p className="pp-error">{error}</p>}
 
-      {/* The money in their pocket, shown because it is the one number the
-          shop and the driver argue about at the end of a round, and because
-          a driver who can see it coming can head back before the limit. */}
-      {(run.holding > 0 || run.cod_limit > 0) && (
-        <section className="pp-card dp-purse">
-          <div>
-            <span className="pp-muted">You are carrying</span>
-            <b className="pp-big">{money(run.holding)}</b>
-          </div>
-          {run.cod_limit > 0 && (
-            <span className={`pp-pill ${run.holding > run.cod_limit
-              ? "pp-pill-warn" : ""}`}>
-              {run.holding > run.cod_limit
-                ? `Over your ${money(run.cod_limit)} limit`
-                : `Limit ${money(run.cod_limit)}`}
-            </span>
-          )}
-        </section>
+      {tab === "stop" && (
+        !stop ? (
+          <section className="pp-card">
+            <PortalNone
+              mark={<IconDoor />}
+              said="Nothing out with you"
+              next="When the pharmacy sends something out with you it appears
+                    here, with the address and who to hand it to."
+            />
+          </section>
+        ) : (
+          <DropCard
+            key={stop.id}
+            token={token}
+            drop={stop}
+            headers={gate.headers}
+            position={`${done + 1} of ${done + left}`}
+            onDone={() => { setOpen(null); load(); }}
+          />
+        )
       )}
 
-      {run.drops.length === 0 ? (
-        <div className="pp-card pp-centre">
-          <b>Nothing to deliver</b>
-          <p className="pp-muted">
-            When the pharmacy sends something out with you it will appear here.
-          </p>
-        </div>
-      ) : (
-        run.drops.map((drop) => (
-          <DropCard
-            key={drop.id}
-            token={token}
-            drop={drop}
-            headers={gate.headers}
-            open={open === drop.id}
-            onToggle={() => setOpen(open === drop.id ? null : drop.id)}
-            onDone={load}
-          />
-        ))
+      {tab === "round" && (
+        <>
+          <section className="pp-card pp-sec">
+            <h2>
+              Still to go
+              {left > 0 && <span className="pp-sec-n">{left}</span>}
+            </h2>
+            <div className="pp-sec-body">
+              {left === 0 ? (
+                <PortalNone
+                  mark={<IconList />}
+                  said={done > 0 ? "That is the round" : "Nothing out with you"}
+                  next={done > 0
+                    ? `${done} delivered today. Take the money back to the shop.`
+                    : "The pharmacy will send you a message when there is."}
+                />
+              ) : run.drops.map((d, i) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  className={`dp-stop${d.id === stop?.id ? " on" : ""}`}
+                  onClick={() => { setOpen(d.id); setTab("stop"); }}
+                >
+                  <span className="dp-stop-n">{done + i + 1}</span>
+                  <span className="dp-stop-said">
+                    <b>{d.recipient || d.waybill_number}</b>
+                    <span className="pp-muted">{d.address || "No address given"}</span>
+                  </span>
+                  {d.to_collect > 0 && (
+                    <span className="pp-pill pp-pill-warn">{money(d.to_collect)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {done > 0 && (
+            <section className="pp-card pp-sec">
+              <h2>
+                Done today
+                <span className="pp-sec-n">{done}</span>
+              </h2>
+              <div className="pp-sec-body">
+                <p className="pp-muted" style={{ marginTop: 0 }}>
+                  Each one is signed for at the door and stamped with the time.
+                </p>
+              </div>
+            </section>
+          )}
+        </>
       )}
-    </PortalShell>
+
+      {tab === "shop" && (
+        <>
+          <section className="pp-card pp-shopcard">
+            <PortalMark brand={brand} />
+            <h1 className="pp-shopname-lg">{brand?.name || "The pharmacy"}</h1>
+            {brand && brand.address.length > 0 && (
+              <p className="pp-shopline">{brand.address.join(", ")}</p>
+            )}
+          </section>
+          <div className="pp-acts">
+            {brand?.phone && (
+              <a className="pp-act" href={`tel:${brand.phone.replace(/\s+/g, "")}`}>
+                <IconPhone />
+                <span>
+                  Ring the pharmacy
+                  <span className="pp-act-said">{brand.phone}</span>
+                </span>
+                <span className="pp-act-go" aria-hidden="true"><IconGo /></span>
+              </a>
+            )}
+            {brand && brand.address.length > 0 && (
+              <a
+                className="pp-act"
+                target="_blank"
+                rel="noreferrer"
+                href={`https://www.google.com/maps/search/?api=1&query=${
+                  encodeURIComponent([brand.name, ...brand.address].join(", "))}`}
+              >
+                <IconPin />
+                <span>
+                  Back to the shop
+                  <span className="pp-act-said">{brand.address.join(", ")}</span>
+                </span>
+                <span className="pp-act-go" aria-hidden="true"><IconGo /></span>
+              </a>
+            )}
+          </div>
+          <p className="pp-shopline" style={{ marginTop: "var(--pp-5)",
+                                              textAlign: "center" }}>
+            Every delivery you close here is signed for at the door and stamped
+            with the time. Ring the pharmacy if anything looks wrong.
+          </p>
+          <PortalBy />
+        </>
+      )}
+    </PortalApp>
   );
 }
 
-function DropCard({ token, drop, open, onToggle, onDone, headers }: {
+/** The one door they are standing at.
+ *
+ *  It used to be a card in a list, collapsed behind a header somebody had to
+ *  tap, with every other stop stacked under it. A driver is at ONE door: that
+ *  door is the screen. The round is its own tab, and choosing a stop there
+ *  brings it here.
+ */
+function DropCard({ token, drop, position, onDone, headers }: {
   token: string;
   drop: Drop;
-  open: boolean;
-  onToggle: () => void;
+  /** "3 of 6" — where this door sits in the afternoon. */
+  position: string;
   onDone: () => void;
   headers?: Record<string, string>;
 }) {
@@ -191,21 +310,23 @@ function DropCard({ token, drop, open, onToggle, onDone, headers }: {
   }
 
   return (
-    <section className={`pp-card dp-drop${drop.requires_id_check ? " is-id" : ""}`}>
-      <button type="button" className="dp-head" onClick={onToggle}
-              aria-expanded={open}>
-        <span className="dp-head-main">
-          <b>{drop.recipient || drop.waybill_number}</b>
-          <span className="pp-muted">{drop.address || "No address given"}</span>
+    <section className="pp-card dp-drop">
+      {/* The address, set as the largest thing on the screen, because finding
+          the door is the job. The name is who to ask for once they are there. */}
+      <div className="dp-where">
+        <span className="dp-where-n">{position}</span>
+        <b className="dp-addr">{drop.address || "No address given"}</b>
+        <span className="dp-who">
+          {drop.recipient || drop.waybill_number}
         </span>
         {drop.to_collect > 0 && (
-          <span className="pp-pill pp-pill-warn">
+          <span className="dp-collect">
             Collect {money(drop.to_collect)}
           </span>
         )}
-      </button>
+      </div>
 
-      {open && (
+      {(
         <>
           {/* Tappable, because the next thing a driver does at a gate nobody
               answers is ring the number. */}
@@ -249,13 +370,15 @@ function DropCard({ token, drop, open, onToggle, onDone, headers }: {
                        onChange={(e) => setReason(e.target.value)}
                        placeholder="Nobody home, gate locked, wrong address" />
               </label>
-              <button disabled={busy || !reason.trim()}>
-                {busy ? "Saving…" : "Save and move on"}
-              </button>
-              <button type="button" className="pp-ghost" disabled={busy}
-                      onClick={() => setFailing(false)}>
-                Back
-              </button>
+              <div className="dp-decide">
+                <button disabled={busy || !reason.trim()}>
+                  {busy ? "Saving…" : "Save and move on"}
+                </button>
+                <button type="button" className="pp-ghost" disabled={busy}
+                        onClick={() => setFailing(false)}>
+                  Back
+                </button>
+              </div>
             </form>
           ) : (
             <form onSubmit={(e) => {
@@ -284,20 +407,85 @@ function DropCard({ token, drop, open, onToggle, onDone, headers }: {
 
               <SignaturePad onChange={setSignature} />
 
-              <button disabled={busy || !who.trim()}>
-                {busy ? "Saving…"
-                  : drop.to_collect > 0
-                    ? `Delivered, ${money(drop.to_collect)} collected`
-                    : "Delivered"}
-              </button>
-              <button type="button" className="pp-ghost" disabled={busy}
-                      onClick={() => setFailing(true)}>
-                Could not deliver this one
-              </button>
+              {/* THE TWO DECISIONS DO NOT SCROLL AWAY.
+                  Measured at a door on a 390x844 phone: "Delivered" sat at
+                  924px and "Could not deliver" at 974px — both off the bottom
+                  of the screen, under the signature pad, which is the tallest
+                  thing on the form. A driver holding a bag in one hand had to
+                  scroll past a signature box to say what happened. They stay
+                  on the glass now, above the navigation. */}
+              <div className="dp-decide">
+                <button disabled={busy || !who.trim()}>
+                  {busy ? "Saving…"
+                    : drop.to_collect > 0
+                      ? `Delivered, ${money(drop.to_collect)} collected`
+                      : "Delivered"}
+                </button>
+                <button type="button" className="pp-ghost" disabled={busy}
+                        onClick={() => setFailing(true)}>
+                  Could not deliver this one
+                </button>
+              </div>
             </form>
           )}
         </>
       )}
     </section>
+  );
+}
+
+/* The marks. Drawn here rather than imported, for the same reason the
+   patient's are: a driver's phone should not download the staff application's
+   icon set to close a delivery. */
+const svg = {
+  width: 24, height: 24, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round" as const, strokeLinejoin: "round" as const,
+};
+function IconDoor() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M5 21V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v17" />
+      <path d="M3 21h18" /><circle cx="13" cy="12" r="1" />
+    </svg>
+  );
+}
+function IconList() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M8 6h12M8 12h12M8 18h12" />
+      <circle cx="4" cy="6" r="1" /><circle cx="4" cy="12" r="1" />
+      <circle cx="4" cy="18" r="1" />
+    </svg>
+  );
+}
+function IconShop() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M4 9h16v11H4z" /><path d="M3 9l1.6-4.5h14.8L21 9" />
+      <path d="M10 20v-5h4v5" />
+    </svg>
+  );
+}
+function IconPhone() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M6 3h3l2 5-2.5 1.5a12 12 0 0 0 6 6L16 13l5 2v3a2 2 0 0 1-2.2 2A17 17 0 0 1 4 5.2 2 2 0 0 1 6 3z" />
+    </svg>
+  );
+}
+function IconPin() {
+  return (
+    <svg {...svg} aria-hidden="true">
+      <path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </svg>
+  );
+}
+function IconGo() {
+  return (
+    <svg {...svg} width={18} height={18} aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
   );
 }
